@@ -45,6 +45,9 @@ class TelegramApplication(Application):
     def _get_url(self, app_config):
         return 'https://api.telegram.org/bot'
 
+    def _get_public_url(self, app_config):
+        return 'https://api.telegram.org/bot'
+
     def _get_team_name(self, app_config):
         return None
 
@@ -57,11 +60,8 @@ class TelegramApplication(Application):
     def _format_text_link(self, text, url):
         return f'[{text}]({url})'
 
-    def _format_text_italic(self, text):
+    def format_text_italic(self, text):
         return f'_{text}_'
-
-    def _format_text_citation(self, text):
-        return f'>{text}'
 
     def _format_tg_icon(self, icon):
         return f'![{self.icon_map.get(icon)}](tg://emoji?id={icon})'
@@ -224,6 +224,9 @@ class TelegramApplication(Application):
             sleep(self.post_delay)
         except requests.exceptions.RequestException as e:
             logger.error(f'Failed to update thread: {e}')
+
+    def _markdown_links_to_native_format(self, text):
+        return text
 
     def _get_users(self, users):
         return users
