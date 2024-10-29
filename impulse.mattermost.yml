@@ -1,68 +1,16 @@
-url: http://localhost:5000 ### IMPulse url where Mattermost will send button events
+# Configuration details:   https://docs.impulse.bot/latest/config_file/
+# Examples:                https://docs.impulse.bot/latest/config_examples/
 
-
-# timeouts:
-#   firing: 6h ### After this time Incident status will change from "firing" to "unknown" if no new alerts appear
-#   unknown: 6h ### After this time Incident status will change from "resolved" to "closed" if no new alerts appear
-#   resolved: 12h ### After this time Incident status will change from "resolved" to "closed" if no new alerts appear
-
+url: https://<your_impulse_domain>.com
 
 route:
-  channel: space ### default Mattermost channel for Incidents
-  # chain: warning ### default chain which will be used in default Mattermost channel
-  # routes:
-  # - matchers:
-  #   - severity="warning"
-  #   channel: warning
-  #   chain: warning
-  # - matchers:
-  #   - team="space"
-  #   - instance =~ "localhost.*"
-  #   channel: space
-  #   chain: firing_team
-  #   routes:
-  #   - matchers:
-  #     - severity="critical"
-  #     channel: space
-  #     chain: firing_team_critical
-  # - matchers:
-  #   - team="infrastructure"
-  #   channel: infrastructure
-  #   chain: infra
+  channel: incidents-default
 
-
-application: ### instant messaging app configuration
+application:
   url: https://<your_mattermost_domain>.com
   team: test
-  type: mattermost ### 'slack' or 'mattermost'
-  admin_users: ### IMPulse administrators will be notified when any warnings
+  type: mattermost
+  admin_users:
   - Dmitry
-  users: ### Mattermost's users with their actual Full Names
+  users:
     Dmitry: {username: "ditsi"}
-  # chains: ### chains used to describe notifications order
-  #   firing_team:
-  #   - user: Dmitry
-  #   - wait: 10m
-  #   - user: Dmitry
-  #   warning:
-  #   - user_group: devops_squad
-  #   - wait: 5m
-  #   - webhook: Alex_call
-  # user_groups: ### user groups used to notify multiple users with one message
-  #   devops_squad:
-  #     users:
-  #     - Dmitry
-  # template_files:
-  #   status_icons: ./templates/mattermost_status_icons.j2
-  #   header: ./templates/mattermost_header.j2
-  #   body: ./templates/mattermost_body.j2
-
-
-# webhooks: ### custom object to create POST requests from 'application.chains'
-#   Alex_call:
-#     url: "https://api.twilio.com/2010-04-01/Accounts/{{ env['TWILIO_ACCOUNT_SID'] }}/Calls.json"
-#     data:
-#       To: '+998xxxxxxxxx'
-#       From: "{{ env['TWILIO_NUMBER'] }}"
-#       Url: http://example.com/twiml.xml
-#     user: "{{ env['TWILIO_ACCOUNT_SID'] }}:{{ env['TWILIO_AUTH_TOKEN'] }}"

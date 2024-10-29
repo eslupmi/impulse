@@ -23,10 +23,10 @@ class Incident:
     status: str
     channel_id: str
     config: IncidentConfig
+    status_update_datetime: datetime
     chain: List[Dict] = field(default_factory=list)
     chain_enabled: bool = False
     status_enabled: bool = False
-    status_update_datetime: Optional[datetime] = None
     updated: datetime = datetime.utcnow()
     version: str = INCIDENT_ACTUAL_VERSION
     uuid: str = field(init=False)
@@ -69,17 +69,7 @@ class Incident:
 
     def recreate_chain(self, chain=None):
         self.chain = []
-        if not chain or not chain.steps:
-            return
-
-        dt = datetime.utcnow()
-        for index, step in enumerate(chain.steps):
-            type_, value = next(iter(step.items()))
-            if type_ == 'wait':
-                dt += unix_sleep_to_timedelta(value)
-            else:
-                self.chain_put(index=index, datetime_=dt, type_=type_, identifier=value)
-        self.dump()
+        self.generate_chain(chain)
 
     def get_chain(self) -> List[Dict]:
         if not self.chain_enabled:
@@ -156,8 +146,8 @@ class Incident:
     def update_status(self, status: str) -> bool:
         now = datetime.utcnow()
         self.updated = now
-        self.status_update_datetime = (
-                now + unix_sleep_to_timedelta(timeouts.get(status))) if status != 'closed' else None
+        if status != 'closed':
+            self.status_update_datetime = now + unix_sleep_to_timedelta(timeouts.get(status))
         if self.status != status:
             self.set_status(status)
             self.dump()

@@ -105,6 +105,8 @@ notification_webhook = """
 {#--#}{%- else -%}
 {#-  -#}{%- if fields.result == 'ok' -%}
 {#-     #} ({% if fields.response < 400 %}{{ fields.response }}{% else %}<https://docs.impulse.bot/latest/warnings/ResponseCode/|{{ fields.response }}>{% endif %})
+{#-  -#}{%- elif fields.result == 'Timeout' -%}
+{#      #} (<https://docs.impulse.bot/latest/warnings/TimeoutError/|TimeoutError>)  |  :loudspeaker: admins ({%- for a in fields.admins %}<@{{ a }}>{% if not loop.last %},{% endif %}{% endfor -%})
 {#-  -#}{%- else -%}
 {#      #} (<https://docs.impulse.bot/latest/warnings/ConnectionError/|ConnectionError>)  |  :loudspeaker: admins ({%- for a in fields.admins %}<@{{ a }}>{% if not loop.last %},{% endif %}{% endfor -%})
 {#-  -#}{%- endif -%}
@@ -116,6 +118,8 @@ notification_webhook = """
 {#--#}{%- else -%}
 {#-  -#}{%- if fields.result == 'ok' -%}
 {#-     #} ({% if fields.response < 400 %}{{ fields.response }}{% else %}[{{ fields.response }}](https://docs.impulse.bot/latest/warnings/ResponseCode/){% endif %})
+{#-  -#}{%- elif fields.result == 'Timeout' -%}
+{#      #} ([TimeoutError](https://docs.impulse.bot/latest/warnings/TimeoutError/))  |  :bell: admins ({%- for a in fields.admins %}@{{ a }}{% if not loop.last %},{% endif %}{% endfor -%})
 {#-  -#}{%- else -%}
 {#      #} ([ConnectionError](https://docs.impulse.bot/latest/warnings/ConnectionError/))  |  :bell: admins ({%- for a in fields.admins %}@{{ a }}{% if not loop.last %},{% endif %}{% endfor -%})
 {#-  -#}{%- endif -%}

@@ -5,6 +5,7 @@ from jinja2 import Template
 from requests.auth import HTTPBasicAuth
 
 from app.incident.incident import Incident
+from app.logging import logger
 
 
 class Webhook:
@@ -14,24 +15,29 @@ class Webhook:
         self._auth = auth
 
     def push(self, incident: Incident = None):
+        rendered_data = self._render_data(incident)
+        auth = self._get_auth() if self._auth else None
+
+        try:
+            response = requests.post(url=self._url, data=rendered_data, auth=auth, timeout=5.0)
+        except requests.exceptions.Timeout:
+            return 'Timeout', None
+        except requests.exceptions.ConnectionError:
+            return 'ConnectionError', None
+
+        return 'ok', response.status_code
+
+    def _render_data(self, incident: Incident = None):
         rendered_data = dict()
         if self._pre_render_data:
             serialized_incident = incident.serialize() if incident else dict()
             for key, value in self._pre_render_data.items():
                 rendered_data[key] = self.render(value, incident=serialized_incident)
-        if self._auth is not None:
-            u, p = self._auth.split(':')
-            auth = HTTPBasicAuth(self.render(u), self.render(p))
-            try:
-                response = requests.post(url=self._url, data=rendered_data, auth=auth, timeout=5.0)
-            except requests.exceptions.ConnectionError:
-                return f'ConnectionError', None
-        else:
-            try:
-                response = requests.post(url=self._url, data=rendered_data, timeout=5.0)
-            except requests.exceptions.ConnectionError:
-                return f'ConnectionError', None
-        return 'ok', response.status_code
+        return rendered_data
+
+    def _get_auth(self):
+        u, p = self._auth.split(':')
+        return HTTPBasicAuth(self.render(u), self.render(p))
 
     @staticmethod
     def render(custom_string, **kwargs):

@@ -15,7 +15,7 @@ class StatusUpdateHandler(BaseHandler):
         )
 
         if incident.status == 'closed':
-            self.incidents.del_by_uuid(uuid_)
             self.queue.delete_by_id(uuid_)
+            self.incidents.del_by_uuid(uuid_)
         elif incident.status == 'unknown':
             self.queue.update(uuid_, incident.status_update_datetime, incident.status)

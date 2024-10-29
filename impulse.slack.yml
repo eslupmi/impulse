@@ -1,63 +1,12 @@
-# timeouts:
-#   firing: 6h ### After this time Incident status will change from "firing" to "unknown" if no new alerts appear
-#   unknown: 6h ### After this time Incident status will change from "resolved" to "closed" if no new alerts appear
-#   resolved: 12h ### After this time Incident status will change from "resolved" to "closed" if no new alerts appear
-
+# Configuration details:   https://docs.impulse.bot/latest/config_file/
+# Examples:                https://docs.impulse.bot/latest/config_examples/
 
 route:
-  channel: space ### default Slack channel for Incidents
-  # chain: warning ### default chain which will be used in default Slack channel
-  # routes:
-  # - matchers:
-  #   - severity="warning"
-  #   channel: warning
-  #   chain: warning
-  # - matchers:
-  #   - team="space"
-  #   - instance =~ "localhost.*"
-  #   channel: space
-  #   chain: firing_team
-  #   routes:
-  #   - matchers:
-  #     - severity="critical"
-  #     channel: space
-  #     chain: firing_team_critical
-  # - matchers:
-  #   - team="infrastructure"
-  #   channel: infrastructure
-  #   chain: infra
+  channel: incidents-default
 
-
-application: ### instant messaging app configuration
-  type: slack ### 'slack' or 'mattermost'
-  admin_users: ### IMPulse administrators will be notified when any warnings
+application:
+  type: slack
+  admin_users:
   - Dmitry
-  users: ### Slack users with their actual Full Names
+  users:
     Dmitry: {full_name: "Dmitry Tsybus"}
-  # chains: ### chains used to describe notifications order
-  #   firing_team:
-  #   - user: Dmitry
-  #   - wait: 10m
-  #   - user: Dmitry
-  #   warning:
-  #   - user_group: devops_squad
-  #   - wait: 5m
-  #   - webhook: Alex_call
-  # user_groups: ### user groups used to notify multiple users with one message
-  #   devops_squad:
-  #     users:
-  #     - Dmitry
-  # template_files:
-  #   status_icons: ./templates/slack_status_icons.j2
-  #   header: ./templates/slack_header.j2
-  #   body: ./templates/slack_body.j2
-
-
-# webhooks: ### custom object to create POST requests from 'application.chains'
-#   Alex_call:
-#     url: "https://api.twilio.com/2010-04-01/Accounts/{{ env['TWILIO_ACCOUNT_SID'] }}/Calls.json"
-#     data:
-#       To: '+998xxxxxxxxx'
-#       From: "{{ env['TWILIO_NUMBER'] }}"
-#       Url: http://example.com/twiml.xml
-#     user: "{{ env['TWILIO_ACCOUNT_SID'] }}:{{ env['TWILIO_AUTH_TOKEN'] }}"

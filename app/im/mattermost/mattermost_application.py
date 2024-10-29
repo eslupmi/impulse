@@ -159,6 +159,8 @@ class MattermostApplication(Application):
     def buttons_handler(self, payload, incidents, queue_):
         post_id = payload['post_id']
         incident_ = incidents.get_by_ts(ts=post_id)
+        if incident_ is None:
+            return payload, 200
         action = payload['context']['action']
         if action == 'chain':
             if incident_.chain_enabled:

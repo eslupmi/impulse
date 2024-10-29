@@ -160,6 +160,8 @@ class SlackApplication(Application):
 
         incident_ = incidents.get_by_ts(ts=payload['message_ts'])
         original_message = payload.get('original_message')
+        if incident_ is None:
+            return original_message, 200
         actions = payload.get('actions')
 
         for action in actions:
