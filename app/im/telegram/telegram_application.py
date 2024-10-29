@@ -94,6 +94,13 @@ class TelegramApplication(Application):
         post_id = callback['message']['message_thread_id']
         thread_id = f'{post_id}/{message_id}'
         incident_ = incidents.get_by_ts(ts=thread_id)
+        if incident_ is None:
+            self.http.post(
+                f'{self.url}/answerCallbackQuery',
+                data=json.dumps({'callback_query_id': callback['id']}),
+                headers=self.headers
+            )
+            return jsonify({}), 200
         action = callback['data']
         if action in ['start_chain', 'stop_chain']:
             if action == 'stop_chain':

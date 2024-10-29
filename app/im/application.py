@@ -136,7 +136,7 @@ class Application(ABC):
         response = requests.post(self.post_message_url, headers=self.headers, data=json.dumps(payload))
         sleep(self.post_delay)
         response_json = response.json()
-        return response_json.get('result', {}).get(self.thread_id_key)
+        return response_json.get(self.thread_id_key)
 
     def update_thread(self, channel_id, id_, status, body, header, status_icons, chain_enabled=True,
                       status_enabled=True):
