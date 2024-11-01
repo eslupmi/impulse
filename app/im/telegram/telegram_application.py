@@ -11,13 +11,13 @@ from app.logging import logger
 from config import telegram_bot_token, impulse_url
 
 
-# Temporary Firing: 🔥, Unknown: ❓, Resolved: ✅, Closed: 🆒
+# Temporary Firing: 🔥, Unknown: ❗️, Resolved: ✅, Closed: 🏁
 class TelegramApplication(Application):
     icon_map = { #!!
         '5312241539987020022': '🔥',
-        '5377316857231450742': '❓',
+        '5379748062124056162': '❗️',
         '5237699328843200968': '✅',
-        '5420216386448270341': '🆒'
+        '5408906741125490282': '🏁'
     }
 
     def __init__(self, app_config, channels, users):
@@ -86,6 +86,12 @@ class TelegramApplication(Application):
         message_id = self._send_create_thread(payload)
         return f'{topic_id}/{message_id}'
 
+    def _send_create_thread(self, payload):
+        response = self.http.post(self.post_message_url, headers=self.headers, data=json.dumps(payload))
+        sleep(self.post_delay)
+        response_json = response.json()
+        return response_json.get('result', {}).get(self.thread_id_key)
+
     def buttons_handler(self, payload, incidents, queue_):
         if 'callback_query' not in payload:
             return jsonify({}), 200
@@ -128,7 +134,7 @@ class TelegramApplication(Application):
                     ]
                 }
             }),
-
+            headers=self.headers
         )
         self.http.post(
             f'{self.url}/answerCallbackQuery',
