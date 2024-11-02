@@ -9,7 +9,8 @@ from app.im.exceptions import UserGenerationError
 from app.im.mattermost.config import (mattermost_headers, mattermost_request_delay, mattermost_bold_text,
                                       mattermost_env, mattermost_admins_template_string)
 from app.im.mattermost.teams import get_team
-from app.im.mattermost.threads import mattermost_get_create_thread_payload, mattermost_get_update_payload
+from app.im.mattermost.threads import mattermost_get_create_thread_payload, mattermost_get_update_payload, \
+    mattermost_get_button_update_payload
 from app.im.mattermost.user import User
 from app.logging import logger
 
@@ -154,6 +155,37 @@ class MattermostApplication(Application):
         response = self.http.post(f'{self.url}/api/v4/posts', headers=self.headers, data=json.dumps(payload))
         sleep(self.post_delay)
         return response.json().get('ts')
+
+    def buttons_handler(self, payload, incidents, queue_):
+        post_id = payload['post_id']
+        incident_ = incidents.get_by_ts(ts=post_id)
+        if incident_ is None:
+            return payload, 200
+        action = payload['context']['action']
+        if action == 'chain':
+            if incident_.chain_enabled:
+                incident_.chain_enabled = False
+                queue_.delete_by_id(incident_.uuid, delete_steps=True, delete_status=False)
+            else:
+                incident_.chain_enabled = True
+                queue_.recreate(incident_.uuid, incident_.chain)
+        elif action == 'status':
+            if incident_.status_enabled:
+                incident_.status_enabled = False
+            else:
+                incident_.status_enabled = True
+        incident_.dump()
+        status_icons = self.status_icons_template.form_message(incident_.last_state, incident_)
+        header = self.header_template.form_message(incident_.last_state, incident_)
+        message = self.body_template.form_message(incident_.last_state, incident_)
+        payload = mattermost_get_button_update_payload(
+            message,
+            header,
+            status_icons,
+            incident_.status,
+            incident_.chain_enabled,
+            incident_.status_enabled)
+        return payload, 200
 
     def _create_thread_payload(self, channel_id, body, header, status_icons, status):
         return mattermost_get_create_thread_payload(channel_id, body, header, status_icons, status)

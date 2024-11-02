@@ -5,7 +5,6 @@ from datetime import datetime
 from apscheduler.schedulers.background import BackgroundScheduler
 from flask import request, Flask, redirect, url_for
 
-from app import buttons_handler
 from app.im.helpers import get_application
 from app.incident.incidents import Incidents
 from app.logging import logger
@@ -14,7 +13,6 @@ from app.queue.queue import Queue
 from app.route import generate_route
 from app.webhook import generate_webhooks
 from config import settings, check_updates
-
 
 app = Flask(__name__)
 route_dict = settings.get('route')
@@ -71,7 +69,7 @@ def route_app_buttons():
         payload = json.loads(request.form['payload'])
     else:
         payload = request.json
-    return buttons_handler(application, payload, incidents, queue)
+    return application.buttons_handler(payload, incidents, queue)
 
 
 @app.route('/incidents', methods=['GET'])

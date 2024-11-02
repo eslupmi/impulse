@@ -130,10 +130,13 @@ class Application(ABC):
 
     def create_thread(self, channel_id, body, header, status_icons, status):
         payload = self._create_thread_payload(channel_id, body, header, status_icons, status)
+        return self._send_create_thread(payload)
+
+    def _send_create_thread(self, payload):
         response = requests.post(self.post_message_url, headers=self.headers, data=json.dumps(payload))
         sleep(self.post_delay)
         response_json = response.json()
-        return response_json[self.thread_id_key]
+        return response_json.get(self.thread_id_key)
 
     def update_thread(self, channel_id, id_, status, body, header, status_icons, chain_enabled=True,
                       status_enabled=True):
@@ -165,6 +168,10 @@ class Application(ABC):
         http = requests.Session()
         http.mount("https://", adapter)
         return http
+
+    @abstractmethod
+    def buttons_handler(self, payload, incidents, queue_):
+        pass
 
     @abstractmethod
     def _initialize_specific_params(self):
