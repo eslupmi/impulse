@@ -55,11 +55,16 @@ class Incident:
             return f'{self.config.application_url}/{self.config.application_team.lower()}/pl/{self.ts}'
 
     def generate_chain(self, chain=None):
-        if not chain or not chain.steps:
+        if not chain:
+            return
+
+        steps = chain.steps
+
+        if not steps:
             return
 
         dt = datetime.utcnow()
-        for index, step in enumerate(chain.steps):
+        for index, step in enumerate(steps):
             type_, value = next(iter(step.items()))
             if type_ == 'wait':
                 dt += unix_sleep_to_timedelta(value)

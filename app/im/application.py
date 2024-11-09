@@ -6,7 +6,7 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3 import Retry
 
-from app.im.chain import generate_chains
+from app.im.chain_factory import ChainFactory
 from app.im.groups import generate_user_groups
 from app.im.template import JinjaTemplate, notification_user, notification_user_group, update_status
 from app.logging import logger
@@ -20,7 +20,7 @@ class Application(ABC):
         self.url = self.get_url(app_config)
         self.public_url = self._get_public_url(app_config)
         self.team = self.get_team_name(app_config)
-        self.chains = generate_chains(app_config.get('chains', dict()))
+        self.chains = ChainFactory.generate(app_config.get('chains', dict()))
         self.templates = app_config.get('template_files', dict())
         self.body_template, self.header_template, self.status_icons_template = self.generate_template()
 
