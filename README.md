@@ -1,6 +1,6 @@
 # IMPulse
 
-![](https://docs.impulse.bot/latest/media/slack_tile.png)
+![](https://docs.impulse.bot/latest/media/preview.png)
 
 Software for managing incidents in messengers based on [Alertmanager's](https://prometheus.io/docs/alerting/latest/alertmanager/) alerts
 
@@ -9,6 +9,7 @@ Software for managing incidents in messengers based on [Alertmanager's](https://
 - Twilio and another integrations using [webhooks](https://docs.impulse.bot/latest/config_file/#webhooks-examples)
 - [Incident lifecycle](https://docs.impulse.bot/latest/concepts/#lifecycle) reduces incidents chaos
 - Flexible [message structure](https://docs.impulse.bot/latest/concepts/#structure) you can modify
+- Duty shedule ([docs](https://docs.impulse.bot/latest/config_file/#schedule-chain))
 
 ## Documentation
 See [https://docs.impulse.bot](https://docs.impulse.bot)
