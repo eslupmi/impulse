@@ -7,6 +7,7 @@ import yaml
 from app.incident.helpers import gen_uuid
 from app.time import unix_sleep_to_timedelta
 from app.tools import NoAliasDumper
+from app.utils import get_attr_by_key_chain
 from config import incidents_path, incident, INCIDENT_ACTUAL_VERSION
 
 
@@ -153,6 +154,9 @@ class Incident:
             "link": self.link,
             "ts": self.ts,
         }
+
+    def get_table_data(self, params) -> Dict:
+        return {key: get_attr_by_key_chain({'incident': self, 'payload': self.status}, None, *value.split('.')) for key, value in params.items()}
 
     def update_status(self, status: str) -> bool:
         now = datetime.utcnow()

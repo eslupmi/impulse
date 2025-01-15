@@ -3,7 +3,8 @@ import logging
 from datetime import datetime
 
 from apscheduler.schedulers.background import BackgroundScheduler
-from flask import request, Flask, redirect, url_for
+from flask import request, Flask, redirect, url_for, render_template, jsonify
+from flask_socketio import SocketIO
 
 from app import buttons_handler
 from app.im.channels import check_channels
@@ -13,11 +14,15 @@ from app.logging import logger
 from app.queue.manager import QueueManager
 from app.queue.queue import Queue
 from app.route import generate_route
+from app.ui.incident_websocket import IncidentWS
+from app.ui.table_config import get_incident_table_config
 from app.webhook import generate_webhooks
 from config import settings, check_updates, application
 
 
 app = Flask(__name__)
+socketio = SocketIO(app)
+incident_ws = IncidentWS(socketio)
 route_dict = settings.get('route')
 webhooks_dict = settings.get('webhooks')
 
@@ -80,6 +85,26 @@ def route_incidents_get():
     return incidents.serialize(), 200
 
 
+@app.route('/table_config', methods=['GET'])
+def get_table_config():
+    return jsonify(get_incident_table_config())
+
+
+@app.route('/ui', methods=['GET'])
+def ui():
+    return render_template('index.html')
+
+
+@socketio.on('request_data')
+def send_data():
+    incident_ws.get_full_table(incidents)
+
+
+def broadcast_updates():
+    incident_ws.get_full_table(incidents)
+
+scheduler.add_job(func=broadcast_updates, trigger="interval", seconds=1)
+
 if __name__ == '__main__':
     app = create_app()
-    app.run(host='0.0.0.0', port=5000)
+    socketio.run(app, host='0.0.0.0', port=5000, allow_unsafe_werkzeug=True)

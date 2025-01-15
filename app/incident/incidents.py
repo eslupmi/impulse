@@ -35,6 +35,9 @@ class Incidents:
     def serialize(self) -> Dict[str, Dict]:
         return {str(uuid_): incident.serialize() for uuid_, incident in self.by_uuid.items()}
 
+    def get_table(self, params):
+        return [incident.get_table_data(params) for incident in self.by_uuid.values()]
+
     @classmethod
     def create_or_load(cls, application_type, application_url, application_team):
         # Ensure the incidents directory exists or create it
