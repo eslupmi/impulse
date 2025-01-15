@@ -8,3 +8,4 @@ gunicorn~=23.0.0
 urllib3~=1.26.15
 PyJWT[crypto]~=2.10.1
 asyncio~=3.4.3
+flask-socketio~=5.5.0

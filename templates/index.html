@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flask Table</title>
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.10.0/dist/cdn.min.js"></script>
+    <script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tabulator-tables@5.5.2/dist/js/tabulator.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/tabulator-tables@5.5.2/dist/css/tabulator.min.css" rel="stylesheet">
+</head>
+<body>
+<div id="table-wrapper">
+    <input id="filter-input" type="text" placeholder='Enter filters (e.g., status="firing")'>
+    <div id="data-table"></div>
+</div>
+
+<script>
+    const socket = io.connect(location.origin);
+
+    const formatterMap = {
+        "timestamp": function (cell) {
+            const timestamp = cell.getValue();
+            debugger;
+            return formatTimestamp(timestamp);
+        }
+    };
+
+    function formatTimestamp(unixTimestamp) {
+        const date = new Date(unixTimestamp * 1000); // Multiply by 1000 to convert seconds to milliseconds
+        const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        return date.toLocaleString("en-US", {timeZone: userTimezone});
+    }
+
+    const sorterMap = {
+        "timestamp": function (a, b, aRow, bRow, column, dir, sorterParams) {
+            const aTimestamp = aRow.getData().updated;
+            const bTimestamp = bRow.getData().updated;
+            return aTimestamp - bTimestamp;
+        }
+    };
+
+    // Initialize Tabulator table
+    const table = new Tabulator("#data-table", {
+        layout: "fitData",
+    });
+
+    fetch('/table_config')
+        .then(response => response.json())
+        .then(config => {
+            const columns = config.map(column => ({
+                title: column.title,
+                field: column.field,
+                sorter: sorterMap[column.field] || "string",
+                formatter: formatterMap[column.field] || undefined,
+            }));
+
+            table.setColumns(columns);
+        });
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const filters = urlParams.get('filters');
+    if (filters) {
+        table.setFilter(filters.split(',').map(f => {
+            const [field, operator, value] = f.split('=');
+            return {field, type: operator, value};
+        }));
+    }
+
+    table.on("cellClick", (e, cell) => {
+        const field = cell.getColumn().getField();
+        const value = cell.getValue();
+        const newFilter = `${field}="${value}"`;
+        const existingFilters = urlParams.get('filters') || '';
+        const updatedFilters = existingFilters ? `${existingFilters},${newFilter}` : newFilter;
+        urlParams.set('filters', updatedFilters);
+        window.history.replaceState({}, '', `?${urlParams.toString()}`);
+        table.setFilter(field, "=", value);
+    });
+
+    document.getElementById("filter-input").addEventListener("change", function () {
+        const query = this.value;
+        const [field, operator, value] = query.split(/(=|>|<|!=|like)/);
+        table.setFilter(field.trim(), operator.trim(), value.trim());
+        const filters = urlParams.get('filters') || '';
+        urlParams.set('filters', filters ? `${filters},${query}` : query);
+        window.history.replaceState({}, '', `?${urlParams.toString()}`);
+    });
+
+    socket.on("add_row", (rowData) => {
+        table.addRow(rowData);
+    });
+
+    socket.on("update_row", (rowData) => {
+        table.updateOrAddData([rowData]);
+    });
+
+    socket.on("update_data", (data) => {
+        table.setData(data);
+    });
+
+    // Request data from server
+    socket.emit("request_data");
+</script>
+</body>
+</html>
