@@ -14,6 +14,4 @@ docker-compose.yml
 # DOCS
 docs/env
 docs/venv
-docs/telegram.md
-docs/media/*.excalidraw
-docs/media/*.xcf
+docs/content/telegram.md
