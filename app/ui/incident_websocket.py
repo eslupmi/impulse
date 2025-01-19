@@ -1,4 +1,3 @@
-from app.incident.incidents import Incidents
 from config import ui_config
 from threading import Lock
 
@@ -19,13 +18,25 @@ class IncidentWS:
             self.table_config = ui_config
             self._initialized = True
 
-    def update_row(self, row_data):
+    @classmethod
+    def get_instance(cls):
+        return cls._instance
+
+    def update_row(self, incident):
+        row_data = incident.get_table_data(self._get_values())
         self.socketio.emit('update_row', row_data)
 
-    def add_row(self, row_data):
+    def add_row(self, incident):
+        row_data = incident.get_table_data(self._get_values())
         self.socketio.emit('add_row', row_data)
 
-    def get_full_table(self, incidents: Incidents):
-        values_to_get = {field['name']: field['object'] for field in self.table_config['labels']}
-        data = incidents.get_table(values_to_get)
+    def remove_row(self, incident):
+        row_data = incident.get_table_data(self._get_values())
+        self.socketio.emit('remove_row', row_data)
+
+    def get_full_table(self, incidents):
+        data = incidents.get_table(self._get_values())
         self.socketio.emit('update_data', data)
+
+    def _get_values(self):
+        return {field['name']: field['value'] for field in self.table_config['columns']}
