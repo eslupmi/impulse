@@ -17,7 +17,7 @@ Incident is a messege representation of alert with actual status.
 ### Structure
 Starting from [`v1.0.0`](https://github.com/DiTsi/impulse/releases/tag/v1.0.0) incident messages have such structure:
 
-<p align="center"><img src="../media/incident_message_structure.png" alt="" width="400"/></p>
+<p align="center"><img src="../media/impulse_message_structure.excalidraw.svg" alt="" width="600"/></p>
 
 Default templates for `status icons`, `header` and `body` are [here](https://github.com/DiTsi/impulse/tree/main/templates).
 
