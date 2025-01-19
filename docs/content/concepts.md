@@ -70,11 +70,11 @@ There are two ways how the Incident can be closed:
 
 IMPulse creates an Incident with **firing** status and is  tracking it till the Incident status will become **closed**. 
 
-Here you can see the whole lifecicle of an Incident:
+Here you can see the whole lifecycle of an Incident:
 
 ![None](media/incident_behavior.excalidraw.svg)
 
-You can see all the options for each status and notifications:
+Or individually for all statuses:
 
 ![None](media/incident_firing.excalidraw.svg)
 
