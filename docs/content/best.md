@@ -13,5 +13,5 @@ To close issues quickly you should create documentation about your alerts. To ap
 
 IMPulse will show you runbook link like this:
 
-<p align="center"><img src="../media/slack_firing.png" alt="" width="400"/></p>
+<p align="center"><img src="../media/slack_firing.excalidraw.svg" alt="" width="400"/></p>
 

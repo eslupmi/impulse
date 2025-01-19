@@ -8,7 +8,7 @@ IMPulse gets alerts from Alertmanager and sends them to your messenger's channel
 
 Alertmanager sends alerts with one of two statuses: **firing** and **resolved**. Of course, first status is always **firing** when problem occurs. Based on these statuses IMPulse creates Incidents.
 
-<p align="center"><img src="../media/slack_firing.png" alt="" width="400"/></p>
+<p align="center"><img src="../media/slack_firing.excalidraw.svg" alt="" width="400"/></p>
 
 ## Incident
 
@@ -30,13 +30,13 @@ Unlike of Alertmanager alerts, IMPulse Incidents may have 4 statuses: **firing**
 
 #### firing and resolved
 
-<img src="../media/slack_firing.png" alt="" width="320"/> <img src="../media/slack_resolved.png" alt="" width="320"/>
+<img src="../media/slack_firing.excalidraw.svg" alt="" width="400"/> <img src="../media/slack_resolved.excalidraw.svg" alt="" width="400"/>
 
 Incident changes status to **firing** and **resolved** based on Alertmanager's alerts statuses are sent to IMPulse.
 
 #### unknown
 
-<p align="center"><img src="../media/slack_unknown.png" alt="" width="400"/></p>
+<p align="center"><img src="../media/slack_unknown.excalidraw.svg" alt="" width="400"/></p>
 
 IMPulse has additional status to determine incident status actuality.
 
@@ -57,7 +57,7 @@ When Incident becomes **unknown** IMPulse sends warning message to `application.
 
 #### closed
 
-<p align="center"><img src="../media/slack_closed.png" alt="" width="400"/></p>
+<p align="center"><img src="../media/slack_closed.excalidraw.svg" alt="" width="400"/></p>
 
 It is an Incident which hasn't already been tracked by IMPulse. 
 
