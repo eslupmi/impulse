@@ -10,3 +10,10 @@ venv
 impulse*.yml
 data
 docker-compose.yml
+
+# DOCS
+docs/env
+docs/venv
+docs/telegram.md
+docs/media/*.excalidraw
+docs/media/*.xcf

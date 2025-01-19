@@ -1,5 +1,6 @@
 .github
 .gitignore
 data
+docs
 env
 venv

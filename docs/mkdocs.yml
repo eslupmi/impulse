@@ -1,0 +1,41 @@
+site_name: Docs | IMPulse
+docs_dir: content
+theme:
+  # https://www.mkdocs.org/user-guide/choosing-your-theme/#readthedocs
+  name: readthedocs
+  analytics:
+    gtag: G-LL3R99ZZGW
+  navigation_depth: 4
+  titles_only: True
+  include_toc: true 
+
+extra_css:
+  - css/custom.css
+markdown_extensions:
+  - toc:
+      permalink: true
+
+nav:
+- index.md
+- screenshots.md
+- Integrations:
+  - slack.md
+  - mattermost.md
+- IMPulse Server:
+  - installation.md
+  - Configuration:
+    - envs.md
+    - config_file.md
+    - config_examples.md
+  - best.md
+  - upgrade.md
+  - versioning.md
+  - Warnings:
+    - warnings/ConnectionError.md
+    - warnings/NotDefined.md
+    - warnings/NotFound.md
+    - warnings/ResponseCode.md
+    - warnings/StatusUnknown.md
+    - warnings/TimeoutError.md
+- About:
+  - concepts.md
