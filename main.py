@@ -100,10 +100,10 @@ def send_data():
     incident_ws.get_full_table(incidents)
 
 
-def broadcast_updates():
-    incident_ws.get_full_table(incidents)
-
-scheduler.add_job(func=broadcast_updates, trigger="interval", seconds=1)
+# def broadcast_updates():
+#     incident_ws.get_full_table(incidents)
+#
+# scheduler.add_job(func=broadcast_updates, trigger="interval", seconds=1)
 
 if __name__ == '__main__':
     app = create_app()

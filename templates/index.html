@@ -19,11 +19,11 @@
     const socket = io.connect(location.origin);
 
     const formatterMap = {
-        "timestamp": function (cell) {
+        "datetime": function (cell) {
             const timestamp = cell.getValue();
-            debugger;
             return formatTimestamp(timestamp);
-        }
+        },
+        "link": "link"
     };
 
     function formatTimestamp(unixTimestamp) {
@@ -32,17 +32,32 @@
         return date.toLocaleString("en-US", {timeZone: userTimezone});
     }
 
+    const formatterParamsMap = {
+        "link": {
+            label: function (cell) {
+                debugger
+                return cell.getValue();
+            },
+            urlPrefix: "https://",
+            target: "_blank",
+            url: function (cell) {
+                debugger
+                return cell.url;
+            },
+        },
+    };
+
     const sorterMap = {
-        "timestamp": function (a, b, aRow, bRow, column, dir, sorterParams) {
-            const aTimestamp = aRow.getData().updated;
-            const bTimestamp = bRow.getData().updated;
-            return aTimestamp - bTimestamp;
-        }
+        "datetime": function (a, b, aRow, bRow, column, dir, sorterParams) {
+            return a - b;
+        },
+        "link": undefined,
     };
 
     // Initialize Tabulator table
     const table = new Tabulator("#data-table", {
         layout: "fitData",
+        index: "uuid",
     });
 
     fetch('/table_config')
@@ -51,8 +66,8 @@
             const columns = config.map(column => ({
                 title: column.title,
                 field: column.field,
-                sorter: sorterMap[column.field] || "string",
-                formatter: formatterMap[column.field] || undefined,
+                sorter: sorterMap[column.type] || "string",
+                formatter: formatterMap[column.type] || undefined,
             }));
 
             table.setColumns(columns);
@@ -87,19 +102,29 @@
         window.history.replaceState({}, '', `?${urlParams.toString()}`);
     });
 
+    // Handle WebSocket Events
     socket.on("add_row", (rowData) => {
         table.addRow(rowData);
+        table.setSort(table.getSorters());
     });
 
     socket.on("update_row", (rowData) => {
         table.updateOrAddData([rowData]);
+        table.setSort(table.getSorters());
+    });
+
+    socket.on("remove_row", (rowData) => {
+        const rows = table.searchRows('uuid', '=', rowData.uuid);
+        rows.forEach(row => row.delete());
     });
 
     socket.on("update_data", (data) => {
+        // Set the entire table data
         table.setData(data);
+        table.setSort(table.getSorters());
     });
 
-    // Request data from server
+    // Request the initial table data
     socket.emit("request_data");
 </script>
 </body>

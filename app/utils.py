@@ -1,3 +1,7 @@
+import uuid
+from datetime import datetime
+
+
 def get_attr_by_key_chain(obj, default=None, *keys):
     """
     Traverse a chain of keys or attributes to fetch a value from an object or dictionary.
@@ -19,3 +23,15 @@ def get_attr_by_key_chain(obj, default=None, *keys):
         except (KeyError, AttributeError, TypeError):
             return default
     return obj
+
+def normalize_param(param):
+    """
+    Normalize a parameter to a timestamp if it is a datetime object.
+    :param param:
+    :return:
+    """
+
+    if isinstance(param, datetime):
+        return param.timestamp()
+    else:
+        return param

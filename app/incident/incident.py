@@ -7,7 +7,8 @@ import yaml
 from app.incident.helpers import gen_uuid
 from app.time import unix_sleep_to_timedelta
 from app.tools import NoAliasDumper
-from app.utils import get_attr_by_key_chain
+from app.ui.incident_websocket import IncidentWS
+from app.utils import get_attr_by_key_chain, normalize_param
 from config import incidents_path, incident, INCIDENT_ACTUAL_VERSION
 
 
@@ -138,6 +139,7 @@ class Incident:
         }
         with open(f'{incidents_path}/{self.uuid}.yml', 'w') as f:
             yaml.dump(data, f, NoAliasDumper, default_flow_style=False)
+        IncidentWS.get_instance().update_row(self)
 
     def serialize(self) -> Dict:
         return {
@@ -156,7 +158,14 @@ class Incident:
         }
 
     def get_table_data(self, params) -> Dict:
-        return {key: get_attr_by_key_chain({'incident': self, 'payload': self.status}, None, *value.split('.')) for key, value in params.items()}
+        data = {
+            'uuid': str(self.uuid)
+        }
+        data_object = {'incident': self, 'payload': self.last_state}
+        for key, value in params.items():
+            param = get_attr_by_key_chain(data_object, None, *value.split('.'))
+            data[key] = normalize_param(param)
+        return data
 
     def update_status(self, status: str) -> bool:
         now = datetime.utcnow()
