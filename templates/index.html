@@ -73,6 +73,28 @@
             table.setColumns(columns);
         });
 
+    fetch('/table_sorting')
+        .then(response => response.json())
+        .then(sorters => {
+            const tableSorting = [];
+            sorters.forEach(sorter => {
+                const rule = {
+                    column: sorter.column,
+                    dir: sorter.direction | "asc",
+                };
+                if (sorter.order) {
+                    rule.sorter = function (a, b, aRow, bRow, column, dir, sorterParams) {
+                        const order = sorter.order;
+                        const indexA = order.indexOf(a) !== -1 ? order.indexOf(a) : order.length;
+                        const indexB = order.indexOf(b) !== -1 ? order.indexOf(b) : order.length;
+                        return indexA - indexB;
+                    };
+                }
+                tableSorting.push(rule);
+            });
+            table.setSort(tableSorting);
+        });
+
     const urlParams = new URLSearchParams(window.location.search);
     const filters = urlParams.get('filters');
     if (filters) {
