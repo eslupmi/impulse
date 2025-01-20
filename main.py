@@ -15,7 +15,7 @@ from app.queue.manager import QueueManager
 from app.queue.queue import Queue
 from app.route import generate_route
 from app.ui.incident_websocket import IncidentWS
-from app.ui.table_config import get_incident_table_config
+from app.ui.table_config import get_incident_table_config, get_incident_table_sorting
 from app.webhook import generate_webhooks
 from config import settings, check_updates, application
 
@@ -88,6 +88,11 @@ def route_incidents_get():
 @app.route('/table_config', methods=['GET'])
 def get_table_config():
     return jsonify(get_incident_table_config())
+
+
+@app.route('/table_sorting', methods=['GET'])
+def get_table_sorting():
+    return jsonify(get_incident_table_sorting())
 
 
 @app.route('/ui', methods=['GET'])
