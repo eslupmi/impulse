@@ -7,7 +7,7 @@
 2. Go to Menu (dots 3x3) > Integarations > Bot Accounts:
     - press the button "Add Bot Account"
     - type "impulse" to **Username**
-    - you can set [our icon](media/logo.png) as **Bot Icon**
+    - you can set [our icon](https://github.com/eslupmi/site/blob/main/static/logo.png?raw=true) as **Bot Icon**
     - type "IMPulse" to **Display Name**
     - set **Role** to "System Admin"
     - press the button "Create Bot Account"

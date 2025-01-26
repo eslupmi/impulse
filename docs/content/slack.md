@@ -38,7 +38,7 @@
     - in **App Credentials** subsection:
         - use "Verification Token" as ENV `SLACK_VERIFICATION_TOKEN` (use in 2.3 [here](installation.md#23-impulse))
     - in **Display Information** subsection:
-        - you can set [our logo](media/logo.png) as **App icon**
+        - you can set [our logo](https://github.com/eslupmi/site/blob/main/static/logo.png?raw=true) as **App icon**
 
 ### Configure channels
 

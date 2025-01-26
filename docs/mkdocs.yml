@@ -17,7 +17,6 @@ markdown_extensions:
 
 nav:
 - index.md
-- screenshots.md
 - Integrations:
   - slack.md
   - mattermost.md
