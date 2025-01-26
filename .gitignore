@@ -10,3 +10,8 @@ venv
 impulse*.yml
 data
 docker-compose.yml
+
+# DOCS
+docs/env
+docs/venv
+docs/content/telegram.md

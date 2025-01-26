@@ -1,6 +1,6 @@
 # IMPulse
 
-![](https://docs.impulse.bot/latest/media/preview.png)
+![](https://github.com/eslupmi/site/blob/main/static/preview.png?raw=true)
 
 Software for managing incidents in messengers based on [Alertmanager's](https://prometheus.io/docs/alerting/latest/alertmanager/) alerts
 
@@ -20,16 +20,19 @@ See [https://docs.impulse.bot](https://docs.impulse.bot)
 ### Run
 
 1. Use [instructions](https://docs.impulse.bot/latest/slack) to create and configure bot
+
 2. Create directories
     ```bash
     mkdir impulse impulse/config impulse/data
     cd impulse
     ```
+
 3. Get docker-compose.yml and config
     ```bash
     wget -O docker-compose.yml https://raw.githubusercontent.com/eslupmi/impulse/main/examples/docker-compose.yml
     wget -O config/impulse.yml https://raw.githubusercontent.com/eslupmi/impulse/main/examples/impulse.slack.yml
     ```
+
 4. Modify `config/impulse.yml` with actual data
 
 5. Replace `<release_tag>` in `docker-compose.yml` with latest tag from [here](https://github.com/eslupmi/impulse/releases) and set environment variables `SLACK_BOT_USER_OAUTH_TOKEN` and `SLACK_VERIFICATION_TOKEN`
