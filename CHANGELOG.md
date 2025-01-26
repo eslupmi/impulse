@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.2.0
+Changes:
+- Docs moved to this repo
+
 ## v2.1.0
 Changes:
 - Added schedule chain ([docs](https://docs.impulse.bot/latest/config_file/#schedule-chain))
