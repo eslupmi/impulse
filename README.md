@@ -1,8 +1,10 @@
-# IMPulse
+<h1 align="center" style="border-bottom: none">
+    <a href="https://impulse.bot" target="_blank"><img alt="Prometheus" src="logo.svg" width="50"></a> IMPulse
+</h1>
 
-![](https://github.com/eslupmi/site/blob/main/static/preview.png?raw=true)
+Software for managing incidents in messengers based on [Alertmanager's](https://prometheus.io/docs/alerting/latest/alertmanager/) alerts.
 
-Software for managing incidents in messengers based on [Alertmanager's](https://prometheus.io/docs/alerting/latest/alertmanager/) alerts
+See [documentation](https://docs.impulse.bot).
 
 ## Features
 - Slack, Mattermost integrations
@@ -11,13 +13,9 @@ Software for managing incidents in messengers based on [Alertmanager's](https://
 - Flexible [message structure](https://docs.impulse.bot/latest/concepts/#structure) you can modify
 - Duty shedule ([docs](https://docs.impulse.bot/latest/config_file/#schedule-chain))
 
-## Documentation
-See [https://docs.impulse.bot](https://docs.impulse.bot)
-
 ## Quick Start
-*Docker installation example for Slack*
 
-### Run
+*Docker installation example for Slack*
 
 1. Use [instructions](https://docs.impulse.bot/latest/slack) to create and configure bot
 
@@ -42,10 +40,10 @@ See [https://docs.impulse.bot](https://docs.impulse.bot)
     docker-compose up
     ```
 
-### Test
+7. Test
 
-To ensure IMPulse works fine send test alert:
+    To ensure IMPulse works fine send test alert:
 
-```bash
-curl -XPOST -H "Content-Type: application/json" http://localhost:5000/ -d '{"receiver":"webhook-alerts","status":"firing","alerts":[{"status":"firing","labels":{"alertname":"InstanceDown4","instance":"localhost:9100","job":"node","severity":"warning"},"annotations":{"summary":"Instanceunavailable"},"startsAt":"2024-07-28T19:26:43.604Z","endsAt":"0001-01-01T00:00:00Z","generatorURL":"http://eva:9090/graph?g0.expr=up+%3D%3D+0&g0.tab=1","fingerprint":"a7ddb1de342424cb"}],"groupLabels":{"alertname":"InstanceDown"},"commonLabels":{"alertname":"InstanceDown","instance":"localhost:9100","job":"node","severity":"warning"},"commonAnnotations":{"summary":"Instanceunavailable"},"externalURL":"http://eva:9093","version":"4","groupKey":"{}:{alertname=\"InstanceDown\"}","truncatedAlerts":0}'
-```
+    ```bash
+    curl -XPOST -H "Content-Type: application/json" http://localhost:5000/ -d '{"receiver":"webhook-alerts","status":"firing","alerts":[{"status":"firing","labels":{"alertname":"InstanceDown4","instance":"localhost:9100","job":"node","severity":"warning"},"annotations":{"summary":"Instanceunavailable"},"startsAt":"2024-07-28T19:26:43.604Z","endsAt":"0001-01-01T00:00:00Z","generatorURL":"http://eva:9090/graph?g0.expr=up+%3D%3D+0&g0.tab=1","fingerprint":"a7ddb1de342424cb"}],"groupLabels":{"alertname":"InstanceDown"},"commonLabels":{"alertname":"InstanceDown","instance":"localhost:9100","job":"node","severity":"warning"},"commonAnnotations":{"summary":"Instanceunavailable"},"externalURL":"http://eva:9093","version":"4","groupKey":"{}:{alertname=\"InstanceDown\"}","truncatedAlerts":0}'
+    ```
