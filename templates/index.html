@@ -70,30 +70,52 @@
                 formatter: formatterMap[column.type] || undefined,
             }));
 
-            table.setColumns(columns);
+            setSortingFromBackend(columns);
         });
 
-    fetch('/table_sorting')
+    const setSortingFromBackend = (columns) => {
+        fetch('/table_sorting')
         .then(response => response.json())
         .then(sorters => {
             const tableSorting = [];
+
             sorters.forEach(sorter => {
                 const rule = {
                     column: sorter.column,
-                    dir: sorter.direction | "asc",
+                    dir: sorter.direction || "asc",
                 };
+
                 if (sorter.order) {
                     rule.sorter = function (a, b, aRow, bRow, column, dir, sorterParams) {
-                        const order = sorter.order;
+                        const order = sorterParams;
                         const indexA = order.indexOf(a) !== -1 ? order.indexOf(a) : order.length;
                         const indexB = order.indexOf(b) !== -1 ? order.indexOf(b) : order.length;
+                        console.log(`Comparing: ${a} (index: ${indexA}) vs ${b} (index: ${indexB})`);
                         return indexA - indexB;
                     };
+
+                    rule.sorterParams = sorter.order;
                 }
+
                 tableSorting.push(rule);
             });
-            table.setSort(tableSorting);
-        });
+
+            columns.forEach((column, index) => {
+                const columnSorter = tableSorting.find(sorter => sorter.column === column.field);
+                if (columnSorter) {
+                    column.sorter = columnSorter.sorter;
+                    column.sorterParams = columnSorter.sorterParams || undefined;
+                }
+            });
+
+            console.log("Applying Sorting: ", tableSorting);
+
+            // Apply the sorting to the Tabulator table
+            table.setColumns(columns);
+            table.setSort(tableSorting.reverse());
+        })
+        .catch(error => console.error("Sorting config fetch error:", error));
+    }
 
     const urlParams = new URLSearchParams(window.location.search);
     const filters = urlParams.get('filters');
