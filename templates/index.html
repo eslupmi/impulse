@@ -18,158 +18,176 @@
 <script>
     const socket = io.connect(location.origin);
 
+    // Formatters for different column types
     const formatterMap = {
-        "datetime": function (cell) {
-            const timestamp = cell.getValue();
-            return formatTimestamp(timestamp);
-        },
-        "link": "link"
+        "datetime": cell => formatTimestamp(cell.getValue()),
+        "link": "link",
     };
 
     function formatTimestamp(unixTimestamp) {
-        const date = new Date(unixTimestamp * 1000); // Multiply by 1000 to convert seconds to milliseconds
-        const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-        return date.toLocaleString("en-US", {timeZone: userTimezone});
+        const date = new Date(unixTimestamp * 1000);
+        return date.toLocaleString("en-US", {
+            timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+        });
     }
 
+    // Formatter parameters (for links, etc.)
     const formatterParamsMap = {
-        "link": {
-            label: function (cell) {
-                debugger
-                return cell.getValue();
-            },
-            urlPrefix: "https://",
-            target: "_blank",
-            url: function (cell) {
-                debugger
-                return cell.url;
-            },
+        "link": (data) => {
+            return {
+                label: data.label,
+                urlPrefix: "https://",
+                target: "_blank",
+                url: data.url,
+            };
         },
     };
 
+    // Custom sorters
     const sorterMap = {
-        "datetime": function (a, b, aRow, bRow, column, dir, sorterParams) {
-            return a - b;
-        },
+        "datetime": (a, b) => a - b,
         "link": undefined,
     };
 
-    // Initialize Tabulator table
+    // Initialize Tabulator instance
     const table = new Tabulator("#data-table", {
         layout: "fitData",
         index: "uuid",
     });
 
-    fetch('/table_config')
-        .then(response => response.json())
-        .then(config => {
-            const columns = config.map(column => ({
+    // Fetch table configuration and sorting, then initialize the table
+    async function initializeTable() {
+        try {
+            const [configResponse, sortingResponse] = await Promise.all([
+                fetch('/table_config').then(res => res.json()),
+                fetch('/table_sorting').then(res => res.json())
+            ]);
+
+            const columns = configResponse.map(column => ({
                 title: column.title,
                 field: column.field,
-                sorter: sorterMap[column.type] || "string",
+                sorter: column.type in sorterMap ? sorterMap[column.type] : undefined,
                 formatter: formatterMap[column.type] || undefined,
+                formatterParams: column.type in formatterParamsMap ? formatterParamsMap[column.type](column) : undefined,
             }));
 
-            setSortingFromBackend(columns);
+            applySorting(columns, sortingResponse);
+        } catch (error) {
+            console.error("Error initializing table:", error);
+        }
+    }
+
+    // Apply sorting to the Tabulator instance
+    function applySorting(columns, sorters) {
+        const tableSorting = sorters.map(sorter => {
+            const rule = {
+                column: sorter.column,
+                dir: sorter.direction || "asc",
+            };
+
+            if (sorter.order) {
+                rule.sorter = function (a, b, aRow, bRow, column, dir, sorterParams) {
+                    const order = sorterParams;
+                    const indexA = order.indexOf(a) !== -1 ? order.indexOf(a) : order.length;
+                    const indexB = order.indexOf(b) !== -1 ? order.indexOf(b) : order.length;
+                    return indexA - indexB;
+                };
+                rule.sorterParams = sorter.order;
+            }
+
+            return rule;
         });
 
-    const setSortingFromBackend = (columns) => {
-        fetch('/table_sorting')
-        .then(response => response.json())
-        .then(sorters => {
-            const tableSorting = [];
+        columns.forEach(column => {
+            const columnSorter = tableSorting.find(sorter => sorter.column === column.field);
+            if (columnSorter) {
+                column.sorter = columnSorter.sorter;
+                column.sorterParams = columnSorter.sorterParams || undefined;
+            }
+        });
 
-            sorters.forEach(sorter => {
-                const rule = {
-                    column: sorter.column,
-                    dir: sorter.direction || "asc",
-                };
+        console.log("Applying Sorting:", tableSorting);
 
-                if (sorter.order) {
-                    rule.sorter = function (a, b, aRow, bRow, column, dir, sorterParams) {
-                        const order = sorterParams;
-                        const indexA = order.indexOf(a) !== -1 ? order.indexOf(a) : order.length;
-                        const indexB = order.indexOf(b) !== -1 ? order.indexOf(b) : order.length;
-                        console.log(`Comparing: ${a} (index: ${indexA}) vs ${b} (index: ${indexB})`);
-                        return indexA - indexB;
-                    };
-
-                    rule.sorterParams = sorter.order;
-                }
-
-                tableSorting.push(rule);
-            });
-
-            columns.forEach((column, index) => {
-                const columnSorter = tableSorting.find(sorter => sorter.column === column.field);
-                if (columnSorter) {
-                    column.sorter = columnSorter.sorter;
-                    column.sorterParams = columnSorter.sorterParams || undefined;
-                }
-            });
-
-            console.log("Applying Sorting: ", tableSorting);
-
-            // Apply the sorting to the Tabulator table
-            table.setColumns(columns);
-            table.setSort(tableSorting.reverse());
-        })
-        .catch(error => console.error("Sorting config fetch error:", error));
+        table.setColumns(columns);
+        table.setSort(tableSorting.reverse());
     }
 
-    const urlParams = new URLSearchParams(window.location.search);
-    const filters = urlParams.get('filters');
-    if (filters) {
-        table.setFilter(filters.split(',').map(f => {
-            const [field, operator, value] = f.split('=');
-            return {field, type: operator, value};
-        }));
+    // Handle URL filters
+    function applyUrlFilters() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const filters = urlParams.get('filters');
+
+        if (filters) {
+            const parsedFilters = filters.split(',').map(f => {
+                const [field, operator, value] = f.split('=');
+                return {field, type: operator, value};
+            });
+
+            table.setFilter(parsedFilters);
+        }
     }
 
-    table.on("cellClick", (e, cell) => {
-        const field = cell.getColumn().getField();
-        const value = cell.getValue();
-        const newFilter = `${field}="${value}"`;
-        const existingFilters = urlParams.get('filters') || '';
-        const updatedFilters = existingFilters ? `${existingFilters},${newFilter}` : newFilter;
-        urlParams.set('filters', updatedFilters);
-        window.history.replaceState({}, '', `?${urlParams.toString()}`);
-        table.setFilter(field, "=", value);
-    });
+    // Add filtering from table clicks
+    function setupTableFiltering() {
+        table.on("cellClick", (e, cell) => {
+            const field = cell.getColumn().getField();
+            const value = cell.getValue();
+            const newFilter = `${field}="${value}"`;
 
-    document.getElementById("filter-input").addEventListener("change", function () {
-        const query = this.value;
-        const [field, operator, value] = query.split(/(=|>|<|!=|like)/);
-        table.setFilter(field.trim(), operator.trim(), value.trim());
-        const filters = urlParams.get('filters') || '';
-        urlParams.set('filters', filters ? `${filters},${query}` : query);
-        window.history.replaceState({}, '', `?${urlParams.toString()}`);
-    });
+            const urlParams = new URLSearchParams(window.location.search);
+            const existingFilters = urlParams.get('filters') || '';
+            const updatedFilters = existingFilters ? `${existingFilters},${newFilter}` : newFilter;
+
+            urlParams.set('filters', updatedFilters);
+            window.history.replaceState({}, '', `?${urlParams.toString()}`);
+
+            table.setFilter(field, "=", value);
+        });
+
+        document.getElementById("filter-input").addEventListener("change", function () {
+            const query = this.value;
+            const [field, operator, value] = query.split(/(=|>|<|!=|like)/);
+            table.setFilter(field.trim(), operator.trim(), value.trim());
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const existingFilters = urlParams.get('filters') || '';
+            urlParams.set('filters', existingFilters ? `${existingFilters},${query}` : query);
+            window.history.replaceState({}, '', `?${urlParams.toString()}`);
+        });
+    }
 
     // Handle WebSocket Events
-    socket.on("add_row", (rowData) => {
-        table.addRow(rowData);
-        table.setSort(table.getSorters());
-    });
+    function setupWebSocketEvents() {
+        socket.on("add_row", rowData => {
+            table.addRow(rowData);
+            table.setSort(table.getSorters());
+        });
 
-    socket.on("update_row", (rowData) => {
-        table.updateOrAddData([rowData]);
-        table.setSort(table.getSorters());
-    });
+        socket.on("update_row", rowData => {
+            table.updateOrAddData([rowData]);
+            table.setSort(table.getSorters());
+        });
 
-    socket.on("remove_row", (rowData) => {
-        const rows = table.searchRows('uuid', '=', rowData.uuid);
-        rows.forEach(row => row.delete());
-    });
+        socket.on("remove_row", rowData => {
+            const rows = table.searchRows('uuid', '=', rowData.uuid);
+            rows.forEach(row => row.delete());
+        });
 
-    socket.on("update_data", (data) => {
-        // Set the entire table data
-        table.setData(data);
-        table.setSort(table.getSorters());
-    });
+        socket.on("update_data", data => {
+            table.setData(data);
+            table.setSort(table.getSorters());
+        });
 
-    // Request the initial table data
-    socket.emit("request_data");
+        // Request initial data from WebSocket
+        socket.emit("request_data");
+    }
+
+    // **Initialize Everything**
+    initializeTable();
+    applyUrlFilters();
+    setupTableFiltering();
+    setupWebSocketEvents();
+
 </script>
 </body>
 </html>
