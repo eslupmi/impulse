@@ -2,9 +2,9 @@
     <a href="https://impulse.bot" target="_blank"><img alt="Prometheus" src="logo.svg" width="50"></a> IMPulse
 </h1>
 
-<dev align="center">Software for managing incidents in messengers based on Alertmanager's alerts.</dev>
-
 <div align="center"><img src="https://github.com/eslupmi/site/blob/main/static/preview.png?raw=true" width="600"></div>
+
+Software for managing incidents in messengers based on Alertmanager's alerts.
 
 Visit [https://docs.impulse.bot](https://docs.impulse.bot) for the full documentation and examples.
 
