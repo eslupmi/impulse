@@ -1,6 +1,6 @@
-<h1 align="center"><img alt="Prometheus" src="logo.svg" width="50"> IMPulse</h1>
+<h1><img alt="Prometheus" src="logo.svg" width="50"> IMPulse</h1>
 
-<div align="center"><img src="https://github.com/eslupmi/site/blob/main/static/preview.png?raw=true" width="600"></div>
+<div align="center"><img src="https://github.com/eslupmi/site/blob/main/static/preview.png?raw=true" width="700"></div>
 
 Visit [docs.impulse.bot](https://docs.impulse.bot) for the full documentation and examples.
 
