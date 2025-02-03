@@ -4,7 +4,7 @@
 
 <div align="center"><img src="https://github.com/eslupmi/site/blob/main/static/preview.png?raw=true" width="600"></div>
 
-Visit [https://docs.impulse.bot](https://docs.impulse.bot) for the full documentation and examples.
+Visit [docs.impulse.bot](https://docs.impulse.bot) for the full documentation and examples.
 
 ## Features
 - Slack, Mattermost integrations
