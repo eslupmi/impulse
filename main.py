@@ -5,7 +5,6 @@ from datetime import datetime
 from apscheduler.schedulers.background import BackgroundScheduler
 from flask import request, Flask, redirect, url_for
 
-from app import buttons_handler
 from app.im.channels import check_channels
 from app.im.helpers import get_application
 from app.incident.incidents import Incidents
@@ -15,7 +14,6 @@ from app.queue.queue import Queue
 from app.route import generate_route
 from app.webhook import generate_webhooks
 from config import settings, check_updates, application
-
 
 app = Flask(__name__)
 route_dict = settings.get('route')
@@ -72,7 +70,7 @@ def route_app_buttons():
         payload = json.loads(request.form['payload'])
     else:
         payload = request.json
-    return buttons_handler(messenger, payload, incidents, queue, route)
+    return messenger.buttons_handler(payload, incidents, queue, route)
 
 
 @app.route('/incidents', methods=['GET'])

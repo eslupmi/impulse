@@ -7,7 +7,8 @@ from app.im.application import Application
 from app.im.colors import status_colors
 from app.im.mattermost.config import (mattermost_headers, mattermost_request_delay, mattermost_bold_text,
                                       mattermost_env, mattermost_admins_template_string)
-from app.im.mattermost.threads import mattermost_get_create_thread_payload, mattermost_get_update_payload
+from app.im.mattermost.threads import mattermost_get_create_thread_payload, mattermost_get_update_payload, \
+    mattermost_get_button_update_payload
 from app.im.mattermost.user import User
 from app.logging import logger
 
@@ -48,7 +49,8 @@ class MattermostApplication(Application):
         logger.info(f'Get {self.type.capitalize()} team name')
         return app_config['team']
 
-    def get_user_details(self, id_):
+    def get_user_details(self, user_details):
+        id_ = user_details.get('id') if user_details is not None else None
         if id_ is not None:
             response = self.http.get(f'{self.url}/api/v4/users/{id_}?user_id={id_}', headers=self.headers)
             data = response.json()
@@ -103,6 +105,50 @@ class MattermostApplication(Application):
         response = self.http.post(f'{self.url}/api/v4/posts', headers=self.headers, data=json.dumps(payload))
         sleep(self.post_delay)
         return response.json().get('ts')
+
+    def buttons_handler(self, payload, incidents, queue_, route):
+        post_id = payload['post_id']
+        incident_ = incidents.get_by_ts(ts=post_id)
+        if incident_ is None:
+            return payload, 200
+        action = payload['context']['action']
+
+        user_name = payload.get('user_name')
+        user_id = payload.get('user_id')
+
+        if action == 'chain':
+            if incident_.chain_enabled:
+                incident_.assign_user_id(user_id)
+                incident_.assign_user(user_name)
+                incident_.chain_enabled = False
+                queue_.delete_by_id(incident_.uuid, delete_steps=True, delete_status=False)
+            else:
+                queue_.delete_by_id(incident_.uuid, delete_steps=True, delete_status=False)
+                _, chain_name = route.get_route(incident_.last_state)
+                chain = self.chains.get(chain_name)
+                incident_.recreate_chain(chain)
+
+                incident_.assign_user_id("")
+                incident_.assign_user("")
+                incident_.chain_enabled = True
+                queue_.recreate(incident_.status, incident_.uuid, incident_.chain)
+        elif action == 'status':
+            if incident_.status_enabled:
+                incident_.status_enabled = False
+            else:
+                incident_.status_enabled = True
+        incident_.dump()
+        status_icons = self.status_icons_template.form_message(incident_.last_state, incident_)
+        header = self.header_template.form_message(incident_.last_state, incident_)
+        message = self.body_template.form_message(incident_.last_state, incident_)
+        payload = mattermost_get_button_update_payload(
+            message,
+            header,
+            status_icons,
+            incident_.status,
+            incident_.chain_enabled,
+            incident_.status_enabled)
+        return payload, 200
 
     def _create_thread_payload(self, channel_id, body, header, status_icons, status):
         return mattermost_get_create_thread_payload(channel_id, body, header, status_icons, status)

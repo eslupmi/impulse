@@ -1,0 +1,26 @@
+{%- set commonAnnotations = payload.get("commonAnnotations", {}) -%}
+{%- set groupLabels = payload.get("groupLabels", {}) -%}
+{%- set commonLabels = payload.get("commonLabels", {}) -%}
+{%- set alerts = payload.get("alerts", {}) -%}
+{%- if alerts[0].generatorURL %}{% set url = alerts[0].generatorURL %}{% endif -%}
+{%- if commonAnnotations.runbook %}{% set runbook = commonAnnotations.runbook %}{% endif -%}
+{%- if commonAnnotations.summary %}<b>{{ commonAnnotations.summary }}</b>{% endif %}{% if url or runbook %}  |  {% if url %}<a href="{{ url }}">source</a>{% endif %}{% if runbook %}  |  <a href="{{ runbook }}">runbook</a>{% endif %}
+{% endif -%}
+{%- if commonAnnotations.description %}<i>{{ commonAnnotations.description }}</i>
+{% endif -%}
+{%- if alerts | length > 1 %}
+<b>Instances:</b>
+{%- for a in alerts %}
+    {{ a.labels.instance }}{% for l in a.labels.keys() if l != 'alertname' and l != 'instance' and l not in commonLabels.keys() -%}{% if loop.first %}  |  {% endif %}{{l}}=<code>{{ a.labels[l] }}</code>{% if not loop.last %}, {% else %}{% if a.annotations.value %}  |  value=<b>{{ a.annotations.value }}</b>{% endif %}{% endif %}{% endfor %}
+{%- endfor -%}
+{% else -%}
+{%- if alerts[0].labels.instance %}
+<b>Instance:</b> {{ alerts[0].labels.instance }}{% if alerts[0].annotations.value %}  |  value=<b>{{ alerts[0].annotations.value }}</b>{% endif %}
+{% endif -%}
+{% endif -%}
+{%- if commonLabels | length > 0 %}
+<b>Common labels:</b>
+{%- for k, v in commonLabels.items() if k != 'alertname' and k != 'instance' %}
+    {{ k }}=<code>{{ v }}</code>
+{%- endfor -%}
+{% endif -%}
