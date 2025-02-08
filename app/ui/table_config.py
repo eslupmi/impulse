@@ -10,11 +10,27 @@ def get_incident_table_config():
     """
     tabulator_config = []
     for field in ui_config['columns']:
-        tabulator_config.append({
-            'title': field['header'],
-            'field': field['name'],
-            'type': field.get('type'),
-        })
+        field_name = field['name']
+        field_type = field.get('type')
+        if field_type == 'link':
+            tabulator_config.append({
+                'title': field['header'],
+                'field': field_name,
+                'type': field_type,
+                'urlField': f'{field_name}Url',
+            })
+            tabulator_config.append({
+                'title': f'{field["header"]}Url',
+                'field': f'{field_name}Url',
+                'visible': False,
+            })
+        else:
+            tabulator_config.append({
+                'title': field['header'],
+                'field': field_name,
+                'type': field_type,
+            })
+
     return tabulator_config
 
 
