@@ -39,4 +39,11 @@ class IncidentWS:
         self.socketio.emit('update_data', data)
 
     def _get_values(self):
-        return {field['name']: field['value'] for field in self.table_config['columns']}
+        values_map = {}
+        for field in self.table_config['columns']:
+            if field.get('type') == 'link':
+                values_map[field['name']] = field['value']
+                values_map[f'{field["name"]}Url'] = field['url']
+            else:
+                values_map[field['name']] = field['value']
+        return values_map
