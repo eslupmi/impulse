@@ -25,7 +25,7 @@ def reformat_message(original_message, text, attachments, chain_enabled, status_
 
 def slack_buttons_handler(app, payload, incidents, queue_, route):
     if payload.get('token') != slack_verification_token:
-        logger.error(f'Unauthorized request to \'/slack\'')
+        logger.error(f'Unauthorized request to \'/app\'')
         return {}, 401
 
     incident_ = incidents.get_by_ts(ts=payload['message_ts'])
