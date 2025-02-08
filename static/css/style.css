@@ -1,0 +1,45 @@
+#filter-container {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+}
+
+#filter-input {
+    flex-grow: 1;
+
+    &.has-error {
+        border-color: red;
+    }
+}
+
+#filter-error {
+    color: red;
+    font-weight: bold;
+    display: block;
+
+    &.hidden {
+        display: none;
+    }
+}
+
+.unclickable-cell {
+    pointer-events: none;
+    cursor: default;
+}
+
+.filter-badge {
+    padding: 5px 10px;
+    border-radius: 5px;
+    background: #007bff;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.filter-badge span {
+    cursor: pointer;
+    margin-left: 5px;
+}
