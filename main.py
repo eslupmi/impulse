@@ -68,7 +68,7 @@ def route_alert_post():
         queue.put_first(datetime.utcnow(), 'alert', None, None, alert_state)
         return alert_state, 200
     else:
-        return redirect(url_for('route_incidents_get'))
+        return redirect(url_for('ui'))
 
 
 @app.route('/app', methods=['POST', 'PUT'])
