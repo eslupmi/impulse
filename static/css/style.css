@@ -24,11 +24,6 @@
     }
 }
 
-.unclickable-cell {
-    pointer-events: none;
-    cursor: default;
-}
-
 .filter-badge {
     padding: 5px 10px;
     border-radius: 5px;
