@@ -1,40 +1,155 @@
-#filter-container {
+@import "colors.css";
+
+/* General Styling */
+body {
+    font-family: 'Inter', sans-serif;
+    background: var(--primary-bg);
+    margin: 20px;
+    padding: 0;
+}
+
+/* Table Styling */
+#data-table {
+    background: var(--table-bg);
+    border-radius: 8px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    width: 100%; /* Ensure table takes full width */
+    max-width: 100%;
+}
+
+/* Tabulator Custom Styling */
+.tabulator {
+    border: none !important;
+}
+
+.tabulator-header .tabulator-col {
+    background: var(--primary-color) !important;
+    color: var(--primary-text) !important;
+    font-size: 16px;
+    font-weight: bold;
+}
+
+.tabulator-row {
+    transition: background 0.2s ease-in-out;
+}
+
+.tabulator-row:hover {
+    background: var(--secondary-hover) !important;
+}
+
+/* Filter Container */
+#filter-wrapper {
     display: flex;
     align-items: center;
-    gap: 5px;
-    flex-wrap: wrap;
+    gap: 10px;
+    width: 100%;
+    max-width: 100%;
     margin-bottom: 10px;
 }
 
-#filter-input {
-    flex-grow: 1;
-
-    &.has-error {
-        border-color: red;
-    }
-}
-
-#filter-error {
-    color: red;
-    font-weight: bold;
-    display: block;
-
-    &.hidden {
-        display: none;
-    }
-}
-
-.filter-badge {
-    padding: 5px 10px;
-    border-radius: 5px;
-    background: #007bff;
-    color: #fff;
+/* Filters - Appear Next to Input */
+#filter-container {
     display: flex;
     align-items: center;
-    gap: 5px;
+    flex-wrap: wrap;
+    gap: 6px;
+    max-width: 80%; /* Allow room for input field */
+    overflow: hidden;
+    white-space: nowrap;
 }
 
+/* Dynamic Input Field */
+#filter-input {
+    flex-grow: 1;
+    padding: 10px;
+    border: 2px solid var(--input-border);
+    border-radius: 5px;
+    outline: none;
+    font-size: 16px;
+    transition: all 0.2s ease-in-out;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    min-width: 150px;
+}
+
+/* Add Filter Button */
+#add-filter-btn {
+    padding: 10px 15px;
+    background: var(--primary-color);
+    color: var(--primary-text);
+    border: none;
+    border-radius: 5px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background 0.2s ease-in-out;
+}
+
+#add-filter-btn:hover {
+    background: var(--primary-hover);
+}
+
+/* Shrink Input as Filters Increase */
+#filter-wrapper.has-filters #filter-input {
+    width: auto;
+}
+
+/* Focus Effect */
+#filter-input:focus {
+    border-color: var(--input-focus);
+    box-shadow: 0 2px 10px var(--primary-shadow);
+}
+
+/* Error State */
+#filter-error {
+    color: var(--filter-error);
+    font-weight: bold;
+    display: block;
+}
+
+#filter-error.hidden {
+    display: none;
+}
+
+#filter-input.has-error {
+    border-color: var(--filter-error);
+}
+
+/* Filter Badges */
+.filter-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--filter-badge);
+    color: var(--primary-text);
+    font-size: 14px;
+    padding: 6px 12px;
+    border-radius: 5px;
+    cursor: pointer;
+    user-select: none;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease-in-out;
+    white-space: nowrap;
+}
+
+.filter-badge:hover {
+    background: var(--filter-badge-hover);
+}
+
+/* Remove Filter Button */
 .filter-badge span {
     cursor: pointer;
+    font-weight: bold;
     margin-left: 5px;
+    transition: color 0.2s ease-in-out;
+}
+
+.filter-badge span:hover {
+    color: var(--filter-badge-span-hover);
+}
+
+/* Smooth Removal Animation */
+.filter-badge.removed {
+    opacity: 0;
+    transform: scale(0.8);
+    transition: opacity 0.3s ease, transform 0.3s ease;
 }

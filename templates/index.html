@@ -3,20 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Flask Table</title>
-    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.10.0/dist/cdn.min.js"></script>
+    <title>Incidents Table</title>
+    <!-- External Libraries -->
     <script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tabulator-tables@5.5.2/dist/js/tabulator.min.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/tabulator-tables@5.5.2/dist/css/tabulator.min.css" rel="stylesheet">
+    <!-- Custom Styles -->
     <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
 <div id="table-wrapper">
-    <div>
+    <div id="filter-wrapper">
         <div id="filter-container"></div>
-        <div id="filter-error" class="hidden"></div>
         <input id="filter-input" type="text" placeholder='Enter filters (e.g., status="firing")'>
+        <button id="add-filter-btn">Add</button>
     </div>
+    <div id="filter-error" class="hidden"></div>
     <div id="data-table"></div>
 </div>
 <script src="{{ url_for('static', filename='js/main.js') }}"></script>

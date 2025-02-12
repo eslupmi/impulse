@@ -215,6 +215,18 @@ function applyFilters() {
     });
 }
 
+// Update filter container layout dynamically
+function updateFilterLayout() {
+    const filterWrapper = document.getElementById("filter-wrapper");
+    const filters = document.querySelectorAll(".filter-badge");
+
+    if (filters.length > 0) {
+        filterWrapper.classList.add("has-filters"); // ✅ Shrinks input field
+    } else {
+        filterWrapper.classList.remove("has-filters"); // ✅ Expands input field when no filters
+    }
+}
+
 // Add a new filter to the UI
 function addFilterUI(filter) {
     const filterContainer = document.getElementById("filter-container");
@@ -235,6 +247,7 @@ function addFilterUI(filter) {
     filterElement.appendChild(removeButton);
 
     filterContainer.appendChild(filterElement);
+    updateFilterLayout();
 }
 
 // Remove a filter from the UI and URL
@@ -248,6 +261,44 @@ function removeFilter(filter, filterElement) {
 
     filterElement.remove();
     applyFilters();
+    updateFilterLayout();
+}
+
+// Handle adding filters from the input field and button
+function addFilterFromInput() {
+    const inputField = document.getElementById("filter-input");
+    const query = inputField.value.trim();
+    if (!query) return;
+
+    const parsedFilter = parseFilterString(query);
+    if (!parsedFilter) {
+        alert("Invalid filter format. Use format like status=\"firing\".");
+        return;
+    }
+
+    let {field, operator, value} = parsedFilter;
+
+    if ((operator === "=~" || operator === "!~") && !isValidRegex(value)) {
+        showFilterError(`Invalid regex: ${value}`);
+        return;
+    }
+
+    const formattedFilter = operator in symbolicOperators ? `${field}${operator}${value}` : `${field} ${operator} ${value}`;
+
+    const urlParams = new URLSearchParams(window.location.search);
+    let filters = urlParams.get("filters") ? urlParams.get("filters").split(",") : [];
+
+    if (!filters.includes(formattedFilter)) {
+        filters.push(formattedFilter);
+        urlParams.set("filters", filters.join(","));
+        window.history.replaceState({}, "", `?${urlParams.toString()}`);
+
+        addFilterUI(formattedFilter);
+        applyFilters();
+    }
+
+    inputField.value = "";
+    showFilterError(null);
 }
 
 // Add filtering from table clicks (cell values) and input
@@ -255,39 +306,11 @@ function setupTableFiltering() {
     // Add a filter from the input field
     document.getElementById("filter-input").addEventListener("keypress", function (event) {
         if (event.key === "Enter") {
-            const query = this.value.trim();
-            if (!query) return;
-
-            const parsedFilter = parseFilterString(query);
-            if (!parsedFilter) {
-                alert("Invalid filter format. Use format like status=\"firing\".");
-                return;
-            }
-
-            let {field, operator, value} = parsedFilter;
-
-            if ((operator === "=~" || operator === "!~") && !isValidRegex(value)) {
-                showFilterError(`Invalid regex: ${value}`);
-                return;
-            }
-
-            const formattedFilter = operator in symbolicOperators ? `${field}${operator}${value}` : `${field} ${operator} ${value}`;
-
-            const urlParams = new URLSearchParams(window.location.search);
-            let filters = urlParams.get("filters") ? urlParams.get("filters").split(",") : [];
-
-            if (!filters.includes(formattedFilter)) {
-                filters.push(formattedFilter);
-                urlParams.set("filters", filters.join(","));
-                window.history.replaceState({}, "", `?${urlParams.toString()}`);
-
-                addFilterUI(formattedFilter);
-                applyFilters();
-            }
-
-            this.value = "";
+            addFilterFromInput();
         }
     });
+
+    document.getElementById("add-filter-btn").addEventListener("click", addFilterFromInput);
 
     // Add filtering from table clicks
     table.on("cellClick", (e, cell) => {

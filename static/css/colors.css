@@ -1,0 +1,16 @@
+/* Global Color Variables */
+:root {
+    --primary-bg: #f8f9fa;
+    --primary-color: #4a90e2;
+    --primary-hover: #357ABD;
+    --primary-shadow: rgba(0, 123, 255, 0.3);
+    --secondary-hover: #eef5ff;
+    --table-bg: white;
+    --primary-text: white;
+    --input-border: #ddd;
+    --input-focus: #007bff;
+    --filter-badge: #4a90e2;
+    --filter-badge-hover: #357ABD;
+    --filter-badge-span-hover: #ffdddd;
+    --filter-error: red;
+}
