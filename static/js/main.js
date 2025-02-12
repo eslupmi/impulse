@@ -8,7 +8,7 @@ const formatterMap = {
 
 function formatTimestamp(unixTimestamp) {
     const date = new Date(unixTimestamp * 1000);
-    return date.toLocaleString("en-US", {
+    return date.toLocaleString(navigator.language, {
         timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
     });
 }
@@ -27,7 +27,7 @@ const formatterParamsMap = {
 // Custom sorters
 const sorterMap = {
     "datetime": (a, b) => a - b,
-    "link": undefined,
+    "link": "string",
 };
 
 // Mapping of custom filter operators to Tabulator's built-in operators
@@ -66,6 +66,8 @@ async function initializeTable() {
 
         const columns = configResponse.map(column => {
             const columnSorter = column.type in sorterMap ? sorterMap[column.type] : "string"
+            let cssClass = columnSorter === "string" ? "clickable-cell" : "unclickable-cell";
+            cssClass += ` ${column.type || "regular"}-field`;
             return {
                 title: column.title,
                 field: column.field,
@@ -73,7 +75,7 @@ async function initializeTable() {
                 sorter: columnSorter,
                 formatter: formatterMap[column.type] || undefined,
                 formatterParams: column.type in formatterParamsMap ? formatterParamsMap[column.type](column) : undefined,
-                cssClass: columnSorter === "string" ? "clickable-cell" : "unclickable-cell",
+                cssClass: cssClass,
             }
         });
 
@@ -290,6 +292,12 @@ function setupTableFiltering() {
     // Add filtering from table clicks
     table.on("cellClick", (e, cell) => {
         if (cell.getElement().classList.contains("unclickable-cell")) return;
+        console.log(e.target.tagName);
+        if (e.target.tagName === "A") {
+            e.stopPropagation(); // ✅ Prevents event from bubbling to `cellClick`
+            return;
+        }
+
 
         const field = cell.getColumn().getField();
         const value = cell.getValue();

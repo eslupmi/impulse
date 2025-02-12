@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 def get_attr_by_key_chain(obj, default=None, *keys):
@@ -32,6 +32,6 @@ def normalize_param(param):
     """
 
     if isinstance(param, datetime):
-        return param.timestamp()
+        return param.now(timezone.utc).timestamp()
     else:
         return param
