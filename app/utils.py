@@ -1,4 +1,3 @@
-import uuid
 from datetime import datetime, timezone
 
 
@@ -32,6 +31,8 @@ def normalize_param(param):
     """
 
     if isinstance(param, datetime):
-        return param.now(timezone.utc).timestamp()
+        if param.tzinfo is None:
+            param = param.replace(tzinfo=timezone.utc)
+        return param.timestamp()
     else:
         return param
