@@ -48,16 +48,15 @@ def get_incident_table_sorting():
         order = rule.get("order", None)
         direction = rule.get("sort", None)
 
-        if order:
-            tabulator_sorting.append({
-                "column": column,
-                "order": order,
-            })
-        elif direction:
-            tabulator_sorting.append({
-                "column": column,
-                "sort": direction,
-            })
+        sorting_rule = {
+            "column": column,
+        }
 
+        if order:
+            sorting_rule["order"] = order
+        if direction:
+            sorting_rule["direction"] = direction
+
+        tabulator_sorting.append(sorting_rule)
     return tabulator_sorting
 
