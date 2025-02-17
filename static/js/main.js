@@ -1,16 +1,72 @@
-const socket = io.connect(location.origin);
+const socket = io.connect(location.origin, {path: "/ws"});
+let columnColors = {};
+let relativeFields = [];
 
 // Formatters for different column types
 const formatterMap = {
-    "datetime": cell => formatTimestamp(cell.getValue()),
+    "datetime": (cell, params) => {
+        if (params.formatType === "relative") {
+            return formatRelativeTime(cell.getValue(), params.precision);
+        }
+        return formatTimestamp(cell.getValue())
+    },
     "link": "link",
 };
+
+function formatRelativeTime(unixTimestamp, precision = 3) {
+    const now = new Date();
+    const date = new Date(unixTimestamp * 1000);
+    let diffSec = Math.floor((now - date) / 1000);
+
+    if (diffSec < 0) return "in the future";
+
+    // Define time intervals in seconds
+    const intervals = [
+        {label: "d", seconds: 86400},    // Day
+        {label: "h", seconds: 3600},     // Hour
+        {label: "m", seconds: 60},       // Minute
+    ];
+
+    let result = [];
+
+    for (let i = 0; i < intervals.length && result.length < precision; i++) {
+        const {label, seconds} = intervals[i];
+        const value = Math.floor(diffSec / seconds);
+        if (value > 0) {
+            result.push(`${value}${label}`);
+            diffSec -= value * seconds;
+        }
+    }
+
+    return result.length > 0 ? `${result.join(" ")} ago` : "< minute ago";
+}
 
 function formatTimestamp(unixTimestamp) {
     const date = new Date(unixTimestamp * 1000);
     return date.toLocaleString(navigator.language, {
         timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
     });
+}
+
+// Custom formatter to apply colors
+function formatterWrapper(formatterFunction) {
+    function colorFormatter(cell, formatterParams) {
+        const columnName = cell.getColumn().getField();
+        const cellValue = cell.getValue();
+
+        if (columnColors[columnName] && columnColors[columnName][cellValue]) {
+            cell.getElement().style.backgroundColor = columnColors[columnName][cellValue];
+            cell.getElement().style.color = "#fff";
+        }
+
+        if (typeof formatterFunction === "function") {
+            return formatterFunction(cell, formatterParams);
+        } else {
+            return cellValue;
+        }
+    }
+
+    return colorFormatter;
 }
 
 // Formatter parameters (for links, etc.)
@@ -22,6 +78,12 @@ const formatterParamsMap = {
             target: "_blank",
         };
     },
+    "datetime": (data) => {
+        return {
+            formatType: data.formatType || "absolute",
+            precision: data.precision || 3,
+        };
+    }
 };
 
 // Custom sorters
@@ -59,22 +121,31 @@ const table = new Tabulator("#data-table", {
 // Fetch table configuration and sorting, then initialize the table
 async function initializeTable() {
     try {
-        const [configResponse, sortingResponse] = await Promise.all([
+        const [configResponse, sortingResponse, colorsResponse, filtersResponse] = await Promise.all([
             fetch('/table_config').then(res => res.json()),
-            fetch('/table_sorting').then(res => res.json())
+            fetch('/table_sorting').then(res => res.json()),
+            fetch('/table_colors').then(res => res.json()),
+            fetch('/table_filters').then(res => res.json()),
         ]);
 
+        columnColors = colorsResponse;
+        loadFiltersFromArrayToURL(filtersResponse);
+
         const columns = configResponse.map(column => {
-            const columnSorter = column.type in sorterMap ? sorterMap[column.type] : "string"
+            const columnType = column.type || "string";
+            const columnSorter = columnType in sorterMap ? sorterMap[columnType] : "string"
+            if (columnType === "datetime" && column.formatType === "relative") {
+                relativeFields.push(column.field);
+            }
             let cssClass = columnSorter === "string" ? "clickable-cell" : "unclickable-cell";
-            cssClass += ` ${column.type || "regular"}-field`;
+            cssClass += ` ${columnType || "regular"}-field`;
             return {
                 title: column.title,
                 field: column.field,
                 visible: column.visible !== undefined ? column.visible : true,
                 sorter: columnSorter,
-                formatter: formatterMap[column.type] || undefined,
-                formatterParams: column.type in formatterParamsMap ? formatterParamsMap[column.type](column) : undefined,
+                formatter: formatterWrapper(formatterMap[columnType] || undefined),
+                formatterParams: columnType in formatterParamsMap ? formatterParamsMap[columnType](column) : undefined,
                 cssClass: cssClass,
             }
         });
@@ -139,6 +210,13 @@ function customNegativeRegexFilter(rowData, parameters) {
     const regex = new RegExp(parameters.value, "i");
 
     return !regex.test(cellValue);
+}
+
+// Initialize filters from URL
+function loadFiltersFromArrayToURL(filters) {
+    const urlParams = new URLSearchParams(window.location.search);
+    urlParams.set("filters", filters.join(","));
+    window.history.replaceState({}, "", `?${urlParams.toString()}`);
 }
 
 // Initialize filters from URL
@@ -221,9 +299,9 @@ function updateFilterLayout() {
     const filters = document.querySelectorAll(".filter-badge");
 
     if (filters.length > 0) {
-        filterWrapper.classList.add("has-filters"); // ✅ Shrinks input field
+        filterWrapper.classList.add("has-filters");
     } else {
-        filterWrapper.classList.remove("has-filters"); // ✅ Expands input field when no filters
+        filterWrapper.classList.remove("has-filters");
     }
 }
 
@@ -283,7 +361,7 @@ function addFilterFromInput() {
         return;
     }
 
-    const formattedFilter = operator in symbolicOperators ? `${field}${operator}${value}` : `${field} ${operator} ${value}`;
+    const formattedFilter = symbolicOperators.includes(operator) ? `${field}${operator}${value}` : `${field} ${operator} ${value}`;
 
     const urlParams = new URLSearchParams(window.location.search);
     let filters = urlParams.get("filters") ? urlParams.get("filters").split(",") : [];
@@ -315,9 +393,8 @@ function setupTableFiltering() {
     // Add filtering from table clicks
     table.on("cellClick", (e, cell) => {
         if (cell.getElement().classList.contains("unclickable-cell")) return;
-        console.log(e.target.tagName);
         if (e.target.tagName === "A") {
-            e.stopPropagation(); // ✅ Prevents event from bubbling to `cellClick`
+            e.stopPropagation();
             return;
         }
 
@@ -339,6 +416,17 @@ function setupTableFiltering() {
         }
     });
 
+}
+
+// Auto-update relative time fields every 10 seconds
+function updateRelativeTimeFields() {
+    table.getRows().forEach(row => {
+        row.getCells().forEach(cell => {
+            if (relativeFields.includes(cell.getColumn().getField())) {
+                cell.setValue(cell.getValue(), true);
+            }
+        });
+    });
 }
 
 // Handle WebSocket Events
@@ -368,7 +456,9 @@ function setupWebSocketEvents() {
 }
 
 // **Initialize Everything**
-initializeTable();
-loadFiltersFromURL();
-setupTableFiltering();
-setupWebSocketEvents();
+initializeTable().then(() => {
+    loadFiltersFromURL();
+    setupTableFiltering();
+    setupWebSocketEvents();
+    setInterval(() => updateRelativeTimeFields(table), 10000);
+});
