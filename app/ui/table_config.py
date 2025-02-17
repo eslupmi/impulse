@@ -24,6 +24,13 @@ def get_incident_table_config():
                 'field': f'{field_name}Url',
                 'visible': False,
             })
+        elif field_type == 'datetime':
+            tabulator_config.append({
+                'title': field['header'],
+                'field': field_name,
+                'type': field_type,
+                'formatType': field.get('format', 'absolute'),
+            })
         else:
             tabulator_config.append({
                 'title': field['header'],
@@ -60,3 +67,20 @@ def get_incident_table_sorting():
         tabulator_sorting.append(sorting_rule)
     return tabulator_sorting
 
+def get_incident_table_colors():
+    """
+    Get the colors for the incidents table.
+
+    Returns:
+        dict: The colors for the incidents table.
+    """
+    return ui_config.get('colors', {})
+
+def get_incident_table_filters():
+    """
+    Get the filters for the incidents table.
+
+    Returns:
+        dict: The filters for the incidents table.
+    """
+    return ui_config.get('filters', [])

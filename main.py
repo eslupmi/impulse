@@ -15,13 +15,14 @@ from app.queue.manager import QueueManager
 from app.queue.queue import Queue
 from app.route import generate_route
 from app.ui.incident_websocket import IncidentWS
-from app.ui.table_config import get_incident_table_config, get_incident_table_sorting
+from app.ui.table_config import get_incident_table_config, get_incident_table_sorting, get_incident_table_colors, \
+    get_incident_table_filters
 from app.webhook import generate_webhooks
 from config import settings, check_updates, application
 
 
 app = Flask(__name__)
-socketio = SocketIO(app)
+socketio = SocketIO(app, path='/ws')
 incident_ws = IncidentWS(socketio)
 route_dict = settings.get('route')
 webhooks_dict = settings.get('webhooks')
@@ -95,6 +96,16 @@ def get_table_sorting():
     return jsonify(get_incident_table_sorting())
 
 
+@app.route('/table_colors', methods=['GET'])
+def get_table_colors():
+    return jsonify(get_incident_table_colors())
+
+
+@app.route('/table_filters', methods=['GET'])
+def get_table_filters():
+    return jsonify(get_incident_table_filters())
+
+
 @app.route('/ui', methods=['GET'])
 def ui():
     return render_template('index.html')
@@ -103,12 +114,6 @@ def ui():
 @socketio.on('request_data')
 def send_data():
     incident_ws.get_full_table(incidents)
-
-
-# def broadcast_updates():
-#     incident_ws.get_full_table(incidents)
-#
-# scheduler.add_job(func=broadcast_updates, trigger="interval", seconds=1)
 
 if __name__ == '__main__':
     app = create_app()
