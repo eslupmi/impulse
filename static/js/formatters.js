@@ -9,6 +9,9 @@ const formatterMap = {
         return formatTimestamp(cell.getValue())
     },
     "link": "link",
+    "indicator": (cell, params) => {
+        return formatIndicator(cell, params);
+    }
 };
 
 // Formatter parameters (for links, etc.)
@@ -82,6 +85,11 @@ function formatterWrapper(formatterFunction) {
     }
 
     return colorFormatter;
+}
+
+function formatIndicator(cell, params) {
+    cell.getElement().style.backgroundColor = cell.getValue();
+    return '';
 }
 
 function getColorMap() {

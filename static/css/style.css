@@ -153,3 +153,7 @@ body {
     transform: scale(0.8);
     transition: opacity 0.3s ease, transform 0.3s ease;
 }
+
+.indicator-field {
+    width: 5px
+}

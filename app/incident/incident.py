@@ -4,6 +4,7 @@ from typing import List, Dict, Optional
 
 import yaml
 
+from app.im.colors import status_colors
 from app.incident.helpers import gen_uuid
 from app.time import unix_sleep_to_timedelta
 from app.tools import NoAliasDumper
@@ -159,7 +160,8 @@ class Incident:
 
     def get_table_data(self, params) -> Dict:
         data = {
-            'uuid': str(self.uuid)
+            'uuid': str(self.uuid),
+            'indicator': status_colors.get(self.status),
         }
         data_object = {'incident': self, 'payload': self.last_state}
         for key, value in params.items():
