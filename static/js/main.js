@@ -10,5 +10,5 @@ initializeTable().then(() => {
     setupTableFiltering();
     setupSortingListener();
     setupWebSocketEvents();
-    setInterval(() => updateRelativeTimeFields(), 10000);
+    setInterval(() => updateRelativeTimeFields(), 1000);
 });
