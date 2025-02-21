@@ -118,7 +118,7 @@ function applyFilters() {
                 if (operator === "=~") {
                     table.addFilter(field, "regex", anchoredRegex);
                 } else {
-                    table.addFilter(field, customNegativeRegexFilter, anchoredRegex);
+                    table.addFilter(customNegativeRegexFilter, {field: field, value: anchoredRegex});
                 }
             } else if (tabulatorOperators[operator]) {
                 table.addFilter(field, tabulatorOperators[operator], value);
@@ -250,6 +250,10 @@ export function setupTableFiltering() {
 
             addFilterUI(newFilter);
             applyFilters();
+        } else {
+            const filterElements = document.querySelectorAll(`.filter-badge span`)
+            const filterElement = Array.from(filterElements).find(el => el.innerText === newFilter);
+            removeFilter(newFilter, filterElement.parentElement);
         }
     });
 

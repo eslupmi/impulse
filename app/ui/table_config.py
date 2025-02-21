@@ -8,7 +8,13 @@ def get_incident_table_config():
     Returns:
         dict: The configuration for the incidents table.
     """
-    tabulator_config = []
+    tabulator_config = [{
+        'title': '',
+        'field': 'indicator',
+        'type': 'indicator',
+        'headerSort': False
+    }]
+
     for field in ui_config['columns']:
         field_name = field['name']
         field_type = field.get('type')

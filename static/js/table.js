@@ -1,5 +1,6 @@
 import {formatterWrapper, formatterMap, formatterParamsMap, setColorMap,} from "./formatters.js";
 import {loadFiltersFromArrayToURL} from "./filters.js";
+import {initializeSorting} from "./sorters.js";
 
 let relativeFields = [];
 
@@ -12,6 +13,7 @@ const table = new Tabulator("#data-table", {
 const sorterMap = {
     "datetime": (a, b) => a - b,
     "link": "string",
+    "indicator": undefined,
 };
 
 // Fetch table configuration and sorting, then initialize the table
@@ -35,54 +37,27 @@ async function initializeTable() {
             }
             let cssClass = columnSorter === "string" ? "clickable-cell" : "unclickable-cell";
             cssClass += ` ${columnType || "regular"}-field`;
-            return {
+            const columLayout = {
                 title: column.title,
                 field: column.field,
                 visible: column.visible !== undefined ? column.visible : true,
                 sorter: columnSorter,
+                headerSort: column.headerSort !== undefined ? column.headerSort : true,
                 formatter: formatterWrapper(formatterMap[columnType] || undefined),
                 formatterParams: columnType in formatterParamsMap ? formatterParamsMap[columnType](column) : undefined,
                 cssClass: cssClass,
             }
+            if (columnType === "indicator") {
+                columLayout.minWidth = 5;
+                columLayout.resizable = false;
+            }
+            return columLayout
         });
 
-        applySorting(columns, sortingResponse);
+        initializeSorting(columns, sortingResponse);
     } catch (error) {
         console.error("Error initializing table:", error);
     }
-}
-
-// Apply sorting to the Tabulator instance
-function applySorting(columns, sorters) {
-    const tableSorting = sorters.map(sorter => {
-        const rule = {
-            column: sorter.column,
-            dir: sorter.direction || "asc",
-        };
-
-        if (sorter.order) {
-            rule.sorter = function (a, b, aRow, bRow, column, dir, sorterParams) {
-                const order = sorterParams;
-                const indexA = order.indexOf(a) !== -1 ? order.indexOf(a) : order.length;
-                const indexB = order.indexOf(b) !== -1 ? order.indexOf(b) : order.length;
-                return indexA - indexB;
-            };
-            rule.sorterParams = sorter.order;
-        }
-
-        return rule;
-    });
-
-    columns.forEach(column => {
-        const columnSorter = tableSorting.find(sorter => sorter.column === column.field);
-        if (columnSorter) {
-            column.sorter = columnSorter.sorter;
-            column.sorterParams = columnSorter.sorterParams || undefined;
-        }
-    });
-
-    table.setColumns(columns);
-    table.setSort(tableSorting.reverse());
 }
 
 // Auto-update relative time fields every 10 seconds
