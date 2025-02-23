@@ -1,0 +1,35 @@
+.wy-nav-content {
+    max-width: 1000px;
+}
+/* hide buttons Previous / Next */
+.rst-versions .rst-current-version {
+    display: none;
+}
+.rst-footer-buttons {
+    display: none;
+}
+footer {
+    display: none;
+}
+blockquote p {
+    margin: 0 0 8px;
+}
+div.section p {
+    margin: 0 0 8px;
+}
+h2 {
+	margin-top: 24px;
+}
+h3 {
+	margin-top: 24px;
+}
+.rst-content blockquote {
+    margin-bottom: 0px;
+}
+.wy-nav-content {
+	background: #ffffff;
+}
+img {
+	color: #555555;
+	padding: 10px;
+}

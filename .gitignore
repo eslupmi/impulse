@@ -10,3 +10,6 @@ venv
 impulse*.yml
 data
 docker-compose.yml
+
+docs/env
+docs/venv
