@@ -49,11 +49,12 @@ class Application(ABC):
         users = dict()
         for name, user_info in users_dict.items():
             if user_info.get('id') is not None:
-                user_details = self.get_user_details(user_info.get('id'))
+                user_details = self.get_user_details(user_info)
                 if not user_details['exists']:
                     logger.warning(f'.. user {name} not found in {self.type.capitalize()} and will not be notified')
             else:
                 logger.warning(f'.. user {name} has no \'id\' and will not be notified')
+                user_details = {}
             users[name] = self.create_user(name, user_details)
         logger.info(f'.. done')
 
@@ -79,9 +80,12 @@ class Application(ABC):
             unit = self.user_groups.get(identifier)
             text_template = JinjaTemplate(notification_user_group)
         fields = {'type': self.type, 'name': identifier, 'unit': unit, 'admins': destinations}
-        unit_text = text_template.form_notification(fields)
+        text = text_template.form_notification(fields)
         header = self.format_text_italic(self.header_template.form_message(incident.last_state, incident))
-        message = header + '\n' + unit_text
+        if self.type == 'telegram':
+            message = text
+        else:
+            message = header + '\n' + text
         response_code = self.post_thread(incident.channel_id, incident.ts, message)
         logger.info(f'Incident {incident.uuid} -> chain step {notify_type} \'{identifier}\'')
         return response_code
@@ -104,7 +108,10 @@ class Application(ABC):
                 fields = {'type': self.type, 'status': incident_status, 'admins': admins}
                 text = text_template.form_notification(fields)
 
-                message = header + '\n' + text
+                if self.type == 'telegram':
+                    message = text
+                else:
+                    message = header + '\n' + text
                 self.post_thread(incident.channel_id, incident.ts, message)
 
     def new_version_notification(self, channel_id, new_tag):
@@ -120,10 +127,13 @@ class Application(ABC):
 
     def create_thread(self, channel_id, body, header, status_icons, status):
         payload = self._create_thread_payload(channel_id, body, header, status_icons, status)
+        return self._send_create_thread(payload)
+
+    def _send_create_thread(self, payload):
         response = requests.post(self.post_message_url, headers=self.headers, data=json.dumps(payload))
         sleep(self.post_delay)
         response_json = response.json()
-        return response_json[self.thread_id_key]
+        return response_json.get(self.thread_id_key)
 
     def update_thread(self, channel_id, id_, status, body, header, status_icons, chain_enabled=True,
                       status_enabled=True):
@@ -136,11 +146,6 @@ class Application(ABC):
         response = requests.post(self.post_message_url, headers=self.headers, data=json.dumps(payload))
         sleep(self.post_delay)
         return response.status_code
-
-    def _unit_not_found_text(self, unit_type, identifier):
-        logger.error(f'{unit_type.capitalize()} \'{identifier}\' not found in impulse.yml')
-        admins_text = self.get_admins_text()
-        return f"➤ {unit_type} {self.format_text_bold(identifier)}: not defined in impulse.yml\n➤ admins: {admins_text}"
 
     @staticmethod
     def _setup_http():
@@ -155,6 +160,10 @@ class Application(ABC):
         http = requests.Session()
         http.mount("https://", adapter)
         return http
+
+    @abstractmethod
+    def buttons_handler(self, payload, incidents, queue_, route):
+        pass
 
     @abstractmethod
     def _initialize_specific_params(self):
@@ -218,7 +227,7 @@ class Application(ABC):
         pass
 
     @abstractmethod
-    def get_user_details(self, id_):
+    def get_user_details(self, user_details):
         """Fetch user-specific details (ID, name, etc.) from the system. Must be implemented by subclasses."""
         pass
 
