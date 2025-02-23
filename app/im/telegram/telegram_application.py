@@ -97,23 +97,41 @@ class TelegramApplication(Application):
             )
             return jsonify({}), 200
         action = callback['data']
+
+        user_id = callback['from']['id']
+        user_name = callback['from'].get('first_name') + ' ' + callback['from'].get('last_name')
+
         if action in ['start_chain', 'stop_chain']:
             if action == 'stop_chain':
+                incident_.assign_user_id(user_id)
+                incident_.assign_user(user_name)
                 incident_.chain_enabled = False
                 queue_.delete_by_id(incident_.uuid, delete_steps=True, delete_status=False)
             else:
                 incident_.chain_enabled = True
-                queue_.append(incident_.uuid, incident_.chain)
+                queue_.recreate(incident_.status, incident_.uuid, incident_.chain)
         elif action in ['start_status', 'stop_status']:
             if action == 'stop_status':
                 incident_.status_enabled = False
             else:
                 incident_.status_enabled = True
+
+        # text_template = JinjaTemplate(notification_user)
+        # text = text_template.form_notification(fields)
+
+        # body = self.body_template.form_message(incident_.last_state, incident_)
+        # header = self.header_template.form_message(incident_.last_state, incident_)
+        # status_icons = self.status_icons_template.form_message(incident_.last_state, incident_)
+        # payload = self.update_thread_payload(incident_.channel_id, incident_.ts, body, header, status_icons,
+        #                                      incident_.status, incident_.chain_enabled, incident_.status_enabled)
+        # self.update_thread_payload(self, channel_id, incident_.id, body, header, status_icons, status, chain_enabled,
+        #                            status_enabled)
         self.http.post(
             f'{self.url}/editMessageReplyMarkup',
             data=json.dumps({
                 'chat_id': callback['message']['chat']['id'],
                 'message_id': message_id,
+                # 'text': payload['text'],
                 'reply_markup': {
                     'inline_keyboard': [
                         [

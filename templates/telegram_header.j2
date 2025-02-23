@@ -1,2 +1,2 @@
 {%- set commonLabels = payload.get("commonLabels", {}) -%}
-{{- commonLabels.alertname -}}
+{{- commonLabels.alertname -}}{% if incident.assigned_user_id != "" %}  (assigned to {{ incident.assigned_user }}){% endif %}
