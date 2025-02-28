@@ -2,14 +2,18 @@
 # Examples:                https://docs.impulse.bot/latest/config_examples/
 
 route:
-  channel: incidents-default
+  channel: incidents_default
 
 application:
-  impulse_address: https://<your_impulse_domain>.com
-  address: https://<your_mattermost_domain>.com
-  team: test
   type: mattermost
+  team: test
+  address: https://<your_mattermost_domain>.com
+  impulse_address: https://<your_impulse_domain>.com
+
   admin_users:
   - Dmitry
   users:
     Dmitry: {id: ic8pft3ac7rjrd9eopxp4kc7qy}
+  channels:
+    incidents_default: {id: x7vjmyp94zsb3lnk2afqt6hcdu}
+    

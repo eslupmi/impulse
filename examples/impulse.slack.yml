@@ -2,11 +2,14 @@
 # Examples:                https://docs.impulse.bot/latest/config_examples/
 
 route:
-  channel: incidents-default
+  channel: incidents_default
 
 application:
   type: slack
+
   admin_users:
   - Dmitry
   users:
     Dmitry: {id: U73MD1YLR4M}
+  channels:
+    incidents_default: {id: X93QPLZ742MJ}
