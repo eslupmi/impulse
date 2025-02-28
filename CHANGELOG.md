@@ -45,7 +45,7 @@ Changes:
 ## v1.3.0
 Changes:
 - Add private channels support
-- Using `incident.status` in [status_icons](https://github.com/eslupmi/impulse/blob/main/templates/slack_status_icons.j2) instead of `payload.status` 
+- Using `incident.status` in [status_icons](https://github.com/eslupmi/impulse/blob/develop/templates/slack_status_icons.j2) instead of `payload.status` 
 - Use specific Slack workspace in incident links
 
 ## v1.2.0

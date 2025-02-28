@@ -1,12 +1,12 @@
-## Slack
+# Slack
 
-### Create bot
+## Create bot
 
 1. Go to [Slack Apps](https://api.slack.com/apps) and click button **Create New App**.
 2. Select **From scratch**.
 3. Set **App Name** to "IMPulse" and select your workspace.
 
-### Configure bot
+## Configure bot
 
 1. In **Interactivity & Shortcuts** section:
     - enable "Interactivity"
@@ -38,9 +38,9 @@
     - in **App Credentials** subsection:
         - use "Verification Token" as ENV `SLACK_VERIFICATION_TOKEN` (use in 2.3 [here](installation.md#23-impulse))
     - in **Display Information** subsection:
-        - you can set [our logo](https://github.com/eslupmi/site/blob/main/static/logo.png?raw=true) as **App icon**
+        - you can set [our logo](https://github.com/eslupmi/site/blob/develop/static/logo.png?raw=true) as **App icon**
 
-### Configure channels
+## Configure channels
 
 1. To use IMPulse bot in private channels you **should** add it manually. Run command in all necessary private channels:
 

@@ -19,7 +19,7 @@ Starting from [`v1.0.0`](https://github.com/DiTsi/impulse/releases/tag/v1.0.0) i
 
 <p align="center"><img src="../media/impulse_message_structure.excalidraw.svg" alt="" width="600"/></p>
 
-Default templates for `status icons`, `header` and `body` are [here](https://github.com/DiTsi/impulse/tree/main/templates).
+Default templates for `status icons`, `header` and `body` are [here](https://github.com/DiTsi/impulse/tree/develop/templates).
 
 You can create your own template files based on defaults and set their path in [application.template_files](config_file.md).
 

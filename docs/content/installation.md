@@ -28,13 +28,13 @@ cp examples/.env.mattermost .env
 ```bash
 mkdir impulse impulse/config impulse/data
 cd impulse
-wget -O docker-compose.yml https://raw.githubusercontent.com/DiTsi/impulse/main/examples/docker-compose.yml
+wget -O docker-compose.yml https://raw.githubusercontent.com/DiTsi/impulse/develop/examples/docker-compose.yml
 
 # for Slack
-wget -O config/impulse.yml https://raw.githubusercontent.com/DiTsi/impulse/main/examples/impulse.slack.yml
+wget -O config/impulse.yml https://raw.githubusercontent.com/DiTsi/impulse/develop/examples/impulse.slack.yml
 
 # for Mattermost
-wget -O config/impulse.yml https://raw.githubusercontent.com/DiTsi/impulse/main/examples/impulse.mattermost.yml
+wget -O config/impulse.yml https://raw.githubusercontent.com/DiTsi/impulse/develop/examples/impulse.mattermost.yml
 ```
 
 don't forget to replace `<release_tag>` in `docker-compose.yml` to one of the [release tags](https://github.com/DiTsi/impulse/releases).
@@ -54,7 +54,7 @@ All code examples below are for [`alertmanager.yml`](https://prometheus.io/docs/
 #### 2.2.1. set repeat_interval
 
 
-Set the sum of `repeat_interval` and `group_interval` options less than [`incident.timeouts.firing`](https://github.com/DiTsi/impulse/blob/main/examples/impulse.slack.yml) (default `6h`):
+Set the sum of `repeat_interval` and `group_interval` options less than [`incident.timeouts.firing`](https://github.com/DiTsi/impulse/blob/develop/examples/impulse.slack.yml) (default `6h`):
 ```yaml
 route:
   repeat_interval: 354m

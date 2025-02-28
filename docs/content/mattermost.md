@@ -1,20 +1,20 @@
-## Mattermost
+# Mattermost
 
-### Create bot
+## Create bot
 
 1. Go to Menu (dots 3x3) > System Console > Integrations > Bot Accounts:
     - set `True` for "Enable Bot Account Creation", press "Save"
 2. Go to Menu (dots 3x3) > Integarations > Bot Accounts:
     - press the button "Add Bot Account"
     - type "impulse" to **Username**
-    - you can set [our icon](https://github.com/eslupmi/site/blob/main/static/logo.png?raw=true) as **Bot Icon**
+    - you can set [our icon](https://github.com/eslupmi/site/blob/develop/static/logo.png?raw=true) as **Bot Icon**
     - type "IMPulse" to **Display Name**
     - set **Role** to "System Admin"
     - press the button "Create Bot Account"
     - use "Token" as ENV `MATTERMOST_ACCESS_TOKEN` (use in 2.3 [here](installation.md#23-impulse))
     - press the button **Done**
 
-### Configure bot
+## Configure bot
 
 1. Go to Menu (dots 3x3) > System Console > User Management > Teams:
     - press on your Team
@@ -22,7 +22,7 @@
     - type "impulse" in search, select it and press the button **Add**
     - press the button **Save**
 
-### Configure channels
+## Configure channels
 
 1. To use IMPulse bot in private channels you **should** add it manually. Run command in all necessary private channels:
 

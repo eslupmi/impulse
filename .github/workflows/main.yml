@@ -1,4 +1,4 @@
-name: main
+name: develop
 
 concurrency:
   group: ${{ github.ref }}
@@ -6,7 +6,7 @@ concurrency:
 on:
   push:
     branches:
-    - 'main'
+    - 'develop'
     tags:
     - 'v*'
 

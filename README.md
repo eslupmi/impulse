@@ -1,6 +1,6 @@
 <h1><img alt="Prometheus" src="logo.svg" width="50"> IMPulse</h1>
 
-<div align="center"><img src="https://github.com/eslupmi/site/blob/main/static/preview.png?raw=true" width="700"></div>
+<div align="center"><img src="https://github.com/eslupmi/site/blob/develop/static/preview.png?raw=true" width="700"></div>
 
 Visit [docs.impulse.bot](https://docs.impulse.bot) for the full documentation and examples.
 
@@ -25,8 +25,8 @@ Visit [docs.impulse.bot](https://docs.impulse.bot) for the full documentation an
 
 3. Get docker-compose.yml and config
     ```bash
-    wget -O docker-compose.yml https://raw.githubusercontent.com/eslupmi/impulse/main/examples/docker-compose.yml
-    wget -O config/impulse.yml https://raw.githubusercontent.com/eslupmi/impulse/main/examples/impulse.slack.yml
+    wget -O docker-compose.yml https://raw.githubusercontent.com/eslupmi/impulse/develop/examples/docker-compose.yml
+    wget -O config/impulse.yml https://raw.githubusercontent.com/eslupmi/impulse/develop/examples/impulse.slack.yml
     ```
 
 4. Modify `config/impulse.yml` with actual data

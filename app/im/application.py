@@ -112,7 +112,7 @@ class Application(ABC):
         release_notes = r.json().get('body')
         new_version_text = self.format_text_bold(f'New IMPulse version available: {new_tag}')
         changelog_link_text = self._format_text_link("CHANGELOG.md",
-                                                     "https://github.com/eslupmi/impulse/blob/main/CHANGELOG.md")
+                                                     "https://github.com/eslupmi/impulse/blob/develop/CHANGELOG.md")
         text = f"{new_version_text} {changelog_link_text}\n\n{release_notes}"
         native_formatted_text = self._markdown_links_to_native_format(text)
         admins_text = self.get_admins_text()
