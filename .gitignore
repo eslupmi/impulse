@@ -7,7 +7,7 @@ env
 venv
 
 .env
-impulse*.yml
+/impulse*.yml
 data
 docker-compose.yml
 

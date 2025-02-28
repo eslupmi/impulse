@@ -112,11 +112,11 @@ class SlackApplication(Application):
 
         for action in actions:
             if action['name'] == 'chain':
-                if incident_.chain_enabled:
+                if incident_.chain_enabled: # take it
                     incident_.assign_user_id(user_id)
                     incident_.chain_enabled = False
                     queue_.delete_by_id(incident_.uuid, delete_steps=True, delete_status=False)
-                else:
+                else: # release
                     queue_.delete_by_id(incident_.uuid, delete_steps=True, delete_status=False)
                     _, chain_name = route.get_route(incident_.last_state)
                     chain = self.chains.get(chain_name)

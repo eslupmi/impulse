@@ -6,6 +6,7 @@ services:
       SLACK_BOT_USER_OAUTH_TOKEN: <slack_bot_user_oauth_token>
       SLACK_VERIFICATION_TOKEN: <slack_verification_token>
       MATTERMOST_ACCESS_TOKEN: <mattermost_access_token>
+      TELEGRAM_BOT_TOKEN: <telegram_bot_token>
       CONFIG_PATH: "/config"
       DATA_PATH: "/data"
     volumes:
