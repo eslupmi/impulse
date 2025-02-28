@@ -18,11 +18,12 @@ markdown_extensions:
 nav:
 - index.md
 - Integrations:
-  - slack.md
   - mattermost.md
+  - slack.md
 - IMPulse Server:
   - installation.md
   - Configuration:
+    - alertmanager.md
     - envs.md
     - config_file.md
     - config_examples.md
