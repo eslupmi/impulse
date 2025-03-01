@@ -26,9 +26,9 @@ Set IMPulse as default receiver:
 
 ```yaml
 receivers:
-- name: 'impulse'
-  webhook_configs:
-  - url: 'http://<impulse_host>:<impulse_port>/'
+  - name: 'impulse'
+    webhook_configs:
+      - url: 'http://<impulse_host>:<impulse_port>/'
 
 route:
   receiver: 'impulse'
