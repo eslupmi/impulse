@@ -24,6 +24,7 @@ nav:
 - IMPulse Server:
   - installation.md
   - Configuration:
+    - alertmanager.md
     - envs.md
     - config_file.md
     - config_examples.md

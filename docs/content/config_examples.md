@@ -1,37 +1,8 @@
 # Examples
 
-**minimal Slack configuration**
+See configuration examples here: [https://github.com/eslupmi/impulse/tree/develop/examples](https://github.com/eslupmi/impulse/tree/develop/examples).
 
-```yaml
-route:
-  channel: space
+We provide two types of configuration files:
 
-application:
-  type: slack
-  admin_users:
-  - Dmitry_Tsybus
-  channels:
-    space: {id: C09NSUL269T}
-  users:
-    Dmitry_Tsybus: {full_name: "Dmitry Tsybus"}
-```
-
-**minimal Mattermost configuration**
-
-```yaml
-
-
-route:
-  channel: space
-
-application:
-  impulse_address: https://impulse.yourdomain.com # IMPulse address where Mattermost will send button events
-  address: https://mattermost.yourdomain.com # your Mattermost address
-  type: mattermost
-  admin_users:
-  - Dmitry_Tsybus
-  channels:
-    space: {id: w8gvebq58fgo9civ8begs6renw}
-  users:
-    Dmitry_Tsybus: {username: "ditsi"}
-```
+- the **minimal** configuration includes just required fields to get started;
+- the **advanced** configuration provides additional options with comments, serving as an example;
