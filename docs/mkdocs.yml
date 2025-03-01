@@ -18,8 +18,9 @@ markdown_extensions:
 nav:
 - index.md
 - Integrations:
-  - slack.md
   - mattermost.md
+  - slack.md
+  - telegram.md
 - IMPulse Server:
   - installation.md
   - Configuration:

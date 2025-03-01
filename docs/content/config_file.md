@@ -178,14 +178,21 @@ Define default channels (Slack)
 ```yaml
 application:
   channels:
-    incidents-default: {id: C09NSUL269T}
+    incidents_default: {id: C09NSUL269T}
 ```
 
 Define default channel (Mattermost)
 ```yaml
 application:
   channels:
-    incidents-default: {id: w8gvebq58fgo9civ8begs6renw}
+    incidents_default: {id: w8gvebq58fgo9civ8begs6renw}
+```
+
+Define default channel (Telegram)
+```yaml
+application:
+  channels:
+    incidents_default: {id: -1003748296152}
 ```
 
 ### route
@@ -201,7 +208,7 @@ Matchers work like Alertmanager's but use Python regex instead.
 Complex example with comments
 ```yaml
 route:
-  channel: incidents-default # default channel where incidents will be created if their didn't match any matchers
+  channel: incidents_default # default channel where incidents will be created if their didn't match any matchers
   chain: devops # optional, but we recommend set it to handle alerts didn't match any matchers
   routes:
     # Infrastructure routes

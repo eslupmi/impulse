@@ -21,6 +21,10 @@ cp examples/.env.slack .env
 # for Mattermost
 cp examples/impulse.mattermost.yml impulse.yml
 cp examples/.env.mattermost .env
+
+# for Telegram
+cp examples/impulse.telegram.yml impulse.yml
+cp examples/.env.telegram .env
 ```
 
 ### docker
@@ -35,6 +39,9 @@ wget -O config/impulse.yml https://raw.githubusercontent.com/DiTsi/impulse/devel
 
 # for Mattermost
 wget -O config/impulse.yml https://raw.githubusercontent.com/DiTsi/impulse/develop/examples/impulse.mattermost.yml
+
+# for Telegram
+wget -O config/impulse.yml https://raw.githubusercontent.com/DiTsi/impulse/develop/examples/impulse.telegram.yml
 ```
 
 don't forget to replace `<release_tag>` in `docker-compose.yml` to one of the [release tags](https://github.com/DiTsi/impulse/releases).
