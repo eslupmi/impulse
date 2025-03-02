@@ -12,7 +12,7 @@ env:
 
 jobs:
   build-and-push:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-20.04
     permissions:
       contents: read
       packages: write
@@ -37,7 +37,7 @@ jobs:
 
   deploy:
     needs: build-and-push
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-20.04
     environment: test
     steps:
       - name: Recreate IMPulse
@@ -49,10 +49,6 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           debug: true
           script: |
-            echo "${{ secrets.SSH_KEY }}" > private_key.pem
-            chmod 600 private_key.pem
-            ssh -i private_key.pem ${{ secrets.USER }}@${{ secrets.HOST }} -p ${{ secrets.PORT }}
-
             cd /opt/impulse/test_slack
             docker-compose down
             docker-compose pull
