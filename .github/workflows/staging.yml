@@ -4,6 +4,9 @@ concurrency:
   group: ${{ github.ref }}
 
 on:
+  push:
+    branches:
+    - 'release/*'
   workflow_dispatch:
 
 env:
@@ -12,7 +15,7 @@ env:
 
 jobs:
   build-and-push-image:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
       packages: write
@@ -37,7 +40,8 @@ jobs:
 
   deploy-to-staging:
     needs: build-and-push-image
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
+    if: github.event_name == 'workflow_dispatch'
     steps:
       - name: Recreate IMPulse
         uses: appleboy/ssh-action@v1.0.3
@@ -46,10 +50,12 @@ jobs:
           username: ${{ secrets.STAGING_USER }}
           key: ${{ secrets.STAGING_SSH_KEY }}
           script: |
-            cd /opt/impulse/staging/slack
+            cd /opt/impulse/staging_slack
+            docker-compose down
             docker-compose pull
             docker-compose up -d
             
-            cd /opt/impulse/staging/mattermost
+            cd /opt/impulse/staging_mattermost
+            docker-compose down
             docker-compose pull
             docker-compose up -d
