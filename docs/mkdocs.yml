@@ -20,6 +20,7 @@ nav:
 - Integrations:
   - mattermost.md
   - slack.md
+  - telegram.md
 - IMPulse Server:
   - installation.md
   - Configuration:

@@ -1,0 +1,68 @@
+# Configuration details:   https://docs.impulse.bot/latest/config_file/
+# Examples:                https://docs.impulse.bot/latest/config_examples/
+
+application:
+  type: telegram
+  impulse_address: https://<your_impulse_domain> # Due to Telegram's restrictions, only HTTPS is supported
+
+  admin_users: ["Dmitry"]
+  users:
+    Dmitry: {id: 182547693}
+    Valery: {id: 175329864}
+    Grigory: {id: 163985742}
+  user_groups:
+    devops: {users: ["Dmitry", "Valery"]}
+  channels:
+    incidents_default: {id: -1003748296153}
+    incidents_infrastructure: {id: -1005896723417}
+    incidents_services: {id: -1009182765432}
+
+  chains:
+    devops:
+      - user_group: devops
+    devops_critical:
+      - user: Valery
+      - wait: 10m
+      - user: Dmitry
+      - wait: 10m
+      - webhook: Dmitry_call
+    developers:
+      - user: Dmitry
+      - wait: 10m
+      - user: Valery
+      - wait: 20m
+      - user: CEO
+
+incident:
+  alerts_firing_notifications: False 
+  alerts_resolved_notifications: False
+  timeouts:
+    firing: 6h
+    unknown: 6h
+    resolved: 12h
+
+webhooks:
+  Dmitry_call:
+    url: 'https://api.twilio.com/2010-04-01/Accounts/{{ env["TWILIO_ACCOUNT_SID"] }}/Calls.json'
+    data:
+      To: '+998123456789'
+      From: '{{ env["TWILIO_NUMBER"] }}'
+      Url: http://example.com/twiml.xml
+    auth: '{{ env["TWILIO_ACCOUNT_SID"] }}:{{ env["TWILIO_AUTH_TOKEN"] }}'
+
+route:
+  channel: incidents_default
+  routes:
+    - matchers:
+        - service=~"nginx|postgresql"
+      channel: incidents_infrastructure
+      chain: devops
+      routes:
+        - matchers:
+            - severity="critical"
+          channel: incidents_infrastructure
+          chain: devops_critical
+    - matchers:
+        - service=~"vscode|pycharm"
+      channel: incidents_services
+      chain: developers

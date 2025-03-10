@@ -33,6 +33,13 @@ cp examples/impulse.mattermost.advanced.yml impulse.yml
 # for minimal configuration
 cp examples/impulse.mattermost.minimal.yml impulse.yml
 cp examples/.env.mattermost .env
+
+# for Telegram
+# for advanced configuration
+cp examples/impulse.telegram.advanced.yml impulse.yml
+# for minimal configuration
+cp examples/impulse.telegram.minimal.yml impulse.yml
+cp examples/.env.telegram .env
 ```
 
 ### docker
@@ -53,6 +60,12 @@ wget -O config/impulse.yml https://raw.githubusercontent.com/DiTsi/impulse/devel
 wget -O config/impulse.yml https://raw.githubusercontent.com/DiTsi/impulse/develop/examples/impulse.mattermost.advanced.yml
 # for minimal configuration
 wget -O config/impulse.yml https://raw.githubusercontent.com/DiTsi/impulse/develop/examples/impulse.mattermost.minimal.yml
+
+### Telegram
+# for advanced configuration
+wget -O config/impulse.yml https://raw.githubusercontent.com/DiTsi/impulse/develop/examples/impulse.telegram.advanced.yml
+# for minimal configuration
+wget -O config/impulse.yml https://raw.githubusercontent.com/DiTsi/impulse/develop/examples/impulse.telegram.minimal.yml
 ```
 
 don't forget to replace `<release_tag>` in `docker-compose.yml` to one of the [release tags](https://github.com/DiTsi/impulse/releases).

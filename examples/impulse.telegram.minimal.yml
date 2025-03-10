@@ -1,0 +1,15 @@
+# Configuration details:   https://docs.impulse.bot/latest/config_file/
+# Examples:                https://docs.impulse.bot/latest/config_examples/
+
+application:
+  type: telegram
+  impulse_address: https://<your_impulse_domain> # Due to Telegram's restrictions, only HTTPS is supported
+
+  admin_users: ["Dmitry"]
+  users:
+    Dmitry: {id: 182547693}
+  channels:
+    incidents_default: {id: -1003748296153} 
+
+route:
+  channel: incidents_default

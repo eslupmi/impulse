@@ -10,3 +10,4 @@ Environment variables are created in `.env` file for python installation or in `
 | MATTERMOST_ACCESS_TOKEN | [Mattermost 'Access Token'](mattermost.md) | | for Mattermost |
 | SLACK_BOT_USER_OAUTH_TOKEN | [Slack 'Bot User OAuth Token'](slack.md) | | for Slack |
 | SLACK_VERIFICATION_TOKEN | [Slack 'Verification Token'](slack.md) | | for Slack |
+| TELEGRAM_BOT_TOKEN | [Telegram 'Bot Token'](telegram.md) | | for Telegram |

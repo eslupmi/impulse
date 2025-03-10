@@ -5,7 +5,7 @@
 Visit [docs.impulse.bot](https://docs.impulse.bot) for the full documentation.
 
 ## Features
-- Slack, Mattermost integrations
+- Mattermost, Slack, Telegram integrations
 - Twilio and another integrations using [webhooks](https://docs.impulse.bot/latest/config_file/#webhooks-examples)
 - [Incident lifecycle](https://docs.impulse.bot/latest/concepts/#lifecycle) reduces incidents chaos
 - Flexible [message structure](https://docs.impulse.bot/latest/concepts/#structure) you can modify

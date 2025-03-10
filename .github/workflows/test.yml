@@ -57,3 +57,8 @@ jobs:
             docker-compose down
             docker-compose pull
             docker-compose up -d
+            
+            cd /opt/impulse/test_telegram
+            docker-compose down
+            docker-compose pull
+            docker-compose up -d

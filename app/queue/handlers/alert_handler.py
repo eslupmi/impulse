@@ -125,7 +125,10 @@ class AlertHandler(BaseHandler):
             'recreate': experimental_recreate
         }
         text = JinjaTemplate(update_alerts).form_notification(fields)
-        message = header + '\n' + text
+        if self.app.type == 'telegram':
+            message = text
+        else:
+            message = header + '\n' + text
         self.app.post_thread(incident_.channel_id, incident_.ts, message)
         if new_alerts_f:
             logger.info(f"Incident {uuid_} updated with new alerts firing")

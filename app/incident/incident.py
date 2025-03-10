@@ -53,6 +53,9 @@ class Incident:
             return f'{public_url}' + f'archives/{self.channel_id}/p{self.ts.replace(".", "")}'
         elif self.config.application_type == 'mattermost':
             return f'{self.config.application_url}/{self.config.application_team.lower()}/pl/{self.ts}'
+        elif self.config.application_type == 'telegram':
+            # TODO: Fix this as it won't work for Telegram (self.channel_id isn't the id that needed there)
+            return f'https://t.me/c/{self.channel_id}/{self.ts}'
 
     def generate_chain(self, chain=None):
         if not chain:
