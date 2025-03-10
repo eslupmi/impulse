@@ -182,7 +182,7 @@ class TelegramApplication(Application):
 
     def update_thread(self, channel_id, id_, status, body, header, status_icons, chain_enabled=True,
                       status_enabled=True):
-        if status_enabled:
+        if status_enabled or status == 'closed':
             self._update_topic(channel_id, id_, header, status_icons)
         else:
             self._update_topic(channel_id, id_, header, "5377316857231450742") # ? mark
