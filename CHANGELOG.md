@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.3.0
+Changes:
+- Added [Telegram](https://telegram.org) support
+
 ## v2.2.0
 Changes:
 - Docs moved to this repo

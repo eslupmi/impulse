@@ -47,7 +47,6 @@ jobs:
           port: ${{ secrets.PORT }}
           username: ${{ secrets.USER }}
           key: ${{ secrets.SSH_KEY }}
-          debug: true
           script: |
             cd /opt/impulse/test_slack
             docker-compose down
@@ -60,6 +59,6 @@ jobs:
             docker-compose up -d
             
             cd /opt/impulse/test_telegram
-            docker-compose pull
             docker-compose down
+            docker-compose pull
             docker-compose up -d
