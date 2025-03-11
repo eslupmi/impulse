@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.3.1
+Changes:
+- Disable 'update available' for Telegram
+
 ## v2.3.0
 Changes:
 - Added [Telegram](https://telegram.org) support
