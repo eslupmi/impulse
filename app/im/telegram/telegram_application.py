@@ -56,7 +56,7 @@ class TelegramApplication(Application):
         return f'{self.icon_map.get(icon)}'
 
     def get_admins_text(self): #!
-        return ', '.join([f'@{a.username}' for a in self.admin_users])
+        return ', '.join([f'@{a.id}' for a in self.admin_users])
 
     def send_message(self, channel_id, text, attachment):
         params = {

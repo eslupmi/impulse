@@ -72,7 +72,7 @@ class QueueManager:
             self.handle_status_update(uuid_)
         elif type_ == 'chain_step':
             self.handle_step(uuid_, identifier)
-        elif type_ == 'check_update':
+        elif type_ == 'check_update' and self.status_update_handler.app.type != 'telegram':
             self.handle_check_update(identifier)
         elif type_ == 'alert':
             self.handle_alert(data)
