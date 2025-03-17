@@ -71,25 +71,43 @@ function formatterWrapper(formatterFunction) {
     function colorFormatter(cell, formatterParams) {
         const columnName = cell.getColumn().getField();
         const cellValue = cell.getValue();
+        let color = null;
 
         if (columnColors[columnName] && columnColors[columnName][cellValue]) {
-            cell.getElement().style.backgroundColor = columnColors[columnName][cellValue];
-            cell.getElement().style.color = "#fff";
+            color = columnColors[columnName][cellValue];
         }
 
+        // Create a pill-style label with transparent background & colored border
+        const pillDiv = document.createElement("div");
+        pillDiv.textContent = cellValue;
+        pillDiv.style.display = "inline-block";
+        pillDiv.style.padding = "2px 4px";
+        pillDiv.style.borderRadius = "4px";
+        pillDiv.style.whiteSpace = "nowrap";
+        pillDiv.style.border = `2px solid ${color || "#ccc"}`;
+        pillDiv.style.backgroundColor = "transparent";
+
+        let text = "";
         if (typeof formatterFunction === "function") {
-            return formatterFunction(cell, formatterParams);
+            text = formatterFunction(cell, formatterParams);
         } else {
-            return cellValue;
+            text = cellValue;
         }
+
+        pillDiv.textContent = text;
+        return color ? pillDiv : text;
     }
 
     return colorFormatter;
 }
 
 function formatIndicator(cell, params) {
-    cell.getElement().style.backgroundColor = cell.getValue();
-    return '';
+    const indicatorDiv = document.createElement("div");
+    indicatorDiv.style.display = "inline-block";
+    indicatorDiv.style.width = "6px";
+    indicatorDiv.style.height = "35px";
+    indicatorDiv.style.backgroundColor = cell.getValue();
+    return indicatorDiv;
 }
 
 function getColorMap() {

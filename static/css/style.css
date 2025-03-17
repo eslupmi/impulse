@@ -3,8 +3,10 @@
 /* General Styling */
 body {
     font-family: 'Inter', sans-serif;
+    font-weight: 400;
+    font-size: 16px;
     background: var(--primary-bg);
-    margin: 20px;
+    margin: 0;
     padding: 0;
 }
 
@@ -24,6 +26,9 @@ body {
 }
 
 .tabulator-header .tabulator-col {
+    top: 0;
+    z-index: 100;
+    position: sticky;
     background: var(--primary-color) !important;
     color: var(--primary-text) !important;
     font-size: 16px;
@@ -40,6 +45,7 @@ body {
 
 /* Filter Container */
 #filter-wrapper {
+    margin-top: 10px;
     display: flex;
     align-items: center;
     gap: 10px;
@@ -155,5 +161,14 @@ body {
 }
 
 .indicator-field {
-    width: 5px
+    justify-content: center;
+}
+
+#table-wrapper {
+    margin: 0 20px;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    max-height: 100vh;
+    overflow: hidden;
 }

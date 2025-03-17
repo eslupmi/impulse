@@ -2,7 +2,7 @@ import {formatterWrapper, formatterMap, formatterParamsMap, setColorMap,} from "
 import {loadFiltersFromArrayToURL} from "./filters.js";
 import {initializeSorting} from "./sorters.js";
 
-let relativeFields = [];
+const relativeFields = [];
 
 const table = new Tabulator("#data-table", {
     layout: "fitData",
@@ -46,9 +46,11 @@ async function initializeTable() {
                 formatter: formatterWrapper(formatterMap[columnType] || undefined),
                 formatterParams: columnType in formatterParamsMap ? formatterParamsMap[columnType](column) : undefined,
                 cssClass: cssClass,
+                vertAlign: "middle",
             }
             if (columnType === "indicator") {
-                columLayout.minWidth = 5;
+                columLayout.minWidth = 37;
+                columLayout.maxWidth = 37;
                 columLayout.resizable = false;
             }
             return columLayout
