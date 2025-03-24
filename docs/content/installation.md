@@ -8,7 +8,7 @@ Select preferred method and move on.
 
 See **INTEGRATIONS** to create bot and configure your messenger.
 
-We have integrations with [Slack](slack.md) and [Mattermost](mattermost.md). See their pages to create and configure bot.
+We have integrations with [Mattermost](mattermost.md), [Slack](slack.md) and [Telegram](telegram.md). See their pages to create and configure bot.
 
 ## 2. Get IMPulse
 

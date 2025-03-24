@@ -27,7 +27,7 @@ The only configuration file for IMPulse is `impulse.yml`. To change default `imp
 
 > **admin_users** [`list`, _required_] - IMPulse administrators. They will be notified when any warnings
 
-> **impulse_address** [`string`, _mattermost only_] - define where Mattermost will send button events
+> **impulse_address** [`string`] - define where Mattermost / Telegram will send button events
 
 > **users** [`dict`, _required_] - users declaration. See [details](config_file.md#users)
 
@@ -39,7 +39,7 @@ The only configuration file for IMPulse is `impulse.yml`. To change default `imp
 
 > **template_files** [`dict`] - path to custom template files. See [details](config_file.md#template_files)
 
-> **type** [`string`, _required_] - type of messenger (`slack` or `mattermost`)
+> **type** [`string`, _required_] - type of messenger (`mattermost`, `slack` or `telegram`)
 
 **webhooks** - see [details](config_file.md#webhooks) to understand how to work with it
 
