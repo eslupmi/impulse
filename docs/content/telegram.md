@@ -28,3 +28,5 @@ Use this [instuction](https://core.telegram.org/bots/features#creating-a-new-bot
     - go to group's "General" topic and send command `/getgroupid@myidbot`
     - use group ID in `application.channels` [block](config_file.md#channels)
     - you can remove `@myidbot` bot
+
+7. IMPulse bot should have permissions to interact with users. If you see log WARNING <b>user &lt;username&gt; not found in Telegram and will not be notified</b> try to send message from &lt;username&gt; to bot. This should help.
