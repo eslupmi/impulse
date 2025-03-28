@@ -29,7 +29,8 @@ class Incident:
     chain: List[Dict] = field(default_factory=list)
     chain_enabled: bool = False
     status_enabled: bool = False
-    updated: datetime = datetime.utcnow()
+    updated: datetime = field(default_factory=datetime.utcnow)
+    created: datetime = field(default_factory=datetime.utcnow)
     version: str = INCIDENT_ACTUAL_VERSION
     uuid: str = field(init=False)
     ts: str = field(default='')
@@ -116,6 +117,7 @@ class Incident:
             status_enabled=content.get('status_enabled', False),
             status_update_datetime=content.get('status_update_datetime'),
             updated=content.get('updated'),
+            created=content.get('created'),
             assigned_user_id=content.get('assigned_user_id', ''),
             assigned_user=content.get('assigned_user', ''),
             version=content.get('version', INCIDENT_ACTUAL_VERSION)
@@ -134,6 +136,7 @@ class Incident:
             "status": self.status,
             "ts": self.ts,
             "updated": self.updated,
+            "created": self.created,
             "assigned_user_id": self.assigned_user_id,
             "assigned_user": self.assigned_user,
             "version": self.version
@@ -151,6 +154,7 @@ class Incident:
             "status_update_datetime": self.status_update_datetime,
             "status": self.status,
             "updated": self.updated,
+            "created": self.created,
             "assigned_user_id": self.assigned_user_id,
             "assigned_user": self.assigned_user,
             "link": self.link,
