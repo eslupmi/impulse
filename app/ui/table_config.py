@@ -18,6 +18,7 @@ def get_incident_table_config():
     for field in ui_config['columns']:
         field_name = field['name']
         field_type = field.get('type')
+        field_visible = field.get('visible', True)
         if field_type == 'link':
             tabulator_config.append({
                 'title': field['header'],
@@ -42,6 +43,7 @@ def get_incident_table_config():
                 'title': field['header'],
                 'field': field_name,
                 'type': field_type,
+                'visible': field_visible,
             })
 
     return tabulator_config
