@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import List, Dict, Optional
 
 import yaml
@@ -29,6 +29,7 @@ class Incident:
     status_update_datetime: datetime
     assigned_user_id: str
     assigned_user: str
+    created: datetime = None
     chain: List[Dict] = field(default_factory=list)
     chain_enabled: bool = False
     status_enabled: bool = False
@@ -47,6 +48,8 @@ class Incident:
 
     def __post_init__(self):
         self.uuid = gen_uuid(self.last_state.get('groupLabels'))
+        if not self.created:
+            self.created = datetime.now(UTC)
 
     def set_thread(self, thread_id: str, public_url: str):
         self.ts = thread_id

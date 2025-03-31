@@ -67,7 +67,7 @@ function formatTimestamp(unixTimestamp) {
 }
 
 // Custom formatter to apply colors
-function formatterWrapper(formatterFunction) {
+function formatterWrapper(formatter) {
     function colorFormatter(cell, formatterParams) {
         const columnName = cell.getColumn().getField();
         const cellValue = cell.getValue();
@@ -80,16 +80,13 @@ function formatterWrapper(formatterFunction) {
         // Create a pill-style label with transparent background & colored border
         const pillDiv = document.createElement("div");
         pillDiv.textContent = cellValue;
-        pillDiv.style.display = "inline-block";
-        pillDiv.style.padding = "2px 4px";
-        pillDiv.style.borderRadius = "4px";
-        pillDiv.style.whiteSpace = "nowrap";
+        pillDiv.className = "pill-label";
         pillDiv.style.border = `2px solid ${color || "#ccc"}`;
         pillDiv.style.backgroundColor = "transparent";
 
         let text = "";
-        if (typeof formatterFunction === "function") {
-            text = formatterFunction(cell, formatterParams);
+        if (typeof formatter === "function") {
+            text = formatter(cell, formatterParams);
         } else {
             text = cellValue;
         }
@@ -98,7 +95,7 @@ function formatterWrapper(formatterFunction) {
         return color ? pillDiv : text;
     }
 
-    return colorFormatter;
+    return typeof formatter === "string" ? formatter : colorFormatter;
 }
 
 function formatIndicator(cell, params) {

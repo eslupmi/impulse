@@ -5,7 +5,7 @@ import {initializeSorting} from "./sorters.js";
 const relativeFields = [];
 
 const table = new Tabulator("#data-table", {
-    layout: "fitData",
+    layout: "fitDataFill",
     index: "uuid",
 });
 

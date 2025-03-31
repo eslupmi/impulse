@@ -5,18 +5,21 @@ body {
     font-family: 'Inter', sans-serif;
     font-weight: 400;
     font-size: 16px;
-    background: var(--primary-bg);
+    background: var(--table-bg);
     margin: 0;
     padding: 0;
+    box-sizing: border-box;
+}
+
+*, *:before, *:after {
+    box-sizing: inherit;    
 }
 
 /* Table Styling */
 #data-table {
     background: var(--table-bg);
-    border-radius: 8px;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
     overflow: hidden;
-    width: 100%; /* Ensure table takes full width */
+    width: 100%;
     max-width: 100%;
 }
 
@@ -25,69 +28,162 @@ body {
     border: none !important;
 }
 
+.tabulator .tabulator-header {
+    background-color: var(--header-bg) !important;
+    height: 32px !important;
+    border-bottom: 1px solid var(--border-color) !important;
+}
+
 .tabulator-header .tabulator-col {
     top: 0;
-    z-index: 100;
+    z-index: 1;
     position: sticky;
-    background: var(--primary-color) !important;
-    color: var(--primary-text) !important;
-    font-size: 16px;
-    font-weight: bold;
+    background: var(--header-bg) !important;
+    color: var(--header-text) !important;
+    font-size: 16px !important;
+    font-weight: 600 !important;
+    border-right: none !important;
+    height: 32px !important;
+}
+
+.tabulator-header .tabulator-col-content {
+    padding: 0 4px !important;
+    line-height: 32px !important;
 }
 
 .tabulator-row {
     transition: background 0.2s ease-in-out;
+    border-bottom: 1px solid var(--border-color) !important;
 }
 
 .tabulator-row:hover {
     background: var(--secondary-hover) !important;
 }
 
-/* Filter Container */
-#filter-wrapper {
-    margin-top: 10px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    width: 100%;
-    max-width: 100%;
-    margin-bottom: 10px;
+.tabulator-row .tabulator-cell {
+    border-right: none !important;
+    font-size: 16px;
 }
 
-/* Filters - Appear Next to Input */
+.tabulator-row-even {
+    background: var(--table-bg) !important;
+}
+
+/* Filter Container */
+#filter-wrapper {
+    box-sizing: border-box;
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    background: var(--primary-bg);
+}
+
+/* Scrollable Filters Area */
+#scrollable-filters {
+    position: relative;
+    max-width: 80%;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+#scrollable-filters.has-filters {
+    padding-right: 10px;
+}
+
+/* Filters Container */
 #filter-container {
     display: flex;
     align-items: center;
-    flex-wrap: wrap;
-    gap: 6px;
-    max-width: 80%; /* Allow room for input field */
-    overflow: hidden;
+    gap: 10px;
+    overflow-x: auto;
+    overflow-y: hidden;
     white-space: nowrap;
+    scroll-behavior: smooth;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+    flex: 1;
+}
+
+#filter-container::-webkit-scrollbar {
+    display: none;
+}
+
+/* Arrow Wrappers */
+.arrow-wrapper {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    width: 32px;
+    background: var(--primary-bg);
+    display: none;
+    z-index: 2;
+    align-items: center;
+    justify-content: center;
+}
+
+.arrow-wrapper.left {
+    left: 0;
+}
+
+.arrow-wrapper.right {
+    right: 0;
+}
+
+.arrow-wrapper.visible {
+    display: flex;
+}
+
+/* Scroll Arrows */
+.scroll-arrow {
+    width: 24px;
+    height: 24px;
+    background: var(--primary-color);
+    color: var(--primary-text);
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease-in-out;
+    margin: 4px;
+    font-size: 18px;
+    line-height: 1;
+}
+
+.scroll-arrow:hover {
+    background: var(--primary-hover);
+    transform: scale(1.1);
 }
 
 /* Dynamic Input Field */
 #filter-input {
-    flex-grow: 1;
-    padding: 10px;
+    flex: 1;
+    padding: 6px 12px;
     border: 2px solid var(--input-border);
-    border-radius: 5px;
+    border-radius: 4px 0 0 4px;
     outline: none;
     font-size: 16px;
     transition: all 0.2s ease-in-out;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-    min-width: 150px;
+    height: 40px;
+    line-height: 20px;
 }
 
 /* Add Filter Button */
 #add-filter-btn {
-    padding: 10px 15px;
-    background: var(--primary-color);
+    padding: 6px 12px;
+    background: var(--filter-badge);
     color: var(--primary-text);
     border: none;
-    border-radius: 5px;
+    border-radius: 0 4px 4px 0;
     font-size: 16px;
     cursor: pointer;
     transition: background 0.2s ease-in-out;
+    white-space: nowrap;
+    height: 40px;
+    line-height: 20px;
+    margin-left: -2px; /* Compensate for input border */
 }
 
 #add-filter-btn:hover {
@@ -107,6 +203,7 @@ body {
 
 /* Error State */
 #filter-error {
+    padding: 0 20px;
     color: var(--filter-error);
     font-weight: bold;
     display: block;
@@ -120,6 +217,24 @@ body {
     border-color: var(--filter-error);
 }
 
+/* Pill Label */
+.pill-label {
+    display: inline-block;
+    padding: 2px 4px;
+    border-radius: 4px;
+    white-space: nowrap;
+}
+
+/* Link field */
+.link-field a {
+    color: var(--primary-color);
+    text-decoration: none;
+}
+
+.link-field a:hover {
+    text-decoration: underline;
+}
+
 /* Filter Badges */
 .filter-badge {
     display: flex;
@@ -127,7 +242,8 @@ body {
     gap: 6px;
     background: var(--filter-badge);
     color: var(--primary-text);
-    font-size: 14px;
+    font-size: 18px;
+    font-weight: 500;
     padding: 6px 12px;
     border-radius: 5px;
     cursor: pointer;
@@ -135,6 +251,7 @@ body {
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
     transition: all 0.3s ease-in-out;
     white-space: nowrap;
+    height: 40px;
 }
 
 .filter-badge:hover {
@@ -142,14 +259,13 @@ body {
 }
 
 /* Remove Filter Button */
-.filter-badge span {
+.filter-badge span.cross {
     cursor: pointer;
-    font-weight: bold;
     margin-left: 5px;
     transition: color 0.2s ease-in-out;
 }
 
-.filter-badge span:hover {
+.filter-badge span.cross:hover {
     color: var(--filter-badge-span-hover);
 }
 
@@ -165,10 +281,14 @@ body {
 }
 
 #table-wrapper {
-    margin: 0 20px;
     display: flex;
     flex-direction: column;
     height: 100vh;
     max-height: 100vh;
     overflow: hidden;
+    box-sizing: border-box;
+}
+
+.tabulator-col-resize-handle {
+    z-index: 2;
 }

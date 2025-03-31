@@ -1,16 +1,20 @@
 /* Global Color Variables */
 :root {
-    --primary-bg: #f8f9fa;
+    --primary-bg: #D7EFFA;
     --primary-color: #4a90e2;
     --primary-hover: #357ABD;
     --primary-shadow: rgba(0, 123, 255, 0.3);
     --secondary-hover: #eef5ff;
     --table-bg: white;
     --primary-text: white;
-    --input-border: #ddd;
+    --input-border: #38ADE6;
     --input-focus: #007bff;
-    --filter-badge: #4a90e2;
+    --filter-badge: #2D8AB8;
     --filter-badge-hover: #357ABD;
     --filter-badge-span-hover: #ffdddd;
     --filter-error: red;
+    --header-bg: #D7EFFA;
+    --header-text: #061117;
+    --border-color: #C3E6F7;
+    --link-color: #38ADE6;
 }

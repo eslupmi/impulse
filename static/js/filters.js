@@ -156,6 +156,7 @@ function addFilterUI(filter) {
 
     // Remove button
     const removeButton = document.createElement("span");
+    removeButton.classList.add("cross");
     removeButton.innerText = "✖";
     removeButton.addEventListener("click", () => removeFilter(filter, filterElement));
     filterElement.appendChild(removeButton);
@@ -215,9 +216,95 @@ function addFilterFromInput() {
     showFilterError(null);
 }
 
+// Add scroll functionality
+function setupFilterContainerScroll() {
+    const filterContainer = document.getElementById("filter-container");
+    const scrollableFilters = document.getElementById("scrollable-filters");
+    const leftArrow = document.querySelector(".scroll-arrow.left");
+    const rightArrow = document.querySelector(".scroll-arrow.right");
+    
+    // Check if all required elements exist
+    if (!filterContainer || !leftArrow || !rightArrow || !scrollableFilters) {
+        console.warn("Required elements for filter scrolling not found");
+        return;
+    }
 
-// Add filtering from table clicks (cell values) and input
+    const scrollAmount = 200; // Amount to scroll on each click
+
+    // Setup arrow click handlers
+    leftArrow.onclick = () => {
+        filterContainer.scrollBy({
+            left: -scrollAmount,
+            behavior: "smooth"
+        });
+    };
+
+    rightArrow.onclick = () => {
+        filterContainer.scrollBy({
+            left: scrollAmount,
+            behavior: "smooth"
+        });
+    };
+
+    // Handle mouse wheel scrolling
+    filterContainer.addEventListener("wheel", (e) => {
+        e.preventDefault();
+        filterContainer.scrollLeft += e.deltaY;
+    });
+
+    // Function to update arrow visibility
+    function updateArrowVisibility() {
+        const hasFilters = filterContainer.children.length > 0;
+        scrollableFilters.classList.toggle("has-filters", hasFilters);
+        
+        const leftWrapper = document.querySelector(".arrow-wrapper.left");
+        const rightWrapper = document.querySelector(".arrow-wrapper.right");
+        
+        if (hasFilters) {
+            // Show left arrow if we're not at the start
+            leftWrapper.classList.toggle("visible", filterContainer.scrollLeft > 0);
+            
+            // Show right arrow if we're not at the end
+            const isAtEnd = Math.abs(filterContainer.scrollWidth - filterContainer.clientWidth - filterContainer.scrollLeft) < 1;
+            rightWrapper.classList.toggle("visible", !isAtEnd);
+        } else {
+            leftWrapper.classList.remove("visible");
+            rightWrapper.classList.remove("visible");
+        }
+    }
+
+    // Show/hide arrows based on scroll position and filter presence
+    filterContainer.addEventListener("scroll", updateArrowVisibility);
+
+    // Update arrow visibility when filters are added or removed
+    const observer = new MutationObserver(updateArrowVisibility);
+    observer.observe(filterContainer, { childList: true, subtree: true });
+
+    // Initial arrow visibility
+    updateArrowVisibility();
+}
+
+// Initialize all filter functionality
+function initializeFilters() {
+    // Wait for a short moment to ensure DOM is fully rendered
+    setTimeout(() => {
+        setupFilterContainerScroll();
+        setupFilterEventListeners();
+    }, 0);
+}
+
+// Update the setupTableFiltering function to include scroll setup
 export function setupTableFiltering() {
+    // Wait for DOM to be fully loaded
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", initializeFilters);
+    } else {
+        initializeFilters();
+    }
+}
+
+// Separate the event listener setup into its own function
+function setupFilterEventListeners() {
     // Add a filter from the input field
     document.getElementById("filter-input").addEventListener("keypress", function (event) {
         if (event.key === "Enter") {
@@ -234,7 +321,6 @@ export function setupTableFiltering() {
             e.stopPropagation();
             return;
         }
-
 
         const field = cell.getColumn().getField();
         const value = cell.getValue();
@@ -256,7 +342,6 @@ export function setupTableFiltering() {
             removeFilter(newFilter, filterElement.parentElement);
         }
     });
-
 }
 
 export {loadFiltersFromArrayToURL, loadFiltersFromURL}

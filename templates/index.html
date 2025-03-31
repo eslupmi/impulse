@@ -12,15 +12,23 @@
     <link href="https://cdn.jsdelivr.net/npm/tabulator-tables@5.5.2/dist/css/tabulator.min.css" rel="stylesheet">
 </head>
 <body>
-<div id="table-wrapper">
-    <div id="filter-wrapper">
-        <div id="filter-container"></div>
-        <input id="filter-input" type="text" placeholder='Enter filters (e.g., status="firing")'>
-        <button id="add-filter-btn">Add</button>
+    <div id="table-wrapper">
+        <div id="filter-wrapper">
+            <div id="scrollable-filters">
+                <div class="arrow-wrapper left">
+                    <button class="scroll-arrow left">‹</button>
+                </div>
+                <div id="filter-container"></div>
+                <div class="arrow-wrapper right">
+                    <button class="scroll-arrow right">›</button>
+                </div>
+            </div>
+            <input id="filter-input" type="text" placeholder='Enter filters (e.g., status="firing")'>
+            <button id="add-filter-btn">Add</button>
+        </div>
+        <div id="filter-error" class="hidden"></div>
+        <div id="data-table"></div>
     </div>
-    <div id="filter-error" class="hidden"></div>
-    <div id="data-table"></div>
-</div>
-<script src="{{ url_for('static', filename='js/main.js') }}" type="module"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}" type="module" defer></script>
 </body>
 </html>
