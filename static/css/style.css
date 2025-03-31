@@ -138,8 +138,8 @@ body {
 .scroll-arrow {
     width: 24px;
     height: 24px;
-    background: var(--primary-color);
-    color: var(--primary-text);
+    background: var(--primary-bg);
+    color: var(--filter-arrow);
     border: none;
     border-radius: 50%;
     cursor: pointer;
@@ -148,12 +148,13 @@ body {
     justify-content: center;
     transition: all 0.2s ease-in-out;
     margin: 4px;
-    font-size: 18px;
+    font-size: 24px;
     line-height: 1;
 }
 
 .scroll-arrow:hover {
-    background: var(--primary-hover);
+    color: var(--primary-color);
+    opacity: 0.8;
     transform: scale(1.1);
 }
 
