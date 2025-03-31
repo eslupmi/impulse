@@ -13,8 +13,6 @@ def generate_user_groups(user_groups_dict=None, users=None):
                 user_object = users.get(user_name, UndefinedUser(user_name))
                 user_objects.append(user_object)
             user_groups[name] = UserGroup(name, user_objects)
-    else:
-        logger.info(f'No user_groups defined in impulse.yml. Continue with empty user_groups')
     return user_groups
 
 
