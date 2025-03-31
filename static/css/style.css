@@ -173,7 +173,7 @@ body {
 /* Add Filter Button */
 #add-filter-btn {
     padding: 6px 12px;
-    background: var(--filter-badge);
+    background: var(--link-color);
     color: var(--primary-text);
     border: none;
     border-radius: 0 4px 4px 0;
