@@ -73,7 +73,7 @@ There are two ways how the Incident can be closed:
 
 ### Lifecycle
 
-IMPulse creates an Incident with **firing** status and is  tracking it till the Incident status will become **closed**. 
+IMPulse creates an Incident with **firing** status and is tracking it till the Incident status will become **closed**. 
 
 Here you can see the whole lifecycle of an Incident:
 

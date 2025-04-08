@@ -29,6 +29,7 @@ nav:
     - config_file.md
     - config_examples.md
   - best.md
+  - howto.md
   - upgrade.md
   - versioning.md
   - Warnings:
