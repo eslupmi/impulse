@@ -1,3 +1,5 @@
+import {ZOOM_IN_ICON, ZOOM_OUT_ICON} from "./constants.js";
+
 let columnColors = {}; // Store color mappings
 
 // Formatters for different column types
@@ -68,6 +70,11 @@ function formatTimestamp(unixTimestamp) {
 
 // Custom formatter to apply colors
 function formatterWrapper(formatter) {
+    // Special handling for indicator formatter
+    if (formatter === formatIndicator) {
+        return formatter;
+    }
+    
     function colorFormatter(cell, formatterParams) {
         const columnName = cell.getColumn().getField();
         const cellValue = cell.getValue();
@@ -77,12 +84,9 @@ function formatterWrapper(formatter) {
             color = columnColors[columnName][cellValue];
         }
 
-        // Create a pill-style label with transparent background & colored border
-        const pillDiv = document.createElement("div");
-        pillDiv.textContent = cellValue;
-        pillDiv.className = "pill-label";
-        pillDiv.style.border = `2px solid ${color || "#ccc"}`;
-        pillDiv.style.backgroundColor = "transparent";
+        // Create a container for the cell content
+        const container = document.createElement("div");
+        container.className = "cell-container";
 
         let text = "";
         if (typeof formatter === "function") {
@@ -91,11 +95,123 @@ function formatterWrapper(formatter) {
             text = cellValue;
         }
 
-        pillDiv.textContent = text;
-        return color ? pillDiv : text;
+        // Only create a pill-style label if we have a color
+        if (color) {
+            // Create a pill-style label with transparent background & colored border
+            const pillDiv = document.createElement("div");
+            pillDiv.textContent = text;
+            pillDiv.className = "pill-label";
+            pillDiv.style.border = `2px solid ${color}`;
+            pillDiv.style.backgroundColor = "transparent";
+            
+            // Add the pill to the container
+            container.appendChild(pillDiv);
+        } else {
+            // Just add the text directly
+            const textDiv = document.createElement("div");
+            textDiv.textContent = text;
+            textDiv.className = "original-formatter";
+            container.appendChild(textDiv);
+        }
+        
+        // Add zoom icon for filterable cells
+        if (!cell.getElement().classList.contains("unclickable-cell")) {
+            const zoomIcon = document.createElement("span");
+            zoomIcon.className = "zoom-icon zoom-in";
+            
+            // Check if this cell value is currently filtered
+            const urlParams = new URLSearchParams(window.location.search);
+            const filters = urlParams.get("filters") ? urlParams.get("filters").split(",") : [];
+            const filterForThisCell = filters.find(f => {
+                const match = f.match(/^(.+?)(=)(.*)$/);
+                if (match) {
+                    const [, field, operator, value] = match;
+                    const trimmedValue = value.trim().replace(/^["']|["']$/g, '');
+                    return field.trim() === columnName && trimmedValue === cellValue;
+                }
+                return false;
+            });
+            
+            if (filterForThisCell) {
+                zoomIcon.className = "zoom-icon zoom-out";
+                zoomIcon.innerHTML = ZOOM_OUT_ICON;
+            } else {
+                zoomIcon.innerHTML = ZOOM_IN_ICON;
+            }
+            
+            container.appendChild(zoomIcon);
+        }
+        
+        return container;
     }
 
-    return typeof formatter === "string" ? formatter : colorFormatter;
+    // Handle string formatters (like "link")
+    if (typeof formatter === "string") {
+        return function(cell, formatterParams) {
+            // Create a container for the cell content
+            const container = document.createElement("div");
+            container.className = "cell-container";
+            
+            // Create the original formatter content
+            const originalContent = document.createElement("div");
+            originalContent.className = "original-formatter";
+            
+            // Apply the original formatter
+            if (formatter === "link") {
+                const linkParams = formatterParams || {};
+                const urlField = linkParams.urlField || cell.getColumn().getField();
+                const urlPrefix = linkParams.urlPrefix || "";
+                const target = linkParams.target || "_blank";
+                
+                const link = document.createElement("a");
+                link.href = urlPrefix + cell.getData()[urlField];
+                link.target = target;
+                link.textContent = cell.getValue();
+                originalContent.appendChild(link);
+            } else {
+                originalContent.textContent = cell.getValue();
+            }
+            
+            container.appendChild(originalContent);
+            
+            // Add zoom icon for filterable cells
+            if (!cell.getElement().classList.contains("unclickable-cell")) {
+                const zoomIcon = document.createElement("span");
+                zoomIcon.className = "zoom-icon zoom-in";
+                zoomIcon.style.cursor = "pointer";
+                zoomIcon.style.marginLeft = "5px";
+                zoomIcon.style.display = "inline-flex";
+                zoomIcon.style.alignItems = "center";
+                zoomIcon.style.justifyContent = "center";
+                
+                // Check if this cell value is currently filtered
+                const urlParams = new URLSearchParams(window.location.search);
+                const filters = urlParams.get("filters") ? urlParams.get("filters").split(",") : [];
+                const filterForThisCell = filters.find(f => {
+                    const match = f.match(/^(.+?)(=)(.*)$/);
+                    if (match) {
+                        const [, field, operator, value] = match;
+                        const trimmedValue = value.trim().replace(/^["']|["']$/g, '');
+                        return field.trim() === cell.getColumn().getField() && trimmedValue === cell.getValue();
+                    }
+                    return false;
+                });
+                
+                if (filterForThisCell) {
+                    zoomIcon.className = "zoom-icon zoom-out";
+                    zoomIcon.innerHTML = ZOOM_OUT_ICON;
+                } else {
+                    zoomIcon.innerHTML = ZOOM_IN_ICON;
+                }
+                
+                container.appendChild(zoomIcon);
+            }
+            
+            return container;
+        };
+    }
+    
+    return colorFormatter;
 }
 
 function formatIndicator(cell, params) {

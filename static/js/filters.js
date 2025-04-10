@@ -1,4 +1,5 @@
 import {table} from "./table.js";
+import {ZOOM_IN_ICON, ZOOM_OUT_ICON} from "./constants.js";
 
 const symbolicOperators = ["=", ">", "<", ">=", "<=", "!=", "=~", "!~"];
 // Mapping of custom filter operators to Tabulator's built-in operators
@@ -127,6 +128,9 @@ function applyFilters() {
             }
         }
     });
+    
+    // Update zoom icons after applying filters
+    updateZoomIcons();
 }
 
 // Update filter container layout dynamically
@@ -314,13 +318,19 @@ function setupFilterEventListeners() {
 
     document.getElementById("add-filter-btn").addEventListener("click", addFilterFromInput);
 
-    // Add filtering from table clicks
+    // Add filtering from table clicks - only when clicking the zoom icon
     table.on("cellClick", (e, cell) => {
         if (cell.getElement().classList.contains("unclickable-cell")) return;
         if (e.target.tagName === "A") {
             e.stopPropagation();
             return;
         }
+        
+        // Check if the click was on a zoom icon or its SVG/path elements
+        const isZoomIcon = e.target.classList.contains("zoom-icon") || 
+                           e.target.closest(".zoom-icon") !== null;
+        
+        if (!isZoomIcon) return;
 
         const field = cell.getColumn().getField();
         const value = cell.getValue();
@@ -344,4 +354,43 @@ function setupFilterEventListeners() {
     });
 }
 
-export {loadFiltersFromArrayToURL, loadFiltersFromURL}
+// Function to update zoom icons based on current filters
+function updateZoomIcons() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const filters = urlParams.get("filters") ? urlParams.get("filters").split(",") : [];
+    
+    // Get all cells in the table
+    const cells = table.getRows().flatMap(row => row.getCells());
+    
+    cells.forEach(cell => {
+        if (cell.getElement().classList.contains("unclickable-cell")) return;
+        
+        const field = cell.getColumn().getField();
+        const value = cell.getValue();
+        
+        // Check if this cell value is currently filtered with exact match (=)
+        const filterForThisCell = filters.find(f => {
+            const match = f.match(/^(.+?)(=)(.*)$/);
+            if (match) {
+                const [, fieldName, operator, filterValue] = match;
+                const trimmedValue = filterValue.trim().replace(/^["']|["']$/g, '');
+                return fieldName.trim() === field && trimmedValue === value;
+            }
+            return false;
+        });
+        
+        // Find the zoom icon in this cell
+        const zoomIcon = cell.getElement().querySelector(".zoom-icon");
+        if (zoomIcon) {
+            if (filterForThisCell) {
+                zoomIcon.className = "zoom-icon zoom-out";
+                zoomIcon.innerHTML = ZOOM_OUT_ICON;
+            } else {
+                zoomIcon.className = "zoom-icon zoom-in";
+                zoomIcon.innerHTML = ZOOM_IN_ICON;
+            }
+        }
+    });
+}
+
+export {loadFiltersFromArrayToURL, loadFiltersFromURL, updateZoomIcons}
