@@ -57,7 +57,7 @@ body {
 }
 
 .tabulator-row:hover {
-    background: var(--secondary-hover) !important;
+    background: var(--row-hover) !important;
 }
 
 .tabulator-row .tabulator-cell {
