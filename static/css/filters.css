@@ -12,7 +12,8 @@
     opacity: 0;
 }
 
-.tabulator-row:hover .zoom-icon {
+/* Change from row hover to cell hover */
+.tabulator-cell:hover .zoom-icon {
     opacity: 1;
 }
 
