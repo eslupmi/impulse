@@ -28,6 +28,10 @@ body {
     border: none !important;
 }
 
+.tabulator .tabulator-tableholder {
+    overflow-x: hidden; !important;
+}
+
 .tabulator .tabulator-header {
     background-color: var(--header-bg) !important;
     height: 32px !important;

@@ -269,7 +269,8 @@ function setupFilterContainerScroll() {
             leftWrapper.classList.toggle("visible", filterContainer.scrollLeft > 0);
             
             // Show right arrow if we're not at the end
-            const isAtEnd = Math.abs(filterContainer.scrollWidth - filterContainer.clientWidth - filterContainer.scrollLeft) < 1;
+            // Use a small threshold to account for rounding errors
+            const isAtEnd = Math.abs(filterContainer.scrollWidth - filterContainer.clientWidth - filterContainer.scrollLeft) < 2;
             rightWrapper.classList.toggle("visible", !isAtEnd);
         } else {
             leftWrapper.classList.remove("visible");
