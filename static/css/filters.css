@@ -1,7 +1,7 @@
 /* Zoom icon styles */
 .zoom-icon {
     cursor: pointer;
-    transition: transform 0.2s ease;
+    transition: transform 0.2s ease, opacity 0.2s ease;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -9,6 +9,11 @@
     height: 20px;
     border-radius: 50%;
     flex-shrink: 0;
+    opacity: 0;
+}
+
+.tabulator-row:hover .zoom-icon {
+    opacity: 1;
 }
 
 .zoom-icon:hover {
