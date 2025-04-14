@@ -80,6 +80,7 @@ body {
     display: flex;
     align-items: center;
     background: var(--primary-bg);
+    justify-content: flex-end;
 }
 
 /* Scrollable Filters Area */
@@ -89,6 +90,7 @@ body {
     display: flex;
     align-items: center;
     gap: 5px;
+    justify-content: flex-end;
 }
 
 #scrollable-filters.has-filters {
@@ -175,7 +177,6 @@ body {
     line-height: 20px;
     max-width: 414px;
     min-width: 414px;
-    margin-left: auto;
 }
 
 /* Add Filter Button */
