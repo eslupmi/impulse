@@ -29,7 +29,7 @@ body {
 }
 
 .tabulator .tabulator-tableholder {
-    overflow-x: hidden; !important;
+    overflow-x: hidden !important;
 }
 
 .tabulator .tabulator-header {
@@ -86,7 +86,7 @@ body {
 /* Scrollable Filters Area */
 #scrollable-filters {
     position: relative;
-    max-width: calc(100% - 474px);
+    max-width: calc(100% - 454px);
     display: flex;
     align-items: center;
     gap: 5px;
