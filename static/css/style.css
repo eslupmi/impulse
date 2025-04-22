@@ -28,6 +28,15 @@ body {
     border: none !important;
 }
 
+/* Hide sort arrows */
+.tabulator .tabulator-header .tabulator-col.tabulator-sortable[aria-sort="none"] .tabulator-col-content .tabulator-col-sorter .tabulator-arrow {
+	display: none;
+}
+.tabulator .tabulator-header .tabulator-col .tabulator-col-content .tabulator-col-title {
+    width: auto !important;
+	padding-right: 5px !important;
+}
+
 .tabulator .tabulator-tableholder {
     overflow-x: hidden !important;
 }
@@ -73,6 +82,22 @@ body {
     background: var(--table-bg) !important;
 }
 
+.tabulator-col-title-holder {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    position: relative;
+}
+  
+.tabulator-col-title {
+    margin-right: 4px;
+}
+
+.tabulator-col-sorter {
+    position: static !important;
+    margin-left: 0 !important;
+}
+
 /* Filter Container */
 #filter-wrapper {
     box-sizing: border-box;
@@ -81,6 +106,8 @@ body {
     align-items: center;
     background: var(--primary-bg);
     justify-content: flex-end;
+    padding-top: 30px;
+    padding-right: 40px;
 }
 
 /* Scrollable Filters Area */
@@ -94,14 +121,14 @@ body {
 }
 
 #scrollable-filters.has-filters {
-    padding-right: 10px;
+    padding-right: 24px;
 }
 
 /* Filters Container */
 #filter-container {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 24px;
     overflow-x: auto;
     overflow-y: hidden;
     white-space: nowrap;
@@ -181,18 +208,20 @@ body {
 
 /* Add Filter Button */
 #add-filter-btn {
-    background: var(--link-color);
-    color: var(--primary-text);
-    border: none;
-    border-radius: 0 4px 4px 0;
-    font-size: 16px;
-    cursor: pointer;
-    transition: background 0.2s ease-in-out;
-    white-space: nowrap;
-    height: 40px;
-    width: 40px;
-    line-height: 20px;
-    margin-left: -2px; /* Compensate for input border */
+	background: var(--link-color);
+	color: var(--primary-text);
+	border: none;
+	border-radius: 0 4px 4px 0;
+	font-size: 16px;
+	cursor: pointer;
+	transition: background 0.2s ease-in-out;
+	white-space: nowrap;
+	height: 40px;
+	width: 40px;
+	line-height: 20px;
+	/* margin-left: -2px; */
+	padding-bottom: 0px;
+	padding-top: 3px;
 }
 
 #add-filter-btn:hover {
@@ -260,6 +289,35 @@ body {
 
 .filter-badge:hover {
     background: var(--filter-badge-hover);
+}
+
+/* Cross for filters */
+.cross {
+    position: relative;
+    width: 12px;
+    height: 12px;
+    cursor: pointer;
+    border: 1.5px;
+}
+  
+.cross::before,
+.cross::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 2px;
+    height: 100%;
+    background-color: rgb(255, 255, 255);
+    transform-origin: center;
+}
+  
+.cross::before {
+    transform: translate(-50%, -50%) rotate(45deg);
+}
+  
+.cross::after {
+    transform: translate(-50%, -50%) rotate(-45deg);
 }
 
 /* Remove Filter Button */

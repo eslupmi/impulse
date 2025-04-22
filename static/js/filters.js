@@ -80,7 +80,6 @@ function parseFilterString(filterString) {
     const match = filterString.match(/^(.+?)(=~|!~|=|!=|like|keywords|starts|ends|<|<=|>|>=|in|regex)(.*)$/);
 
     if (!match) {
-        showFilterError("Invalid filter format. Use format like status=\"firing\".");
         return;
     }
 
@@ -161,7 +160,7 @@ function addFilterUI(filter) {
     // Remove button
     const removeButton = document.createElement("span");
     removeButton.classList.add("cross");
-    removeButton.innerText = "✖";
+    removeButton.innerText = "";
     removeButton.addEventListener("click", () => removeFilter(filter, filterElement));
     filterElement.appendChild(removeButton);
 

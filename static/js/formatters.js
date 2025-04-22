@@ -58,7 +58,7 @@ function formatRelativeTime(unixTimestamp, precision = 3) {
         }
     }
 
-    return result.length > 0 ? `${result.join(" ")} ago` : "< minute ago";
+    return result.length > 0 ? `${result[0]} ago` : "< minute ago";
 }
 
 function formatTimestamp(unixTimestamp) {
