@@ -1,12 +1,11 @@
 import asyncio
 import datetime
 import json
-from typing import Dict, List
+from typing import Dict, List, Any
 from zoneinfo import ZoneInfo
 
 import jwt
 import requests
-from dotenv import load_dotenv
 from requests.adapters import HTTPAdapter
 from urllib3 import Retry
 
@@ -18,7 +17,6 @@ from config import provider_sync_interval, provider_max_events, provider_days_to
 class GoogleCalendarChain(ScheduleChain):
     def __init__(self, name, config: dict):
         super().__init__(name)
-        load_dotenv()
         
         self.calendar_id = config.get('calendar_id')
         if not self.calendar_id:
@@ -34,6 +32,13 @@ class GoogleCalendarChain(ScheduleChain):
         self._token_expiry = None
         
         # Setup retry strategy for requests
+        self._setup_session()
+        
+        # Fetch initial data
+        self._fetch_initial_data()
+        
+    def _setup_session(self) -> None:
+        """Setup the requests session with retry strategy."""
         retry_strategy = Retry(
             total=3,  # number of retries
             backoff_factor=1,  # wait 1, 2, 4 seconds between retries
@@ -44,14 +49,55 @@ class GoogleCalendarChain(ScheduleChain):
         self.session.mount("https://", adapter)
         self.session.mount("http://", adapter)
         
-    def start_sync(self):
+    def _make_api_request(self, method: str, url: str, **kwargs) -> Dict[str, Any]:
+        """Make an API request with proper error handling."""
+        try:
+            response = self.session.request(method, url, **kwargs)
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            logger.error(f"API request failed: {str(e)}")
+            if hasattr(e.response, 'text'):
+                logger.error(f"Response text: {e.response.text}")
+            raise
+        
+    def _update_timezone(self, new_timezone: str) -> None:
+        """Update the chain's timezone if it has changed."""
+        if new_timezone != self.timezone:
+            logger.info(f"Updating timezone from {self.timezone} to {new_timezone}")
+            self.timezone = new_timezone
+            self.tz = ZoneInfo(new_timezone)
+        
+    def _fetch_initial_data(self) -> None:
+        """Fetch initial calendar data synchronously."""
+        try:
+            # First sync the timezone
+            calendar_timezone = self._get_calendar_timezone()
+            self._update_timezone(calendar_timezone)
+            
+            # Then sync events
+            events = self._fetch_events()
+            self._update_schedule(events)
+            logger.info(f"Initial sync: {len(events)} events from Google Calendar")
+        except Exception as e:
+            logger.error(f"Error during initial calendar sync: {str(e)}")
+            # Initialize with empty schedule if sync fails
+            self.schedule = []
+            
+    def _update_schedule(self, events: List[Dict[str, Any]]) -> None:
+        """Update the schedule with new events."""
+        matchers = [self._convert_event_to_matcher(event) for event in events]
+        self.schedule = matchers
+        self._last_sync_time = datetime.datetime.now(datetime.UTC)
+            
+    def start_sync(self) -> None:
         """Start the sync task in the background."""
         if self._sync_task is None:
             loop = asyncio.get_event_loop()
             self._sync_task = loop.create_task(self._sync_calendar())
             logger.info(f"Started Google Calendar sync task for {self.name}")
             
-    def stop_sync(self):
+    def stop_sync(self) -> None:
         """Stop the sync task."""
         if self._sync_task is not None:
             self._sync_task.cancel()
@@ -68,12 +114,12 @@ class GoogleCalendarChain(ScheduleChain):
                 self._sync_task = None
                 logger.info(f"Stopped Google Calendar sync task for {self.name}")
             
-    def cleanup(self):
+    def cleanup(self) -> None:
         """Cleanup resources when shutting down."""
         self.stop_sync()
         self.session.close()
         
-    def _load_credentials(self):
+    def _load_credentials(self) -> None:
         """Load service account credentials from JSON file."""
         try:
             with open(provider_service_account_file, 'r') as f:
@@ -160,17 +206,13 @@ class GoogleCalendarChain(ScheduleChain):
             headers = {'Authorization': f'Bearer {token}'}
             url = f'https://www.googleapis.com/calendar/v3/calendars/{self.calendar_id}'
             
-            resp = self.session.get(url, headers=headers)
-            resp.raise_for_status()
-            
-            return resp.json().get('timeZone', 'UTC')
+            data = self._make_api_request('GET', url, headers=headers)
+            return data.get('timeZone', 'UTC')
         except requests.exceptions.RequestException as e:
             logger.error(f"Failed to get calendar timezone: {str(e)}")
-            if hasattr(e.response, 'text'):
-                logger.error(f"Response text: {e.response.text}")
             return 'UTC'  # Fallback to UTC
         
-    def _fetch_events(self) -> List[Dict]:
+    def _fetch_events(self) -> List[Dict[str, Any]]:
         """Fetch events from Google Calendar with retry logic."""
         try:
             token = self._get_access_token()
@@ -191,18 +233,14 @@ class GoogleCalendarChain(ScheduleChain):
             }
             
             url = f'https://www.googleapis.com/calendar/v3/calendars/{self.calendar_id}/events'
-            resp = self.session.get(url, headers=headers, params=params)
-            resp.raise_for_status()
-            
-            return resp.json().get('items', [])
+            data = self._make_api_request('GET', url, headers=headers, params=params)
+            return data.get('items', [])
         except requests.exceptions.RequestException as e:
             logger.error(f"Failed to fetch calendar events: {str(e)}")
-            if hasattr(e.response, 'text'):
-                logger.error(f"Response text: {e.response.text}")
             return []
         
     @staticmethod
-    def _parse_steps_from_description(description: str) -> List[Dict]:
+    def _parse_steps_from_description(description: str) -> List[Dict[str, str]]:
         """Parse steps from event description."""
         if not description:
             return []
@@ -218,7 +256,7 @@ class GoogleCalendarChain(ScheduleChain):
                     steps.append({key: value})
         return steps
         
-    def _convert_event_to_matcher(self, event: Dict) -> Dict:
+    def _convert_event_to_matcher(self, event: Dict[str, Any]) -> Dict[str, Any]:
         """Convert Google Calendar event to matcher format."""
         start_time = event['start'].get('dateTime', event['start'].get('date'))
         end_time = event['end'].get('dateTime', event['end'].get('date'))
@@ -247,24 +285,17 @@ class GoogleCalendarChain(ScheduleChain):
             'steps': steps
         }
         
-    async def _sync_calendar(self):
+    async def _sync_calendar(self) -> None:
         """Periodically sync calendar events with error recovery."""
         while True:
             try:
                 # First sync the timezone
                 calendar_timezone = self._get_calendar_timezone()
-                if calendar_timezone != self.timezone:
-                    logger.info(f"Updating timezone from {self.timezone} to {calendar_timezone}")
-                    self.timezone = calendar_timezone
-                    self.tz = ZoneInfo(calendar_timezone)
+                self._update_timezone(calendar_timezone)
                 
                 # Then sync events
                 events = self._fetch_events()
-                matchers = [self._convert_event_to_matcher(event) for event in events]
-                
-                # Update schedule atomically
-                self.schedule = matchers
-                self._last_sync_time = datetime.datetime.now(datetime.UTC)
+                self._update_schedule(events)
                 logger.info(f"Synced {len(events)} events from Google Calendar")
                 
             except Exception as e:
