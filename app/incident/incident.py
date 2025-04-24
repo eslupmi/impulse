@@ -57,6 +57,7 @@ class Incident:
         elif self.config.application_type == 'telegram':
             # TODO: Fix this as it won't work for Telegram (self.channel_id isn't the id that needed there)
             return f'https://t.me/c/{self.channel_id}/{self.ts}'
+        return ''
 
     def generate_chain(self, chain=None):
         if not chain:

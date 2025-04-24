@@ -6,3 +6,5 @@ Flask~=3.0.2
 python-dotenv~=1.0.1
 gunicorn~=23.0.0
 urllib3~=1.26.15
+PyJWT~=2.10.1
+

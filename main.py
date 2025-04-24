@@ -1,5 +1,7 @@
 import json
 import logging
+import asyncio
+import atexit
 from datetime import datetime
 
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -14,6 +16,10 @@ from app.queue.queue import Queue
 from app.route import generate_route
 from app.webhook import generate_webhooks
 from config import settings, check_updates, application
+
+# Create and set the event loop
+loop = asyncio.new_event_loop()
+asyncio.set_event_loop(loop)
 
 app = Flask(__name__)
 route_dict = settings.get('route')
@@ -31,6 +37,17 @@ incidents = Incidents.create_or_load(messenger.type, messenger.public_url, messe
 queue = Queue.recreate_queue(incidents, check_updates)
 
 queue_manager = QueueManager(queue, messenger, incidents, webhooks, route)
+
+# Register cleanup handler
+@atexit.register
+def cleanup():
+    logger.info('Cleaning up application resources')
+    if hasattr(messenger, 'chains'):
+        for chain in messenger.chains.values():
+            if hasattr(chain, 'cleanup'):
+                chain.cleanup()
+    if hasattr(scheduler, 'shutdown'):
+        scheduler.shutdown()
 
 # run scheduler
 logger.info('Starting scheduler')

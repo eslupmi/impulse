@@ -6,7 +6,7 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3 import Retry
 
-from app.im.chain_factory import ChainFactory
+from app.im.chain.chain_factory import ChainFactory
 from app.im.groups import generate_user_groups
 from app.im.template import JinjaTemplate, notification_user, notification_user_group, update_status
 from app.logging import logger
