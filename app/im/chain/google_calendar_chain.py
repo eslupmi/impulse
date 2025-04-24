@@ -87,6 +87,13 @@ class GoogleCalendarChain(ScheduleChain):
     def _update_schedule(self, events: List[Dict[str, Any]]) -> None:
         """Update the schedule with new events."""
         matchers = [self._convert_event_to_matcher(event) for event in events]
+        
+        # Add default steps as a separate entry if they exist
+        if self.default_steps:
+            matchers.append({
+                'steps': self.default_steps
+            })
+            
         self.schedule = matchers
         self._last_sync_time = datetime.datetime.now(datetime.UTC)
             
@@ -269,11 +276,8 @@ class GoogleCalendarChain(ScheduleChain):
         duration = end_dt - start_dt
         duration_str = f"{int(duration.total_seconds() / 3600)}h"
         
-        # Get steps from description or use default steps
+        # Get steps from description
         steps = self._parse_steps_from_description(event.get('description', ''))
-        if not steps and self.default_steps:
-            steps = self.default_steps
-            logger.debug(f"Using default steps for event {event.get('summary', 'No summary')}")
         
         return {
             'matcher': {
