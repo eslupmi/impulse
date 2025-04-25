@@ -274,7 +274,7 @@ class GoogleCalendarChain(ScheduleChain):
         
         # Calculate duration
         duration = end_dt - start_dt
-        duration_str = f"{int(duration.total_seconds() / 3600)}h"
+        duration_str = f"{int(duration.total_seconds() / 60)}m"
         
         # Get steps from description
         steps = self._parse_steps_from_description(event.get('description', ''))
