@@ -15,11 +15,12 @@ from app.queue.manager import QueueManager
 from app.queue.queue import Queue
 from app.route import generate_route
 from app.webhook import generate_webhooks
+from app.async_manager import AsyncManager
 from config import settings, check_updates, application
 
-# Create and set the event loop
-loop = asyncio.new_event_loop()
-asyncio.set_event_loop(loop)
+# Initialize and start the async manager
+async_manager = AsyncManager.get_instance()
+async_manager.start()
 
 app = Flask(__name__)
 route_dict = settings.get('route')
@@ -42,12 +43,20 @@ queue_manager = QueueManager(queue, messenger, incidents, webhooks, route)
 @atexit.register
 def cleanup():
     logger.info('Cleaning up application resources')
+    
+    # Stop the scheduler first
+    if hasattr(scheduler, 'shutdown'):
+        logger.info('Shutting down scheduler')
+        scheduler.shutdown()
+    
+    # Cleanup chains
     if hasattr(messenger, 'chains'):
         for chain in messenger.chains.values():
             if hasattr(chain, 'cleanup'):
                 chain.cleanup()
-    if hasattr(scheduler, 'shutdown'):
-        scheduler.shutdown()
+    
+    # Shutdown the async manager
+    async_manager.shutdown()
 
 # run scheduler
 logger.info('Starting scheduler')

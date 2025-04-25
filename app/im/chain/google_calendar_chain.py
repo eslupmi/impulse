@@ -9,6 +9,7 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3 import Retry
 
+from app.async_manager import AsyncManager
 from app.im.chain.schedule_chain import ScheduleChain
 from app.logging import logger
 from config import provider_sync_interval, provider_max_events, provider_days_to_sync, provider_service_account_file
@@ -17,26 +18,26 @@ from config import provider_sync_interval, provider_max_events, provider_days_to
 class GoogleCalendarChain(ScheduleChain):
     def __init__(self, name, config: dict):
         super().__init__(name)
-        
+
         self.calendar_id = config.get('calendar_id')
         if not self.calendar_id:
             raise ValueError("calendar_id is required in config")
-            
+
         self.default_steps = config.get('default_steps', [])
         self._load_credentials()
-        
+
         # Create a task for syncing
         self._sync_task = None
         self._last_sync_time = None
         self._last_token = None
         self._token_expiry = None
-        
+
         # Setup retry strategy for requests
         self._setup_session()
-        
+
         # Fetch initial data
         self._fetch_initial_data()
-        
+
     def _setup_session(self) -> None:
         """Setup the requests session with retry strategy."""
         retry_strategy = Retry(
@@ -48,7 +49,7 @@ class GoogleCalendarChain(ScheduleChain):
         self.session = requests.Session()
         self.session.mount("https://", adapter)
         self.session.mount("http://", adapter)
-        
+
     def _make_api_request(self, method: str, url: str, **kwargs) -> Dict[str, Any]:
         """Make an API request with proper error handling."""
         try:
@@ -60,21 +61,21 @@ class GoogleCalendarChain(ScheduleChain):
             if hasattr(e.response, 'text'):
                 logger.error(f"Response text: {e.response.text}")
             raise
-        
+
     def _update_timezone(self, new_timezone: str) -> None:
         """Update the chain's timezone if it has changed."""
         if new_timezone != self.timezone:
             logger.info(f"Updating timezone from {self.timezone} to {new_timezone}")
             self.timezone = new_timezone
             self.tz = ZoneInfo(new_timezone)
-        
+
     def _fetch_initial_data(self) -> None:
         """Fetch initial calendar data synchronously."""
         try:
             # First sync the timezone
             calendar_timezone = self._get_calendar_timezone()
             self._update_timezone(calendar_timezone)
-            
+
             # Then sync events
             events = self._fetch_events()
             self._update_schedule(events)
@@ -83,27 +84,30 @@ class GoogleCalendarChain(ScheduleChain):
             logger.error(f"Error during initial calendar sync: {str(e)}")
             # Initialize with empty schedule if sync fails
             self.schedule = []
-            
+
     def _update_schedule(self, events: List[Dict[str, Any]]) -> None:
         """Update the schedule with new events."""
         matchers = [self._convert_event_to_matcher(event) for event in events]
-        
+
         # Add default steps as a separate entry if they exist
         if self.default_steps:
             matchers.append({
                 'steps': self.default_steps
             })
-            
+
         self.schedule = matchers
         self._last_sync_time = datetime.datetime.now(datetime.UTC)
-            
+
     def start_sync(self) -> None:
         """Start the sync task in the background."""
         if self._sync_task is None:
-            loop = asyncio.get_event_loop()
-            self._sync_task = loop.create_task(self._sync_calendar())
-            logger.info(f"Started Google Calendar sync task for {self.name}")
-            
+            async_manager = AsyncManager.get_instance()
+            self._sync_task = async_manager.create_task(self._sync_calendar())
+            if self._sync_task is None:
+                logger.error(f"Failed to start Google Calendar sync task for {self.name}")
+            else:
+                logger.info(f"Started Google Calendar sync task for {self.name}")
+
     def stop_sync(self) -> None:
         """Stop the sync task."""
         if self._sync_task is not None:
@@ -120,12 +124,12 @@ class GoogleCalendarChain(ScheduleChain):
             finally:
                 self._sync_task = None
                 logger.info(f"Stopped Google Calendar sync task for {self.name}")
-            
+
     def cleanup(self) -> None:
         """Cleanup resources when shutting down."""
         self.stop_sync()
         self.session.close()
-        
+
     def _load_credentials(self) -> None:
         """Load service account credentials from JSON file."""
         try:
@@ -140,7 +144,7 @@ class GoogleCalendarChain(ScheduleChain):
             raise ValueError(f"Service account file {provider_service_account_file} not found")
         except json.JSONDecodeError:
             raise ValueError(f"Invalid JSON in service account file {provider_service_account_file}")
-            
+
     def _get_access_token(self) -> str:
         """Get access token using JWT with retry logic."""
         try:
@@ -149,12 +153,12 @@ class GoogleCalendarChain(ScheduleChain):
                 now = datetime.datetime.now(datetime.UTC)
                 if now < self._token_expiry:
                     return self._last_token
-            
+
             # Get current time in UTC
             now = datetime.datetime.now(datetime.UTC)
             iat = int(now.timestamp())
             exp = iat + 3600  # Token expires in 1 hour
-            
+
             # Prepare the JWT claims
             claims = {
                 'iss': self.credentials['client_email'],
@@ -163,7 +167,7 @@ class GoogleCalendarChain(ScheduleChain):
                 'iat': iat,
                 'exp': exp
             }
-            
+
             # Generate the signed JWT
             signed_jwt = jwt.encode(
                 claims,
@@ -171,7 +175,7 @@ class GoogleCalendarChain(ScheduleChain):
                 algorithm='RS256',
                 headers={'alg': 'RS256', 'typ': 'JWT'}
             )
-            
+
             # Request the access token with proper headers
             response = self.session.post(
                 self.credentials['token_uri'],
@@ -184,16 +188,17 @@ class GoogleCalendarChain(ScheduleChain):
                     'Accept': 'application/json'
                 }
             )
-            
+
             response.raise_for_status()
             token_data = response.json()
-            
+
             # Cache the token
             self._last_token = token_data['access_token']
-            self._token_expiry = now + datetime.timedelta(seconds=token_data.get('expires_in', 3600) - 300)  # 5 min buffer
-            
+            self._token_expiry = now + datetime.timedelta(
+                seconds=token_data.get('expires_in', 3600) - 300)  # 5 min buffer
+
             return self._last_token
-            
+
         except jwt.InvalidTokenError as e:
             logger.error(f"JWT token generation failed: {str(e)}")
             raise
@@ -212,21 +217,21 @@ class GoogleCalendarChain(ScheduleChain):
             token = self._get_access_token()
             headers = {'Authorization': f'Bearer {token}'}
             url = f'https://www.googleapis.com/calendar/v3/calendars/{self.calendar_id}'
-            
+
             data = self._make_api_request('GET', url, headers=headers)
             return data.get('timeZone', 'UTC')
         except requests.exceptions.RequestException as e:
             logger.error(f"Failed to get calendar timezone: {str(e)}")
             return 'UTC'  # Fallback to UTC
-        
+
     def _fetch_events(self) -> List[Dict[str, Any]]:
         """Fetch events from Google Calendar with retry logic."""
         try:
             token = self._get_access_token()
-            
+
             date_from = datetime.datetime.utcnow()
             date_to = date_from + datetime.timedelta(days=provider_days_to_sync)
-            
+
             params = {
                 'timeMin': date_from.isoformat() + 'Z',
                 'timeMax': date_to.isoformat() + 'Z',
@@ -234,24 +239,24 @@ class GoogleCalendarChain(ScheduleChain):
                 'singleEvents': 'true',
                 'orderBy': 'startTime'
             }
-            
+
             headers = {
                 'Authorization': f'Bearer {token}'
             }
-            
+
             url = f'https://www.googleapis.com/calendar/v3/calendars/{self.calendar_id}/events'
             data = self._make_api_request('GET', url, headers=headers, params=params)
             return data.get('items', [])
         except requests.exceptions.RequestException as e:
             logger.error(f"Failed to fetch calendar events: {str(e)}")
             return []
-        
+
     @staticmethod
     def _parse_steps_from_description(description: str) -> List[Dict[str, str]]:
         """Parse steps from event description."""
         if not description:
             return []
-            
+
         steps = []
         for line in description.strip().split('\n'):
             line = line.strip()
@@ -262,23 +267,23 @@ class GoogleCalendarChain(ScheduleChain):
                     value = parts[1].strip()
                     steps.append({key: value})
         return steps
-        
+
     def _convert_event_to_matcher(self, event: Dict[str, Any]) -> Dict[str, Any]:
         """Convert Google Calendar event to matcher format."""
         start_time = event['start'].get('dateTime', event['start'].get('date'))
         end_time = event['end'].get('dateTime', event['end'].get('date'))
-        
+
         # Convert to datetime objects in calendar's timezone
         start_dt = datetime.datetime.fromisoformat(start_time.replace('Z', '+00:00'))
         end_dt = datetime.datetime.fromisoformat(end_time.replace('Z', '+00:00'))
-        
+
         # Calculate duration
         duration = end_dt - start_dt
         duration_str = f"{int(duration.total_seconds() / 60)}m"
-        
+
         # Get steps from description
         steps = self._parse_steps_from_description(event.get('description', ''))
-        
+
         return {
             'matcher': {
                 'start_day_expr': 'date',
@@ -288,7 +293,7 @@ class GoogleCalendarChain(ScheduleChain):
             },
             'steps': steps
         }
-        
+
     async def _sync_calendar(self) -> None:
         """Periodically sync calendar events with error recovery."""
         while True:
@@ -296,17 +301,16 @@ class GoogleCalendarChain(ScheduleChain):
                 # First sync the timezone
                 calendar_timezone = self._get_calendar_timezone()
                 self._update_timezone(calendar_timezone)
-                
+
                 # Then sync events
                 events = self._fetch_events()
                 self._update_schedule(events)
                 logger.info(f"Synced {len(events)} events from Google Calendar")
-                
+
             except Exception as e:
                 logger.error(f"Error syncing Google Calendar: {str(e)}")
                 # Add exponential backoff for errors
                 await asyncio.sleep(min(provider_sync_interval * 2, 300))  # Max 5 minutes
                 continue
-                
-            await asyncio.sleep(provider_sync_interval)
 
+            await asyncio.sleep(provider_sync_interval)
