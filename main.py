@@ -1,12 +1,12 @@
+import atexit
 import json
 import logging
-import asyncio
-import atexit
 from datetime import datetime
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from flask import request, Flask, redirect, url_for
 
+from app.async_manager import AsyncManager
 from app.im.channels import check_channels
 from app.im.helpers import get_application
 from app.incident.incidents import Incidents
@@ -15,7 +15,6 @@ from app.queue.manager import QueueManager
 from app.queue.queue import Queue
 from app.route import generate_route
 from app.webhook import generate_webhooks
-from app.async_manager import AsyncManager
 from config import settings, check_updates, application
 
 # Initialize and start the async manager
@@ -39,24 +38,26 @@ queue = Queue.recreate_queue(incidents, check_updates)
 
 queue_manager = QueueManager(queue, messenger, incidents, webhooks, route)
 
+
 # Register cleanup handler
 @atexit.register
 def cleanup():
     logger.info('Cleaning up application resources')
-    
+
     # Stop the scheduler first
     if hasattr(scheduler, 'shutdown'):
         logger.info('Shutting down scheduler')
         scheduler.shutdown()
-    
+
     # Cleanup chains
     if hasattr(messenger, 'chains'):
         for chain in messenger.chains.values():
             if hasattr(chain, 'cleanup'):
                 chain.cleanup()
-    
+
     # Shutdown the async manager
     async_manager.shutdown()
+
 
 # run scheduler
 logger.info('Starting scheduler')
