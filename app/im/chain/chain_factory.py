@@ -18,7 +18,7 @@ class ChainFactory:
             chain = GoogleCalendarChain(name, config) if config.get('provider') == 'google' else ScheduleChain(
                 name=name,
                 timezone=config.get('timezone', ScheduleChain.DEFAULT_TIMEZONE),
-                schedule=config.get('schedule', []),    
+                schedule=config.get('schedule', []),
             )
             # Start the sync task if it's a Google Calendar chain
             if isinstance(chain, GoogleCalendarChain):
