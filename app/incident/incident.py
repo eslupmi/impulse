@@ -55,8 +55,7 @@ class Incident:
         elif self.config.application_type == 'mattermost':
             return f'{self.config.application_url}/{self.config.application_team.lower()}/pl/{self.ts}'
         elif self.config.application_type == 'telegram':
-            # TODO: Fix this as it won't work for Telegram (self.channel_id isn't the id that needed there)
-            return f'https://t.me/c/{self.channel_id}/{self.ts}'
+            return f'https://t.me/c/{str(self.channel_id)[4:]}/{self.ts}'
         return ''
 
     def generate_chain(self, chain=None):
