@@ -28,6 +28,7 @@ nav:
     - envs.md
     - config_file.md
     - config_examples.md
+    - google.md
   - best.md
   - howto.md
   - upgrade.md

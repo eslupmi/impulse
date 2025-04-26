@@ -118,10 +118,6 @@ class ScheduleChain:
         Get the duration from the condition.
         """
         if duration:
-            delta = unix_sleep_to_timedelta(duration)
-            if delta > timedelta(days=1):
-                logger.warning(f'Schedule chain matcher duration \'{duration}\' greater than 24h. Resetting to 24 hours.')
-                return '24h'
             return duration
 
     @staticmethod
