@@ -96,7 +96,7 @@ class GoogleCalendarChain(ScheduleChain):
             })
 
         self.schedule = matchers
-        self._last_sync_time = datetime.datetime.now(datetime.UTC)
+        self._last_sync_time = datetime.datetime.now(datetime.timezone.utc)
 
     def start_sync(self) -> None:
         """Start the sync task in the background."""
@@ -150,12 +150,12 @@ class GoogleCalendarChain(ScheduleChain):
         try:
             # Check if we have a valid cached token
             if self._last_token and self._token_expiry:
-                now = datetime.datetime.now(datetime.UTC)
+                now = datetime.datetime.now(datetime.timezone.utc)
                 if now < self._token_expiry:
                     return self._last_token
 
             # Get current time in UTC
-            now = datetime.datetime.now(datetime.UTC)
+            now = datetime.datetime.now(datetime.timezone.utc)
             iat = int(now.timestamp())
             exp = iat + 3600  # Token expires in 1 hour
 
