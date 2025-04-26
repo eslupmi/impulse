@@ -57,7 +57,7 @@ class GoogleCalendarChain(ScheduleChain):
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as e:
-            logger.error(f"API request failed: {str(e)}")
+            logger.error(f"Calendar API request failed: {str(e)}")
             if hasattr(e.response, 'text'):
                 logger.error(f"Response text: {e.response.text}")
             raise
@@ -305,7 +305,7 @@ class GoogleCalendarChain(ScheduleChain):
                 # Then sync events
                 events = self._fetch_events()
                 self._update_schedule(events)
-                logger.info(f"Synced {len(events)} events from Google Calendar")
+                logger.debug(f"Synced {len(events)} events from Google Calendar")
 
             except Exception as e:
                 logger.error(f"Error syncing Google Calendar: {str(e)}")
