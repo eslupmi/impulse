@@ -6,7 +6,7 @@ Environment variables are created in `.env` file for python installation or in `
 |-|-|-|-|
 | CHAIN_PROVIDER_DAYS_TO_SYNC | How many days will be synced<br/>(for [cloud chain](config_file.md#cloud-chain)) | 7 | - |
 | CHAIN_PROVIDER_MAX_EVENTS | Maximum events which will be synced<br/>(for [cloud chain](config_file.md#cloud-chain)) | 10 | - |
-| CHAIN_PROVIDER_SYNC_INTERVAL_SECONDS | Sync interval<br/>(for [cloud chain](config_file.md#cloud-chain)) | 60 | - |
+| CHAIN_PROVIDER_SYNC_INTERVAL_SECONDS | Sync interval, seconds<br/>(for [cloud chain](config_file.md#cloud-chain)) | 60 | - |
 | CONFIG_PATH | path to `impulse.yml` directory | ./ | - |
 | DATA_PATH | path to data directory | ./data | - |
 | GOOGLE_SERVICE_ACCOUNT_FILE | path to Google service account file<br/>(for [cloud chain](config_file.md#cloud-chain)) | ./key.json | - |
