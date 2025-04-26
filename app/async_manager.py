@@ -37,7 +37,7 @@ class AsyncManager:
         """Get the event loop instance."""
         return self._loop
 
-    def create_task(self, coro) -> asyncio.Task:
+    def create_task(self, coro) -> Optional[asyncio.Task]:
         """Create and schedule a new task in the event loop."""
         if not self._loop.is_running():
             logger.warning("Event loop is not running, task will not be scheduled")
