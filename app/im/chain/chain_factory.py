@@ -1,11 +1,9 @@
-import logging
 from typing import Union
 
 from app.im.chain.chain import Chain
 from app.im.chain.schedule_chain import ScheduleChain
 from app.im.chain.google_calendar_chain import GoogleCalendarChain
-
-logger = logging.getLogger(__name__)
+from app.logging import logger
 
 
 class ChainFactory:
