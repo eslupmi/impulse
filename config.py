@@ -15,7 +15,7 @@ log_level = os.getenv('LOG_LEVEL', default='INFO')
 provider_sync_interval = int(os.getenv('CHAIN_PROVIDER_SYNC_INTERVAL_SECONDS', default=60))
 provider_max_events = int(os.getenv('CHAIN_PROVIDER_MAX_EVENTS', default=10))
 provider_days_to_sync = int(os.getenv('CHAIN_PROVIDER_DAYS_TO_SYNC', default=7))
-provider_service_account_file = os.getenv('GOOGLE_SERVICE_ACCOUNT_FILE', default="key.json")
+provider_service_account_file = os.getenv('GOOGLE_SERVICE_ACCOUNT_FILE', default="./key.json")
 
 
 incidents_path = data_path + '/incidents'

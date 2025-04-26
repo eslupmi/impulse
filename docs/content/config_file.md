@@ -54,7 +54,7 @@ The only configuration file for IMPulse is `impulse.yml`. To change default `imp
 
 Chain defines how to notify people about incident. Chains used in [route](config_file.md#route).
 
-There are 2 types of chain: **simple** and **schedule**.
+There are 3 types of chain: **simple**, **schedule** and **cloud**.
 
 #### simple chain
 
@@ -96,23 +96,19 @@ Schedule chain add you ability to set chains with calendar
 
 > **matcher** [`dict`] - datetime matcher which will be compared with current datetime
 
->> **start_day_expr** [`string`, _required_] - expression to select start day for datetime range. 
+>> **start_day_expr** [`string`, _required_] - expression for start day. Available values: "dow" (day of week), "dom" (day of month), "date" (exactly date). Also you can use expressions like "dom % 2" for "dom" and "dow" which calculates least positive remainder as value.
 
->>    Expression can have one of three instructions:
+>> **start_day_values** [`list`] - list of values for **start_day_expr**. Available values:
 
->>    - dow - day of week. Available `start_day_values`: `0` to `7` (like in [cron](https://en.wikipedia.org/wiki/Cron)) or "Sun", "Mon"...
+>>    - for `dow`: 0 to 7 (like in [cron](https://en.wikipedia.org/wiki/Cron)) or "Sun", "Mon"...
 
->>    - dom - day of month [1..31]
+>>    - for `dom`: 1 to 31
 
->>    - date - exactly date with format `2024.12.24`
+>>    - for `date`: "2024.12.24" format
 
->>    Also you can use expression with `dom` and `dow` like `dom % 2` which calculates least positive remainder as value.
+>> **start_time** [`string`] - local time when duty starts at start day
 
->> **start_day_values** [`list`] - list of start day values which will match
-
->> **start_time** [`string`] - local time when duty starts in start_day
-
->> **duration** [`string`] - time range duration (`24h` maximum)
+>> **duration** [`string`] - time range duration. Values format: "2d", "60m"...
 
 > **steps** [`list`, _required_] - chain steps like in simple chain
 
@@ -166,6 +162,72 @@ application:
         - {matcher: {start_day_expr: dow, start_day_values: [3, 4], start_time: "12:00", duration: 12h}, steps: [{user: Alexander}]}
         - {matcher: {start_day_expr: dow, start_day_values: [5, 6], start_time: "12:00", duration: 12h}, steps: [{user: Maria}]}
         - {steps: [{user: Oleg }]} # full Sunday and 00:00 to 12:00 every day
+```
+
+#### cloud chain
+
+Cloud chain add you ability to set chains using cloud providers like Google.
+
+Special ENVs: `CHAIN_PROVIDER_DAYS_TO_SYNC`, `CHAIN_PROVIDER_MAX_EVENTS`, `CHAIN_PROVIDER_SYNC_INTERVAL_SECONDS`, `GOOGLE_SERVICE_ACCOUNT_FILE` (see [details](envs.md)).
+
+##### cloud chain options:
+
+**type** [`string`, _required_] - set chain type using `type: cloud`
+
+**provider** [`string`, _required_] - cloud calendar provider. Available values: "google" only
+
+**calendar_id** [`string`, _required_] - calendar ID. Get it on calendar settings page
+
+**default_steps** [`list`] - chain steps if there are no calendar events at the moment
+
+To use cloud chain you should generate service account file `key.json` (see [instructions](google.md#create-project-and-get-keyjson) for google provider) and [add service account to your calendar](google.md#add-you-service-account-to-calendar).
+
+Create "Event" in calendar. Put chain steps in "Description" using format:
+
+```yaml
+- user: Dmitry
+- wait: 10m
+- user: Maria
+```
+
+**cloud chain example**
+
+With event in calendar
+
+```yaml
+name: Test event
+from: 2024.12.24 15:00 (Asia/Tashkent)
+to: 2024.12.25 15:00 (Asia/Tashkent)
+description:
+  - user: Valery
+```
+
+and config
+
+```yaml
+application:
+  chains:
+    devops:
+      type: cloud
+      provider: google
+      calendar_id: b7ec15a9f4cb22d45819b7d3e96424a03e51987461adbc22385f964cf7103a62@group.calendar.google.com
+      default_steps:
+        - user: Dmitry
+        - wait: 5m
+        - user: Maria
+```
+
+`schedule chain` like this will be generated under the hood:
+
+```yaml
+application:
+  chains:
+    devops:
+      type: schedule
+      timezone: Asia/Tashkent
+      schedule:
+        - {matcher: {start_day_expr: date, start_day_values: ["2024.12.24"], start_time: "15:00", duration: 24h}, steps: [{user: Valery}]}
+        - {steps: [{user: Dmitry}, {wait: 5m}, {user: Maria}]}
 ```
 
 ### channels

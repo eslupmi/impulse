@@ -12,7 +12,7 @@ class ChainFactory:
         """
         Create and return a Chain or ScheduleChain instance based on the configuration.
         """
-        if 'type' in config and config.get('type') == 'schedule':
+        if 'type' in config and config.get('type') == 'cloud':
             chain = GoogleCalendarChain(name, config) if config.get('provider') == 'google' else ScheduleChain(
                 name=name,
                 timezone=config.get('timezone', ScheduleChain.DEFAULT_TIMEZONE),
