@@ -1,9 +1,8 @@
 import asyncio
-import logging
 import threading
 from typing import Optional, List
 
-logger = logging.getLogger(__name__)
+from app.logging import logger
 
 
 class AsyncManager:
