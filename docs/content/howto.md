@@ -1,11 +1,11 @@
 # How to use
 
-When alert occurs, new incident will be created. If incident has **chain**, chain will start execution.
+When an alert occurs, a new incident is created. If the incident has a chain, the chain will start executing.
 
 ## Buttons
 
-If user press **Take It** button, incident will be assigned to him and chain will be stopped.
+There are two buttons on all incidents: **Take It** / **Release** and **Status**.
 
-If user fixed the problem and need to recreate incident chain from scratch, he should press **Release** button. It may be helpful if chain contains calls (see [Configuration](config_file.md#webhooks)) which already done and you need to recreate chain to get calls again for new **firing** status.
+- The **Take It** button is used to stop chain execution and assign the incident to the user who pressed the button. Another user can press it again to reassign the incident to themselves. If the incident is in the "resolved" status, you will see "Release" instead of "Take It". **Release** unassigns the incident and removes the previous chain. If a new firing alert appears, a new chain will be created based on the configuration.
 
-Sometimes incident has many switches between **firing** and **resolved** statuses. To disable **status update** messages you can use **Status** button. By default it enabled (green indicator). Red indicator means 'disabled'.
+- The **Status** button stops status update notifications. Sometimes an incident frequently switches between "firing" and "resolved" statuses, and this button helps suppress extra notifications. The **Status** button has an indicator: green means "enabled," and red means "disabled."
