@@ -79,12 +79,13 @@ class AlertHandler(BaseHandler):
         is_some_firing_alerts_removed = False
         prev_status = incident_.status
 
-        # Generate chain from scratch
-        if prev_status == 'resolved' and incident_.chain_enabled:
+        # Generate chain from scratch if incident chain is empty
+        if prev_status == 'resolved' and incident_.chain_enabled and incident_.chain == []:
             _, chain_name = self.route.get_route(alert_state)
             chain = self.app.chains.get(chain_name)
             incident_.generate_chain(chain)
-            self.queue.recreate(alert_state.get('status'), uuid_, incident_.get_chain())
+            
+        self.queue.recreate(alert_state.get('status'), uuid_, incident_.get_chain())
 
         # Check new alerts firing or old alerts resolved
         chain_recreate = experimental.get('recreate_chain', False)
