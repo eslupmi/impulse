@@ -9,11 +9,15 @@ mattermost_headers = {
 buttons = {
     # styles: good, warning, danger, default, primary, and success
     'chain': {
-        'enabled': {
+        'takeit': {
             'text': 'Take It',
             'style': 'primary'
         },
-        'disabled': {
+        'assigned': {
+            'text': 'Take It',
+            'style': 'default'
+        },
+        'release': {
             'text': 'Release',
             'style': 'primary'
         }

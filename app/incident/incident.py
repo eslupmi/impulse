@@ -63,7 +63,6 @@ class Incident:
             return
 
         steps = chain.steps
-
         if not steps:
             return
 
@@ -76,9 +75,12 @@ class Incident:
                 self.chain_put(index=index, datetime_=dt, type_=type_, identifier=value)
         self.dump()
 
-    def recreate_chain(self, chain=None):
+    def release(self):
         self.chain = []
-        self.generate_chain(chain)
+        self.assign_user_id("")
+        self.assign_user("")
+        self.chain_enabled = True
+        self.dump()
 
     def get_chain(self) -> List[Dict]:
         if not self.chain_enabled:

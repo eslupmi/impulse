@@ -1,4 +1,5 @@
 from app.im.colors import status_colors
+from app.im.slack.buttons import chain_attrs
 from app.im.slack.config import buttons
 
 
@@ -20,17 +21,15 @@ def slack_get_update_payload(channel_id, ts, body, header, status_icons, status,
                 "actions": [
                     {
                         "name": 'chain',
-                        "text": buttons['chain']['enabled']['text'] if chain_enabled else buttons['chain']['disabled'][
-                            'text'],
                         "type": 'button',
-                        "style": buttons['chain']['enabled']['style'] if chain_enabled else
-                        buttons['chain']['disabled']['style']
+                        "text": chain_attrs(chain_enabled, status)[0],
+                        "style": chain_attrs(chain_enabled, status)[1],
                     },
                     {
                         "name": 'status',
+                        "type": 'button',
                         "text": buttons['status']['enabled']['text'] if status_enabled else
                         buttons['status']['disabled']['text'],
-                        "type": 'button',
                         "style": buttons['status']['enabled']['style'] if status_enabled else
                         buttons['status']['disabled']['style'],
                     }
@@ -59,9 +58,9 @@ def slack_get_create_thread_payload(channel_id, body, header, status_icons, stat
                 'actions': [
                     {
                         "name": "chain",
-                        "text": buttons['chain']['enabled']['text'],
+                        "text": buttons['chain']['takeit']['text'],
                         "type": "button",
-                        "style": buttons['chain']['enabled']['style']
+                        "style": buttons['chain']['takeit']['style']
                     },
                     {
                         "name": "status",
@@ -74,52 +73,3 @@ def slack_get_create_thread_payload(channel_id, body, header, status_icons, stat
         ]
     }
     return payload
-
-# def get_blocked_thread_payload(channel_id, message, status): #! didn't work with "return modified_message, 200"
-#     payload = {
-#         'channel': channel_id,
-#         'text': '',
-#         "attachments": [{
-#             "color": status_colors.get(status),
-#             "blocks": [
-#                 {
-#                     "type": "section",
-#                     "text": {
-#                         "type": "mrkdwn",
-#                         "text": message
-#                     }
-#                 },
-#                 {
-#                     "type": "divider"
-#                 },
-#                 {
-#                     "type": "actions",
-#                     "elements": [
-#                         {
-#                             "type": "button",
-#                             "text": {
-#                                 "type": "plain_text",
-#                                 "text": "Acknowledge",
-#                                 "emoji": True
-#                             }
-#                         }
-#                     ]
-#                 },
-#                 {
-#                     "type": "context",
-#                     "elements": [
-#                         {
-#                             "type": "mrkdwn",
-#                             "text": "test context"
-#                         }
-#                     ]
-#                 }
-#             ]
-#         }]
-#     }
-#     response = requests.post(
-#         f'{url}/api/chat.postMessage',
-#         headers=headers,
-#         data=json.dumps(payload)
-#     )
-#     return payload

@@ -4,11 +4,11 @@ from jinja2 import Environment
 buttons = {
     # styles: normal, danger
     'chain': {
-        'enabled': {
+        'takeit': {
             'text': 'Take It',
             'callback_data': 'stop_chain'
         },
-        'disabled': {
+        'release': {
             'text': 'Release',
             'callback_data': 'start_chain'
         }

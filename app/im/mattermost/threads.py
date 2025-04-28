@@ -3,6 +3,20 @@ from app.im.mattermost.config import buttons
 from config import application
 
 
+def chain_attrs(chain_enabled, status):
+    if chain_enabled:
+        chain_text = buttons['chain']['takeit']['text']
+        chain_style = buttons['chain']['takeit']['style']
+    else:
+        if status != 'resolved':
+            chain_text = buttons['chain']['assigned']['text']
+            chain_style = buttons['chain']['assigned']['style']
+        else:
+            chain_text = buttons['chain']['release']['text']
+            chain_style = buttons['chain']['release']['style']
+    return chain_text, chain_style
+
+
 def mattermost_get_button_update_payload(body, header, status_icons, status, chain_enabled, status_enabled):
     payload = {
         'update': {
@@ -17,10 +31,8 @@ def mattermost_get_button_update_payload(body, header, status_icons, status, cha
                             {
                                 "id": "chain",
                                 "type": "button",
-                                "name": buttons['chain']['enabled']['text'] if chain_enabled else
-                                buttons['chain']['disabled']['text'],
-                                "style": buttons['chain']['enabled']['style'] if chain_enabled else
-                                buttons['chain']['disabled']['style'],
+                                "name": chain_attrs(chain_enabled, status)[0],
+                                "style": chain_attrs(chain_enabled, status)[1],
                                 "integration": {
                                     "url": f"{application.get('impulse_address')}/app",
                                     "context": {
@@ -67,10 +79,8 @@ def mattermost_get_update_payload(channel_id, thread_id, body, header, status_ic
                         {
                             "id": "chain",
                             "type": "button",
-                            "name": buttons['chain']['enabled']['text'] if chain_enabled else
-                            buttons['chain']['disabled']['text'],
-                            "style": buttons['chain']['enabled']['style'] if chain_enabled else
-                            buttons['chain']['disabled']['style'],
+                            "name": chain_attrs(chain_enabled, status)[0],
+                            "style": chain_attrs(chain_enabled, status)[1],
                             "integration": {
                                 "url": f"{application.get('impulse_address')}/app",
                                 "context": {
@@ -114,8 +124,8 @@ def mattermost_get_create_thread_payload(channel_id, body, header, status_icons,
                         {
                             "id": "chain",
                             "type": "button",
-                            "name": buttons['chain']['enabled']['text'],
-                            "style": buttons['chain']['enabled']['style'],
+                            "name": buttons['chain']['takeit']['text'],
+                            "style": buttons['chain']['takeit']['style'],
                             "integration": {
                                 "url": f"{application.get('impulse_address')}/app",
                                 "context": {
