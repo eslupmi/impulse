@@ -102,21 +102,13 @@ class TelegramApplication(Application):
         user_name = callback['from'].get('first_name') + ' ' + callback['from'].get('last_name')
 
         if action in ['start_chain', 'stop_chain']:
+            queue_.delete_by_id(incident_.uuid, delete_steps=True, delete_status=False)
             if action == 'stop_chain': # take it
                 incident_.assign_user_id(user_id)
                 incident_.assign_user(user_name)
                 incident_.chain_enabled = False
-                queue_.delete_by_id(incident_.uuid, delete_steps=True, delete_status=False)
             else: # release
-                queue_.delete_by_id(incident_.uuid, delete_steps=True, delete_status=False)
-                _, chain_name = route.get_route(incident_.last_state)
-                chain = self.chains.get(chain_name)
-                incident_.recreate_chain(chain)
-
-                incident_.assign_user_id("")
-                incident_.assign_user("")
-                incident_.chain_enabled = True
-                queue_.recreate(incident_.status, incident_.uuid, incident_.chain)
+                incident_.release()
         elif action in ['start_status', 'stop_status']:
             if action == 'stop_status':
                 incident_.status_enabled = False
@@ -164,7 +156,7 @@ class TelegramApplication(Application):
             'reply_markup': {
                 'inline_keyboard': [
                     [
-                        buttons['chain']['enabled'],
+                        buttons['chain']['takeit'],
                         buttons['status']['enabled']
                     ]
                 ]
@@ -218,7 +210,7 @@ class TelegramApplication(Application):
             'reply_markup': {
                 'inline_keyboard': [
                     [
-                        buttons['chain']['enabled'] if chain_enabled else buttons['chain']['disabled'],
+                        buttons['chain']['takeit'] if chain_enabled or status != 'resolved' else buttons['chain']['release'],
                         buttons['status']['enabled'] if status_enabled else buttons['status']['disabled']
                     ]
                 ]

@@ -9,11 +9,15 @@ slack_headers = {
 buttons = {
     # styles: normal, danger, primary
     'chain': {
-        'enabled': {
+        'takeit': {
             'text': 'Take It',
             'style': 'primary'
         },
-        'disabled': {
+        'assigned': {
+            'text': 'Take It',
+            'style': 'normal'
+        },
+        'release': {
             'text': 'Release',
             'style': 'primary'
         }

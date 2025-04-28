@@ -112,19 +112,12 @@ class SlackApplication(Application):
 
         for action in actions:
             if action['name'] == 'chain':
-                if incident_.chain_enabled: # take it
+                queue_.delete_by_id(incident_.uuid, delete_steps=True, delete_status=False)
+                if incident_.chain_enabled or incident_.status != 'resolved': # take it
                     incident_.assign_user_id(user_id)
                     incident_.chain_enabled = False
-                    queue_.delete_by_id(incident_.uuid, delete_steps=True, delete_status=False)
                 else: # release
-                    queue_.delete_by_id(incident_.uuid, delete_steps=True, delete_status=False)
-                    _, chain_name = route.get_route(incident_.last_state)
-                    chain = self.chains.get(chain_name)
-                    incident_.recreate_chain(chain)
-    
-                    incident_.assign_user_id("")
-                    incident_.chain_enabled = True
-                    queue_.recreate(incident_.status, incident_.uuid, incident_.chain)
+                    incident_.release()
             elif action['name'] == 'status':
                 if incident_.status_enabled:
                     incident_.status_enabled = False
@@ -137,7 +130,7 @@ class SlackApplication(Application):
         payload = self.update_thread_payload(incident_.channel_id, incident_.ts, body, header, status_icons,
                                              incident_.status, incident_.chain_enabled, incident_.status_enabled)
         incident_.dump()
-        modified_message = reformat_message(original_message, payload['text'], payload['attachments'],
+        modified_message = reformat_message(original_message, payload['text'], payload['attachments'], incident_.status,
                                             incident_.chain_enabled, incident_.status_enabled)
         return modified_message, 200
 

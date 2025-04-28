@@ -117,21 +117,13 @@ class MattermostApplication(Application):
         user_id = payload.get('user_id')
 
         if action == 'chain':
-            if incident_.chain_enabled:
+            queue_.delete_by_id(incident_.uuid, delete_steps=True, delete_status=False)
+            if incident_.chain_enabled or incident_.status != 'resolved':
                 incident_.assign_user_id(user_id)
                 incident_.assign_user(user_name)
                 incident_.chain_enabled = False
-                queue_.delete_by_id(incident_.uuid, delete_steps=True, delete_status=False)
-            else:
-                queue_.delete_by_id(incident_.uuid, delete_steps=True, delete_status=False)
-                _, chain_name = route.get_route(incident_.last_state)
-                chain = self.chains.get(chain_name)
-                incident_.recreate_chain(chain)
-
-                incident_.assign_user_id("")
-                incident_.assign_user("")
-                incident_.chain_enabled = True
-                queue_.recreate(incident_.status, incident_.uuid, incident_.chain)
+            else: # release
+                incident_.release()
         elif action == 'status':
             if incident_.status_enabled:
                 incident_.status_enabled = False

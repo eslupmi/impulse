@@ -77,20 +77,24 @@ class AlertHandler(BaseHandler):
     def _handle_update(self, uuid_, incident_, alert_state):
         is_new_firing_alerts_added = False
         is_some_firing_alerts_removed = False
-
         prev_status = incident_.status
-        if prev_status == 'resolved':
-            chain = incident_.get_chain()
-            self.queue.recreate(alert_state.get('status'), uuid_, chain)
 
+        # Generate chain from scratch
+        if prev_status == 'resolved' and incident_.chain_enabled:
+            _, chain_name = self.route.get_route(alert_state)
+            chain = self.app.chains.get(chain_name)
+            incident_.generate_chain(chain)
+            self.queue.recreate(alert_state.get('status'), uuid_, incident_.get_chain())
+
+        # Check new alerts firing or old alerts resolved
         chain_recreate = experimental.get('recreate_chain', False)
         if incident.get('alerts_firing_notifications') or chain_recreate:
             is_new_firing_alerts_added = incident_.is_new_firing_alerts_added(alert_state)
         if incident.get('alerts_resolved_notifications'):
             is_some_firing_alerts_removed = incident_.is_some_firing_alerts_removed(alert_state)
-
         is_status_updated, is_state_updated = incident_.update_state(alert_state)
-
+        
+        # Experimental !
         if prev_status == 'firing' and chain_recreate and is_new_firing_alerts_added:
             incident_.chain_enabled = True
 
@@ -101,9 +105,10 @@ class AlertHandler(BaseHandler):
             )
 
         if prev_status == 'firing' and incident_.status == 'firing':
-            if is_new_firing_alerts_added:
-                if chain_recreate:
-                    self._new_alerts_recreate_chain(alert_state, incident_, uuid_)
+            # Experimental !
+            if is_new_firing_alerts_added and chain_recreate:
+                self._new_alerts_recreate_chain(alert_state, incident_, uuid_)
+            # Some alerts status change notification
             if (is_new_firing_alerts_added or is_some_firing_alerts_removed) and incident_.status_enabled:
                 self._notify_new_fire_alert(
                     incident_, is_new_firing_alerts_added, is_some_firing_alerts_removed,
@@ -142,7 +147,8 @@ class AlertHandler(BaseHandler):
         self.queue.delete_by_id(incident_.uuid, delete_steps=True, delete_status=False)
         _, chain_name = self.route.get_route(alert_state)
         chain = self.app.chains.get(chain_name)
-        incident_.recreate_chain(chain)
+        incident_.chain = []
+        incident_.generate_chain(chain)
         self.queue.recreate(incident_.status, incident_.uuid, incident_.chain)
         incident_.dump()
         logger.info(f"Incident {uuid_} chain recreated")
