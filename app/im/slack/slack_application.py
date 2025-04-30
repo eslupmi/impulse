@@ -113,15 +113,19 @@ class SlackApplication(Application):
         for action in actions:
             if action['name'] == 'chain':
                 queue_.delete_by_id(incident_.uuid, delete_steps=True, delete_status=False)
-                if incident_.chain_enabled or incident_.status != 'resolved': # take it
+                if incident_.chain_enabled or incident_.status != 'resolved':
+                    logger.info(f'Incident {incident_.uuid} -> button TAKE IT pressed')
                     incident_.assign_user_id(user_id)
                     incident_.chain_enabled = False
-                else: # release
+                else:
+                    logger.info(f'Incident {incident_.uuid} -> button RELEASE pressed')
                     incident_.release()
             elif action['name'] == 'status':
                 if incident_.status_enabled:
+                    logger.info(f'Incident {incident_.uuid} -> button STATUS pressed (disabled)')
                     incident_.status_enabled = False
                 else:
+                    logger.info(f'Incident {incident_.uuid} -> button STATUS pressed (enabled)')
                     incident_.status_enabled = True
 
         body = self.body_template.form_message(incident_.last_state, incident_)

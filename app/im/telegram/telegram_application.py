@@ -103,16 +103,20 @@ class TelegramApplication(Application):
 
         if action in ['start_chain', 'stop_chain']:
             queue_.delete_by_id(incident_.uuid, delete_steps=True, delete_status=False)
-            if action == 'stop_chain': # take it
+            if action == 'stop_chain':
+                logger.info(f'Incident {incident_.uuid} -> button TAKE IT pressed')
                 incident_.assign_user_id(user_id)
                 incident_.assign_user(user_name)
                 incident_.chain_enabled = False
-            else: # release
+            else:
+                logger.info(f'Incident {incident_.uuid} -> button RELEASE pressed')
                 incident_.release()
         elif action in ['start_status', 'stop_status']:
             if action == 'stop_status':
+                logger.info(f'Incident {incident_.uuid} -> button STATUS pressed (disabled)')
                 incident_.status_enabled = False
             else:
+                logger.info(f'Incident {incident_.uuid} -> button STATUS pressed (enabled)')
                 incident_.status_enabled = True
 
         body = self.body_template.form_message(incident_.last_state, incident_)
