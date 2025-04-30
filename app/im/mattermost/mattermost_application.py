@@ -119,15 +119,19 @@ class MattermostApplication(Application):
         if action == 'chain':
             queue_.delete_by_id(incident_.uuid, delete_steps=True, delete_status=False)
             if incident_.chain_enabled or incident_.status != 'resolved':
+                logger.info(f'Incident {incident_.uuid} -> button TAKE IT pressed')
                 incident_.assign_user_id(user_id)
                 incident_.assign_user(user_name)
                 incident_.chain_enabled = False
             else: # release
+                logger.info(f'Incident {incident_.uuid} -> button RELEASE pressed')
                 incident_.release()
         elif action == 'status':
             if incident_.status_enabled:
+                logger.info(f'Incident {incident_.uuid} -> button STATUS pressed (disabled)')
                 incident_.status_enabled = False
             else:
+                logger.info(f'Incident {incident_.uuid} -> button STATUS pressed (enabled)')
                 incident_.status_enabled = True
         incident_.dump()
         status_icons = self.status_icons_template.form_message(incident_.last_state, incident_)
