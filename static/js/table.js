@@ -20,6 +20,120 @@ function createLabelsList(labels) {
     return labelsDiv;
 }
 
+function createHeaderBlock(headerData) {
+    if (!headerData || Object.keys(headerData).length === 0) {
+        return null;
+    }
+
+    const headerDiv = document.createElement('div');
+    headerDiv.className = 'time-info';
+
+    // Status badge
+    if (headerData.status) {
+        const statusBadge = document.createElement('span');
+        statusBadge.className = `status-badge ${headerData.status.toLowerCase()}`;
+        statusBadge.textContent = headerData.status;
+        headerDiv.appendChild(statusBadge);
+    }
+
+    // Time info
+    if (headerData.startsAt) {
+        const timeSpan = document.createElement('span');
+        timeSpan.textContent = `Started: ${new Date(headerData.startsAt).toLocaleString()}`;
+        headerDiv.appendChild(timeSpan);
+    }
+
+    // Generator URL
+    if (headerData.generatorURL) {
+        const linkSpan = document.createElement('a');
+        linkSpan.href = headerData.generatorURL;
+        linkSpan.target = '_blank';
+        linkSpan.className = 'generator-link';
+        linkSpan.textContent = 'View in Prometheus';
+        headerDiv.appendChild(linkSpan);
+    }
+
+    return headerDiv;
+}
+
+function createLabelsBlock(labelsData) {
+    if (!labelsData || (Object.keys(labelsData.highlighted || {}).length === 0 && Object.keys(labelsData.regular || {}).length === 0)) {
+        return null;
+    }
+
+    const labelsDiv = document.createElement('div');
+    labelsDiv.className = 'block-labels';
+
+    const labelsList = document.createElement('div');
+    labelsList.className = 'labels-list';
+
+    // Add highlighted labels
+    if (labelsData.highlighted && Object.keys(labelsData.highlighted).length > 0) {
+        Object.entries(labelsData.highlighted).forEach(([key, value]) => {
+            const label = document.createElement('span');
+            label.className = 'label highlighted';
+            label.textContent = `${key}: ${value}`;
+            labelsList.appendChild(label);
+        });
+    }
+
+    // Add regular labels
+    if (labelsData.regular && Object.keys(labelsData.regular).length > 0) {
+        Object.entries(labelsData.regular).forEach(([key, value]) => {
+            const label = document.createElement('span');
+            label.className = 'label';
+            label.textContent = `${key}: ${value}`;
+            labelsList.appendChild(label);
+        });
+    }
+
+    labelsDiv.appendChild(labelsList);
+    return labelsDiv;
+}
+
+function createAnnotationsBlock(annotations) {
+    if (!annotations || Object.keys(annotations).length === 0) {
+        return null;
+    }
+
+    const annotationsDiv = document.createElement('div');
+    annotationsDiv.className = 'block-annotations';
+
+    Object.entries(annotations).forEach(([key, value]) => {
+        const annotation = document.createElement('div');
+        annotation.className = 'annotation';
+        annotation.textContent = `${key}: ${value}`;
+        annotationsDiv.appendChild(annotation);
+    });
+
+    return annotationsDiv;
+}
+
+function createInfoBlock(header, labels, annotations, isCommonBlock = false) {
+    const block = document.createElement('div');
+    block.className = `info-block ${isCommonBlock ? 'common-info-block' : 'alert-info-block'}`;
+
+    // Add header if exists
+    const headerBlock = createHeaderBlock(header);
+    if (headerBlock) {
+        block.appendChild(headerBlock);
+    }
+
+    // Add labels if exists
+    const labelsBlock = createLabelsBlock(labels);
+    if (labelsBlock) {
+        block.appendChild(labelsBlock);
+    }
+
+    // Add annotations if exists
+    const annotationsBlock = createAnnotationsBlock(annotations);
+    if (annotationsBlock) {
+        block.appendChild(annotationsBlock);
+    }
+
+    return block;
+}
+
 function responsiveLayoutCollapseFormatter(data) {
     console.log('Responsive collapse formatter called with data:', data);
     
@@ -43,98 +157,41 @@ function responsiveLayoutCollapseFormatter(data) {
     const container = document.createElement('div');
     container.className = 'responsive-collapse';
     
-    // Group labels block
-    if (Object.keys(responsiveData.group_labels).length > 0) {
-        const groupBlock = document.createElement('div');
-        groupBlock.className = 'info-block';
-        groupBlock.appendChild(createLabelsList(responsiveData.group_labels));
-        container.appendChild(groupBlock);
-        
-        const separator = document.createElement('hr');
-        separator.className = 'block-separator';
-        container.appendChild(separator);
-    }
+    // Common information block
+    const commonBlock = createInfoBlock(
+        {}, // No header for common block
+        {
+            highlighted: responsiveData.group_labels || {},
+            regular: responsiveData.common_labels || {}
+        },
+        responsiveData.common_annotations || {},
+        true // isCommonBlock flag
+    );
+    container.appendChild(commonBlock);
 
-    // Common labels and annotations block
-    if (Object.keys(responsiveData.common_labels).length > 0 || Object.keys(responsiveData.common_annotations).length > 0) {
-        const commonBlock = document.createElement('div');
-        commonBlock.className = 'info-block';
-        
-        if (Object.keys(responsiveData.common_labels).length > 0) {
-            commonBlock.appendChild(createLabelsList(responsiveData.common_labels));
-        }
-        
-        if (Object.keys(responsiveData.common_annotations).length > 0) {
-            const summaryDiv = document.createElement('div');
-            summaryDiv.className = 'summary';
-            Object.entries(responsiveData.common_annotations).forEach(([key, value]) => {
-                summaryDiv.textContent = `${key}: ${value}`;
-            });
-            commonBlock.appendChild(summaryDiv);
-        }
-        
-        container.appendChild(commonBlock);
-        
-        if (responsiveData.alerts && responsiveData.alerts.length > 0) {
-            const separator = document.createElement('hr');
-            separator.className = 'block-separator';
-            container.appendChild(separator);
-        }
-    }
-
-    // Alerts blocks
+    // Alerts blocks wrapper
     if (responsiveData.alerts && responsiveData.alerts.length > 0) {
-        responsiveData.alerts.forEach((alert, index) => {
-            const alertBlock = document.createElement('div');
-            alertBlock.className = 'info-block';
-
-            // Status badge and timing
-            if (alert.status) {
-                const statusDiv = document.createElement('div');
-                statusDiv.className = 'labels-list';
-                
-                const statusSpan = document.createElement('span');
-                statusSpan.className = 'label-pair';
-                statusSpan.textContent = `${alert.status} Started: ${new Date(alert.startsAt).toLocaleString()}`;
-                statusDiv.appendChild(statusSpan);
-                
-                if (alert.generatorURL) {
-                    const linkSpan = document.createElement('span');
-                    linkSpan.className = 'label-pair';
-                    const link = document.createElement('a');
-                    link.href = alert.generatorURL;
-                    link.target = '_blank';
-                    link.textContent = 'View in Prometheus';
-                    linkSpan.appendChild(link);
-                    statusDiv.appendChild(linkSpan);
-                }
-                
-                alertBlock.appendChild(statusDiv);
-            }
-
-            // Alert specific labels
-            if (Object.keys(alert.labels).length > 0) {
-                alertBlock.appendChild(createLabelsList(alert.labels));
-            }
-
-            // Alert specific annotations
-            if (Object.keys(alert.annotations).length > 0) {
-                const annotationsDiv = document.createElement('div');
-                annotationsDiv.className = 'summary';
-                Object.entries(alert.annotations).forEach(([key, value]) => {
-                    annotationsDiv.textContent = `${key}: ${value}`;
-                });
-                alertBlock.appendChild(annotationsDiv);
-            }
-
-            container.appendChild(alertBlock);
-
-            if (index < responsiveData.alerts.length - 1) {
-                const separator = document.createElement('hr');
-                separator.className = 'block-separator';
-                container.appendChild(separator);
-            }
+        const alertsWrapper = document.createElement('div');
+        alertsWrapper.className = 'alerts-wrapper';
+        
+        responsiveData.alerts.forEach((alert) => {
+            const alertBlock = createInfoBlock(
+                {
+                    status: alert.status,
+                    startsAt: alert.startsAt,
+                    endsAt: alert.endsAt,
+                    generatorURL: alert.generatorURL
+                },
+                {
+                    regular: alert.labels || {}
+                },
+                alert.annotations || {},
+                false // isCommonBlock flag
+            );
+            alertsWrapper.appendChild(alertBlock);
         });
+
+        container.appendChild(alertsWrapper);
     }
     
     console.log('Final container:', container);

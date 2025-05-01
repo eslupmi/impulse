@@ -19,4 +19,13 @@
     --border-color: #C3E6F7;
     --link-color: #38ADE6;
     --row-hover: #F2F4F7;
+
+    /* Label and annotation colors */
+    --label-background: #FFFFFF;
+    --label-text-color: #344054;
+    --label-highlighted-background: #475467;
+    --label-highlighted-text-color: #FFFFFF;
+    --annotation-border: #98A2B3;
+    --annotation-text-color: #667085;
+    --block-separator: #BCC0C7;
 }

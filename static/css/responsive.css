@@ -1,6 +1,13 @@
 .responsive-collapse {
     padding: 10px;
     font-size: 14px;
+    display: flex;
+}
+
+.alerts-wrapper {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
 }
 
 .collapse-section {
@@ -71,7 +78,20 @@
 }
 
 .info-block {
-    padding: 8px 0;
+    background-color: #D0D5DD;
+    border-radius: 12px;
+    padding: 16px;
+}
+
+/* Common info block */
+.common-info-block {
+    width: 500px;
+    margin-right: 40px;
+}
+
+/* Alert blocks */
+.alert-info-block {
+    width: 330px;
 }
 
 .labels-list {
@@ -140,6 +160,8 @@
 
 .block-labels {
     margin-bottom: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--block-separator);
 }
 
 .highlighted-labels {
@@ -153,19 +175,28 @@
     border-radius: 4px;
     background: var(--label-background);
     font-size: 12px;
-    color: var(--text-color);
+    color: var(--label-text-color);
 }
 
 .label.highlighted {
     background: var(--label-highlighted-background);
+    color: var(--label-highlighted-text-color);
     font-weight: 500;
 }
 
 .block-annotations {
-    font-size: 14px;
-    color: var(--text-color);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding-top: 12px;
+    border-top: 1px solid var(--block-separator);
 }
 
 .annotation {
-    margin-bottom: 4px;
+    display: inline-block;
+    padding: 4px 8px;
+    margin: 0 4px 4px 0;
+    border-radius: 4px;
+    border: 1px solid var(--annotation-border);
+    font-size: 12px;
 }
