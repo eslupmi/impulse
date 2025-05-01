@@ -363,9 +363,15 @@ function updateZoomIcons() {
     const cells = table.getRows().flatMap(row => row.getCells());
     
     cells.forEach(cell => {
+        const column = cell.getColumn();
+        // Skip the responsive collapse column
+        if (column.getDefinition().formatter === 'responsiveCollapse') return;
+        
         if (cell.getElement().classList.contains("unclickable-cell")) return;
         
-        const field = cell.getColumn().getField();
+        const field = column.getField();
+        if (!field) return;
+        
         const value = cell.getValue();
         
         // Check if this cell value is currently filtered with exact match (=)

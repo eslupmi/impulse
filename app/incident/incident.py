@@ -174,6 +174,22 @@ class Incident:
         data = {
             'uuid': str(self.uuid),
             'indicator': status_colors.get(self.status),
+            '_responsive_data': {
+                'group_labels': self.last_state.get('groupLabels', {}),
+                'common_labels': self.last_state.get('commonLabels', {}),
+                'common_annotations': self.last_state.get('commonAnnotations', {}),
+                'alerts': [
+                    {
+                        'status': alert.get('status', ''),
+                        'startsAt': alert.get('startsAt', ''),
+                        'endsAt': alert.get('endsAt', ''),
+                        'generatorURL': alert.get('generatorURL', ''),
+                        'labels': alert.get('labels', {}),
+                        'annotations': alert.get('annotations', {})
+                    }
+                    for alert in self.last_state.get('alerts', [])
+                ]
+            }
         }
         data_object = {'incident': self, 'payload': self.last_state}
         for key, value in params.items():

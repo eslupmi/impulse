@@ -76,6 +76,12 @@ function formatterWrapper(formatter) {
     }
     
     function colorFormatter(cell, formatterParams) {
+        const element = cell.getElement();
+        // Skip if this cell contains a collapse toggle
+        if (element && element.querySelector('.tabulator-responsive-collapse-toggle')) {
+            return cell.getValue();
+        }
+
         const columnName = cell.getColumn().getField();
         const cellValue = cell.getValue();
         let color = null;
@@ -148,6 +154,12 @@ function formatterWrapper(formatter) {
     // Handle string formatters (like "link")
     if (typeof formatter === "string") {
         return function(cell, formatterParams) {
+            const element = cell.getElement();
+            // Skip if this cell contains a collapse toggle
+            if (element && element.querySelector('.tabulator-responsive-collapse-toggle')) {
+                return cell.getValue();
+            }
+
             // Create a container for the cell content
             const container = document.createElement("div");
             container.className = "cell-container";
