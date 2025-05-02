@@ -172,7 +172,7 @@ function applyFilters() {
             value = value.replace(/^["']|["']$/g, '');
             
             // Check if the field exists in the table columns
-            const columnExists = table.getColumns().some(col => col.getField() === field && field !== "_responsive_data");
+            const columnExists = table.getColumns().some(col => col.getField() === field);
             
             if (!columnExists) {
                 // If field doesn't exist in columns, try to filter using responsive data
