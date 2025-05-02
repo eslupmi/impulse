@@ -33,6 +33,7 @@ body {
 .tabulator .tabulator-header .tabulator-col.tabulator-sortable[aria-sort="none"] .tabulator-col-content .tabulator-col-sorter .tabulator-arrow {
 	display: none;
 }
+
 .tabulator .tabulator-header .tabulator-col .tabulator-col-content .tabulator-col-title {
     width: auto !important;
 	padding-right: 5px !important;
@@ -107,8 +108,8 @@ body {
     align-items: center;
     background: var(--primary-bg);
     justify-content: flex-end;
-    padding-top: 30px;
-    padding-right: 40px;
+    padding-top: 12px;
+    padding-right: 24px;
 }
 
 /* Scrollable Filters Area */
@@ -201,7 +202,7 @@ body {
     outline: none;
     font-size: 16px;
     transition: all 0.2s ease-in-out;
-    height: 40px;
+    height: 29px;
     line-height: 20px;
     max-width: 414px;
     min-width: 414px;
@@ -217,12 +218,14 @@ body {
 	cursor: pointer;
 	transition: background 0.2s ease-in-out;
 	white-space: nowrap;
-	height: 40px;
-	width: 40px;
+	height: 29px;
+	width: 29px;
 	line-height: 20px;
 	/* margin-left: -2px; */
-	padding-bottom: 0px;
-	padding-top: 3px;
+	padding-top: 4px;
+	padding-bottom: 4px;
+	padding-left: 4px;
+	padding-right: 4px;
 }
 
 #add-filter-btn:hover {
@@ -285,7 +288,7 @@ body {
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
     transition: all 0.3s ease-in-out;
     white-space: nowrap;
-    height: 40px;
+    height: 29px;
 }
 
 .filter-badge:hover {
@@ -354,4 +357,12 @@ body {
 
 .tabulator-col-resize-handle {
     z-index: 2;
+}
+
+.tabulator-row .tabulator-responsive-collapse {
+    border-top: 0px solid #aaa;
+}
+
+element.style {
+    margin-bottom: 16px;
 }

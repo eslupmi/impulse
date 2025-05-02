@@ -71,8 +71,8 @@
 
 .info-block {
     background-color: #D0D5DD;
-    border-radius: 12px;
-    padding: 16px;
+    border-radius: 8px;
+    padding: 8px;
 }
 
 /* Common info block */
@@ -89,7 +89,7 @@
 .labels-list {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 4px;
 }
 
 .block-separator {
@@ -99,11 +99,17 @@
 }
 
 .status-badge {
-    padding: 4px 8px;
+    /* padding: 4px 8px;
     border-radius: 4px;
     font-weight: 500;
-    font-size: 12px;
-    text-transform: uppercase;
+    font-size: 0;
+    text-transform: uppercase; */
+    display: inline-block;
+    font-size: 0;
+    width: 12px;
+    height: 12px;
+    background-color: red;
+    border-radius: 50%;
 }
 
 .status-badge.firing {
@@ -134,10 +140,6 @@
 
 .generator-link:hover {
     text-decoration: underline;
-}
-
-.block-labels {
-    margin-bottom: 12px;
 }
 
 .highlighted-labels {
@@ -171,8 +173,16 @@
 .annotation {
     display: inline-block;
     padding: 4px 8px;
-    margin: 0 4px 4px 0;
+    margin: 0px 0px 0px 0px;
     border-radius: 4px;
     border: 1px solid var(--annotation-border);
     font-size: 12px;
+    max-width: 315px;
+
+    mask-image: linear-gradient(to right, black 285px, transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, black 285px, transparent 100%);
+}
+
+.block-labels {
+    margin-bottom: 8px;
 }
