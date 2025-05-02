@@ -174,6 +174,7 @@ class Incident:
         data = {
             'uuid': str(self.uuid),
             'indicator': status_colors.get(self.status),
+            '_alerts_count': len(self.last_state.get('alerts', [])),
             '_responsive_data': {
                 'group_labels': self.last_state.get('groupLabels', {}),
                 'common_labels': self.last_state.get('commonLabels', {}),

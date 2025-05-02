@@ -13,6 +13,9 @@ const formatterMap = {
     "link": "link",
     "indicator": (cell, params) => {
         return formatIndicator(cell, params);
+    },
+    "alerts_count": (cell) => {
+        return formatAlertsCount(cell);
     }
 };
 
@@ -233,6 +236,14 @@ function formatIndicator(cell, params) {
     indicatorDiv.style.height = "35px";
     indicatorDiv.style.backgroundColor = cell.getValue();
     return indicatorDiv;
+}
+
+function formatAlertsCount(cell) {
+    const count = cell.getValue();
+    const circle = document.createElement("div");
+    circle.className = "alerts-count-circle";
+    circle.textContent = count;
+    return circle;
 }
 
 function getColorMap() {

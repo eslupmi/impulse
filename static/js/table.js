@@ -106,6 +106,21 @@ async function initializeTable() {
             field: "_collapse",
         });
 
+        // Add alerts count column
+        columns.push({
+            title: "",
+            field: "_alerts_count",
+            width: 30,
+            minWidth: 30,
+            maxWidth: 30,
+            hozAlign: "center",
+            resizable: false,
+            headerSort: false,
+            responsive: 0,
+            formatter: formatterMap["alerts_count"],
+            cssClass: "unclickable-cell alerts-count-column",
+        });
+
         initializeSorting(columns, sortingResponse);
     } catch (error) {
         console.error("Error initializing table:", error);

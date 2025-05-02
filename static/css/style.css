@@ -366,3 +366,27 @@ body {
 element.style {
     margin-bottom: 16px;
 }
+
+/* Alerts Count Column */
+.alerts-count-column {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+/* Alerts Count Circle */
+.alerts-count-circle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background-color: var(--alerts-count-bg);
+    color: var(--alerts-count-text);
+    font-size: 10px;
+    font-weight: 600;
+    margin: 0 auto;
+    line-height: 1;
+}

@@ -20,6 +20,10 @@
     --link-color: #38ADE6;
     --row-hover: #F2F4F7;
 
+    /* Alerts count colors */
+    --alerts-count-bg: #22688A;
+    --alerts-count-text: #EBF7FC;
+
     /* Label and annotation colors */
     --label-background: #FFFFFF;
     --label-text-color: #344054;
