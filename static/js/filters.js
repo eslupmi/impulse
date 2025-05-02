@@ -54,6 +54,69 @@ function customNegativeRegexFilter(rowData, parameters) {
     return !regex.test(cellValue);
 }
 
+// Custom filter for responsive data labels
+function customResponsiveDataFilter(rowData, parameters) {
+    const responsiveData = rowData._responsive_data;
+    if (!responsiveData) return false;
+
+    const { field, value, operator } = parameters;
+    const searchValue = value.toLowerCase();
+
+    // Helper function to check if a label matches
+    const labelMatches = (labelValue) => {
+        const labelStr = String(labelValue).toLowerCase();
+        switch (operator) {
+            case "=":
+                return labelStr === searchValue;
+            case "!=":
+                return labelStr !== searchValue;
+            case "=~":
+                try {
+                    const regex = new RegExp(searchValue, "i");
+                    return regex.test(labelStr);
+                } catch (e) {
+                    return false;
+                }
+            case "!~":
+                try {
+                    const regex = new RegExp(searchValue, "i");
+                    return !regex.test(labelStr);
+                } catch (e) {
+                    return false;
+                }
+            default:
+                return false;
+        }
+    };
+
+    // Check group labels
+    if (responsiveData.group_labels && responsiveData.group_labels[field]) {
+        if (labelMatches(responsiveData.group_labels[field])) {
+            return true;
+        }
+    }
+
+    // Check common labels
+    if (responsiveData.common_labels && responsiveData.common_labels[field]) {
+        if (labelMatches(responsiveData.common_labels[field])) {
+            return true;
+        }
+    }
+
+    // Check alert labels
+    if (responsiveData.alerts) {
+        for (const alert of responsiveData.alerts) {
+            if (alert.labels && alert.labels[field]) {
+                if (labelMatches(alert.labels[field])) {
+                    return true;
+                }
+            }
+        }
+    }
+
+    return false;
+}
+
 // Initialize filters from URL
 function loadFiltersFromArrayToURL(filters) {
     const urlParams = new URLSearchParams(window.location.search);
@@ -107,7 +170,20 @@ function applyFilters() {
             let {field, operator, value} = parsedFilter;
 
             value = value.replace(/^["']|["']$/g, '');
-            if (operator === "=~" || operator === "!~") {
+            
+            // Check if the field exists in the table columns
+            const columnExists = table.getColumns().some(col => col.getField() === field);
+            
+            if (!columnExists) {
+                // If field doesn't exist in columns, try to filter using responsive data
+                if (operator === "=~" || operator === "!~") {
+                    if (!isValidRegex(value)) {
+                        showFilterError(`Invalid regex: ${value}`);
+                        return;
+                    }
+                }
+                table.addFilter(customResponsiveDataFilter, {field, operator, value});
+            } else if (operator === "=~" || operator === "!~") {
                 if (!isValidRegex(value)) {
                     showFilterError(`Invalid regex: ${value}`);
                     return;
