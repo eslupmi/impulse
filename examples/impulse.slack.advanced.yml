@@ -16,6 +16,10 @@ application:
     incidents_default: {id: X93QPLZ742MJ}
     incidents_infrastructure: {id: B57RTNX836FK}
     incidents_services: {id: Y24JQMVL859P}
+  template_files:
+    status_icons: templates/slack_status_icons.j2
+    header: templates/slack_header.j2
+    body: templates/slack_body.j2
 
   chains:
     devops:

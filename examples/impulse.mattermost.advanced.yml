@@ -3,7 +3,7 @@
 
 application:
   type: mattermost
-  team: ESLUPMI
+  team: KOMANDA
   address: https://<your_mattermost_domain>
   impulse_address: https://<your_impulse_domain>
 
@@ -18,6 +18,10 @@ application:
     incidents_default: {id: x7vjmyp94zsb3lnk2afqt6hcdu}
     incidents_infrastructure: {id: w9tkqnx57yrc8dmg3bflz2pvha}
     incidents_services: {id: m5zqv8xr2ypkt3ln7fdaw6jcb9}
+  template_files:
+    status_icons: templates/mattermost_status_icons.j2
+    header: templates/mattermost_header.j2
+    body: templates/mattermost_body.j2
 
   chains:
     devops:

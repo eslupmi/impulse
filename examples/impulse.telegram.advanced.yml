@@ -16,6 +16,10 @@ application:
     incidents_default: {id: -1003748296153}
     incidents_infrastructure: {id: -1005896723417}
     incidents_services: {id: -1009182765432}
+  template_files:
+    status_icons: templates/telegram_status_icons.j2
+    header: templates/telegram_header.j2
+    body: templates/telegram_body.j2
 
   chains:
     devops:
