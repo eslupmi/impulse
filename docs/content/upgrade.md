@@ -6,8 +6,6 @@ Another upgrades can be done without manual operations.
 
 To understand our versioning model see [Versioning](versioning.md).
 
-<!-- ### Python -->
-
 ## Docker
 
 1. See `impulse.yml` upgrade instructions in [CHANGELOG.md](https://github.com/DiTsi/impulse/blob/develop/CHANGELOG.md) (**for major version upgrade**).
