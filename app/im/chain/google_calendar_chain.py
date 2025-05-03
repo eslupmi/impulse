@@ -113,17 +113,27 @@ class GoogleCalendarChain(ScheduleChain):
         if self._sync_task is not None:
             self._sync_task.cancel()
             try:
-                # Get the event loop and run until the task is done
-                loop = asyncio.get_event_loop()
-                loop.run_until_complete(self._sync_task)
-            except asyncio.CancelledError:
-                # Task was cancelled, this is expected
-                pass
+                # Just cancel the task, don't try to run the loop
+                if not self._sync_task.done():
+                    # Schedule a callback to check task completion
+                    def check_task():
+                        if self._sync_task.done():
+                            self._sync_task = None
+                            logger.info(f"Stopped Google Calendar sync task for {self.name}")
+                        else:
+                            # Reschedule the check
+                            loop = asyncio.get_event_loop()
+                            loop.call_later(0.1, check_task)
+
+                    # Start checking task
+                    loop = asyncio.get_event_loop()
+                    loop.call_soon_threadsafe(check_task)
+                else:
+                    self._sync_task = None
+                    logger.info(f"Stopped Google Calendar sync task for {self.name}")
             except Exception as e:
                 logger.error(f"Error while stopping sync task: {str(e)}")
-            finally:
                 self._sync_task = None
-                logger.info(f"Stopped Google Calendar sync task for {self.name}")
 
     def cleanup(self) -> None:
         """Cleanup resources when shutting down."""

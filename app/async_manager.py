@@ -62,27 +62,28 @@ class AsyncManager:
 
                 # Only proceed with task cancellation if there are tasks to cancel
                 if pending:
-                    # Cancel all running tasks with a timeout
+                    # Cancel all running tasks
                     for task in pending:
                         if not task.done():
                             task.cancel()
                             logger.info(f"Cancelling task: {task.get_name()}")
 
-                    # Run the loop until all tasks are done, with a timeout
-                    done, pending = self._loop.run_until_complete(
-                        asyncio.wait(pending, timeout=5.0, return_when=asyncio.ALL_COMPLETED)
-                    )
+                    # Schedule a callback to check task completion and stop the loop
+                    def check_tasks():
+                        if all(task.done() for task in pending):
+                            self._loop.stop()
+                        else:
+                            # Reschedule the check
+                            self._loop.call_later(0.1, check_tasks)
 
-                    # Log any tasks that didn't complete
-                    if pending:
-                        logger.warning(f"Some tasks did not complete: {[t.get_name() for t in pending]}")
+                    # Start checking tasks
+                    self._loop.call_soon_threadsafe(check_tasks)
                 else:
                     logger.info("No pending tasks to cancel")
+                    # If no tasks, stop the loop immediately
+                    self._loop.call_soon_threadsafe(self._loop.stop)
 
-                # Stop the loop
-                self._loop.stop()
-
-                # Wait for the background thread to finish with a timeout
+                # Wait for the loop to stop
                 if self._thread is not None and self._thread.is_alive():
                     self._thread.join(timeout=5.0)
                     if self._thread.is_alive():
@@ -90,11 +91,20 @@ class AsyncManager:
                         # Force the thread to stop if it's still alive
                         self._thread = None
 
-                # Close the loop
-                self._loop.close()
-                self._loop = None
-                self._tasks = []
-                logger.info("Async event loop shutdown complete")
+                # Verify all tasks are actually done
+                if pending:
+                    remaining_tasks = [task for task in pending if not task.done()]
+                    if remaining_tasks:
+                        logger.warning(f"Some tasks did not complete: {[t.get_name() for t in remaining_tasks]}")
+
+                # Only close the loop if it's not running
+                if not self._loop.is_running():
+                    self._loop.close()
+                    self._loop = None
+                    self._tasks = []
+                    logger.info("Async event loop shutdown complete")
+                else:
+                    logger.warning("Event loop is still running, skipping close operation")
 
             except Exception as e:
                 logger.error(f"Error during async shutdown: {str(e)}")
