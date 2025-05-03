@@ -23,7 +23,7 @@ The only configuration file for IMPulse is `impulse.yml`. To change default `imp
 
 **application** [`dict`, _required_] - messenger configuration
 
-> **address** [`string`, _mattermost only_] - your Mattermost server address
+> **address** [`string`, _required_] - your Mattermost server address
 
 > **admin_users** [`list`, _required_] - IMPulse administrators. They will be notified when any warnings
 
@@ -36,6 +36,8 @@ The only configuration file for IMPulse is `impulse.yml`. To change default `imp
 > **channels** [`dict`, _required_] - messenger channels used in IMPulse. See [details](config_file.md#channels)
 
 > **chains** [`dict`] - entity to describe notifications order. See [details](config_file.md#chains)
+
+> **team** [`string`, _required_] - Mattermost team
 
 > **template_files** [`dict`] - path to custom template files. See [details](config_file.md#template_files)
 
