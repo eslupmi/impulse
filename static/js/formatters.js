@@ -275,7 +275,10 @@ function createHeaderBlock(headerData) {
     if (time) {
         const timeSpan = document.createElement('span');
         const timeDate = new Date(time);
-        timeSpan.textContent = formatRelativeTime(timeDate.getTime()/1000);
+        const unixTimestamp = timeDate.getTime()/1000;
+        timeSpan.textContent = formatRelativeTime(unixTimestamp);
+        timeSpan.setAttribute('data-timestamp', unixTimestamp);
+        timeSpan.className = 'relative-time';
         headerDiv.appendChild(timeSpan);
     }
 
@@ -437,4 +440,18 @@ function responsiveLayoutCollapseFormatter(data) {
     return container;
 }
 
-export {formatterWrapper, setColorMap, formatterMap, formatterParamsMap, responsiveLayoutCollapseFormatter,};
+function updateRelativeTimeSpans() {
+    document.querySelectorAll('.tabulator-responsive-collapse-toggle.open').forEach(toggle => {
+        const collapseArea = toggle.parentElement.parentElement.querySelector('.tabulator-responsive-collapse')
+        if (!collapseArea) return;
+        
+        collapseArea.querySelectorAll('.relative-time').forEach(timeSpan => {
+            const timestamp = parseFloat(timeSpan.getAttribute('data-timestamp'));
+            if (!isNaN(timestamp)) {
+                timeSpan.textContent = formatRelativeTime(timestamp);
+            }
+        });
+    });
+}
+
+export {formatterWrapper, setColorMap, formatterMap, formatterParamsMap, responsiveLayoutCollapseFormatter, updateRelativeTimeSpans};
