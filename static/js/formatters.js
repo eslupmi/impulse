@@ -71,6 +71,28 @@ function formatTimestamp(unixTimestamp) {
     });
 }
 
+function formatDuration(seconds) {
+    // Define time intervals in seconds
+    const intervals = [
+        {label: "d", seconds: 86400},    // Day
+        {label: "h", seconds: 3600},     // Hour
+        {label: "m", seconds: 60},       // Minute
+    ];
+
+    let result = [];
+
+    for (let i = 0; i < intervals.length && result.length < 1; i++) {
+        const {label, seconds: intervalSeconds} = intervals[i];
+        const value = Math.floor(seconds / intervalSeconds);
+        if (value > 0) {
+            result.push(`${value}${label}`);
+            seconds -= value * intervalSeconds;
+        }
+    }
+
+    return result.length > 0 ? result[0] : "< 1m";
+}
+
 // Custom formatter to apply colors
 function formatterWrapper(formatter) {
     // Special handling for indicator formatter
@@ -273,13 +295,28 @@ function createHeaderBlock(headerData) {
     // Time info
     const time = headerData.status === "resolved" ? headerData.endsAt : headerData.startsAt;
     if (time) {
+        // Create wrapper for time and its tooltip
+        const timeWrapper = document.createElement('div');
+        timeWrapper.className = 'time-wrapper';
+
         const timeSpan = document.createElement('span');
         const timeDate = new Date(time);
         const unixTimestamp = timeDate.getTime()/1000;
         timeSpan.textContent = formatRelativeTime(unixTimestamp);
         timeSpan.setAttribute('data-timestamp', unixTimestamp);
+        timeSpan.setAttribute('data-starts-at', headerData.startsAt);
+        timeSpan.setAttribute('data-ends-at', headerData.endsAt);
+        timeSpan.setAttribute('data-status', headerData.status);
         timeSpan.className = 'relative-time';
-        headerDiv.appendChild(timeSpan);
+        
+        // Create tooltip with detailed time information
+        const tooltipText = document.createElement('div');
+        tooltipText.className = 'tooltip-text time-tooltip';
+        updateTimeTooltip(tooltipText, timeSpan);
+        
+        timeWrapper.appendChild(timeSpan);
+        timeWrapper.appendChild(tooltipText);
+        headerDiv.appendChild(timeWrapper);
     }
 
     // Generator URL
@@ -333,7 +370,7 @@ function createLabelsBlock(labelsData) {
     return labelsDiv;
 }
 
-function createAnnotationsBlock(annotations) {
+function createAnnotationsBlock(annotations, isCommonBlock = false) {
     if (!annotations || Object.keys(annotations).length === 0) {
         return null;
     }
@@ -342,10 +379,50 @@ function createAnnotationsBlock(annotations) {
     annotationsDiv.className = 'block-annotations';
 
     Object.entries(annotations).forEach(([key, value]) => {
+        // Create wrapper for annotation and its tooltip
+        const wrapper = document.createElement('div');
+        wrapper.className = 'annotation-wrapper';
+        
         const annotation = document.createElement('div');
-        annotation.className = 'annotation';
+        annotation.className = `annotation ${isCommonBlock ? 'common' : 'alert'}`;
         annotation.textContent = `${key}: ${value}`;
-        annotationsDiv.appendChild(annotation);
+        
+        // Check if the text is truncated
+        const isTruncated = () => {
+            // Create a temporary span to measure the full text width
+            const temp = document.createElement('span');
+            temp.style.visibility = 'hidden';
+            temp.style.position = 'absolute';
+            temp.style.whiteSpace = 'nowrap';
+            temp.textContent = `${key}: ${value}`;
+            document.body.appendChild(temp);
+            
+            const fullWidth = temp.offsetWidth;
+            document.body.removeChild(temp);
+            
+            // Compare with the annotation's width (accounting for the mask)
+            return fullWidth > (isCommonBlock ? 430 : 285); // 285px is the mask width from CSS
+        };
+        
+        wrapper.appendChild(annotation);
+        
+        // Only add tooltip if the text is truncated
+        if (isTruncated()) {
+            // Create tooltip with full text
+            const tooltipText = document.createElement('div');
+            tooltipText.className = 'tooltip-text';
+            tooltipText.textContent = `${key}: ${value}`;
+            
+            // Make tooltip text selectable
+            tooltipText.style.userSelect = 'text';
+            tooltipText.style.webkitUserSelect = 'text';
+            tooltipText.style.mozUserSelect = 'text';
+            tooltipText.style.msUserSelect = 'text';
+            
+            wrapper.appendChild(tooltipText);
+        }
+        
+        annotationsDiv.appendChild(wrapper);
     });
 
     return annotationsDiv;
@@ -368,7 +445,7 @@ function createInfoBlock(header, labels, annotations, isCommonBlock = false) {
     }
 
     // Add annotations if exists
-    const annotationsBlock = createAnnotationsBlock(annotations);
+    const annotationsBlock = createAnnotationsBlock(annotations, isCommonBlock);
     if (annotationsBlock) {
         block.appendChild(annotationsBlock);
     }
@@ -377,7 +454,6 @@ function createInfoBlock(header, labels, annotations, isCommonBlock = false) {
 }
 
 function responsiveLayoutCollapseFormatter(data) {
-    console.log('Responsive collapse formatter called with data:', data);
 
     // Handle initial setup case
     if (!data || !Array.isArray(data)) {
@@ -393,7 +469,6 @@ function responsiveLayoutCollapseFormatter(data) {
     }
 
     const responsiveData = responsiveDataItem.value;
-    console.log('Found responsive data:', responsiveData);
 
     // Create container element
     const container = document.createElement('div');
@@ -436,8 +511,34 @@ function responsiveLayoutCollapseFormatter(data) {
         container.appendChild(alertsWrapper);
     }
 
-    console.log('Final container:', container);
     return container;
+}
+
+function updateTimeTooltip(tooltipText, timeSpan) {
+    const startsAt = timeSpan.getAttribute('data-starts-at');
+    const endsAt = timeSpan.getAttribute('data-ends-at');
+    const status = timeSpan.getAttribute('data-status');
+    
+    const createdTime = new Date(startsAt);
+    const createdTimeStr = createdTime.toLocaleString();
+    const createdTimeAgo = formatRelativeTime(createdTime.getTime()/1000);
+    
+    let tooltipContent = `Created: ${createdTimeAgo} (${createdTimeStr})`;
+    
+    // Calculate firing duration for both resolved and non-resolved alerts
+    const endTime = status === "resolved" ? new Date(endsAt) : new Date();
+    const firingDuration = Math.floor((endTime - createdTime) / 1000);
+    const firingDurationStr = formatDuration(firingDuration);
+    tooltipContent += `\nFiring for: ${firingDurationStr}`;
+    
+    if (status === "resolved" && endsAt) {
+        const resolvedTime = new Date(endsAt);
+        const resolvedTimeStr = resolvedTime.toLocaleString();
+        const resolvedTimeAgo = formatRelativeTime(resolvedTime.getTime()/1000);
+        tooltipContent += `\nResolved: ${resolvedTimeAgo} (${resolvedTimeStr})`;
+    }
+    
+    tooltipText.textContent = tooltipContent;
 }
 
 function updateRelativeTimeSpans() {
@@ -449,6 +550,11 @@ function updateRelativeTimeSpans() {
             const timestamp = parseFloat(timeSpan.getAttribute('data-timestamp'));
             if (!isNaN(timestamp)) {
                 timeSpan.textContent = formatRelativeTime(timestamp);
+                // Update tooltip if it exists
+                const tooltipText = timeSpan.querySelector('.tooltip-text');
+                if (tooltipText) {
+                    updateTimeTooltip(tooltipText, timeSpan);
+                }
             }
         });
     });
