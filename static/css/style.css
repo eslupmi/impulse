@@ -12,7 +12,7 @@ body {
 }
 
 *, *:before, *:after {
-    box-sizing: inherit;    
+    box-sizing: inherit;
 }
 
 /* Table Styling */
@@ -51,13 +51,39 @@ body {
 }
 
 /* Hide sort arrows */
-.tabulator .tabulator-header .tabulator-col.tabulator-sortable[aria-sort="none"] .tabulator-col-content .tabulator-col-sorter .tabulator-arrow {
-	display: none;
+.tabulator .tabulator-header .tabulator-col .tabulator-col-content .tabulator-col-sorter .tabulator-arrow {
+    display: none;
+}
+
+.tabulator .tabulator-col.tabulator-sortable[aria-sort="ascending"] .tabulator-col-sorter::before {
+    content: '';
+    margin-top: 3px;
+    margin-left: 5px;
+    top: 50%;
+    left: 50%;
+    width: 8px;
+    height: 8px;
+    border-left: 2px solid var(--header-text);
+    border-top: 2px solid var(--header-text);
+    transform: translate(-50%, -50%) rotate(-135deg);
+}
+
+.tabulator .tabulator-col.tabulator-sortable[aria-sort="descending"] .tabulator-col-sorter::before {
+    content: '';
+    margin-top: 10px;
+    margin-left: 5px;
+    top: 50%;
+    left: 50%;
+    width: 8px;
+    height: 8px;
+    border-left: 2px solid var(--header-text);
+    border-top: 2px solid var(--header-text);
+    transform: translate(-50%, -50%) rotate(45deg);
 }
 
 .tabulator .tabulator-header .tabulator-col .tabulator-col-content .tabulator-col-title {
     width: auto !important;
-	padding-right: 5px !important;
+    padding-right: 5px !important;
 }
 
 .tabulator .tabulator-tableholder {
@@ -115,7 +141,7 @@ body {
     justify-content: flex-start;
     position: relative;
 }
-  
+
 .tabulator-col-title {
     margin-right: 4px;
 }
@@ -226,7 +252,7 @@ body {
     display: flex;
     align-items: center;
     border-radius: 8px;
-	height: 29px;
+    height: 29px;
     box-shadow: none;
     border: 2px solid var(--brand-primary);
     transition: border-color 0.2s;
@@ -253,11 +279,11 @@ body {
 
 #add-filter-btn {
     background: var(--brand-primary);
-	color: var(--text-inverse);
+    color: var(--text-inverse);
     border: none;
     border-radius: 8px;
-	height: 29px;
-	width: 29px;
+    height: 29px;
+    width: 29px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -351,7 +377,7 @@ body {
     cursor: pointer;
     border: 1.5px;
 }
-  
+
 .cross::before,
 .cross::after {
     content: "";
@@ -363,11 +389,11 @@ body {
     background-color: var(--filter-badge-text);
     transform-origin: center;
 }
-  
+
 .cross::before {
     transform: translate(-50%, -50%) rotate(45deg);
 }
-  
+
 .cross::after {
     transform: translate(-50%, -50%) rotate(-45deg);
 }

@@ -70,6 +70,7 @@
     max-width: 30px;
     background: none !important;
 }
+
 .tabulator-responsive-collapse-toggle-open {
     fill: transparent !important;
     stroke: transparent !important;
@@ -81,19 +82,19 @@
 }
 
 .tabulator .tabulator-responsive-collapse-toggle::before {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 10px;
-  height: 10px;
-  border-left: 2px solid var(--text-primary);
-  border-top: 2px solid var(--text-primary);
-  transform: translate(-50%, -50%) rotate(-135deg);
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 10px;
+    height: 10px;
+    border-left: 2px solid var(--text-primary);
+    border-top: 2px solid var(--text-primary);
+    transform: translate(-50%, -50%) rotate(-135deg);
 }
 
 .tabulator .tabulator-responsive-collapse-toggle.open::before {
-  transform: translate(-50%, -50%) rotate(45deg);
+    transform: translate(-50%, -50%) rotate(45deg);
 }
 
 .info-block {
@@ -251,7 +252,7 @@
     white-space: pre-wrap;
     min-width: 200px;
     max-width: 400px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
     font-size: 12px;
     line-height: 1.4;
     opacity: 0;
