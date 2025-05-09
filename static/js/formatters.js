@@ -140,8 +140,18 @@ function formatterWrapper(formatter) {
         } else {
             // Just add the text directly
             const textDiv = document.createElement("div");
-            textDiv.textContent = text;
             textDiv.className = "original-formatter";
+            
+            // Special handling for datetime formatter with relative time
+            if (formatter === formatterMap.datetime && formatterParams.formatType === "relative") {
+                const timeSpan = document.createElement("span");
+                timeSpan.textContent = text;
+                timeSpan.title = formatTimestamp(cell.getValue());
+                textDiv.appendChild(timeSpan);
+            } else {
+                textDiv.textContent = text;
+            }
+            
             container.appendChild(textDiv);
         }
         
