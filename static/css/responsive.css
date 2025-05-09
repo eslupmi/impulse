@@ -68,8 +68,32 @@
     box-sizing: border-box;
     width: 30px;
     max-width: 30px;
-    background: var(--background-tertiary);
-    border-right: 1px solid var(--border-secondary);
+    background: none !important;
+}
+.tabulator-responsive-collapse-toggle-open {
+    fill: transparent !important;
+    stroke: transparent !important;
+}
+
+.tabulator-responsive-collapse-toggle-close {
+    fill: transparent !important;
+    stroke: transparent !important;
+}
+
+.tabulator .tabulator-responsive-collapse-toggle::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  border-left: 2px solid var(--text-primary);
+  border-top: 2px solid var(--text-primary);
+  transform: translate(-50%, -50%) rotate(-135deg);
+}
+
+.tabulator .tabulator-responsive-collapse-toggle.open::before {
+  transform: translate(-50%, -50%) rotate(45deg);
 }
 
 .info-block {
