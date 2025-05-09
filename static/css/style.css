@@ -217,9 +217,8 @@ body {
 }
 
 .scroll-arrow:hover {
-    background: var(--filter-badge);
     opacity: 0.8;
-    transform: scale(1.1);
+    transform: scale(1.2);
 }
 
 /* Filter Input Wrapper - pill style */
