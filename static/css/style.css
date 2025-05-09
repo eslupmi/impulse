@@ -140,7 +140,7 @@ body {
 /* Scrollable Filters Area */
 #scrollable-filters {
     position: relative;
-    max-width: calc(100% - 454px);
+    max-width: calc(100% - 484px);
     display: flex;
     align-items: center;
     gap: 5px;
@@ -198,7 +198,7 @@ body {
 .scroll-arrow {
     width: 24px;
     height: 24px;
-    background: var(--background-secondary);
+    background: transparent;
     color: var(--text-primary);
     border: none;
     border-radius: 50%;
@@ -212,60 +212,78 @@ body {
     line-height: 1;
 }
 
+.scroll-arrow svg {
+    stroke: var(--text-primary);
+}
+
 .scroll-arrow:hover {
-    color: var(--brand-primary);
+    background: var(--filter-badge);
     opacity: 0.8;
     transform: scale(1.1);
 }
 
-/* Dynamic Input Field */
+/* Filter Input Wrapper - pill style */
+.filter-input-wrapper {
+    display: flex;
+    align-items: center;
+    border-radius: 8px;
+	height: 29px;
+    box-shadow: none;
+    border: 2px solid var(--brand-primary);
+    transition: border-color 0.2s;
+}
+
 #filter-input {
-    flex: 1;
+    background: transparent;
+    border: none;
     padding: 6px 12px;
-    border: 2px solid var(--link-primary);
-    border-radius: 4px 0 0 4px;
     outline: none;
+    color: var(--text-secondary);
     font-size: 16px;
     transition: all 0.2s ease-in-out;
     height: 29px;
     line-height: 20px;
     max-width: 414px;
     min-width: 414px;
-    background: var(--background-primary);
 }
 
-.filter-input-wrapper {
-    display: inline-flex;
-    align-items: center;
+#filter-input::placeholder {
+    color: var(--text-secondary);
+    opacity: 0.5;
 }
 
-/* Add Filter Button */
 #add-filter-btn {
-	background: var(--link-primary);
+    background: var(--brand-primary);
 	color: var(--text-inverse);
-	border: none;
-	border-radius: 0 4px 4px 0;
-	font-size: 16px;
-	cursor: pointer;
-	transition: background 0.2s ease-in-out;
-	white-space: nowrap;
+    border: none;
+    border-radius: 8px;
 	height: 29px;
 	width: 29px;
-	line-height: 20px;
-	padding-top: 4px;
-	padding-bottom: 4px;
-	padding-left: 4px;
-	padding-right: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0;
+    margin: 0;
+    transition: background 0.2s;
+}
+
+#add-filter-btn svg {
+    display: block;
 }
 
 #add-filter-btn:hover {
     background: var(--hover-primary);
 }
 
-/* Focus Effect */
+/* Remove old input/button styles for this area */
 #filter-input:focus {
-    border-color: var(--focus-primary);
-    box-shadow: 0 2px 10px var(--focus-shadow);
+    border: none;
+    box-shadow: none;
+}
+
+#add-filter-btn:active {
+    background: var(--brand-secondary-dark);
 }
 
 /* Error State */
@@ -313,7 +331,7 @@ body {
     font-size: 18px;
     font-weight: 500;
     padding: 6px 12px;
-    border-radius: 5px;
+    border-radius: 8px;
     cursor: pointer;
     user-select: none;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
@@ -431,10 +449,10 @@ element.style {
 
 /* Theme Toggle Button */
 .theme-toggle {
-    background: var(--background-secondary);
+    background: var(--brand-primary);
     color: var(--text-primary);
     border: none;
-    border-radius: 4px;
+    border-radius: 8px;
     width: 29px;
     height: 29px;
     display: flex;
@@ -449,7 +467,6 @@ element.style {
 
 .theme-toggle:hover {
     background: var(--hover-primary);
-    transform: scale(1.05);
 }
 
 .theme-toggle:active {
