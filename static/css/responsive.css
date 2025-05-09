@@ -2,6 +2,7 @@
     padding: 10px;
     font-size: 14px;
     display: flex;
+    background: var(--background-tertiary);
 }
 
 .alerts-wrapper {
@@ -18,7 +19,7 @@
     font-size: 16px;
     font-weight: 600;
     margin: 0 0 10px 0;
-    color: #333;
+    color: var(--text-primary);
 }
 
 .collapse-content {
@@ -30,7 +31,7 @@
 }
 
 .collapse-item strong {
-    color: #666;
+    color: var(--text-secondary);
     margin-right: 5px;
 }
 
@@ -42,20 +43,20 @@
 }
 
 .label-item {
-    background-color: #f5f5f5;
-    border: 1px solid #e0e0e0;
+    background-color: var(--background-tertiary);
+    border: 1px solid var(--border-secondary);
     border-radius: 4px;
     padding: 4px 8px;
     font-size: 12px;
-    color: #333;
+    color: var(--text-primary);
     display: inline-block;
 }
 
 /* Tabulator specific overrides */
 .tabulator-responsive-collapse {
-    border-top: 1px solid #ddd;
-    border-bottom: 1px solid #ddd;
-    background-color: #f9f9f9;
+    border-top: 1px solid var(--border-secondary);
+    border-bottom: 1px solid var(--border-secondary);
+    background-color: var(--background-tertiary);
     margin-top: -1px;
     position: relative;
     overflow: visible !important;
@@ -67,12 +68,12 @@
     box-sizing: border-box;
     width: 30px;
     max-width: 30px;
-    background: #f0f0f0;
-    border-right: 1px solid #ddd;
+    background: var(--background-tertiary);
+    border-right: 1px solid var(--border-secondary);
 }
 
 .info-block {
-    background-color: #D0D5DD;
+    background-color: var(--neutral-400);
     border-radius: 8px;
     padding: 8px;
 }
@@ -81,67 +82,65 @@
 .common-info-block {
     width: 500px;
     margin-right: 40px;
+    padding: 20px 12px;
 }
 
 /* Alert blocks */
 .alert-info-block {
     width: 330px;
+    padding: 8px 8px 20px 8px;
 }
 
 .labels-list {
     display: flex;
     flex-wrap: wrap;
-    gap: 4px;
+    gap: 8px;
 }
 
 .block-separator {
     border: none;
-    border-top: 1px solid var(--border-color);
+    border-top: 1px solid var(--border-secondary);
     margin: 8px 0;
 }
 
 .status-badge {
-    /* padding: 4px 8px;
-    border-radius: 4px;
-    font-weight: 500;
-    font-size: 0;
-    text-transform: uppercase; */
     display: inline-block;
     font-size: 0;
     width: 12px;
     height: 12px;
-    background-color: red;
+    background-color: var(--status-badge-firing);
     border-radius: 50%;
 }
 
 .status-badge.firing {
-    background-color: #ff4444;
-    color: white;
+    background-color: var(--status-badge-firing);
+    color: var(--text-inverse);
 }
 
 .status-badge.resolved {
-    background-color: #4caf50;
-    color: white;
+    background-color: var(--status-badge-resolved);
+    color: var(--text-inverse);
 }
 
 .alert-header {
     display: flex;
     gap: 16px;
     font-size: 12px;
-    color: var(--time-text-color);
+    color: var(--text-secondary);
     margin-bottom: 12px;
-    border-bottom: 1px solid var(--block-separator);
+    border-bottom: 1px solid var(--border-secondary);
+    justify-content: space-between;
 }
 
 .generator-link {
-    margin-left: auto;
-    color: var(--link-color);
+    color: var(--link-primary);
     text-decoration: none;
     font-size: 12px;
 }
 
 .generator-link:hover {
     text-decoration: underline;
+    color: var(--link-hover);
 }
 
 .highlighted-labels {
@@ -151,16 +150,15 @@
 .label {
     display: inline-block;
     padding: 4px 8px;
-    margin: 0 4px 4px 0;
     border-radius: 4px;
     background: var(--label-background);
     font-size: 12px;
-    color: var(--label-text-color);
+    color: var(--label-text);
 }
 
 .label.highlighted {
     background: var(--label-highlighted-background);
-    color: var(--label-highlighted-text-color);
+    color: var(--label-highlighted-text);
     font-weight: 500;
 }
 
@@ -169,7 +167,7 @@
     flex-wrap: wrap;
     gap: 8px;
     padding-top: 12px;
-    border-top: 1px solid var(--block-separator);
+    border-top: 1px solid var(--border-secondary);
     position: relative;
     z-index: 1;
 }
@@ -177,7 +175,6 @@
 .annotation {
     display: inline-block;
     padding: 4px 8px;
-    margin: 0px 0px 0px 0px;
     border-radius: 4px;
     border: 1px solid var(--annotation-border);
     font-size: 12px;
@@ -186,18 +183,19 @@
     -moz-user-select: text;
     -ms-user-select: text;
     position: relative;
+    color: var(--annotation-text);
 }
 
 .annotation.common {
-    max-width: 484px;
-    mask-image: linear-gradient(to right, black 430px, transparent 100%);
-    -webkit-mask-image: linear-gradient(to right, black 430px, transparent 100%);
+    max-width: 468px;
+    mask-image: linear-gradient(to right, black 423px, transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, black 423px, transparent 100%);
 }
 
 .annotation.alert {
-    max-width: 314px;
-    mask-image: linear-gradient(to right, black 285px, transparent 100%);
-    -webkit-mask-image: linear-gradient(to right, black 285px, transparent 100%);
+    max-width: 311px;
+    mask-image: linear-gradient(to right, black 286px, transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, black 286px, transparent 100%);
 }
 
 .block-labels {
@@ -221,12 +219,11 @@
 .tooltip-text {
     visibility: hidden;
     background-color: var(--tooltip-background);
-    color: #fff;
+    color: var(--text-inverse);
     text-align: left;
     padding: 8px;
     border-radius: 4px;
     position: absolute;
-    z-index: 999999;
     white-space: pre-wrap;
     min-width: 200px;
     max-width: 400px;
@@ -237,7 +234,6 @@
     transition: opacity 0.2s;
     pointer-events: none;
     bottom: calc(100% + 8px);
-    left: 0;
 }
 
 /* Add invisible bridge between wrapper and tooltip */
@@ -264,6 +260,8 @@
 .time-tooltip {
     font-family: monospace;
     white-space: pre;
+    left: 50%;
+    transform: translateX(-50%);
 }
 
 /* Ensure tooltip is above other content */

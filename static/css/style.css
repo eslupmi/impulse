@@ -5,7 +5,7 @@ body {
     font-family: 'Inter', sans-serif;
     font-weight: 400;
     font-size: 16px;
-    background: var(--table-bg);
+    background: var(--background-primary);
     margin: 0;
     padding: 0;
     box-sizing: border-box;
@@ -17,7 +17,7 @@ body {
 
 /* Table Styling */
 #data-table {
-    background: var(--table-bg);
+    background: var(--background-primary);
     overflow: hidden;
     width: 100%;
     max-width: 100%;
@@ -27,6 +27,27 @@ body {
 /* Tabulator Custom Styling */
 .tabulator {
     border: none !important;
+}
+
+/* Custom Scrollbar for Tabulator */
+.tabulator .tabulator-tableholder::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.tabulator .tabulator-tableholder::-webkit-scrollbar-track {
+    background: var(--background-secondary);
+    border-radius: 4px;
+}
+
+.tabulator .tabulator-tableholder::-webkit-scrollbar-thumb {
+    background: var(--neutral-500);
+    border-radius: 4px;
+    border: 2px solid var(--background-secondary);
+}
+
+.tabulator .tabulator-tableholder::-webkit-scrollbar-thumb:hover {
+    background: var(--neutral-600);
 }
 
 /* Hide sort arrows */
@@ -44,16 +65,16 @@ body {
 }
 
 .tabulator .tabulator-header {
-    background-color: var(--header-bg) !important;
+    background-color: var(--header-background) !important;
     height: 32px !important;
-    border-bottom: 1px solid var(--border-color) !important;
+    border-bottom: 0px solid var(--table-border) !important;
 }
 
 .tabulator-header .tabulator-col {
     top: 0;
     z-index: 1;
     position: sticky;
-    background: var(--header-bg) !important;
+    background: var(--header-background) !important;
     color: var(--header-text) !important;
     font-size: 16px !important;
     font-weight: 600 !important;
@@ -68,11 +89,11 @@ body {
 
 .tabulator-row {
     transition: background 0.2s ease-in-out;
-    border-bottom: 1px solid var(--border-color) !important;
+    border-bottom: 1px solid var(--table-border) !important;
 }
 
 .tabulator-row:hover {
-    background: var(--row-hover) !important;
+    background: var(--table-row-hover) !important;
 }
 
 .tabulator-row .tabulator-cell {
@@ -81,7 +102,11 @@ body {
 }
 
 .tabulator-row-even {
-    background: var(--table-bg) !important;
+    background: var(--background-primary) !important;
+}
+
+.tabulator-row-odd {
+    background: var(--background-primary) !important;
 }
 
 .tabulator-col-title-holder {
@@ -106,7 +131,7 @@ body {
     padding: 10px 20px;
     display: flex;
     align-items: center;
-    background: var(--primary-bg);
+    background: var(--background-secondary);
     justify-content: flex-end;
     padding-top: 12px;
     padding-right: 24px;
@@ -130,7 +155,7 @@ body {
 #filter-container {
     display: flex;
     align-items: center;
-    gap: 24px;
+    gap: 12px;
     overflow-x: auto;
     overflow-y: hidden;
     white-space: nowrap;
@@ -150,7 +175,7 @@ body {
     top: 0;
     height: 100%;
     width: 32px;
-    background: var(--primary-bg);
+    background: var(--background-secondary);
     display: none;
     z-index: 2;
     align-items: center;
@@ -173,8 +198,8 @@ body {
 .scroll-arrow {
     width: 24px;
     height: 24px;
-    background: var(--primary-bg);
-    color: var(--filter-arrow);
+    background: var(--background-secondary);
+    color: var(--text-primary);
     border: none;
     border-radius: 50%;
     cursor: pointer;
@@ -188,7 +213,7 @@ body {
 }
 
 .scroll-arrow:hover {
-    color: var(--primary-color);
+    color: var(--brand-primary);
     opacity: 0.8;
     transform: scale(1.1);
 }
@@ -197,7 +222,7 @@ body {
 #filter-input {
     flex: 1;
     padding: 6px 12px;
-    border: 2px solid var(--input-border);
+    border: 2px solid var(--link-primary);
     border-radius: 4px 0 0 4px;
     outline: none;
     font-size: 16px;
@@ -206,12 +231,18 @@ body {
     line-height: 20px;
     max-width: 414px;
     min-width: 414px;
+    background: var(--background-primary);
+}
+
+.filter-input-wrapper {
+    display: inline-flex;
+    align-items: center;
 }
 
 /* Add Filter Button */
 #add-filter-btn {
-	background: var(--link-color);
-	color: var(--primary-text);
+	background: var(--link-primary);
+	color: var(--text-inverse);
 	border: none;
 	border-radius: 0 4px 4px 0;
 	font-size: 16px;
@@ -221,7 +252,6 @@ body {
 	height: 29px;
 	width: 29px;
 	line-height: 20px;
-	/* margin-left: -2px; */
 	padding-top: 4px;
 	padding-bottom: 4px;
 	padding-left: 4px;
@@ -229,19 +259,19 @@ body {
 }
 
 #add-filter-btn:hover {
-    background: var(--primary-hover);
+    background: var(--hover-primary);
 }
 
 /* Focus Effect */
 #filter-input:focus {
-    border-color: var(--input-focus);
-    box-shadow: 0 2px 10px var(--primary-shadow);
+    border-color: var(--focus-primary);
+    box-shadow: 0 2px 10px var(--focus-shadow);
 }
 
 /* Error State */
 #filter-error {
     padding: 0 20px;
-    color: var(--filter-error);
+    color: var(--status-error);
     font-weight: bold;
     display: block;
 }
@@ -251,7 +281,7 @@ body {
 }
 
 #filter-input.has-error {
-    border-color: var(--filter-error);
+    border-color: var(--status-error);
 }
 
 /* Pill Label */
@@ -260,11 +290,12 @@ body {
     padding: 2px 4px;
     border-radius: 4px;
     white-space: nowrap;
+    color: var(--text-primary);
 }
 
 /* Link field */
 .link-field a {
-    color: var(--primary-color);
+    color: var(--link-primary);
     text-decoration: none;
 }
 
@@ -278,7 +309,7 @@ body {
     align-items: center;
     gap: 6px;
     background: var(--filter-badge);
-    color: var(--primary-text);
+    color: var(--filter-badge-text);
     font-size: 18px;
     font-weight: 500;
     padding: 6px 12px;
@@ -312,7 +343,7 @@ body {
     top: 50%;
     width: 2px;
     height: 100%;
-    background-color: rgb(255, 255, 255);
+    background-color: var(--filter-badge-text);
     transform-origin: center;
 }
   
@@ -332,7 +363,7 @@ body {
 }
 
 .filter-badge span.cross:hover {
-    color: var(--filter-badge-span-hover);
+    color: var(--filter-badge-close-hover);
 }
 
 /* Smooth Removal Animation */
@@ -360,7 +391,7 @@ body {
 }
 
 .tabulator-row .tabulator-responsive-collapse {
-    border-top: 0px solid #aaa;
+    border: 0px solid var(--border-secondary);
 }
 
 element.style {
@@ -383,10 +414,82 @@ element.style {
     width: 16px;
     height: 16px;
     border-radius: 50%;
-    background-color: var(--alerts-count-bg);
+    background-color: var(--alerts-count-background);
     color: var(--alerts-count-text);
     font-size: 10px;
     font-weight: 600;
     margin: 0 auto;
     line-height: 1;
+}
+
+/* Filter Controls */
+.filter-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Theme Toggle Button */
+.theme-toggle {
+    background: var(--background-secondary);
+    color: var(--text-primary);
+    border: none;
+    border-radius: 4px;
+    width: 29px;
+    height: 29px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    padding: 0;
+    font-size: 16px;
+    line-height: 1;
+}
+
+.theme-toggle:hover {
+    background: var(--hover-primary);
+    transform: scale(1.05);
+}
+
+.theme-toggle:active {
+    transform: scale(0.95);
+}
+
+.theme-icon {
+    transition: transform 0.3s ease;
+    width: 20px;
+    height: 20px;
+}
+
+/* Dark theme icon styles */
+[data-theme="dark"] .theme-icon .sun {
+    transform: scale(0.8);
+    opacity: 0;
+}
+
+[data-theme="dark"] .theme-icon .sun-rays {
+    transform: rotate(90deg);
+    opacity: 0;
+}
+
+/* Light theme icon styles */
+[data-theme="light"] .theme-icon {
+    transform: rotate(0deg);
+}
+
+/* Add moon for dark theme */
+.theme-icon::after {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 2px solid currentColor;
+    transform: scale(0);
+    transition: transform 0.3s ease;
+}
+
+[data-theme="dark"] .theme-icon::after {
+    transform: scale(1);
 }
