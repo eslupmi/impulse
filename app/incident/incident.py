@@ -9,7 +9,7 @@ from app.incident.helpers import gen_uuid
 from app.time import unix_sleep_to_timedelta
 from app.tools import NoAliasDumper
 from app.ui.incident_websocket import IncidentWS
-from app.utils import get_attr_by_key_chain, normalize_param
+from app.utils import get_attr_by_key_chain, normalize_param, filter_dict_keys
 from config import incidents_path, incident, INCIDENT_ACTUAL_VERSION
 
 
@@ -171,22 +171,24 @@ class Incident:
         }
 
     def get_table_data(self, params) -> Dict:
+        common_labels = self.last_state.get('commonLabels', {})
+        common_annotations = self.last_state.get('commonAnnotations', {})
         data = {
             'uuid': str(self.uuid),
             'indicator': status_colors.get(self.status),
             '_alerts_count': len(self.last_state.get('alerts', [])),
             '_responsive_data': {
                 'group_labels': self.last_state.get('groupLabels', {}),
-                'common_labels': self.last_state.get('commonLabels', {}),
-                'common_annotations': self.last_state.get('commonAnnotations', {}),
+                'common_labels': common_labels,
+                'common_annotations': common_annotations,
                 'alerts': [
                     {
                         'status': alert.get('status', ''),
                         'startsAt': alert.get('startsAt', ''),
                         'endsAt': alert.get('endsAt', ''),
                         'generatorURL': alert.get('generatorURL', ''),
-                        'labels': alert.get('labels', {}),
-                        'annotations': alert.get('annotations', {})
+                        'labels': filter_dict_keys(alert.get('labels', {}), common_labels),
+                        'annotations': filter_dict_keys(alert.get('annotations', {}), common_annotations)
                     }
                     for alert in self.last_state.get('alerts', [])
                 ]

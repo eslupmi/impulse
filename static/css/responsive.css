@@ -229,6 +229,7 @@
 
 /* Tooltip styles */
 .annotation-wrapper,
+.label-wrapper,
 .time-wrapper {
     position: relative;
     display: inline-block;
@@ -263,6 +264,7 @@
 
 /* Add invisible bridge between wrapper and tooltip */
 .annotation-wrapper:hover::before,
+.label-wrapper:hover::before,
 .time-wrapper:hover::before {
     content: '';
     position: absolute;
@@ -275,6 +277,7 @@
 
 .annotation-wrapper:hover .tooltip-text,
 .time-wrapper:hover .tooltip-text,
+.label-wrapper:hover .tooltip-text,
 .tooltip-text:hover {
     visibility: visible;
     opacity: 1;
@@ -328,4 +331,16 @@
 .alerts-wrapper,
 .responsive-collapse {
     overflow: visible !important;
+}
+
+.label.common {
+    max-width: 468px;
+    mask-image: linear-gradient(to right, black 423px, transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, black 423px, transparent 100%);
+}
+
+.label.alert {
+    max-width: 311px;
+    mask-image: linear-gradient(to right, black 286px, transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, black 286px, transparent 100%);
 }

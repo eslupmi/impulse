@@ -345,7 +345,52 @@ function createHeaderBlock(headerData) {
     return headerDiv;
 }
 
-function createLabelsBlock(labelsData) {
+/**
+ * Shared helper to create a pill (label or annotation) with truncation and tooltip.
+ * @param {string} key
+ * @param {string} value
+ * @param {object} options - {wrapperClass, pillClass, highlighted, isCommonBlock}
+ * @returns {HTMLElement}
+ */
+function createTruncatedPill(key, value, options = {}) {
+    const { wrapperClass, pillClass, highlighted, isCommonBlock } = options;
+    const wrapper = document.createElement('div');
+    wrapper.className = wrapperClass;
+
+    const pill = document.createElement('span');
+    pill.className = pillClass + (highlighted ? ' highlighted' : '') + (isCommonBlock !== undefined ? (isCommonBlock ? ' common' : ' alert') : '');
+    pill.textContent = `${key}: ${value}`;
+
+    // Check if the text is truncated
+    const isTruncated = () => {
+        const temp = document.createElement('span');
+        temp.style.visibility = 'hidden';
+        temp.style.position = 'absolute';
+        temp.style.whiteSpace = 'nowrap';
+        temp.textContent = `${key}: ${value}`;
+        document.body.appendChild(temp);
+        const fullWidth = temp.offsetWidth;
+        document.body.removeChild(temp);
+        return fullWidth > (isCommonBlock ? 430 : 285);
+    };
+
+    wrapper.appendChild(pill);
+
+    if (isTruncated()) {
+        const tooltipText = document.createElement('div');
+        tooltipText.className = 'tooltip-text';
+        tooltipText.textContent = `${key}: ${value}`;
+        tooltipText.style.userSelect = 'text';
+        tooltipText.style.webkitUserSelect = 'text';
+        tooltipText.style.mozUserSelect = 'text';
+        tooltipText.style.msUserSelect = 'text';
+        wrapper.appendChild(tooltipText);
+    }
+
+    return wrapper;
+}
+
+function createLabelsBlock(labelsData, isCommonBlock = false) {
     if (!labelsData || (Object.keys(labelsData.highlighted || {}).length === 0 && Object.keys(labelsData.regular || {}).length === 0)) {
         return null;
     }
@@ -359,20 +404,24 @@ function createLabelsBlock(labelsData) {
     // Add highlighted labels
     if (labelsData.highlighted && Object.keys(labelsData.highlighted).length > 0) {
         Object.entries(labelsData.highlighted).forEach(([key, value]) => {
-            const label = document.createElement('span');
-            label.className = 'label highlighted';
-            label.textContent = `${key}: ${value}`;
-            labelsList.appendChild(label);
+            labelsList.appendChild(createTruncatedPill(key, value, {
+                wrapperClass: 'label-wrapper',
+                pillClass: 'label',
+                highlighted: true,
+                isCommonBlock
+            }));
         });
     }
 
     // Add regular labels
     if (labelsData.regular && Object.keys(labelsData.regular).length > 0) {
         Object.entries(labelsData.regular).forEach(([key, value]) => {
-            const label = document.createElement('span');
-            label.className = 'label';
-            label.textContent = `${key}: ${value}`;
-            labelsList.appendChild(label);
+            labelsList.appendChild(createTruncatedPill(key, value, {
+                wrapperClass: 'label-wrapper',
+                pillClass: 'label',
+                highlighted: false,
+                isCommonBlock
+            }));
         });
     }
 
@@ -389,50 +438,12 @@ function createAnnotationsBlock(annotations, isCommonBlock = false) {
     annotationsDiv.className = 'block-annotations';
 
     Object.entries(annotations).forEach(([key, value]) => {
-        // Create wrapper for annotation and its tooltip
-        const wrapper = document.createElement('div');
-        wrapper.className = 'annotation-wrapper';
-        
-        const annotation = document.createElement('div');
-        annotation.className = `annotation ${isCommonBlock ? 'common' : 'alert'}`;
-        annotation.textContent = `${key}: ${value}`;
-        
-        // Check if the text is truncated
-        const isTruncated = () => {
-            // Create a temporary span to measure the full text width
-            const temp = document.createElement('span');
-            temp.style.visibility = 'hidden';
-            temp.style.position = 'absolute';
-            temp.style.whiteSpace = 'nowrap';
-            temp.textContent = `${key}: ${value}`;
-            document.body.appendChild(temp);
-            
-            const fullWidth = temp.offsetWidth;
-            document.body.removeChild(temp);
-            
-            // Compare with the annotation's width (accounting for the mask)
-            return fullWidth > (isCommonBlock ? 430 : 285); // 285px is the mask width from CSS
-        };
-        
-        wrapper.appendChild(annotation);
-        
-        // Only add tooltip if the text is truncated
-        if (isTruncated()) {
-            // Create tooltip with full text
-            const tooltipText = document.createElement('div');
-            tooltipText.className = 'tooltip-text';
-            tooltipText.textContent = `${key}: ${value}`;
-            
-            // Make tooltip text selectable
-            tooltipText.style.userSelect = 'text';
-            tooltipText.style.webkitUserSelect = 'text';
-            tooltipText.style.mozUserSelect = 'text';
-            tooltipText.style.msUserSelect = 'text';
-            
-            wrapper.appendChild(tooltipText);
-        }
-        
-        annotationsDiv.appendChild(wrapper);
+        annotationsDiv.appendChild(createTruncatedPill(key, value, {
+            wrapperClass: 'annotation-wrapper',
+            pillClass: `annotation${isCommonBlock ? ' common' : ' alert'}`,
+            highlighted: false,
+            isCommonBlock
+        }));
     });
 
     return annotationsDiv;
@@ -449,7 +460,7 @@ function createInfoBlock(header, labels, annotations, isCommonBlock = false) {
     }
 
     // Add labels if exists
-    const labelsBlock = createLabelsBlock(labels);
+    const labelsBlock = createLabelsBlock(labels, isCommonBlock);
     if (labelsBlock) {
         block.appendChild(labelsBlock);
     }

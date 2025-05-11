@@ -36,3 +36,9 @@ def normalize_param(param):
         return param.timestamp()
     else:
         return param
+
+def filter_dict_keys(source: dict, keys_to_exclude: dict) -> dict:
+    """
+    Return a copy of source with keys removed that exist in keys_to_exclude.
+    """
+    return {k: v for k, v in source.items() if k not in keys_to_exclude}
