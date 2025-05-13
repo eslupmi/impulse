@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from datetime import datetime, UTC
+from datetime import datetime, timezone
 from typing import List, Dict, Optional
 
 import yaml
@@ -49,7 +49,7 @@ class Incident:
     def __post_init__(self):
         self.uuid = gen_uuid(self.last_state.get('groupLabels'))
         if not self.created:
-            self.created = datetime.now(UTC)
+            self.created = datetime.now(timezone.utc)
 
     def set_thread(self, thread_id: str, public_url: str):
         self.ts = thread_id
