@@ -15,7 +15,7 @@ def get_incident_table_config():
         'headerSort': False
     }]
 
-    for field in ui_config['columns']:
+    for field in ui_config.get('columns', []):
         field_name = field['name']
         field_type = field.get('type')
         field_visible = field.get('visible', True)

@@ -40,7 +40,7 @@ class IncidentWS:
 
     def _get_values(self):
         values_map = {}
-        for field in self.table_config['columns']:
+        for field in self.table_config.get('columns', []):
             if field.get('type') == 'link':
                 values_map[field['name']] = field['value']
                 values_map[f'{field["name"]}Url'] = field['url']

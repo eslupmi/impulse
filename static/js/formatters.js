@@ -111,7 +111,7 @@ function formatterWrapper(formatter) {
         const cellValue = cell.getValue();
         let color = null;
 
-        if (columnColors[columnName] && columnColors[columnName][cellValue]) {
+        if (columnColors && columnColors[columnName] && columnColors[columnName][cellValue]) {
             color = columnColors[columnName][cellValue];
         }
 
