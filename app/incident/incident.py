@@ -8,6 +8,7 @@ from app.incident.helpers import gen_uuid
 from app.time import unix_sleep_to_timedelta
 from app.tools import NoAliasDumper
 from config import incidents_path, incident, INCIDENT_ACTUAL_VERSION
+from app.logging import logger
 
 
 @dataclass
@@ -58,13 +59,17 @@ class Incident:
             return f'https://t.me/c/{str(self.channel_id)[4:]}/{self.ts}'
         return ''
 
-    def generate_chain(self, chain=None):
-        if not chain:
+    def generate_chain(self, chains, chain_name):
+        if chain_name not in chains.keys():
+            logger.warning(f'Chain {chain_name} not found. Check impulse.yml')
             return
 
+        chain = chains[chain_name]
         steps = chain.steps
         if not steps:
             return
+
+        steps = self._unchain(chains, steps)
 
         dt = datetime.utcnow()
         for index, step in enumerate(steps):
@@ -74,6 +79,24 @@ class Incident:
             else:
                 self.chain_put(index=index, datetime_=dt, type_=type_, identifier=value)
         self.dump()
+
+    def _unchain(self, chains, steps):
+        if any('chain' in step for step in steps):
+            steps_result = list()
+            for step in steps:
+                type_, value = next(iter(step.items()))
+                if type_ == 'chain':
+                    nested_chain = chains.get(value)
+                    if nested_chain is None:
+                        logger.warning(f"Chain '{value}' not found. Check impulse.yml")
+                        continue
+                    nested_steps = nested_chain.steps
+                    steps_result.extend(self._unchain(chains, nested_steps))
+                else:
+                    steps_result.append({type_: value})
+            return steps_result
+        else:
+            return steps
 
     def release(self):
         self.chain = []

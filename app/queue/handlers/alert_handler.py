@@ -40,7 +40,6 @@ class AlertHandler(BaseHandler):
         updated_datetime = datetime.utcnow()
         status_update_datetime = datetime.utcnow() + unix_sleep_to_timedelta(incident['timeouts'].get(status))
 
-        chain = self.app.chains.get(chain_name)
         config = IncidentConfig(
             application_type=self.app.type,
             application_url=self.app.url,
@@ -71,7 +70,7 @@ class AlertHandler(BaseHandler):
 
         self.queue.put(status_update_datetime, 'update_status', incident_.uuid)
 
-        incident_.generate_chain(chain)
+        incident_.generate_chain(self.app.chains, chain_name)
         self.queue.recreate(status, incident_.uuid, incident_.chain)
 
     def _handle_update(self, uuid_, incident_, alert_state):
@@ -82,8 +81,7 @@ class AlertHandler(BaseHandler):
         # Generate chain from scratch if incident chain is empty
         if prev_status == 'resolved' and incident_.chain_enabled and incident_.chain == []:
             _, chain_name = self.route.get_route(alert_state)
-            chain = self.app.chains.get(chain_name)
-            incident_.generate_chain(chain)
+            incident_.generate_chain(self.app.chains, chain_name)
             
         self.queue.recreate(alert_state.get('status'), uuid_, incident_.get_chain())
 
@@ -147,9 +145,8 @@ class AlertHandler(BaseHandler):
         """
         self.queue.delete_by_id(incident_.uuid, delete_steps=True, delete_status=False)
         _, chain_name = self.route.get_route(alert_state)
-        chain = self.app.chains.get(chain_name)
         incident_.chain = []
-        incident_.generate_chain(chain)
+        incident_.generate_chain(self.app.chains, chain_name)
         self.queue.recreate(incident_.status, incident_.uuid, incident_.chain)
         incident_.dump()
         logger.info(f"Incident {uuid_} chain recreated")
