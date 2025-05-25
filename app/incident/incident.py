@@ -81,27 +81,23 @@ class Incident:
         self.dump()
 
     def _unchain(self, chains, steps):
-        # If no chains to resolve, return steps as is
         if not any('chain' in step for step in steps):
             return steps
 
-        resolved_steps = []
+        extended_steps = []
         for step in steps:
             type_, value = next(iter(step.items()))
-
             if type_ == 'chain':
                 nested_chain = chains.get(value)
                 if nested_chain is None:
                     logger.warning(f"Chain '{value}' not found. Check impulse.yml")
                     continue
-
-                # Recursively resolve nested chain steps
                 nested_steps = nested_chain.steps
-                resolved_steps.extend(self._unchain(chains, nested_steps))
+                extended_steps.extend(self._unchain(chains, nested_steps))
             else:
-                resolved_steps.append({type_: value})
+                extended_steps.append({type_: value})
+        return extended_steps
 
-        return resolved_steps
     def release(self):
         self.chain = []
         self.assign_user_id("")
