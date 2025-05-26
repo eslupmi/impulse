@@ -60,7 +60,9 @@ There are 3 types of chain: **simple**, **schedule** and **cloud**.
 
 #### simple chain
 
-Each chain contains a list of **steps**. There are 4 step types:  3 of them are notifications: [`user`](config_file.md#users), [`user_group`](config_file.md#user_groups), [`webhook`](config_file.md#webhooks). The last one is wait, used to delay the next notification.
+Each chain contains a list of **steps**. There are 4 step types: 3 of them are notifications: [`user`](config_file.md#users), [`user_group`](config_file.md#user_groups), [`webhook`](config_file.md#webhooks). The last one is `wait`, used to delay the next notification.
+
+Chains can also include other chains as nested steps using the `chain` instruction. Nesting is supported to any depth.
 
 The `wait` is similar to the [sleep](https://www.gnu.org/software/coreutils/manual/html_node/sleep-invocation.html) utility format, but without floats or combined expressions like `1m 3s`. Valid units: `s` (seconds), `m` (minutes), `h` (hours), `d` (days).
 
@@ -82,6 +84,21 @@ application:
       - user: Dmitry_s_boss
       - wait: 15m
       - user: CTO
+```
+
+**nested chain example**
+
+```yaml
+application:
+  chains:
+    devops:
+      - user: Dmitry
+      - wait: 5m
+      - user: Dmitry_s_boss
+    programmers:
+      - user: Valery
+      - wait: 5m
+      - chain: devops
 ```
 
 #### schedule chain
