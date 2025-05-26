@@ -1,6 +1,6 @@
 # Configuration File
 
-The only configuration file for IMPulse is `impulse.yml`. To change default `impulse.yml` path see [Environment Variables](envs.md)
+The only configuration file for IMPulse is `impulse.yml`. To change default `impulse.yml` path, see [Environment Variables](envs.md)
 
 
 ## All options
@@ -11,58 +11,58 @@ The only configuration file for IMPulse is `impulse.yml`. To change default `imp
 
 > **alerts_resolved_notifications** [`bool`, default `False`] - nofitication about old resolved instances
 
-> **timeouts** - incident status timeouts (to realize incident [lifecycle](concepts.md#lifecycle))
+> **timeouts** - incident status timeouts (see [lifecycle](concepts.md#lifecycle))
 
-> > **firing** [`string`, default `6h`] - after this time Incident status will change from 'firing' to 'unknown' if no new alerts appear
+> > **firing** [`string`, default `6h`] - after this time, incident status changes from 'firing' to 'unknown' if no alerts appear
 
-> > **unknown** [`string`, default `6h`] - after this time Incident status will change from 'resolved' to 'closed' if no new alerts appear
+> > **unknown** [`string`, default `6h`] - after this time, incident status changes from 'unknown' to 'closed' if no alerts appear
 
-> > **resolved** [`string`, default `12h`] - after this time Incident status will change from 'resolved' to 'closed' if no new alerts appear
+> > **resolved** [`string`, default `12h`] - after this time, incident status changes from 'resolved' to 'closed' if no alerts appear
 
-**route** [`dict`, _required_] - route for incidents routing is based on alert's fields. See [details](config_file.md#route)
+**route** [`dict`, _required_] - Incident routing rules based on alert fields. See [details](config_file.md#route)
 
 **application** [`dict`, _required_] - messenger configuration
 
 > **address** [`string`, _required_] - your Mattermost server address
 
-> **admin_users** [`list`, _required_] - IMPulse administrators. They will be notified when any warnings
+> **admin_users** [`list`, _required_] - IMPulse administrators notified of any warnings
 
-> **impulse_address** [`string`] - define where Mattermost / Telegram will send button events
+> **impulse_address** [`string`] - URL for Mattermost / Telegram button callbacks
 
 > **users** [`dict`, _required_] - users declaration. See [details](config_file.md#users)
 
-> **user_groups** [`list`] - user groups declaration. See [details](config_file.md#user_groups)
+> **user_groups** [`list`] - user group definitions. See [details](config_file.md#user_groups)
 
 > **channels** [`dict`, _required_] - messenger channels used in IMPulse. See [details](config_file.md#channels)
 
-> **chains** [`dict`] - entity to describe notifications order. See [details](config_file.md#chains)
+> **chains** [`dict`] - defines notification order. See [details](config_file.md#chains)
 
-> **team** [`string`, _required_] - Mattermost team
+> **team** [`string`, _required_] - Mattermost team name
 
-> **template_files** [`dict`] - path to custom template files. See [details](config_file.md#template_files)
+> **template_files** [`dict`] - paths to custom template files. See [details](config_file.md#template_files)
 
-> **type** [`string`, _required_] - type of messenger (`mattermost`, `slack` or `telegram`)
+> **type** [`string`, _required_] - messenger type (`mattermost`, `slack` or `telegram`)
 
-**webhooks** - see [details](config_file.md#webhooks) to understand how to work with it
+**webhooks** - see [details](config_file.md#webhooks) for usage instructions
 
 **experimental** [`dict`] - experimental options (*WE HIGHLY RECOMMEND DO NOT USE IT*)
 
-> **recreate_chain** [`bool`, default `False`] - this option will <!-- release incident --> enable chain and start it again when new alerts added to incident
+> **recreate_chain** [`bool`, default `False`] - enables the chain and restarts it when new alerts are added to an incident
 
 
 ## Details
 
 ### chains
 
-Chain defines how to notify people about incident. Chains used in [route](config_file.md#route).
+Chains define how to notify people about incidents. Chains are used in the [route](config_file.md#route) section.
 
 There are 3 types of chain: **simple**, **schedule** and **cloud**.
 
 #### simple chain
 
-Every chain has list of **steps**. Step can be one of 4 instructions. 3 of them is notifications: [`user`](config_file.md#users), [`user_group`](config_file.md#user_groups), [`webhook`](config_file.md#webhooks). The last one is `wait` - to split notifications by time.
+Each chain contains a list of **steps**. There are 4 step types:  3 of them are notifications: [`user`](config_file.md#users), [`user_group`](config_file.md#user_groups), [`webhook`](config_file.md#webhooks). The last one is wait, used to delay the next notification.
 
-`wait` format seems like [sleep](https://www.gnu.org/software/coreutils/manual/html_node/sleep-invocation.html) utility format, but without float support and complex expressions like `1m 3s`. Available 4 options: `s` (seconds), `m` (minutes), `h` (hours), `d` (days).
+The `wait` is similar to the [sleep](https://www.gnu.org/software/coreutils/manual/html_node/sleep-invocation.html) utility format, but without floats or combined expressions like `1m 3s`. Valid units: `s` (seconds), `m` (minutes), `h` (hours), `d` (days).
 
 **devops chains example**
 
@@ -86,21 +86,21 @@ application:
 
 #### schedule chain
 
-Schedule chain add you ability to set chains with calendar
+Schedule chains allows you to define notification chains based on a calendar.
 
 ##### schedule chain options:
 
 **type** [`string`, _required_] - set chain type using `type: schedule`
 
-**timezone** [`string`, default `UTC`] - your timezone with "TZ identifier" format (details [here](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#Time_zone_abbreviations))
+**timezone** [`string`, default `UTC`] - time zone in "TZ identifier" format (details [here](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#Time_zone_abbreviations))
 
-**schedule** [`list`] - list of datetime matchers with steps. Current datetime is compared with every matcher and if any matches, theese steps will be used
+**schedule** [`list`] - list of matchers with corresponding steps
 
 > **matcher** [`dict`] - datetime matcher which will be compared with current datetime
 
->> **start_day_expr** [`string`, _required_] - expression for start day. Available values: "dow" (day of week), "dom" (day of month), "date" (exactly date). Also you can use expressions like "dom % 2" for "dom" and "dow" which calculates least positive remainder as value.
+>> **start_day_expr** [`string`, _required_] - date matching strategy: "dow" (day of week), "dom" (day of month), "date" (exact date). Expressions like "dow % 2" (least positive remainder) are also allowed.
 
->> **start_day_values** [`list`] - list of values for **start_day_expr**. Available values:
+>> **start_day_values** [`list`] - values for the expression **start_day_expr**. Available values:
 
 >>    - for `dow`: 0 to 7 (like in [cron](https://en.wikipedia.org/wiki/Cron)) or "Sun", "Mon"...
 
@@ -108,16 +108,15 @@ Schedule chain add you ability to set chains with calendar
 
 >>    - for `date`: "2024.12.24" format
 
->> **start_time** [`string`] - local time when duty starts at start day
+>> **start_time** [`string`] - local time in "HH:MM" format (24h)
 
->> **duration** [`string`] - time range duration. Values format: "2d", "60m"...
+>> **duration** [`string`] - duration of the active window, e.g., "12h" or "2d"
 
-> **steps** [`list`, _required_] - chain steps like in simple chain
+> **steps** [`list`, _required_] - list of chain steps (same as in simple chain).
 
-We recommend to use `steps` without `matcher` in the end, to handle datetimes which don't match any of matchers.
+ It is recommended to use `steps` without `matcher` at the end to handle unmatched datetimes.
 
 **schedule chain examples**
-
 
 ```yaml
 application:
@@ -144,7 +143,7 @@ application:
             - user: Administrator
 ```
 
-Also you can use this format for `dow` and `dom`:
+You can also use modulus expressions: `dow` and `dom`:
 
 ```yaml
 - matcher:
@@ -152,7 +151,6 @@ Also you can use this format for `dow` and `dom`:
     start_day_values: [0] # matches when Tue, Thu, Sat
 ```
 
-Defined two simple chains for DevOps team
 ```yaml
 application:
   chains:
@@ -168,7 +166,7 @@ application:
 
 #### cloud chain
 
-Cloud chain add you ability to set chains using cloud providers like Google.
+Cloud chains allow you to configure dynamic chains using calendar providers (e.g., Google).
 
 Special ENVs: `CHAIN_PROVIDER_DAYS_TO_SYNC`, `CHAIN_PROVIDER_MAX_EVENTS`, `CHAIN_PROVIDER_SYNC_INTERVAL_SECONDS`, `GOOGLE_SERVICE_ACCOUNT_FILE` (see [details](envs.md)).
 
@@ -182,7 +180,7 @@ Special ENVs: `CHAIN_PROVIDER_DAYS_TO_SYNC`, `CHAIN_PROVIDER_MAX_EVENTS`, `CHAIN
 
 **default_steps** [`list`] - chain steps if there are no calendar events at the moment
 
-To use cloud chain you should generate service account file `key.json` (see [instructions](google.md#create-project-and-get-keyjson) for google provider) and [add service account to your calendar](google.md#add-you-service-account-to-calendar).
+To use cloud chains you should generate service account file `key.json` (see [instructions](google.md#create-project-and-get-keyjson) for google provider) and [add service account to your calendar](google.md#add-you-service-account-to-calendar).
 
 Create "Event" in calendar. Put chain steps in "Description" using format:
 
@@ -219,7 +217,7 @@ application:
         - user: Maria
 ```
 
-`schedule chain` like this will be generated under the hood:
+Under the hood, the following `schedule chain` will be generated:
 
 ```yaml
 application:
@@ -234,7 +232,7 @@ application:
 
 ### channels
 
-Define channels with their ID for using in [route](config_file.md#route). Use your messanger UI to get channels ID
+Define channels by their ID to use them in the [route](config_file.md#route) section. Use your messenger's UI to find the channel IDs.
 
 **channels examples**
 
@@ -265,7 +263,7 @@ Route configure messenger channels, where incidents will be created, and [chains
 
 It is very similar to Alertmanager's [route](https://prometheus.io/docs/alerting/latest/configuration/#route). But has only four instructions: `routes`, `matchers`, `channel`, `chain`.
 
-Matchers work like Alertmanager's but use Python regex instead.
+Matchers use Python regular expressions instead of Alertmanager's syntax.
 
 **route example**
 
@@ -315,7 +313,7 @@ route:
 
 IMPulse uses [jinja2 templates](https://pypi.org/project/Jinja2/) to set messages format. And you can modify it.
 
-Incident message contains three parts ([picture](concepts.md/#structure)). Default template files for theese parts is [here](https://github.com/DiTsi/impulse/tree/develop/templates). Just copy, modify and replace default template files with yours.
+Incident message contains three parts ([picture](concepts.md/#structure)). Default template files for theese parts is [here](https://github.com/DiTsi/impulse/tree/develop/templates). You can copy the default templates, modify them, and specify custom paths.
 
 Template files can contain special words `incident` and `payload` as variables to show additional info. `incident` contains [incident attributes](https://github.com/DiTsi/impulse/blob/v1.4.0/app/incident/incident.py#L21) (used [here](https://github.com/DiTsi/impulse/blob/develop/templates/slack_status_icons.j2#L1)). `payload` is an Alertmanager alerts payload
 
@@ -331,9 +329,9 @@ application:
 
 ### users
 
-Object which define users. They used in [chains](config_file.md#chains) as one of notification type.
+Defines users used in [chains](config_file.md#chains) for direct notifications.
 
-To get users `id` instructions for Slack ([here](https://www.workast.com/help/article/how-to-find-a-slack-user-id/)) and Mattermost ([here](https://docs.mattermost.com/configure/user-management-configuration-settings.html#identify-a-user-s-id)).
+See instructions for getting user `id` for Slack ([here](https://www.workast.com/help/article/how-to-find-a-slack-user-id/)) and Mattermost ([here](https://docs.mattermost.com/configure/user-management-configuration-settings.html#identify-a-user-s-id)).
 
 #### users example
 
@@ -355,7 +353,7 @@ application:
 
 ### user_groups
 
-Object to notify multiple users at once. They used in [chains](config_file.md#chains) as one of notification type.
+Defines groups of users for bulk notification. Used in [chains](config_file.md#chains).
 
 #### user_groups example
 
@@ -367,12 +365,12 @@ application:
 
 ### webhooks
 
-Webhooks is the only alternative notification way outside messenger. It used to send POST HTTP requests to any endpoint.
+Webhooks provide alternative notification options via HTTP POST requests to custom endpoints.
 
-Webhooks can have special words `env` and `incident` as variables to use additional info:
+Webhooks support variables:
 
-- `env` to get environment variables, such as passwords and tokens. See examples below.
-- `incident` to get current incident fields
+- `env` - to get environment variables (e.g. passwords, tokens)
+- `incident` - to get current incident fields
 
 #### webhooks examples
 

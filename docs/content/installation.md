@@ -1,20 +1,20 @@
 # Installation
 
-There are two options to install IMPulse: **python** (3.9+) and **docker** image.
+There are two options to install IMPulse: via **Python** (3.9+) or using the **Docker** image.
 
-Select preferred method and move on.
+Select your preferred method and continue.
 
 ## 1. Messenger
 
 See **INTEGRATIONS** to create bot and configure your messenger.
 
-We have integrations with [Mattermost](mattermost.md), [Slack](slack.md) and [Telegram](telegram.md). See their pages to create and configure bot.
+We support integrations with [Mattermost](mattermost.md), [Slack](slack.md) and [Telegram](telegram.md). Visit their pages to learn how to create and configure a bot.
 
 ## 2. Get IMPulse
 
 ### python
 
-Use `<release_tag>` from [here](https://github.com/DiTsi/impulse/releases) and do:
+Use the `<release_tag>` from [here](https://github.com/DiTsi/impulse/releases) and run:
 
 ```bash
 git clone --branch <release_tag> --single-branch git@github.com:DiTsi/impulse.git impulse
@@ -92,4 +92,4 @@ docker-compose up -d
 
 ## 5. Configure Alertmanger
 
-See [Alertmanager instruction](alertmanager.md)
+See the [Alertmanager instruction](alertmanager.md)
