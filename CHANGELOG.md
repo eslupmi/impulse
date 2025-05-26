@@ -1,5 +1,10 @@
 # Changelog
 
+## v2.5.0
+Changes:
+- Support for nested chains
+- Documentation updated
+
 ## v2.4.0
 Changes:
 - Added Google Calendar support ([docs](https://docs.impulse.bot/latest/google/))
