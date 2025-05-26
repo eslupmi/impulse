@@ -2,17 +2,18 @@
 
 ## Create bot
 
-1. Go to Menu (dots 3x3) > System Console > Integrations > Bot Accounts:
-    - set `True` for "Enable Bot Account Creation", press "Save"
+1. Go to Menu (3×3 dots) > System Console > Integrations > Bot Accounts:
+    - set "Enable Bot Account Creation" to `True` and press **Save**
+
 2. Go to Menu (dots 3x3) > Integarations > Bot Accounts:
-    - press the button "Add Bot Account"
-    - type "impulse" to **Username**
-    - you can set [our icon](https://github.com/eslupmi/site/blob/develop/static/logo.png?raw=true) as **Bot Icon**
-    - type "IMPulse" to **Display Name**
+    - click **Add Bot Account**
+    - set **Username** to "impulse"
+    - optionally set [our logo](https://github.com/eslupmi/site/blob/develop/static/logo.png?raw=true) as the **Bot Icon**
+    - set **Display Name** to "IMPulse"
     - set **Role** to "System Admin"
-    - press the button "Create Bot Account"
-    - use "Token" as ENV `MATTERMOST_ACCESS_TOKEN` (use in 2.3 [here](installation.md#23-impulse))
-    - press the button **Done**
+    - click **Create Bot Account**
+    - copy the "Token" and use it as the `MATTERMOST_ACCESS_TOKEN` environment variable (see [step 2.3 here](installation.md#23-impulse))
+    - click **Done**
 
 ## Configure bot
 
@@ -24,19 +25,20 @@
 
 ## Configure channels
 
-1. To use IMPulse bot in private channels you **should** add it manually. Run command in all necessary private channels:
+1. To use IMPulse bot in private channels you **must** add it manually. Run this command in all necessary private channels:
 
     ```
-    /invite @impulse 
+    /invite @impulse
     ```
 
-2. `application.admin_users` **should** be in all `route` channels.
-3. Add users from `application.chains` to their channels.
+2. Users listed in `application.admin_users` **must** be present in all channels defined in `route`.
 
-    To make it simpler you can add all `application.users` to all channels from `route` block.
+3. Users mentioned in `application.chains` should be added to their respective channels.
+    
+    To simplify this, you can add all `application.users` to all channels from the `route` block.
 
-4. Highly recommend to set just mentions notifications for every of `application.users` for their `route` channels. Users on their channels should:
-    - select channel in main list and press on it
-    - press button **View Info** (symbol "i") on the right side, press **Notifications Preferences** button
-    - in "Notify me about..." select "Mentions, direct messages, and keywords only"
-    - press **Save**
+4. We highly recommend configuring notification preferences for `application.users` in their `route` channels:
+    - select the channel in main list and press on it
+    - click the **View Info** icon (`i`) in the top right, click **Notifications Preferences**
+    - in the "Notify me about..." choose "Mentions, direct messages, and keywords only"
+    - click **Save**.

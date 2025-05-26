@@ -16,7 +16,7 @@ The explanation is [here](concepts.md#unknown).
 
 IMPulse's [route](config_file.md#route) is similar to Alertmanager's, but simpler.
 
-When using IMPulse as the only one incident manager, you can move full your Alertmanager's [`route`](https://prometheus.io/docs/alerting/latest/configuration/#route) block from `alertmanager.yml` to `impulse.yml`. Don't forget to remove all unused instructions and replcae all `receiver` instrustions with `chain` and `channel`. Fill it correctly.
+When using IMPulse as the only one incident manager, you can move the entire Alertmanager's [`route`](https://prometheus.io/docs/alerting/latest/configuration/#route) block from `alertmanager.yml` to `impulse.yml`. Don't forget to remove all unused fields and replace all `receiver` entries with `chain` and `channel`.  Fill them in correctly.
 
 Details [here](config_file.md#route).
 

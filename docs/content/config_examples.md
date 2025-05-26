@@ -4,5 +4,5 @@ See configuration examples here: [https://github.com/eslupmi/impulse/tree/develo
 
 We provide two types of configuration files:
 
-- the **minimal** configuration includes just required fields to get started;
-- the **advanced** configuration provides additional options with comments, serving as an example;
+- **minimal** — includes only the required fields to get started;
+- **advanced** — includes additional options with comments, serving as a reference example;

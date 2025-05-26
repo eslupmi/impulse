@@ -2,7 +2,9 @@
 
 ## Prometheus
 
-To close issues quickly you should create documentation about your alerts. To append documentation link to alerts there is special word `runbook`. Add it with link to `alert.annotations`:
+To resolve incident faster, you should create documentation for your alerts.
+
+To attach a documentation link to an alert, use the special annotation field called`runbook`. Add it with link to `alert.annotations`:
 
 ```yaml
 - alert: InstanceDown
@@ -11,7 +13,7 @@ To close issues quickly you should create documentation about your alerts. To ap
     runbook: https://yourdomain.confluence.com/alerts/InstanceDown
 ```
 
-IMPulse will show you runbook link like this:
+IMPulse will display the runbook link in the incident view like this:
 
 <p align="center"><img src="../media/slack_firing.excalidraw.svg" alt="" width="400"/></p>
 
