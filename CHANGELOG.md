@@ -1,5 +1,10 @@
 # Changelog
 
+## v2.5.1
+Changes:
+- Fixed incorrect warning about chain `None`
+- Fixed a bug related to scheduled chains
+
 ## v2.5.0
 Changes:
 - Support for nested chains
