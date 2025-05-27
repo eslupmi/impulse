@@ -59,7 +59,10 @@ class Incident:
             return f'https://t.me/c/{str(self.channel_id)[4:]}/{self.ts}'
         return ''
 
-    def generate_chain(self, chains, chain_name):
+    def generate_chain(self, chains, chain_name=None):
+        if chain_name is None:
+            return
+
         if chain_name not in chains.keys():
             logger.warning(f'Chain {chain_name} not found. Check impulse.yml')
             return
@@ -73,7 +76,13 @@ class Incident:
 
         dt = datetime.utcnow()
         for index, step in enumerate(steps):
-            type_, value = next(iter(step.items()))
+            if isinstance(step, str):
+                type_, value = step.split(':', 1)
+                type_ = type_.strip()
+                value = value.strip()
+            else:
+                type_, value = next(iter(step.items()))
+            
             if type_ == 'wait':
                 dt += unix_sleep_to_timedelta(value)
             else:
