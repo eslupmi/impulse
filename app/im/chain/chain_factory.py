@@ -10,18 +10,21 @@ class ChainFactory:
     @staticmethod
     def _create_chain(name: str, config: Union[dict, list]):
         """
-        Create and return a Chain or ScheduleChain instance based on the configuration.
+        Create and return a Chain, ScheduleChain or GoogleCalendarChain instance 
+        based on the configuration.
         """
-        if 'type' in config and config.get('type') == 'cloud':
-            chain = GoogleCalendarChain(name, config) if config.get('provider') == 'google' else ScheduleChain(
-                name=name,
-                timezone=config.get('timezone', ScheduleChain.DEFAULT_TIMEZONE),
-                schedule=config.get('schedule', []),
-            )
-            # Start the sync task if it's a Google Calendar chain
-            if isinstance(chain, GoogleCalendarChain):
-                chain.start_sync()
-            return chain
+        if 'type' in config
+            if config.get('type') == 'cloud' and config.get('provider') == 'google':
+                chain = GoogleCalendarChain(name, config)
+                if isinstance(chain, GoogleCalendarChain):
+                    chain.start_sync()
+                return chain
+            elif config.get('type') == 'schedule':
+                return ScheduleChain(
+                    name=name,
+                    timezone=config.get('timezone', ScheduleChain.DEFAULT_TIMEZONE),
+                    schedule=config.get('schedule', []),
+                )
         else:
             return Chain(name, config)
 
