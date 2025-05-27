@@ -76,13 +76,7 @@ class Incident:
 
         dt = datetime.utcnow()
         for index, step in enumerate(steps):
-            if isinstance(step, str):
-                type_, value = step.split(':', 1)
-                type_ = type_.strip()
-                value = value.strip()
-            else:
-                type_, value = next(iter(step.items()))
-            
+            type_, value = next(iter(step.items()))
             if type_ == 'wait':
                 dt += unix_sleep_to_timedelta(value)
             else:
