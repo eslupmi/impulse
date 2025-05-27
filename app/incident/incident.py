@@ -60,6 +60,9 @@ class Incident:
         return ''
 
     def generate_chain(self, chains, chain_name):
+        if chain_name is None:
+            return
+
         if chain_name not in chains.keys():
             logger.warning(f'Chain {chain_name} not found. Check impulse.yml')
             return
