@@ -25,6 +25,7 @@ class ChainFactory:
                     timezone=config.get('timezone', ScheduleChain.DEFAULT_TIMEZONE),
                     schedule=config.get('schedule', []),
                 )
+            return None
         else:
             return Chain(name, config)
 
