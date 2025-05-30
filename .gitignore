@@ -10,7 +10,7 @@ venv
 /impulse*.yml
 data
 docker-compose.yml
-/key.json
+/key.json*
 
 docs/env
 docs/venv
