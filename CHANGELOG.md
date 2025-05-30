@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.5.2
+Changes:
+- Fixed issue with parsing HTML description in Google Calendar events
+
 ## v2.5.1
 Changes:
 - Fixed incorrect warning about chain `None`
