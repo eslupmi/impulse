@@ -123,7 +123,7 @@ Schedule chains allows you to define notification chains based on a calendar.
 
 >>    - for `dom`: 1 to 31
 
->>    - for `date`: "2024.12.24" format
+>>    - for `date`: "2024-12-24" format
 
 >> **start_time** [`string`] - local time in "HH:MM" format (24h)
 
@@ -213,8 +213,8 @@ With event in calendar
 
 ```yaml
 name: Test event
-from: 2024.12.24 15:00 (Asia/Tashkent)
-to: 2024.12.25 15:00 (Asia/Tashkent)
+from: 2024-12-24 15:00 (Asia/Tashkent)
+to: 2024-12-25 15:00 (Asia/Tashkent)
 description:
   - user: Valery
 ```
@@ -243,7 +243,7 @@ application:
       type: schedule
       timezone: Asia/Tashkent
       schedule:
-        - {matcher: {start_day_expr: date, start_day_values: ["2024.12.24"], start_time: "15:00", duration: 24h}, steps: [{user: Valery}]}
+        - {matcher: {start_day_expr: date, start_day_values: ["2024-12-24"], start_time: "15:00", duration: 24h}, steps: [{user: Valery}]}
         - {steps: [{user: Dmitry}, {wait: 5m}, {user: Maria}]}
 ```
 
