@@ -17,6 +17,8 @@ provider_max_events = int(os.getenv('CHAIN_PROVIDER_MAX_EVENTS', default=10))
 provider_days_to_sync = int(os.getenv('CHAIN_PROVIDER_DAYS_TO_SYNC', default=7))
 provider_service_account_file = os.getenv('GOOGLE_SERVICE_ACCOUNT_FILE', default="./key.json")
 
+# Get CORS allowed origins from environment variable, default to localhost
+cors_allowed_origins = os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:5000').split(',')
 
 incidents_path = data_path + '/incidents'
 INCIDENT_ACTUAL_VERSION = 'v0.4'

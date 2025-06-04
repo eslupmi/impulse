@@ -19,7 +19,7 @@ from app.ui.incident_websocket import IncidentWS
 from app.ui.table_config import get_incident_table_config, get_incident_table_sorting, get_incident_table_colors, \
     get_incident_table_filters
 from app.webhook import generate_webhooks
-from config import settings, check_updates, application
+from config import settings, check_updates, application, cors_allowed_origins
 
 # Initialize and start the async manager
 async_manager = AsyncManager.get_instance()
@@ -29,7 +29,7 @@ app = Flask(__name__)
 socketio = SocketIO(
     app,
     path='/ws',
-    cors_allowed_origins=["*"]
+    cors_allowed_origins=cors_allowed_origins
 )
 incident_ws = IncidentWS(socketio)
 route_dict = settings.get('route')
