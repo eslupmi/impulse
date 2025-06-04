@@ -26,7 +26,11 @@ async_manager = AsyncManager.get_instance()
 async_manager.start()
 
 app = Flask(__name__)
-socketio = SocketIO(app, path='/ws')
+socketio = SocketIO(
+    app,
+    path='/ws',
+    cors_allowed_origins=["*"]
+)
 incident_ws = IncidentWS(socketio)
 route_dict = settings.get('route')
 webhooks_dict = settings.get('webhooks')
@@ -141,5 +145,9 @@ def send_data():
     incident_ws.get_full_table(incidents)
 
 if __name__ == '__main__':
+    import eventlet
+    import eventlet.wsgi
+    eventlet.monkey_patch()
+
     app = create_app()
     socketio.run(app, host='0.0.0.0', port=5000, allow_unsafe_werkzeug=True)

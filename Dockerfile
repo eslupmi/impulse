@@ -11,4 +11,4 @@ ENV CONFIG_PATH=/config
 VOLUME /data
 VOLUME /config
 
-CMD ["gunicorn", "-w", "1", "-b", "0.0.0.0:5000", "wsgi:app"]
+CMD ["gunicorn", "-k", "eventlet", "-w", "1", "-b", "0.0.0.0:5000", "wsgi:app"]
