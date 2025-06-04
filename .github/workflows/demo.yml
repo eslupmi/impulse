@@ -1,0 +1,55 @@
+name: demo
+
+concurrency:
+  group: ${{ github.ref }}
+
+on:
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: /Log in to the Container registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: true
+        tags: 'ghcr.io/eslupmi/impulse:demo'
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-24.04
+    environment: demo
+    steps:
+      - name: Recreate IMPulse
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.HOST }}
+          port: ${{ secrets.PORT }}
+          username: ${{ secrets.USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            cd /opt/impulse/demo
+            docker-compose down
+            docker-compose pull
+            docker-compose down
+            docker-compose up -d
