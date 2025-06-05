@@ -171,6 +171,7 @@ class Incident:
         }
 
     def get_table_data(self, params) -> Dict:
+        group_labels = self.last_state.get('groupLabels', {})
         common_labels = self.last_state.get('commonLabels', {})
         common_annotations = self.last_state.get('commonAnnotations', {})
         data = {
@@ -178,8 +179,8 @@ class Incident:
             'indicator': status_colors.get(self.status),
             '_alerts_count': len(self.last_state.get('alerts', [])),
             '_responsive_data': {
-                'group_labels': self.last_state.get('groupLabels', {}),
-                'common_labels': common_labels,
+                'group_labels': group_labels,
+                'common_labels': filter_dict_keys(group_labels, common_labels),
                 'common_annotations': common_annotations,
                 'alerts': [
                     {
