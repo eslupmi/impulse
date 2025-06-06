@@ -66,9 +66,20 @@ function formatRelativeTime(unixTimestamp, precision = 3) {
 
 function formatTimestamp(unixTimestamp) {
     const date = new Date(unixTimestamp * 1000);
-    return date.toLocaleString(navigator.language, {
-        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
-    });
+    return formatDate(date);
+}
+
+function formatDate(dateObj) {
+    if (!(dateObj instanceof Date)) {
+        dateObj = new Date(dateObj);
+    }
+    const offset = dateObj.getTimezoneOffset()
+    dateObj = new Date(dateObj.getTime() - (offset*60*1000))
+
+    const dateTime = dateObj.toISOString().split('T');
+    const date = dateTime[0];
+    const time = dateTime[1].split('.')[0];
+    return `${date} ${time}`;
 }
 
 function formatDuration(seconds) {
@@ -541,7 +552,7 @@ function updateTimeTooltip(tooltipText, timeSpan) {
     const status = timeSpan.getAttribute('data-status');
     
     const createdTime = new Date(startsAt);
-    const createdTimeStr = createdTime.toLocaleString();
+    const createdTimeStr = formatDate(createdTime);
     const createdTimeAgo = formatRelativeTime(createdTime.getTime()/1000);
     
     let tooltipContent = `Created: ${createdTimeAgo} (${createdTimeStr})`;
@@ -554,7 +565,7 @@ function updateTimeTooltip(tooltipText, timeSpan) {
     
     if (status === "resolved" && endsAt) {
         const resolvedTime = new Date(endsAt);
-        const resolvedTimeStr = resolvedTime.toLocaleString();
+        const resolvedTimeStr = formatDate(resolvedTime);
         const resolvedTimeAgo = formatRelativeTime(resolvedTime.getTime()/1000);
         tooltipContent += `\nResolved: ${resolvedTimeAgo} (${resolvedTimeStr})`;
     }
