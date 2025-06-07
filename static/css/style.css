@@ -473,65 +473,74 @@ element.style {
 }
 
 /* Theme Toggle Button */
-.theme-toggle {
-    background: var(--brand-primary);
-    color: var(--text-primary);
-    border: none;
-    border-radius: 8px;
-    width: 29px;
-    height: 29px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+.theme-toggle-wrapper {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 1000;
+}
+
+.theme-toggle-input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+    position: absolute;
+}
+
+.theme-toggle-label {
     cursor: pointer;
-    transition: all 0.2s ease-in-out;
-    padding: 0;
-    font-size: 16px;
-    line-height: 1;
+    width: 40px;
+    height: 23px;
+    background: transparent;
+    display: block;
+    border-radius: 12px;
+    border: 2px solid rgba(74, 144, 226, 0.3);
+    position: relative;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
 }
 
-.theme-toggle:hover {
-    background: var(--hover-primary);
+.theme-toggle-label:hover {
+    transform: scale(1.05);
+    border-color: rgba(74, 144, 226, 0.4);
 }
 
-.theme-toggle:active {
-    transform: scale(0.95);
-}
-
-.theme-icon {
-    transition: transform 0.3s ease;
-    width: 20px;
-    height: 20px;
-}
-
-/* Dark theme icon styles */
-[data-theme="dark"] .theme-icon .sun {
-    transform: scale(0.8);
-    opacity: 0;
-}
-
-[data-theme="dark"] .theme-icon .sun-rays {
-    transform: rotate(90deg);
-    opacity: 0;
-}
-
-/* Light theme icon styles */
-[data-theme="light"] .theme-icon {
-    transform: rotate(0deg);
-}
-
-/* Add moon for dark theme */
-.theme-icon::after {
+.theme-toggle-label:after {
     content: '';
     position: absolute;
-    width: 16px;
-    height: 16px;
+    top: 2px;
+    left: 2px;
+    width: 15px;
+    height: 15px;
+    background: rgba(74, 144, 226, 0.4);
     border-radius: 50%;
-    border: 2px solid currentColor;
-    transform: scale(0);
     transition: transform 0.3s ease;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
 }
 
-[data-theme="dark"] .theme-icon::after {
-    transform: scale(1);
+.theme-toggle-input:checked + .theme-toggle-label {
+    background: transparent;
+    border-color: rgba(90, 159, 226, 0.3);
+}
+
+.theme-toggle-input:checked + .theme-toggle-label:after {
+    transform: translateX(17px);
+    background: rgba(90, 159, 226, 0.4);
+}
+
+/* Focus styles for accessibility */
+.theme-toggle-input:focus + .theme-toggle-label {
+    outline: 2px solid rgba(90, 159, 226, 0.2);
+    outline-offset: 2px;
+}
+
+.theme-toggle-input:focus:not(:focus-visible) + .theme-toggle-label {
+    outline: none;
+}
+
+/* Remove old styles */
+.theme-toggle-track,
+.theme-toggle-track-sun,
+.theme-toggle-track-moon {
+    display: none;
 }

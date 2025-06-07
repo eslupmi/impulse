@@ -23,13 +23,16 @@ export const ThemeManager = {
             }
         });
 
-        // Setup theme toggle button
+        // Setup theme toggle checkbox
         const themeToggle = document.getElementById('theme-toggle');
         if (themeToggle) {
-            themeToggle.addEventListener('click', () => this.toggleTheme());
-            // Set initial emoji
-            const currentTheme = document.documentElement.getAttribute('data-theme') || this.LIGHT;
-            this.updateThemeButton(currentTheme);
+            // Set initial checkbox state
+            themeToggle.checked = document.documentElement.getAttribute('data-theme') === this.DARK;
+            
+            // Add change event listener
+            themeToggle.addEventListener('change', () => {
+                this.setTheme(themeToggle.checked ? this.DARK : this.LIGHT);
+            });
         }
     },
 
@@ -37,7 +40,12 @@ export const ThemeManager = {
     setTheme(theme) {
         document.documentElement.setAttribute('data-theme', theme);
         localStorage.setItem('theme', theme);
-        this.updateThemeButton(theme);
+        
+        // Update checkbox state
+        const themeToggle = document.getElementById('theme-toggle');
+        if (themeToggle) {
+            themeToggle.checked = theme === this.DARK;
+        }
     },
 
     // Toggle theme

@@ -98,7 +98,7 @@ def route_alert_post():
         queue.put_first(datetime.utcnow(), 'alert', None, None, alert_state)
         return alert_state, 200
     else:
-        return redirect(url_for('ui'))
+        return render_template('index.html')
 
 
 @app.route('/app', methods=['POST', 'PUT'])
@@ -133,11 +133,6 @@ def get_table_colors():
 @app.route('/table_filters', methods=['GET'])
 def get_table_filters():
     return jsonify(get_incident_table_filters())
-
-
-@app.route('/ui', methods=['GET'])
-def ui():
-    return render_template('index.html')
 
 
 @socketio.on('request_data')
