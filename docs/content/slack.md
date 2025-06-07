@@ -1,26 +1,31 @@
 # Slack
 
-## Create bot
+## Create a bot
 
 1. Go to [Slack Apps](https://api.slack.com/apps) and click button **Create New App**.
 2. Select **From scratch**.
-3. Set **App Name** to "IMPulse" and select your workspace.
+3. Set the **App Name** to "IMPulse" and choose your workspace.
 
-## Configure bot
+## Configure the bot
 
-1. In **Interactivity & Shortcuts** section:
+1. In the **Interactivity & Shortcuts** section:
     - enable "Interactivity"
-    - add **Request URL** in format `https://<your_domain>/app`
-    - add shortcuts **Chain** and **Status**:
-        - press the button **Create New Shortcut**
-        - select "Global", press the button **Next**
-        - set **Name** to "Chain", **Callback ID** to "chain" and **Short Description** to "."
-        - press the button **Create**
-        - press the button **Create New Shortcut**
-        - select "Global", press the button **Next**
-        - set **Name** to "Status", **Callback ID** to "status" and **Short Description** to "."
-        - press the button **Create**
-2. In **OAuth & Permissions** section:
+    - set the **Request URL** to `https://<your_domain>/app`
+    - add the shortcuts **Chain** and **Status**:
+        - click **Create New Shortcut**
+        - select **Global**, then click **Next**
+        - set:
+            - **Name** to "Chain"
+            - **Callback ID** to "chain"
+            - **Short Description** to "."
+        - click **Create**
+        - repeat the process for the second shortcut:
+            - **Name**: "Status"
+            - **Callback ID**: "status"
+            - **Short Description**: "."
+        - click **Create**
+
+2. In the **OAuth & Permissions** section:
     - in **Scopes** subsection add these "Bot Token Scopes":
         - channels:read
         - chat:write
@@ -35,26 +40,28 @@
     - in **OAuth Tokens** click the button **Install to &lt;your_workspace&gt;**, then **Allow**
     - use "Bot User OAuth Token" as ENV `SLACK_BOT_USER_OAUTH_TOKEN` (use in 2.3 [here](installation.md#23-impulse))
 3. In **Basic Information** section:
-    - in **App Credentials** subsection:
+    - in the **App Credentials** subsection:
         - use "Verification Token" as ENV `SLACK_VERIFICATION_TOKEN` (use in 2.3 [here](installation.md#23-impulse))
     - in **Display Information** subsection:
         - you can set [our logo](https://github.com/eslupmi/site/blob/main/static/logo.png?raw=true) as **App icon**
 
 ## Configure channels
 
-1. To use IMPulse bot in private channels you **should** add it manually. Run command in all necessary private channels:
+1. To use the IMPulse bot in private channels, you **must** manually invite it. Run this command in each required private channel:
 
     ```
-    /invite @IMPulse 
+    /invite @IMPulse
     ```
 
-2. `application.admin_users` **should** be in all `route` channels.
-3. Add users from `application.chains` to their channels.
+2. All users from `application.admin_users` **must** be present in every channel listed in the `route` block.
 
-    To make it simpler you can add all `application.users` to all channels from `route` block.
+3. Add users from `application.chains` to their respective channels.
 
-4. Highly recommend to set "Just @mentions" notifications for every of `application.users` for their `route` channels. Users on their channels should:
-    - press **right mouse button** on channel and select "Change notifications"
-    - select "Mentions" and check "Also include @channel and @here
-    - press **Save Changes**
+    For simplicity, you can add all users from `application.users` to all channels listed in the `route` block.
 
+4. We highly recommend setting notification preferences to "Just @mentions" for each user in their `route` channels.
+   Each user should:
+    - right-click on the channel
+    - select "Change notifications"
+    - choose "Mentions" and check the option "Also include @channel and @here"
+    - Click **Save Changes**.

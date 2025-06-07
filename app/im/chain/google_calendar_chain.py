@@ -12,6 +12,7 @@ from urllib3 import Retry
 from app.async_manager import AsyncManager
 from app.im.chain.schedule_chain import ScheduleChain
 from app.logging import logger
+from app.tools import HTMLTextExtractor
 from config import provider_sync_interval, provider_max_events, provider_days_to_sync, provider_service_account_file
 
 
@@ -266,6 +267,17 @@ class GoogleCalendarChain(ScheduleChain):
         """Parse steps from event description."""
         if not description:
             return []
+
+        parser = HTMLTextExtractor()
+        try:
+            parser.feed(description)
+            description = parser.get_text()
+        except (ValueError, TypeError) as e:
+            logger.warning(f"Failed to parse description due to invalid input: {str(e)}")            
+        except MemoryError as e:
+            logger.error(f"Memory error while parsing description (content too large): {str(e)}")
+        except Exception as e:
+            logger.warning(f"Unexpected error while parsing description: {str(e)}")
 
         steps = []
         for line in description.strip().split('\n'):

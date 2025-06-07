@@ -1,6 +1,6 @@
 # Environment Variables
 
-Environment variables are created in `.env` file for python installation or in `docker-compose.yml` for docker installation. 
+Environment variables are created in `.env` file for python installation or in `docker-compose.yml` for docker installation.
 
 | Variable | Description | Default | Required |
 |-|-|-|-|

@@ -11,6 +11,7 @@ from app.tools import NoAliasDumper
 from app.ui.incident_websocket import IncidentWS
 from app.utils import get_attr_by_key_chain, normalize_param, filter_dict_keys
 from config import incidents_path, incident, INCIDENT_ACTUAL_VERSION
+from app.logging import logger
 
 
 @dataclass
@@ -64,13 +65,20 @@ class Incident:
             return f'https://t.me/c/{str(self.channel_id)[4:]}/{self.ts}'
         return ''
 
-    def generate_chain(self, chain=None):
-        if not chain:
+    def generate_chain(self, chains, chain_name=None):
+        if chain_name is None:
             return
 
+        if chain_name not in chains.keys():
+            logger.warning(f'Chain {chain_name} not found. Check impulse.yml')
+            return
+
+        chain = chains[chain_name]
         steps = chain.steps
         if not steps:
             return
+
+        steps = self._unchain(chains, steps)
 
         dt = datetime.utcnow()
         for index, step in enumerate(steps):
@@ -80,6 +88,24 @@ class Incident:
             else:
                 self.chain_put(index=index, datetime_=dt, type_=type_, identifier=value)
         self.dump()
+
+    def _unchain(self, chains, steps):
+        if not any('chain' in step for step in steps):
+            return steps
+
+        extended_steps = []
+        for step in steps:
+            type_, value = next(iter(step.items()))
+            if type_ == 'chain':
+                nested_chain = chains.get(value)
+                if nested_chain is None:
+                    logger.warning(f"Chain '{value}' not found. Check impulse.yml")
+                    continue
+                nested_steps = nested_chain.steps
+                extended_steps.extend(self._unchain(chains, nested_steps))
+            else:
+                extended_steps.append({type_: value})
+        return extended_steps
 
     def release(self):
         self.chain = []

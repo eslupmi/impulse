@@ -1,5 +1,19 @@
 # Changelog
 
+## v2.5.2
+Changes:
+- Fixed issue with parsing HTML description in Google Calendar events
+
+## v2.5.1
+Changes:
+- Fixed incorrect warning about chain `None`
+- Fixed a bug related to scheduled chains
+
+## v2.5.0
+Changes:
+- Support for nested chains
+- Documentation updated
+
 ## v2.4.0
 Changes:
 - Added Google Calendar support ([docs](https://docs.impulse.bot/latest/google/))
