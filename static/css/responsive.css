@@ -2,6 +2,7 @@
     padding: 10px;
     font-size: 14px;
     display: flex;
+    justify-content: space-between;
     background: var(--background-tertiary);
 }
 
@@ -106,7 +107,6 @@
 /* Common info block */
 .common-info-block {
     width: 500px;
-    margin-right: 40px;
     padding: 20px 12px;
 }
 

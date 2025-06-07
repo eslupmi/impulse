@@ -506,18 +506,6 @@ function responsiveLayoutCollapseFormatter(data) {
     const container = document.createElement('div');
     container.className = 'responsive-collapse';
 
-    // Common information block
-    const commonBlock = createInfoBlock(
-        {}, // No header for common block
-        {
-            highlighted: responsiveData.group_labels || {},
-            regular: responsiveData.common_labels || {}
-        },
-        responsiveData.common_annotations || {},
-        true // isCommonBlock flag
-    );
-    container.appendChild(commonBlock);
-
     // Alerts blocks wrapper
     if (responsiveData.alerts && responsiveData.alerts.length > 0) {
         const alertsWrapper = document.createElement('div');
@@ -532,6 +520,7 @@ function responsiveLayoutCollapseFormatter(data) {
                     generatorURL: alert.generatorURL
                 },
                 {
+                    highlighted: responsiveData.show_common_block ? {} : responsiveData.group_labels,
                     regular: alert.labels || {}
                 },
                 alert.annotations || {},
@@ -541,6 +530,20 @@ function responsiveLayoutCollapseFormatter(data) {
         });
 
         container.appendChild(alertsWrapper);
+    }
+
+    if (responsiveData.show_common_block) {
+        // Common information block
+        const commonBlock = createInfoBlock(
+            {}, // No header for common block
+            {
+                highlighted: responsiveData.group_labels || {},
+                regular: responsiveData.common_labels || {}
+            },
+            responsiveData.common_annotations || {},
+            true // isCommonBlock flag
+        );
+        container.appendChild(commonBlock);
     }
 
     return container;

@@ -197,9 +197,17 @@ class Incident:
         }
 
     def get_table_data(self, params) -> Dict:
-        group_labels = self.last_state.get('groupLabels', {})
-        common_labels = self.last_state.get('commonLabels', {})
-        common_annotations = self.last_state.get('commonAnnotations', {})
+        alerts = self.last_state.get('alerts', [])
+        if len(alerts) > 1:
+            group_labels = self.last_state.get('groupLabels', {})
+            common_labels = self.last_state.get('commonLabels', {})
+            common_annotations = self.last_state.get('commonAnnotations', {})
+            show_common_block = True
+        else:
+            group_labels = self.last_state.get('groupLabels', {})
+            common_labels = group_labels
+            common_annotations = {}
+            show_common_block = False
         data = {
             'uuid': str(self.uuid),
             'indicator': status_colors.get(self.status),
@@ -217,8 +225,9 @@ class Incident:
                         'labels': filter_dict_keys(alert.get('labels', {}), common_labels),
                         'annotations': filter_dict_keys(alert.get('annotations', {}), common_annotations)
                     }
-                    for alert in self.last_state.get('alerts', [])
-                ]
+                    for alert in alerts
+                ],
+                'show_common_block': show_common_block
             }
         }
         data_object = {'incident': self, 'payload': self.last_state}
