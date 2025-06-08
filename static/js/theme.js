@@ -6,20 +6,16 @@ export const ThemeManager = {
 
     // Initialize theme
     init() {
-        // Check for saved theme preference
         const savedTheme = localStorage.getItem('theme');
         if (savedTheme) {
             this.setTheme(savedTheme);
         } else {
-            // Check system preference
-            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            this.setTheme(prefersDark ? this.DARK : this.LIGHT);
+            this.setTheme(this.DARK);
         }
 
-        // Listen for system theme changes
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
             if (!localStorage.getItem('theme')) {
-                this.setTheme(e.matches ? this.DARK : this.LIGHT);
+                this.setTheme(this.DARK);
             }
         });
 
