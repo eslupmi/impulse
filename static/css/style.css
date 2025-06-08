@@ -494,15 +494,13 @@ element.style {
     background: transparent;
     display: block;
     border-radius: 12px;
-    border: 2px solid rgba(74, 144, 226, 0.3);
+    border: 2px solid var(--focus-shadow);
     position: relative;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
     transition: all 0.3s ease;
 }
 
 .theme-toggle-label:hover {
     transform: scale(1.05);
-    border-color: rgba(74, 144, 226, 0.4);
 }
 
 .theme-toggle-label:after {
@@ -512,25 +510,21 @@ element.style {
     left: 2px;
     width: 15px;
     height: 15px;
-    background: rgba(74, 144, 226, 0.4);
+    background: var(--focus-shadow);
     border-radius: 50%;
     transition: transform 0.3s ease;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
 }
 
 .theme-toggle-input:checked + .theme-toggle-label {
     background: transparent;
-    border-color: rgba(90, 159, 226, 0.3);
 }
 
 .theme-toggle-input:checked + .theme-toggle-label:after {
     transform: translateX(17px);
-    background: rgba(90, 159, 226, 0.4);
 }
 
 /* Focus styles for accessibility */
 .theme-toggle-input:focus + .theme-toggle-label {
-    outline: 2px solid rgba(90, 159, 226, 0.2);
     outline-offset: 2px;
 }
 
