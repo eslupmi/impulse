@@ -15,25 +15,42 @@ class ChainFactory:
         """
         if 'type' in config:
             if config.get('type') == 'cloud' and config.get('provider') == 'google':
-                chain = GoogleCalendarChain(name, config)
-                if isinstance(chain, GoogleCalendarChain):
-                    chain.start_sync()
-                return chain
+                try:
+                    chain = GoogleCalendarChain(name, config)
+                    if isinstance(chain, GoogleCalendarChain):
+                        chain.start_sync()
+                    return chain
+                except Exception as e:
+                    logger.error(f"Failed to create GoogleCalendarChain '{name}': {e}")
+                    return None
             elif config.get('type') == 'schedule':
-                return ScheduleChain(
-                    name=name,
-                    timezone=config.get('timezone', ScheduleChain.DEFAULT_TIMEZONE),
-                    schedule=config.get('schedule', []),
-                )
-            return None
+                try:
+                    return ScheduleChain(
+                        name=name,
+                        timezone=config.get('timezone', ScheduleChain.DEFAULT_TIMEZONE),
+                        schedule=config.get('schedule', []),
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to create ScheduleChain '{name}': {e}")
+                    return None
+            else:
+                logger.error(f"Unknown chain type '{config.get('type')}' for chain '{name}'. Check impulse.yml")
+                return None
         else:
-            return Chain(name, config)
+            try:
+                return Chain(name, config)
+            except Exception as e:
+                logger.error(f"Failed to create Chain '{name}': {e}")
+                return None
 
     @classmethod
     def generate(cls, chains_dict):
         logger.info('Creating chains')
-        chains = {
-            name: cls._create_chain(name, config)
-            for name, config in chains_dict.items()
-        }
+        chains = {}
+        for name, config in chains_dict.items():
+            chain = cls._create_chain(name, config)
+            if chain is not None:
+                chains[name] = chain
+            else:
+                logger.warning(f"Skipping chain '{name}' due to creation failure")
         return chains

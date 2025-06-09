@@ -9,7 +9,7 @@ class UpdateHandler(BaseHandler):
     """
     UpdateHandler class is responsible for handling the update check.
 
-    :param queue: Queue instance
+    :param queue: AsyncQueue instance
     :param application: Application instance
     :param incidents: Incidents instance
     """
@@ -19,7 +19,7 @@ class UpdateHandler(BaseHandler):
         super().__init__(queue, application, incidents)
         self.latest_tag = {'version': None}
 
-    def handle(self, identifier):
+    async def handle(self, identifier):
         current_tag = get_latest_tag()
         if identifier != 'first' and current_tag != self.latest_tag['version']:
             self.app.new_version_notification(self.app.default_channel_id, current_tag)
@@ -28,16 +28,15 @@ class UpdateHandler(BaseHandler):
             self.latest_tag['version'] = current_tag
 
         # Always schedule the next check update
-        self.queue.put(datetime.utcnow() + timedelta(days=1), 'check_update', None, identifier=None)
+        await self.queue.put(datetime.utcnow() + timedelta(days=1), 'check_update', None, identifier=None)
 
 
 def get_latest_tag():
-    url = f"https://api.github.com/repos/eslupmi/impulse/tags"
-    response = requests.get(url)
-
-    if response.status_code == 200:
-        tags = response.json()
-        if tags:
-            return tags[0]['name']
-        else:
-            return None
+    """Get the latest tag from GitHub API"""
+    try:
+        response = requests.get('https://api.github.com/repos/impulse-project/impulse/releases/latest', timeout=5)
+        if response.status_code == 200:
+            return response.json().get('tag_name', 'unknown')
+    except requests.RequestException:
+        pass
+    return 'unknown'

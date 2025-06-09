@@ -1,148 +1,219 @@
-import atexit
+import asyncio
 import json
-import logging
+from contextlib import asynccontextmanager
 from datetime import datetime
 
-from apscheduler.schedulers.background import BackgroundScheduler
-from flask import request, Flask, redirect, url_for, render_template, jsonify
-from flask_socketio import SocketIO
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, HTTPException
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 
-from app.async_manager import AsyncManager
 from app.im.channels import check_channels
 from app.im.helpers import get_application
 from app.incident.incidents import Incidents
 from app.logging import logger
-from app.queue.manager import QueueManager
-from app.queue.queue import Queue
+from app.queue.manager import AsyncQueueManager
+from app.queue.queue import AsyncQueue
 from app.route import generate_route
-from app.ui.incident_websocket import IncidentWS
-from app.ui.table_config import get_incident_table_config, get_incident_table_sorting, get_incident_table_colors, \
+from app.ui.table_config import (
+    get_incident_table_config,
+    get_incident_table_sorting,
+    get_incident_table_colors,
     get_incident_table_filters
+)
+from app.ui.websocket import incident_ws
 from app.webhook import generate_webhooks
-from config import settings, check_updates, application, cors_allowed_origins
+from config import settings, check_updates, application
 
-# Initialize and start the async manager
-async_manager = AsyncManager.get_instance()
-async_manager.start()
+@asynccontextmanager
+async def lifespan(fastapi_app: FastAPI):
+    """Manage application lifecycle"""
+    # Startup
+    logger.info('Starting IMPulse async application')
+    
+    # Initialize components
+    route_dict = settings.get('route')
+    webhooks_dict = settings.get('webhooks')
 
-app = Flask(__name__)
-socketio = SocketIO(
-    app,
-    path='/ws',
-    cors_allowed_origins=cors_allowed_origins
-)
-incident_ws = IncidentWS(socketio)
-route_dict = settings.get('route')
-webhooks_dict = settings.get('webhooks')
-
-route = generate_route(route_dict)
-channels = check_channels(route.get_uniq_channels(), application['channels'], route.channel)
-messenger = get_application(
-    application,
-    channels,
-    route.channel
-)
-webhooks = generate_webhooks(webhooks_dict)
-incidents = Incidents.create_or_load(messenger.type, messenger.public_url, messenger.team)
-queue = Queue.recreate_queue(incidents, check_updates)
-
-queue_manager = QueueManager(queue, messenger, incidents, webhooks, route)
-
-
-# Register cleanup handler
-@atexit.register
-def cleanup():
-    logger.info('Cleaning up application resources')
-
-    # Stop the scheduler first
-    if hasattr(scheduler, 'shutdown'):
-        logger.info('Shutting down scheduler')
-        scheduler.shutdown()
-
+    route = generate_route(route_dict)
+    channels = check_channels(route.get_uniq_channels(), application['channels'], route.channel)
+    messenger = get_application(application, channels, route.channel)
+    webhooks = generate_webhooks(webhooks_dict)
+    incidents = Incidents.create_or_load(messenger.type, messenger.public_url, messenger.team)
+    
+    # Create async queue and manager
+    queue = await AsyncQueue.recreate_queue(incidents, check_updates)
+    queue_manager = AsyncQueueManager(queue, messenger, incidents, webhooks, route)
+    
+    # Attach to app state
+    fastapi_app.state.queue = queue
+    fastapi_app.state.queue_manager = queue_manager
+    fastapi_app.state.incidents = incidents
+    fastapi_app.state.messenger = messenger
+    fastapi_app.state.webhooks = webhooks
+    fastapi_app.state.route = route
+    
+    # Start background queue processing
+    await queue_manager.start_processing()
+    
+    # Start periodic update check
+    asyncio.create_task(periodic_update_check(fastapi_app))
+    
+    logger.info('IMPulse async application started!')
+    
+    yield
+    
+    # Shutdown
+    logger.info('Shutting down IMPulse async application')
+    
+    if fastapi_app.state.queue_manager:
+        await fastapi_app.state.queue_manager.stop_processing()
+    
     # Cleanup chains
-    if hasattr(messenger, 'chains'):
-        for chain in messenger.chains.values():
+    if hasattr(fastapi_app.state.messenger, 'chains'):
+        for chain in fastapi_app.state.messenger.chains.values():
             if hasattr(chain, 'cleanup'):
                 chain.cleanup()
+    
+    logger.info('IMPulse async application shutdown complete')
 
-    # Shutdown the async manager
-    async_manager.shutdown()
+
+async def periodic_update_check(app: FastAPI):
+    """Periodic task to check for updates (replaces APScheduler)"""
+    while True:
+        try:
+            await asyncio.sleep(24 * 60 * 60)  # 24 hours
+            await app.state.queue.put(datetime.utcnow(), 'check_update', None, None)
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            logger.error(f"Error in periodic update check: {e}")
 
 
-# run scheduler
-logger.info('Starting scheduler')
-logging.getLogger("apscheduler.scheduler").setLevel(logging.ERROR)
-scheduler = BackgroundScheduler()
-scheduler.add_job(
-    func=queue_manager.queue_handle,
-    trigger="interval",
-    seconds=0.25
+# Create FastAPI app
+app = FastAPI(
+    title="IMPulse",
+    description="Incident Management Platform",
+    version="1.0.0",
+    lifespan=lifespan
 )
-scheduler.start()
-logger.info('IMPulse running!')
+
+# Mount static files
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# Templates
+templates = Jinja2Templates(directory="templates")
 
 
-def create_app():
-    return app
+@app.get("/queue")
+async def get_queue(request: Request):
+    """Get current queue state"""
+    return await request.app.state.queue.serialize()
 
 
-@app.route('/queue', methods=['GET'])
-def route_queue_get():
-    return queue.serialize(), 200
+@app.get("/", response_class=HTMLResponse)
+async def get_index(request: Request):
+    """Serve the main page"""
+    return templates.TemplateResponse("index.html", {"request": request})
 
 
-@app.route('/', methods=['POST', 'GET'])
-def route_alert_post():
-    if request.method == 'POST':
-        alert_state = request.json
-        queue.put_first(datetime.utcnow(), 'alert', None, None, alert_state)
-        return alert_state, 200
-    else:
-        return render_template('index.html')
+@app.post("/")
+async def post_alert(request: Request):
+    """Handle incoming alerts"""
+    try:
+        alert_state = await request.json()
+        await request.app.state.queue.put_first(datetime.utcnow(), 'alert', None, None, alert_state)
+        return alert_state
+    except Exception as e:
+        logger.error(f"Error processing alert: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
 
 
-@app.route('/app', methods=['POST', 'PUT'])
-def route_app_buttons():
-    if messenger.type == 'slack':
-        payload = json.loads(request.form['payload'])
-    else:
-        payload = request.json
-    return messenger.buttons_handler(payload, incidents, queue, route)
+@app.post("/app")
+@app.put("/app")
+async def handle_app_buttons(request: Request):
+    """Handle application button interactions"""
+    try:
+        if request.app.state.messenger.type == 'slack':
+            form_data = await request.form()
+            payload = json.loads(form_data['payload'])
+        else:
+            payload = await request.json()
+        
+        # Note: This needs to be made async in the messenger implementation
+        return request.app.state.messenger.buttons_handler(
+            payload, 
+            request.app.state.incidents, 
+            request.app.state.queue, 
+            request.app.state.route
+        )
+    except Exception as e:
+        logger.error(f"Error handling app buttons: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
 
 
-@app.route('/incidents', methods=['GET'])
-def route_incidents_get():
-    return incidents.serialize(), 200
+@app.get("/incidents")
+async def get_incidents(request: Request):
+    """Get all incidents"""
+    return request.app.state.incidents.serialize()
 
 
-@app.route('/table_config', methods=['GET'])
-def get_table_config():
-    return jsonify(get_incident_table_config())
+@app.get("/table_config")
+async def get_table_config():
+    """Get table configuration"""
+    return get_incident_table_config()
 
 
-@app.route('/table_sorting', methods=['GET'])
-def get_table_sorting():
-    return jsonify(get_incident_table_sorting())
+@app.get("/table_sorting")
+async def get_table_sorting():
+    """Get table sorting configuration"""
+    return get_incident_table_sorting()
 
 
-@app.route('/table_colors', methods=['GET'])
-def get_table_colors():
-    return jsonify(get_incident_table_colors())
+@app.get("/table_colors")
+async def get_table_colors():
+    """Get table colors configuration"""
+    return get_incident_table_colors()
 
 
-@app.route('/table_filters', methods=['GET'])
-def get_table_filters():
-    return jsonify(get_incident_table_filters())
+@app.get("/table_filters")
+async def get_table_filters():
+    """Get table filters configuration"""
+    return get_incident_table_filters()
 
 
-@socketio.on('request_data')
-def send_data():
-    incident_ws.get_full_table(incidents)
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    """Handle WebSocket connections"""
+    await incident_ws.connect(websocket)
+    
+    try:
+        while True:
+            # Wait for messages from client
+            data = await websocket.receive_text()
+            
+            try:
+                message = json.loads(data)
+                if message.get("event") == "request_data":
+                    await incident_ws.handle_request_data(websocket, websocket.app.state.incidents)
+            except json.JSONDecodeError:
+                logger.warning(f"Invalid JSON received from WebSocket: {data}")
+            except Exception as e:
+                logger.error(f"Error handling WebSocket message: {e}")
+                
+    except WebSocketDisconnect:
+        await incident_ws.disconnect(websocket)
+    except Exception as e:
+        logger.error(f"WebSocket error: {e}")
+        await incident_ws.disconnect(websocket)
 
-if __name__ == '__main__':
-    import eventlet
-    import eventlet.wsgi
-    eventlet.monkey_patch()
 
-    app = create_app()
-    socketio.run(app, host='0.0.0.0', port=5000, allow_unsafe_werkzeug=True)
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=5000,
+        reload=True,
+        log_level="info"
+    )

@@ -8,7 +8,7 @@ from app.im.colors import status_colors
 from app.incident.helpers import gen_uuid
 from app.time import unix_sleep_to_timedelta
 from app.tools import NoAliasDumper
-from app.ui.incident_websocket import IncidentWS
+from app.ui.websocket import incident_ws
 from app.utils import get_attr_by_key_chain, normalize_param, filter_dict_keys
 from config import incidents_path, incident, INCIDENT_ACTUAL_VERSION
 from app.logging import logger
@@ -74,8 +74,18 @@ class Incident:
             return
 
         chain = chains[chain_name]
-        steps = chain.steps
+        if chain is None:
+            logger.warning(f'Chain {chain_name} is None (possibly invalid configuration). Check impulse.yml')
+            return
+            
+        try:
+            steps = chain.steps
+        except AttributeError:
+            logger.error(f'Chain {chain_name} does not have steps attribute')
+            return
+            
         if not steps:
+            logger.debug(f'Chain {chain_name} has no steps for current time/conditions')
             return
 
         steps = self._unchain(chains, steps)
@@ -177,7 +187,15 @@ class Incident:
         }
         with open(f'{incidents_path}/{self.uuid}.yml', 'w') as f:
             yaml.dump(data, f, NoAliasDumper, default_flow_style=False)
-        IncidentWS.get_instance().update_row(self)
+        # Schedule async websocket update
+        import asyncio
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                asyncio.create_task(incident_ws.update_row(self))
+        except RuntimeError:
+            # No event loop running, skip websocket update
+            pass
 
     def serialize(self) -> Dict:
         return {

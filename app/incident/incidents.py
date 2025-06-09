@@ -4,7 +4,7 @@ from typing import Dict, Union
 from app.incident.helpers import gen_uuid
 from app.incident.incident import Incident, IncidentConfig
 from app.logging import logger
-from app.ui.incident_websocket import IncidentWS
+from app.ui.websocket import incident_ws
 from config import incidents_path, INCIDENT_ACTUAL_VERSION
 
 
@@ -30,7 +30,15 @@ class Incidents:
                 logger.info(f'Incident {uuid_} closed. Link: {incident.link}')
             except FileNotFoundError:
                 logger.error(f'Failed to delete incident file for uuid: {uuid_}. File not found.')
-            IncidentWS.get_instance().remove_row(incident)
+            # Schedule async websocket update
+            import asyncio
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    asyncio.create_task(incident_ws.remove_row(incident))
+            except RuntimeError:
+                # No event loop running, skip websocket update
+                pass
         else:
             logger.warning(f'Incident with uuid: {uuid_} not found in the collection.')
 
