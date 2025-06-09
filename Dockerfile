@@ -3,7 +3,7 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 COPY . .
-EXPOSE 5000
+EXPOSE 8000
 
 ENV DATA_PATH=/data
 ENV CONFIG_PATH=/config
@@ -11,4 +11,4 @@ ENV CONFIG_PATH=/config
 VOLUME /data
 VOLUME /config
 
-CMD ["gunicorn", "-k", "eventlet", "-w", "1", "-b", "0.0.0.0:5000", "wsgi:app"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
