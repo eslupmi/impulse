@@ -2,7 +2,7 @@ import json
 from time import sleep
 
 import requests
-from flask import jsonify
+from fastapi.responses import JSONResponse
 
 from app.im.application import Application
 from app.im.telegram.config import buttons
@@ -11,13 +11,12 @@ from app.logging import logger
 from config import telegram_bot_token, application
 
 
-# Temporary Firing: 🔥, Unknown: ❗️, Resolved: ✅, Closed: 🏁
 class TelegramApplication(Application):
     icon_map = { #!
-        '5312241539987020022': '🔥',
-        '5379748062124056162': '❗️',
-        '5237699328843200968': '✅',
-        '5408906741125490282': '🏁'
+        '5312241539987020022': '🔥', # firing
+        '5379748062124056162': '❗️', # unknown
+        '5237699328843200968': '✅', # resolved
+        '5408906741125490282': '🏁' # closed
     }
 
     def __init__(self, app_config, channels, users):
@@ -83,7 +82,7 @@ class TelegramApplication(Application):
 
     def buttons_handler(self, payload, incidents, queue_, route):
         if 'callback_query' not in payload:
-            return jsonify({}), 200
+            return JSONResponse({}, status_code=200)
         callback = payload['callback_query']
         message_id = callback['message']['message_id']
         post_id = callback['message']['message_thread_id']
@@ -95,7 +94,7 @@ class TelegramApplication(Application):
                 data=json.dumps({'callback_query_id': callback['id']}),
                 headers=self.headers
             )
-            return jsonify({}), 200
+            return JSONResponse({}, status_code=200)
         action = callback['data']
 
         user_id = callback['from']['id']
@@ -133,7 +132,7 @@ class TelegramApplication(Application):
             headers=self.headers
         )
         incident_.dump()
-        return jsonify({}), 200
+        return JSONResponse({}, status_code=200)
 
     def _create_topic(self, channel_id, header, status_icons):
         payload = {

@@ -9,7 +9,6 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3 import Retry
 
-# Removed AsyncManager import - using native asyncio
 from app.im.chain.schedule_chain import ScheduleChain
 from app.logging import logger
 from app.tools import HTMLTextExtractor
