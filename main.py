@@ -11,16 +11,11 @@ from fastapi.templating import Jinja2Templates
 from app.im.channels import check_channels
 from app.im.helpers import get_application
 from app.incident.incidents import Incidents
-from app.logging import logger
+from app.logging import logger, configure_uvicorn_logging
 from app.queue.manager import AsyncQueueManager
 from app.queue.queue import AsyncQueue
 from app.route import generate_route
-from app.ui.table_config import (
-    get_incident_table_config,
-    get_incident_table_sorting,
-    get_incident_table_colors,
-    get_incident_table_filters
-)
+from app.ui.table_config import get_all_ui_config
 from app.ui.websocket import incident_ws
 from app.webhook import generate_webhooks
 from config import settings, check_updates, application
@@ -158,28 +153,10 @@ async def get_incidents(request: Request):
     return request.app.state.incidents.serialize()
 
 
-@app.get("/table_config")
-async def get_table_config():
-    """Get table configuration"""
-    return get_incident_table_config()
-
-
-@app.get("/table_sorting")
-async def get_table_sorting():
-    """Get table sorting configuration"""
-    return get_incident_table_sorting()
-
-
-@app.get("/table_colors")
-async def get_table_colors():
-    """Get table colors configuration"""
-    return get_incident_table_colors()
-
-
-@app.get("/table_filters")
-async def get_table_filters():
-    """Get table filters configuration"""
-    return get_incident_table_filters()
+@app.get("/ui_config")
+async def get_ui_config():
+    """Get complete UI configuration"""
+    return get_all_ui_config()
 
 
 @app.websocket("/ws")
@@ -210,10 +187,13 @@ async def websocket_endpoint(websocket: WebSocket):
 
 if __name__ == "__main__":
     import uvicorn
+    
+    configure_uvicorn_logging()
+    
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
         port=5000,
         reload=True,
-        log_level="info"
+        log_level="warning"
     )

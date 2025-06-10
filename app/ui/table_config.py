@@ -1,6 +1,21 @@
 from config import ui_config
 
 
+def get_all_ui_config():
+    """
+    Get all UI configuration in a single response.
+
+    Returns:
+        dict: Complete UI configuration including table config, sorting, colors, and filters.
+    """
+    return {
+        'table_config': get_incident_table_config(),
+        'sorting': get_incident_table_sorting(),
+        'colors': get_incident_table_colors(),
+        'filters': get_incident_table_filters()
+    }
+
+
 def get_incident_table_config():
     """
     Get the table configuration for the incidents table.

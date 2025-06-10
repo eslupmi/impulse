@@ -31,12 +31,12 @@ const sorterMap = {
 // Fetch table configuration and sorting, then initialize the table
 async function initializeTable() {
     try {
-        const [configResponse, sortingResponse, colorsResponse, filtersResponse] = await Promise.all([
-            fetch('/table_config').then(res => res.json()),
-            fetch('/table_sorting').then(res => res.json()),
-            fetch('/table_colors').then(res => res.json()),
-            fetch('/table_filters').then(res => res.json()),
-        ]);
+        const uiConfigResponse = await fetch('/ui_config').then(res => res.json());
+        
+        const configResponse = uiConfigResponse.table_config;
+        const sortingResponse = uiConfigResponse.sorting;
+        const colorsResponse = uiConfigResponse.colors;
+        const filtersResponse = uiConfigResponse.filters;
 
         setColorMap(colorsResponse);
         loadFiltersFromArrayToURL(filtersResponse);

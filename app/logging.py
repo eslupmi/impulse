@@ -35,5 +35,22 @@ def create_logger(name, level=logging.INFO):
     return lr
 
 
+def configure_uvicorn_logging():
+    """Configure uvicorn and FastAPI loggers to use our custom formatter and appropriate levels"""
+    uvicorn_access_logger = logging.getLogger("uvicorn.access")
+    uvicorn_access_logger.setLevel(logging.WARNING)
+    
+    uvicorn_logger = logging.getLogger("uvicorn")
+    uvicorn_logger.setLevel(logging.WARNING)
+    
+    for logger_name in ["uvicorn", "uvicorn.access", "uvicorn.error"]:
+        logger_obj = logging.getLogger(logger_name)
+        logger_obj.handlers.clear()
+        handler = logging.StreamHandler()
+        handler.setFormatter(CustomFormatter())
+        logger_obj.addHandler(handler)
+        logger_obj.propagate = False
+
+
 log_level = getattr(logging, log_level.upper(), logging.INFO)
 logger = create_logger('main_logger', log_level)
