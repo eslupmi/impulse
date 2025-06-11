@@ -23,9 +23,6 @@ from config import settings, check_updates, application
 @asynccontextmanager
 async def lifespan(fastapi_app: FastAPI):
     """Manage application lifecycle"""
-    # Startup
-    logger.info('Starting IMPulse async application')
-    
     # Initialize components
     route_dict = settings.get('route')
     webhooks_dict = settings.get('webhooks')
@@ -54,12 +51,9 @@ async def lifespan(fastapi_app: FastAPI):
     # Start periodic update check
     asyncio.create_task(periodic_update_check(fastapi_app))
     
-    logger.info('IMPulse async application started!')
+    logger.info('IMPulse started!')
     
     yield
-    
-    # Shutdown
-    logger.info('Shutting down IMPulse async application')
     
     if fastapi_app.state.queue_manager:
         await fastapi_app.state.queue_manager.stop_processing()
@@ -70,7 +64,7 @@ async def lifespan(fastapi_app: FastAPI):
             if hasattr(chain, 'cleanup'):
                 chain.cleanup()
     
-    logger.info('IMPulse async application shutdown complete')
+    logger.info('IMPulse shutdown complete')
 
 
 async def periodic_update_check(app: FastAPI):
@@ -84,21 +78,16 @@ async def periodic_update_check(app: FastAPI):
         except Exception as e:
             logger.error(f"Error in periodic update check: {e}")
 
-
-# Create FastAPI app
 app = FastAPI(
     title="IMPulse",
     description="Incident Management Platform",
-    version="1.0.0",
+    version="0.0.0",
     lifespan=lifespan
 )
 
-# Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# Templates
 templates = Jinja2Templates(directory="templates")
-
 
 @app.get("/queue")
 async def get_queue(request: Request):

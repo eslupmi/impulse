@@ -92,7 +92,7 @@ class AsyncQueueManager:
             
         self._running = True
         self._task = asyncio.create_task(self._process_queue_loop())
-        logger.info("Started async queue processing")
+        logger.info("Started Queue")
 
     async def stop_processing(self):
         """Stop the background queue processing task"""
@@ -106,7 +106,7 @@ class AsyncQueueManager:
                 await self._task
             except asyncio.CancelledError:
                 pass
-        logger.info("Stopped async queue processing")
+        logger.info("Stopped queue")
 
     async def _process_queue_loop(self):
         """Main queue processing loop"""

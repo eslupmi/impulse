@@ -115,7 +115,7 @@ class AsyncQueue:
     @classmethod
     async def recreate_queue(cls, incidents, check_update: bool):
         """Recreate queue from existing incidents"""
-        logger.info('Creating AsyncQueue')
+        logger.info('Creating Queue')
         queue = cls(check_update)
 
         if check_update:

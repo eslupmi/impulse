@@ -56,7 +56,6 @@ class Application(ABC):
                 logger.warning(f'.. user {name} has no \'id\' and will not be notified')
                 user_details = {}
             users[name] = self.create_user(name, user_details)
-        logger.info(f'.. done')
 
         return users
 
