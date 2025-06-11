@@ -283,6 +283,9 @@ function formatIndicator(cell, params) {
 
 function formatAlertsCount(cell) {
     const count = cell.getValue();
+    if (!count || count <= 1) {
+        return null;
+    }
     const circle = document.createElement("div");
     circle.className = "alerts-count-circle";
     circle.textContent = count;
