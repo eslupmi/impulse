@@ -42,11 +42,16 @@ function initializeSorting(columns, sorters) {
 // Save current sorting state to URL
 function saveSortingToURL(sorters) {
     const urlParams = new URLSearchParams(window.location.search);
-    const sortString = sorters
-        .map(s => `${s.column}:${s.dir}`)
-        .join(",");
-
-    urlParams.set("sort", sortString);
+    
+    if (sorters && sorters.length > 0) {
+        const sortString = sorters
+            .map(s => `${s.column}:${s.dir}`)
+            .join(",");
+        urlParams.set("sort", sortString);
+    } else {
+        urlParams.delete("sort");
+    }
+    
     window.history.replaceState({}, "", `${window.location.pathname}?${urlParams}`);
 }
 

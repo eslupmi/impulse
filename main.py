@@ -18,7 +18,7 @@ from app.route import generate_route
 from app.ui.table_config import get_all_ui_config
 from app.ui.websocket import incident_ws
 from app.webhook import generate_webhooks
-from config import settings, check_updates, application
+from config import settings, check_updates, application, ui_config
 
 @asynccontextmanager
 async def lifespan(fastapi_app: FastAPI):
@@ -82,23 +82,24 @@ app = FastAPI(
     title="IMPulse",
     description="Incident Management Platform",
     version="0.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
+    docs_url=None,
+    redoc_url=None
 )
 
-app.mount("/static", StaticFiles(directory="static"), name="static")
+if ui_config:
+    app.mount("/static", StaticFiles(directory="static"), name="static")
+    templates = Jinja2Templates(directory="templates")
 
-templates = Jinja2Templates(directory="templates")
+    @app.get("/", response_class=HTMLResponse)
+    async def get_index(request: Request):
+        """Serve the main page"""
+        return templates.TemplateResponse("index.html", {"request": request})
 
 @app.get("/queue")
 async def get_queue(request: Request):
     """Get current queue state"""
     return await request.app.state.queue.serialize()
-
-
-@app.get("/", response_class=HTMLResponse)
-async def get_index(request: Request):
-    """Serve the main page"""
-    return templates.TemplateResponse("index.html", {"request": request})
 
 
 @app.post("/")
