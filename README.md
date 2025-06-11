@@ -1,4 +1,4 @@
-<h1><img alt="Prometheus" src="static/logo.svg" width="50"> IMPulse</h1>
+<h1><img alt="Prometheus" src="logo.svg" width="50"> IMPulse</h1>
 
 <div align="center"><img src="https://github.com/eslupmi/site/blob/main/static/preview.png?raw=true" width="700"></div>
 
