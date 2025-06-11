@@ -30,7 +30,7 @@ const formatterParamsMap = {
     },
     "datetime": (data) => {
         return {
-            formatType: data.formatType || "absolute",
+            formatType: data.formatType || "relative",
             precision: data.precision || 3,
         };
     }

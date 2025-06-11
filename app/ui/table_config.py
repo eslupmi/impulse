@@ -51,7 +51,7 @@ def get_incident_table_config():
                 'title': field['header'],
                 'field': field_name,
                 'type': field_type,
-                'formatType': field.get('format', 'absolute'),
+                'formatType': field.get('format', 'relative'),
             })
         else:
             tabulator_config.append({
