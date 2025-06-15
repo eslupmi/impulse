@@ -3,7 +3,6 @@
 
 application:
   type: slack
-
   admin_users: ["Dmitry"]
   users:
     Dmitry: {id: U73MD1YLR4M}
@@ -20,7 +19,6 @@ application:
     status_icons: templates/slack_status_icons.j2
     header: templates/slack_header.j2
     body: templates/slack_body.j2
-
   chains:
     devops:
       - user_group: devops

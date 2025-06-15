@@ -16,10 +16,6 @@ An incident is a messege representation of an alert with its current status.
 
 ### Structure
 
-<div style="border-left: 4px solid orange; padding: 10px; background-color: #fff3cd; margin-bottom: 8px;">
-<b>Telegram</b> duplicates 'status icon' and 'header' in topic name.
-</div>
-
 Starting from [`v1.0.0`](https://github.com/DiTsi/impulse/releases/tag/v1.0.0) incident messages have the following structure:
 
 <p align="center"><img src="../media/impulse_message_structure.excalidraw.svg" alt="" width="600"/></p>

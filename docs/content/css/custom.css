@@ -33,3 +33,38 @@ img {
 	color: #555555;
 	padding: 10px;
 }
+/* hide site_name from menu */
+.md-nav__title {
+  display: none;
+}
+/* navigation menu sections font size */
+.md-nav__item--section.md-nav__item--nested {
+  font-size: 18px;
+}
+/* header color */
+.md-header {
+  background-color: #278fd6;
+}
+/* no padding for logo */
+img {
+  padding: 0px;
+}
+.md-nav__item--section.md-nav__item--nested > .md-nav__link {
+  color: #278fd6;
+}
+.md-nav__item--section.md-nav__item--nested > .md-nav__link:hover {
+  color: #278fd6;
+}
+/* headers for config page */
+.md-typeset h2,
+.md-typeset h3,
+.md-typeset h4 {
+  font-size: 1.4em;
+  font-weight: 600;
+  margin-top: 1.5em;
+  margin-bottom: 0.75em;
+}
+/* title near logo */
+[dir=ltr] .md-header__title {
+    margin-left: .2rem;
+}
