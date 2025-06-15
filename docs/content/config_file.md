@@ -1,70 +1,242 @@
+<!-- <link rel="stylesheet" href="link/to/stylesheet" /> -->
+<style>
+.md-typeset h2,
+.md-typeset h3,
+.md-typeset h4 {
+  font-size: 1.0em;
+  font-weight: 600;
+  margin-top: 1.5em;
+  margin-bottom: 0.75em;
+}  
+</style>
+
 # Configuration File
 
 The only configuration file for IMPulse is `impulse.yml`. To change default `impulse.yml` path, see [Environment Variables](envs.md)
 
+Fields marked with "*" are mandatory within their parent section, but only if that parent section is present in the configuration.
 
-## All options
+## incident
 
-**incident** - incidents behavior options
+- **description:** incidents behavior options
+- **type:** dict
 
-> **alerts_firing_notifications** [`bool`, default `False`] - notification about new firing instances
+### incident.alerts_firing_notifications
 
-> **alerts_resolved_notifications** [`bool`, default `False`] - nofitication about old resolved instances
+- **description:** notification about new firing instances
+- **type:** bool
+- **default value:** False
 
-> **timeouts** - incident status timeouts (see [lifecycle](concepts.md#lifecycle))
+### incident.alerts_resolved_notifications
 
-> > **firing** [`string`, default `6h`] - after this time, incident status changes from 'firing' to 'unknown' if no alerts appear
+- **description:** nofitication about old resolved instances
+- **type:** bool
+- **default value:** False
 
-> > **unknown** [`string`, default `6h`] - after this time, incident status changes from 'unknown' to 'closed' if no alerts appear
+### incident.timeouts
 
-> > **resolved** [`string`, default `12h`] - after this time, incident status changes from 'resolved' to 'closed' if no alerts appear
+- **description:** incident status timeouts (see [lifecycle](concepts.md#lifecycle))
+- **type:** dict
 
-**route** [`dict`, _required_] - Incident routing rules based on alert fields. See [details](config_file.md#route)
+#### incident.timeouts.firing
 
-**application** [`dict`, _required_] - messenger configuration
+- **description:** after this time, incident status changes from 'firing' to 'unknown' if no alerts appear
+- **type:** string
+- **default value:** 6h
 
-> **address** [`string`, _required_] - your Mattermost server address
+#### incident.timeouts.unknown
 
-> **admin_users** [`list`, _required_] - IMPulse administrators notified of any warnings
+- **description:** after this time, incident status changes from 'unknown' to 'closed' if no alerts appear
+- **type:** string
+- **default value:** 6h
 
-> **impulse_address** [`string`] - URL for Mattermost / Telegram button callbacks
+#### incident.timeouts.resolved
 
-> **users** [`dict`, _required_] - users declaration. See [details](config_file.md#users)
+- **description:** after this time, incident status changes from 'resolved' to 'closed' if no alerts appear
+- **type:** string
+- **default value:** 12h
 
-> **user_groups** [`list`] - user group definitions. See [details](config_file.md#user_groups)
+## route *
 
-> **channels** [`dict`, _required_] - messenger channels used in IMPulse. See [details](config_file.md#channels)
+- **description:** incident routing rules based on alert fields. See [details](config_file.md#route)
+- **type:** dict
 
-> **chains** [`dict`] - defines notification order. See [details](config_file.md#chains)
+Route configure messenger channels, where incidents will be created, and [chains](config_file.md#chains) to notify people by rules.
 
-> **team** [`string`, _required_] - Mattermost team name
+It is very similar to Alertmanager's [route](https://prometheus.io/docs/alerting/latest/configuration/#route). But has only four instructions: `routes`, `matchers`, `channel`, `chain`.
 
-> **template_files** [`dict`] - paths to custom template files. See [details](config_file.md#template_files)
+Matchers use Python regular expressions instead of Alertmanager's syntax.
 
-> **type** [`string`, _required_] - messenger type (`mattermost`, `slack` or `telegram`)
+<!-- ### route.channel *
 
-**webhooks** - see [details](config_file.md#webhooks) for usage instructions
+- **description:** 
+- **type:** dict
 
-**experimental** [`dict`] - experimental options (*WE HIGHLY RECOMMEND DO NOT USE IT*)
+**route example**
 
-> **recreate_chain** [`bool`, default `False`] - enables the chain and restarts it when new alerts are added to an incident
+Complex example with comments
+```yaml
+route:
+  channel: incidents_default # default channel where incidents will be created if their didn't match any matchers
+  chain: devops # optional, but we recommend set it to handle alerts didn't match any matchers
+  routes:
+    # Infrastructure routes
+    - matchers:
+        - service =~ "cpu|disk|memory|network" # regex selector powered by Python regex
+      channel: incidents-infrastructure # channel for not "critical" or "warning" severity
+      # no chain here means users will not be notified, just incident created
+      routes:
+        - matchers:
+            - severity = "critical" # simple selector
+          channel: incidents-infrastructure
+          chain: devops-critical
+        - matchers:
+            - severity = "warning"
+          channel: incidents-infrastructure
+          chain: devops
 
+    # Services routes
+    - matchers:
+        - service = "fingernote"
+      channel: incidents-services
+      chain: fingernote-team
+      routes:
+        - matchers:
+            - severity = "critical"
+          channel: incidents-services
+          chain: fingernote-team-critical
+    - matchers:
+        - service = "pickcase"
+      channel: incidents-services
+      chain: pickcase-team
+      routes:
+        - matchers:
+            - severity = "critical"
+          channel: incidents-services
+          chain: pickcase-team-critical
+```
 
-## Details
+...
 
-### chains
+ -->
+
+## application *
+
+- **description:** messenger configuration
+- **type:** dict
+
+### application.address
+
+- **description:** your Mattermost server address
+- **type:** string
+
+### application.admin_users *
+
+- **description:** IMPulse administrators (from `application.users`) notified of any warnings
+- **type:** list
+
+### application.impulse_address
+
+- **description:** URL for Mattermost / Telegram button callbacks
+- **type:** string
+
+### application.users *
+
+- **description:** users declaration
+- **type:** dict
+
+Defines users used in [chains](config_file.md#chains) and for direct notifications.
+
+See instructions for getting user `id` for Slack ([here](https://www.workast.com/help/article/how-to-find-a-slack-user-id/)) and Mattermost ([here](https://docs.mattermost.com/configure/user-management-configuration-settings.html#identify-a-user-s-id)).
+
+**users example**
+
+Slack example
+```yaml
+application:
+  users:
+    Dmitry: {id: U73MD1YLR4M}
+```
+
+Mattermost example
+```yaml
+application:
+  users:
+    Dmitry: {id: ic8pft3ac7rjrd9eopxp4kc7qy}
+```
+
+### application.user_groups
+
+- **description:** user group definitions.
+- **type:** list
+
+Defines groups of users for bulk notification. Used in [chains](config_file.md#chains).
+
+**user_groups example**
+
+```yaml
+application:
+  user_groups:
+    developers: {users: ["Dmitry", "Alexander"]}
+```
+
+### application.channels *
+
+- **description:** messenger channels used in IMPulse.
+- **type:** dict
+
+Define channels by their ID to use them in the [route](config_file.md#route) section. Use your messenger's UI to find the channel IDs.
+
+**channels examples**
+
+Define default channels (Slack)
+```yaml
+application:
+  channels:
+    incidents_default: {id: C09NSUL269T}
+```
+
+Define default channel (Mattermost)
+```yaml
+application:
+  channels:
+    incidents_default: {id: w8gvebq58fgo9civ8begs6renw}
+```
+
+Define default channel (Telegram)
+```yaml
+application:
+  channels:
+    incidents_default: {id: -1003748296152}
+```
+
+### application.chains
+
+- **description:** defines notification order. See [details](config_file.md#chains)
+- **type:** dict
 
 Chains define how to notify people about incidents. Chains are used in the [route](config_file.md#route) section.
 
-There are 3 types of chain: **simple**, **schedule** and **cloud**.
+There are 3 types of chain:
+
+- simple
+- schedule
+- cloud
+
+Each chain contains a list of **steps**. There are 5 step types. 3 of them are notifications:
+
+- [`user`](#applicationusers)
+- [`user_group`](#applicationuser_groups)
+- [`webhook`](#webhooks)
+
+The fourth step type is `wait`, which delays the execution of the next notification. Its format is similar to the [sleep](https://www.gnu.org/software/coreutils/manual/html_node/sleep-invocation.html) utility format, but it does not support floats or combined expressions like `1m 3s`. Valid units: `s` (seconds), `m` (minutes), `h` (hours), `d` (days).
+
+The fifth step type is `chain`, which allows you to include [nested chains](#nested-chain) within a parent chain.
 
 #### simple chain
 
-Each chain contains a list of **steps**. There are 4 step types: 3 of them are notifications: [`user`](config_file.md#users), [`user_group`](config_file.md#user_groups), [`webhook`](config_file.md#webhooks). The last one is `wait`, used to delay the next notification.
-
-Chains can also include other chains as nested steps using the `chain` instruction. Nesting is supported to any depth.
-
-The `wait` is similar to the [sleep](https://www.gnu.org/software/coreutils/manual/html_node/sleep-invocation.html) utility format, but without floats or combined expressions like `1m 3s`. Valid units: `s` (seconds), `m` (minutes), `h` (hours), `d` (days).
+- **description:** 
+- **type:** list
 
 **devops chains example**
 
@@ -86,26 +258,10 @@ application:
       - user: CTO
 ```
 
-**nested chain example**
-
-```yaml
-application:
-  chains:
-    devops:
-      - user: Dmitry
-      - wait: 5m
-      - user: Dmitry_s_boss
-    programmers:
-      - user: Valery
-      - wait: 5m
-      - chain: devops
-```
-
 #### schedule chain
 
-Schedule chains allows you to define notification chains based on a calendar.
-
-##### schedule chain options:
+- **description:** schedule chains allows you to define notification chains based on a calendar
+- **type:** dict
 
 **type** [`string`, _required_] - set chain type using `type: schedule`
 
@@ -247,84 +403,49 @@ application:
         - {steps: [{user: Dmitry}, {wait: 5m}, {user: Maria}]}
 ```
 
-### channels
+#### nested chain
 
-Define channels by their ID to use them in the [route](config_file.md#route) section. Use your messenger's UI to find the channel IDs.
+Additionally, the `chain` step can be used with all types of chains. This allows one chain to include other nested chains. In some cases, this approach simplifies and reduces the overall configuration. Nesting is supported to any depth.
 
-**channels examples**
+**nested chain example**
 
-Define default channels (Slack)
 ```yaml
 application:
-  channels:
-    incidents_default: {id: C09NSUL269T}
+  chains:
+    devops:
+      - user: Dmitry
+      - wait: 5m
+      - user: Dmitry_s_boss
+    programmers:
+      - user: Valery
+      - wait: 5m
+      - chain: devops
 ```
 
-Define default channel (Mattermost)
-```yaml
-application:
-  channels:
-    incidents_default: {id: w8gvebq58fgo9civ8begs6renw}
-```
+> **team** [`string`, _required_] - Mattermost team name
 
-Define default channel (Telegram)
-```yaml
-application:
-  channels:
-    incidents_default: {id: -1003748296152}
-```
+> **template_files** [`dict`] - paths to custom template files. See [details](config_file.md#template_files)
 
-### route
+> **type** [`string`, _required_] - messenger type (`mattermost`, `slack` or `telegram`)
 
-Route configure messenger channels, where incidents will be created, and [chains](config_file.md#chains) to notify people by rules.
+**ui** [`dict`] - UI configuration. See [details](config_file.md#ui)
 
-It is very similar to Alertmanager's [route](https://prometheus.io/docs/alerting/latest/configuration/#route). But has only four instructions: `routes`, `matchers`, `channel`, `chain`.
+> **filters** [`list`] - default incidents filters. See [details](config_file.md#uifilters)
 
-Matchers use Python regular expressions instead of Alertmanager's syntax.
+> **columns** [`list`] - enabled columns. See [details](config_file.md#uicolumns)
 
-**route example**
+> **sorting** [`list`] - default sorting order. See [details](config_file.md#uisorting)
 
-Complex example with comments
-```yaml
-route:
-  channel: incidents_default # default channel where incidents will be created if their didn't match any matchers
-  chain: devops # optional, but we recommend set it to handle alerts didn't match any matchers
-  routes:
-    # Infrastructure routes
-    - matchers:
-        - service =~ "cpu|disk|memory|network" # regex selector powered by Python regex
-      channel: incidents-infrastructure # channel for not "critical" or "warning" severity
-      # no chain here means users will not be notified, just incident created
-      routes:
-        - matchers:
-            - severity = "critical" # simple selector
-          channel: incidents-infrastructure
-          chain: devops-critical
-        - matchers:
-            - severity = "warning"
-          channel: incidents-infrastructure
-          chain: devops
+> **colors** [`dict`] - custom border color for columns. See [details](config_file.md#uicolors)
 
-    # Services routes
-    - matchers:
-        - service = "fingernote"
-      channel: incidents-services
-      chain: fingernote-team
-      routes:
-        - matchers:
-            - severity = "critical"
-          channel: incidents-services
-          chain: fingernote-team-critical
-    - matchers:
-        - service = "pickcase"
-      channel: incidents-services
-      chain: pickcase-team
-      routes:
-        - matchers:
-            - severity = "critical"
-          channel: incidents-services
-          chain: pickcase-team-critical
-```
+**webhooks** - see [details](config_file.md#webhooks) for usage instructions
+
+**experimental** [`dict`] - experimental options (*WE HIGHLY RECOMMEND DO NOT USE IT*)
+
+> **recreate_chain** [`bool`, default `False`] - enables the chain and restarts it when new alerts are added to an incident
+
+
+## Details
 
 ### template_files
 
@@ -344,41 +465,47 @@ application:
     body: ./templates/body.yml # path to custom body template file
 ```
 
-### users
+### ui.filters
 
-Defines users used in [chains](config_file.md#chains) for direct notifications.
+### ui.columns
 
-See instructions for getting user `id` for Slack ([here](https://www.workast.com/help/article/how-to-find-a-slack-user-id/)) and Mattermost ([here](https://docs.mattermost.com/configure/user-management-configuration-settings.html#identify-a-user-s-id)).
+Columns enabled in UI
 
-#### users example
+Every column must contain two fields: `name` and `value`. Using `name` you can filter 
 
-**Slack example**
+There are 3 types of columns: `string` (default), `datetime`, `link`.
 
-```yaml
-application:
-  users:
-    Dmitry: {id: U73MD1YLR4M}
-```
-
-**Mattermost example**
+Set `type: string` to show any text information. `type: datetime` used for datetime fields as `incident.created`
 
 ```yaml
-application:
-  users:
-    Dmitry: {id: ic8pft3ac7rjrd9eopxp4kc7qy}
+ui:
+  columns:
+    - name: status
+      header: Status
+      type: string
+      value: incident.status
+      visible: True
+    - name: created
+      type: datetime
+      header: Created
+      # format: absolute
+      value: incident.created
+    - name: alertname
+      header: Alertname
+      url: incident.link
+      value: payload.commonLabels.alertname
+    - name: severity
+      header: Severity
+      value: payload.commonLabels.severity
+    - name: summary
+      header: Summary
+      value: payload.commonAnnotations.summary
 ```
 
-### user_groups
+### ui.sorting
 
-Defines groups of users for bulk notification. Used in [chains](config_file.md#chains).
+### ui.colors
 
-#### user_groups example
-
-```yaml
-application:
-  user_groups:
-    developers: {users: ["Dmitry", "Alexander"]}
-```
 
 ### webhooks
 
