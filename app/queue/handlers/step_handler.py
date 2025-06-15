@@ -21,31 +21,36 @@ class StepHandler(BaseHandler):
     async def handle(self, uuid_, identifier):
         incident = self.incidents.by_uuid[uuid_]
         step = incident.chain[identifier]
-
         if step['type'] == 'webhook':
-            webhook = self.webhooks[step['identifier']]
-            status, status_code = webhook.push(incident)
-            incident.chain_update(identifier, True, f'{status} {status_code}')
-            logger.info(f'Incident {uuid_} -> webhook {step["identifier"]} executed with status {status}')
+            webhook_name = step['identifier']
+            webhook = self.webhooks.get(webhook_name)
 
-        elif step['type'] == 'notification':
-            header = self.application.format_text_italic(
-                self.application.header_template.form_message(incident.last_state, incident)
-            )
-            fields = {
-                'type': self.application.type,
-                'step': step['identifier'],
-                'admins': self.application.get_notification_destinations()
-            }
-            text = JinjaTemplate(notification_webhook).form_notification(fields)
-            if self.application.type == 'telegram':
-                message = text
+            text_template = JinjaTemplate(notification_webhook)
+            admins = self.app.get_notification_destinations()
+
+            if webhook is not None:
+                result, r_code = webhook.push(incident)
+                fields = {'type': self.app.type, 'name': webhook_name, 'unit': webhook, 'admins': admins,
+                          'result': result, 'response': r_code}
+                incident.chain_update(identifier, done=True, result=r_code)
+                if result == 'ok':
+                    logger.info(f'Incident {incident.uuid} -> chain step webhook \'{webhook_name}\': {result}, '
+                                f'response code {r_code}')
+                else:
+                    logger.warning(f'Incident {incident.uuid} -> chain step webhook \'{webhook_name}\': {result}, '
+                                   f'response code {r_code}')
             else:
-                message = header + '\n' + text
-            self.application.post_thread(incident.channel_id, incident.ts, message)
-            incident.chain_update(identifier, True, 'sent')
-            logger.info(f'Incident {uuid_} -> notification {step["identifier"]} sent')
+                fields = {'type': self.app.type, 'name': webhook_name, 'unit': webhook, 'admins': admins}
 
-        elif step['type'] == 'sleep':
-            incident.chain_update(identifier, True, 'done')
-            logger.info(f'Incident {uuid_} -> sleep {step["identifier"]} done')
+                incident.chain_update(identifier, done=True, result=None)
+                logger.warning(
+                    f'Incident {incident.uuid} -> chain step webhook \'{webhook_name}\': undefined in impulse.yml'
+                )
+
+            text = text_template.form_notification(fields)
+            header = f"{self.app.format_text_italic(self.app.header_template.form_message(incident.last_state, incident))}"
+            message = f"{header}" + '\n' + f'{text}'
+            self.app.post_thread(incident.channel_id, incident.ts, message)
+        else:
+            r_code = self.app.notify(incident, step['type'], step['identifier'])
+            incident.chain_update(identifier, done=True, result=r_code)

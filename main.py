@@ -20,6 +20,7 @@ from app.ui.websocket import incident_ws
 from app.webhook import generate_webhooks
 from config import settings, check_updates, application, ui_config
 
+
 @asynccontextmanager
 async def lifespan(fastapi_app: FastAPI):
     """Manage application lifecycle"""
@@ -32,11 +33,11 @@ async def lifespan(fastapi_app: FastAPI):
     messenger = get_application(application, channels, route.channel)
     webhooks = generate_webhooks(webhooks_dict)
     incidents = Incidents.create_or_load(messenger.type, messenger.public_url, messenger.team)
-    
+
     # Create async queue and manager
     queue = await AsyncQueue.recreate_queue(incidents, check_updates)
     queue_manager = AsyncQueueManager(queue, messenger, incidents, webhooks, route)
-    
+
     # Attach to app state
     fastapi_app.state.queue = queue
     fastapi_app.state.queue_manager = queue_manager
@@ -44,39 +45,40 @@ async def lifespan(fastapi_app: FastAPI):
     fastapi_app.state.messenger = messenger
     fastapi_app.state.webhooks = webhooks
     fastapi_app.state.route = route
-    
+
     # Start background queue processing
     await queue_manager.start_processing()
-    
+
     # Start periodic update check
     asyncio.create_task(periodic_update_check(fastapi_app))
-    
+
     logger.info('IMPulse started!')
-    
+
     yield
-    
+
     if fastapi_app.state.queue_manager:
         await fastapi_app.state.queue_manager.stop_processing()
-    
+
     # Cleanup chains
     if hasattr(fastapi_app.state.messenger, 'chains'):
         for chain in fastapi_app.state.messenger.chains.values():
             if hasattr(chain, 'cleanup'):
                 chain.cleanup()
-    
+
     logger.info('IMPulse shutdown complete')
 
 
-async def periodic_update_check(app: FastAPI):
+async def periodic_update_check(fastapi_app: FastAPI):
     """Periodic task to check for updates (replaces APScheduler)"""
     while True:
         try:
             await asyncio.sleep(24 * 60 * 60)  # 24 hours
-            await app.state.queue.put(datetime.utcnow(), 'check_update', None, None)
+            await fastapi_app.state.queue.put(datetime.utcnow(), 'check_update', None, None)
         except asyncio.CancelledError:
             break
         except Exception as e:
             logger.error(f"Error in periodic update check: {e}")
+
 
 app = FastAPI(
     title="IMPulse",
@@ -91,10 +93,12 @@ if ui_config:
     app.mount("/static", StaticFiles(directory="static"), name="static")
     templates = Jinja2Templates(directory="templates")
 
+
     @app.get("/", response_class=HTMLResponse)
     async def get_index(request: Request):
         """Serve the main page"""
         return templates.TemplateResponse("index.html", {"request": request})
+
 
 @app.get("/queue")
 async def get_queue(request: Request):
@@ -124,12 +128,12 @@ async def handle_app_buttons(request: Request):
             payload = json.loads(form_data['payload'])
         else:
             payload = await request.json()
-        
+
         # Note: This needs to be made async in the messenger implementation
         return request.app.state.messenger.buttons_handler(
-            payload, 
-            request.app.state.incidents, 
-            request.app.state.queue, 
+            payload,
+            request.app.state.incidents,
+            request.app.state.queue,
             request.app.state.route
         )
     except Exception as e:
@@ -153,12 +157,12 @@ async def get_ui_config():
 async def websocket_endpoint(websocket: WebSocket):
     """Handle WebSocket connections"""
     await incident_ws.connect(websocket)
-    
+
     try:
         while True:
             # Wait for messages from client
             data = await websocket.receive_text()
-            
+
             try:
                 message = json.loads(data)
                 if message.get("event") == "request_data":
@@ -167,7 +171,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 logger.warning(f"Invalid JSON received from WebSocket: {data}")
             except Exception as e:
                 logger.error(f"Error handling WebSocket message: {e}")
-                
+
     except WebSocketDisconnect:
         await incident_ws.disconnect(websocket)
     except Exception as e:
@@ -177,9 +181,9 @@ async def websocket_endpoint(websocket: WebSocket):
 
 if __name__ == "__main__":
     import uvicorn
-    
+
     configure_uvicorn_logging()
-    
+
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
