@@ -1,4 +1,5 @@
-<!-- <link rel="stylesheet" href="link/to/stylesheet" /> -->
+# Configuration File
+
 <style>
 .md-typeset h2,
 .md-typeset h3,
@@ -10,11 +11,13 @@
 }  
 </style>
 
-# Configuration File
+> The only configuration file for IMPulse is `impulse.yml`. To change default `impulse.yml` path, see [Environment Variables](envs.md).
 
-The only configuration file for IMPulse is `impulse.yml`. To change default `impulse.yml` path, see [Environment Variables](envs.md)
+> [Here](https://github.com/eslupmi/impulse/tree/develop/examples) you can find examples of both minimal and advanced configuration files for all the messengers we support.
 
-Fields marked with "*" are mandatory within their parent section, but only if that parent section is present in the configuration.
+> Fields marked with "*" are mandatory within their parent section, but only if that parent section is present in the configuration.
+
+> Below you'll see all the options supported by IMPulse.
 
 ## incident
 
@@ -61,11 +64,11 @@ Fields marked with "*" are mandatory within their parent section, but only if th
 - **description:** incident routing rules based on alert fields. See [details](config_file.md#route)
 - **type:** dict
 
-Route configure messenger channels, where incidents will be created, and [chains](config_file.md#chains) to notify people by rules.
+> Route configure messenger channels, where incidents will be created, and [chains](config_file.md#chains) to notify people by rules.
 
-It is very similar to Alertmanager's [route](https://prometheus.io/docs/alerting/latest/configuration/#route). But has only four instructions: `routes`, `matchers`, `channel`, `chain`.
+> It is very similar to Alertmanager's [route](https://prometheus.io/docs/alerting/latest/configuration/#route). But has only four instructions: `routes`, `matchers`, `channel`, `chain`.
 
-Matchers use Python regular expressions instead of Alertmanager's syntax.
+> Matchers use Python regular expressions instead of Alertmanager's syntax.
 
 <!-- ### route.channel *
 
@@ -422,11 +425,55 @@ application:
       - chain: devops
 ```
 
-> **team** [`string`, _required_] - Mattermost team name
+### application.team
 
-> **template_files** [`dict`] - paths to custom template files. See [details](config_file.md#template_files)
+- **description:** Mattermost team name
+- **type:** string
 
-> **type** [`string`, _required_] - messenger type (`mattermost`, `slack` or `telegram`)
+### application.template_files
+
+- **description:** path to custom template files for `status_icons`, `header`, and `body` (see [Incident Structure](concepts.md#structure))
+
+- **type:** dict
+
+> IMPulse uses [jinja2 templates](https://pypi.org/project/Jinja2/) to set messages format. And you can modify it.
+
+> Incident message contains three parts ([picture](concepts.md/#structure)). Default template files for theese parts is [here](https://github.com/DiTsi/impulse/tree/develop/templates). You can copy the default templates, modify them, and specify custom paths.
+
+> Template files can contain special words `incident` and `payload` as variables to show additional info. `incident` contains [incident attributes](https://github.com/DiTsi/impulse/blob/v1.4.0/app/incident/incident.py#L21) (used [here](https://github.com/DiTsi/impulse/blob/develop/templates/slack_status_icons.j2#L1)). `payload` is an Alertmanager alerts payload
+
+> **template_files example**
+
+> ```yaml
+> application:
+>   template_files:
+>     status_icons: ./templates/status_icons.yml
+>     header: ./templates/header.yml
+>     body: ./templates/body.yml
+> ```
+
+### application.template_files.body
+
+- **description:** path to the custom template file that defines the format of `body`
+- **type:** string
+- **default value:** ./templates/[&lt;application.type&gt;](#applicationtype)_body.j2
+
+### application.template_files.header
+
+- **description:** path to the custom template file that defines the format of `header`
+- **type:** string
+- **default value:** ./templates/[&lt;application.type&gt;](#applicationtype)_header.j2
+
+### application.template_files.status_icons
+
+- **description:** path to the custom template file that defines the format of `status_icons`
+- **type:** string
+- **default value:** ./templates/[&lt;application.type&gt;](#applicationtype)_status_icons.j2
+
+### application.type *
+
+- **description:** messenger type (`mattermost`, `slack` or `telegram`)
+- **type:** string
 
 **ui** [`dict`] - UI configuration. See [details](config_file.md#ui)
 
@@ -438,36 +485,83 @@ application:
 
 > **colors** [`dict`] - custom border color for columns. See [details](config_file.md#uicolors)
 
-**webhooks** - see [details](config_file.md#webhooks) for usage instructions
+## webhooks
+
+- **description:** webhooks provide alternative notification options via HTTP POST requests to custom endpoints.
+- **type:** dict
+
+Webhooks support variables:
+
+- `env` - to get environment variables (e.g. passwords, tokens)
+- `incident` - to get current incident fields
+
+**webhooks examples**
+
+Twilio.com calls
+
+> *To make this configs works you should add theese custom [Environment Variables](envs.md)*
+> ```ini
+> TWILIO_ACCOUNT_SID
+> TWILIO_AUTH_TOKEN
+> TWILIO_NUMBER
+> ```
+
+```yaml
+webhooks:
+  Dmitry_call:
+    url: 'https://api.twilio.com/2010-04-01/Accounts/{{ env["TWILIO_ACCOUNT_SID"] }}/Calls.json'
+    data:
+      To: '+998xxxxxxxxx'
+      From: '{{ env["TWILIO_NUMBER"] }}'
+      Url: http://example.com/twiml.xml
+    auth: '{{ env["TWILIO_ACCOUNT_SID"] }}:{{ env["TWILIO_AUTH_TOKEN"] }}'
+```
+
+Zvonok.com calls
+
+*To make this config works you should add theese custom [Environment Variables](envs.md)*
+
+```ini
+ZVONOK_CAMPAIGN_ID
+ZVONOK_PUBLIC_KEY
+```
+
+```yaml
+webhooks:
+  Dmitry_call:
+    url: "https://zvonok.com/manager/cabapi_external/api/v1/phones/call/"
+    data:
+      campaign_id: '{{ env["ZVONOK_CAMPAIGN_ID"] }}'
+      phone: '+998xxxxxxxxx'
+      public_key: '{{ env["ZVONOK_PUBLIC_KEY"] }}'
+```
 
 **experimental** [`dict`] - experimental options (*WE HIGHLY RECOMMEND DO NOT USE IT*)
 
 > **recreate_chain** [`bool`, default `False`] - enables the chain and restarts it when new alerts are added to an incident
 
+## ui
 
-## Details
-
-### template_files
-
-IMPulse uses [jinja2 templates](https://pypi.org/project/Jinja2/) to set messages format. And you can modify it.
-
-Incident message contains three parts ([picture](concepts.md/#structure)). Default template files for theese parts is [here](https://github.com/DiTsi/impulse/tree/develop/templates). You can copy the default templates, modify them, and specify custom paths.
-
-Template files can contain special words `incident` and `payload` as variables to show additional info. `incident` contains [incident attributes](https://github.com/DiTsi/impulse/blob/v1.4.0/app/incident/incident.py#L21) (used [here](https://github.com/DiTsi/impulse/blob/develop/templates/slack_status_icons.j2#L1)). `payload` is an Alertmanager alerts payload
-
-**template_files example**
-
-```yaml
-application:
-  template_files:
-    status_icons: ./templates/status_icons.yml # path to custom status_icons template file
-    header: ./templates/header.yml # path to custom header template file
-    body: ./templates/body.yml # path to custom body template file
-```
+- **description:** UI configuration
+- **type:** dict
 
 ### ui.filters
 
+- **description:** defines the default filters applied in the user interface
+- **type:** list
+
+**example**
+
+```yaml
+ui:
+  filters:
+    - severity="critical"
+```
+
 ### ui.columns
+
+- **description:** columns to be shown in the UI
+- **type:** list
 
 Columns enabled in UI
 
@@ -505,54 +599,3 @@ ui:
 ### ui.sorting
 
 ### ui.colors
-
-
-### webhooks
-
-Webhooks provide alternative notification options via HTTP POST requests to custom endpoints.
-
-Webhooks support variables:
-
-- `env` - to get environment variables (e.g. passwords, tokens)
-- `incident` - to get current incident fields
-
-#### webhooks examples
-
-**Twilio.com calls**
-
-```yaml
-webhooks:
-  Dmitry_call:
-    url: 'https://api.twilio.com/2010-04-01/Accounts/{{ env["TWILIO_ACCOUNT_SID"] }}/Calls.json'
-    data:
-      To: '+998xxxxxxxxx'
-      From: '{{ env["TWILIO_NUMBER"] }}'
-      Url: http://example.com/twiml.xml
-    auth: '{{ env["TWILIO_ACCOUNT_SID"] }}:{{ env["TWILIO_AUTH_TOKEN"] }}'
-```
-
-*To make this config works you should add theese custom [Environment Variables](envs.md)*
-```ini
-TWILIO_ACCOUNT_SID
-TWILIO_AUTH_TOKEN
-TWILIO_NUMBER
-```
-
-**Zvonok.com calls**
-
-```yaml
-webhooks:
-  Dmitry_call:
-    url: "https://zvonok.com/manager/cabapi_external/api/v1/phones/call/"
-    data:
-      campaign_id: '{{ env["ZVONOK_CAMPAIGN_ID"] }}'
-      phone: '+998xxxxxxxxx'
-      public_key: '{{ env["ZVONOK_PUBLIC_KEY"] }}'
-```
-
-*To make this config works you should add theese custom [Environment Variables](envs.md)*
-
-```ini
-ZVONOK_CAMPAIGN_ID
-ZVONOK_PUBLIC_KEY
-```

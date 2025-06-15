@@ -19,6 +19,7 @@ theme:
         name: Switch to dark mode
   features:
     - navigation.sections
+    - toc.follow
 extra:
   analytics:
     provider: google
