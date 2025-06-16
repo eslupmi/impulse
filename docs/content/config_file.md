@@ -567,7 +567,43 @@ ui:
 
 ### ui.sorting
 
+- **description:** the default column sorting order
+- **type:** list
+
+> Sorting contains a list of column names and their sorting methods. There are three sorting methods: **asc**, **desc**, and **none**:
+
+> - **asc** sorts values in alphabetical order
+> - **desc** sorts in reverse alphabetical order
+> - **none** disables sorting by default and used to define a custom order
+
+> Custom sorting is defined using the `order` field, which specifies the exact sequence in which rows should appear when `asc` is selected. If you want to disable sorting by default but use a custom order for some columns, use the `none` method.
+
+> **example:**
+
+> ```yaml
+> ui:
+>   sorting:
+>     - created: desc
+>     - severity: none
+>       order: ["info", "warning", "critical"]
+> ```
+
 ### ui.colors
+
+- **description:** allows you to color the border of a specific cell in a column based on its value.
+- **type:** dict
+
+> **example**
+> ```yaml
+> ui:
+>   colors:
+>     severity: # column name
+>       critical: "#FF0000" # set red border for column severity="critical"
+>       warning: "#FFA500" # set orange border for column severity="warning"
+>       info: "#00FFFF" # set cyan border for column severity="info"
+>     team: # column name
+>       devops: "#00FFFF" # set cyan border for column team="info"
+> ```
 
 ## webhooks
 
