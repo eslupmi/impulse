@@ -2,30 +2,27 @@ import {table} from "./table.js";
 
 // Apply sorting to the Tabulator instance
 function initializeSorting(columns, sorters) {
-    const tableSorting = sorters.map(sorter => {
-        const rule = {
-            column: sorter.column,
-            dir: sorter.direction || "asc",
-        };
-
-        if (sorter.order) {
-            rule.sorter = function (a, b, aRow, bRow, column, dir, sorterParams) {
+    const defaultSorting = [];
+    
+    columns.forEach(column => {
+        const columnSorter = sorters.find(sorter => sorter.column === column.field);
+        if (columnSorter?.order) {
+            column.sorter = (a, b, aRow, bRow, column, dir, sorterParams) => {
                 const order = sorterParams;
                 const indexA = order.indexOf(a) !== -1 ? order.indexOf(a) : order.length;
                 const indexB = order.indexOf(b) !== -1 ? order.indexOf(b) : order.length;
                 return indexA - indexB;
             };
-            rule.sorterParams = sorter.order;
+            column.sorterParams = columnSorter.order;
         }
-
-        return rule;
     });
 
-    columns.forEach(column => {
-        const columnSorter = tableSorting.find(sorter => sorter.column === column.field);
-        if (columnSorter) {
-            column.sorter = columnSorter.sorter;
-            column.sorterParams = columnSorter.sorterParams || undefined;
+    sorters.forEach(sorter => {
+        if (sorter.direction && sorter.direction !== "none") {
+            defaultSorting.push({
+                column: sorter.column,
+                dir: sorter.direction
+            });
         }
     });
 
@@ -33,9 +30,9 @@ function initializeSorting(columns, sorters) {
     const urlSorters = loadSortingFromURL();
     if (urlSorters.length > 0) {
         table.setSort(urlSorters);
-    } else {
-        saveSortingToURL(tableSorting);
-        table.setSort(tableSorting.reverse());
+    } else if (defaultSorting.length > 0) {
+        saveSortingToURL(defaultSorting);
+        table.setSort(defaultSorting.reverse());
     }
 }
 
@@ -43,11 +40,8 @@ function initializeSorting(columns, sorters) {
 function saveSortingToURL(sorters) {
     const urlParams = new URLSearchParams(window.location.search);
     
-    if (sorters && sorters.length > 0) {
-        const sortString = sorters
-            .map(s => `${s.column}:${s.dir}`)
-            .join(",");
-        urlParams.set("sort", sortString);
+    if (sorters?.length > 0) {
+        urlParams.set("sort", sorters.map(s => `${s.column}:${s.dir}`).join(","));
     } else {
         urlParams.delete("sort");
     }
