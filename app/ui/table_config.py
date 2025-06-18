@@ -74,20 +74,20 @@ def get_incident_table_sorting():
     tabulator_sorting = []
 
     for rule in ui_config.get("sorting", []):
-        column = rule.get("column")
-        order = rule.get("order", None)
-        direction = rule.get("sort", None)
+        for column, sort_config in rule.items():
+            if column == "order":
+                continue
+                
+            sorting_rule = {"column": column}
 
-        sorting_rule = {
-            "column": column,
-        }
-
-        if order:
-            sorting_rule["order"] = order
-        if direction:
-            sorting_rule["direction"] = direction
-
-        tabulator_sorting.append(sorting_rule)
+            if isinstance(sort_config, str):
+                if sort_config in ["asc", "desc"]:
+                    sorting_rule["direction"] = sort_config
+                elif sort_config == "none" and "order" in rule:
+                    sorting_rule["order"] = rule["order"]
+            
+            tabulator_sorting.append(sorting_rule)
+    
     return tabulator_sorting
 
 def get_incident_table_colors():
