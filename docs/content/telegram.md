@@ -4,7 +4,7 @@ In Telegram, we use **groups** with topics instead of **channels**.
 
 ## Create a bot
 
-Follow this [instruction](https://core.telegram.org/bots/features#creating-a-new-bot). Save the bot token as the `TELEGRAM_BOT_TOKEN` environment variable (used in section 2.3 [here](installation.md#23-impulse)).
+Follow this [instruction](https://core.telegram.org/bots/features#creating-a-new-bot). Save the bot token as the `TELEGRAM_BOT_TOKEN` environment variable (used in section 2.3 [here](installation.md#3-configure-impulse)).
 
 ## Configure group
 
@@ -28,7 +28,7 @@ Follow this [instruction](https://core.telegram.org/bots/features#creating-a-new
 7. Get the group ID (using the `@myidbot` bot)
     - add `@myidbot` bot to group
     - go to the group's "General" topic and send the command: `/getgroupid@myidbot`
-    - use the returned group ID in the `application.channels` [configuration block](config_file.md#channels)
+    - use the returned group ID in the `application.channels` [configuration block](config_file.md#applicationchannels)
     - you can remove `@myidbot` afterwards
 
 

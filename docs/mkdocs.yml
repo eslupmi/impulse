@@ -31,6 +31,8 @@ markdown_extensions:
   - codehilite:
       guess_lang: false
   - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
 extra_css:
   - css/custom.css
 
@@ -46,7 +48,6 @@ nav:
     - alertmanager.md
     - envs.md
     - config_file.md
-    - config_examples.md
     - google.md
   - best.md
   - howto.md
