@@ -45,8 +45,7 @@
 - **description:** define channels by their ID to use them in the [route](#route) section. Use your messenger's UI to find the channel IDs.
 - **type:** dict
 
-> **channels examples**
-
+> **Example**
 > === "Slack"
 >     ```yaml
 >     application:
@@ -96,8 +95,9 @@
 - **description:** a basic escalation chain. It starts executing when an incident is created.
 - **type:** list
 
-> Defined two simple chains for DevOps team
+> **Example**:
 > ```yaml
+> # Defined two simple chains for DevOps team
 > application:
 >   chains:
 >     devops:
@@ -119,48 +119,9 @@
 - **description:** a chain that allows you to define notification logic based on a calendar schedule.
 - **type:** dict
 
-##### &lt;schedule chain&gt;.type *
-
-- **description:** set chain type using `type: schedule`
-- **type:** string
-
-##### &lt;schedule chain&gt;.timezone
-
-- **description:** time zone in "TZ identifier" format (details [here](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#Time_zone_abbreviations))
-- **type:** string
-- **default value:** UTC
-
-##### &lt;schedule chain&gt;.schedule
-
-- **description:** list of matchers with corresponding steps. IMPulse evaluates matchers from top to bottom. If a matcher matches the current time, the corresponding steps defined for that matcher are selected.
-- **type:** list
-
-###### &lt;schedule chain&gt;.schedule matcher
-
-- **description:** datetime matcher which will be compared with current datetime
-- **type:** dict
- 
-> **start_day_expr** [`string`, _required_] - date matching strategy: "dow" (day of week), "dom" (day of month), "date" (exact date). Expressions like "dow % 2" (least positive remainder) are also allowed.
-
-> **start_day_values** [`list`] - values for the expression **start_day_expr**. Available values:
-
->    - for `dow`: 0 to 7 (like in [cron](https://en.wikipedia.org/wiki/Cron)) or "Sun", "Mon"...
->    - for `dom`: 1 to 31
->    - for `date`: "2024-12-24" format
-
-> **start_time** [`string`] - local time in "HH:MM" format (24-hour)
-
-> **duration** [`string`] - duration of the active window, e.g., "12h" or "2d"
-
-###### &lt;schedule chain&gt;.schedule steps *
-
-- **description:** list of chain steps (same as in simple chain).
-- **type:** list
-
 > It is recommended to use `steps` without `matcher` at the end to handle unmatched datetimes.
 
-> **schedule chain examples**
-
+> **Examples:**
 > ```yaml
 > application:
 >   chains:
@@ -207,19 +168,94 @@
 >         - {steps: [{user: Oleg }]} # full Sunday and 00:00 to 12:00 every day
 > ```
 
+##### &lt;schedule chain&gt;.type *
+
+- **description:** set chain type using `type: schedule`
+- **type:** string
+
+##### &lt;schedule chain&gt;.timezone
+
+- **description:** time zone in "TZ identifier" format (details [here](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#Time_zone_abbreviations))
+- **type:** string
+- **default value:** UTC
+
+##### &lt;schedule chain&gt;.schedule
+
+- **description:** list of matchers with corresponding steps. IMPulse evaluates matchers from top to bottom. If a `matcher` matches the current time, the corresponding `steps` defined for that `matcher` are selected.
+- **type:** list
+
+> **Examples:**
+> ```yaml
+> application:
+>   chains:
+>     support:
+>       type: schedule
+>       timezone: Asia/Tashkent
+>       schedule:
+>         - matcher:
+>             start_day_expr: dow
+>             start_day_values: ["Mon", "Tue"]
+>             start_time: "09:00"
+>             duration: 24h
+>           steps:
+>             - user: Dmitry
+>         - steps:
+>             - user: Administrator
+> ```
+
+> **matcher**
+
+> - **description:** datetime matcher which will be compared with current datetime
+> - **type:** dict
+> 
+> Matcher contains theese fields:
+> > **start_day_expr** *
+> >
+> > - **description:** date matching strategy: "dow" (day of week), "dom" (day of month), "date" (exact date). Expressions like "dow % 2" (least positive remainder) are also allowed.
+> > - **type:** string
+> >
+> > **start_day_values** *
+> >
+> > - **description:** values for the expression **start_day_expr**
+> > - **type:** list
+> >
+> > > Available values:
+> >
+> > >   - for `dow`: 0 to 7 (like in [cron](https://en.wikipedia.org/wiki/Cron)) or "Sun", "Mon"...
+> > >   - for `dom`: 1 to 31
+> > >   - for `date`: "2024-12-24" format
+> > 
+> > **start_time**
+> >
+> > - **description:** local time in "HH:MM" format (24-hour)
+> > - **type:** string
+> > 
+> > **duration**
+> >
+> > - **description:** duration of the active window, e.g., "12h" or "2d"
+> > - **type:** string
+> 
+> **steps**
+
+> - **description:** list of chain steps (same as in [simple chain](#simple-chain)). It is recommended to use `steps` without `matcher` at the end to handle unmatched datetimes.
+> - **type:** list
+
 #### &lt;cloud chain&gt;
 
 - **description:** a chain that allows you to define dynamic chains using calendar providers (e.g., Google).
 - **type:** dict
 
-> Special ENVs: `CHAIN_PROVIDER_DAYS_TO_SYNC`, `CHAIN_PROVIDER_MAX_EVENTS`, `CHAIN_PROVIDER_SYNC_INTERVAL_SECONDS`, `GOOGLE_SERVICE_ACCOUNT_FILE` (see [details](envs.md)).
+> Special ENVs (see [details](envs.md)):
+
+> - `CHAIN_PROVIDER_DAYS_TO_SYNC`
+> - `CHAIN_PROVIDER_MAX_EVENTS`
+> - `CHAIN_PROVIDER_SYNC_INTERVAL_SECONDS`
+> - `GOOGLE_SERVICE_ACCOUNT_FILE`
 
 ##### &lt;cloud chain&gt;.type *
 
 - **description:** set chain type using `type: cloud`
 - **type:** string
-
- [`string`, _required_] - 
 
 ##### &lt;cloud chain&gt;.provider *
 
@@ -246,7 +282,7 @@
 > - user: Maria
 > ```
 > 
-> **cloud chain example**
+> **Example**
 > 
 > With event in calendar
 > 
@@ -290,7 +326,7 @@
 
 > Additionally, the `chain` step can be used with all types of chains. This allows one chain to include other nested chains. In some cases, this approach simplifies and reduces the overall configuration. Nesting is supported to any depth.
 > 
-> **example**
+> **Example**
 > 
 > ```yaml
 > application:
@@ -312,14 +348,12 @@
 
 ### application.users *
 
-- **description:** users declaration
+- **description:** users declaration. Defines users used in [chains](#applicationchains) for direct notifications.
 - **type:** dict
-
-> Defines users used in [chains](#applicationchains) and for direct notifications.
 
 > See instructions for getting user `id` for Slack ([here](https://www.workast.com/help/article/how-to-find-a-slack-user-id/)), Mattermost ([here](https://docs.mattermost.com/configure/user-management-configuration-settings.html#identify-a-user-s-id)), Telegram ([here](telegram.md#configure-group)).
 
-> **users example**
+> **Example**
 
 > === "Slack"
 > ```yaml
@@ -347,7 +381,7 @@
 - **description:** groups of users for bulk notification. Used in [chains](#applicationchains).
 - **type:** list
 
-> **user_groups example**
+> **Example**
 
 > ```yaml
 > application:
@@ -372,7 +406,7 @@
 
 > Template files can contain special words `incident` and `payload` as variables to show additional info. `incident` contains [incident attributes](https://github.com/DiTsi/impulse/blob/v1.4.0/app/incident/incident.py#L21) (used [here](https://github.com/DiTsi/impulse/blob/develop/templates/slack_status_icons.j2#L1)). `payload` is an Alertmanager alerts payload
 
-> **template_files example**
+> **Example**
 
 > ```yaml
 > application:
@@ -382,19 +416,19 @@
 >     body: ./templates/body.yml
 > ```
 
-### application.template_files.body
+#### application.template_files.body
 
 - **description:** path to the custom template file that defines the format of `body`
 - **type:** string
 - **default value:** ./templates/[&lt;application.type&gt;](#applicationtype)_body.j2
 
-### application.template_files.header
+#### application.template_files.header
 
 - **description:** path to the custom template file that defines the format of `header`
 - **type:** string
 - **default value:** ./templates/[&lt;application.type&gt;](#applicationtype)_header.j2
 
-### application.template_files.status_icons
+#### application.template_files.status_icons
 
 - **description:** path to the custom template file that defines the format of `status_icons`
 - **type:** string
@@ -404,16 +438,6 @@
 
 - **description:** messenger type (`mattermost`, `slack` or `telegram`)
 - **type:** string
-
-**ui** [`dict`] - UI configuration. See [details](#ui)
-
-> **filters** [`list`] - default incidents filters. See [details](#uifilters)
-
-> **columns** [`list`] - enabled columns. See [details](#uicolumns)
-
-> **sorting** [`list`] - default sorting order. See [details](#uisorting)
-
-> **colors** [`dict`] - custom border color for columns. See [details](#uicolors)
 
 ## experimental
 
@@ -477,75 +501,139 @@
 
 > Matchers use Python regular expressions instead of Alertmanager's syntax.
 
-<!-- ### route.channel *
+> **Example**:
+> ```yaml
+> route:
+>   channel: incidents_default # default channel where incidents will be created if their didn't match any matchers
+>   chain: devops # optional, but we recommend set it to handle alerts didn't match any matchers
+>   routes:
+>     # Infrastructure routes
+>     - matchers:
+>         - service =~ "cpu|disk|memory|network" # regex selector powered by Python regex
+>       channel: incidents-infrastructure # channel for not "critical" or "warning" severity
+>       # no chain here means users will not be notified, just incident created
+>       routes:
+>         - matchers:
+>             - severity = "critical" # simple selector
+>           channel: incidents-infrastructure
+>           chain: devops-critical
+>         - matchers:
+>             - severity = "warning"
+>           channel: incidents-infrastructure
+>           chain: devops
+> 
+>     # Services routes
+>     - matchers:
+>         - service = "fingernote"
+>       channel: incidents-services
+>       chain: fingernote-team
+>       routes:
+>         - matchers:
+>             - severity = "critical"
+>           channel: incidents-services
+>           chain: fingernote-team-critical
+>     - matchers:
+>         - service = "pickcase"
+>       channel: incidents-services
+>       chain: pickcase-team
+>       routes:
+>         - matchers:
+>             - severity = "critical"
+>           channel: incidents-services
+>           chain: pickcase-team-critical
+> ```
 
-- **description:** 
-- **type:** dict
+### route.channel *
 
-**route example**
+- **description:** default [channel](#applicationchannels) where incidents will be created if they don't match any matchers
+- **type:** string
 
-Complex example with comments
-```yaml
-route:
-  channel: incidents_default # default channel where incidents will be created if their didn't match any matchers
-  chain: devops # optional, but we recommend set it to handle alerts didn't match any matchers
-  routes:
-    # Infrastructure routes
-    - matchers:
-        - service =~ "cpu|disk|memory|network" # regex selector powered by Python regex
-      channel: incidents-infrastructure # channel for not "critical" or "warning" severity
-      # no chain here means users will not be notified, just incident created
-      routes:
-        - matchers:
-            - severity = "critical" # simple selector
-          channel: incidents-infrastructure
-          chain: devops-critical
-        - matchers:
-            - severity = "warning"
-          channel: incidents-infrastructure
-          chain: devops
+### route.chain
 
-    # Services routes
-    - matchers:
-        - service = "fingernote"
-      channel: incidents-services
-      chain: fingernote-team
-      routes:
-        - matchers:
-            - severity = "critical"
-          channel: incidents-services
-          chain: fingernote-team-critical
-    - matchers:
-        - service = "pickcase"
-      channel: incidents-services
-      chain: pickcase-team
-      routes:
-        - matchers:
-            - severity = "critical"
-          channel: incidents-services
-          chain: pickcase-team-critical
-```
+- **description:** default [chain](#applicationchains) to notify users if alert don't match any matchers inside [route.routes](#routeroutes)
+- **type:** string
 
-...
+### route.routes
 
- -->
+- **description:** list of routing rules based on matchers to determine which channel and chain to use for incidents
+- **type:** list
+
+#### &lt;route&gt;.matchers
+
+- **description:** conditions to match alert fields using Python regex patterns
+- **type:** list
+
+#### &lt;route&gt;.channel
+
+- **description:** [channel](#applicationchannels) where incidents will be created if they match the matchers
+- **type:** string
+
+#### &lt;route&gt;.chain
+
+- **description:** [chain](#applicationchains) to notify users if incidents match the matchers
+- **type:** string
+
+#### &lt;route&gt;.routes
+
+- **description:** nested routing rules for more detailed incident classification (recursive structure)
+- **type:** list
 
 ## ui
 
 - **description:** UI configuration
 - **type:** dict
 
-### ui.filters
-
-- **description:** defines the default filters applied in the user interface
-- **type:** list
-
-> **example**
-
+> **Example**:
+> 
 > ```yaml
 > ui:
+>   columns:
+>     - name: status
+>       header: Status
+>       value: incident.status
+>     - name: created
+>       type: datetime
+>       header: Created
+>       value: incident.created
+>     - name: alertname
+>       header: Alertname
+>       type: link
+>       url: incident.link
+>       value: payload.commonLabels.alertname
+>     - name: severity
+>       header: Severity
+>       value: payload.commonLabels.severity
+>     - name: summary
+>       header: Summary
+>       value: payload.commonAnnotations.summary
+>   colors:
+>     severity:
+>       critical: "#FF0000"
+>       warning: "#FFA500"
+>       info: "#00FF00"
 >   filters:
->     - severity=~"warning|critical"
+>     - severity="critical"
+>   sorting:
+>     - severity: desc
+>       order: ["info", "warning", "critical"]
+>     - created: desc
+> ```
+
+### ui.colors
+
+- **description:** allows you to color the border of a specific cell in a column based on its value.
+- **type:** dict
+
+> **Example**
+> ```yaml
+> ui:
+>   colors:
+>     severity: # column name
+>       critical: "#FF0000" # set red border for column severity="critical"
+>       warning: "#FFA500" # set orange border for column severity="warning"
+>       info: "#00FFFF" # set cyan border for column severity="info"
+>     team: # column name
+>       devops: "#00FFFF" # set cyan border for column team="info"
 > ```
 
 ### ui.columns *
@@ -553,38 +641,51 @@ route:
 - **description:** columns to be shown in the UI
 - **type:** list
 
-Columns enabled in UI
+> Columns enabled in UI
+> 
+> Every column must contain two fields: `name` and `value`. Using `name` you can filter 
+> 
+> There are 3 types of columns: `string` (default), `datetime`, `link`.
+> 
+> Set `type: string` to show any text information. `type: datetime` used for datetime fields as `incident.created`
+> 
+> ```yaml
+> ui:
+>   columns:
+>     - name: status
+>       header: Status
+>       type: string
+>       value: incident.status
+>       visible: True
+>     - name: created
+>       type: datetime
+>       header: Created
+>       # format: absolute
+>       value: incident.created
+>     - name: alertname
+>       header: Alertname
+>       url: incident.link
+>       value: payload.commonLabels.alertname
+>     - name: severity
+>       header: Severity
+>       value: payload.commonLabels.severity
+>     - name: summary
+>       header: Summary
+>       value: payload.commonAnnotations.summary
+> ```
 
-Every column must contain two fields: `name` and `value`. Using `name` you can filter 
+### ui.filters
 
-There are 3 types of columns: `string` (default), `datetime`, `link`.
+- **description:** defines the default filters applied in the user interface
+- **type:** list
 
-Set `type: string` to show any text information. `type: datetime` used for datetime fields as `incident.created`
+> **Example**
 
-```yaml
-ui:
-  columns:
-    - name: status
-      header: Status
-      type: string
-      value: incident.status
-      visible: True
-    - name: created
-      type: datetime
-      header: Created
-      # format: absolute
-      value: incident.created
-    - name: alertname
-      header: Alertname
-      url: incident.link
-      value: payload.commonLabels.alertname
-    - name: severity
-      header: Severity
-      value: payload.commonLabels.severity
-    - name: summary
-      header: Summary
-      value: payload.commonAnnotations.summary
-```
+> ```yaml
+> ui:
+>   filters:
+>     - severity=~"warning|critical"
+> ```
 
 ### ui.sorting
 
@@ -599,7 +700,7 @@ ui:
 
 > Custom sorting is defined using the `order` field, which specifies the exact sequence in which rows should appear when `asc` is selected. If you want to disable sorting by default but use a custom order for some columns, use the `none` method.
 
-> **example:**
+> **Example:**
 
 > ```yaml
 > ui:
@@ -609,49 +710,17 @@ ui:
 >       order: ["info", "warning", "critical"]
 > ```
 
-### ui.colors
-
-- **description:** allows you to color the border of a specific cell in a column based on its value.
-- **type:** dict
-
-> **example**
-> ```yaml
-> ui:
->   colors:
->     severity: # column name
->       critical: "#FF0000" # set red border for column severity="critical"
->       warning: "#FFA500" # set orange border for column severity="warning"
->       info: "#00FFFF" # set cyan border for column severity="info"
->     team: # column name
->       devops: "#00FFFF" # set cyan border for column team="info"
-> ```
-
 ## webhooks
 
 - **description:** webhooks provide alternative notification options via HTTP POST requests to custom endpoints.
 - **type:** dict
 
-Webhooks support variables:
+> Webhooks support variables:
+> 
+> - `env` - to get environment variables (e.g. passwords, tokens)
+> - `incident` - to get current incident fields
 
-- `env` - to get environment variables (e.g. passwords, tokens)
-- `incident` - to get current incident fields
-
-### &lt;webhook&gt;.auth
-
-- **description:** string for HTTP Basic Auth (e.g., user:password)
-- **type:** string
-
-### &lt;webhook&gt;.url *
-
-- **description:** URL to which the HTTP POST request will be sent
-- **type:** string
-
-### &lt;webhook&gt;.data
-
-- **description:** data to be sent in the POST request body
-- **type:** dict
-
-> **examples**
+> **Examples**
 
 > Twilio.com calls
 
@@ -688,3 +757,18 @@ Webhooks support variables:
 >       phone: '+998xxxxxxxxx'
 >       public_key: '{{ env["ZVONOK_PUBLIC_KEY"] }}'
 > ```
+
+### &lt;webhook&gt;.auth
+
+- **description:** string for HTTP Basic Auth (e.g., user:password)
+- **type:** string
+
+### &lt;webhook&gt;.url *
+
+- **description:** URL to which the HTTP POST request will be sent
+- **type:** string
+
+### &lt;webhook&gt;.data
+
+- **description:** data to be sent in the POST request body
+- **type:** dict
