@@ -12,63 +12,79 @@ We support integrations with [Mattermost](mattermost.md), [Slack](slack.md) and 
 
 ## 2. Get IMPulse
 
-### python
+=== "python"
 
-Use the `<release_tag>` from [here](https://github.com/DiTsi/impulse/releases) and run:
+    Use the `<release_tag>` from [here](https://github.com/DiTsi/impulse/releases) and run:
 
-```bash
-git clone --branch <release_tag> --single-branch git@github.com:DiTsi/impulse.git impulse
-cd impulse
+    === "Slack"
+        ```bash
+        git clone --branch <release_tag> --single-branch git@github.com:DiTsi/impulse.git impulse
+        cd impulse
+        # for advanced configuration
+        cp examples/impulse.slack.advanced.yml impulse.yml
+        # for minimal configuration
+        cp examples/impulse.slack.minimal.yml impulse.yml
+        cp examples/.env.slack .env
+        ```
 
-### Slack
-# for advanced configuration
-cp examples/impulse.slack.advanced.yml impulse.yml
-# for minimal configuration
-cp examples/impulse.slack.minimal.yml impulse.yml
-cp examples/.env.slack .env
+    === "Mattermost"
+        ```bash
+        git clone --branch <release_tag> --single-branch git@github.com:DiTsi/impulse.git impulse
+        cd impulse
+        # for advanced configuration
+        cp examples/impulse.mattermost.advanced.yml impulse.yml
+        # for minimal configuration
+        cp examples/impulse.mattermost.minimal.yml impulse.yml
+        cp examples/.env.mattermost .env
+        ```
 
-### Mattermost
-# for advanced configuration
-cp examples/impulse.mattermost.advanced.yml impulse.yml
-# for minimal configuration
-cp examples/impulse.mattermost.minimal.yml impulse.yml
-cp examples/.env.mattermost .env
+    === "Telegram"
+        ```bash
+        git clone --branch <release_tag> --single-branch git@github.com:DiTsi/impulse.git impulse
+        cd impulse
+        # for advanced configuration
+        cp examples/impulse.telegram.advanced.yml impulse.yml
+        # for minimal configuration
+        cp examples/impulse.telegram.minimal.yml impulse.yml
+        cp examples/.env.telegram .env
+        ```
 
-# for Telegram
-# for advanced configuration
-cp examples/impulse.telegram.advanced.yml impulse.yml
-# for minimal configuration
-cp examples/impulse.telegram.minimal.yml impulse.yml
-cp examples/.env.telegram .env
-```
+=== "docker"
 
-### docker
+    === "Slack"
+        ```bash
+        mkdir impulse impulse/config impulse/data
+        cd impulse
+        wget -O docker-compose.yml https://raw.githubusercontent.com/DiTsi/impulse/develop/examples/docker-compose.yml
+        # for advanced configuration
+        wget -O config/impulse.yml https://raw.githubusercontent.com/DiTsi/impulse/develop/examples/impulse.slack.advanced.yml
+        # for minimal configuration
+        wget -O config/impulse.yml https://raw.githubusercontent.com/DiTsi/impulse/develop/examples/impulse.slack.minimal.yml
+        ```
 
-```bash
-mkdir impulse impulse/config impulse/data
-cd impulse
-wget -O docker-compose.yml https://raw.githubusercontent.com/DiTsi/impulse/develop/examples/docker-compose.yml
+    === "Mattermost"
+        ```bash
+        mkdir impulse impulse/config impulse/data
+        cd impulse
+        wget -O docker-compose.yml https://raw.githubusercontent.com/DiTsi/impulse/develop/examples/docker-compose.yml
+        # for advanced configuration
+        wget -O config/impulse.yml https://raw.githubusercontent.com/DiTsi/impulse/develop/examples/impulse.mattermost.advanced.yml
+        # for minimal configuration
+        wget -O config/impulse.yml https://raw.githubusercontent.com/DiTsi/impulse/develop/examples/impulse.mattermost.minimal.yml
+        ```
 
-### Slack
-# for advanced configuration
-wget -O config/impulse.yml https://raw.githubusercontent.com/DiTsi/impulse/develop/examples/impulse.slack.advanced.yml
-# for minimal configuration
-wget -O config/impulse.yml https://raw.githubusercontent.com/DiTsi/impulse/develop/examples/impulse.slack.minimal.yml
+    === "Telegram"
+        ```bash
+        mkdir impulse impulse/config impulse/data
+        cd impulse
+        wget -O docker-compose.yml https://raw.githubusercontent.com/DiTsi/impulse/develop/examples/docker-compose.yml
+        # for advanced configuration
+        wget -O config/impulse.yml https://raw.githubusercontent.com/DiTsi/impulse/develop/examples/impulse.telegram.advanced.yml
+        # for minimal configuration
+        wget -O config/impulse.yml https://raw.githubusercontent.com/DiTsi/impulse/develop/examples/impulse.telegram.minimal.yml
+        ```
 
-### Mattermost
-# for advanced configuration
-wget -O config/impulse.yml https://raw.githubusercontent.com/DiTsi/impulse/develop/examples/impulse.mattermost.advanced.yml
-# for minimal configuration
-wget -O config/impulse.yml https://raw.githubusercontent.com/DiTsi/impulse/develop/examples/impulse.mattermost.minimal.yml
-
-### Telegram
-# for advanced configuration
-wget -O config/impulse.yml https://raw.githubusercontent.com/DiTsi/impulse/develop/examples/impulse.telegram.advanced.yml
-# for minimal configuration
-wget -O config/impulse.yml https://raw.githubusercontent.com/DiTsi/impulse/develop/examples/impulse.telegram.minimal.yml
-```
-
-don't forget to replace `<release_tag>` in `docker-compose.yml` to one of the [release tags](https://github.com/DiTsi/impulse/releases).
+    don't forget to replace `<release_tag>` in `docker-compose.yml` to one of the [release tags](https://github.com/DiTsi/impulse/releases).
 
 ## 3. Configure IMPulse
 
@@ -78,17 +94,17 @@ Modify `impulse.yml` with your data. See all configurations options [here](confi
 
 ## 4. Run IMPulse
 
-### python
+=== "python"
 
-```bash
-gunicorn -w 1 -b 0.0.0.0:5000 wsgi:app
-```
+    ```bash
+    gunicorn -w 1 -b 0.0.0.0:5000 wsgi:app
+    ```
 
-### docker
+=== "docker"
 
-```bash
-docker-compose up -d
-```
+    ```bash
+    docker-compose up -d
+    ```
 
 ## 5. Configure Alertmanger
 

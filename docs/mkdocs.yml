@@ -1,19 +1,40 @@
 site_name: Docs | IMPulse
 docs_dir: content
-theme:
-  # https://www.mkdocs.org/user-guide/choosing-your-theme/#readthedocs
-  name: readthedocs
-  analytics:
-    gtag: G-LL3R99ZZGW
-  navigation_depth: 4
-  titles_only: True
-  include_toc: true 
 
-extra_css:
-  - css/custom.css
+theme:
+  name: material
+  logo: logo.svg
+  palette:
+    - scheme: slate
+      primary: blue
+      accent: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+    - scheme: default
+      primary: blue
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+  features:
+    - navigation.sections
+    - toc.follow
+extra:
+  analytics:
+    provider: google
+    property: G-LL3R99ZZGW
 markdown_extensions:
   - toc:
       permalink: true
+      toc_depth: 2-6
+  - codehilite:
+      guess_lang: false
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+extra_css:
+  - css/custom.css
 
 nav:
 - index.md
@@ -27,7 +48,6 @@ nav:
     - alertmanager.md
     - envs.md
     - config_file.md
-    - config_examples.md
     - google.md
   - best.md
   - howto.md

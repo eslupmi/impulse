@@ -3,7 +3,6 @@
 
 application:
   type: slack
-
   admin_users: ["Dmitry"]
   users:
     Dmitry: {id: U73MD1YLR4M}

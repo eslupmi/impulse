@@ -4,7 +4,6 @@
 application:
   type: telegram
   impulse_address: https://<your_impulse_domain> # Due to Telegram's restrictions, only HTTPS is supported
-
   admin_users: ["Dmitry"]
   users:
     Dmitry: {id: 182547693}

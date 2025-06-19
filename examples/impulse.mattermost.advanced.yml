@@ -6,7 +6,6 @@ application:
   team: KOMANDA
   address: https://<your_mattermost_domain>
   impulse_address: https://<your_impulse_domain>
-
   admin_users: ["Dmitry"]
   users:
     Dmitry: {id: ic8pft3ac7rjrd9eopxp4kc7qy}
@@ -22,7 +21,6 @@ application:
     status_icons: templates/mattermost_status_icons.j2
     header: templates/mattermost_header.j2
     body: templates/mattermost_body.j2
-
   chains:
     devops:
       - user_group: devops

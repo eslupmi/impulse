@@ -6,7 +6,6 @@ application:
   team: test
   address: https://<your_mattermost_domain>
   impulse_address: https://<your_impulse_domain>
-
   admin_users: ["Dmitry"]
   users:
     Dmitry: {id: ic8pft3ac7rjrd9eopxp4kc7qy}

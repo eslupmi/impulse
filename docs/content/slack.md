@@ -38,10 +38,10 @@
         - users:read
     - we highly recommend to add the IP address of your IMPulse server in white list in **Restrict API Token Usage** subsection
     - in **OAuth Tokens** click the button **Install to &lt;your_workspace&gt;**, then **Allow**
-    - use "Bot User OAuth Token" as ENV `SLACK_BOT_USER_OAUTH_TOKEN` (use in 2.3 [here](installation.md#23-impulse))
+    - use "Bot User OAuth Token" as ENV `SLACK_BOT_USER_OAUTH_TOKEN` (use in 3 [here](installation.md#3-configure-impulse))
 3. In **Basic Information** section:
     - in the **App Credentials** subsection:
-        - use "Verification Token" as ENV `SLACK_VERIFICATION_TOKEN` (use in 2.3 [here](installation.md#23-impulse))
+        - use "Verification Token" as ENV `SLACK_VERIFICATION_TOKEN` (use in 3 [here](installation.md#3-configure-impulse))
     - in **Display Information** subsection:
         - you can set [our logo](https://github.com/eslupmi/site/blob/main/static/logo.png?raw=true) as **App icon**
 
