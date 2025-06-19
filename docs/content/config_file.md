@@ -324,6 +324,9 @@
 
 #### &lt;nested chain&gt;
 
+- **description:** allows one chain to include other chains as nested steps
+- **type:** string
+
 > Additionally, the `chain` step can be used with all types of chains. This allows one chain to include other nested chains. In some cases, this approach simplifies and reduces the overall configuration. Nesting is supported to any depth.
 > 
 > **Example**

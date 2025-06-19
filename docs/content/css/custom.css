@@ -56,10 +56,20 @@ img {
   color: #278fd6;
 }
 /* headers for config page */
-.md-typeset h2,
-.md-typeset h3,
-.md-typeset h4 {
+.md-typeset h2 {
   font-size: 1.4em;
+  font-weight: 700;
+  margin-top: 2em;
+  margin-bottom: 1em;
+}
+.md-typeset h3 {
+  font-size: 1.2em;
+  font-weight: 600;
+  margin-top: 1.5em;
+  margin-bottom: 0.75em;
+}
+.md-typeset h4 {
+  font-size: 1.0em;
   font-weight: 600;
   margin-top: 1.5em;
   margin-bottom: 0.75em;
