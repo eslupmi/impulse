@@ -57,19 +57,6 @@ body {
 
 .tabulator .tabulator-col.tabulator-sortable[aria-sort="ascending"] .tabulator-col-sorter::before {
     content: '';
-    margin-top: 3px;
-    margin-left: 5px;
-    top: 50%;
-    left: 50%;
-    width: 8px;
-    height: 8px;
-    border-left: 2px solid var(--header-text);
-    border-top: 2px solid var(--header-text);
-    transform: translate(-50%, -50%) rotate(-135deg);
-}
-
-.tabulator .tabulator-col.tabulator-sortable[aria-sort="descending"] .tabulator-col-sorter::before {
-    content: '';
     margin-top: 10px;
     margin-left: 5px;
     top: 50%;
@@ -79,6 +66,19 @@ body {
     border-left: 2px solid var(--header-text);
     border-top: 2px solid var(--header-text);
     transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.tabulator .tabulator-col.tabulator-sortable[aria-sort="descending"] .tabulator-col-sorter::before {
+    content: '';
+    margin-top: 3px;
+    margin-left: 5px;
+    top: 50%;
+    left: 50%;
+    width: 8px;
+    height: 8px;
+    border-left: 2px solid var(--header-text);
+    border-top: 2px solid var(--header-text);
+    transform: translate(-50%, -50%) rotate(-135deg);
 }
 
 .tabulator .tabulator-header .tabulator-col .tabulator-col-content .tabulator-col-title {

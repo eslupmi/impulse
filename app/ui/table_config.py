@@ -83,6 +83,8 @@ def get_incident_table_sorting():
             if isinstance(sort_config, str):
                 if sort_config in ["asc", "desc"]:
                     sorting_rule["direction"] = sort_config
+                    if "order" in rule:
+                        sorting_rule["order"] = rule["order"]
                 elif sort_config == "none" and "order" in rule:
                     sorting_rule["order"] = rule["order"]
             
