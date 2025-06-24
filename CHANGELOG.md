@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.5.3
+Changes:
+- Refactor matcher logic to simplify condition checks and avoid applying regex to `None`
+
 ## v2.5.2
 Changes:
 - Fixed issue with parsing HTML description in Google Calendar events
