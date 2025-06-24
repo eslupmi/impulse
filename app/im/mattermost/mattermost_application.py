@@ -2,6 +2,7 @@ import json
 from time import sleep
 
 import requests
+from fastapi.responses import JSONResponse
 
 from app.im.application import Application
 from app.im.colors import status_colors
@@ -110,7 +111,7 @@ class MattermostApplication(Application):
         post_id = payload['post_id']
         incident_ = incidents.get_by_ts(ts=post_id)
         if incident_ is None:
-            return payload, 200
+            return JSONResponse(payload, status_code=200)
         action = payload['context']['action']
 
         user_name = payload.get('user_name')
@@ -144,7 +145,7 @@ class MattermostApplication(Application):
             incident_.status,
             incident_.chain_enabled,
             incident_.status_enabled)
-        return payload, 200
+        return JSONResponse(payload, status_code=200)
 
     def _create_thread_payload(self, channel_id, body, header, status_icons, status):
         return mattermost_get_create_thread_payload(channel_id, body, header, status_icons, status)

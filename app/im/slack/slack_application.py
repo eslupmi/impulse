@@ -3,6 +3,7 @@ import re
 from time import sleep
 
 import requests
+from fastapi.responses import JSONResponse
 
 from app.im.application import Application
 from app.im.colors import status_colors
@@ -100,12 +101,12 @@ class SlackApplication(Application):
     def buttons_handler(self, payload, incidents, queue_, route):
         if payload.get('token') != slack_verification_token:
             logger.error(f'Unauthorized request to \'/slack\'')
-            return {}, 401
+            return JSONResponse({}, status_code=401)
 
         incident_ = incidents.get_by_ts(ts=payload['message_ts'])
         original_message = payload.get('original_message')
         if incident_ is None:
-            return original_message, 200
+            return JSONResponse(original_message, status_code=200)
         actions = payload.get('actions')
 
         user_id = payload.get('user')['id']
@@ -136,7 +137,7 @@ class SlackApplication(Application):
         incident_.dump()
         modified_message = reformat_message(original_message, payload['text'], payload['attachments'], incident_.status,
                                             incident_.chain_enabled, incident_.status_enabled)
-        return modified_message, 200
+        return JSONResponse(modified_message, status_code=200)
 
     def _create_thread_payload(self, channel_id, body, header, status_icons, status):
         return slack_get_create_thread_payload(channel_id, body, header, status_icons, status)
