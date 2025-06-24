@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
+import asyncio
 
-import requests
+import aiohttp
 
 from app.queue.handlers.base_handler import BaseHandler
 
@@ -20,9 +21,9 @@ class UpdateHandler(BaseHandler):
         self.latest_tag = {'version': None}
 
     async def handle(self, identifier):
-        current_tag = get_latest_tag()
+        current_tag = await get_latest_tag()
         if identifier != 'first' and current_tag != self.latest_tag['version']:
-            self.app.new_version_notification(self.app.default_channel_id, current_tag)
+            await self.app.new_version_notification(self.app.default_channel_id, current_tag)
             self.latest_tag['version'] = current_tag
         elif identifier == 'first':
             self.latest_tag['version'] = current_tag
@@ -31,12 +32,15 @@ class UpdateHandler(BaseHandler):
         await self.queue.put(datetime.utcnow() + timedelta(days=1), 'check_update', None, identifier=None)
 
 
-def get_latest_tag():
+async def get_latest_tag():
     """Get the latest tag from GitHub API"""
     try:
-        response = requests.get('https://api.github.com/repos/impulse-project/impulse/releases/latest', timeout=5)
-        if response.status_code == 200:
-            return response.json().get('tag_name', 'unknown')
-    except requests.RequestException:
+        timeout = aiohttp.ClientTimeout(total=5.0)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.get('https://api.github.com/repos/impulse-project/impulse/releases/latest') as response:
+                if response.status == 200:
+                    data = await response.json()
+                    return data.get('tag_name', 'unknown')
+    except (aiohttp.ClientError, asyncio.TimeoutError):
         pass
     return 'unknown'

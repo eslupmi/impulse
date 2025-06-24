@@ -9,7 +9,7 @@ class StatusUpdateHandler(BaseHandler):
         incident = self.incidents.by_uuid[uuid_]
         status_updated = incident.set_next_status()
 
-        self.app.update(
+        await self.app.update(
             uuid_, incident, incident.status, incident.last_state,
             status_updated, incident.chain_enabled, incident.status_enabled
         )

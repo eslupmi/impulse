@@ -1,10 +1,9 @@
 import json
 from abc import ABC, abstractmethod
-from time import sleep
-
-import requests
-from requests.adapters import HTTPAdapter
-from urllib3 import Retry
+import asyncio
+import aiohttp
+from aiohttp import ClientTimeout, ClientSession
+from aiohttp_retry import ExponentialRetry, RetryClient
 
 from app.im.chain.chain_factory import ChainFactory
 from app.im.groups import generate_user_groups
@@ -15,11 +14,12 @@ from app.logging import logger
 class Application(ABC):
 
     def __init__(self, app_config, channels, default_channel):
-        self.http = self._setup_http()
+        self.http = None  # Will be initialized async
         self.type = app_config['type']
         self.url = self.get_url(app_config)
-        self.public_url = self._get_public_url(app_config)
+        self.public_url = None  # Will be set in async initialization
         self.team = self.get_team_name(app_config)
+        self._app_config = app_config  # Store for async initialization
         self.chains = ChainFactory.generate(app_config.get('chains', dict()))
         self.templates = app_config.get('template_files', dict())
         self.body_template, self.header_template, self.status_icons_template = self.generate_template()
@@ -33,9 +33,31 @@ class Application(ABC):
 
         self.channels = channels
         self.default_channel_id = self.channels[default_channel]['id']
-        self.users = self._generate_users(app_config['users'])
-        self.user_groups = generate_user_groups(app_config.get('user_groups'), self.users)
-        self.admin_users = [self.users[admin] for admin in app_config['admin_users']]
+        self.users = None  # Will be initialized async
+        self.user_groups = None  # Will be initialized async
+        self.admin_users = None  # Will be initialized async
+        
+        # Store config for async initialization
+        self._users_config = app_config['users']
+        self._user_groups_config = app_config.get('user_groups')
+        self._admin_users_config = app_config['admin_users']
+
+    async def initialize_async(self):
+        """Initialize async components after object creation"""
+        self.http = await self._setup_http()
+        if hasattr(self, '_get_public_url') and callable(getattr(self, '_get_public_url')):
+            if asyncio.iscoroutinefunction(self._get_public_url):
+                self.public_url = await self._get_public_url(self._app_config)
+            else:
+                self.public_url = self._get_public_url(self._app_config)
+        self.users = await self._generate_users(self._users_config)
+        self.user_groups = generate_user_groups(self._user_groups_config, self.users)
+        self.admin_users = [self.users[admin] for admin in self._admin_users_config]
+
+    async def close(self):
+        """Close the aiohttp session"""
+        if self.http:
+            await self.http.close()
 
     def get_url(self, app_config):
         return self._get_url(app_config)
@@ -43,13 +65,13 @@ class Application(ABC):
     def get_team_name(self, app_config):
         return self._get_team_name(app_config)
 
-    def _generate_users(self, users_dict):
+    async def _generate_users(self, users_dict):
         logger.info(f'Creating users')
 
         users = dict()
         for name, user_info in users_dict.items():
             if user_info.get('id') is not None:
-                user_details = self.get_user_details(user_info)
+                user_details = await self.get_user_details(user_info)
                 if not user_details['exists']:
                     logger.warning(f'.. user {name} not found in {self.type.capitalize()} and will not be notified')
             else:
@@ -70,7 +92,7 @@ class Application(ABC):
 
         return body_template, header_template, status_icons_template
 
-    def notify(self, incident, notify_type, identifier):
+    async def notify(self, incident, notify_type, identifier):
         destinations = self.get_notification_destinations()
         if notify_type == 'user':
             unit = self.users.get(identifier)
@@ -85,15 +107,15 @@ class Application(ABC):
             message = text
         else:
             message = header + '\n' + text
-        response_code = self.post_thread(incident.channel_id, incident.ts, message)
+        response_code = await self.post_thread(incident.channel_id, incident.ts, message)
         logger.info(f'Incident {incident.uuid} -> chain step {notify_type} \'{identifier}\'')
         return response_code
 
-    def update(self, uuid_, incident, incident_status, alert_state, updated_status, chain_enabled, status_enabled):
+    async def update(self, uuid_, incident, incident_status, alert_state, updated_status, chain_enabled, status_enabled):
         body = self.body_template.form_message(alert_state, incident)
         header = self.header_template.form_message(alert_state, incident)
         status_icons = self.status_icons_template.form_message(alert_state, incident)
-        self.update_thread(
+        await self.update_thread(
             incident.channel_id, incident.ts, incident_status, body, header, status_icons, chain_enabled, status_enabled
         )
         if updated_status:
@@ -111,57 +133,69 @@ class Application(ABC):
                     message = text
                 else:
                     message = header + '\n' + text
-                self.post_thread(incident.channel_id, incident.ts, message)
+                await self.post_thread(incident.channel_id, incident.ts, message)
 
-    def new_version_notification(self, channel_id, new_tag):
-        r = requests.get(f'https://api.github.com/repos/eslupmi/impulse/releases/tags/{new_tag}')
-        release_notes = r.json().get('body')
+    async def new_version_notification(self, channel_id, new_tag):
+        async with self.http.get(f'https://api.github.com/repos/eslupmi/impulse/releases/tags/{new_tag}') as response:
+            release_json = await response.json()
+            release_notes = release_json.get('body')
         new_version_text = self.format_text_bold(f'New IMPulse version available: {new_tag}')
         changelog_link_text = self._format_text_link("CHANGELOG.md",
                                                      "https://github.com/eslupmi/impulse/blob/develop/CHANGELOG.md")
         text = f"{new_version_text} {changelog_link_text}\n\n{release_notes}"
         native_formatted_text = self._markdown_links_to_native_format(text)
         admins_text = self.get_admins_text()
-        self.send_message(channel_id, native_formatted_text, admins_text)
+        await self.send_message(channel_id, native_formatted_text, admins_text)
 
-    def create_thread(self, channel_id, body, header, status_icons, status):
+    async def create_thread(self, channel_id, body, header, status_icons, status):
         payload = self._create_thread_payload(channel_id, body, header, status_icons, status)
-        return self._send_create_thread(payload)
+        return await self._send_create_thread(payload)
 
-    def _send_create_thread(self, payload):
-        response = requests.post(self.post_message_url, headers=self.headers, data=json.dumps(payload))
-        sleep(self.post_delay)
-        response_json = response.json()
-        return response_json.get(self.thread_id_key)
+    async def _send_create_thread(self, payload):
+        async with self.http.post(self.post_message_url, headers=self.headers, json=payload) as response:
+            await asyncio.sleep(self.post_delay)
+            response_json = await response.json()
+            return response_json.get(self.thread_id_key)
 
-    def update_thread(self, channel_id, id_, status, body, header, status_icons, chain_enabled=True,
+    async def update_thread(self, channel_id, id_, status, body, header, status_icons, chain_enabled=True,
                       status_enabled=True):
         payload = self.update_thread_payload(channel_id, id_, body, header, status_icons, status, chain_enabled,
                                              status_enabled)
-        self._update_thread(id_, payload)
+        await self._update_thread(id_, payload)
 
-    def post_thread(self, channel_id, id_, text):
+    async def post_thread(self, channel_id, id_, text):
         payload = self._post_thread_payload(channel_id, id_, text)
-        response = requests.post(self.post_message_url, headers=self.headers, data=json.dumps(payload))
-        sleep(self.post_delay)
-        return response.status_code
+        async with self.http.post(self.post_message_url, headers=self.headers, json=payload) as response:
+            await asyncio.sleep(self.post_delay)
+            return response.status
 
     @staticmethod
-    def _setup_http():
-        retry_strategy = Retry(
-            total=3,
-            status_forcelist=[429, 500, 502, 503, 504],
-            allowed_methods=["GET"],
-            backoff_factor=2
+    async def _setup_http():
+        retry_options = ExponentialRetry(
+            attempts=3,
+            statuses=[429, 500, 502, 503, 504],
+            exceptions=[aiohttp.ClientError, aiohttp.ServerTimeoutError],
+            max_timeout=30.0
         )
-
-        adapter = HTTPAdapter(max_retries=retry_strategy)
-        http = requests.Session()
-        http.mount("https://", adapter)
-        return http
+        
+        timeout = ClientTimeout(total=30.0)
+        connector = aiohttp.TCPConnector(limit=100, limit_per_host=30)
+        
+        session = ClientSession(
+            timeout=timeout,
+            connector=connector,
+            raise_for_status=False
+        )
+        
+        retry_client = RetryClient(
+            client_session=session,
+            retry_options=retry_options
+        )
+        
+        return retry_client
 
     @abstractmethod
-    def buttons_handler(self, payload, incidents, queue_, route):
+    async def buttons_handler(self, payload, incidents, queue_, route):
         pass
 
     @abstractmethod
@@ -206,7 +240,7 @@ class Application(ABC):
         pass
 
     @abstractmethod
-    def send_message(self, channel_id, text, attachment):
+    async def send_message(self, channel_id, text, attachment):
         pass
 
     @abstractmethod
@@ -222,11 +256,11 @@ class Application(ABC):
         pass
 
     @abstractmethod
-    def _update_thread(self, id_, payload):
+    async def _update_thread(self, id_, payload):
         pass
 
     @abstractmethod
-    def get_user_details(self, user_details):
+    async def get_user_details(self, user_details):
         """Fetch user-specific details (ID, name, etc.) from the system. Must be implemented by subclasses."""
         pass
 

@@ -1,8 +1,7 @@
-import json
+import asyncio
 import re
-from time import sleep
 
-import requests
+import aiohttp
 from fastapi.responses import JSONResponse
 
 from app.im.application import Application
@@ -30,28 +29,28 @@ class SlackApplication(Application):
     def _get_url(self, app_config):
         return 'https://slack.com'
 
-    def _get_public_url(self, app_config):
-        response = self.http.get(
+    async def _get_public_url(self, app_config):
+        async with self.http.get(
             f'https://slack.com/api/auth.test',
             headers=slack_headers
-        )
-        sleep(slack_request_delay)
-        json_ = response.json()
-        return json_.get('url')
+        ) as response:
+            await asyncio.sleep(slack_request_delay)
+            json_ = await response.json()
+            return json_.get('url')
 
     def _get_team_name(self, app_config):
         return None
 
-    def get_user_details(self, user_details):
+    async def get_user_details(self, user_details):
         id_ = user_details.get('id') if user_details is not None else None
         if id_ is not None:
-            response = self.http.get(f'{self.url}/api/users.info?user={id_}', headers=self.headers)
-            data = response.json()
-            if not data.get('ok') and data.get('error') == 'user_not_found':
-                exists = False
-            else:
-                exists = True
-            return {'id': id_, 'exists': exists}
+            async with self.http.get(f'{self.url}/api/users.info?user={id_}', headers=self.headers) as response:
+                data = await response.json()
+                if not data.get('ok') and data.get('error') == 'user_not_found':
+                    exists = False
+                else:
+                    exists = True
+                return {'id': id_, 'exists': exists}
         else:
             return {'id': None, 'exists': False}
 
@@ -80,7 +79,7 @@ class SlackApplication(Application):
         )
         return admins_text
 
-    def send_message(self, channel_id, text, attachment):
+    async def send_message(self, channel_id, text, attachment):
         payload = {
             'channel': channel_id,
             'text': text,
@@ -94,9 +93,10 @@ class SlackApplication(Application):
                 }
             ]
         }
-        response = self.http.post(f'{self.url}/api/chat.postMessage', headers=self.headers, data=json.dumps(payload))
-        sleep(self.post_delay)
-        return response.json().get('ts')
+        async with self.http.post(f'{self.url}/api/chat.postMessage', headers=self.headers, json=payload) as response:
+            await asyncio.sleep(self.post_delay)
+            response_json = await response.json()
+            return response_json.get('ts')
 
     async def buttons_handler(self, payload, incidents, queue_, route):
         if payload.get('token') != slack_verification_token:
@@ -150,12 +150,13 @@ class SlackApplication(Application):
         return slack_get_update_payload(channel_id, id_, body, header, status_icons, status, chain_enabled,
                                         status_enabled)
 
-    def _update_thread(self, id_, payload):
-        requests.post(
+    async def _update_thread(self, id_, payload):
+        async with self.http.post(
             f'{self.url}/api/chat.update',
             headers=slack_headers,
-            data=json.dumps(payload)
-        )
+            json=payload
+        ) as response:
+            await asyncio.sleep(self.post_delay)
 
     def _markdown_links_to_native_format(self, text):
         def replace_link(match):

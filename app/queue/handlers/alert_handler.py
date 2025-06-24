@@ -59,7 +59,7 @@ class AlertHandler(BaseHandler):
             assigned_user="",
             version=INCIDENT_ACTUAL_VERSION
         )
-        self._create_thread(incident_, alert_state)
+        await self._create_thread(incident_, alert_state)
         incident_.dump()
 
         self.incidents.add(incident_)
@@ -98,7 +98,7 @@ class AlertHandler(BaseHandler):
             incident_.chain_enabled = True
 
         if is_state_updated or is_status_updated:
-            self.app.update(
+            await self.app.update(
                 uuid_, incident_, alert_state['status'], alert_state, is_status_updated,
                 incident_.chain_enabled, incident_.status_enabled
             )
@@ -109,13 +109,13 @@ class AlertHandler(BaseHandler):
                 await self._new_alerts_recreate_chain(alert_state, incident_, uuid_)
             # Some alerts status change notification
             if (is_new_firing_alerts_added or is_some_firing_alerts_removed) and incident_.status_enabled:
-                self._notify_new_fire_alert(
+                await self._notify_new_fire_alert(
                     incident_, is_new_firing_alerts_added, is_some_firing_alerts_removed,
                     uuid_, chain_recreate
                 )
         await self.queue.update(uuid_, incident_.status_update_datetime, incident_.status)
 
-    def _notify_new_fire_alert(self, incident_, new_alerts_f, new_alerts_r, uuid_, experimental_recreate):
+    async def _notify_new_fire_alert(self, incident_, new_alerts_f, new_alerts_r, uuid_, experimental_recreate):
         """
         Notify about new firing alerts added to the incident
         """
@@ -133,7 +133,7 @@ class AlertHandler(BaseHandler):
             message = text
         else:
             message = header + '\n' + text
-        self.app.post_thread(incident_.channel_id, incident_.ts, message)
+        await self.app.post_thread(incident_.channel_id, incident_.ts, message)
         if new_alerts_f:
             logger.info(f"Incident {uuid_} updated with new alerts firing")
         elif new_alerts_r:
@@ -151,11 +151,11 @@ class AlertHandler(BaseHandler):
         incident_.dump()
         logger.info(f"Incident {uuid_} chain recreated")
 
-    def _create_thread(self, incident_, alert_state):
+    async def _create_thread(self, incident_, alert_state):
         body = self.app.body_template.form_message(alert_state, incident_)
         header = self.app.header_template.form_message(alert_state, incident_)
         status_icons = self.app.status_icons_template.form_message(alert_state, incident_)
-        thread_id = self.app.create_thread(
+        thread_id = await self.app.create_thread(
             incident_.channel_id, body, header, status_icons, status=alert_state['status']
         )
         incident_.set_thread(thread_id, self.app.public_url)

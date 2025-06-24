@@ -31,6 +31,7 @@ async def lifespan(fastapi_app: FastAPI):
     route = generate_route(route_dict)
     channels = check_channels(route.get_uniq_channels(), application['channels'], route.channel)
     messenger = get_application(application, channels, route.channel)
+    await messenger.initialize_async()
     webhooks = generate_webhooks(webhooks_dict)
     incidents = Incidents.create_or_load(messenger.type, messenger.public_url, messenger.team)
 
@@ -58,6 +59,10 @@ async def lifespan(fastapi_app: FastAPI):
 
     if fastapi_app.state.queue_manager:
         await fastapi_app.state.queue_manager.stop_processing()
+
+    # Close HTTP session
+    if hasattr(fastapi_app.state.messenger, 'close'):
+        await fastapi_app.state.messenger.close()
 
     # Cleanup chains
     if hasattr(fastapi_app.state.messenger, 'chains'):

@@ -1,8 +1,9 @@
 import os
+import asyncio
 
-import requests
+import aiohttp
 from jinja2 import Template
-from requests.auth import HTTPBasicAuth
+from aiohttp import BasicAuth
 
 from app.incident.incident import Incident
 from app.logging import logger
@@ -14,18 +15,34 @@ class Webhook:
         self._pre_render_data = data
         self._auth = auth
 
-    def push(self, incident: Incident = None):
+    async def push(self, incident: Incident = None, session: aiohttp.ClientSession = None):
         rendered_data = self._render_data(incident)
         auth = self._get_auth() if self._auth else None
 
-        try:
-            response = requests.post(url=self._url, data=rendered_data, auth=auth, timeout=5.0)
-        except requests.exceptions.Timeout:
-            return 'Timeout', None
-        except requests.exceptions.ConnectionError:
-            return 'ConnectionError', None
+        # Use provided session or create a temporary one
+        if session:
+            return await self._make_request(session, rendered_data, auth)
+        else:
+            async with aiohttp.ClientSession() as temp_session:
+                return await self._make_request(temp_session, rendered_data, auth)
 
-        return 'ok', response.status_code
+    async def _make_request(self, session: aiohttp.ClientSession, rendered_data, auth):
+        try:
+            timeout = aiohttp.ClientTimeout(total=5.0)
+            async with session.post(
+                url=self._url, 
+                data=rendered_data, 
+                auth=auth, 
+                timeout=timeout
+            ) as response:
+                return 'ok', response.status
+        except asyncio.TimeoutError:
+            return 'Timeout', None
+        except aiohttp.ClientConnectionError:
+            return 'ConnectionError', None
+        except aiohttp.ClientError as e:
+            logger.error(f'Webhook request failed: {e}')
+            return 'ClientError', None
 
     def _render_data(self, incident: Incident = None):
         rendered_data = dict()
@@ -37,7 +54,7 @@ class Webhook:
 
     def _get_auth(self):
         u, p = self._auth.split(':')
-        return HTTPBasicAuth(self.render(u), self.render(p))
+        return BasicAuth(self.render(u), self.render(p))
 
     @staticmethod
     def render(custom_string, **kwargs):

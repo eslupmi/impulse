@@ -33,6 +33,7 @@ function setupWebSocketEvents() {
                 case "update_row":
                     table.updateOrAddData([data]);
                     table.setSort(table.getSorters());
+                    table.refreshFilter();
                     updateZoomIcons();
                     break;
                 
@@ -45,6 +46,7 @@ function setupWebSocketEvents() {
                 case "update_data":
                     table.setData(data);
                     table.setSort(table.getSorters());
+                    table.refreshFilter();
                     updateZoomIcons();
                     break;
                 

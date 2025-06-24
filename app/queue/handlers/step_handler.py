@@ -29,7 +29,11 @@ class StepHandler(BaseHandler):
             admins = self.app.get_notification_destinations()
 
             if webhook is not None:
-                result, r_code = webhook.push(incident)
+                # Pass the app's HTTP session to the webhook if available
+                if hasattr(self.app, 'http') and self.app.http:
+                    result, r_code = await webhook.push(incident, session=self.app.http)
+                else:
+                    result, r_code = await webhook.push(incident)
                 fields = {'type': self.app.type, 'name': webhook_name, 'unit': webhook, 'admins': admins,
                           'result': result, 'response': r_code}
                 incident.chain_update(identifier, done=True, result=r_code)
@@ -50,7 +54,7 @@ class StepHandler(BaseHandler):
             text = text_template.form_notification(fields)
             header = f"{self.app.format_text_italic(self.app.header_template.form_message(incident.last_state, incident))}"
             message = f"{header}" + '\n' + f'{text}'
-            self.app.post_thread(incident.channel_id, incident.ts, message)
+            await self.app.post_thread(incident.channel_id, incident.ts, message)
         else:
-            r_code = self.app.notify(incident, step['type'], step['identifier'])
+            r_code = await self.app.notify(incident, step['type'], step['identifier'])
             incident.chain_update(identifier, done=True, result=r_code)
