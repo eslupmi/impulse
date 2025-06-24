@@ -11,7 +11,7 @@ function initializeSorting(columns, sorters) {
                 const order = sorterParams;
                 const indexA = order.indexOf(a) !== -1 ? order.indexOf(a) : order.length;
                 const indexB = order.indexOf(b) !== -1 ? order.indexOf(b) : order.length;
-                return indexB - indexA;
+                return indexA - indexB;
             };
             column.sorterParams = columnSorter.order;
         }
