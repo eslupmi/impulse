@@ -98,7 +98,7 @@ class SlackApplication(Application):
         sleep(self.post_delay)
         return response.json().get('ts')
 
-    def buttons_handler(self, payload, incidents, queue_, route):
+    async def buttons_handler(self, payload, incidents, queue_, route):
         if payload.get('token') != slack_verification_token:
             logger.error(f'Unauthorized request to \'/slack\'')
             return JSONResponse({}, status_code=401)
@@ -113,7 +113,7 @@ class SlackApplication(Application):
 
         for action in actions:
             if action['name'] == 'chain':
-                queue_.delete_by_id(incident_.uuid, delete_steps=True, delete_status=False)
+                await queue_.delete_by_id(incident_.uuid, delete_steps=True, delete_status=False)
                 if incident_.chain_enabled or incident_.status != 'resolved':
                     logger.info(f'Incident {incident_.uuid} -> button TAKE IT pressed')
                     incident_.assign_user_id(user_id)

@@ -130,7 +130,7 @@ async def handle_app_buttons(request: Request):
             payload = await request.json()
 
         # Note: This needs to be made async in the messenger implementation
-        return request.app.state.messenger.buttons_handler(
+        return await request.app.state.messenger.buttons_handler(
             payload,
             request.app.state.incidents,
             request.app.state.queue,
