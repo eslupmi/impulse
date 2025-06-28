@@ -268,10 +268,10 @@ class Incident:
 
     def update_state(self, alert_state: Dict) -> (bool, bool):
         update_status = self.update_status(alert_state['status'])
-        update_state = self.last_state != alert_state
-        if update_state:
+        state_updated = self.last_state != alert_state
+        if state_updated:
             self.last_state = alert_state
-        return update_status, update_state
+        return update_status, state_updated
 
     def set_status(self, status: str):
         self.status = status
