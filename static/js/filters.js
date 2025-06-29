@@ -2,6 +2,7 @@ import {table} from "./table.js";
 import {ZOOM_IN_ICON, ZOOM_OUT_ICON} from "./constants.js";
 
 const symbolicOperators = ["=", ">", "<", ">=", "<=", "!=", "=~", "!~"];
+let defaultFilters = [];
 // Mapping of custom filter operators to Tabulator's built-in operators
 const tabulatorOperators = {
     "=": "=",
@@ -62,7 +63,6 @@ function customResponsiveDataFilter(rowData, parameters) {
     const { field, value, operator } = parameters;
     const searchValue = value.toLowerCase();
 
-    // Helper function to check if a label matches
     const labelMatches = (labelValue) => {
         const labelStr = String(labelValue).toLowerCase();
         switch (operator) {
@@ -89,21 +89,18 @@ function customResponsiveDataFilter(rowData, parameters) {
         }
     };
 
-    // Check group labels
     if (responsiveData.group_labels && responsiveData.group_labels[field]) {
         if (labelMatches(responsiveData.group_labels[field])) {
             return true;
         }
     }
 
-    // Check common labels
     if (responsiveData.common_labels && responsiveData.common_labels[field]) {
         if (labelMatches(responsiveData.common_labels[field])) {
             return true;
         }
     }
 
-    // Check alert labels
     if (responsiveData.alerts) {
         for (const alert of responsiveData.alerts) {
             if (alert.labels && alert.labels[field]) {
@@ -119,13 +116,18 @@ function customResponsiveDataFilter(rowData, parameters) {
 
 // Initialize filters from URL
 function loadFiltersFromArrayToURL(filters) {
+    defaultFilters = [...filters];
+    
     const urlParams = new URLSearchParams(window.location.search);
-    const activeFilters = urlParams.get("filters") ? urlParams.get("filters").split(",") : [];
+    const urlFilters = urlParams.get("filters") ? urlParams.get("filters").split(",") : [];
 
-    if (!activeFilters.length) {
-        urlParams.set("filters", filters.join(","));
-        window.history.replaceState({}, "", `?${urlParams.toString()}`);
+    if (urlFilters.length > 0) {
+        urlFilters.forEach(filter => addFilterUI(filter));
+    } else if (filters.length > 0) {
+        filters.forEach(filter => addFilterUI(filter));
     }
+    
+    applyFilters();
 }
 
 // Initialize filters from URL
@@ -139,7 +141,6 @@ function loadFiltersFromURL() {
 
 // Improved filter parsing logic
 function parseFilterString(filterString) {
-    // Match filters in the form: key operator value (with optional quotes)
     const match = filterString.match(/^(.+?)(=~|!~|=|!=|like|keywords|starts|ends|<|<=|>|>=|in|regex)(.*)$/);
 
     if (!match) {
@@ -155,11 +156,52 @@ function parseFilterString(filterString) {
     return {field, operator, value};
 }
 
+// Check if current filters match default filters
+function isDefaultFilters(currentFilters) {
+    if (currentFilters.length !== defaultFilters.length) return false;
+    
+    return currentFilters.every(filter => defaultFilters.includes(filter));
+}
+
+// Get current filters from URL only
+function getURLFilters() {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get("filters") ? urlParams.get("filters").split(",").filter(f => f.trim()) : [];
+}
+
+// Get all active filters (default + URL filters, with URL taking precedence)
+function getCurrentFilters() {
+    const urlFilters = getURLFilters();
+    
+    if (urlFilters.length > 0) {
+        return urlFilters;
+    }
+    
+    return [...defaultFilters];
+}
+
+// Update filters in URL, avoiding default and empty filters
+function updateFiltersInURL(filters) {
+    const urlParams = new URLSearchParams(window.location.search);
+    
+    const cleanFilters = filters.filter(f => f && f.trim());
+    
+    if (cleanFilters.length === 0) {
+        urlParams.delete("filters");
+    } else if (isDefaultFilters(cleanFilters)) {
+        urlParams.delete("filters");
+    } else {
+        urlParams.set("filters", cleanFilters.join(","));
+    }
+    
+    const queryString = urlParams.toString();
+    const newUrl = queryString ? `${window.location.pathname}?${queryString}` : window.location.pathname;
+    window.history.replaceState({}, "", newUrl);
+}
 
 // Apply filters to Tabulator table
 function applyFilters() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const filters = urlParams.get("filters") ? urlParams.get("filters").split(",") : [];
+    const filters = getCurrentFilters();
 
     table.clearFilter();
     showFilterError(null);
@@ -171,11 +213,9 @@ function applyFilters() {
 
             value = value.replace(/^["']|["']$/g, '');
             
-            // Check if the field exists in the table columns
             const columnExists = table.getColumns().some(col => col.getField() === field);
             
             if (!columnExists) {
-                // If field doesn't exist in columns, try to filter using responsive data
                 if (operator === "=~" || operator === "!~") {
                     if (!isValidRegex(value)) {
                         showFilterError(`Invalid regex: ${value}`);
@@ -204,7 +244,6 @@ function applyFilters() {
         }
     });
     
-    // Update zoom icons after applying filters
     updateZoomIcons();
 }
 
@@ -224,16 +263,13 @@ function updateFilterLayout() {
 function addFilterUI(filter) {
     const filterContainer = document.getElementById("filter-container");
 
-    // Create filter element
     const filterElement = document.createElement("div");
     filterElement.classList.add("filter-badge");
 
-    // Filter text
     const filterText = document.createElement("span");
     filterText.innerText = filter;
     filterElement.appendChild(filterText);
 
-    // Remove button
     const removeButton = document.createElement("span");
     removeButton.classList.add("cross");
     removeButton.innerText = "";
@@ -246,12 +282,20 @@ function addFilterUI(filter) {
 
 // Remove a filter from the UI and URL
 function removeFilter(filter, filterElement) {
-    const urlParams = new URLSearchParams(window.location.search);
-    let filters = urlParams.get("filters") ? urlParams.get("filters").split(",") : [];
-
-    filters = filters.filter(f => f !== filter);
-    urlParams.set("filters", filters.join(","));
-    window.history.replaceState({}, "", `?${urlParams.toString()}`);
+    const currentFilters = getCurrentFilters();
+    const urlFilters = getURLFilters();
+    
+    const remainingFilters = currentFilters.filter(f => f !== filter);
+    
+    let newUrlFilters;
+    
+    if (urlFilters.length === 0) {
+        newUrlFilters = remainingFilters;
+    } else {
+        newUrlFilters = remainingFilters;
+    }
+    
+    updateFiltersInURL(newUrlFilters);
 
     filterElement.remove();
     applyFilters();
@@ -279,13 +323,11 @@ function addFilterFromInput() {
 
     const formattedFilter = symbolicOperators.includes(operator) ? `${field}${operator}${value}` : `${field} ${operator} ${value}`;
 
-    const urlParams = new URLSearchParams(window.location.search);
-    let filters = urlParams.get("filters") ? urlParams.get("filters").split(",") : [];
+    const currentFilters = getCurrentFilters();
 
-    if (!filters.includes(formattedFilter)) {
-        filters.push(formattedFilter);
-        urlParams.set("filters", filters.join(","));
-        window.history.replaceState({}, "", `?${urlParams.toString()}`);
+    if (!currentFilters.includes(formattedFilter)) {
+        const newFilters = [...currentFilters, formattedFilter];
+        updateFiltersInURL(newFilters);
 
         addFilterUI(formattedFilter);
         applyFilters();
@@ -302,15 +344,13 @@ function setupFilterContainerScroll() {
     const leftArrow = document.querySelector(".scroll-arrow.left");
     const rightArrow = document.querySelector(".scroll-arrow.right");
     
-    // Check if all required elements exist
     if (!filterContainer || !leftArrow || !rightArrow || !scrollableFilters) {
         console.warn("Required elements for filter scrolling not found");
         return;
     }
 
-    const scrollAmount = 200; // Amount to scroll on each click
+    const scrollAmount = 200;
 
-    // Setup arrow click handlers
     leftArrow.onclick = () => {
         filterContainer.scrollBy({
             left: -scrollAmount,
@@ -325,13 +365,11 @@ function setupFilterContainerScroll() {
         });
     };
 
-    // Handle mouse wheel scrolling
     filterContainer.addEventListener("wheel", (e) => {
         e.preventDefault();
         filterContainer.scrollLeft += e.deltaY;
     });
 
-    // Function to update arrow visibility
     function updateArrowVisibility() {
         const hasFilters = filterContainer.children.length > 0;
         scrollableFilters.classList.toggle("has-filters", hasFilters);
@@ -340,11 +378,8 @@ function setupFilterContainerScroll() {
         const rightWrapper = document.querySelector(".arrow-wrapper.right");
         
         if (hasFilters) {
-            // Show left arrow if we're not at the start
             leftWrapper.classList.toggle("visible", filterContainer.scrollLeft > 0);
-            
-            // Show right arrow if we're not at the end
-            // Use a small threshold to account for rounding errors
+
             const isAtEnd = Math.abs(filterContainer.scrollWidth - filterContainer.clientWidth - filterContainer.scrollLeft) < 2;
             rightWrapper.classList.toggle("visible", !isAtEnd);
         } else {
@@ -353,20 +388,16 @@ function setupFilterContainerScroll() {
         }
     }
 
-    // Show/hide arrows based on scroll position and filter presence
     filterContainer.addEventListener("scroll", updateArrowVisibility);
 
-    // Update arrow visibility when filters are added or removed
     const observer = new MutationObserver(updateArrowVisibility);
     observer.observe(filterContainer, { childList: true, subtree: true });
 
-    // Initial arrow visibility
     updateArrowVisibility();
 }
 
 // Initialize all filter functionality
 function initializeFilters() {
-    // Wait for a short moment to ensure DOM is fully rendered
     setTimeout(() => {
         setupFilterContainerScroll();
         setupFilterEventListeners();
@@ -375,7 +406,6 @@ function initializeFilters() {
 
 // Update the setupTableFiltering function to include scroll setup
 export function setupTableFiltering() {
-    // Wait for DOM to be fully loaded
     if (document.readyState === "loading") {
         document.addEventListener("DOMContentLoaded", initializeFilters);
     } else {
@@ -385,7 +415,6 @@ export function setupTableFiltering() {
 
 // Separate the event listener setup into its own function
 function setupFilterEventListeners() {
-    // Add a filter from the input field
     document.getElementById("filter-input").addEventListener("keypress", function (event) {
         if (event.key === "Enter") {
             addFilterFromInput();
@@ -394,7 +423,6 @@ function setupFilterEventListeners() {
 
     document.getElementById("add-filter-btn").addEventListener("click", addFilterFromInput);
 
-    // Add filtering from table clicks - only when clicking the zoom icon
     table.on("cellClick", (e, cell) => {
         if (cell.getElement().classList.contains("unclickable-cell")) return;
         if (e.target.tagName === "A") {
@@ -402,7 +430,6 @@ function setupFilterEventListeners() {
             return;
         }
         
-        // Check if the click was on a zoom icon or its SVG/path elements
         const isZoomIcon = e.target.classList.contains("zoom-icon") || 
                            e.target.closest(".zoom-icon") !== null;
         
@@ -412,13 +439,11 @@ function setupFilterEventListeners() {
         const value = cell.getValue();
         const newFilter = `${field}="${value}"`;
 
-        const urlParams = new URLSearchParams(window.location.search);
-        let filters = urlParams.get("filters") ? urlParams.get("filters").split(",") : [];
+        const currentFilters = getCurrentFilters();
 
-        if (!filters.includes(newFilter)) {
-            filters.push(newFilter);
-            urlParams.set("filters", filters.join(","));
-            window.history.replaceState({}, "", `?${urlParams.toString()}`);
+        if (!currentFilters.includes(newFilter)) {
+            const newFilters = [...currentFilters, newFilter];
+            updateFiltersInURL(newFilters);
 
             addFilterUI(newFilter);
             applyFilters();
@@ -432,8 +457,7 @@ function setupFilterEventListeners() {
 
 // Function to update zoom icons based on current filters
 function updateZoomIcons() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const filters = urlParams.get("filters") ? urlParams.get("filters").split(",") : [];
+    const filters = getCurrentFilters();
     
     // Get all cells in the table
     const cells = table.getRows().flatMap(row => row.getCells());
