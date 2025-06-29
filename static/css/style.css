@@ -476,7 +476,7 @@ element.style {
 /* Theme Toggle Button */
 .theme-toggle-wrapper {
     position: fixed;
-    bottom: 20px;
+    bottom: 3px;
     right: 20px;
     z-index: 1000;
 }
@@ -495,7 +495,7 @@ element.style {
     background: transparent;
     display: block;
     border-radius: 12px;
-    border: 2px solid var(--focus-shadow);
+    border: 2px solid var(--brand-primary);
     position: relative;
     transition: all 0.3s ease;
 }
@@ -511,7 +511,7 @@ element.style {
     left: 2px;
     width: 15px;
     height: 15px;
-    background: var(--focus-shadow);
+    background: var(--brand-primary);
     border-radius: 50%;
     transition: transform 0.3s ease;
 }
@@ -549,6 +549,11 @@ element.style {
     background-color: var(--background-secondary) !important;
 }
 
+.tabulator-footer .tabulator-footer-contents .tabulator-paginator {
+    justify-content: center;
+    display: flex;
+}
+
 .tabulator-footer button {
     color: var(--text-primary) !important;
     background-color: var(--brand-primary) !important;
@@ -562,6 +567,5 @@ element.style {
 }
 
 .tabulator-footer button:hover {
-    background-color: var(--brand-secondary) !important;
-    color: var(--text-inverse) !important;
+    background: var(--hover-primary) !important;
 }
