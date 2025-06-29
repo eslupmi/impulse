@@ -17,25 +17,24 @@ class Matcher:
             self.regex = re.compile(self.expr)
 
     def matches(self, alert_state):
-        if self.type == '=':
-            if alert_state.get('commonLabels').get(self.label) == self.expr:
-                return True
-            else:
-                return False
-        elif self.type == '!=':
-            if alert_state.get('commonLabels').get(self.label) == self.expr:
-                return False
-            else:
-                return True
-        elif self.type == '=~':
-            expr = alert_state.get('commonLabels').get(self.label)
-            if self.regex.match(expr):
-                return True
-            else:
-                return False
+        common_labels = alert_state.get('commonLabels')
+        if common_labels is None:
+            label_value = None
         else:
-            expr = alert_state.get('commonLabels').get(self.label)
-            if self.regex.match(expr):
+            label_value = common_labels.get(self.label)
+
+        if self.type == '=':
+            return label_value == self.expr
+        elif self.type == '!=':
+            return label_value != self.expr
+        elif self.type == '=~':
+            if label_value is None:
                 return False
-            else:
+            return bool(self.regex.match(label_value))
+        elif self.type == '!~':
+            if label_value is None:
                 return True
+            return not bool(self.regex.match(label_value))
+        else:
+            logger.warning(f'Unknown matcher type \"{self.type}\" in matcher \"{self.label} {self.type} {self.expr}\"')
+            return False
