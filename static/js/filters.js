@@ -2,7 +2,6 @@ import {table} from "./table.js";
 import {ZOOM_IN_ICON, ZOOM_OUT_ICON} from "./constants.js";
 
 const symbolicOperators = ["=", ">", "<", ">=", "<=", "!=", "=~", "!~"];
-let defaultFilters = [];
 // Mapping of custom filter operators to Tabulator's built-in operators
 const tabulatorOperators = {
     "=": "=",
@@ -116,18 +115,15 @@ function customResponsiveDataFilter(rowData, parameters) {
 
 // Initialize filters from URL
 function loadFiltersFromArrayToURL(filters) {
-    defaultFilters = [...filters];
-    
     const urlParams = new URLSearchParams(window.location.search);
-    const urlFilters = urlParams.get("filters") ? urlParams.get("filters").split(",") : [];
+    const activeFilters = urlParams.get("filters") ? urlParams.get("filters").split(",") : [];
 
-    if (urlFilters.length > 0) {
-        urlFilters.forEach(filter => addFilterUI(filter));
-    } else if (filters.length > 0) {
-        filters.forEach(filter => addFilterUI(filter));
+    if (!activeFilters.length && filters.length > 0) {
+        urlParams.set("filters", filters.join(","));
+        const queryString = urlParams.toString();
+        const newUrl = queryString ? `${window.location.pathname}?${queryString}` : window.location.pathname;
+        window.history.replaceState({}, "", newUrl);
     }
-    
-    applyFilters();
 }
 
 // Initialize filters from URL
@@ -156,39 +152,21 @@ function parseFilterString(filterString) {
     return {field, operator, value};
 }
 
-// Check if current filters match default filters
-function isDefaultFilters(currentFilters) {
-    if (currentFilters.length !== defaultFilters.length) return false;
-    
-    return currentFilters.every(filter => defaultFilters.includes(filter));
-}
 
-// Get current filters from URL only
-function getURLFilters() {
+
+// Get current filters from URL
+function getCurrentFilters() {
     const urlParams = new URLSearchParams(window.location.search);
     return urlParams.get("filters") ? urlParams.get("filters").split(",").filter(f => f.trim()) : [];
 }
 
-// Get all active filters (default + URL filters, with URL taking precedence)
-function getCurrentFilters() {
-    const urlFilters = getURLFilters();
-    
-    if (urlFilters.length > 0) {
-        return urlFilters;
-    }
-    
-    return [...defaultFilters];
-}
-
-// Update filters in URL, avoiding default and empty filters
+// Update filters in URL
 function updateFiltersInURL(filters) {
     const urlParams = new URLSearchParams(window.location.search);
     
     const cleanFilters = filters.filter(f => f && f.trim());
     
     if (cleanFilters.length === 0) {
-        urlParams.delete("filters");
-    } else if (isDefaultFilters(cleanFilters)) {
         urlParams.delete("filters");
     } else {
         urlParams.set("filters", cleanFilters.join(","));
@@ -282,20 +260,9 @@ function addFilterUI(filter) {
 
 // Remove a filter from the UI and URL
 function removeFilter(filter, filterElement) {
-    const currentFilters = getCurrentFilters();
-    const urlFilters = getURLFilters();
-    
-    const remainingFilters = currentFilters.filter(f => f !== filter);
-    
-    let newUrlFilters;
-    
-    if (urlFilters.length === 0) {
-        newUrlFilters = remainingFilters;
-    } else {
-        newUrlFilters = remainingFilters;
-    }
-    
-    updateFiltersInURL(newUrlFilters);
+    let filters = getCurrentFilters();
+    filters = filters.filter(f => f !== filter);
+    updateFiltersInURL(filters);
 
     filterElement.remove();
     applyFilters();
@@ -323,11 +290,11 @@ function addFilterFromInput() {
 
     const formattedFilter = symbolicOperators.includes(operator) ? `${field}${operator}${value}` : `${field} ${operator} ${value}`;
 
-    const currentFilters = getCurrentFilters();
+    let filters = getCurrentFilters();
 
-    if (!currentFilters.includes(formattedFilter)) {
-        const newFilters = [...currentFilters, formattedFilter];
-        updateFiltersInURL(newFilters);
+    if (!filters.includes(formattedFilter)) {
+        filters.push(formattedFilter);
+        updateFiltersInURL(filters);
 
         addFilterUI(formattedFilter);
         applyFilters();
@@ -439,11 +406,11 @@ function setupFilterEventListeners() {
         const value = cell.getValue();
         const newFilter = `${field}="${value}"`;
 
-        const currentFilters = getCurrentFilters();
+        let filters = getCurrentFilters();
 
-        if (!currentFilters.includes(newFilter)) {
-            const newFilters = [...currentFilters, newFilter];
-            updateFiltersInURL(newFilters);
+        if (!filters.includes(newFilter)) {
+            filters.push(newFilter);
+            updateFiltersInURL(filters);
 
             addFilterUI(newFilter);
             applyFilters();
