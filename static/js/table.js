@@ -20,8 +20,7 @@ const tableOptions = {
     responsiveLayoutCollapseUseFormatters: false,
     sortOrderReverse:true,
     placeholder:"No Data Available",
-    paginationSize: 10,
-    paginationSizeSelector:[10, 20, 50, 100],
+    paginationSize: 20,
     renderVertical: 'basic',
 };
 
