@@ -569,3 +569,9 @@ element.style {
 .tabulator-footer button:hover {
     background: var(--hover-primary) !important;
 }
+
+.tabulator-placeholder-contents {
+    width: 1242px;
+    margin-left: 0px;
+    margin-top: 50px;
+}

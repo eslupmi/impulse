@@ -20,7 +20,7 @@ const tableOptions = {
     responsiveLayoutCollapseFormatter: responsiveLayoutCollapseFormatter,
     responsiveLayoutCollapseUseFormatters: false,
     sortOrderReverse:true,
-    placeholder:"No Data Available",
+    placeholder:"No Incidents",
     renderVertical: 'basic',
 };
 
