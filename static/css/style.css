@@ -20,6 +20,7 @@ body {
     background: var(--background-primary);
     overflow: hidden;
     width: 100%;
+    height: 100%;
     max-width: 100%;
     margin-right: 10px;
 }
@@ -475,7 +476,7 @@ element.style {
 /* Theme Toggle Button */
 .theme-toggle-wrapper {
     position: fixed;
-    bottom: 20px;
+    bottom: 3px;
     right: 20px;
     z-index: 1000;
 }
@@ -494,7 +495,7 @@ element.style {
     background: transparent;
     display: block;
     border-radius: 12px;
-    border: 2px solid var(--focus-shadow);
+    border: 2px solid var(--brand-primary);
     position: relative;
     transition: all 0.3s ease;
 }
@@ -510,7 +511,7 @@ element.style {
     left: 2px;
     width: 15px;
     height: 15px;
-    background: var(--focus-shadow);
+    background: var(--brand-primary);
     border-radius: 50%;
     transition: transform 0.3s ease;
 }
@@ -537,4 +538,40 @@ element.style {
 .theme-toggle-track-sun,
 .theme-toggle-track-moon {
     display: none;
+}
+
+.tabulator-footer {
+    background-color: var(--background-secondary) !important;
+    border-top: 1px solid var(--table-border) !important;
+}
+
+.tabulator-footer .tabulator-footer-contents {
+    background-color: var(--background-secondary) !important;
+}
+
+.tabulator-footer .tabulator-footer-contents .tabulator-paginator {
+    justify-content: center;
+    display: flex;
+}
+
+.tabulator-footer button {
+    color: var(--text-primary) !important;
+    background-color: var(--brand-primary) !important;
+    border: none !important;
+}
+
+.tabulator-footer button.active {
+    color: var(--text-inverse) !important;
+    background-color: var(--brand-primary) !important;
+    border: none !important;
+}
+
+.tabulator-footer button:hover {
+    background: var(--hover-primary) !important;
+}
+
+.tabulator-placeholder-contents {
+    width: 1242px;
+    margin-left: 0px;
+    margin-top: 50px;
 }

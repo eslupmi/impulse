@@ -1,9 +1,8 @@
 import {table} from "./table.js";
+const defaultSorting = [];
 
 // Apply sorting to the Tabulator instance
 function initializeSorting(columns, sorters) {
-    const defaultSorting = [];
-    
     columns.forEach(column => {
         const columnSorter = sorters.find(sorter => sorter.column === column.field);
         if (columnSorter?.order) {
@@ -31,8 +30,11 @@ function initializeSorting(columns, sorters) {
     if (urlSorters.length > 0) {
         table.setSort(urlSorters);
     } else if (defaultSorting.length > 0) {
-        saveSortingToURL(defaultSorting);
-        table.setSort(defaultSorting.reverse());
+        const defaultSortingCopy = defaultSorting.map(sorter => ({
+            column: sorter.column,
+            dir: sorter.dir
+        }));
+        table.setSort(defaultSortingCopy);
     }
 }
 
@@ -46,7 +48,9 @@ function saveSortingToURL(sorters) {
         urlParams.delete("sort");
     }
     
-    window.history.replaceState({}, "", `${window.location.pathname}?${urlParams}`);
+    const queryString = urlParams.toString();
+    const newUrl = queryString ? `${window.location.pathname}?${queryString}` : window.location.pathname;
+    window.history.replaceState({}, "", newUrl);
 }
 
 // Load sorting from URL
@@ -62,6 +66,16 @@ function loadSortingFromURL() {
     });
 }
 
+// Check if current sorting matches default sorting
+function isDefaultSorting(sorters) {
+    if (sorters.length !== defaultSorting.length) return false;
+    
+    return sorters.every((sorter, index) => {
+        const defaultSorter = defaultSorting[index];
+        return sorter.column === defaultSorter.column && sorter.dir === defaultSorter.dir;
+    });
+}
+
 // Attach listener to update URL on manual sorting
 function setupSortingListener() {
     table.on("dataSorted", (sorters, rows) => {
@@ -69,7 +83,13 @@ function setupSortingListener() {
             column: sorter.field,
             dir: sorter.dir,
         }));
-        saveSortingToURL(urlSorters);
+        
+        // Don't save to URL if it matches default sorting
+        if (isDefaultSorting(urlSorters)) {
+            saveSortingToURL([]); // Clear sorting from URL
+        } else {
+            saveSortingToURL(urlSorters);
+        }
     });
 }
 

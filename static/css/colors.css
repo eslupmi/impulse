@@ -46,8 +46,8 @@
     --status-success: #4caf50;
 
     /* Status Badge Colors */
-    --status-badge-firing: #F04438;
-    --status-badge-resolved: #23C040;
+    --status-badge-firing: #f61f1f;
+    --status-badge-resolved: #56c15e;
     
     /* Component-specific Colors */
     --header-background: var(--brand-primary-light);

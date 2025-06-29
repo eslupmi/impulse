@@ -23,6 +23,10 @@
     color: var(--brand-primary);
 }
 
+.zoom-icon.hidden {
+    display: none;
+}
+
 /* Cell container styles */
 .cell-container {
     display: flex;

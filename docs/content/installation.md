@@ -97,7 +97,7 @@ Modify `impulse.yml` with your data. See all configurations options [here](confi
 === "python"
 
     ```bash
-    gunicorn -w 1 -b 0.0.0.0:5000 wsgi:app
+    uvicorn main:app --host 0.0.0.0 --port 5000 --workers 1
     ```
 
 === "docker"
