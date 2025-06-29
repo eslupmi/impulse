@@ -12,13 +12,17 @@ const relativeFields = [];
 
 const tableOptions = {
     layout: "fitColumns",
+    pagination:"local",
     index: "uuid",
     responsiveLayout: "collapse",
     responsiveLayoutCollapseStartOpen: false,
     responsiveLayoutCollapseFormatter: responsiveLayoutCollapseFormatter,
     responsiveLayoutCollapseUseFormatters: false,
     sortOrderReverse:true,
-    renderVertical:"basic",
+    placeholder:"No Data Available",
+    paginationSize: 10,
+    paginationSizeSelector:[10, 20, 50, 100],
+    renderVertical: 'basic',
 };
 
 const table = new Tabulator("#data-table", tableOptions);
