@@ -539,3 +539,29 @@ element.style {
 .theme-toggle-track-moon {
     display: none;
 }
+
+.tabulator-footer {
+    background-color: var(--background-secondary) !important;
+    border-top: 1px solid var(--table-border) !important;
+}
+
+.tabulator-footer .tabulator-footer-contents {
+    background-color: var(--background-secondary) !important;
+}
+
+.tabulator-footer button {
+    color: var(--text-primary) !important;
+    background-color: var(--brand-primary) !important;
+    border: none !important;
+}
+
+.tabulator-footer button.active {
+    color: var(--text-inverse) !important;
+    background-color: var(--brand-primary) !important;
+    border: none !important;
+}
+
+.tabulator-footer button:hover {
+    background-color: var(--brand-secondary) !important;
+    color: var(--text-inverse) !important;
+}

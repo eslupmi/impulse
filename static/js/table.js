@@ -12,7 +12,8 @@ const relativeFields = [];
 
 const tableOptions = {
     layout: "fitColumns",
-    pagination:"local",
+    pagination: "local",
+    paginationSize: 25,
     index: "uuid",
     responsiveLayout: "collapse",
     responsiveLayoutCollapseStartOpen: false,
@@ -20,7 +21,6 @@ const tableOptions = {
     responsiveLayoutCollapseUseFormatters: false,
     sortOrderReverse:true,
     placeholder:"No Data Available",
-    paginationSize: 20,
     renderVertical: 'basic',
 };
 
