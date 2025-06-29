@@ -17,6 +17,7 @@ const tableOptions = {
     responsiveLayoutCollapseStartOpen: false,
     responsiveLayoutCollapseFormatter: responsiveLayoutCollapseFormatter,
     responsiveLayoutCollapseUseFormatters: false,
+    sortOrderReverse:true,
 };
 
 const table = new Tabulator("#data-table", tableOptions);

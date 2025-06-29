@@ -450,20 +450,25 @@ function updateZoomIcons() {
         
         const value = cell.getValue();
         
-        // Check if this cell value is currently filtered with exact match (=)
-        const filterForThisCell = filters.find(f => {
-            const match = f.match(/^(.+?)(=)(.*)$/);
-            if (match) {
-                const [, fieldName, operator, filterValue] = match;
-                const trimmedValue = filterValue.trim().replace(/^["']|["']$/g, '');
-                return fieldName.trim() === field && trimmedValue === value;
-            }
-            return false;
-        });
-        
-        // Find the zoom icon in this cell
         const zoomIcon = cell.getElement().querySelector(".zoom-icon");
         if (zoomIcon) {
+            if (!value || value === '' || value === null || value === undefined) {
+                zoomIcon.classList.add("hidden");
+                return;
+            }
+            
+            zoomIcon.classList.remove("hidden");
+            
+            const filterForThisCell = filters.find(f => {
+                const match = f.match(/^(.+?)(=)(.*)$/);
+                if (match) {
+                    const [, fieldName, operator, filterValue] = match;
+                    const trimmedValue = filterValue.trim().replace(/^["']|["']$/g, '');
+                    return fieldName.trim() === field && trimmedValue === value;
+                }
+                return false;
+            });
+            
             if (filterForThisCell) {
                 zoomIcon.className = "zoom-icon zoom-out";
                 zoomIcon.innerHTML = ZOOM_OUT_ICON;

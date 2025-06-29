@@ -31,8 +31,7 @@ function initializeSorting(columns, sorters) {
     if (urlSorters.length > 0) {
         table.setSort(urlSorters);
     } else if (defaultSorting.length > 0) {
-        saveSortingToURL(defaultSorting);
-        table.setSort(defaultSorting.reverse());
+        table.setSort(defaultSorting);
     }
 }
 
