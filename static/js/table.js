@@ -13,7 +13,7 @@ const relativeFields = [];
 const tableOptions = {
     layout: "fitColumns",
     pagination: "local",
-    paginationSize: Math.floor(document.getElementById("data-table").clientHeight / 45),
+    paginationSize: Math.floor((document.getElementById("data-table").clientHeight - 30) / 45),
     index: "uuid",
     responsiveLayout: "collapse",
     responsiveLayoutCollapseStartOpen: false,
