@@ -274,7 +274,7 @@
 - **description:** chain steps if there are no calendar events at the moment
 - **type:** list
 
-> To use cloud chains you should generate service account file `key.json` (see [instructions](features/google.md#create-project-and-get-keyjson) for google provider) and [add service account to your calendar](features/google.md#set-up-calendar-access-for-your-service-account).
+> To use cloud chains you should generate service account file `key.json` (see [instructions](google.md#create-project-and-get-keyjson) for google provider) and [add service account to your calendar](google.md#set-up-calendar-access-for-your-service-account).
 
 > Create "Event" in calendar. Put chain steps in "Description" using format:
 

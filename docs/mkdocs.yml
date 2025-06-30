@@ -49,8 +49,8 @@ nav:
     - envs.md
     - config_file.md
   - Features:
-    - features/google.md
-    - features/ui.md
+    - google.md
+    - ui.md
   - concepts.md
   - versioning.md
 - Workflow:
