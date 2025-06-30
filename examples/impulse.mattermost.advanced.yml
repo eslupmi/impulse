@@ -1,5 +1,4 @@
 # Configuration details:   https://docs.impulse.bot/latest/config_file/
-# Examples:                https://docs.impulse.bot/latest/config_examples/
 
 application:
   type: mattermost

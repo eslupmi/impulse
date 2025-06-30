@@ -49,7 +49,6 @@ nav:
     - envs.md
     - config_file.md
   - Features:
-    - features.md
     - features/google.md
     - features/ui.md
   - concepts.md

@@ -168,18 +168,18 @@
 >         - {steps: [{user: Oleg }]} # full Sunday and 00:00 to 12:00 every day
 > ```
 
-##### &lt;schedule chain&gt;.type *
+##### application.chains[].type *
 
 - **description:** set chain type using `type: schedule`
 - **type:** string
 
-##### &lt;schedule chain&gt;.timezone
+##### application.chains[].timezone
 
 - **description:** time zone in "TZ identifier" format (details [here](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#Time_zone_abbreviations))
 - **type:** string
 - **default value:** UTC
 
-##### &lt;schedule chain&gt;.schedule
+##### application.chains[].schedule
 
 - **description:** list of matchers with corresponding steps. IMPulse evaluates matchers from top to bottom. If a `matcher` matches the current time, the corresponding `steps` defined for that `matcher` are selected.
 - **type:** list
@@ -252,22 +252,24 @@
 > - `CHAIN_PROVIDER_SYNC_INTERVAL_SECONDS`
 > - `GOOGLE_SERVICE_ACCOUNT_FILE`
 
-##### &lt;cloud chain&gt;.type *
+##### application.chains[].type *
 
 - **description:** set chain type using `type: cloud`
 - **type:** string
 
-##### &lt;cloud chain&gt;.provider *
+##### application.chains[].provider *
 
-- **description:** cloud calendar provider. Available values: "google" only
+- **description:** cloud calendar provider
 - **type:** string
+- **options:**
+    - `google` only
 
-##### &lt;cloud chain&gt;.calendar_id *
+##### application.chains[].calendar_id *
 
 - **description:** calendar ID. Get it on calendar settings page
 - **type:** string
 
-##### &lt;cloud chain&gt;.default_steps
+##### application.chains[].default_steps
 
 - **description:** chain steps if there are no calendar events at the moment
 - **type:** list
@@ -451,7 +453,7 @@
 
 - **description:** enables the chain and restarts it when new alerts are added to an incident
 - **type:** bool
-- **default value:** `False`
+- **default value:** False
 
 ## incident
 
@@ -561,29 +563,29 @@
 - **description:** list of routing rules based on matchers to determine which channel and chain to use for incidents
 - **type:** list
 
-#### &lt;route&gt;.matchers
+#### route.routes[].matchers
 
 - **description:** conditions to match alert fields using Python regex patterns
 - **type:** list
 
-#### &lt;route&gt;.channel
+#### route.routes[].channel
 
 - **description:** [channel](#applicationchannels) where incidents will be created if they match the matchers
 - **type:** string
 
-#### &lt;route&gt;.chain
+#### route.routes[].chain
 
 - **description:** [chain](#applicationchains) to notify users if incidents match the matchers
 - **type:** string
 
-#### &lt;route&gt;.routes
+#### route.routes[].routes
 
 - **description:** nested routing rules for more detailed incident classification (recursive structure)
 - **type:** list
 
 ## ui
 
-- **description:** UI configuration
+- **description:** user interface configuration. The `ui:` block enables the web interface
 - **type:** dict
 
 > **Example**:
@@ -645,12 +647,55 @@
 - **type:** list
 
 > Columns enabled in UI
-> 
-> Every column must contain two fields: `name` and `value`. Using `name` you can filter 
-> 
-> There are 3 types of columns: `string` (default), `datetime`, `link`.
-> 
-> Set `type: string` to show any text information. `type: datetime` used for datetime fields as `incident.created`
+
+#### ui.columns[].name *
+
+- **description:** unique identifier for the column, used for filtering and sorting
+- **type:** string
+
+#### ui.columns[].header *
+
+- **description:** display name shown in the column header
+- **type:** string
+
+#### ui.columns[].value *
+
+- **description:** data source variable (e.g., `incident.status`, `payload.commonLabels.alertname`)
+- **type:** string
+
+> Two special keywords are used: `incident` and `payload`. `incident` refers to the incident object. You can view example objects at `http://localhost:5000/incidents`. `payload` is the last message sent by Alertmanager for this incident (`payload` corresponds to `incident.last_state`)
+
+#### ui.columns[].type
+
+- **description:** column data type that determines how the value is rendered
+- **type:** string
+- **default value:** `string`
+- **options:**
+    - `string` - plain text
+    - `datetime` - date/time values with [formatting options](#uicolumnsformat)
+    - `link` - clickable links (requires [url](#uicolumnsurl) field)
+
+#### ui.columns[].visible
+
+- **description:** whether the column is visible by default in the UI
+- **type:** boolean
+- **default value:** True
+
+#### ui.columns[].url
+
+- **description:** variable containing the required link (e.g., `incident.link`) (used with `type: link`)
+- **type:** string
+
+#### ui.columns[].format
+
+- **description:** formatting option for datetime columns (used with `type: datetime`)
+- **type:** string
+- **default value:** relative
+- **options:**
+    - `absolute` - full date and time
+    - `relative` - relative time (e.g., "2h ago")
+
+> **Example**:
 > 
 > ```yaml
 > ui:
@@ -663,7 +708,6 @@
 >     - name: created
 >       type: datetime
 >       header: Created
->       # format: absolute
 >       value: incident.created
 >     - name: alertname
 >       header: Alertname
@@ -761,17 +805,17 @@
 >       public_key: '{{ env["ZVONOK_PUBLIC_KEY"] }}'
 > ```
 
-### &lt;webhook&gt;.auth
+### webhooks[].auth
 
 - **description:** string for HTTP Basic Auth (e.g., user:password)
 - **type:** string
 
-### &lt;webhook&gt;.url *
+### webhooks[].url *
 
 - **description:** URL to which the HTTP POST request will be sent
 - **type:** string
 
-### &lt;webhook&gt;.data
+### webhooks[].data
 
 - **description:** data to be sent in the POST request body
 - **type:** dict

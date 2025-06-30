@@ -6,21 +6,19 @@ The interface uses WebSocket for communication on the `/ws` path. If you use a r
 
 ![None](https://github.com/eslupmi/site/blob/main/static/ui.png?raw=true)
 
-## Features
-
-### Columns
+## Columns
 
 Each incident is represented as a row of selected fields. On the left there is an indicator of the current [status](concepts.md#statuses-and-their-colors), on the right - a button to expand the incident and an indicator of the number of alerts in it.
 
 Columns are selected through [configuration](config_file.md#uicolumns)
 
-### Sorting
+## Sorting
 
 Default values are set in the [configuration file](config_file.md#uisorting).
 
 To change the sort order, click the corresponding key in the column header. If you need to select sorting by multiple columns, select several by holding the **Ctrl** key.
 
-### Filters
+## Filters
 
 Default values are set in the [configuration file](config_file.md#uifilters).
 
