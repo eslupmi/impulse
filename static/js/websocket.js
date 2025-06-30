@@ -24,9 +24,6 @@ function preserveScrollDuringOperation(operation) {
     
     requestAnimationFrame(() => {
         restoreScroll();
-        requestAnimationFrame(() => {
-            restoreScroll();
-        });
     });
     
     return result;
