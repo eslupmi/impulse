@@ -3,6 +3,35 @@ import {updateZoomIcons} from "./filters.js";
 
 let socket;
 
+// Precise scroll position preservation for necessary table operations
+function preserveScrollDuringOperation(operation) {
+    const scrollElement = table.rowManager.element;
+    const savedScrollTop = scrollElement.scrollTop;
+    const savedScrollLeft = scrollElement.scrollLeft;
+    
+    const result = operation();
+
+    const restoreScroll = () => {
+        if (scrollElement.scrollTop !== savedScrollTop) {
+            scrollElement.scrollTop = savedScrollTop;
+        }
+        if (scrollElement.scrollLeft !== savedScrollLeft) {
+            scrollElement.scrollLeft = savedScrollLeft;
+        }
+    };
+    
+    restoreScroll();
+    
+    requestAnimationFrame(() => {
+        restoreScroll();
+        requestAnimationFrame(() => {
+            restoreScroll();
+        });
+    });
+    
+    return result;
+}
+
 // Handle WebSocket Events
 function setupWebSocketEvents() {
     // Create WebSocket connection
@@ -25,29 +54,37 @@ function setupWebSocketEvents() {
 
             switch(eventType) {
                 case "add_row":
-                    table.addRow(data);
-                    table.setSort(table.getSorters());
-                    updateZoomIcons();
+                    preserveScrollDuringOperation(() => {
+                        table.addRow(data);
+                        table.setSort(table.getSorters());
+                        updateZoomIcons();
+                    });
                     break;
                 
                 case "update_row":
-                    table.updateOrAddData([data]);
-                    table.setSort(table.getSorters());
-                    table.refreshFilter();
-                    updateZoomIcons();
+                    preserveScrollDuringOperation(() => {
+                        table.updateOrAddData([data]);
+                        table.setSort(table.getSorters());
+                        table.refreshFilter();
+                        updateZoomIcons();
+                    });
                     break;
                 
                 case "remove_row":
-                    const rows = table.searchRows('uuid', '=', data.uuid);
-                    rows.forEach(row => row.delete());
-                    updateZoomIcons();
+                    preserveScrollDuringOperation(() => {
+                        const rows = table.searchRows('uuid', '=', data.uuid);
+                        rows.forEach(row => row.delete());
+                        updateZoomIcons();
+                    });
                     break;
                 
                 case "update_data":
-                    table.setData(data);
-                    table.setSort(table.getSorters());
-                    table.refreshFilter();
-                    updateZoomIcons();
+                    preserveScrollDuringOperation(() => {
+                        table.updateOrAddData(data);
+                        table.setSort(table.getSorters());
+                        table.refreshFilter();
+                        updateZoomIcons();
+                    });
                     break;
                 
                 default:
