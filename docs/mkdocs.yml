@@ -44,21 +44,23 @@ nav:
   - telegram.md
 - IMPulse Server:
   - installation.md
+  - concepts.md
   - Configuration:
     - alertmanager.md
     - envs.md
     - config_file.md
-    - google.md
+  - Features:
+    - features.md
+    - features/google.md
+    - features/ui.md
+  - versioning.md
+  # - Warnings:
+  #   - warnings/ConnectionError.md
+  #   - warnings/NotDefined.md
+  #   - warnings/NotFound.md
+  #   - warnings/ResponseCode.md
+  #   - warnings/StatusUnknown.md
+  #   - warnings/TimeoutError.md
+- Workflow:
   - best.md
   - howto.md
-  - upgrade.md
-  - versioning.md
-  - Warnings:
-    - warnings/ConnectionError.md
-    - warnings/NotDefined.md
-    - warnings/NotFound.md
-    - warnings/ResponseCode.md
-    - warnings/StatusUnknown.md
-    - warnings/TimeoutError.md
-- About:
-  - concepts.md
