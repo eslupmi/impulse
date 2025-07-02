@@ -261,6 +261,7 @@ class Incident:
             self.status_update_datetime = now + unix_sleep_to_timedelta(incident['timeouts'].get(status))
         if self.status != status:
             self.set_status(status)
+            logger.debug(f'Incident {self.uuid} status updated to {status}')
             self.dump()
             return True
         self.dump()
@@ -271,6 +272,7 @@ class Incident:
         state_updated = self.last_state != alert_state
         if state_updated:
             self.last_state = alert_state
+            logger.debug(f'Incident {self.uuid} state updated to {alert_state}')
         return update_status, state_updated
 
     def set_status(self, status: str):
