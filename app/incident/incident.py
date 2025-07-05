@@ -261,6 +261,7 @@ class Incident:
             self.status_update_datetime = now + unix_sleep_to_timedelta(incident['timeouts'].get(status))
         if self.status != status:
             self.set_status(status)
+            logger.debug(f'Incident {self.uuid} status updated to {status}')
             self.dump()
             return True
         self.dump()
