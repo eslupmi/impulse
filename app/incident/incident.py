@@ -272,6 +272,7 @@ class Incident:
         state_updated = self.last_state != alert_state
         if state_updated:
             self.last_state = alert_state
+            self.dump()
         return update_status, state_updated
 
     def set_status(self, status: str):
