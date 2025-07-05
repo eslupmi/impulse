@@ -11,9 +11,9 @@ If you want to understand how IMPulse works see [Concepts](concepts.md).
 ## Features
 
 - Mattermost, Slack, Telegram integrations
-- Twilio and another integrations using [webhooks](https://docs.impulse.bot/latest/config_file/#webhooks-examples)
-- [Incident lifecycle](https://docs.impulse.bot/latest/concepts/#lifecycle) reduces incidents chaos
-- Scheduling using providers like Google Calendar via [cloud chains](https://docs.impulse.bot/latest/config_file/#cloud-chain)
-- Support for [nested chains](https://docs.impulse.bot/latest/config_file/#nested-chain) with unlimited depth
-- Flexible [message structure](https://docs.impulse.bot/latest/concepts/#structure) you can modify
+- Twilio and another integrations using [webhooks](config_file.md/#webhooks-examples)
+- [Incident lifecycle](concepts.md/#lifecycle) reduces incidents chaos
+- Scheduling using providers like Google Calendar via [cloud chains](config_file.md/#cloud-chain)
+- Support for [nested chains](config_file.md/#nested-chain) with unlimited depth
+- Flexible [message structure](concepts.md/#structure) you can modify
 - Customizable [UI](ui.md) with multi-level sorting and advanced filtering capabilities

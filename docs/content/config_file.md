@@ -677,7 +677,7 @@
 
 #### ui.columns[].visible
 
-- **description:** whether the column is visible by default in the UI
+- **description:** whether the column is visible by default in the UI. Invisible columns can be used in search fields.
 - **type:** boolean
 - **default value:** True
 
