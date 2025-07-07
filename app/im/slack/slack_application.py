@@ -110,6 +110,7 @@ class SlackApplication(Application):
         actions = payload.get('actions')
 
         user_id = payload.get('user')['id']
+        user_name = payload.get('user')['name']
 
         for action in actions:
             if action['name'] == 'chain':
@@ -117,6 +118,7 @@ class SlackApplication(Application):
                 if incident_.chain_enabled or incident_.status != 'resolved':
                     logger.info(f'Incident {incident_.uuid} -> button TAKE IT pressed')
                     incident_.assign_user_id(user_id)
+                    incident_.assign_user(user_name)
                     incident_.chain_enabled = False
                 else:
                     logger.info(f'Incident {incident_.uuid} -> button RELEASE pressed')
