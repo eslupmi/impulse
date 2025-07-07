@@ -2,7 +2,6 @@ import asyncio
 from app.queue.handlers.alert_handler import AlertHandler
 from app.queue.handlers.status_update_handler import StatusUpdateHandler
 from app.queue.handlers.step_handler import StepHandler
-from app.queue.handlers.update_handler import UpdateHandler
 from app.logging import logger
 
 
@@ -22,19 +21,11 @@ class AsyncQueueManager:
         :param route_: Route object
         """
         self.queue = queue
-        self.update_handler = UpdateHandler(self.queue, application, incidents)
         self.step_handler = StepHandler(self.queue, application, incidents, webhooks)
         self.status_update_handler = StatusUpdateHandler(self.queue, application, incidents)
         self.alert_handler = AlertHandler(self.queue, application, incidents, route_)
         self._running = False
         self._task = None
-
-    async def handle_check_update(self, identifier: str):
-        """
-        Handle check update.
-        :param identifier: String identifier.
-        """
-        await self.update_handler.handle(identifier)
 
     async def handle_step(self, uuid_: str, identifier: str):
         """
@@ -75,8 +66,6 @@ class AsyncQueueManager:
                 await self.handle_status_update(uuid_)
             elif type_ == 'chain_step':
                 await self.handle_step(uuid_, identifier)
-            elif type_ == 'check_update' and self.status_update_handler.app.type != 'telegram':
-                await self.handle_check_update(identifier)
             elif type_ == 'alert':
                 await self.handle_alert(data)
         except Exception as e:
