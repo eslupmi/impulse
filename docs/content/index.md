@@ -11,7 +11,7 @@ If you want to understand how IMPulse works see [Concepts](concepts.md).
 ## Features
 
 - Mattermost, Slack, Telegram integrations
-- Twilio and another integrations using [webhooks](config_file.md/#webhooks-examples)
+- Twilio and another integrations using [webhooks](config_file.md/#webhooks)
 - [Incident lifecycle](concepts.md/#lifecycle) reduces incidents chaos
 - Scheduling using providers like Google Calendar via [cloud chains](config_file.md/#cloud-chain)
 - Support for [nested chains](config_file.md/#nested-chain) with unlimited depth
