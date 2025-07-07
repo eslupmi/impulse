@@ -246,17 +246,15 @@ class TelegramApplication(Application):
 
     async def get_user_details(self, user_details):
         id_ = user_details.get('id') if user_details is not None else None
-        logger.debug(f'Getting user details for {id_}')
         exists = False
         if id_ is not None:
             try:
                 async with self.http.get(f'{self.url}/getChat?chat_id={id_}', headers=self.headers) as response:
                     data = await response.json()
-                    logger.debug(f'Response: {data}, status: {response.status}')
                     if response.status == 200 and data.get('ok'):
                         exists = True
                     elif response.status != 200:
-                        logger.warning(f'Failed to get user details for {id_}: HTTP {response.status}, response: {data}')
+                        logger.debug(f'Failed to get user details for {id_}: HTTP {response.status}, response: {data}')
             except aiohttp.ClientError as e:
                 logger.error(f'Failed to get user details for {id_}: {e}')
             except Exception as e:
