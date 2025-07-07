@@ -1,10 +1,8 @@
 # Configuration details:   https://docs.impulse.bot/latest/config_file/
-# Examples:                https://docs.impulse.bot/latest/config_examples/
 
 application:
   type: telegram
   impulse_address: https://<your_impulse_domain> # Due to Telegram's restrictions, only HTTPS is supported
-
   admin_users: ["Dmitry"]
   users:
     Dmitry: {id: 182547693}
@@ -20,7 +18,6 @@ application:
     status_icons: templates/telegram_status_icons.j2
     header: templates/telegram_header.j2
     body: templates/telegram_body.j2
-
   chains:
     devops:
       - user_group: devops
@@ -70,3 +67,34 @@ route:
         - service=~"vscode|pycharm"
       channel: incidents_services
       chain: developers
+
+ui:
+  columns:
+    - name: status
+      header: Status
+      visible: false
+      value: incident.status
+    - name: created
+      type: datetime
+      header: Created
+      value: incident.created
+    - name: alertname
+      header: Alertname
+      type: link
+      url: incident.link
+      value: payload.commonLabels.alertname
+    - name: service
+      header: Service
+      value: payload.commonLabels.service
+    - name: severity
+      header: Severity
+      value: payload.commonLabels.severity
+  sorting:
+    - severity: desc
+      order: ["info", "warning", "critical"]
+    - created: desc
+  colors:
+    severity:
+      critical: "#FF0000"
+      warning: "#FFA500"
+      info: "#00FF00"

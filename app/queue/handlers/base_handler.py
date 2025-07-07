@@ -5,7 +5,7 @@ class BaseHandler(ABC):
     """
     Base class for all handlers
 
-    :param queue: Queue instance
+    :param queue: AsyncQueue instance
     :param application: Application instance
     :param incidents: Incidents instance
     """
@@ -17,5 +17,5 @@ class BaseHandler(ABC):
         self.incidents = incidents
 
     @abstractmethod
-    def handle(self, *args, **kwargs):
+    async def handle(self, *args, **kwargs):
         pass

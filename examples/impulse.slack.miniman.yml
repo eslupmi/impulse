@@ -1,14 +1,18 @@
 # Configuration details:   https://docs.impulse.bot/latest/config_file/
-# Examples:                https://docs.impulse.bot/latest/config_examples/
 
 application:
   type: slack
-
   admin_users: ["Dmitry"]
   users:
     Dmitry: {id: U73MD1YLR4M}
   channels:
     incidents_default: {id: X93QPLZ742MJ}
+
+incident:
+  timeouts:
+    firing: 6h
+    unknown: 6h
+    resolved: 12h
 
 route:
   channel: incidents_default

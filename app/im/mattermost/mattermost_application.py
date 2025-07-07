@@ -1,7 +1,7 @@
-import json
-from time import sleep
+import asyncio
 
-import requests
+import aiohttp
+from fastapi.responses import JSONResponse
 
 from app.im.application import Application
 from app.im.colors import status_colors
@@ -24,18 +24,18 @@ class MattermostApplication(Application):
         self.post_delay = mattermost_request_delay
         self.thread_id_key = 'id'
 
-    def _get_channels(self, team):
+    async def _get_channels(self, team):
         try:
-            response = self.http.get(
+            async with self.http.get(
                 f"{self.url}/api/v4/teams/{team['id']}/channels",
                 params={'per_page': 1000},
                 headers=self.headers
-            )
-            response.raise_for_status()
-            sleep(self.post_delay)
-            data = response.json()
-            return {c.get('name'): c for c in data}
-        except requests.exceptions.RequestException as e:
+            ) as response:
+                response.raise_for_status()
+                await asyncio.sleep(self.post_delay)
+                data = await response.json()
+                return {c.get('name'): c for c in data}
+        except aiohttp.ClientError as e:
             logger.error(f'Failed to retrieve channel list: {e}')
             return {}
 
@@ -49,16 +49,16 @@ class MattermostApplication(Application):
         logger.info(f'Get {self.type.capitalize()} team name')
         return app_config['team']
 
-    def get_user_details(self, user_details):
+    async def get_user_details(self, user_details):
         id_ = user_details.get('id') if user_details is not None else None
         if id_ is not None:
-            response = self.http.get(f'{self.url}/api/v4/users/{id_}?user_id={id_}', headers=self.headers)
-            data = response.json()
-            if response.status_code == 404:
-                exists = False
-            else:
-                exists = True
-            return {'id': id_, 'username': data.get('username'), 'exists': exists}
+            async with self.http.get(f'{self.url}/api/v4/users/{id_}?user_id={id_}', headers=self.headers) as response:
+                data = await response.json()
+                if response.status == 404:
+                    exists = False
+                else:
+                    exists = True
+                return {'id': id_, 'username': data.get('username'), 'exists': exists}
         else:
             return {'id': None, 'username': None, 'exists': False}
 
@@ -88,7 +88,7 @@ class MattermostApplication(Application):
         )
         return admins_text
 
-    def send_message(self, channel_id, text, attachment):
+    async def send_message(self, channel_id, text, attachment):
         payload = {
             'channel_id': channel_id,
             'message': text,
@@ -102,22 +102,23 @@ class MattermostApplication(Application):
                 ]
             }
         }
-        response = self.http.post(f'{self.url}/api/v4/posts', headers=self.headers, data=json.dumps(payload))
-        sleep(self.post_delay)
-        return response.json().get('ts')
+        async with self.http.post(f'{self.url}/api/v4/posts', headers=self.headers, json=payload) as response:
+            await asyncio.sleep(self.post_delay)
+            response_json = await response.json()
+            return response_json.get('ts')
 
-    def buttons_handler(self, payload, incidents, queue_, route):
+    async def buttons_handler(self, payload, incidents, queue_, route):
         post_id = payload['post_id']
         incident_ = incidents.get_by_ts(ts=post_id)
         if incident_ is None:
-            return payload, 200
+            return JSONResponse(payload, status_code=200)
         action = payload['context']['action']
 
         user_name = payload.get('user_name')
         user_id = payload.get('user_id')
 
         if action == 'chain':
-            queue_.delete_by_id(incident_.uuid, delete_steps=True, delete_status=False)
+            await queue_.delete_by_id(incident_.uuid, delete_steps=True, delete_status=False)
             if incident_.chain_enabled or incident_.status != 'resolved':
                 logger.info(f'Incident {incident_.uuid} -> button TAKE IT pressed')
                 incident_.assign_user_id(user_id)
@@ -144,7 +145,7 @@ class MattermostApplication(Application):
             incident_.status,
             incident_.chain_enabled,
             incident_.status_enabled)
-        return payload, 200
+        return JSONResponse(payload, status_code=200)
 
     def _create_thread_payload(self, channel_id, body, header, status_icons, status):
         return mattermost_get_create_thread_payload(channel_id, body, header, status_icons, status)
@@ -157,13 +158,13 @@ class MattermostApplication(Application):
         return mattermost_get_update_payload(channel_id, id_, body, header, status_icons, status, chain_enabled,
                                              status_enabled)
 
-    def _update_thread(self, id_, payload):
-        self.http.put(
+    async def _update_thread(self, id_, payload):
+        async with self.http.put(
             f'{self.url}/api/v4/posts/{id_}',
             headers=mattermost_headers,
-            data=json.dumps(payload)
-        )
-        sleep(self.post_delay)
+            json=payload
+        ) as response:
+            await asyncio.sleep(self.post_delay)
 
     def _markdown_links_to_native_format(self, text):
         return text

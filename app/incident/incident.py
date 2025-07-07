@@ -1,12 +1,15 @@
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Dict, Optional
 
 import yaml
 
+from app.im.colors import status_colors
 from app.incident.helpers import gen_uuid
 from app.time import unix_sleep_to_timedelta
 from app.tools import NoAliasDumper
+from app.ui.websocket import incident_ws
+from app.utils import get_attr_by_key_chain, normalize_param, filter_dict_keys
 from config import incidents_path, incident, INCIDENT_ACTUAL_VERSION
 from app.logging import logger
 
@@ -27,6 +30,7 @@ class Incident:
     status_update_datetime: datetime
     assigned_user_id: str
     assigned_user: str
+    created: datetime = None
     chain: List[Dict] = field(default_factory=list)
     chain_enabled: bool = False
     status_enabled: bool = False
@@ -45,6 +49,8 @@ class Incident:
 
     def __post_init__(self):
         self.uuid = gen_uuid(self.last_state.get('groupLabels'))
+        if not self.created:
+            self.created = datetime.now(timezone.utc)
 
     def set_thread(self, thread_id: str, public_url: str):
         self.ts = thread_id
@@ -68,8 +74,18 @@ class Incident:
             return
 
         chain = chains[chain_name]
-        steps = chain.steps
+        if chain is None:
+            logger.warning(f'Chain {chain_name} is None (possibly invalid configuration). Check impulse.yml')
+            return
+            
+        try:
+            steps = chain.steps
+        except AttributeError:
+            logger.error(f'Chain {chain_name} does not have steps attribute')
+            return
+            
         if not steps:
+            logger.debug(f'Chain {chain_name} has no steps for current time/conditions')
             return
 
         steps = self._unchain(chains, steps)
@@ -171,6 +187,15 @@ class Incident:
         }
         with open(f'{incidents_path}/{self.uuid}.yml', 'w') as f:
             yaml.dump(data, f, NoAliasDumper, default_flow_style=False)
+        # Schedule async websocket update
+        import asyncio
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                asyncio.create_task(incident_ws.update_row(self))
+        except RuntimeError:
+            # No event loop running, skip websocket update
+            pass
 
     def serialize(self) -> Dict:
         return {
@@ -189,6 +214,46 @@ class Incident:
             "ts": self.ts,
         }
 
+    def get_table_data(self, params) -> Dict:
+        alerts = self.last_state.get('alerts', [])
+        if len(alerts) > 1:
+            group_labels = self.last_state.get('groupLabels', {})
+            common_labels = self.last_state.get('commonLabels', {})
+            common_annotations = self.last_state.get('commonAnnotations', {})
+            show_common_block = True
+        else:
+            group_labels = self.last_state.get('groupLabels', {})
+            common_labels = group_labels
+            common_annotations = {}
+            show_common_block = False
+        data = {
+            'uuid': str(self.uuid),
+            'indicator': status_colors.get(self.status),
+            '_alerts_count': len(self.last_state.get('alerts', [])),
+            '_responsive_data': {
+                'group_labels': group_labels,
+                'common_labels': filter_dict_keys(group_labels, common_labels),
+                'common_annotations': common_annotations,
+                'alerts': [
+                    {
+                        'status': alert.get('status', ''),
+                        'startsAt': alert.get('startsAt', ''),
+                        'endsAt': alert.get('endsAt', ''),
+                        'generatorURL': alert.get('generatorURL', ''),
+                        'labels': filter_dict_keys(alert.get('labels', {}), common_labels),
+                        'annotations': filter_dict_keys(alert.get('annotations', {}), common_annotations)
+                    }
+                    for alert in alerts
+                ],
+                'show_common_block': show_common_block
+            }
+        }
+        data_object = {'incident': self, 'payload': self.last_state}
+        for key, value in params.items():
+            param = get_attr_by_key_chain(data_object, None, *value.split('.'))
+            data[key] = normalize_param(param)
+        return data
+
     def update_status(self, status: str) -> bool:
         now = datetime.utcnow()
         self.updated = now
@@ -196,6 +261,7 @@ class Incident:
             self.status_update_datetime = now + unix_sleep_to_timedelta(incident['timeouts'].get(status))
         if self.status != status:
             self.set_status(status)
+            logger.debug(f'Incident {self.uuid} status updated to {status}')
             self.dump()
             return True
         self.dump()
@@ -203,10 +269,11 @@ class Incident:
 
     def update_state(self, alert_state: Dict) -> (bool, bool):
         update_status = self.update_status(alert_state['status'])
-        update_state = self.last_state != alert_state
-        if update_state:
+        state_updated = self.last_state != alert_state
+        if state_updated:
             self.last_state = alert_state
-        return update_status, update_state
+            self.dump()
+        return update_status, state_updated
 
     def set_status(self, status: str):
         self.status = status

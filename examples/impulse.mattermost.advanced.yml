@@ -1,12 +1,10 @@
 # Configuration details:   https://docs.impulse.bot/latest/config_file/
-# Examples:                https://docs.impulse.bot/latest/config_examples/
 
 application:
   type: mattermost
   team: KOMANDA
   address: https://<your_mattermost_domain>
   impulse_address: https://<your_impulse_domain>
-
   admin_users: ["Dmitry"]
   users:
     Dmitry: {id: ic8pft3ac7rjrd9eopxp4kc7qy}
@@ -22,7 +20,6 @@ application:
     status_icons: templates/mattermost_status_icons.j2
     header: templates/mattermost_header.j2
     body: templates/mattermost_body.j2
-
   chains:
     devops:
       - user_group: devops
@@ -72,3 +69,34 @@ route:
         - service=~"vscode|pycharm"
       channel: incidents_services
       chain: developers
+
+ui:
+  columns:
+    - name: status
+      header: Status
+      visible: false
+      value: incident.status
+    - name: created
+      type: datetime
+      header: Created
+      value: incident.created
+    - name: alertname
+      header: Alertname
+      type: link
+      url: incident.link
+      value: payload.commonLabels.alertname
+    - name: service
+      header: Service
+      value: payload.commonLabels.service
+    - name: severity
+      header: Severity
+      value: payload.commonLabels.severity
+  sorting:
+    - severity: desc
+      order: ["info", "warning", "critical"]
+    - created: desc
+  colors:
+    severity:
+      critical: "#FF0000"
+      warning: "#FFA500"
+      info: "#00FF00"

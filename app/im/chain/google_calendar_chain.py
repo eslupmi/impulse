@@ -9,7 +9,6 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3 import Retry
 
-from app.async_manager import AsyncManager
 from app.im.chain.schedule_chain import ScheduleChain
 from app.logging import logger
 from app.tools import HTMLTextExtractor
@@ -102,39 +101,22 @@ class GoogleCalendarChain(ScheduleChain):
     def start_sync(self) -> None:
         """Start the sync task in the background."""
         if self._sync_task is None:
-            async_manager = AsyncManager.get_instance()
-            self._sync_task = async_manager.create_task(self._sync_calendar())
-            if self._sync_task is None:
-                logger.error(f"Failed to start Google Calendar sync task for {self.name}")
-            else:
-                logger.info(f"Started Google Calendar sync task for {self.name}")
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    self._sync_task = asyncio.create_task(self._sync_calendar())
+                    logger.info(f"Started Google Calendar sync task for {self.name}")
+                else:
+                    logger.warning(f"Event loop not running, cannot start sync task for {self.name}")
+            except RuntimeError:
+                logger.error(f"Failed to start Google Calendar sync task for {self.name} - no event loop")
 
     def stop_sync(self) -> None:
         """Stop the sync task."""
         if self._sync_task is not None:
             self._sync_task.cancel()
-            try:
-                # Just cancel the task, don't try to run the loop
-                if not self._sync_task.done():
-                    # Schedule a callback to check task completion
-                    def check_task():
-                        if self._sync_task.done():
-                            self._sync_task = None
-                            logger.info(f"Stopped Google Calendar sync task for {self.name}")
-                        else:
-                            # Reschedule the check
-                            loop = asyncio.get_event_loop()
-                            loop.call_later(0.1, check_task)
-
-                    # Start checking task
-                    loop = asyncio.get_event_loop()
-                    loop.call_soon_threadsafe(check_task)
-                else:
-                    self._sync_task = None
-                    logger.info(f"Stopped Google Calendar sync task for {self.name}")
-            except Exception as e:
-                logger.error(f"Error while stopping sync task: {str(e)}")
-                self._sync_task = None
+            self._sync_task = None
+            logger.info(f"Stopped Google Calendar sync task for {self.name}")
 
     def cleanup(self) -> None:
         """Cleanup resources when shutting down."""

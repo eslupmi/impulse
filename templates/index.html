@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IMPulse</title>
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+    <!-- External Libraries -->
+    <script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
+    <link href="https://unpkg.com/tabulator-tables@6.3.1/dist/css/tabulator.min.css" rel="stylesheet">
+    <script type="text/javascript" src="https://unpkg.com/tabulator-tables@6.3.1/dist/js/tabulator.min.js"></script>
+    <!-- Custom Styles -->
+    <link rel="stylesheet" type="text/css" href="/static/css/style.css">
+    <link rel="stylesheet" type="text/css" href="/static/css/filters.css">
+    <link rel="stylesheet" type="text/css" href="/static/css/responsive.css">
+</head>
+<body>
+    <div id="table-wrapper">
+        <div id="filter-wrapper">
+            <div id="scrollable-filters">
+                <div class="arrow-wrapper left">
+                    <button class="scroll-arrow left">
+                        <svg width="8" height="14" viewBox="0 0 8 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M7 13L1 7L7 1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                </div>
+                <div id="filter-container"></div>
+                <div class="arrow-wrapper right">
+                    <button class="scroll-arrow right">
+                        <svg width="8" height="14" viewBox="0 0 8 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M1 1L7 7L1 13" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div class="filter-controls">
+                <div class="filter-input-wrapper">
+                    <input id="filter-input" type="text" placeholder='severity=~"critical|warning"'>
+                    <button id="add-filter-btn">
+                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M10.5 10.5L8.325 8.325M9.5 5.5C9.5 7.70914 7.70914 9.5 5.5 9.5C3.29086 9.5 1.5 7.70914 1.5 5.5C1.5 3.29086 3.29086 1.5 5.5 1.5C7.70914 1.5 9.5 3.29086 9.5 5.5Z" stroke="#EBF7FC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div id="filter-error" class="hidden"></div>
+        <div id="data-table"></div>
+    </div>
+    <div class="theme-toggle-wrapper">
+        <input type="checkbox" id="theme-toggle" class="theme-toggle-input" />
+        <label for="theme-toggle" class="theme-toggle-label" title="Toggle theme"></label>
+    </div>
+    <script src="/static/js/main.js" type="module" defer></script>
+</body>
+</html>

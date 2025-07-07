@@ -1,0 +1,346 @@
+.responsive-collapse {
+    padding: 10px;
+    font-size: 14px;
+    display: flex;
+    justify-content: space-between;
+    background: var(--background-tertiary);
+}
+
+.alerts-wrapper {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.collapse-section {
+    margin-bottom: 20px;
+}
+
+.collapse-section h3 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0 0 10px 0;
+    color: var(--text-primary);
+}
+
+.collapse-content {
+    padding-left: 10px;
+}
+
+.collapse-item {
+    margin-bottom: 10px;
+}
+
+.collapse-item strong {
+    color: var(--text-secondary);
+    margin-right: 5px;
+}
+
+.collapse-labels {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 5px;
+}
+
+.label-item {
+    background-color: var(--background-tertiary);
+    border: 1px solid var(--border-secondary);
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 12px;
+    color: var(--text-primary);
+    display: inline-block;
+}
+
+/* Tabulator specific overrides */
+.tabulator-responsive-collapse {
+    border-top: 1px solid var(--border-secondary);
+    border-bottom: 1px solid var(--border-secondary);
+    background-color: var(--background-tertiary);
+    margin-top: -1px;
+    position: relative;
+    overflow: visible !important;
+}
+
+.tabulator-responsive-collapse-toggle {
+    position: relative;
+    padding: 8px !important;
+    box-sizing: border-box;
+    width: 30px;
+    max-width: 30px;
+    background: none !important;
+}
+
+.tabulator-responsive-collapse-toggle-open {
+    fill: transparent !important;
+    stroke: transparent !important;
+}
+
+.tabulator-responsive-collapse-toggle-close {
+    fill: transparent !important;
+    stroke: transparent !important;
+}
+
+.tabulator .tabulator-responsive-collapse-toggle::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 10px;
+    height: 10px;
+    border-left: 2px solid var(--text-primary);
+    border-top: 2px solid var(--text-primary);
+    transform: translate(-50%, -50%) rotate(-135deg);
+}
+
+.tabulator .tabulator-responsive-collapse-toggle.open::before {
+    transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.info-block {
+    background-color: var(--neutral-400);
+    border-radius: 8px;
+    padding: 8px;
+}
+
+/* Common info block */
+.common-info-block {
+    width: 500px;
+    padding: 20px 12px;
+}
+
+/* Alert blocks */
+.alert-info-block {
+    width: 330px;
+    padding: 8px 8px 20px 8px;
+}
+
+.labels-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.block-separator {
+    border: none;
+    border-top: 1px solid var(--border-secondary);
+    margin: 8px 0;
+}
+
+.status-badge {
+    display: inline-block;
+    font-size: 0;
+    width: 12px;
+    height: 12px;
+    background-color: var(--status-badge-firing);
+    border-radius: 50%;
+}
+
+.status-badge.firing {
+    background-color: var(--status-badge-firing);
+    color: var(--text-inverse);
+}
+
+.status-badge.resolved {
+    background-color: var(--status-badge-resolved);
+    color: var(--text-inverse);
+}
+
+.alert-header {
+    display: flex;
+    gap: 16px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+    border-bottom: 1px solid var(--border-secondary);
+    justify-content: space-between;
+}
+
+.generator-link {
+    color: var(--link-primary);
+    text-decoration: none;
+    font-size: 12px;
+}
+
+.generator-link:hover {
+    text-decoration: underline;
+    color: var(--link-hover);
+}
+
+.highlighted-labels {
+    margin-bottom: 8px;
+}
+
+.label {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    background: var(--label-background);
+    font-size: 12px;
+    color: var(--label-text);
+}
+
+.label.highlighted {
+    background: var(--label-highlighted-background);
+    color: var(--label-highlighted-text);
+    font-weight: 500;
+}
+
+.block-annotations {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-secondary);
+    position: relative;
+    z-index: 1;
+}
+
+.annotation {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    border: 1px solid var(--annotation-border);
+    font-size: 12px;
+    user-select: text;
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+    position: relative;
+    color: var(--annotation-text);
+}
+
+.annotation.common {
+    max-width: 468px;
+    mask-image: linear-gradient(to right, black 423px, transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, black 423px, transparent 100%);
+}
+
+.annotation.alert {
+    max-width: 311px;
+    mask-image: linear-gradient(to right, black 286px, transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, black 286px, transparent 100%);
+}
+
+.block-labels {
+    margin-bottom: 8px;
+}
+
+/* Tooltip styles */
+.annotation-wrapper,
+.label-wrapper,
+.time-wrapper {
+    position: relative;
+    display: inline-block;
+}
+
+.annotation {
+    user-select: text;
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+}
+
+.tooltip-text {
+    visibility: hidden;
+    background-color: var(--tooltip-background);
+    color: var(--text-inverse);
+    text-align: left;
+    padding: 8px;
+    border-radius: 4px;
+    position: absolute;
+    white-space: pre-wrap;
+    min-width: 200px;
+    max-width: 400px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    font-size: 12px;
+    line-height: 1.4;
+    opacity: 0;
+    transition: opacity 0.2s;
+    pointer-events: none;
+    bottom: calc(100% + 8px);
+}
+
+/* Add invisible bridge between wrapper and tooltip */
+.annotation-wrapper:hover::before,
+.label-wrapper:hover::before,
+.time-wrapper:hover::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 100%;
+    height: 8px;
+    pointer-events: auto;
+}
+
+.annotation-wrapper:hover .tooltip-text,
+.time-wrapper:hover .tooltip-text,
+.label-wrapper:hover .tooltip-text,
+.tooltip-text:hover {
+    visibility: visible;
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* Time tooltip specific styles */
+.time-tooltip {
+    font-family: monospace;
+    white-space: pre;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+/* Ensure tooltip is above other content */
+.block-annotations {
+    position: relative;
+}
+
+.annotation .tooltip-text {
+    position: fixed;
+    transform: translateY(-100%);
+}
+
+/* Make annotations selectable */
+.annotation {
+    user-select: text;
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+    position: relative;
+}
+
+/* Fix annotation tooltip positioning */
+.annotation.tooltip {
+    position: static;
+}
+
+.annotation .tooltip-text {
+    position: fixed;
+    transform: translateY(-100%);
+    margin-top: -8px;
+}
+
+/* Ensure all parent containers allow overflow */
+.block-annotations,
+.block-labels,
+.info-block,
+.alert-info-block,
+.common-info-block,
+.alerts-wrapper,
+.responsive-collapse {
+    overflow: visible !important;
+}
+
+.label.common {
+    max-width: 468px;
+    mask-image: linear-gradient(to right, black 423px, transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, black 423px, transparent 100%);
+}
+
+.label.alert {
+    max-width: 311px;
+    mask-image: linear-gradient(to right, black 286px, transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, black 286px, transparent 100%);
+}

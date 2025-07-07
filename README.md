@@ -1,6 +1,6 @@
 <h1><img alt="Prometheus" src="logo.svg" width="50"> IMPulse</h1>
 
-<div align="center"><img src="https://github.com/eslupmi/site/blob/main/static/preview.png?raw=true" width="700"></div>
+<div align="center"><img src="https://github.com/eslupmi/site/blob/main/static/ui.png?raw=true" width="700"></div>
 
 Visit [docs.impulse.bot](https://docs.impulse.bot) for the full documentation.
 
@@ -9,8 +9,9 @@ Visit [docs.impulse.bot](https://docs.impulse.bot) for the full documentation.
 - Twilio and another integrations using [webhooks](https://docs.impulse.bot/latest/config_file/#webhooks-examples)
 - [Incident lifecycle](https://docs.impulse.bot/latest/concepts/#lifecycle) reduces incidents chaos
 - Scheduling using providers like Google Calendar via [cloud chains](https://docs.impulse.bot/latest/config_file/#cloud-chain)
-- Support for [nested chains](https://docs.impulse.bot/latest/config_file/#simple-chain) with unlimited depth  
+- Support for [nested chains](https://docs.impulse.bot/latest/config_file/#nested-chain) with unlimited depth
 - Flexible [message structure](https://docs.impulse.bot/latest/concepts/#structure) you can modify
+- Customizable UI with multi-level sorting and advanced filtering capabilities
 
 ## Quick Start
 

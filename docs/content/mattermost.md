@@ -12,7 +12,7 @@
     - set **Display Name** to "IMPulse"
     - set **Role** to "System Admin"
     - click **Create Bot Account**
-    - copy the "Token" and use it as the `MATTERMOST_ACCESS_TOKEN` environment variable (see [step 2.3 here](installation.md#23-impulse))
+    - copy the "Token" and use it as the `MATTERMOST_ACCESS_TOKEN` environment variable (see [step 2.3 here](installation.md#3-configure-impulse))
     - click **Done**
 
 ## Configure bot

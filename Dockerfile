@@ -1,4 +1,4 @@
-FROM python:3.12.3
+FROM python:3.12.10
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install -r requirements.txt
@@ -11,4 +11,4 @@ ENV CONFIG_PATH=/config
 VOLUME /data
 VOLUME /config
 
-CMD ["gunicorn", "-w", "1", "-b", "0.0.0.0:5000", "wsgi:app"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "5000", "--workers", "1"]
