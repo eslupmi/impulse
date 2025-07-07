@@ -242,7 +242,7 @@
 
 #### &lt;cloud chain&gt;
 
-- **description:** a chain that allows you to define dynamic chains using calendar providers (e.g., Google).
+- **description:** a chain that allows you to define dynamic chains using calendar providers (e.g., Google). Setup instruction [here](google.md).
 - **type:** dict
 
 > Special ENVs (see [details](envs.md)):
@@ -254,8 +254,10 @@
 
 ##### application.chains[].type *
 
-- **description:** set chain type using `type: cloud`
+- **description:** chain type
 - **type:** string
+- **options:**
+    - `cloud` only
 
 ##### application.chains[].provider *
 
@@ -402,7 +404,6 @@
 ### application.template_files
 
 - **description:** path to custom template files for `status_icons`, `header`, and `body` (see [Incident Structure](concepts.md#structure))
-
 - **type:** dict
 
 > IMPulse uses [jinja2 templates](https://pypi.org/project/Jinja2/) to set messages format. And you can modify it.
@@ -585,7 +586,7 @@
 
 ## ui
 
-- **description:** user interface configuration. The `ui:` block enables the web interface
+- **description:** user interface configuration (see [details](ui.md)). The `ui:` block enables the web interface
 - **type:** dict
 
 > **Example**:

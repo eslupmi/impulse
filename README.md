@@ -11,7 +11,7 @@ Visit [docs.impulse.bot](https://docs.impulse.bot) for the full documentation.
 - Scheduling using providers like Google Calendar via [cloud chains](https://docs.impulse.bot/latest/config_file/#cloud-chain)
 - Support for [nested chains](https://docs.impulse.bot/latest/config_file/#nested-chain) with unlimited depth
 - Flexible [message structure](https://docs.impulse.bot/latest/concepts/#structure) you can modify
-- Customizable UI with multi-level sorting and advanced filtering capabilities
+- Customizable [UI](https://docs.impulse.bot/latest/ui) with multi-column sorting and advanced filtering capabilities
 
 ## Quick Start
 
