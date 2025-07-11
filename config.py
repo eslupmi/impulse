@@ -1,6 +1,5 @@
 import os
 
-import yaml
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -23,23 +22,20 @@ cors_allowed_origins = os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:5000'
 incidents_path = data_path + '/incidents'
 INCIDENT_ACTUAL_VERSION = 'v3.0.0'
 
-with open(f'{config_path}/impulse.yml', 'r') as file:
-    try:
-        settings = yaml.safe_load(file)
+try:
+    from app.config.loader import load_and_validate_config, get_legacy_config_dict
 
-        incident = dict()
-        
-        incident['timeouts'] = dict()
-        incident['timeouts']['firing'] = settings.get('incident', {}).get('timeouts', {}).get('firing', '6h')
-        incident['timeouts']['unknown'] = settings.get('incident', {}).get('timeouts', {}).get('unknown', '6h')
-        incident['timeouts']['resolved'] = settings.get('incident', {}).get('timeouts', {}).get('resolved', '12h')
+    validated_config, raw_config = load_and_validate_config(f'{config_path}/impulse.yml')
+    settings = get_legacy_config_dict(validated_config)
 
-        incident['notifications'] = dict()
-        incident['notifications']['assignment'] = settings.get('incident', {}).get('notifications', {}).get('assignment', True)
-        incident['notifications']['new_firing'] = settings.get('incident', {}).get('notifications', {}).get('new_firing', True)
-        incident['notifications']['partial_resolved'] = settings.get('incident', {}).get('notifications', {}).get('partial_resolved', False)
+    # Extract sections for legacy code
+    incident = settings.get('incident', {})
+    experimental = settings.get('experimental', {})
 
-        application = settings.get('application')
-        ui_config = settings.get('ui', {})
-    except yaml.YAMLError as e:
-        print(f"Error reading YAML file: {e}")
+    application = settings.get('application')
+    ui_config = settings.get('ui', {})
+except Exception as e:
+    print(f"Configuration validation failed: {e}")
+    print("Please check your impulse.yml file and fix any validation errors.")
+    print("Documentation: https://docs.impulse.bot/latest/config_file/")
+    raise SystemExit(1)
