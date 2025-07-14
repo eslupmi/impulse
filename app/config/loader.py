@@ -164,4 +164,5 @@ def validate_config_and_show_errors(config_path: str = None) -> ImpulseConfig:
         raise SystemExit(1)
     except yaml.YAMLError as e:
         print(f"\nYAML parsing error: {e}")
-        raise SystemExit(1) 
+        raise SystemExit(1)
+    

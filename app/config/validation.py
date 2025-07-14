@@ -422,4 +422,4 @@ def validate_config_file(config_path: str) -> ImpulseConfig:
     with open(config_path, 'r', encoding='utf-8') as file:
         config_dict = yaml.safe_load(file)
     
-    return validate_config(config_dict) 
+    return validate_config(config_dict)
