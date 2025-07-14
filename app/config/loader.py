@@ -4,7 +4,7 @@ from typing import Dict, Any, Tuple
 from pydantic import ValidationError
 
 from app.config.validation import ImpulseConfig, validate_config
-
+from app.logging import logger
 
 class ConfigValidationError(Exception):
     """Custom exception for configuration validation errors"""
@@ -160,9 +160,9 @@ def validate_config_and_show_errors(config_path: str = None) -> ImpulseConfig:
         validated_config, _ = load_and_validate_config(config_path)
         return validated_config
     except FileNotFoundError as e:
-        print(f"\nConfiguration file not found: {e}")
+        logger.error(f"\nConfiguration file not found: {e}")
         raise SystemExit(1)
     except yaml.YAMLError as e:
-        print(f"\nYAML parsing error: {e}")
+        logger.error(f"\nYAML parsing error: {e}")
         raise SystemExit(1)
     

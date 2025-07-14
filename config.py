@@ -2,6 +2,8 @@ import os
 
 from dotenv import load_dotenv
 
+from app.logging import logger
+
 load_dotenv()
 
 slack_bot_user_oauth_token = os.getenv('SLACK_BOT_USER_OAUTH_TOKEN')
@@ -10,7 +12,6 @@ mattermost_access_token = os.getenv('MATTERMOST_ACCESS_TOKEN')
 telegram_bot_token = os.getenv('TELEGRAM_BOT_TOKEN')
 data_path = os.getenv('DATA_PATH', default='./data')
 config_path = os.getenv('CONFIG_PATH', default='./')
-log_level = os.getenv('LOG_LEVEL', default='INFO')
 provider_sync_interval = int(os.getenv('CHAIN_PROVIDER_SYNC_INTERVAL_SECONDS', default=60))
 provider_max_events = int(os.getenv('CHAIN_PROVIDER_MAX_EVENTS', default=10))
 provider_days_to_sync = int(os.getenv('CHAIN_PROVIDER_DAYS_TO_SYNC', default=7))
@@ -35,7 +36,5 @@ try:
     application = settings.get('application')
     ui_config = settings.get('ui', {})
 except Exception as e:
-    print(f"Configuration validation failed: {e}")
-    print("Please check your impulse.yml file and fix any validation errors.")
-    print("Documentation: https://docs.impulse.bot/latest/config_file/")
+    logger.error(f"Configuration validation failed: {e}\nPlease check your impulse.yml file and fix any validation errors.\nDocumentation: https://docs.impulse.bot/latest/config_file/")
     raise SystemExit(1)
