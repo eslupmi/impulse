@@ -102,19 +102,20 @@ def get_config() -> UnifiedConfig:
     return _config
 
 
-def load_unified_config(config_path: Optional[str] = None) -> UnifiedConfig:
+def load_unified_config(config_path: Optional[str] = None, exit_on_error: bool = True) -> UnifiedConfig:
     """
     Load and create unified configuration from environment and YAML file.
     
     Args:
         config_path: Optional path to configuration file. Uses env CONFIG_PATH if not provided.
+        exit_on_error: If True, exit process on validation errors. If False, raise exception.
         
     Returns:
         UnifiedConfig: Complete configuration object
         
     Raises:
         ConfigValidationError: If configuration loading or validation fails
-        SystemExit: If configuration is invalid (after logging error)
+        SystemExit: If configuration is invalid and exit_on_error is True
     """
     try:
         env_config = get_environment_config()
@@ -133,19 +134,59 @@ def load_unified_config(config_path: Optional[str] = None) -> UnifiedConfig:
         )
         
     except ConfigValidationError as e:
-        logger.error(f"Configuration validation failed: {e}\n"
+        error_msg = (f"{e}\n"
                     f"Please check your impulse.yml file and fix any validation errors.\n"
                     f"Documentation: https://docs.impulse.bot/latest/config_file/")
-        raise SystemExit(1)
+        if exit_on_error:
+            logger.error(error_msg)
+            raise SystemExit(1)
+        else:
+            logger.warning(error_msg)
+            raise
     except Exception as e:
-        logger.error(f"Failed to load configuration: {e}")
-        raise SystemExit(1)
+        error_msg = f"Failed to load configuration: {e}"
+        if exit_on_error:
+            logger.error(error_msg)
+            raise SystemExit(1)
+        else:
+            logger.warning(error_msg)
+            raise
 
 
-def reload_config(config_path: Optional[str] = None) -> UnifiedConfig:
+def reload_config(config_path: Optional[str] = None) -> bool:
     """
-    Reload configuration from file.
-    Useful for testing or dynamic configuration updates.
+    Reload configuration from file with graceful error handling.
+    If validation fails, keeps the current configuration and logs a warning.
+    
+    Args:
+        config_path: Optional path to configuration file. Uses env CONFIG_PATH if not provided.
+        
+    Returns:
+        bool: True if reload was successful, False if failed and kept old config
+    """
+    global _config
+    current_config = _config
+    
+    try:
+        new_config = load_unified_config(config_path, exit_on_error=False)
+        _config = new_config
+        logger.info("Configuration reloaded successfully")
+        return True
+        
+    except ConfigValidationError as e:
+        logger.warning("Configuration validation failed, keeping current configuration")
+        _config = current_config
+        return False
+    except Exception as e:
+        logger.warning(f"Configuration reload failed, keeping current configuration: {e}")
+        _config = current_config
+        return False
+
+
+def force_reload_config(config_path: Optional[str] = None) -> UnifiedConfig:
+    """
+    Force reload configuration from file (original behavior).
+    Useful for testing or when you want the process to exit on validation errors.
     """
     global _config
     _config = load_unified_config(config_path)
