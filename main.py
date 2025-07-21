@@ -46,10 +46,6 @@ def setup_sighup_handler():
         logger.info("SIGHUP signal not available on this platform")
 
 
-# Override uvicorn's signal handlers
-setup_sighup_handler()
-
-
 def validate_config_only():
     """Validate configuration and exit"""
     try:
@@ -248,6 +244,8 @@ if __name__ == "__main__":
     if args.check:
         validate_config_only()
     else:
+        setup_sighup_handler()
+        
         import uvicorn
 
         configure_uvicorn_logging()
