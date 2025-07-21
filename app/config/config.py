@@ -169,9 +169,13 @@ def reload_config(config_path: Optional[str] = None) -> bool:
     
     try:
         new_config = load_unified_config(config_path, exit_on_error=False)
-        _config = new_config
-        logger.info("Configuration reloaded successfully")
-        return True
+        if new_config.app.application.type == current_config.app.application.type:
+            _config = new_config
+            logger.info("Configuration reloaded successfully")
+            return True
+        else:
+            logger.warning("Application type changed, keeping current configuration")
+            return False
         
     except ConfigValidationError as e:
         logger.warning("Configuration validation failed, keeping current configuration")
