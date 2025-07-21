@@ -18,28 +18,31 @@ from app.route import generate_route
 from app.ui.table_config import get_all_ui_config
 from app.ui.websocket import incident_ws
 from app.webhook import generate_webhooks
-from config import settings, application, ui_config
+from app.config.config import get_config
 
 
 @asynccontextmanager
 async def lifespan(fastapi_app: FastAPI):
     """Manage application lifecycle"""
-    # Initialize components
-    route_dict = settings.get('route')
-    webhooks_dict = settings.get('webhooks')
+    # Get unified configuration
+    config = get_config()
+
+    # Initialize components using structured config
+    route_dict = config.settings.get('route')
+    webhooks_dict = config.settings.get('webhooks')
 
     route = generate_route(route_dict)
-    
+
     channel_manager = ChannelManager()
-    if application.get('type') == 'none':
+    if config.application.get('type') == 'none':
         channels = {'default': {'id': 'default'}}
         default_channel = 'default'
         channel_manager.initialize(['default'], channels, 'default')
     else:
-        channels = channel_manager.initialize(route.get_uniq_channels(), application['channels'], route.channel)
+        channels = channel_manager.initialize(route.get_uniq_channels(), config.application.channels, route.channel)
         default_channel = route.channel
-    
-    messenger = get_application(application, channels, default_channel)
+
+    messenger = get_application(config.application, channels, default_channel)
     await messenger.initialize_async()
     webhooks = generate_webhooks(webhooks_dict)
     incidents = Incidents.create_or_load(messenger.type, messenger.public_url, messenger.team)
@@ -56,6 +59,7 @@ async def lifespan(fastapi_app: FastAPI):
     fastapi_app.state.webhooks = webhooks
     fastapi_app.state.route = route
     fastapi_app.state.channel_manager = channel_manager
+    fastapi_app.state.config = config
 
     # Start background queue processing
     await queue_manager.start_processing()
@@ -89,10 +93,9 @@ app = FastAPI(
     redoc_url=None
 )
 
-if ui_config:
+if get_config().ui_config:
     app.mount("/static", StaticFiles(directory="static"), name="static")
     templates = Jinja2Templates(directory="templates")
-
 
     @app.get("/", response_class=HTMLResponse)
     async def get_index(request: Request):
@@ -166,12 +169,12 @@ async def websocket_endpoint(websocket: WebSocket):
             try:
                 message = json.loads(data)
                 event_type = message.get("event")
-                
+
                 if event_type == "request_data":
                     await incident_ws.handle_request_data(websocket, websocket.app.state.incidents)
                 elif event_type == "ping":
                     await incident_ws.handle_ping(websocket)
-                    
+
             except json.JSONDecodeError:
                 logger.warning(f"Invalid JSON received from WebSocket: {data}")
             except Exception as e:

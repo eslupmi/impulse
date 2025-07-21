@@ -1,11 +1,5 @@
 from jinja2 import Environment
 
-from config import mattermost_access_token
-
-mattermost_headers = {
-    'Content-Type': 'application/json',
-    'Authorization': f'Bearer {mattermost_access_token}',
-}
 buttons = {
     # styles: good, warning, danger, default, primary, and success
     'chain': {

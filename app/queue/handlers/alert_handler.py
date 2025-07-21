@@ -5,7 +5,7 @@ from app.incident.incident import IncidentConfig, Incident
 from app.logging import logger
 from app.queue.handlers.base_handler import BaseHandler
 from app.time import unix_sleep_to_timedelta
-from config import INCIDENT_ACTUAL_VERSION, incident
+from app.config.config import get_config
 
 
 class AlertHandler(BaseHandler):
@@ -33,14 +33,17 @@ class AlertHandler(BaseHandler):
             await self._handle_update(incident_.uuid, incident_, alert_state)
 
     async def _handle_create(self, alert_state):
+        config = get_config()
+
         channel_name, chain_name = self.route.get_route(alert_state)
         channel = self.app.channels[channel_name]
 
         status = alert_state['status']
         updated_datetime = datetime.utcnow()
-        status_update_datetime = datetime.utcnow() + unix_sleep_to_timedelta(incident['timeouts'].get(status))
+        timeout_value = config.incident.timeouts.get(status)
+        status_update_datetime = datetime.utcnow() + unix_sleep_to_timedelta(timeout_value)
 
-        config = IncidentConfig(
+        incident_config = IncidentConfig(
             application_type=self.app.type,
             application_url=self.app.url,
             application_team=self.app.team
@@ -49,7 +52,7 @@ class AlertHandler(BaseHandler):
             payload=alert_state,
             status=status,
             channel_id=channel['id'],
-            config=config,
+            config=incident_config,
             chain=[],
             chain_enabled=True,
             status_enabled=True,
@@ -58,7 +61,7 @@ class AlertHandler(BaseHandler):
             assigned_user_id="",
             assigned_user="",
             assigned_fullname="",
-            version=INCIDENT_ACTUAL_VERSION
+            version=config.INCIDENT_ACTUAL_VERSION
         )
         await self._create_thread(incident_, alert_state)
         incident_.dump()
@@ -75,6 +78,8 @@ class AlertHandler(BaseHandler):
         await self.queue.recreate(status, incident_.uuid, incident_.chain)
 
     async def _handle_update(self, uuid_, incident_, alert_state):
+        config = get_config()
+
         is_new_firing_alerts_added = False
         is_some_firing_alerts_removed = False
         prev_status = incident_.status
@@ -87,12 +92,12 @@ class AlertHandler(BaseHandler):
         await self.queue.recreate(alert_state.get('status'), uuid_, incident_.get_chain())
 
         # Check new alerts firing or old alerts resolved
-        if incident['notifications']['new_firing']:
+        if config.incident.notifications.new_firing:
             is_new_firing_alerts_added = incident_.is_new_firing_alerts_added(alert_state)
-        if incident['notifications']['partial_resolved']:
+        if config.incident.notifications.partial_resolved:
             is_some_firing_alerts_removed = incident_.is_some_firing_alerts_removed(alert_state)
         is_status_updated, is_state_updated = incident_.update_state(alert_state)
-        
+
         if is_state_updated or is_status_updated:
             await self.app.update(
                 uuid_, incident_, alert_state['status'], alert_state, is_status_updated,

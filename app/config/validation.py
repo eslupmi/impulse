@@ -152,6 +152,9 @@ class TemplateFiles(BaseModel):
     header: Optional[str] = Field(None, description="Header template path")
     body: Optional[str] = Field(None, description="Body template path")
 
+    def get(self, key: str, default: str = None) -> str:
+        return getattr(self, key) or default
+
 
 class ApplicationConfig(BaseModel):
     """Application configuration"""
@@ -166,7 +169,7 @@ class ApplicationConfig(BaseModel):
     address: Optional[str] = Field(None, description="Mattermost server address")
     team: Optional[str] = Field(None, description="Mattermost team name")
     impulse_address: Optional[str] = Field(None, description="Impulse callback address")
-    template_files: Optional[TemplateFiles] = Field(None, description="Template files")
+    template_files: Optional[TemplateFiles] = Field(TemplateFiles(status_icons=None, header=None, body=None), description="Template files")
 
     @model_validator(mode='after')
     def validate_type_specific_fields(self):
@@ -255,6 +258,9 @@ class IncidentTimeouts(BaseModel):
     unknown: Optional[str] = Field("6h", description="Unknown timeout")
     resolved: Optional[str] = Field("12h", description="Resolved timeout")
 
+    def get(self, key: str) -> str:
+        return getattr(self, key) or None
+
 
 class IncidentConfig(BaseModel):
     """Incident configuration"""
@@ -297,7 +303,7 @@ class UIColumn(BaseModel):
 class UIConfig(BaseModel):
     """UI configuration"""
     columns: List[UIColumn] = Field(..., description="Column configurations")
-    colors: Optional[Dict[str, Dict[str, str]]] = Field(None, description="Color configurations")
+    colors: Optional[Dict[str, Dict[str, str]]] = Field({None}, description="Color configurations")
     filters: Optional[List[str]] = Field(None, description="Default filters")
     sorting: Optional[List[Dict[str, Union[str, List[str]]]]] = Field(None, description="Sort rules")
 

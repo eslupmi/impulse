@@ -11,7 +11,7 @@ from app.time import unix_sleep_to_timedelta
 from app.tools import NoAliasDumper
 from app.ui.websocket import incident_ws
 from app.utils import get_attr_by_key_chain, normalize_param, filter_dict_keys
-from config import incidents_path, incident, INCIDENT_ACTUAL_VERSION
+from app.config.config import get_config
 from app.logging import logger
 
 
@@ -38,7 +38,7 @@ class Incident:
     status_enabled: bool = False
     updated: datetime = field(default_factory=datetime.utcnow)
     created: datetime = field(default_factory=datetime.utcnow)
-    version: str = INCIDENT_ACTUAL_VERSION
+    version: str = get_config().INCIDENT_ACTUAL_VERSION
     uuid: str = field(init=False)
     ts: str = field(default='')
     link: str = field(default='')
@@ -151,14 +151,15 @@ class Incident:
         return self.update_status(new_status)
 
     @classmethod
-    def load(cls, dump_file: str, config: IncidentConfig):
+    def load(cls, dump_file: str, incident_config: IncidentConfig):
+        config = get_config()
         with open(dump_file, 'r') as f:
             content = yaml.load(f, Loader=yaml.CLoader)
         incident_ = cls(
             payload=content.get('payload'),
             status=content.get('status'),
             channel_id=content.get('channel_id'),
-            config=config,
+            config=incident_config,
             chain=content.get('chain', []),
             chain_enabled=content.get('chain_enabled', False),
             status_enabled=content.get('status_enabled', False),
@@ -168,12 +169,13 @@ class Incident:
             assigned_user_id=content.get('assigned_user_id', ''),
             assigned_user=content.get('assigned_user', ''),
             assigned_fullname=content.get('assigned_fullname', ''),
-            version=content.get('version', INCIDENT_ACTUAL_VERSION)
+            version=content.get('version', config.INCIDENT_ACTUAL_VERSION)
         )
-        incident_.set_thread(content.get('ts'), config.application_url)
+        incident_.set_thread(content.get('ts'), incident_config.application_url)
         return incident_
 
     def dump(self):
+        config = get_config()
         data = {
             "chain_enabled": self.chain_enabled,
             "chain": self.chain,
@@ -190,7 +192,7 @@ class Incident:
             "assigned_fullname": self.assigned_fullname,
             "version": self.version
         }
-        with open(f'{incidents_path}/{self.uuid}.yml', 'w') as f:
+        with open(f'{config.incidents_path}/{self.uuid}.yml', 'w') as f:
             yaml.dump(data, f, NoAliasDumper, default_flow_style=False)
         # Schedule async websocket update
         import asyncio
@@ -272,7 +274,9 @@ class Incident:
         now = datetime.utcnow()
         self.updated = now
         if status != 'closed':
-            self.status_update_datetime = now + unix_sleep_to_timedelta(incident['timeouts'].get(status))
+            config = get_config()
+            timeout_value = config.incident.timeouts.get(status)
+            self.status_update_datetime = now + unix_sleep_to_timedelta(timeout_value)
         if self.status != status:
             self.set_status(status)
             logger.debug(f'Incident {self.uuid} status updated to {status}')

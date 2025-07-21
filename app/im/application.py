@@ -4,26 +4,28 @@ import asyncio
 import aiohttp
 from aiohttp import ClientTimeout, ClientSession
 from aiohttp_retry import ExponentialRetry, RetryClient
+from typing import Union, Dict
 
 from app.im.chain.chain_factory import ChainFactory
 from app.im.groups import generate_user_groups
 from app.im.template import JinjaTemplate, notification_user, notification_user_group, update_status, \
     notification_assignment, notification_unassignment
 from app.logging import logger
+from app.config.validation import ApplicationConfig, MattermostUser, SlackUser, TelegramUser
 from config import incident
 
 
 class Application(ABC):
 
-    def __init__(self, app_config, channels, default_channel):
+    def __init__(self, app_config: ApplicationConfig, channels, default_channel):
         self.http = None  # Will be initialized async
-        self.type = app_config['type']
+        self.type = app_config.type
         self.url = self.get_url(app_config)
         self.public_url = None  # Will be set in async initialization
         self.team = self.get_team_name(app_config)
         self._app_config = app_config  # Store for async initialization
-        self.chains = ChainFactory.generate(app_config.get('chains', dict()))
-        self.templates = app_config.get('template_files', dict())
+        self.chains = ChainFactory.generate(app_config.chains)
+        self.templates = app_config.template_files
         self.body_template, self.header_template, self.status_icons_template = self.generate_template()
 
         # Application-specific parameters
@@ -40,9 +42,9 @@ class Application(ABC):
         self.admin_users = None  # Will be initialized async
 
         # Store config for async initialization
-        self._users_config = app_config['users']
-        self._user_groups_config = app_config.get('user_groups')
-        self._admin_users_config = app_config['admin_users']
+        self._users_config = app_config.users
+        self._user_groups_config = app_config.user_groups
+        self._admin_users_config = app_config.admin_users
 
     async def initialize_async(self):
         """Initialize async components after object creation"""
@@ -65,7 +67,7 @@ class Application(ABC):
         """
         Fetch user details and assign full name to incident.
         Uses incident cache to avoid redundant API calls when possible.
-        
+
         Args:
             incident: The incident to assign the user name to
             user_id: The user ID to fetch the name for
@@ -96,7 +98,7 @@ class Application(ABC):
     async def post_assignment_notification(self, incident_obj, user_id, user_display_name=None):
         """
         Post a notification message to the thread when a user is assigned to an incident.
-        
+
         Args:
             incident_obj: The incident object
             user_id: The user ID that was assigned
@@ -125,7 +127,7 @@ class Application(ABC):
     async def post_unassignment_notification(self, incident_obj):
         """
         Post a notification message to the thread when a user is unassigned from an incident.
-        
+
         Args:
             incident_obj: The incident object
         """
@@ -148,18 +150,18 @@ class Application(ABC):
         except Exception as e:
             logger.error(f'Failed to post unassignment notification for incident {incident_obj.uuid}: {e}')
 
-    def get_url(self, app_config):
+    def get_url(self, app_config: ApplicationConfig):
         return self._get_url(app_config)
 
-    def get_team_name(self, app_config):
+    def get_team_name(self, app_config: ApplicationConfig):
         return self._get_team_name(app_config)
 
-    async def _generate_users(self, users_dict):
+    async def _generate_users(self, users_dict: Dict[str, Union[SlackUser, MattermostUser, TelegramUser]]):
         logger.info(f'Creating users')
 
         users = dict()
         for name, user_info in users_dict.items():
-            if user_info.get('id') is not None:
+            if user_info.id is not None:
                 user_details = await self.get_user_details(user_info)
                 if not user_details['exists']:
                     logger.warning(f'.. user {name} not found in {self.type.capitalize()} and will not be notified')
@@ -285,16 +287,16 @@ class Application(ABC):
         pass
 
     @abstractmethod
-    def _get_url(self, app_config):
+    def _get_url(self, app_config: ApplicationConfig):
         pass
 
     @abstractmethod
-    def _get_public_url(self, app_config):
+    def _get_public_url(self, app_config: ApplicationConfig):
         """Get the public URL of the application to share with users."""
         pass
 
     @abstractmethod
-    def _get_team_name(self, app_config):
+    def _get_team_name(self, app_config: ApplicationConfig):
         pass
 
     @abstractmethod
@@ -338,7 +340,7 @@ class Application(ABC):
         pass
 
     @abstractmethod
-    async def get_user_details(self, user_details):
+    async def get_user_details(self, user_info: Union[SlackUser, MattermostUser, TelegramUser]):
         """Fetch user-specific details (ID, name, etc.) from the system. Must be implemented by subclasses."""
         pass
 

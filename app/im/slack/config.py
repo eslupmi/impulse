@@ -1,11 +1,5 @@
 from jinja2 import Environment
 
-from config import slack_bot_user_oauth_token
-
-slack_headers = {
-    'Content-Type': 'application/json',
-    'Authorization': f'Bearer {slack_bot_user_oauth_token}',
-}
 buttons = {
     # styles: normal, danger, primary
     'chain': {

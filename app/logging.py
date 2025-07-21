@@ -51,6 +51,13 @@ def configure_uvicorn_logging():
         logger_obj.propagate = False
 
 
-log_level = os.getenv('LOG_LEVEL', default='INFO')
-log_level = getattr(logging, log_level.upper(), logging.INFO)
+try:
+    from app.config.environment import get_environment_config
+    env_config = get_environment_config()
+    log_level = getattr(logging, env_config.log_level, logging.INFO)
+except ImportError:
+    # Fallback for cases where the config system isn't available yet
+    log_level = os.getenv('LOG_LEVEL', default='INFO')
+    log_level = getattr(logging, log_level.upper(), logging.INFO)
+
 logger = create_logger('main_logger', log_level)

@@ -1,40 +1,37 @@
-import os
+"""
+Impulse Configuration Module
 
-from dotenv import load_dotenv
+This module provides backward-compatible access to both environment and application configuration.
+Environment configuration (secrets, paths, etc.) is loaded from environment variables.
+Application configuration (business logic) is loaded from YAML files and validated.
+"""
 
-from app.logging import logger
+from app.config.config import get_config
 
-load_dotenv()
+# Load the unified configuration
+config = get_config()
 
-slack_bot_user_oauth_token = os.getenv('SLACK_BOT_USER_OAUTH_TOKEN')
-slack_verification_token = os.getenv('SLACK_VERIFICATION_TOKEN')
-mattermost_access_token = os.getenv('MATTERMOST_ACCESS_TOKEN')
-telegram_bot_token = os.getenv('TELEGRAM_BOT_TOKEN')
-data_path = os.getenv('DATA_PATH', default='./data')
-config_path = os.getenv('CONFIG_PATH', default='./')
-provider_sync_interval = int(os.getenv('CHAIN_PROVIDER_SYNC_INTERVAL_SECONDS', default=60))
-provider_max_events = int(os.getenv('CHAIN_PROVIDER_MAX_EVENTS', default=10))
-provider_days_to_sync = int(os.getenv('CHAIN_PROVIDER_DAYS_TO_SYNC', default=7))
-provider_service_account_file = os.getenv('GOOGLE_SERVICE_ACCOUNT_FILE', default="./key.json")
+# Legacy environment variables (for backward compatibility)
+slack_bot_user_oauth_token = config.slack_bot_user_oauth_token
+slack_verification_token = config.slack_verification_token
+mattermost_access_token = config.mattermost_access_token
+telegram_bot_token = config.telegram_bot_token
+data_path = config.data_path
+config_path = config.config_path
+provider_sync_interval = config.provider_sync_interval
+provider_max_events = config.provider_max_events
+provider_days_to_sync = config.provider_days_to_sync
+provider_service_account_file = config.provider_service_account_file
+cors_allowed_origins = config.cors_allowed_origins
+incidents_path = config.incidents_path
 
-# Get CORS allowed origins from environment variable, default to localhost
-cors_allowed_origins = os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:5000').split(',')
+# Legacy application configuration (for backward compatibility)
+settings = config.settings
+incident = config.incident
+experimental = config.experimental
+application = config.application
+ui_config = config.ui_config
 
-incidents_path = data_path + '/incidents'
-INCIDENT_ACTUAL_VERSION = 'v3.0.0'
-
-try:
-    from app.config.loader import load_and_validate_config, get_legacy_config_dict
-
-    validated_config, raw_config = load_and_validate_config(f'{config_path}/impulse.yml')
-    settings = get_legacy_config_dict(validated_config)
-
-    # Extract sections for legacy code
-    incident = settings.get('incident', {})
-    experimental = settings.get('experimental', {})
-
-    application = settings.get('application')
-    ui_config = settings.get('ui', {})
-except Exception as e:
-    logger.error(f"Configuration validation failed: {e}\nPlease check your impulse.yml file and fix any validation errors.\nDocumentation: https://docs.impulse.bot/latest/config_file/")
-    raise SystemExit(1)
+# Constants
+INCIDENT_ACTUAL_VERSION = config.INCIDENT_ACTUAL_VERSION
+check_updates = config.check_updates

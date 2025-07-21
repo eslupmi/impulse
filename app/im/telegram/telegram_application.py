@@ -7,7 +7,8 @@ from app.im.application import Application
 from app.im.telegram.config import buttons
 from app.im.telegram.user import User
 from app.logging import logger
-from config import telegram_bot_token, application
+from app.config.config import get_config
+from app.config.validation import ApplicationConfig, TelegramUser
 
 
 class TelegramApplication(Application):
@@ -18,11 +19,11 @@ class TelegramApplication(Application):
         '5408906741125490282': '🏁' # closed
     }
 
-    def __init__(self, app_config, channels, users):
+    def __init__(self, app_config: ApplicationConfig, channels, users):
         super().__init__(app_config, channels, users)
 
     def _initialize_specific_params(self):
-        self.url += telegram_bot_token
+        self.url += get_config().telegram_bot_token
         self.post_message_url = self.url + '/sendMessage'
         self.headers = {'Content-Type': 'application/json'}
         self.post_delay = 0.15
@@ -33,13 +34,13 @@ class TelegramApplication(Application):
         await super().initialize_async()
         await self._setup_webhook()
 
-    def _get_url(self, app_config):
+    def _get_url(self, app_config: ApplicationConfig):
         return 'https://api.telegram.org/bot'
 
-    def _get_public_url(self, app_config):
+    def _get_public_url(self, app_config: ApplicationConfig):
         return 'https://api.telegram.org/bot'
 
-    def _get_team_name(self, app_config):
+    def _get_team_name(self, app_config: ApplicationConfig):
         return None
 
     def get_notification_destinations(self):
@@ -258,12 +259,12 @@ class TelegramApplication(Application):
             if response.status != 200:
                 logger.debug(f'Failed to get user details for {id_}: HTTP {response.status}')
                 return {'id': id_, 'exists': False, 'full_name': None, 'username': None}
-            
+
             data = await response.json()
             if not data.get('ok'):
                 logger.debug(f'Telegram API error for user {id_}: {data.get("description", "unknown error")}')
                 return {'id': id_, 'exists': False, 'full_name': None, 'username': None}
-            
+
             chat_data = data.get('result', {})
             first_name = chat_data.get('first_name', '').strip()
             last_name = chat_data.get('last_name', '').strip()
@@ -278,10 +279,11 @@ class TelegramApplication(Application):
         )
 
     async def _setup_webhook(self):
+        config = get_config()
         try:
             async with self.http.post(
                 f'{self.url}/setWebhook',
-                params={'url': f"{application.get('impulse_address')}/app"},
+                params={'url': f"{config.application.impulse_address}/app"},
                 headers=self.headers
             ) as response:
                 await asyncio.sleep(self.post_delay)
