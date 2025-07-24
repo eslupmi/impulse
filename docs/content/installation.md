@@ -18,7 +18,7 @@ We support integrations with [Mattermost](mattermost.md), [Slack](slack.md) and 
 
     === "Slack"
         ```bash
-        git clone --branch <release_tag> --single-branch git@github.com:DiTsi/impulse.git impulse
+        git clone --branch <release_tag> --single-branch https://github.com/eslupmi/impulse.git impulse
         cd impulse
         # for advanced configuration
         cp examples/impulse.slack.advanced.yml impulse.yml
@@ -29,7 +29,7 @@ We support integrations with [Mattermost](mattermost.md), [Slack](slack.md) and 
 
     === "Mattermost"
         ```bash
-        git clone --branch <release_tag> --single-branch git@github.com:DiTsi/impulse.git impulse
+        git clone --branch <release_tag> --single-branch https://github.com/eslupmi/impulse.git impulse
         cd impulse
         # for advanced configuration
         cp examples/impulse.mattermost.advanced.yml impulse.yml
@@ -40,7 +40,7 @@ We support integrations with [Mattermost](mattermost.md), [Slack](slack.md) and 
 
     === "Telegram"
         ```bash
-        git clone --branch <release_tag> --single-branch git@github.com:DiTsi/impulse.git impulse
+        git clone --branch <release_tag> --single-branch https://github.com/eslupmi/impulse.git impulse
         cd impulse
         # for advanced configuration
         cp examples/impulse.telegram.advanced.yml impulse.yml
