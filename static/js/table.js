@@ -21,11 +21,14 @@ const tableOptions = {
     responsiveLayoutCollapseFormatter: responsiveLayoutCollapseFormatter,
     responsiveLayoutCollapseUseFormatters: false,
     sortOrderReverse:true,
-    placeholder:"No Incidents",
+    placeholder: function() {
+        return table.initialDataLoaded ? "No Incidents" : "Loading incidents...";
+    },
     renderVertical: 'basic',
 };
 
 const table = new Tabulator("#data-table", tableOptions);
+table.initialDataLoaded = false;
 
 // Custom sorters
 const sorterMap = {

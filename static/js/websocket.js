@@ -39,7 +39,8 @@ function setupWebSocketEvents() {
 
     socket.onopen = function(event) {
         console.log('WebSocket connected');
-        // Request initial data
+        table.initialDataLoaded = false;
+        table.redraw();
         socket.send(JSON.stringify({event: "request_data"}));
     };
 
@@ -78,6 +79,9 @@ function setupWebSocketEvents() {
                 case "update_data":
                     preserveScrollDuringOperation(() => {
                         table.updateOrAddData(data);
+                        if (!table.initialDataLoaded) {
+                            table.initialDataLoaded = true;
+                        }
                         table.setSort(table.getSorters());
                         table.refreshFilter();
                         updateZoomIcons();
