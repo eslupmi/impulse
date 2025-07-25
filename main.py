@@ -87,7 +87,7 @@ async def periodic_update_check(fastapi_app: FastAPI):
 
 app = FastAPI(
     title="IMPulse",
-    description="Incident Management Platform",
+    description="Incident Management Program",
     version="0.0.0",
     lifespan=lifespan,
     docs_url=None,
