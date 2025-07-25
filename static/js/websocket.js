@@ -3,6 +3,20 @@ import {updateZoomIcons} from "./filters.js";
 
 let socket;
 
+// Update online status indicator
+function updateOnlineStatus(isOnline) {
+    const indicator = document.querySelector('.online-status-indicator');
+    if (indicator) {
+        if (isOnline) {
+            indicator.textContent = 'online';
+            indicator.className = 'online-status-indicator online';
+        } else {
+            indicator.textContent = 'offline';
+            indicator.className = 'online-status-indicator offline';
+        }
+    }
+}
+
 // Precise scroll position preservation for necessary table operations
 function preserveScrollDuringOperation(operation) {
     const scrollElement = table.rowManager.element;
@@ -39,6 +53,7 @@ function setupWebSocketEvents() {
 
     socket.onopen = function(event) {
         console.log('WebSocket connected');
+        updateOnlineStatus(true);
         // Request initial data
         socket.send(JSON.stringify({event: "request_data"}));
     };
@@ -94,13 +109,15 @@ function setupWebSocketEvents() {
 
     socket.onclose = function(event) {
         console.log('WebSocket disconnected');
+        updateOnlineStatus(false);
         // Attempt to reconnect after 3 seconds
         setTimeout(setupWebSocketEvents, 3000);
     };
 
     socket.onerror = function(error) {
         console.error('WebSocket error:', error);
+        updateOnlineStatus(false);
     };
 }
 
-export {setupWebSocketEvents};
+export {setupWebSocketEvents, updateOnlineStatus};
