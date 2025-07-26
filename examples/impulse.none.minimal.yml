@@ -1,0 +1,16 @@
+application:
+  type: none
+
+route:
+  channel: default
+
+ui:
+  enabled: true
+
+incident:
+  timeouts:
+    firing: 6h
+    unknown: 6h
+    resolved: 12h
+
+webhooks: {}

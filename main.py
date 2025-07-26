@@ -29,8 +29,16 @@ async def lifespan(fastapi_app: FastAPI):
     webhooks_dict = settings.get('webhooks')
 
     route = generate_route(route_dict)
-    channels = check_channels(route.get_uniq_channels(), application['channels'], route.channel)
-    messenger = get_application(application, channels, route.channel)
+    
+
+    if application.get('type') == 'none':
+        channels = {'default': {'id': 'default'}}
+        default_channel = 'default'
+    else:
+        channels = check_channels(route.get_uniq_channels(), application['channels'], route.channel)
+        default_channel = route.channel
+    
+    messenger = get_application(application, channels, default_channel)
     await messenger.initialize_async()
     webhooks = generate_webhooks(webhooks_dict)
     incidents = Incidents.create_or_load(messenger.type, messenger.public_url, messenger.team)
