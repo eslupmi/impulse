@@ -442,8 +442,13 @@
 
 ### application.type *
 
-- **description:** messenger type (`mattermost`, `slack` or `telegram`)
+- **description:** messenger type
 - **type:** string
+- **options:**
+    - `slack` - Slack messenger
+    - `mattermost` - Mattermost messenger
+    - `telegram` - Telegram messenger
+    - `none` - disable messenger integration
 
 ## experimental
 

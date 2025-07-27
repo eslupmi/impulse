@@ -1,0 +1,13 @@
+# Configuration details:   https://docs.impulse.bot/latest/config_file/
+
+application:
+  type: none
+
+incident:
+  timeouts:
+    firing: 6h
+    unknown: 6h
+    resolved: 12h
+
+route:
+  channel: default
