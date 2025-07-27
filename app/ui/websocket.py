@@ -72,6 +72,10 @@ class AsyncIncidentWS:
         except Exception as e:
             logger.error(f"Failed to send full table data: {e}")
 
+    async def handle_ping(self, websocket: WebSocket):
+        """Handle ping event from a specific client"""
+        await websocket.send_text(json.dumps({"event": "pong"}))
+
     def _get_values(self):
         """Get values mapping for table configuration"""
         values_map = {}

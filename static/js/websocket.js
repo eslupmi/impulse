@@ -2,6 +2,11 @@ import {table} from "./table.js";
 import {updateZoomIcons} from "./filters.js";
 
 let socket;
+let heartbeatInterval;
+let heartbeatTimeout;
+const HEARTBEAT_INTERVAL = 10000;
+const HEARTBEAT_TIMEOUT = 5000;
+const RECONNECT_DELAY = 3000;
 
 // Update online status indicator
 function updateOnlineStatus(isOnline) {
@@ -15,6 +20,44 @@ function updateOnlineStatus(isOnline) {
             indicator.className = 'online-status-indicator offline';
         }
     }
+}
+
+// Start heartbeat mechanism
+function startHeartbeat() {
+    stopHeartbeat();
+    
+    heartbeatInterval = setInterval(() => {
+        if (socket && socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({event: "ping"}));
+
+            heartbeatTimeout = setTimeout(() => {
+                console.log('Heartbeat timeout - no pong received, connection appears dead');
+                updateOnlineStatus(false);
+                socket.close();
+            }, HEARTBEAT_TIMEOUT);
+        }
+    }, HEARTBEAT_INTERVAL);
+}
+
+// Stop heartbeat mechanism
+function stopHeartbeat() {
+    if (heartbeatInterval) {
+        clearInterval(heartbeatInterval);
+        heartbeatInterval = null;
+    }
+    if (heartbeatTimeout) {
+        clearTimeout(heartbeatTimeout);
+        heartbeatTimeout = null;
+    }
+}
+
+// Handle pong response
+function handlePong() {
+    if (heartbeatTimeout) {
+        clearTimeout(heartbeatTimeout);
+        heartbeatTimeout = null;
+    }
+    updateOnlineStatus(true);
 }
 
 // Precise scroll position preservation for necessary table operations
@@ -54,7 +97,7 @@ function setupWebSocketEvents() {
     socket.onopen = function(event) {
         console.log('WebSocket connected');
         updateOnlineStatus(true);
-        // Request initial data
+        startHeartbeat();
         socket.send(JSON.stringify({event: "request_data"}));
     };
 
@@ -99,6 +142,10 @@ function setupWebSocketEvents() {
                     });
                     break;
                 
+                case "pong":
+                    handlePong();
+                    break;
+                
                 default:
                     console.log('Unknown WebSocket event:', eventType);
             }
@@ -110,13 +157,14 @@ function setupWebSocketEvents() {
     socket.onclose = function(event) {
         console.log('WebSocket disconnected');
         updateOnlineStatus(false);
-        // Attempt to reconnect after 3 seconds
-        setTimeout(setupWebSocketEvents, 3000);
+        stopHeartbeat();
+        setTimeout(setupWebSocketEvents, RECONNECT_DELAY);
     };
 
     socket.onerror = function(error) {
         console.error('WebSocket error:', error);
         updateOnlineStatus(false);
+        stopHeartbeat();
     };
 }
 
