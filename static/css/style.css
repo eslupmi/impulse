@@ -473,6 +473,31 @@ element.style {
     gap: 8px;
 }
 
+/* Online Status Indicator */
+.online-status-wrapper {
+    position: fixed;
+    bottom: 7px;
+    left: 20px;
+    z-index: 1000;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    font-weight: 400;
+}
+
+.online-status-indicator {
+    cursor: default;
+    user-select: none;
+    transition: color 0.3s ease;
+}
+
+.online-status-indicator.online {
+    color: var(--online-status-indicator);
+}
+
+.online-status-indicator.offline {
+    color: var(--offline-status-indicator);
+}
+
 /* Theme Toggle Button */
 .theme-toggle-wrapper {
     position: fixed;

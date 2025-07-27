@@ -1,5 +1,5 @@
 import {initializeTable, updateRelativeTimeFields} from "./table.js";
-import {setupWebSocketEvents} from "./websocket.js";
+import {setupWebSocketEvents, updateOnlineStatus} from "./websocket.js";
 import {loadFiltersFromURL, setupTableFiltering, updateZoomIcons} from "./filters.js";
 import {setupSortingListener} from "./sorters.js";
 import {updateRelativeTimeSpans} from "./formatters.js";
@@ -7,6 +7,8 @@ import {ThemeManager} from "./theme.js";
 
 
 // **Initialize Everything**
+updateOnlineStatus(false);
+
 initializeTable().then(() => {
     loadFiltersFromURL();
     setupTableFiltering();

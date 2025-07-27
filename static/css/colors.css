@@ -48,6 +48,10 @@
     /* Status Badge Colors */
     --status-badge-firing: #f61f1f;
     --status-badge-resolved: #56c15e;
+
+    /* Online Status Colors */
+    --online-status-indicator: #22688a;
+    --offline-status-indicator: #f04438;
     
     /* Component-specific Colors */
     --header-background: var(--brand-primary-light);
@@ -121,6 +125,10 @@
     /* Status Colors */
     --status-error: #ff6666;
     --status-success: #66cc66;
+
+    /* Online Status Colors */
+    --online-status-indicator: #38ade6;
+    --offline-status-indicator: #d14035;
 
     /* Component-specific Colors */
     --header-background: var(--brand-primary-light);

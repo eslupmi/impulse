@@ -6,7 +6,6 @@
     <title>IMPulse</title>
     <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
     <!-- External Libraries -->
-    <script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
     <link href="https://unpkg.com/tabulator-tables@6.3.1/dist/css/tabulator.min.css" rel="stylesheet">
     <script type="text/javascript" src="https://unpkg.com/tabulator-tables@6.3.1/dist/js/tabulator.min.js"></script>
     <!-- Custom Styles -->
@@ -47,6 +46,9 @@
         </div>
         <div id="filter-error" class="hidden"></div>
         <div id="data-table"></div>
+    </div>
+    <div class="online-status-wrapper">
+        <div class="online-status-indicator"></div>
     </div>
     <div class="theme-toggle-wrapper">
         <input type="checkbox" id="theme-toggle" class="theme-toggle-input" />

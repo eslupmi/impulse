@@ -163,8 +163,13 @@ async def websocket_endpoint(websocket: WebSocket):
 
             try:
                 message = json.loads(data)
-                if message.get("event") == "request_data":
+                event_type = message.get("event")
+                
+                if event_type == "request_data":
                     await incident_ws.handle_request_data(websocket, websocket.app.state.incidents)
+                elif event_type == "ping":
+                    await incident_ws.handle_ping(websocket)
+                    
             except json.JSONDecodeError:
                 logger.warning(f"Invalid JSON received from WebSocket: {data}")
             except Exception as e:
