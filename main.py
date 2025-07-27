@@ -18,7 +18,7 @@ from app.route import generate_route
 from app.ui.table_config import get_all_ui_config
 from app.ui.websocket import incident_ws
 from app.webhook import generate_webhooks
-from config import settings, check_updates, application, ui_config
+from config import settings, application, ui_config
 
 
 @asynccontextmanager
@@ -29,14 +29,22 @@ async def lifespan(fastapi_app: FastAPI):
     webhooks_dict = settings.get('webhooks')
 
     route = generate_route(route_dict)
-    channels = check_channels(route.get_uniq_channels(), application['channels'], route.channel)
-    messenger = get_application(application, channels, route.channel)
+    
+
+    if application.get('type') == 'none':
+        channels = {'default': {'id': 'default'}}
+        default_channel = 'default'
+    else:
+        channels = check_channels(route.get_uniq_channels(), application['channels'], route.channel)
+        default_channel = route.channel
+    
+    messenger = get_application(application, channels, default_channel)
     await messenger.initialize_async()
     webhooks = generate_webhooks(webhooks_dict)
     incidents = Incidents.create_or_load(messenger.type, messenger.public_url, messenger.team)
 
     # Create async queue and manager
-    queue = await AsyncQueue.recreate_queue(incidents, check_updates)
+    queue = await AsyncQueue.recreate_queue(incidents)
     queue_manager = AsyncQueueManager(queue, messenger, incidents, webhooks, route)
 
     # Attach to app state
@@ -49,9 +57,6 @@ async def lifespan(fastapi_app: FastAPI):
 
     # Start background queue processing
     await queue_manager.start_processing()
-
-    # Start periodic update check
-    asyncio.create_task(periodic_update_check(fastapi_app))
 
     logger.info('IMPulse started!')
 
@@ -71,18 +76,6 @@ async def lifespan(fastapi_app: FastAPI):
                 chain.cleanup()
 
     logger.info('IMPulse shutdown complete')
-
-
-async def periodic_update_check(fastapi_app: FastAPI):
-    """Periodic task to check for updates (replaces APScheduler)"""
-    while True:
-        try:
-            await asyncio.sleep(24 * 60 * 60)  # 24 hours
-            await fastapi_app.state.queue.put(datetime.utcnow(), 'check_update', None, None)
-        except asyncio.CancelledError:
-            break
-        except Exception as e:
-            logger.error(f"Error in periodic update check: {e}")
 
 
 app = FastAPI(

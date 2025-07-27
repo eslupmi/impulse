@@ -11,12 +11,9 @@ QueueItem = namedtuple('QueueItem', ['datetime', 'type', 'incident_uuid', 'ident
 class AsyncQueue:
     """Async queue implementation using asyncio.Queue and priority handling"""
     
-    def __init__(self, check_update: bool = False):
-        # Removed unused asyncio.Queue - using _items list for priority/delayed processing
+    def __init__(self):
         self._items = []
         self._lock = asyncio.Lock()
-        
-        self._check_update = check_update
 
     async def put_first(self, datetime_: datetime, type_: str, incident_uuid: str = None, 
                        identifier: str = None, data: Any = None):
@@ -113,14 +110,10 @@ class AsyncQueue:
             return len(self._items)
 
     @classmethod
-    async def recreate_queue(cls, incidents, check_update: bool):
+    async def recreate_queue(cls, incidents):
         """Recreate queue from existing incidents"""
         logger.info('Creating Queue')
-        queue = cls(check_update)
-
-        if check_update:
-            check_update_datetime = datetime.utcnow()
-            await queue.put(check_update_datetime, 'check_update', None, 'first')
+        queue = cls()
 
         for uuid_, incident in incidents.by_uuid.items():
             await queue.recreate(incident.status, uuid_, incident.get_chain())
