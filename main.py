@@ -18,7 +18,7 @@ from app.route import generate_route
 from app.ui.table_config import get_all_ui_config
 from app.ui.websocket import incident_ws
 from app.webhook import generate_webhooks
-from config import settings, check_updates, application, ui_config
+from config import settings, application, ui_config
 
 
 @asynccontextmanager
@@ -44,7 +44,7 @@ async def lifespan(fastapi_app: FastAPI):
     incidents = Incidents.create_or_load(messenger.type, messenger.public_url, messenger.team)
 
     # Create async queue and manager
-    queue = await AsyncQueue.recreate_queue(incidents, check_updates)
+    queue = await AsyncQueue.recreate_queue(incidents)
     queue_manager = AsyncQueueManager(queue, messenger, incidents, webhooks, route)
 
     # Attach to app state
@@ -57,9 +57,6 @@ async def lifespan(fastapi_app: FastAPI):
 
     # Start background queue processing
     await queue_manager.start_processing()
-
-    # Start periodic update check
-    asyncio.create_task(periodic_update_check(fastapi_app))
 
     logger.info('IMPulse started!')
 
@@ -79,18 +76,6 @@ async def lifespan(fastapi_app: FastAPI):
                 chain.cleanup()
 
     logger.info('IMPulse shutdown complete')
-
-
-async def periodic_update_check(fastapi_app: FastAPI):
-    """Periodic task to check for updates (replaces APScheduler)"""
-    while True:
-        try:
-            await asyncio.sleep(24 * 60 * 60)  # 24 hours
-            await fastapi_app.state.queue.put(datetime.utcnow(), 'check_update', None, None)
-        except asyncio.CancelledError:
-            break
-        except Exception as e:
-            logger.error(f"Error in periodic update check: {e}")
 
 
 app = FastAPI(

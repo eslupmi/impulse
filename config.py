@@ -36,7 +36,6 @@ with open(f'{config_path}/impulse.yml', 'r') as file:
         incident['timeouts']['resolved'] = settings.get('incident', {}).get('timeouts', {}).get('resolved', '12h')
 
         experimental = settings.get('experimental', {})
-        check_updates = True
         application = settings.get('application')
         ui_config = settings.get('ui', {})
     except yaml.YAMLError as e:

@@ -135,18 +135,6 @@ class Application(ABC):
                     message = header + '\n' + text
                 await self.post_thread(incident.channel_id, incident.ts, message)
 
-    async def new_version_notification(self, channel_id, new_tag):
-        async with self.http.get(f'https://api.github.com/repos/eslupmi/impulse/releases/tags/{new_tag}') as response:
-            release_json = await response.json()
-            release_notes = release_json.get('body')
-        new_version_text = self.format_text_bold(f'New IMPulse version available: {new_tag}')
-        changelog_link_text = self._format_text_link("CHANGELOG.md",
-                                                     "https://github.com/eslupmi/impulse/blob/develop/CHANGELOG.md")
-        text = f"{new_version_text} {changelog_link_text}\n\n{release_notes}"
-        native_formatted_text = self._markdown_links_to_native_format(text)
-        admins_text = self.get_admins_text()
-        await self.send_message(channel_id, native_formatted_text, admins_text)
-
     async def create_thread(self, channel_id, body, header, status_icons, status):
         payload = self._create_thread_payload(channel_id, body, header, status_icons, status)
         return await self._send_create_thread(payload)
