@@ -135,9 +135,7 @@ function setupWebSocketEvents() {
                 
                 case "update_data":
                     preserveScrollDuringOperation(() => {
-                        table.updateOrAddData(data);
-                        table.setSort(table.getSorters());
-                        table.refreshFilter();
+                        table.replaceData(data);
                         updateZoomIcons();
                     });
                     break;
