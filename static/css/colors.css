@@ -1,12 +1,12 @@
 /* Base theme (light) */
 :root {
     /* Brand Colors */
-    --brand-primary: #4a90e2;
+    --brand-primary: #4A90E2;
     --brand-primary-light: #D7EFFA;
     --brand-primary-dark: #357ABD;
     --brand-secondary: #38ADE6;
     --brand-secondary-light: #C3E6F7;
-    --brand-secondary-dark: #2D8AB8;
+    --brand-secondary-dark: #0B232E;
 
     /* Neutral Colors */
     --neutral-100: #FFFFFF;
@@ -37,13 +37,9 @@
     
     /* Interactive States */
     --hover-primary: var(--brand-primary-dark);
-    --hover-secondary: var(--neutral-200);
-    --focus-primary: #007bff;
-    --focus-shadow: rgba(0, 123, 255, 0.3);
     
     /* Status Colors */
     --status-error: #ff4444;
-    --status-success: #4caf50;
 
     /* Status Badge Colors */
     --status-badge-firing: #f61f1f;
@@ -52,6 +48,12 @@
     /* Online Status Colors */
     --online-status-indicator: #22688a;
     --offline-status-indicator: #f04438;
+    
+    /* Theme Icon Colors */
+    --theme-icon-color: #22688A;
+    
+    /* Search Icon Colors */
+    --search-icon-color: #38ADE6;
     
     /* Component-specific Colors */
     --header-background: var(--brand-primary-light);
@@ -63,8 +65,8 @@
     
     --filter-badge: var(--brand-secondary-dark);
     --filter-badge-hover: var(--brand-primary-dark);
-    --filter-badge-text: var(--neutral-100);
-    --filter-badge-close-hover: #ffdddd;
+    --filter-badge-text: var(--neutral-1000);
+    --filter-badge-close-hover: var(--brand-primary-dark);
     
     --alerts-count-background: #22688A;
     --alerts-count-text: var(--neutral-300);
@@ -118,17 +120,19 @@
 
     /* Interactive States */
     --hover-primary: var(--brand-primary-dark);
-    --hover-secondary: var(--neutral-200);
-    --focus-primary: #007bff;
-    --focus-shadow: rgba(0, 123, 255, 0.2);
 
     /* Status Colors */
     --status-error: #ff6666;
-    --status-success: #66cc66;
 
     /* Online Status Colors */
-    --online-status-indicator: #38ade6;
-    --offline-status-indicator: #d14035;
+    --online-status-indicator: #38ADE6;
+    --offline-status-indicator: #D14035;
+
+    /* Theme Icon Colors */
+    --theme-icon-color: #EBF7FC;
+
+    /* Search Icon Colors */
+    --search-icon-color: #EBF7FC;
 
     /* Component-specific Colors */
     --header-background: var(--brand-primary-light);
@@ -141,7 +145,7 @@
     --filter-badge: var(--brand-secondary-dark);
     --filter-badge-hover: var(--brand-primary-dark);
     --filter-badge-text: var(--neutral-1000);
-    --filter-badge-close-hover: #ff6666;
+    --filter-badge-close-hover: var(--brand-secondary-dark);
 
     --alerts-count-background: #EBF7FC;
     --alerts-count-text: var(--neutral-100);

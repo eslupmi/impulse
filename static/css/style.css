@@ -150,6 +150,11 @@ body {
 .tabulator-col-sorter {
     position: static !important;
     margin-left: 0 !important;
+    transition: all 0.3s ease;
+}
+
+.tabulator-col-sorter:hover {
+    transform: scale(1.2);
 }
 
 /* Filter Container */
@@ -255,8 +260,7 @@ body {
     border-radius: 8px;
     height: 29px;
     box-shadow: none;
-    border: 2px solid var(--brand-primary);
-    transition: border-color 0.2s;
+    background: var(--background-primary);
 }
 
 #filter-input {
@@ -279,7 +283,7 @@ body {
 }
 
 #add-filter-btn {
-    background: var(--brand-primary);
+    background: transparent;
     color: var(--text-inverse);
     border: none;
     border-radius: 8px;
@@ -291,7 +295,7 @@ body {
     cursor: pointer;
     padding: 0;
     margin: 0;
-    transition: background 0.2s;
+    transition: all 0.3s ease;
 }
 
 #add-filter-btn svg {
@@ -299,20 +303,9 @@ body {
 }
 
 #add-filter-btn:hover {
-    background: var(--hover-primary);
+    transform: scale(1.2);
 }
 
-/* Remove old input/button styles for this area */
-#filter-input:focus {
-    border: none;
-    box-shadow: none;
-}
-
-#add-filter-btn:active {
-    background: var(--brand-secondary-dark);
-}
-
-/* Error State */
 #filter-error {
     padding: 0 20px;
     color: var(--status-error);
@@ -328,7 +321,6 @@ body {
     border-color: var(--status-error);
 }
 
-/* Pill Label */
 .pill-label {
     display: inline-block;
     padding: 2px 4px;
@@ -337,7 +329,6 @@ body {
     color: var(--text-primary);
 }
 
-/* Link field */
 .link-field a {
     color: var(--link-primary);
     text-decoration: none;
@@ -347,16 +338,14 @@ body {
     text-decoration: underline;
 }
 
-/* Filter Badges */
 .filter-badge {
     display: flex;
     align-items: center;
     gap: 6px;
-    background: var(--filter-badge);
     color: var(--filter-badge-text);
     font-size: 18px;
     font-weight: 500;
-    padding: 6px 12px;
+    padding: 6px 8px 6px 8px;
     border-radius: 8px;
     cursor: pointer;
     user-select: none;
@@ -364,19 +353,16 @@ body {
     transition: all 0.3s ease-in-out;
     white-space: nowrap;
     height: 29px;
+    border: 1.3px solid var(--brand-secondary);
 }
 
-.filter-badge:hover {
-    background: var(--filter-badge-hover);
-}
-
-/* Cross for filters */
 .cross {
     position: relative;
     width: 12px;
     height: 12px;
     cursor: pointer;
     border: 1.5px;
+    transition: all 0.3s ease;
 }
 
 .cross::before,
@@ -397,6 +383,10 @@ body {
 
 .cross::after {
     transform: translate(-50%, -50%) rotate(-45deg);
+}
+
+.cross:hover {
+    transform: scale(1.2);
 }
 
 /* Remove Filter Button */
@@ -498,71 +488,77 @@ element.style {
     color: var(--offline-status-indicator);
 }
 
-/* Theme Toggle Button */
 .theme-toggle-wrapper {
     position: fixed;
-    bottom: 3px;
+    bottom: 7px;
     right: 20px;
     z-index: 1000;
 }
 
-.theme-toggle-input {
-    opacity: 0;
-    width: 0;
-    height: 0;
-    position: absolute;
+.theme-toggle-btn {
+    cursor: pointer;
+    width: 16px;
+    height: 16px;
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    padding: 0;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
 }
 
-.theme-toggle-label {
-    cursor: pointer;
-    width: 40px;
-    height: 23px;
-    background: transparent;
-    display: block;
-    border-radius: 12px;
-    border: 2px solid var(--brand-primary);
-    position: relative;
+.theme-toggle-btn:hover {
+    transform: scale(1.2);
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+.theme-toggle-btn:active {
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+.theme-toggle-btn:focus {
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+.theme-toggle-btn:hover .theme-icon {
+    stroke: var(--text-inverse);
+}
+
+.theme-icon {
+    width: 16px;
+    height: 16px;
+    stroke: var(--theme-icon-color);
     transition: all 0.3s ease;
 }
 
-.theme-toggle-label:hover {
-    transform: scale(1.05);
+/* Show/hide icons based on theme */
+.theme-icon.sun-icon {
+    display: block;
 }
 
-.theme-toggle-label:after {
-    content: '';
-    position: absolute;
-    top: 2px;
-    left: 2px;
-    width: 15px;
-    height: 15px;
-    background: var(--brand-primary);
-    border-radius: 50%;
-    transition: transform 0.3s ease;
-}
-
-.theme-toggle-input:checked + .theme-toggle-label {
-    background: transparent;
-}
-
-.theme-toggle-input:checked + .theme-toggle-label:after {
-    transform: translateX(17px);
-}
-
-/* Focus styles for accessibility */
-.theme-toggle-input:focus + .theme-toggle-label {
-    outline-offset: 2px;
-}
-
-.theme-toggle-input:focus:not(:focus-visible) + .theme-toggle-label {
-    outline: none;
-}
-
-/* Remove old styles */
-.theme-toggle-track,
-.theme-toggle-track-sun,
-.theme-toggle-track-moon {
+.theme-icon.moon-icon {
     display: none;
+}
+
+[data-theme="dark"] .theme-icon.sun-icon {
+    display: none;
+}
+
+[data-theme="dark"] .theme-icon.moon-icon {
+    display: block;
+}
+
+.theme-toggle-btn:focus:not(:focus-visible) {
+    outline: none;
 }
 
 .tabulator-footer {
@@ -594,6 +590,42 @@ element.style {
 .tabulator-footer button:hover {
     background: var(--hover-primary) !important;
 }
+
+/* .tabulator-footer .tabulator-paginator .tabulator-page[data-page="first"]::before {
+    content: "⏮";
+    font-size: 14px;
+}
+
+.tabulator-footer .tabulator-paginator .tabulator-page[data-page="prev"]::before {
+    content: "◀";
+    font-size: 14px;
+}
+
+.tabulator-footer .tabulator-paginator .tabulator-page[data-page="next"]::before {
+    content: "▶";
+    font-size: 14px;
+}
+
+.tabulator-footer .tabulator-paginator .tabulator-page[data-page="last"]::before {
+    content: "⏭";
+    font-size: 14px;
+}
+
+.tabulator-footer .tabulator-paginator .tabulator-page {
+    font-size: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    margin: 0 2px;
+}
+
+.tabulator-footer .tabulator-paginator .tabulator-page::before {
+    font-size: 14px;
+    line-height: 1;
+} */
 
 .tabulator-placeholder-contents {
     width: 1242px;
