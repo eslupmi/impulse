@@ -39,18 +39,18 @@
     --hover-primary: var(--brand-primary-dark);
     
     /* Status Colors */
-    --status-error: #ff4444;
+    --status-error: #FF4444;
 
     /* Status Badge Colors */
-    --status-badge-firing: #f61f1f;
-    --status-badge-resolved: #56c15e;
-
-    /* Online Status Colors */
-    --online-status-indicator: #22688a;
-    --offline-status-indicator: #f04438;
+    --status-badge-firing: #D14035;
+    --status-badge-resolved: #56C15E;
     
     /* Theme Icon Colors */
     --theme-icon-color: #22688A;
+
+    /* Online Status Colors */
+    --online-status-indicator: var(--theme-icon-color);
+    --offline-status-indicator: #F04438;
     
     /* Search Icon Colors */
     --search-icon-color: #38ADE6;
@@ -84,10 +84,10 @@
 /* Dark theme */
 [data-theme="dark"] {
     /* Brand Colors - slightly adjusted for dark theme */
-    --brand-primary: #5a9fe2;
-    --brand-primary-light: #0b232e;
-    --brand-primary-dark: #4a8fd2;
-    --brand-secondary: #48bde6;
+    --brand-primary: #5A9FE2;
+    --brand-primary-light: #0B232E;
+    --brand-primary-dark: #4A8FD2;
+    --brand-secondary: #48BDE6;
     --brand-secondary-light: #16455C;
     --brand-secondary-dark: #22688A;
 
@@ -95,13 +95,13 @@
     --neutral-100: #061117;
     --neutral-200: #131B1F;
     --neutral-300: #344054;
-    --neutral-400: #2d2d2d;
+    --neutral-400: #2D2D2D;
     --neutral-500: #333B40;
-    --neutral-600: #6d6d6d;
+    --neutral-600: #6D6D6D;
     --neutral-700: #98A2B3;
     --neutral-800: #EBF7FC;
     --neutral-900: #F2F4F7;
-    --neutral-1000: #ffffff;
+    --neutral-1000: #FFFFFF;
 
     /* Semantic Colors */
     --text-primary: var(--neutral-800);
@@ -122,7 +122,11 @@
     --hover-primary: var(--brand-primary-dark);
 
     /* Status Colors */
-    --status-error: #ff6666;
+    --status-error: #FF6666;
+
+    /* Status Badge Colors */
+    --status-badge-firing: #D14035;
+    --status-badge-resolved: #56C15E;
 
     /* Online Status Colors */
     --online-status-indicator: #38ADE6;
@@ -147,8 +151,8 @@
     --filter-badge-text: var(--neutral-1000);
     --filter-badge-close-hover: var(--brand-secondary-dark);
 
-    --alerts-count-background: #EBF7FC;
-    --alerts-count-text: var(--neutral-100);
+    --alerts-count-background: var(--neutral-800);
+    --alerts-count-text: var(--neutral-800);
 
     --label-background: var(--neutral-300);
     --label-text: var(--neutral-900);

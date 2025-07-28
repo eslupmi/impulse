@@ -271,7 +271,7 @@ body {
     color: var(--text-secondary);
     font-size: 16px;
     transition: all 0.2s ease-in-out;
-    height: 29px;
+    height: 30px;
     line-height: 20px;
     max-width: 414px;
     min-width: 414px;
@@ -343,7 +343,7 @@ body {
     align-items: center;
     gap: 6px;
     color: var(--filter-badge-text);
-    font-size: 18px;
+    font-size: 16px;
     font-weight: 500;
     padding: 6px 8px 6px 8px;
     border-radius: 8px;
@@ -352,16 +352,15 @@ body {
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
     transition: all 0.3s ease-in-out;
     white-space: nowrap;
-    height: 29px;
+    height: 30px;
     border: 1.3px solid var(--brand-secondary);
 }
 
 .cross {
     position: relative;
-    width: 12px;
-    height: 12px;
+    width: 15px;
+    height: 15px;
     cursor: pointer;
-    border: 1.5px;
     transition: all 0.3s ease;
 }
 
@@ -371,7 +370,7 @@ body {
     position: absolute;
     left: 50%;
     top: 50%;
-    width: 2px;
+    width: 1.5px;
     height: 100%;
     background-color: var(--filter-badge-text);
     transform-origin: center;
@@ -448,22 +447,22 @@ element.style {
     width: 16px;
     height: 16px;
     border-radius: 50%;
-    background-color: var(--alerts-count-background);
+    border: 1.3px solid var(--alerts-count-text);
+    /* background-color: var(--alerts-count-background); */
     color: var(--alerts-count-text);
     font-size: 10px;
     font-weight: 600;
-    margin: 0 auto;
+    margin: 0;
     line-height: 1;
 }
 
-/* Filter Controls */
+
 .filter-controls {
     display: flex;
     align-items: center;
     gap: 8px;
 }
 
-/* Online Status Indicator */
 .online-status-wrapper {
     position: fixed;
     bottom: 7px;
@@ -540,7 +539,6 @@ element.style {
     transition: all 0.3s ease;
 }
 
-/* Show/hide icons based on theme */
 .theme-icon.sun-icon {
     display: block;
 }
@@ -555,10 +553,6 @@ element.style {
 
 [data-theme="dark"] .theme-icon.moon-icon {
     display: block;
-}
-
-.theme-toggle-btn:focus:not(:focus-visible) {
-    outline: none;
 }
 
 .tabulator-footer {
@@ -590,42 +584,6 @@ element.style {
 .tabulator-footer button:hover {
     background: var(--hover-primary) !important;
 }
-
-/* .tabulator-footer .tabulator-paginator .tabulator-page[data-page="first"]::before {
-    content: "⏮";
-    font-size: 14px;
-}
-
-.tabulator-footer .tabulator-paginator .tabulator-page[data-page="prev"]::before {
-    content: "◀";
-    font-size: 14px;
-}
-
-.tabulator-footer .tabulator-paginator .tabulator-page[data-page="next"]::before {
-    content: "▶";
-    font-size: 14px;
-}
-
-.tabulator-footer .tabulator-paginator .tabulator-page[data-page="last"]::before {
-    content: "⏭";
-    font-size: 14px;
-}
-
-.tabulator-footer .tabulator-paginator .tabulator-page {
-    font-size: 0;
-    width: 32px;
-    height: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 4px;
-    margin: 0 2px;
-}
-
-.tabulator-footer .tabulator-paginator .tabulator-page::before {
-    font-size: 14px;
-    line-height: 1;
-} */
 
 .tabulator-placeholder-contents {
     width: 1242px;
