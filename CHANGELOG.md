@@ -1,7 +1,13 @@
 # Changelog
 
+## v2.7.0
+Changes:
+- Added online / offline status indicator in the UI
+- Added `application.type: none` support for running IMPulse without messenger integration ([docs](https://docs.impulse.bot/latest/config_file/#applicationtype))
+- Removed update check functionality
+
 ## v2.6.0
-Changes
+Changes:
 - [UI](https://docs.impulse.bot/latest/ui/) with multi-column sorting and value-based [highlighting](https://docs.impulse.bot/latest/config_file/#uicolors)
 - Switched to `asyncio` for asynchronous processing
 - Updated documentation and added table of contents

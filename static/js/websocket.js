@@ -25,7 +25,7 @@ function updateOnlineStatus(isOnline) {
 // Start heartbeat mechanism
 function startHeartbeat() {
     stopHeartbeat();
-    
+
     heartbeatInterval = setInterval(() => {
         if (socket && socket.readyState === WebSocket.OPEN) {
             socket.send(JSON.stringify({event: "ping"}));
@@ -98,6 +98,8 @@ function setupWebSocketEvents() {
         console.log('WebSocket connected');
         updateOnlineStatus(true);
         startHeartbeat();
+        table.initialDataLoaded = false;
+        table.redraw();
         socket.send(JSON.stringify({event: "request_data"}));
     };
 
@@ -135,6 +137,9 @@ function setupWebSocketEvents() {
                 
                 case "update_data":
                     preserveScrollDuringOperation(() => {
+                        if (!table.initialDataLoaded) {
+                            table.initialDataLoaded = true;
+                        }
                         table.replaceData(data);
                         updateZoomIcons();
                     });
@@ -143,7 +148,7 @@ function setupWebSocketEvents() {
                 case "pong":
                     handlePong();
                     break;
-                
+
                 default:
                     console.log('Unknown WebSocket event:', eventType);
             }
