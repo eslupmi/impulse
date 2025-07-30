@@ -1,6 +1,12 @@
 # Telegram
 
-In Telegram, we use **groups** with topics instead of **channels**.
+In Telegram, although the configuration uses the term `channels`, they are actually implemented as groups with topics.
+
+!!! warning "Limitations"
+    We use the **HTML parser**, so links (`source`, `runbook`) will not be generated if their format does not comply with standards.  
+    For example, a link that only contains a hostname (like `http://localhost:8000`) will be ignored.  
+
+    **✅ Workaround:** use a valid domain name or an IP address.
 
 ## Create a bot
 
