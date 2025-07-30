@@ -26,6 +26,7 @@ extra:
     provider: google
     property: G-LL3R99ZZGW
 markdown_extensions:
+  - admonition
   - toc:
       permalink: true
       toc_depth: 2-6
