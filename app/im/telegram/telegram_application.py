@@ -103,16 +103,13 @@ class TelegramApplication(Application):
         action = callback['data']
 
         user_id = callback['from']['id']
-        first_name = callback['from'].get('first_name') or ''
-        last_name = callback['from'].get('last_name') or ''
-        user_name = f"{first_name} {last_name}".strip() or f"User {user_id}"
 
         if action in ['start_chain', 'stop_chain']:
             await queue_.delete_by_id(incident_.uuid, delete_steps=True, delete_status=False)
             if action == 'stop_chain':
                 logger.info(f'Incident {incident_.uuid} -> button TAKE IT pressed')
                 incident_.assign_user_id(user_id)
-                incident_.assign_user(user_name)
+                asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id, incidents))
                 incident_.chain_enabled = False
             else:
                 logger.info(f'Incident {incident_.uuid} -> button RELEASE pressed')
@@ -124,7 +121,7 @@ class TelegramApplication(Application):
             else:
                 logger.info(f'Incident {incident_.uuid} -> button STATUS pressed (enabled)')
                 incident_.status_enabled = True
-
+        incident_.dump()
         body = self.body_template.form_message(incident_.last_state, incident_)
         header = self.header_template.form_message(incident_.last_state, incident_)
         status_icons = self.status_icons_template.form_message(incident_.last_state, incident_)
@@ -139,7 +136,6 @@ class TelegramApplication(Application):
             headers=self.headers
         ) as response:
             pass
-        incident_.dump()
         return JSONResponse({}, status_code=200)
 
     async def _create_topic(self, channel_id, header, status_icons):
@@ -247,19 +243,24 @@ class TelegramApplication(Application):
     async def get_user_details(self, user_details):
         id_ = user_details.get('id') if user_details is not None else None
         exists = False
+        full_name = None
         if id_ is not None:
             try:
                 async with self.http.get(f'{self.url}/getChat?chat_id={id_}', headers=self.headers) as response:
                     data = await response.json()
                     if response.status == 200 and data.get('ok'):
                         exists = True
+                        chat_data = data.get('result', {})
+                        first_name = chat_data.get('first_name', '').strip()
+                        last_name = chat_data.get('last_name', '').strip()
+                        full_name = f"{first_name} {last_name}".strip() or chat_data.get('username')
                     elif response.status != 200:
                         logger.debug(f'Failed to get user details for {id_}: HTTP {response.status}, response: {data}')
             except aiohttp.ClientError as e:
                 logger.error(f'Failed to get user details for {id_}: {e}')
             except Exception as e:
                 logger.error(f'Unexpected error getting user details for {id_}: {e}')
-        return {'id': id_, 'exists': exists}
+        return {'id': id_, 'exists': exists, 'full_name': full_name}
 
     def create_user(self, name, user_details):
         return User(

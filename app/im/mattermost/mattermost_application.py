@@ -56,11 +56,15 @@ class MattermostApplication(Application):
                 data = await response.json()
                 if response.status == 404:
                     exists = False
+                    full_name = None
                 else:
                     exists = True
-                return {'id': id_, 'username': data.get('username'), 'exists': exists}
+                    first_name = data.get('first_name', '').strip()
+                    last_name = data.get('last_name', '').strip()
+                    full_name = f"{first_name} {last_name}".strip() or data.get('username')
+                return {'id': id_, 'username': data.get('username'), 'exists': exists, 'full_name': full_name}
         else:
-            return {'id': None, 'username': None, 'exists': False}
+            return {'id': None, 'username': None, 'exists': False, 'full_name': None}
 
     def create_user(self, name, user_details):
         return User(
@@ -122,7 +126,7 @@ class MattermostApplication(Application):
             if incident_.chain_enabled or incident_.status != 'resolved':
                 logger.info(f'Incident {incident_.uuid} -> button TAKE IT pressed')
                 incident_.assign_user_id(user_id)
-                incident_.assign_user(user_name)
+                asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id, incidents))
                 incident_.chain_enabled = False
             else: # release
                 logger.info(f'Incident {incident_.uuid} -> button RELEASE pressed')

@@ -59,6 +59,45 @@ class Application(ABC):
         if self.http:
             await self.http.close()
 
+    async def fetch_and_assign_user_name(self, incident, user_id, incidents=None):
+        """
+        Centralized async method to fetch user details and assign full name to incident.
+        This method doesn't block execution and safely handles dumping the incident.
+        Uses incident cache to avoid redundant API calls when possible.
+        
+        Args:
+            incident: The incident to assign the user name to
+            user_id: The user ID to fetch the name for
+            incidents: Optional incidents collection for caching lookup
+        """
+        if not user_id:
+            return
+            
+        try:
+            if incidents:
+                cached_name = incidents.get_assigned_user_by_id(user_id)
+                if cached_name:
+                    incident.assign_user(cached_name)
+                    incident.dump()
+                    logger.debug(f'Incident {incident.uuid} assigned cached user name: {cached_name}')
+                    return
+            
+            user_details = await self.get_user_details({'id': user_id})
+            full_name = user_details.get('full_name')
+            
+            if full_name:
+                incident.assign_user(full_name)
+            else:
+                incident.assign_user("-")
+                
+            incident.dump()
+            logger.debug(f'Incident {incident.uuid} assigned user name from API: {incident.assigned_user}')
+            
+        except Exception as e:
+            logger.error(f'Failed to fetch and assign user name for incident {incident.uuid}: {e}')
+            incident.assign_user("-")
+            incident.dump()
+
     def get_url(self, app_config):
         return self._get_url(app_config)
 

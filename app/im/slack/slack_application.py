@@ -48,11 +48,15 @@ class SlackApplication(Application):
                 data = await response.json()
                 if not data.get('ok') and data.get('error') == 'user_not_found':
                     exists = False
+                    full_name = None
                 else:
                     exists = True
-                return {'id': id_, 'exists': exists}
+                    user_data = data.get('user', {})
+                    profile = user_data.get('profile', {})
+                    full_name = profile.get('real_name') or profile.get('display_name') or user_data.get('name')
+                return {'id': id_, 'exists': exists, 'full_name': full_name}
         else:
-            return {'id': None, 'exists': False}
+            return {'id': None, 'exists': False, 'full_name': None}
 
     def create_user(self, name, user_details):
         return User(
@@ -117,6 +121,7 @@ class SlackApplication(Application):
                 if incident_.chain_enabled or incident_.status != 'resolved':
                     logger.info(f'Incident {incident_.uuid} -> button TAKE IT pressed')
                     incident_.assign_user_id(user_id)
+                    asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id, incidents))
                     incident_.chain_enabled = False
                 else:
                     logger.info(f'Incident {incident_.uuid} -> button RELEASE pressed')
@@ -128,13 +133,13 @@ class SlackApplication(Application):
                 else:
                     logger.info(f'Incident {incident_.uuid} -> button STATUS pressed (enabled)')
                     incident_.status_enabled = True
+        incident_.dump()
 
         body = self.body_template.form_message(incident_.last_state, incident_)
         header = self.header_template.form_message(incident_.last_state, incident_)
         status_icons = self.status_icons_template.form_message(incident_.last_state, incident_)
         payload = self.update_thread_payload(incident_.channel_id, incident_.ts, body, header, status_icons,
                                              incident_.status, incident_.chain_enabled, incident_.status_enabled)
-        incident_.dump()
         modified_message = reformat_message(original_message, payload['text'], payload['attachments'], incident_.status,
                                             incident_.chain_enabled, incident_.status_enabled)
         return JSONResponse(modified_message, status_code=200)
