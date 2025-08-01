@@ -572,27 +572,102 @@ element.style {
 
 .tabulator-footer .tabulator-footer-contents {
     background-color: var(--background-secondary) !important;
+    height: 29px !important;
 }
 
 .tabulator-footer .tabulator-footer-contents .tabulator-paginator {
     justify-content: center;
     display: flex;
+    height: 19px !important;
+    align-items: center;
 }
 
+/* Navigation buttons with arrows */
 .tabulator-footer button {
     color: var(--text-primary) !important;
-    background-color: var(--brand-primary) !important;
+    background-color: transparent !important;
     border: none !important;
+    height: 19px !important;
+    padding: 0 !important;
+    line-height: 19px !important;
 }
 
-.tabulator-footer button.active {
-    color: var(--text-inverse) !important;
-    background-color: var(--brand-primary) !important;
-    border: none !important;
+.tabulator-footer .tabulator-pages {
+    height: 19px !important;
 }
 
-.tabulator-footer button:hover {
-    background: var(--hover-primary) !important;
+/* Page number buttons - remove background, make bigger */
+.tabulator-footer .tabulator-pages button {
+    background-color: transparent !important;
+    color: var(--text-primary) !important;
+    font-weight: 500;
+    height: 19px !important;
+    line-height: 19px !important;
+    padding: 0 4px !important;
+}
+
+.tabulator-footer .tabulator-pages button.active {
+    color: var(--brand-primary) !important;
+    background-color: transparent !important;
+    font-weight: 600;
+}
+
+.tabulator-footer .tabulator-pages button:hover {
+    background-color: transparent !important;
+    color: var(--brand-primary) !important;
+}
+
+/* Navigation buttons with arrow content */
+.tabulator-footer button[data-page="first"] {
+    font-size: 0; /* Hide text */
+    padding: 0 6px !important;
+}
+
+.tabulator-footer button[data-page="first"]::before {
+    content: "«";
+    font-size: 16px;
+    font-weight: bold;
+    line-height: 19px;
+}
+
+.tabulator-footer button[data-page="prev"] {
+    font-size: 0; /* Hide text */
+    padding: 0 6px !important;
+}
+
+.tabulator-footer button[data-page="prev"]::before {
+    content: "‹";
+    font-size: 16px;
+    font-weight: bold;
+    line-height: 19px;
+}
+
+.tabulator-footer button[data-page="next"] {
+    font-size: 0; /* Hide text */
+    padding: 0 6px !important;
+}
+
+.tabulator-footer button[data-page="next"]::before {
+    content: "›";
+    font-size: 16px;
+    font-weight: bold;
+    line-height: 19px;
+}
+
+.tabulator-footer button[data-page="last"] {
+    font-size: 0; /* Hide text */
+    padding: 0 6px !important;
+}
+
+.tabulator-footer button[data-page="last"]::before {
+    content: "»";
+    font-size: 16px;
+    font-weight: bold;
+    line-height: 19px;
+}
+
+.tabulator-footer button[data-page]:hover {
+    background: transparent !important;
 }
 
 .tabulator-placeholder-contents {
