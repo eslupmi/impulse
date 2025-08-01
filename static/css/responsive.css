@@ -2,8 +2,122 @@
     padding: 10px;
     font-size: 14px;
     display: flex;
-    justify-content: space-between;
+    flex-direction: row;
+    gap: 16px;
     background: var(--background-tertiary);
+}
+
+/* Simple common block styles */
+.simple-common-block {
+    border-right: 1px solid var(--neutral-500);
+    padding: 0 16px;
+    width: 441px;
+}
+
+/* Info stack */
+.info-stack {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    font-size: 13px;
+    color: var(--text-primary);
+    flex-direction: column;
+}
+
+.info-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    justify-content: space-between;
+}
+
+.info-item strong {
+    color: var(--text-secondary);
+}
+
+.status-value.firing {
+    color: var(--status-badge-firing);
+    font-weight: 600;
+}
+
+.status-value.resolved {
+    color: var(--status-badge-resolved);
+    font-weight: 600;
+}
+
+.status-value.closed {
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
+.incident-link {
+    color: var(--link-primary);
+    text-decoration: none;
+    font-size: 14px;
+}
+
+.incident-link:hover {
+    color: var(--link-hover);
+}
+
+/* Labels and annotations sections */
+.labels-section,
+.annotations-section {
+    gap: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+
+.section-header {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 3px;
+    align-content: center;
+}
+
+.label-pill {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    background-color: var(--label-background);
+    color: var(--label-text);
+    border: 1px solid var(--border-secondary);
+}
+
+.label-pill.group-label {
+    background-color: var(--label-highlighted-background);
+    color: var(--label-highlighted-text);
+    font-weight: 500;
+}
+
+.annotation-pill {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    border: 1px solid var(--annotation-border);
+    background-color: transparent;
+    color: var(--annotation-text);
+    max-width: 400px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Alerts section styles */
+.alerts-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.alerts-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 4px;
 }
 
 .alerts-wrapper {

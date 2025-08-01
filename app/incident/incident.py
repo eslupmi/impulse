@@ -30,6 +30,7 @@ class Incident:
     status_update_datetime: datetime
     assigned_user_id: str
     assigned_user: str
+    channel_name: str = ''  # Add channel name field
     created: datetime = None
     chain: List[Dict] = field(default_factory=list)
     chain_enabled: bool = False
@@ -156,6 +157,7 @@ class Incident:
             status=content.get('status'),
             channel_id=content.get('channel_id'),
             config=config,
+            channel_name=content.get('channel_name', ''),
             chain=content.get('chain', []),
             chain_enabled=content.get('chain_enabled', False),
             status_enabled=content.get('status_enabled', False),
@@ -174,6 +176,7 @@ class Incident:
             "chain_enabled": self.chain_enabled,
             "chain": self.chain,
             "channel_id": self.channel_id,
+            "channel_name": self.channel_name,
             "last_state": self.last_state,
             "status_enabled": self.status_enabled,
             "status_update_datetime": self.status_update_datetime,
@@ -202,6 +205,7 @@ class Incident:
             "chain_enabled": self.chain_enabled,
             "chain": self.chain,
             "channel_id": self.channel_id,
+            "channel_name": self.channel_name,
             "last_state": self.last_state,
             "status_enabled": self.status_enabled,
             "status_update_datetime": self.status_update_datetime,
@@ -232,8 +236,18 @@ class Incident:
             '_alerts_count': len(self.last_state.get('alerts', [])),
             '_responsive_data': {
                 'group_labels': group_labels,
-                'common_labels': filter_dict_keys(group_labels, common_labels),
+                'common_labels': filter_dict_keys(common_labels, group_labels),
                 'common_annotations': common_annotations,
+                'incident_info': {
+                    'status': self.status,
+                    'created': normalize_param(self.created) if self.created else None,
+                    'updated': normalize_param(self.updated) if self.updated else None,
+                    'assigned_user': self.assigned_user if self.assigned_user else None,
+                    'channel_name': self.channel_name or self.channel_id,
+                    'link': self.link,
+                    'chain_enabled': self.chain_enabled,
+                    'has_chain': len(self.chain) > 0 if self.chain else False
+                },
                 'alerts': [
                     {
                         'status': alert.get('status', ''),
@@ -267,7 +281,7 @@ class Incident:
         self.dump()
         return False
 
-    def update_state(self, alert_state: Dict) -> (bool, bool):
+    def update_state(self, alert_state: Dict) -> tuple[bool, bool]:
         update_status = self.update_status(alert_state['status'])
         state_updated = self.last_state != alert_state
         if state_updated:
