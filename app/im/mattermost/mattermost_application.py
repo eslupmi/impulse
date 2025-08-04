@@ -134,6 +134,7 @@ class MattermostApplication(Application):
         action = payload['context']['action']
 
         user_id = payload.get('user_id')
+        user_name = payload.get('user_name')
 
         if action == 'chain':
             await queue_.delete_by_id(incident_.uuid, delete_steps=True, delete_status=False)
