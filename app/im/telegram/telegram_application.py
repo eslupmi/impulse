@@ -60,6 +60,13 @@ class TelegramApplication(Application):
     def get_admins_text(self): #!
         return ', '.join([f'@{a.id}' for a in self.admin_users])
 
+    def format_user_mention(self, user_id, display_name=None):
+        """Format a user mention for Telegram using the tg://user link format."""
+        if display_name and display_name != "-":
+            return f'<a href="tg://user?id={user_id}">{display_name}</a>'
+        else:
+            return f'<a href="tg://user?id={user_id}">{user_id}</a>'
+
     async def send_message(self, channel_id, text, attachment):
         params = {
             'chat_id': channel_id,
@@ -103,6 +110,10 @@ class TelegramApplication(Application):
         action = callback['data']
 
         user_id = callback['from']['id']
+        user_from = callback.get('from', {})
+        first_name = user_from.get('first_name', '').strip()
+        last_name = user_from.get('last_name', '').strip()
+        user_display_name = f"{first_name} {last_name}".strip() or user_from.get('username')
 
         if action in ['start_chain', 'stop_chain']:
             await queue_.delete_by_id(incident_.uuid, delete_steps=True, delete_status=False)
@@ -110,6 +121,7 @@ class TelegramApplication(Application):
                 logger.info(f'Incident {incident_.uuid} -> button TAKE IT pressed')
                 incident_.assign_user_id(user_id)
                 asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id, incidents))
+                asyncio.create_task(self.post_assignment_notification(incident_, user_id, incidents, user_display_name))
                 incident_.chain_enabled = False
             else:
                 logger.info(f'Incident {incident_.uuid} -> button RELEASE pressed')

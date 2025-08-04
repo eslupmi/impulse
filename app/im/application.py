@@ -9,6 +9,7 @@ from app.im.chain.chain_factory import ChainFactory
 from app.im.groups import generate_user_groups
 from app.im.template import JinjaTemplate, notification_user, notification_user_group, update_status
 from app.logging import logger
+from config import incident
 
 
 class Application(ABC):
@@ -90,6 +91,39 @@ class Application(ABC):
             logger.error(f'Failed to fetch and assign user name for incident {incident.uuid}: {e}')
             incident.assign_fullname("-")
             incident.dump()
+
+    async def post_assignment_notification(self, incident_obj, user_id, incidents=None, user_display_name=None):
+        """
+        Post a notification message to the thread when a user is assigned to an incident.
+        This method doesn't block execution and respects the incident.notifications.assignment config.
+        
+        Args:
+            incident_obj: The incident object
+            user_id: The user ID that was assigned
+            incidents: Optional incidents collection for user name caching
+            user_display_name: Optional user display name (avoids API calls if provided)
+        """
+        if not incident.get('notifications', {}).get('assignment', True):
+            return
+            
+        if not user_id:
+            return
+            
+        try:
+            if not user_display_name:
+                if incidents:
+                    cached_name = incidents.get_assigned_user_by_id(user_id)
+                    if cached_name and cached_name != "-":
+                        user_display_name = cached_name
+
+            user_mention = self.format_user_mention(user_id, user_display_name)
+            message = f"update: assigned to {user_mention}"
+            
+            await self.post_thread(incident_obj.channel_id, incident_obj.ts, message)
+            logger.debug(f'Posted assignment notification for incident {incident_obj.uuid}: {message}')
+            
+        except Exception as e:
+            logger.error(f'Failed to post assignment notification for incident {incident_obj.uuid}: {e}')
 
     def get_url(self, app_config):
         return self._get_url(app_config)
@@ -253,6 +287,19 @@ class Application(ABC):
 
     @abstractmethod
     def format_text_italic(self, text):
+        pass
+
+    @abstractmethod
+    def format_user_mention(self, user_id, display_name=None):
+        """Format a user mention for the specific platform.
+        
+        Args:
+            user_id: The user ID to mention
+            display_name: Optional display name (may be used by some platforms)
+        
+        Returns:
+            Formatted user mention string
+        """
         pass
 
     @abstractmethod
