@@ -118,7 +118,6 @@ class MattermostApplication(Application):
             return JSONResponse(payload, status_code=200)
         action = payload['context']['action']
 
-        user_name = payload.get('user_name')
         user_id = payload.get('user_id')
 
         if action == 'chain':
