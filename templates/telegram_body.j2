@@ -5,9 +5,9 @@
 {%- if alerts[0].generatorURL %}{% set url = alerts[0].generatorURL %}{% endif -%}
 {%- if commonAnnotations.runbook %}{% set runbook = commonAnnotations.runbook %}{% endif -%}
 {%- if commonAnnotations.summary %}<b>{{ commonAnnotations.summary }}</b>{% endif %}{% if url or runbook %}  |  {% if url %}<a href="{{ url }}">source</a>{% endif %}{% if runbook %}  |  <a href="{{ runbook }}">runbook</a>{% endif %}
-{% endif -%}
-{%- if commonAnnotations.description %}<i>{{ commonAnnotations.description }}</i>
-{% endif -%}
+{% endif %}
+{%- if commonAnnotations.description %}
+<i>{{ commonAnnotations.description }}</i>{% endif %}
 {%- if alerts | length > 1 %}
 <b>Instances:</b>
 {%- for a in alerts %}
@@ -19,6 +19,7 @@
 {% endif -%}
 {% endif -%}
 {%- if commonLabels | length > 0 %}
+
 <b>Common labels:</b>
 {%- for k, v in commonLabels.items() if k != 'alertname' and k != 'instance' %}
     {{ k }}=<code>{{ v }}</code>

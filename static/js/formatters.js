@@ -1,4 +1,4 @@
-import {ZOOM_IN_ICON, ZOOM_OUT_ICON} from "./constants.js";
+import {ZOOM_IN_ICON, ZOOM_OUT_ICON, LINK_ICON} from "./constants.js";
 
 let columnColors = {}; // Store color mappings
 
@@ -349,10 +349,7 @@ function createHeaderBlock(headerData) {
         linkSpan.href = headerData.generatorURL;
         linkSpan.target = '_blank';
         linkSpan.className = 'generator-link';
-        linkSpan.innerHTML = `<svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-<path d="M5.0001 6.49998C5.21483 6.78705 5.48878 7.02457 5.80337 7.19645C6.11797 7.36833 6.46585 7.47054 6.82342 7.49615C7.181 7.52176 7.53989 7.47017 7.87577 7.34487C8.21165 7.21958 8.51666 7.02352 8.7701 6.76998L10.2701 5.26998C10.7255 4.79848 10.9775 4.16697 10.9718 3.51148C10.9661 2.85599 10.7032 2.22896 10.2396 1.76544C9.77613 1.30192 9.14909 1.03899 8.4936 1.0333C7.83811 1.0276 7.20661 1.27959 6.7351 1.73498L5.8751 2.58998M7.0001 5.49998C6.78537 5.21292 6.51142 4.97539 6.19682 4.80351C5.88223 4.63163 5.53435 4.52942 5.17677 4.50382C4.8192 4.47821 4.46031 4.5298 4.12443 4.65509C3.78855 4.78038 3.48354 4.97645 3.2301 5.22998L1.7301 6.72998C1.2747 7.20149 1.02272 7.83299 1.02841 8.48849C1.03411 9.14398 1.29703 9.77101 1.76055 10.2345C2.22407 10.698 2.8511 10.961 3.5066 10.9667C4.16209 10.9724 4.79359 10.7204 5.2651 10.265L6.1201 9.40998" stroke="#38ADE6" stroke-linecap="round" stroke-linejoin="round"/>
-</svg>
-`
+        linkSpan.innerHTML = LINK_ICON;
         headerDiv.appendChild(linkSpan);
     }
 
@@ -488,6 +485,131 @@ function createInfoBlock(header, labels, annotations, isCommonBlock = false) {
     return block;
 }
 
+function createSimpleCommonBlock(responsiveData) {
+    const commonBlock = document.createElement('div');
+    commonBlock.className = 'simple-common-block';
+
+    const info = responsiveData.incident_info || {};
+    
+    const infoStack = document.createElement('div');
+    infoStack.className = 'info-stack';
+    
+    if (info.status) {
+        const statusSpan = document.createElement('span');
+        statusSpan.className = 'info-item';
+        statusSpan.innerHTML = `<strong>status:</strong> <span class="status-value ${info.status}">${info.status}</span>`;
+        infoStack.appendChild(statusSpan);
+    }
+    
+    if (info.created) {
+        const createdTimeAgo = formatRelativeTime(info.created);
+        const createdSpan = document.createElement('span');
+        createdSpan.className = 'info-item';
+        createdSpan.innerHTML = `<strong>created:</strong> ${createdTimeAgo}`;
+        createdSpan.title = formatTimestamp(info.created);
+        infoStack.appendChild(createdSpan);
+    }
+    
+    if (info.updated) {
+        const updatedTimeAgo = formatRelativeTime(info.updated);
+        const updatedSpan = document.createElement('span');
+        updatedSpan.className = 'info-item';
+        updatedSpan.innerHTML = `<strong>updated:</strong> ${updatedTimeAgo}`;
+        updatedSpan.title = formatTimestamp(info.updated);
+        infoStack.appendChild(updatedSpan);
+    }
+    
+    if (info.assigned_user) {
+        const assignedSpan = document.createElement('span');
+        assignedSpan.className = 'info-item';
+        assignedSpan.innerHTML = `<strong>assigned to:</strong> ${info.assigned_user}`;
+        infoStack.appendChild(assignedSpan);
+    }
+    
+    if (info.channel_name) {
+        const channelSpan = document.createElement('span');
+        channelSpan.className = 'info-item';
+        channelSpan.innerHTML = `<strong>channel:</strong> ${info.channel_name}`;
+        infoStack.appendChild(channelSpan);
+    }
+    
+    const chainSpan = document.createElement('span');
+    chainSpan.className = 'info-item';
+    chainSpan.innerHTML = `<strong>chain:</strong> ${info.has_chain ? 'enabled' : '-'}`;
+    infoStack.appendChild(chainSpan);
+    
+    if (info.link) {
+        const linkSpan = document.createElement('span');
+        linkSpan.className = 'info-item';
+        linkSpan.innerHTML = `<strong>link:</strong> <a href="${info.link}" target="_blank" class="incident-link">${LINK_ICON}</a>`;
+        infoStack.appendChild(linkSpan);
+    }
+    
+    commonBlock.appendChild(infoStack);
+
+    // Group labels section
+    if (responsiveData.group_labels && Object.keys(responsiveData.group_labels).length > 0) {
+        const groupLabelsSection = document.createElement('div');
+        groupLabelsSection.className = 'labels-section';
+        
+        const groupLabelsHeader = document.createElement('div');
+        groupLabelsHeader.className = 'section-header';
+        groupLabelsHeader.innerHTML = '<strong>group labels:</strong>';
+        groupLabelsSection.appendChild(groupLabelsHeader);
+        
+        Object.entries(responsiveData.group_labels).forEach(([key, value]) => {
+            const labelElement = document.createElement('span');
+            labelElement.className = 'label-pill group-label';
+            labelElement.textContent = `${key}: ${value}`;
+            groupLabelsSection.appendChild(labelElement);
+        });
+        
+        commonBlock.appendChild(groupLabelsSection);
+    }
+
+    // Additional common labels section (only if there are common labels that aren't group labels)
+    if (responsiveData.common_labels && Object.keys(responsiveData.common_labels).length > 0) {
+        const commonLabelsSection = document.createElement('div');
+        commonLabelsSection.className = 'labels-section';
+        
+        const commonLabelsHeader = document.createElement('div');
+        commonLabelsHeader.className = 'section-header';
+        commonLabelsHeader.innerHTML = '<strong>common labels:</strong>';
+        commonLabelsSection.appendChild(commonLabelsHeader);
+        
+        Object.entries(responsiveData.common_labels).forEach(([key, value]) => {
+            const labelElement = document.createElement('span');
+            labelElement.className = 'label-pill common-label';
+            labelElement.textContent = `${key}: ${value}`;
+            commonLabelsSection.appendChild(labelElement);
+        });
+        
+        commonBlock.appendChild(commonLabelsSection);
+    }
+
+    // Group annotations section
+    if (responsiveData.common_annotations && Object.keys(responsiveData.common_annotations).length > 0) {
+        const groupAnnotationsSection = document.createElement('div');
+        groupAnnotationsSection.className = 'annotations-section';
+        
+        const groupAnnotationsHeader = document.createElement('div');
+        groupAnnotationsHeader.className = 'section-header';
+        groupAnnotationsHeader.innerHTML = '<strong>group annotations:</strong>';
+        groupAnnotationsSection.appendChild(groupAnnotationsHeader);
+        
+        Object.entries(responsiveData.common_annotations).forEach(([key, value]) => {
+            const annotationElement = document.createElement('span');
+            annotationElement.className = 'annotation-pill';
+            annotationElement.textContent = `${key}: ${value}`;
+            groupAnnotationsSection.appendChild(annotationElement);
+        });
+        
+        commonBlock.appendChild(groupAnnotationsSection);
+    }
+
+    return commonBlock;
+}
+
 function responsiveLayoutCollapseFormatter(data) {
 
     // Handle initial setup case
@@ -505,12 +627,29 @@ function responsiveLayoutCollapseFormatter(data) {
 
     const responsiveData = responsiveDataItem.value;
 
-    // Create container element
+    // Create main container element
     const container = document.createElement('div');
     container.className = 'responsive-collapse';
 
-    // Alerts blocks wrapper
+    // Create common information block (always show if we have incident info or group labels)
+    if ((responsiveData.incident_info) || 
+        (responsiveData.group_labels && Object.keys(responsiveData.group_labels).length > 0)) {
+        const commonBlock = createSimpleCommonBlock(responsiveData);
+        container.appendChild(commonBlock);
+    }
+
+    // Create alerts section
     if (responsiveData.alerts && responsiveData.alerts.length > 0) {
+        const alertsSection = document.createElement('div');
+        alertsSection.className = 'alerts-section';
+
+        // Add "alerts:" label
+        const alertsLabel = document.createElement('div');
+        alertsLabel.className = 'alerts-label';
+        alertsLabel.textContent = 'alerts:';
+        alertsSection.appendChild(alertsLabel);
+
+        // Create alerts wrapper
         const alertsWrapper = document.createElement('div');
         alertsWrapper.className = 'alerts-wrapper';
 
@@ -523,7 +662,7 @@ function responsiveLayoutCollapseFormatter(data) {
                     generatorURL: alert.generatorURL
                 },
                 {
-                    highlighted: responsiveData.show_common_block ? {} : responsiveData.group_labels,
+                    highlighted: {},
                     regular: alert.labels || {}
                 },
                 alert.annotations || {},
@@ -532,21 +671,8 @@ function responsiveLayoutCollapseFormatter(data) {
             alertsWrapper.appendChild(alertBlock);
         });
 
-        container.appendChild(alertsWrapper);
-    }
-
-    if (responsiveData.show_common_block) {
-        // Common information block
-        const commonBlock = createInfoBlock(
-            {}, // No header for common block
-            {
-                highlighted: responsiveData.group_labels || {},
-                regular: responsiveData.common_labels || {}
-            },
-            responsiveData.common_annotations || {},
-            true // isCommonBlock flag
-        );
-        container.appendChild(commonBlock);
+        alertsSection.appendChild(alertsWrapper);
+        container.appendChild(alertsSection);
     }
 
     return container;
