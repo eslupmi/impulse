@@ -83,6 +83,10 @@ class SlackApplication(Application):
         )
         return admins_text
 
+    def format_user_mention(self, user_id, display_name=None):
+        """Format a user mention for Slack."""
+        return f'<@{user_id}>'
+
     async def send_message(self, channel_id, text, attachment):
         payload = {
             'channel': channel_id,
@@ -122,6 +126,7 @@ class SlackApplication(Application):
                     logger.info(f'Incident {incident_.uuid} -> button TAKE IT pressed')
                     incident_.assign_user_id(user_id)
                     asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id, incidents))
+                    asyncio.create_task(self.post_assignment_notification(incident_, user_id))
                     incident_.chain_enabled = False
                 else:
                     logger.info(f'Incident {incident_.uuid} -> button RELEASE pressed')

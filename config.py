@@ -34,6 +34,8 @@ with open(f'{config_path}/impulse.yml', 'r') as file:
         incident['timeouts']['firing'] = settings.get('incident', {}).get('timeouts', {}).get('firing', '6h')
         incident['timeouts']['unknown'] = settings.get('incident', {}).get('timeouts', {}).get('unknown', '6h')
         incident['timeouts']['resolved'] = settings.get('incident', {}).get('timeouts', {}).get('resolved', '12h')
+        incident['notifications'] = dict()
+        incident['notifications']['assignment'] = settings.get('incident', {}).get('notifications', {}).get('assignment', True)
 
         experimental = settings.get('experimental', {})
         application = settings.get('application')

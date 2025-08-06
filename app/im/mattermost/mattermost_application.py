@@ -92,6 +92,10 @@ class MattermostApplication(Application):
         )
         return admins_text
 
+    def format_user_mention(self, user_id, display_name=None):
+        """Format a user mention for Mattermost using username."""
+        return f'@{display_name}'
+
     async def send_message(self, channel_id, text, attachment):
         payload = {
             'channel_id': channel_id,
@@ -119,6 +123,7 @@ class MattermostApplication(Application):
         action = payload['context']['action']
 
         user_id = payload.get('user_id')
+        user_name = payload.get('user_name')
 
         if action == 'chain':
             await queue_.delete_by_id(incident_.uuid, delete_steps=True, delete_status=False)
@@ -126,6 +131,7 @@ class MattermostApplication(Application):
                 logger.info(f'Incident {incident_.uuid} -> button TAKE IT pressed')
                 incident_.assign_user_id(user_id)
                 asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id, incidents))
+                asyncio.create_task(self.post_assignment_notification(incident_, user_id, user_name))
                 incident_.chain_enabled = False
             else: # release
                 logger.info(f'Incident {incident_.uuid} -> button RELEASE pressed')
