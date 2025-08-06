@@ -29,13 +29,10 @@ class Incidents:
             
         Returns:
             The full name if found in any existing incident, None otherwise
-        """
-        if not user_id:
-            return None
-            
+        """            
         for incident in self.by_uuid.values():
-            if incident.assigned_user_id == user_id and incident.assigned_user and incident.assigned_user != "-":
-                return incident.assigned_user
+            if incident.assigned_user_id == user_id and incident.assigned_fullname and incident.assigned_fullname != "-":
+                return incident.assigned_fullname
         
         return None
 

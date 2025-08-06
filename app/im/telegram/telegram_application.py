@@ -241,26 +241,22 @@ class TelegramApplication(Application):
         return text
 
     async def get_user_details(self, user_details):
-        id_ = user_details.get('id') if user_details is not None else None
-        exists = False
-        full_name = None
-        if id_ is not None:
-            try:
-                async with self.http.get(f'{self.url}/getChat?chat_id={id_}', headers=self.headers) as response:
-                    data = await response.json()
-                    if response.status == 200 and data.get('ok'):
-                        exists = True
-                        chat_data = data.get('result', {})
-                        first_name = chat_data.get('first_name', '').strip()
-                        last_name = chat_data.get('last_name', '').strip()
-                        full_name = f"{first_name} {last_name}".strip() or chat_data.get('username')
-                    elif response.status != 200:
-                        logger.debug(f'Failed to get user details for {id_}: HTTP {response.status}, response: {data}')
-            except aiohttp.ClientError as e:
-                logger.error(f'Failed to get user details for {id_}: {e}')
-            except Exception as e:
-                logger.error(f'Unexpected error getting user details for {id_}: {e}')
-        return {'id': id_, 'exists': exists, 'full_name': full_name}
+        id_ = user_details.get('id')
+        async with self.http.get(f'{self.url}/getChat?chat_id={id_}', headers=self.headers) as response:
+            if response.status != 200:
+                logger.debug(f'Failed to get user details for {id_}: HTTP {response.status}')
+                return {'id': id_, 'exists': False, 'full_name': None}
+            
+            data = await response.json()
+            if not data.get('ok'):
+                logger.debug(f'Telegram API error for user {id_}: {data.get("description", "unknown error")}')
+                return {'id': id_, 'exists': False, 'full_name': None}
+            
+            chat_data = data.get('result', {})
+            first_name = chat_data.get('first_name', '').strip()
+            last_name = chat_data.get('last_name', '').strip()
+            full_name = f"{first_name} {last_name}".strip()
+            return {'id': id_, 'exists': True, 'full_name': full_name}
 
     def create_user(self, name, user_details):
         return User(

@@ -50,21 +50,21 @@ class MattermostApplication(Application):
         return app_config['team']
 
     async def get_user_details(self, user_details):
-        id_ = user_details.get('id') if user_details is not None else None
-        if id_ is not None:
-            async with self.http.get(f'{self.url}/api/v4/users/{id_}?user_id={id_}', headers=self.headers) as response:
-                data = await response.json()
-                if response.status == 404:
-                    exists = False
-                    full_name = None
-                else:
-                    exists = True
-                    first_name = data.get('first_name', '').strip()
-                    last_name = data.get('last_name', '').strip()
-                    full_name = f"{first_name} {last_name}".strip() or data.get('username')
-                return {'id': id_, 'username': data.get('username'), 'exists': exists, 'full_name': full_name}
-        else:
-            return {'id': None, 'username': None, 'exists': False, 'full_name': None}
+        id_ = user_details.get('id')
+        async with self.http.get(f'{self.url}/api/v4/users/{id_}?user_id={id_}', headers=self.headers) as response:
+            if response.status == 404:
+                logger.debug(f'User not found for {id_}: HTTP 404')
+                return {'id': id_, 'username': None, 'exists': False, 'full_name': None}
+            
+            if response.status != 200:
+                logger.debug(f'Failed to get user details for {id_}: HTTP {response.status}')
+                return {'id': id_, 'username': None, 'exists': False, 'full_name': None}
+            
+            data = await response.json()
+            first_name = data.get('first_name', '').strip()
+            last_name = data.get('last_name', '').strip()
+            full_name = f"{first_name} {last_name}".strip()
+            return {'id': id_, 'username': data.get('username'), 'exists': True, 'full_name': full_name}
 
     def create_user(self, name, user_details):
         return User(
