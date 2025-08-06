@@ -57,6 +57,7 @@ class AlertHandler(BaseHandler):
             status_update_datetime=status_update_datetime,
             assigned_user_id="",
             assigned_user="",
+            assigned_fullname="",
             version=INCIDENT_ACTUAL_VERSION
         )
         await self._create_thread(incident_, alert_state)
