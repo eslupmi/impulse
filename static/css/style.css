@@ -536,6 +536,7 @@ element.style {
     width: 16px;
     height: 16px;
     stroke: var(--theme-icon-color);
+    color: var(--theme-icon-color);
     transition: all 0.3s ease;
 }
 
