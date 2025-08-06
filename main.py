@@ -8,7 +8,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from app.im.channels import check_channels
+from app.im.channel_manager import ChannelManager
 from app.im.helpers import get_application
 from app.incident.incidents import Incidents
 from app.logging import logger, configure_uvicorn_logging
@@ -30,12 +30,13 @@ async def lifespan(fastapi_app: FastAPI):
 
     route = generate_route(route_dict)
     
-
+    channel_manager = ChannelManager()
     if application.get('type') == 'none':
         channels = {'default': {'id': 'default'}}
         default_channel = 'default'
+        channel_manager.initialize(['default'], channels, 'default')
     else:
-        channels = check_channels(route.get_uniq_channels(), application['channels'], route.channel)
+        channels = channel_manager.initialize(route.get_uniq_channels(), application['channels'], route.channel)
         default_channel = route.channel
     
     messenger = get_application(application, channels, default_channel)
@@ -54,6 +55,7 @@ async def lifespan(fastapi_app: FastAPI):
     fastapi_app.state.messenger = messenger
     fastapi_app.state.webhooks = webhooks
     fastapi_app.state.route = route
+    fastapi_app.state.channel_manager = channel_manager
 
     # Start background queue processing
     await queue_manager.start_processing()

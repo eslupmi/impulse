@@ -50,7 +50,6 @@ class AlertHandler(BaseHandler):
             status=status,
             channel_id=channel['id'],
             config=config,
-            channel_name=channel_name,
             chain=[],
             chain_enabled=True,
             status_enabled=True,
