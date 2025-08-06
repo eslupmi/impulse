@@ -93,19 +93,8 @@ class MattermostApplication(Application):
         return admins_text
 
     def format_user_mention(self, user_id, display_name=None):
-        """Format a user mention for Mattermost. Uses display_name if available, otherwise user_id."""
-        for user in self.admin_users:
-            if user.id_ == user_id and hasattr(user, 'username') and user.username:
-                return f'@{user.username}'
-        
-        if hasattr(self, 'users') and self.users:
-            for user in self.users.values():
-                if hasattr(user, 'id_') and user.id_ == user_id and hasattr(user, 'username') and user.username:
-                    return f'@{user.username}'
-        
-        if display_name:
-            return f'@{display_name}'
-        return f'@{user_id}'
+        """Format a user mention for Mattermost using username."""
+        return f'@{display_name}'
 
     async def send_message(self, channel_id, text, attachment):
         payload = {
@@ -142,7 +131,7 @@ class MattermostApplication(Application):
                 logger.info(f'Incident {incident_.uuid} -> button TAKE IT pressed')
                 incident_.assign_user_id(user_id)
                 asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id, incidents))
-                asyncio.create_task(self.post_assignment_notification(incident_, user_id, incidents, user_name))
+                asyncio.create_task(self.post_assignment_notification(incident_, user_id, user_name))
                 incident_.chain_enabled = False
             else: # release
                 logger.info(f'Incident {incident_.uuid} -> button RELEASE pressed')

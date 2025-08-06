@@ -118,8 +118,6 @@ class SlackApplication(Application):
         actions = payload.get('actions')
 
         user_id = payload.get('user')['id']
-        user_info = payload.get('user', {})
-        user_display_name = user_info.get('name') or user_info.get('username')
 
         for action in actions:
             if action['name'] == 'chain':
@@ -128,7 +126,7 @@ class SlackApplication(Application):
                     logger.info(f'Incident {incident_.uuid} -> button TAKE IT pressed')
                     incident_.assign_user_id(user_id)
                     asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id, incidents))
-                    asyncio.create_task(self.post_assignment_notification(incident_, user_id, incidents, user_display_name))
+                    asyncio.create_task(self.post_assignment_notification(incident_, user_id))
                     incident_.chain_enabled = False
                 else:
                     logger.info(f'Incident {incident_.uuid} -> button RELEASE pressed')

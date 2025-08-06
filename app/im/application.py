@@ -92,30 +92,18 @@ class Application(ABC):
             incident.assign_fullname("-")
             incident.dump()
 
-    async def post_assignment_notification(self, incident_obj, user_id, incidents=None, user_display_name=None):
+    async def post_assignment_notification(self, incident_obj, user_id, user_display_name=None):
         """
         Post a notification message to the thread when a user is assigned to an incident.
-        This method doesn't block execution and respects the incident.notifications.assignment config.
         
         Args:
             incident_obj: The incident object
             user_id: The user ID that was assigned
-            incidents: Optional incidents collection for user name caching
-            user_display_name: Optional user display name (avoids API calls if provided)
         """
-        if not incident.get('notifications', {}).get('assignment', True):
-            return
-            
-        if not user_id:
+        if not incident.get('notifications', {}).get('assignment', True) or not user_id:
             return
             
         try:
-            if not user_display_name:
-                if incidents:
-                    cached_name = incidents.get_assigned_user_by_id(user_id)
-                    if cached_name and cached_name != "-":
-                        user_display_name = cached_name
-
             user_mention = self.format_user_mention(user_id, user_display_name)
             message = f"update: assigned to {user_mention}"
             
