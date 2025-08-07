@@ -14,6 +14,8 @@
     width: 441px;
 }
 
+
+
 /* Info stack */
 .info-stack {
     display: flex;
@@ -68,7 +70,18 @@
     display: flex;
     flex-wrap: wrap;
     margin-bottom: 12px;
-    justify-content: space-between;
+    /* justify-content: space-between; */
+}
+
+/* Specific styling for simple common block labels section */
+.simple-common-block .labels-section,
+.simple-common-block .annotations-section {
+    justify-content: flex-end;
+}
+
+.simple-common-block .labels-section .section-header,
+.simple-common-block .annotations-section .section-header {
+    flex: 1;
 }
 
 .section-header {

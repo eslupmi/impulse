@@ -1,8 +1,8 @@
-import {initializeTable, updateRelativeTimeFields} from "./table.js";
+import {initializeTable, updateRelativeTimeFieldsInTable} from "./table.js";
 import {setupWebSocketEvents, updateOnlineStatus} from "./websocket.js";
 import {loadFiltersFromURL, setupTableFiltering, updateZoomIcons} from "./filters.js";
 import {setupSortingListener} from "./sorters.js";
-import {updateRelativeTimeSpans} from "./formatters.js";
+import {updateRelativeTimeSpans, updateRelativeTimeFieldsInResponsiveData} from "./formatters.js";
 import {ThemeManager} from "./theme.js";
 
 
@@ -22,7 +22,8 @@ initializeTable().then(() => {
     }, 100);
     
     // Update table relative time fields every second
-    setInterval(() => updateRelativeTimeFields(), 1000);
+    setInterval(() => updateRelativeTimeFieldsInTable(), 1000);
+    setInterval(() => updateRelativeTimeFieldsInResponsiveData(), 1000);
     
     // Update header block relative time spans every minute
     setInterval(() => updateRelativeTimeSpans(), 60000);

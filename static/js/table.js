@@ -137,7 +137,7 @@ async function initializeTable() {
 }
 
 // Auto-update relative time fields every 10 seconds
-function updateRelativeTimeFields() {
+function updateRelativeTimeFieldsInTable() {
     table.getRows().forEach(row => {
         row.getCells().forEach(cell => {
             if (relativeFields.includes(cell.getColumn().getField())) {
@@ -147,4 +147,4 @@ function updateRelativeTimeFields() {
     });
 }
 
-export {initializeTable, updateRelativeTimeFields, table};
+export {initializeTable, updateRelativeTimeFieldsInTable, table};

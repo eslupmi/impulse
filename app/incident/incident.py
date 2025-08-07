@@ -230,7 +230,7 @@ class Incident:
             show_common_block = False
         data = {
             'uuid': str(self.uuid),
-            'indicator': status_colors.get(self.status),
+            'indicator': self.status,
             '_alerts_count': len(self.last_state.get('alerts', [])),
             '_responsive_data': {
                 'group_labels': group_labels,

@@ -662,3 +662,25 @@ element.style {
     margin-left: 0px;
     margin-top: 50px;
 }
+
+.status-indicator {
+    display: inline-block;
+    width: 6px;
+    height: 35px;
+}
+
+.status-indicator.firing {
+    background-color: var(--status-badge-firing);
+}
+
+.status-indicator.resolved {
+    background-color: var(--status-badge-resolved);
+}
+
+.status-indicator.unknown {
+    background-color: var(--status-badge-unknown);
+}
+
+.status-indicator.closed {
+    background-color: var(--status-badge-closed);
+}

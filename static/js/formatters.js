@@ -274,10 +274,7 @@ function formatterWrapper(formatter) {
 
 function formatIndicator(cell, params) {
     const indicatorDiv = document.createElement("div");
-    indicatorDiv.style.display = "inline-block";
-    indicatorDiv.style.width = "6px";
-    indicatorDiv.style.height = "35px";
-    indicatorDiv.style.backgroundColor = cell.getValue();
+    indicatorDiv.className = `status-indicator ${cell.getValue().toLowerCase()}`;
     return indicatorDiv;
 }
 
@@ -501,15 +498,17 @@ function createSimpleCommonBlock(responsiveData) {
     
     const createdTimeAgo = formatRelativeTime(info.created);
     const createdSpan = document.createElement('span');
-    createdSpan.className = 'info-item';
-    createdSpan.innerHTML = `<strong>created:</strong> ${createdTimeAgo}`;
+    createdSpan.className = 'info-item info-item-time';
+    createdSpan.setAttribute('data-timestamp', info.created);
+    createdSpan.innerHTML = `<strong>created:</strong> <div class="relative-time-label">${createdTimeAgo}</div>`;
     createdSpan.title = formatTimestamp(info.created);
     infoStack.appendChild(createdSpan);
     
     const updatedTimeAgo = formatRelativeTime(info.updated);
     const updatedSpan = document.createElement('span');
-    updatedSpan.className = 'info-item';
-    updatedSpan.innerHTML = `<strong>updated:</strong> ${updatedTimeAgo}`;
+    updatedSpan.className = 'info-item info-item-time';
+    updatedSpan.setAttribute('data-timestamp', info.updated);
+    updatedSpan.innerHTML = `<strong>updated:</strong> <div class="relative-time-label">${updatedTimeAgo}</div>`;
     updatedSpan.title = formatTimestamp(info.updated);
     infoStack.appendChild(updatedSpan);
     
@@ -527,27 +526,27 @@ function createSimpleCommonBlock(responsiveData) {
     
     commonBlock.appendChild(infoStack);
 
-    // Common labels section
-    if (responsiveData.common_labels && Object.keys(responsiveData.common_labels).length > 0) {
-        const commonLabelsSection = document.createElement('div');
-        commonLabelsSection.className = 'labels-section';
+    // Group labels section
+    if (responsiveData.group_labels && Object.keys(responsiveData.group_labels).length > 0) {
+        const groupLabelsSection = document.createElement('div');
+        groupLabelsSection.className = 'labels-section';
         
-        const commonLabelsHeader = document.createElement('div');
-        commonLabelsHeader.className = 'section-header';
-        commonLabelsHeader.innerHTML = '<strong>common labels:</strong>';
-        commonLabelsSection.appendChild(commonLabelsHeader);
+        const groupLabelsHeader = document.createElement('div');
+        groupLabelsHeader.className = 'section-header';
+        groupLabelsHeader.innerHTML = '<strong>group labels:</strong>';
+        groupLabelsSection.appendChild(groupLabelsHeader);
         
-        Object.entries(responsiveData.common_labels).forEach(([key, value]) => {
+        Object.entries(responsiveData.group_labels).forEach(([key, value]) => {
             const labelElement = document.createElement('span');
-            labelElement.className = 'label-pill common-label';
+            labelElement.className = 'label-pill group-label';
             labelElement.textContent = `${key}: ${value}`;
-            commonLabelsSection.appendChild(labelElement);
+            groupLabelsSection.appendChild(labelElement);
         });
         
-        commonBlock.appendChild(commonLabelsSection);
+        commonBlock.appendChild(groupLabelsSection);
     }
 
-    // Additional common labels section (only if there are common labels that aren't common labels)
+    // Additional common labels section (only if there are common labels that aren't group labels)
     if (responsiveData.common_labels && Object.keys(responsiveData.common_labels).length > 0) {
         const commonLabelsSection = document.createElement('div');
         commonLabelsSection.className = 'labels-section';
@@ -704,4 +703,15 @@ function updateRelativeTimeSpans() {
     });
 }
 
-export {formatterWrapper, setColorMap, formatterMap, formatterParamsMap, responsiveLayoutCollapseFormatter, updateRelativeTimeSpans};
+function updateRelativeTimeFieldsInResponsiveData() {
+    document.querySelectorAll('.responsive-collapse').forEach(collapse => {
+            collapse.querySelectorAll('.info-item-time').forEach(timeSpan => {
+            const timestamp = parseFloat(timeSpan.getAttribute('data-timestamp'));
+            if (!isNaN(timestamp)) {
+                timeSpan.querySelector('.relative-time-label').textContent = formatRelativeTime(timestamp);
+            }
+        });
+    });
+}
+
+export {formatterWrapper, setColorMap, formatterMap, formatterParamsMap, responsiveLayoutCollapseFormatter, updateRelativeTimeSpans, updateRelativeTimeFieldsInResponsiveData};
