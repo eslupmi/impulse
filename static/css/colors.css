@@ -44,6 +44,8 @@
     /* Status Badge Colors */
     --status-badge-firing: #D14035;
     --status-badge-resolved: #56C15E;
+    --status-badge-unknown: #C1A300;
+    --status-badge-closed: #969696;
     
     /* Theme Icon Colors */
     --theme-icon-color: #22688A;
@@ -51,6 +53,8 @@
     /* Online Status Colors */
     --online-status-indicator: var(--theme-icon-color);
     --offline-status-indicator: #F04438;
+
+    --info-block-background: var(--neutral-400);
     
     /* Search Icon Colors */
     --search-icon-color: #38ADE6;
@@ -77,7 +81,7 @@
     --label-highlighted-text: var(--neutral-100);
     
     --annotation-border: var(--neutral-600);
-    --annotation-text: var(--neutral-700);
+    --annotation-text: var(--neutral-800);
     --tooltip-background: var(--alerts-count-background);
 }
 
@@ -110,7 +114,7 @@
 
     --background-primary: var(--neutral-100);
     --background-secondary: var(--brand-primary-light);
-    --background-tertiary: var(--neutral-200);
+    --background-tertiary: var(--neutral-100);
 
     --border-primary: var(--brand-secondary-light);
     --border-secondary: var(--neutral-500);
@@ -127,10 +131,14 @@
     /* Status Badge Colors */
     --status-badge-firing: #D14035;
     --status-badge-resolved: #56C15E;
+    --status-badge-unknown: #C1A300;
+    --status-badge-closed: #969696;
 
     /* Online Status Colors */
     --online-status-indicator: #38ADE6;
     --offline-status-indicator: #D14035;
+
+    --info-block-background: var(--neutral-200);
 
     /* Theme Icon Colors */
     --theme-icon-color: #EBF7FC;
@@ -155,11 +163,11 @@
     --alerts-count-text: var(--neutral-800);
 
     --label-background: var(--neutral-300);
-    --label-text: var(--neutral-900);
+    --label-text: var(--neutral-800);
     --label-highlighted-background: var(--neutral-700);
     --label-highlighted-text: var(--neutral-100);
 
-    --annotation-border: var(--neutral-700);
-    --annotation-text: var(--neutral-700);
+    --annotation-border: var(--neutral-300);
+    --annotation-text: var(--neutral-800);
     --tooltip-background: var(--alerts-count-background);
 }

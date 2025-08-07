@@ -19,7 +19,7 @@
     display: flex;
     gap: 10px;
     margin-bottom: 20px;
-    font-size: 13px;
+    font-size: 14px;
     color: var(--text-primary);
     flex-direction: column;
 }
@@ -31,10 +31,6 @@
     justify-content: space-between;
 }
 
-.info-item strong {
-    color: var(--text-secondary);
-}
-
 .status-value.firing {
     color: var(--status-badge-firing);
     font-weight: 600;
@@ -42,6 +38,11 @@
 
 .status-value.resolved {
     color: var(--status-badge-resolved);
+    font-weight: 600;
+}
+
+.status-value.unknown {
+    color: var(--status-badge-unknown);
     font-weight: 600;
 }
 
@@ -70,8 +71,8 @@
 }
 
 .section-header {
-    font-size: 13px;
-    color: var(--text-secondary);
+    font-size: 14px;
+    color: var(--text-primary);
     margin-bottom: 3px;
     align-content: center;
 }
@@ -80,15 +81,14 @@
     display: inline-block;
     padding: 4px 8px;
     border-radius: 4px;
-    font-size: 12px;
+    font-size: 14px;
     background-color: var(--label-background);
     color: var(--label-text);
-    border: 1px solid var(--border-secondary);
 }
 
 .label-pill.group-label {
-    background-color: var(--label-highlighted-background);
-    color: var(--label-highlighted-text);
+    background-color: var(--label-background);
+    color: var(--label-text);
     font-weight: 500;
 }
 
@@ -96,7 +96,7 @@
     display: inline-block;
     padding: 4px 8px;
     border-radius: 4px;
-    font-size: 12px;
+    font-size: 14px;
     border: 1px solid var(--annotation-border);
     background-color: transparent;
     color: var(--annotation-text);
@@ -115,7 +115,7 @@
 
 .alerts-label {
     font-size: 14px;
-    font-weight: 600;
+    font-weight: 400;
     color: var(--text-primary);
     margin-bottom: 4px;
 }
@@ -162,7 +162,7 @@
     border: 1px solid var(--border-secondary);
     border-radius: 4px;
     padding: 4px 8px;
-    font-size: 12px;
+    font-size: 14px;
     color: var(--text-primary);
     display: inline-block;
 }
@@ -213,21 +213,21 @@
 }
 
 .info-block {
-    background-color: var(--neutral-400);
+    background-color: var(--info-block-background);
     border-radius: 8px;
-    padding: 8px;
+    padding-bottom: 20px;
+    padding-left: 8px;
+    padding-right: 8px;
+    padding-top: 4px;
 }
 
-/* Common info block */
 .common-info-block {
     width: 500px;
     padding: 20px 12px;
 }
 
-/* Alert blocks */
 .alert-info-block {
     width: 330px;
-    padding: 8px 8px 20px 8px;
 }
 
 .labels-list {
@@ -261,20 +261,32 @@
     color: var(--text-inverse);
 }
 
+.status-badge.unknown {
+    background-color: var(--status-badge-unknown);
+    color: var(--text-inverse);
+}
+
+.status-badge.closed {
+    background-color: var(--status-badge-closed);
+    color: var(--text-inverse);
+}
+
 .alert-header {
     display: flex;
     gap: 16px;
-    font-size: 12px;
+    font-size: 14px;
     color: var(--text-secondary);
-    margin-bottom: 12px;
-    border-bottom: 1px solid var(--border-secondary);
+    margin-bottom: 20px;
+    border-bottom: 1.3px solid var(--border-secondary);
     justify-content: space-between;
+    align-items: center;
+    height: 20px;
 }
 
 .generator-link {
     color: var(--link-primary);
     text-decoration: none;
-    font-size: 12px;
+    font-size: 14px;
 }
 
 .generator-link:hover {
@@ -291,7 +303,7 @@
     padding: 4px 8px;
     border-radius: 4px;
     background: var(--label-background);
-    font-size: 12px;
+    font-size: 14px;
     color: var(--label-text);
 }
 
@@ -306,7 +318,6 @@
     flex-wrap: wrap;
     gap: 8px;
     padding-top: 12px;
-    border-top: 1px solid var(--border-secondary);
     position: relative;
     z-index: 1;
 }
@@ -315,14 +326,16 @@
     display: inline-block;
     padding: 4px 8px;
     border-radius: 4px;
-    border: 1px solid var(--annotation-border);
-    font-size: 12px;
+    border: 1.3px solid var(--annotation-border);
+    font-size: 14px;
     user-select: text;
     -webkit-user-select: text;
     -moz-user-select: text;
     -ms-user-select: text;
     position: relative;
     color: var(--annotation-text);
+    line-height: 1.2;
+    vertical-align: middle;
 }
 
 .annotation.common {
@@ -347,13 +360,7 @@
 .time-wrapper {
     position: relative;
     display: inline-block;
-}
-
-.annotation {
-    user-select: text;
-    -webkit-user-select: text;
-    -moz-user-select: text;
-    -ms-user-select: text;
+    place-items: center;
 }
 
 .tooltip-text {
@@ -368,7 +375,7 @@
     min-width: 200px;
     max-width: 400px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-    font-size: 12px;
+    font-size: 14px;
     line-height: 1.4;
     opacity: 0;
     transition: opacity 0.2s;
@@ -414,15 +421,6 @@
 .annotation .tooltip-text {
     position: fixed;
     transform: translateY(-100%);
-}
-
-/* Make annotations selectable */
-.annotation {
-    user-select: text;
-    -webkit-user-select: text;
-    -moz-user-select: text;
-    -ms-user-select: text;
-    position: relative;
 }
 
 /* Fix annotation tooltip positioning */
