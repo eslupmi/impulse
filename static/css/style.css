@@ -612,9 +612,11 @@ element.style {
     color: var(--brand-primary) !important;
 }
 
-/* Navigation buttons with arrow content */
-.tabulator-footer button[data-page="first"] {
-    font-size: 0; /* Hide text */
+.tabulator-footer button[data-page="first"],
+.tabulator-footer button[data-page="prev"],
+.tabulator-footer button[data-page="next"],
+.tabulator-footer button[data-page="last"] {
+    font-size: 0 !important; /* Hide text */
     padding: 0 6px !important;
 }
 
@@ -626,11 +628,6 @@ element.style {
     transition: all 0.3s ease;
 }
 
-.tabulator-footer button[data-page="prev"] {
-    font-size: 0; /* Hide text */
-    padding: 0 6px !important;
-}
-
 .tabulator-footer button[data-page="prev"]::before {
     content: url('data:image/svg+xml;utf8,<svg width="6" height="10" viewBox="0 0 6 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 9L1 5L5 1" stroke="%23EBF7FC" stroke-linecap="round" stroke-linejoin="round"/></svg>');
     font-size: 16px;
@@ -639,22 +636,12 @@ element.style {
     transition: all 0.3s ease;
 }
 
-.tabulator-footer button[data-page="next"] {
-    font-size: 0; /* Hide text */
-    padding: 0 6px !important;
-}
-
 .tabulator-footer button[data-page="next"]::before {
     content: url('data:image/svg+xml;utf8,<svg width="6" height="10" viewBox="0 0 6 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 9L5 5L1 1" stroke="%23EBF7FC" stroke-linecap="round" stroke-linejoin="round"/></svg>');
     font-size: 16px;
     font-weight: bold;
     line-height: 19px;
     transition: all 0.3s ease;
-}
-
-.tabulator-footer button[data-page="last"] {
-    font-size: 0; /* Hide text */
-    padding: 0 6px !important;
 }
 
 .tabulator-footer button[data-page="last"]::before {
