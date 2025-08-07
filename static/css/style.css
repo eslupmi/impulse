@@ -2,13 +2,17 @@
 
 /* General Styling */
 body {
-    font-family: 'Inter', sans-serif;
+    font-family: 'Inter', 'Regular', sans-serif;
     font-weight: 400;
     font-size: 16px;
     background: var(--background-primary);
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+}
+
+strong {
+    font-weight: normal;
 }
 
 *, *:before, *:after {
@@ -465,7 +469,7 @@ element.style {
 
 .online-status-wrapper {
     position: fixed;
-    bottom: 7px;
+    bottom: 6px;
     left: 20px;
     z-index: 1000;
     font-family: 'Inter', sans-serif;
@@ -615,10 +619,11 @@ element.style {
 }
 
 .tabulator-footer button[data-page="first"]::before {
-    content: "«";
+    content: url('data:image/svg+xml;utf8,<svg width="10" height="10" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 9L5 5L9 1" stroke="%23EBF7FC" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 9L1 5L5 1" stroke="%23EBF7FC" stroke-linecap="round" stroke-linejoin="round"/></svg>');
     font-size: 16px;
     font-weight: bold;
     line-height: 19px;
+    transition: all 0.3s ease;
 }
 
 .tabulator-footer button[data-page="prev"] {
@@ -627,10 +632,11 @@ element.style {
 }
 
 .tabulator-footer button[data-page="prev"]::before {
-    content: "‹";
+    content: url('data:image/svg+xml;utf8,<svg width="6" height="10" viewBox="0 0 6 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 9L1 5L5 1" stroke="%23EBF7FC" stroke-linecap="round" stroke-linejoin="round"/></svg>');
     font-size: 16px;
     font-weight: bold;
     line-height: 19px;
+    transition: all 0.3s ease;
 }
 
 .tabulator-footer button[data-page="next"] {
@@ -639,10 +645,11 @@ element.style {
 }
 
 .tabulator-footer button[data-page="next"]::before {
-    content: "›";
+    content: url('data:image/svg+xml;utf8,<svg width="6" height="10" viewBox="0 0 6 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 9L5 5L1 1" stroke="%23EBF7FC" stroke-linecap="round" stroke-linejoin="round"/></svg>');
     font-size: 16px;
     font-weight: bold;
     line-height: 19px;
+    transition: all 0.3s ease;
 }
 
 .tabulator-footer button[data-page="last"] {
@@ -651,14 +658,16 @@ element.style {
 }
 
 .tabulator-footer button[data-page="last"]::before {
-    content: "»";
+    content: url('data:image/svg+xml;utf8,<svg width="10" height="10" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 9L5 5L1 1" stroke="%23EBF7FC" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 9L9 5L5 1" stroke="%23EBF7FC" stroke-linecap="round" stroke-linejoin="round"/></svg>');
     font-size: 16px;
     font-weight: bold;
     line-height: 19px;
+    transition: all 0.3s ease;
 }
 
 .tabulator-footer button[data-page]:hover {
     background: transparent !important;
+    transform: scale(1.2);
 }
 
 .tabulator-placeholder-contents {

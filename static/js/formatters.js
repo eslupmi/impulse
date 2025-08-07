@@ -494,49 +494,29 @@ function createSimpleCommonBlock(responsiveData) {
     const infoStack = document.createElement('div');
     infoStack.className = 'info-stack';
     
-    if (info.status) {
-        const statusSpan = document.createElement('span');
-        statusSpan.className = 'info-item';
-        statusSpan.innerHTML = `<strong>status:</strong> <span class="status-value ${info.status}">${info.status}</span>`;
-        infoStack.appendChild(statusSpan);
-    }
+    const statusSpan = document.createElement('span');
+    statusSpan.className = 'info-item';
+    statusSpan.innerHTML = `<strong>status:</strong> <span class="status-value ${info.status}">${info.status}</span>`;
+    infoStack.appendChild(statusSpan);
     
-    if (info.created) {
-        const createdTimeAgo = formatRelativeTime(info.created);
-        const createdSpan = document.createElement('span');
-        createdSpan.className = 'info-item';
-        createdSpan.innerHTML = `<strong>created:</strong> ${createdTimeAgo}`;
-        createdSpan.title = formatTimestamp(info.created);
-        infoStack.appendChild(createdSpan);
-    }
+    const createdTimeAgo = formatRelativeTime(info.created);
+    const createdSpan = document.createElement('span');
+    createdSpan.className = 'info-item';
+    createdSpan.innerHTML = `<strong>created:</strong> ${createdTimeAgo}`;
+    createdSpan.title = formatTimestamp(info.created);
+    infoStack.appendChild(createdSpan);
     
-    if (info.updated) {
-        const updatedTimeAgo = formatRelativeTime(info.updated);
-        const updatedSpan = document.createElement('span');
-        updatedSpan.className = 'info-item';
-        updatedSpan.innerHTML = `<strong>updated:</strong> ${updatedTimeAgo}`;
-        updatedSpan.title = formatTimestamp(info.updated);
-        infoStack.appendChild(updatedSpan);
-    }
+    const updatedTimeAgo = formatRelativeTime(info.updated);
+    const updatedSpan = document.createElement('span');
+    updatedSpan.className = 'info-item';
+    updatedSpan.innerHTML = `<strong>updated:</strong> ${updatedTimeAgo}`;
+    updatedSpan.title = formatTimestamp(info.updated);
+    infoStack.appendChild(updatedSpan);
     
-    if (info.assigned_user) {
-        const assignedSpan = document.createElement('span');
-        assignedSpan.className = 'info-item';
-        assignedSpan.innerHTML = `<strong>assigned to:</strong> ${info.assigned_user}`;
-        infoStack.appendChild(assignedSpan);
-    }
-    
-    if (info.channel_name) {
-        const channelSpan = document.createElement('span');
-        channelSpan.className = 'info-item';
-        channelSpan.innerHTML = `<strong>channel:</strong> ${info.channel_name}`;
-        infoStack.appendChild(channelSpan);
-    }
-    
-    const chainSpan = document.createElement('span');
-    chainSpan.className = 'info-item';
-    chainSpan.innerHTML = `<strong>chain:</strong> ${info.has_chain ? 'enabled' : '-'}`;
-    infoStack.appendChild(chainSpan);
+    const assignedSpan = document.createElement('span');
+    assignedSpan.className = 'info-item';
+    assignedSpan.innerHTML = `<strong>assigned to:</strong> ${info.assigned_user ? info.assigned_user : '-'}`;
+    infoStack.appendChild(assignedSpan);
     
     if (info.link) {
         const linkSpan = document.createElement('span');
@@ -547,27 +527,7 @@ function createSimpleCommonBlock(responsiveData) {
     
     commonBlock.appendChild(infoStack);
 
-    // Group labels section
-    if (responsiveData.group_labels && Object.keys(responsiveData.group_labels).length > 0) {
-        const groupLabelsSection = document.createElement('div');
-        groupLabelsSection.className = 'labels-section';
-        
-        const groupLabelsHeader = document.createElement('div');
-        groupLabelsHeader.className = 'section-header';
-        groupLabelsHeader.innerHTML = '<strong>group labels:</strong>';
-        groupLabelsSection.appendChild(groupLabelsHeader);
-        
-        Object.entries(responsiveData.group_labels).forEach(([key, value]) => {
-            const labelElement = document.createElement('span');
-            labelElement.className = 'label-pill group-label';
-            labelElement.textContent = `${key}: ${value}`;
-            groupLabelsSection.appendChild(labelElement);
-        });
-        
-        commonBlock.appendChild(groupLabelsSection);
-    }
-
-    // Additional common labels section (only if there are common labels that aren't group labels)
+    // Common labels section
     if (responsiveData.common_labels && Object.keys(responsiveData.common_labels).length > 0) {
         const commonLabelsSection = document.createElement('div');
         commonLabelsSection.className = 'labels-section';
@@ -587,24 +547,44 @@ function createSimpleCommonBlock(responsiveData) {
         commonBlock.appendChild(commonLabelsSection);
     }
 
-    // Group annotations section
-    if (responsiveData.common_annotations && Object.keys(responsiveData.common_annotations).length > 0) {
-        const groupAnnotationsSection = document.createElement('div');
-        groupAnnotationsSection.className = 'annotations-section';
+    // Additional common labels section (only if there are common labels that aren't common labels)
+    if (responsiveData.common_labels && Object.keys(responsiveData.common_labels).length > 0) {
+        const commonLabelsSection = document.createElement('div');
+        commonLabelsSection.className = 'labels-section';
         
-        const groupAnnotationsHeader = document.createElement('div');
-        groupAnnotationsHeader.className = 'section-header';
-        groupAnnotationsHeader.innerHTML = '<strong>group annotations:</strong>';
-        groupAnnotationsSection.appendChild(groupAnnotationsHeader);
+        const commonLabelsHeader = document.createElement('div');
+        commonLabelsHeader.className = 'section-header';
+        commonLabelsHeader.innerHTML = '<strong>common labels:</strong>';
+        commonLabelsSection.appendChild(commonLabelsHeader);
+        
+        Object.entries(responsiveData.common_labels).forEach(([key, value]) => {
+            const labelElement = document.createElement('span');
+            labelElement.className = 'label-pill common-label';
+            labelElement.textContent = `${key}: ${value}`;
+            commonLabelsSection.appendChild(labelElement);
+        });
+        
+        commonBlock.appendChild(commonLabelsSection);
+    }
+
+    // Common annotations section
+    if (responsiveData.common_annotations && Object.keys(responsiveData.common_annotations).length > 0) {
+        const commonAnnotationsSection = document.createElement('div');
+        commonAnnotationsSection.className = 'annotations-section';
+        
+        const commonAnnotationsHeader = document.createElement('div');
+        commonAnnotationsHeader.className = 'section-header';
+        commonAnnotationsHeader.innerHTML = '<strong>common annotations:</strong>';
+        commonAnnotationsSection.appendChild(commonAnnotationsHeader);
         
         Object.entries(responsiveData.common_annotations).forEach(([key, value]) => {
             const annotationElement = document.createElement('span');
             annotationElement.className = 'annotation-pill';
             annotationElement.textContent = `${key}: ${value}`;
-            groupAnnotationsSection.appendChild(annotationElement);
+            commonAnnotationsSection.appendChild(annotationElement);
         });
         
-        commonBlock.appendChild(groupAnnotationsSection);
+        commonBlock.appendChild(commonAnnotationsSection);
     }
 
     return commonBlock;
