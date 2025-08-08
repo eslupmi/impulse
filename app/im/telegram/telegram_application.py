@@ -60,10 +60,6 @@ class TelegramApplication(Application):
     def get_admins_text(self): #!
         return ', '.join([f'@{a.id}' for a in self.admin_users])
 
-    def format_user_mention(self, user_id, display_name=None):
-        """Format a user mention for Telegram using the tg://user link format."""
-        return f'<a href="tg://user?id={user_id}">{display_name}</a>'
-
     async def send_message(self, channel_id, text, attachment):
         params = {
             'chat_id': channel_id,

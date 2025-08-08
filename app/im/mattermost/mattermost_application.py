@@ -92,10 +92,6 @@ class MattermostApplication(Application):
         )
         return admins_text
 
-    def format_user_mention(self, user_id, display_name=None):
-        """Format a user mention for Mattermost using username."""
-        return f'@{display_name}'
-
     async def send_message(self, channel_id, text, attachment):
         payload = {
             'channel_id': channel_id,

@@ -7,7 +7,7 @@ from aiohttp_retry import ExponentialRetry, RetryClient
 
 from app.im.chain.chain_factory import ChainFactory
 from app.im.groups import generate_user_groups
-from app.im.template import JinjaTemplate, notification_user, notification_user_group, update_status
+from app.im.template import JinjaTemplate, notification_user, notification_user_group, update_status, notification_assignment
 from app.logging import logger
 from config import incident
 
@@ -104,8 +104,14 @@ class Application(ABC):
             return
             
         try:
-            user_mention = self.format_user_mention(user_id, user_display_name)
-            message = f"update: assigned to {user_mention}"
+            text_template = JinjaTemplate(notification_assignment)
+            fields = {'type': self.type, 'username': user_display_name, 'id': user_id}
+            text = text_template.form_notification(fields)
+            if self.type == 'telegram':
+                message = text
+            else:
+                header = self.format_text_bold(self.header_template.form_message(incident_obj.last_state, incident_obj))
+                message = header + '\n' + text
             
             await self.post_thread(incident_obj.channel_id, incident_obj.ts, message)
             logger.debug(f'Posted assignment notification for incident {incident_obj.uuid}: {message}')
@@ -275,19 +281,6 @@ class Application(ABC):
 
     @abstractmethod
     def format_text_italic(self, text):
-        pass
-
-    @abstractmethod
-    def format_user_mention(self, user_id, display_name=None):
-        """Format a user mention for the specific platform.
-        
-        Args:
-            user_id: The user ID to mention
-            display_name: Optional display name (may be used by some platforms)
-        
-        Returns:
-            Formatted user mention string
-        """
         pass
 
     @abstractmethod
