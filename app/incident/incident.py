@@ -222,12 +222,10 @@ class Incident:
             group_labels = self.last_state.get('groupLabels', {})
             common_labels = self.last_state.get('commonLabels', {})
             common_annotations = self.last_state.get('commonAnnotations', {})
-            show_common_block = True
         else:
-            group_labels = self.last_state.get('groupLabels', {})
-            common_labels = group_labels
+            group_labels = {}
+            common_labels = {}
             common_annotations = {}
-            show_common_block = False
         data = {
             'uuid': str(self.uuid),
             'indicator': self.status,
@@ -256,8 +254,7 @@ class Incident:
                         'annotations': filter_dict_keys(alert.get('annotations', {}), common_annotations)
                     }
                     for alert in alerts
-                ],
-                'show_common_block': show_common_block
+                ]
             }
         }
         data_object = {'incident': self, 'payload': self.last_state}

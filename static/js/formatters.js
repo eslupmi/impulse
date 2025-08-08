@@ -526,28 +526,8 @@ function createSimpleCommonBlock(responsiveData) {
     
     commonBlock.appendChild(infoStack);
 
-    // Group labels section
-    if (responsiveData.group_labels && Object.keys(responsiveData.group_labels).length > 0) {
-        const groupLabelsSection = document.createElement('div');
-        groupLabelsSection.className = 'labels-section';
-        
-        const groupLabelsHeader = document.createElement('div');
-        groupLabelsHeader.className = 'section-header';
-        groupLabelsHeader.innerHTML = '<strong>group labels:</strong>';
-        groupLabelsSection.appendChild(groupLabelsHeader);
-        
-        Object.entries(responsiveData.group_labels).forEach(([key, value]) => {
-            const labelElement = document.createElement('span');
-            labelElement.className = 'label-pill group-label';
-            labelElement.textContent = `${key}: ${value}`;
-            groupLabelsSection.appendChild(labelElement);
-        });
-        
-        commonBlock.appendChild(groupLabelsSection);
-    }
-
-    // Additional common labels section (only if there are common labels that aren't group labels)
-    if (responsiveData.common_labels && Object.keys(responsiveData.common_labels).length > 0) {
+    // Common labels section
+    if ((responsiveData.common_labels && Object.keys(responsiveData.common_labels).length > 0) || (responsiveData.group_labels && Object.keys(responsiveData.group_labels).length > 0)) {
         const commonLabelsSection = document.createElement('div');
         commonLabelsSection.className = 'labels-section';
         
@@ -555,6 +535,13 @@ function createSimpleCommonBlock(responsiveData) {
         commonLabelsHeader.className = 'section-header';
         commonLabelsHeader.innerHTML = '<strong>common labels:</strong>';
         commonLabelsSection.appendChild(commonLabelsHeader);
+        
+        Object.entries(responsiveData.group_labels).forEach(([key, value]) => {
+            const labelElement = document.createElement('span');
+            labelElement.className = 'label-pill group-label';
+            labelElement.textContent = `${key}: ${value}`;
+            commonLabelsSection.appendChild(labelElement);
+        });
         
         Object.entries(responsiveData.common_labels).forEach(([key, value]) => {
             const labelElement = document.createElement('span');
