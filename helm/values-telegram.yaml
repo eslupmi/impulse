@@ -1,0 +1,89 @@
+# Example values for Telegram configuration
+# Copy this file and modify as needed, then use: helm install impulse . -f values-telegram.yaml
+
+image:
+  repository: ghcr.io/eslupmi/impulse
+  tag: ""  # If empty, will use .Chart.AppVersion
+
+# Telegram configuration
+impulseConfig:
+  application:
+    type: "telegram"
+    admin_users: ["admin_user"]
+    users:
+      admin_user:
+        id: "telegram_user_id"
+    channels:
+      incidents_default:
+        id: "telegram_chat_id"
+    chains:
+      default:
+        - user: "admin_user"
+          wait: "10m"
+  
+  incident:
+    alerts_firing_notifications: false
+    alerts_resolved_notifications: false
+    timeouts:
+      firing: "6h"
+      unknown: "6h"
+      resolved: "12h"
+  
+  route:
+    channel: "incidents_default"
+  
+  ui:
+    columns:
+      - name: status
+        header: Status
+        visible: false
+        value: incident.status
+      - name: created
+        type: datetime
+        header: Created
+        value: incident.created
+      - name: alertname
+        header: Alertname
+        type: link
+        url: incident.link
+        value: payload.commonLabels.alertname
+      - name: service
+        header: Service
+        value: payload.commonLabels.service
+      - name: severity
+        header: Severity
+        value: payload.commonLabels.severity
+    sorting:
+      - severity: desc
+        order: ["info", "warning", "critical"]
+      - created: desc
+    colors:
+      severity:
+        critical: "#FF0000"
+        warning: "#FFA500"
+        info: "#00FF00"
+
+# Telegram secrets (replace with your actual token)
+secrets:
+  useExistingSecrets: false
+  inline:
+    telegram:
+      botToken: "your-telegram-bot-token"
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 5000
+
+# Resource limits
+resources:
+  limits:
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+# Persistence
+persistence:
+  enabled: true
+  size: 1Gi

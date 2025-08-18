@@ -1,0 +1,22 @@
+{{- if .Values.podDisruptionBudget.enabled }}
+{{- if semverCompare ">=1.21-0" .Capabilities.KubeVersion.GitVersion }}
+apiVersion: policy/v1
+{{- else }}
+apiVersion: policy/v1beta1
+{{- end }}
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "impulse.fullname" . }}
+  labels:
+    {{- include "impulse.labels" . | nindent 4 }}
+spec:
+  {{- if .Values.podDisruptionBudget.minAvailable }}
+  minAvailable: {{ .Values.podDisruptionBudget.minAvailable }}
+  {{- end }}
+  {{- if .Values.podDisruptionBudget.maxUnavailable }}
+  maxUnavailable: {{ .Values.podDisruptionBudget.maxUnavailable }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "impulse.selectorLabels" . | nindent 6 }}
+{{- end }}

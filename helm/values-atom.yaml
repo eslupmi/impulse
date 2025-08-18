@@ -1,0 +1,138 @@
+# Example values for Mattermost configuration
+# Copy this file and modify as needed, then use: helm install impulse . -f values-mattermost.yaml
+
+image:
+  repository: ghcr.io/eslupmi/impulse
+  tag: ""  # If empty, will use .Chart.AppVersion
+
+# Mattermost configuration
+impulseConfig:
+  application:
+    type: mattermost
+    team: ATOM
+    address: https://time.e-kama.com
+    impulse_address: https://impulse.ycru1-infra-default-k8s-01.int.e-kama.com
+    admin_users: ["Vershinin", "Kashin"]
+    users:
+      Vershinin: {id: o75uiuhghfy9xn3uyz1boow78a}
+      Kashin: {id: ch5as77t6jbzidgtcmy3gnw4ka}
+    channels:
+      homeless: {id: i3813ngupprmjbdnbypmurhjpa}
+      external-targets: {id: 7wpqn4cifpremr9xdcqwqt6r1r} # impulse tests
+      devops_prod: {id: gb7wfsp9pjyr8gdbz76bdjxyoe}
+    # chains:
+    #   devops:
+    #     - user_group: devops
+    #   devops_critical:
+    #     - user: Valery
+    #     - wait: 10m
+    #     - user: Dmitry
+    #     - wait: 10m
+    #     - webhook: Dmitry_call
+    #   developers:
+    #     - user: Dmitry
+    #     - wait: 10m
+    #     - user: Valery
+    #     - wait: 20m
+    #     - user: CEO
+    
+  route:
+    channel: homeless
+    # chain: null ## no chain for homeless alerts
+    routes:
+      - matchers:
+          - cluster="external-targets"
+        channel: external-targets
+      - matchers:
+          - team="general"
+          - environment=~"prod|production"
+        channel: devops_prod
+      - matchers:
+          - team!~".+"
+          - environment=~"prod|production"
+        channel: devops_prod
+      - matchers:
+          - team="general"
+          - cluster=~".*prod|.*infra"
+        channel: devops_prod
+      - matchers:
+          - team!~".+"
+          - cluster=~".*prod|.*infra"
+        channel: devops_prod
+
+  incident:
+    alerts_firing_notifications: True
+    alerts_resolved_notifications: True
+    timeouts:
+      firing: 765m
+      unknown: 12h
+      resolved: 12h
+
+  # webhooks:
+  #   Dmitry_call:
+  #     url: 'https://api.twilio.com/2010-04-01/Accounts/{{ env["TWILIO_ACCOUNT_SID"] }}/Calls.json'
+  #     data:
+  #       To: '+998123456789'
+  #       From: '{{ env["TWILIO_NUMBER"] }}'
+  #       Url: http://example.com/twiml.xml
+  #     auth: '{{ env["TWILIO_ACCOUNT_SID"] }}:{{ env["TWILIO_AUTH_TOKEN"] }}'
+
+  ui:
+    columns:
+      - name: status
+        header: Status
+        visible: false
+        value: incident.status
+      - name: created
+        type: datetime
+        header: Created
+        value: incident.created
+      - name: alertname
+        header: Alertname
+        type: link
+        url: incident.link
+        value: payload.commonLabels.alertname
+      - name: service
+        header: Service
+        value: payload.commonLabels.service
+      - name: severity
+        header: Severity
+        value: payload.commonLabels.severity
+    sorting:
+      - severity: desc
+        order: ["info", "warning", "critical"]
+      - created: desc
+    colors:
+      severity:
+        critical: "#FF0000"
+        warning: "#FFA500"
+        info: "#00FF00"
+
+labels:
+  app: impulse
+
+# Mattermost secrets (replace with your actual token)
+existingSecrets:
+  mattermost:
+    secretName: "secret-values"
+    accessTokenKey: "MATTERMOST_ACCESS_TOKEN"
+
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 5000
+
+# Resource limits
+resources:
+  limits:
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+# Persistence
+persistence:
+  enabled: true
+  size: 1Gi
+  name: "data"

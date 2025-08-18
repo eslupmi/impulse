@@ -1,0 +1,30 @@
+apiVersion: v2
+name: impulse
+description: A Helm chart for Impulse - Incident Management Program
+type: application
+version: 0.1.0
+appVersion: "v2.7.0"
+kubeVersion: ">=1.12.0-0"
+keywords:
+  - incident-management
+  - alerting
+  - slack
+  - mattermost
+  - telegram
+home: https://artifacthub.io/packages/helm/eslupmi/impulse
+sources:
+  - https://github.com/eslupmi/impulse
+maintainers:
+  - name: Artem Vershinin
+    email: artyom.vershinin@icloud.com
+annotations:
+  artifacthub.io/changes: |
+    - Initial release of Impulse Helm chart
+  artifacthub.io/images: |
+    - name: impulse
+      image: ghcr.io/eslupmi/impulse:v2.7.0
+  artifacthub.io/links: |
+    - name: Documentation
+      url: https://docs.impulse.bot
+    - name: Source Code
+      url: https://github.com/eslupmi/impulse
