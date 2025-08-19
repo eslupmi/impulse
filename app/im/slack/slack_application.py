@@ -42,17 +42,21 @@ class SlackApplication(Application):
         return None
 
     async def get_user_details(self, user_details):
-        id_ = user_details.get('id') if user_details is not None else None
-        if id_ is not None:
-            async with self.http.get(f'{self.url}/api/users.info?user={id_}', headers=self.headers) as response:
-                data = await response.json()
-                if not data.get('ok') and data.get('error') == 'user_not_found':
-                    exists = False
-                else:
-                    exists = True
-                return {'id': id_, 'exists': exists}
-        else:
-            return {'id': None, 'exists': False}
+        id_ = user_details.get('id')
+        async with self.http.get(f'{self.url}/api/users.info?user={id_}', headers=self.headers) as response:
+            if response.status != 200:
+                logger.debug(f'Failed to get user details for {id_}: HTTP {response.status}')
+                return {'id': id_, 'exists': False, 'full_name': None, 'username': None}
+            
+            data = await response.json()
+            if not data.get('ok'):
+                logger.debug(f'Slack API error for user {id_}: {data.get("error", "unknown error")}')
+                return {'id': id_, 'exists': False, 'full_name': None, 'username': None}
+            
+            user_data = data.get('user', {})
+            profile = user_data.get('profile', {})
+            full_name = profile.get('real_name_normalized')
+            return {'id': id_, 'exists': True, 'full_name': full_name}
 
     def create_user(self, name, user_details):
         return User(
@@ -78,6 +82,10 @@ class SlackApplication(Application):
             users=self.get_notification_destinations()
         )
         return admins_text
+
+    def format_user_mention(self, user_id, display_name=None):
+        """Format a user mention for Slack."""
+        return f'<@{user_id}>'
 
     async def send_message(self, channel_id, text, attachment):
         payload = {
@@ -117,6 +125,8 @@ class SlackApplication(Application):
                 if incident_.chain_enabled or incident_.status != 'resolved':
                     logger.info(f'Incident {incident_.uuid} -> button TAKE IT pressed')
                     incident_.assign_user_id(user_id)
+                    asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id, incidents))
+                    asyncio.create_task(self.post_assignment_notification(incident_, user_id))
                     incident_.chain_enabled = False
                 else:
                     logger.info(f'Incident {incident_.uuid} -> button RELEASE pressed')
@@ -128,13 +138,13 @@ class SlackApplication(Application):
                 else:
                     logger.info(f'Incident {incident_.uuid} -> button STATUS pressed (enabled)')
                     incident_.status_enabled = True
+        incident_.dump()
 
         body = self.body_template.form_message(incident_.last_state, incident_)
         header = self.header_template.form_message(incident_.last_state, incident_)
         status_icons = self.status_icons_template.form_message(incident_.last_state, incident_)
         payload = self.update_thread_payload(incident_.channel_id, incident_.ts, body, header, status_icons,
                                              incident_.status, incident_.chain_enabled, incident_.status_enabled)
-        incident_.dump()
         modified_message = reformat_message(original_message, payload['text'], payload['attachments'], incident_.status,
                                             incident_.chain_enabled, incident_.status_enabled)
         return JSONResponse(modified_message, status_code=200)

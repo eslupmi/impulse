@@ -60,6 +60,10 @@ class TelegramApplication(Application):
     def get_admins_text(self): #!
         return ', '.join([f'@{a.id}' for a in self.admin_users])
 
+    def format_user_mention(self, user_id, display_name=None):
+        """Format a user mention for Telegram using the tg://user link format."""
+        return f'<a href="tg://user?id={user_id}">{display_name}</a>'
+
     async def send_message(self, channel_id, text, attachment):
         params = {
             'chat_id': channel_id,
@@ -103,16 +107,19 @@ class TelegramApplication(Application):
         action = callback['data']
 
         user_id = callback['from']['id']
-        first_name = callback['from'].get('first_name') or ''
-        last_name = callback['from'].get('last_name') or ''
-        user_name = f"{first_name} {last_name}".strip() or f"User {user_id}"
+        user_from = callback.get('from', {})
+        first_name = user_from.get('first_name', '').strip()
+        last_name = user_from.get('last_name', '').strip()
+        user_display_name = f"{first_name} {last_name}".strip() or user_from.get('username')
+        incident_.assign_user(user_display_name)
 
         if action in ['start_chain', 'stop_chain']:
             await queue_.delete_by_id(incident_.uuid, delete_steps=True, delete_status=False)
             if action == 'stop_chain':
                 logger.info(f'Incident {incident_.uuid} -> button TAKE IT pressed')
                 incident_.assign_user_id(user_id)
-                incident_.assign_user(user_name)
+                asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id, incidents))
+                asyncio.create_task(self.post_assignment_notification(incident_, user_id, user_display_name))
                 incident_.chain_enabled = False
             else:
                 logger.info(f'Incident {incident_.uuid} -> button RELEASE pressed')
@@ -124,7 +131,7 @@ class TelegramApplication(Application):
             else:
                 logger.info(f'Incident {incident_.uuid} -> button STATUS pressed (enabled)')
                 incident_.status_enabled = True
-
+        incident_.dump()
         body = self.body_template.form_message(incident_.last_state, incident_)
         header = self.header_template.form_message(incident_.last_state, incident_)
         status_icons = self.status_icons_template.form_message(incident_.last_state, incident_)
@@ -139,7 +146,6 @@ class TelegramApplication(Application):
             headers=self.headers
         ) as response:
             pass
-        incident_.dump()
         return JSONResponse({}, status_code=200)
 
     async def _create_topic(self, channel_id, header, status_icons):
@@ -245,21 +251,22 @@ class TelegramApplication(Application):
         return text
 
     async def get_user_details(self, user_details):
-        id_ = user_details.get('id') if user_details is not None else None
-        exists = False
-        if id_ is not None:
-            try:
-                async with self.http.get(f'{self.url}/getChat?chat_id={id_}', headers=self.headers) as response:
-                    data = await response.json()
-                    if response.status == 200 and data.get('ok'):
-                        exists = True
-                    elif response.status != 200:
-                        logger.debug(f'Failed to get user details for {id_}: HTTP {response.status}, response: {data}')
-            except aiohttp.ClientError as e:
-                logger.error(f'Failed to get user details for {id_}: {e}')
-            except Exception as e:
-                logger.error(f'Unexpected error getting user details for {id_}: {e}')
-        return {'id': id_, 'exists': exists}
+        id_ = user_details.get('id')
+        async with self.http.get(f'{self.url}/getChat?chat_id={id_}', headers=self.headers) as response:
+            if response.status != 200:
+                logger.debug(f'Failed to get user details for {id_}: HTTP {response.status}')
+                return {'id': id_, 'exists': False, 'full_name': None, 'username': None}
+            
+            data = await response.json()
+            if not data.get('ok'):
+                logger.debug(f'Telegram API error for user {id_}: {data.get("description", "unknown error")}')
+                return {'id': id_, 'exists': False, 'full_name': None, 'username': None}
+            
+            chat_data = data.get('result', {})
+            first_name = chat_data.get('first_name', '').strip()
+            last_name = chat_data.get('last_name', '').strip()
+            full_name = f"{first_name} {last_name}".strip()
+            return {'id': id_, 'exists': True, 'full_name': full_name, 'username': full_name}
 
     def create_user(self, name, user_details):
         return User(
