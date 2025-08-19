@@ -111,13 +111,13 @@ class TelegramApplication(Application):
         first_name = user_from.get('first_name', '').strip()
         last_name = user_from.get('last_name', '').strip()
         user_display_name = f"{first_name} {last_name}".strip() or user_from.get('username')
-        incident_.assign_user(user_display_name)
 
         if action in ['start_chain', 'stop_chain']:
             await queue_.delete_by_id(incident_.uuid, delete_steps=True, delete_status=False)
             if action == 'stop_chain':
                 logger.info(f'Incident {incident_.uuid} -> button TAKE IT pressed')
                 incident_.assign_user_id(user_id)
+                incident_.assign_user(user_display_name)
                 asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id, incidents))
                 asyncio.create_task(self.post_assignment_notification(incident_, user_id, user_display_name))
                 incident_.chain_enabled = False
