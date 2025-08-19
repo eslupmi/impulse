@@ -50,17 +50,21 @@ class MattermostApplication(Application):
         return app_config['team']
 
     async def get_user_details(self, user_details):
-        id_ = user_details.get('id') if user_details is not None else None
-        if id_ is not None:
-            async with self.http.get(f'{self.url}/api/v4/users/{id_}?user_id={id_}', headers=self.headers) as response:
-                data = await response.json()
-                if response.status == 404:
-                    exists = False
-                else:
-                    exists = True
-                return {'id': id_, 'username': data.get('username'), 'exists': exists}
-        else:
-            return {'id': None, 'username': None, 'exists': False}
+        id_ = user_details.get('id')
+        async with self.http.get(f'{self.url}/api/v4/users/{id_}?user_id={id_}', headers=self.headers) as response:
+            if response.status == 404:
+                logger.debug(f'User not found for {id_}: HTTP 404')
+                return {'id': id_, 'username': None, 'exists': False, 'full_name': None}
+            
+            if response.status != 200:
+                logger.debug(f'Failed to get user details for {id_}: HTTP {response.status}')
+                return {'id': id_, 'username': None, 'exists': False, 'full_name': None}
+            
+            data = await response.json()
+            first_name = data.get('first_name', '').strip()
+            last_name = data.get('last_name', '').strip()
+            full_name = f"{first_name} {last_name}".strip()
+            return {'id': id_, 'username': data.get('username'), 'exists': True, 'full_name': full_name}
 
     def create_user(self, name, user_details):
         return User(
@@ -88,6 +92,10 @@ class MattermostApplication(Application):
         )
         return admins_text
 
+    def format_user_mention(self, user_id, display_name=None):
+        """Format a user mention for Mattermost using username."""
+        return f'@{display_name}'
+
     async def send_message(self, channel_id, text, attachment):
         payload = {
             'channel_id': channel_id,
@@ -114,15 +122,16 @@ class MattermostApplication(Application):
             return JSONResponse(payload, status_code=200)
         action = payload['context']['action']
 
-        user_name = payload.get('user_name')
         user_id = payload.get('user_id')
+        user_name = payload.get('user_name')
 
         if action == 'chain':
             await queue_.delete_by_id(incident_.uuid, delete_steps=True, delete_status=False)
             if incident_.chain_enabled or incident_.status != 'resolved':
                 logger.info(f'Incident {incident_.uuid} -> button TAKE IT pressed')
                 incident_.assign_user_id(user_id)
-                incident_.assign_user(user_name)
+                asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id, incidents))
+                asyncio.create_task(self.post_assignment_notification(incident_, user_id, user_name))
                 incident_.chain_enabled = False
             else: # release
                 logger.info(f'Incident {incident_.uuid} -> button RELEASE pressed')

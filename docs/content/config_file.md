@@ -478,6 +478,17 @@
 - **type:** bool
 - **default value:** False
 
+### incident.notifications
+
+- **description:** incident notifications settings
+- **type:** dict
+
+#### incident.notifications.assignment
+
+- **description:** enable/disable notifications about incident assignment changes
+- **type:** bool
+- **default value:** True
+
 ### incident.timeouts
 
 - **description:** incident status timeouts (see [lifecycle](concepts.md#lifecycle))

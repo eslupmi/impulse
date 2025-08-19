@@ -19,6 +19,23 @@ class Incidents:
     def get_by_ts(self, ts: str) -> Union[Incident, None]:
         return next((incident for incident in self.by_uuid.values() if incident.ts == ts), None)
 
+    def get_assigned_user_by_id(self, user_id: str) -> Union[str, None]:
+        """
+        Get the assigned_user (full name) from any existing incident with the same user_id.
+        This serves as a cache to avoid redundant API calls for user name lookup.
+        
+        Args:
+            user_id: The user ID to search for
+            
+        Returns:
+            The full name if found in any existing incident, None otherwise
+        """            
+        for incident in self.by_uuid.values():
+            if incident.assigned_user_id == user_id and incident.assigned_fullname and incident.assigned_fullname != "-":
+                return incident.assigned_fullname
+        
+        return None
+
     def add(self, incident: Incident):
         self.by_uuid[incident.uuid] = incident
 

@@ -78,6 +78,10 @@ class NullApplication(Application):
         """Return text as-is"""
         return text
 
+    def format_user_mention(self, user_id, display_name=None):
+        """Return user_id as-is for null application"""
+        return user_id if user_id else ''
+
     def get_admins_text(self):
         """No admins"""
         return ''
