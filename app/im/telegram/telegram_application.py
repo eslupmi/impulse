@@ -254,18 +254,18 @@ class TelegramApplication(Application):
         async with self.http.get(f'{self.url}/getChat?chat_id={id_}', headers=self.headers) as response:
             if response.status != 200:
                 logger.debug(f'Failed to get user details for {id_}: HTTP {response.status}')
-                return {'id': id_, 'exists': False, 'full_name': None}
+                return {'id': id_, 'exists': False, 'full_name': None, 'username': None}
             
             data = await response.json()
             if not data.get('ok'):
                 logger.debug(f'Telegram API error for user {id_}: {data.get("description", "unknown error")}')
-                return {'id': id_, 'exists': False, 'full_name': None}
+                return {'id': id_, 'exists': False, 'full_name': None, 'username': None}
             
             chat_data = data.get('result', {})
             first_name = chat_data.get('first_name', '').strip()
             last_name = chat_data.get('last_name', '').strip()
             full_name = f"{first_name} {last_name}".strip()
-            return {'id': id_, 'exists': True, 'full_name': full_name}
+            return {'id': id_, 'exists': True, 'full_name': full_name, 'username': full_name}
 
     def create_user(self, name, user_details):
         return User(
