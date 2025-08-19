@@ -111,6 +111,7 @@ class TelegramApplication(Application):
         first_name = user_from.get('first_name', '').strip()
         last_name = user_from.get('last_name', '').strip()
         user_display_name = f"{first_name} {last_name}".strip() or user_from.get('username')
+        incident_.assign_user(user_display_name)
 
         if action in ['start_chain', 'stop_chain']:
             await queue_.delete_by_id(incident_.uuid, delete_steps=True, delete_status=False)
