@@ -101,11 +101,10 @@ Configure API tokens and sensitive data. You can either use inline secrets or re
 **Option 1: Inline Secrets (Default)**
 ```yaml
 secrets:
-  useExistingSecrets: false
   inline:
     slack:
-      botUserOauthToken: "xoxb-your-token"
-      verificationToken: "your-verification-token"
+      botUserOauthToken: "xoxb-your-token"      # Required
+      verificationToken: "your-verification-token"  # Required (used together)
     mattermost:
       accessToken: "your-access-token"
     telegram:
@@ -115,8 +114,7 @@ secrets:
 **Option 2: Existing Secrets (Recommended for Production)**
 ```yaml
 secrets:
-  useExistingSecrets: true
-  existingSecrets:
+  existing:
     slack:
       secretName: "my-slack-secrets"
       botUserOauthTokenKey: "bot-token"

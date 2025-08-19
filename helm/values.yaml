@@ -92,9 +92,6 @@ persistence:
 
 # Configuration for Impulse
 config:
-  # Application type: slack, mattermost, telegram, or none
-  applicationType: "slack"
-  
   # Environment variables
   env:
     # Data and config paths
@@ -170,41 +167,33 @@ templates:
 
 # Secret management
 secrets:
-  # Use existing secrets instead of creating new ones
-  useExistingSecrets: false
+  # Option 1: Reference existing secrets (recommended for production)
+  # Uncomment and configure when using existing secrets
+  # existing:
+  #   slack:
+  #     secretName: "my-slack-secrets"  # Name of existing secret containing both tokens
+  #     botUserOauthTokenKey: "slack-bot-user-oauth-token"
+  #     verificationTokenKey: "slack-verification-token"
+  #   mattermost:
+  #     secretName: "my-mattermost-secrets"  # Name of existing secret
+  #     accessTokenKey: "mattermost-access-token"
+  #   telegram:
+  #     secretName: "my-telegram-secrets"  # Name of existing secret
+  #     botTokenKey: "telegram-bot-token"
+  #   google:
+  #     secretName: "my-google-secrets"  # Name of existing secret
+  #     serviceAccountKeyKey: "google-service-account-key"
   
-  # Existing secret references (used when useExistingSecrets is true)
-  existingSecrets:
-    slack:
-      secretName: ""
-      botUserOauthTokenKey: "slack-bot-user-oauth-token"
-      verificationTokenKey: "slack-verification-token"
-    mattermost:
-      secretName: ""
-      accessTokenKey: "mattermost-access-token"
-    telegram:
-      secretName: ""
-      botTokenKey: "telegram-bot-token"
-    google:
-      secretName: ""
-      serviceAccountKeyKey: "google-service-account-key"
-  
-  # Inline secrets (used when useExistingSecrets is false)
+  # Option 2: Inline secrets (for development/testing)
+  # Leave empty if using existing secrets above
   inline:
-    # Slack secrets
     slack:
-      botUserOauthToken: ""
-      verificationToken: ""
-    
-    # Mattermost secrets
+      botUserOauthToken: ""  
+      verificationToken: "" 
     mattermost:
       accessToken: ""
-    
-    # Telegram secrets
     telegram:
       botToken: ""
-    
-    # Google service account (if using Google Calendar integration)
     google:
       serviceAccountKey: ""
 

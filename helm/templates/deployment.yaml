@@ -17,7 +17,26 @@ spec:
         {{- end }}
         # Force pod recreation when configmap or secrets change
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
-        {{- if not .Values.secrets.useExistingSecrets }}
+        {{- $hasInlineSecrets := false }}
+        {{- if eq .Values.impulseConfig.application.type "slack" }}
+          {{- if .Values.secrets.inline.slack.botUserOauthToken }}
+            {{- $hasInlineSecrets = true }}
+          {{- end }}
+        {{- end }}
+        {{- if eq .Values.impulseConfig.application.type "mattermost" }}
+          {{- if .Values.secrets.inline.mattermost.accessToken }}
+            {{- $hasInlineSecrets = true }}
+          {{- end }}
+        {{- end }}
+        {{- if eq .Values.impulseConfig.application.type "telegram" }}
+          {{- if .Values.secrets.inline.telegram.botToken }}
+            {{- $hasInlineSecrets = true }}
+          {{- end }}
+        {{- end }}
+        {{- if .Values.secrets.inline.google.serviceAccountKey }}
+          {{- $hasInlineSecrets = true }}
+        {{- end }}
+        {{- if $hasInlineSecrets }}
         checksum/secrets: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
         {{- end }}
       labels:
@@ -69,29 +88,24 @@ spec:
               value: {{ .Values.config.env.CORS_ALLOWED_ORIGINS | quote }}
             - name: GOOGLE_SERVICE_ACCOUNT_FILE
               value: {{ .Values.config.env.GOOGLE_SERVICE_ACCOUNT_FILE | quote }}
-            {{- if eq .Values.config.applicationType "slack" }}
-            {{- if .Values.secrets.useExistingSecrets }}
-            {{- if .Values.secrets.existingSecrets.slack.secretName }}
+            {{- if eq .Values.impulseConfig.application.type "slack" }}
+            {{- if and .Values.secrets.existing .Values.secrets.existing.slack .Values.secrets.existing.slack.secretName }}
             - name: SLACK_BOT_USER_OAUTH_TOKEN
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.secrets.existingSecrets.slack.secretName }}
-                  key: {{ .Values.secrets.existingSecrets.slack.botUserOauthTokenKey }}
+                  name: {{ .Values.secrets.existing.slack.secretName }}
+                  key: {{ .Values.secrets.existing.slack.botUserOauthTokenKey }}
             - name: SLACK_VERIFICATION_TOKEN
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.secrets.existingSecrets.slack.secretName }}
-                  key: {{ .Values.secrets.existingSecrets.slack.verificationTokenKey }}
-            {{- end }}
-            {{- else }}
-            {{- if .Values.secrets.inline.slack.botUserOauthToken }}
+                  name: {{ .Values.secrets.existing.slack.secretName }}
+                  key: {{ .Values.secrets.existing.slack.verificationTokenKey }}
+            {{- else if .Values.secrets.inline.slack.botUserOauthToken }}
             - name: SLACK_BOT_USER_OAUTH_TOKEN
               valueFrom:
                 secretKeyRef:
                   name: {{ include "impulse.fullname" . }}-secrets
                   key: slack-bot-user-oauth-token
-            {{- end }}
-            {{- if .Values.secrets.inline.slack.verificationToken }}
             - name: SLACK_VERIFICATION_TOKEN
               valueFrom:
                 secretKeyRef:
@@ -99,18 +113,14 @@ spec:
                   key: slack-verification-token
             {{- end }}
             {{- end }}
-            {{- end }}
-            {{- if eq .Values.config.applicationType "mattermost" }}
-            {{- if .Values.secrets.useExistingSecrets }}
-            {{- if .Values.secrets.existingSecrets.mattermost.secretName }}
+            {{- if eq .Values.impulseConfig.application.type "mattermost" }}
+            {{- if and .Values.secrets.existing .Values.secrets.existing.mattermost .Values.secrets.existing.mattermost.secretName }}
             - name: MATTERMOST_ACCESS_TOKEN
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.secrets.existingSecrets.mattermost.secretName }}
-                  key: {{ .Values.secrets.existingSecrets.mattermost.accessTokenKey }}
-            {{- end }}
-            {{- else }}
-            {{- if .Values.secrets.inline.mattermost.accessToken }}
+                  name: {{ .Values.secrets.existing.mattermost.secretName }}
+                  key: {{ .Values.secrets.existing.mattermost.accessTokenKey }}
+            {{- else if .Values.secrets.inline.mattermost.accessToken }}
             - name: MATTERMOST_ACCESS_TOKEN
               valueFrom:
                 secretKeyRef:
@@ -118,24 +128,19 @@ spec:
                   key: mattermost-access-token
             {{- end }}
             {{- end }}
-            {{- end }}
-            {{- if eq .Values.config.applicationType "telegram" }}
-            {{- if .Values.secrets.useExistingSecrets }}
-            {{- if .Values.secrets.existingSecrets.telegram.secretName }}
+            {{- if eq .Values.impulseConfig.application.type "telegram" }}
+            {{- if and .Values.secrets.existing .Values.secrets.existing.telegram .Values.secrets.existing.telegram.secretName }}
             - name: TELEGRAM_BOT_TOKEN
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.secrets.existingSecrets.telegram.secretName }}
-                  key: {{ .Values.secrets.existingSecrets.telegram.botTokenKey }}
-            {{- end }}
-            {{- else }}
-            {{- if .Values.secrets.inline.telegram.botToken }}
+                  name: {{ .Values.secrets.existing.telegram.secretName }}
+                  key: {{ .Values.secrets.existing.telegram.botTokenKey }}
+            {{- else if .Values.secrets.inline.telegram.botToken }}
             - name: TELEGRAM_BOT_TOKEN
               valueFrom:
                 secretKeyRef:
                   name: {{ include "impulse.fullname" . }}-secrets
                   key: telegram-bot-token
-            {{- end }}
             {{- end }}
             {{- end }}
           resources:
@@ -177,24 +182,20 @@ spec:
           configMap:
             name: {{ include "impulse.fullname" . }}-config
 
-        {{- if .Values.secrets.useExistingSecrets }}
-        {{- if .Values.secrets.existingSecrets.google.secretName }}
+        {{- if and .Values.secrets.existing .Values.secrets.existing.google .Values.secrets.existing.google.secretName }}
         - name: google-service-account
           secret:
-            secretName: {{ .Values.secrets.existingSecrets.google.secretName }}
+            secretName: {{ .Values.secrets.existing.google.secretName }}
             items:
-              - key: {{ .Values.secrets.existingSecrets.google.serviceAccountKeyKey }}
+              - key: {{ .Values.secrets.existing.google.serviceAccountKeyKey }}
                 path: key.json
-        {{- end }}
-        {{- else }}
-        {{- if .Values.secrets.inline.google.serviceAccountKey }}
+        {{- else if .Values.secrets.inline.google.serviceAccountKey }}
         - name: google-service-account
           secret:
             secretName: {{ include "impulse.fullname" . }}-secrets
             items:
               - key: google-service-account-key
                 path: key.json
-        {{- end }}
         {{- end }}
         {{- range .Values.volumes }}
         - name: {{ .name }}
