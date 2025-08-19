@@ -65,7 +65,14 @@ impulseConfig:
 
 # Telegram secrets (replace with your actual token)
 secrets:
-  useExistingSecrets: false
+  # Option 1: Use existing secrets (recommended for production)
+  # existing:
+  #   telegram:
+  #     secretName: "my-telegram-secrets"
+  #     botTokenKey: "bot-token"
+  
+  # Option 2: Inline secrets (for development/testing)
+  # Leave empty if using existing secrets above
   inline:
     telegram:
       botToken: "your-telegram-bot-token"
