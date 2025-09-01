@@ -123,6 +123,7 @@ class Incident:
         self.chain = []
         self.assign_user_id("")
         self.assign_user("")
+        self.assign_fullname("")
         self.chain_enabled = True
         self.dump()
 
