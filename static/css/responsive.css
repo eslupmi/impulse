@@ -358,9 +358,9 @@
 }
 
 .annotation.common {
-    max-width: 468px;
-    mask-image: linear-gradient(to right, black 423px, transparent 100%);
-    -webkit-mask-image: linear-gradient(to right, black 423px, transparent 100%);
+    max-width: 408px;
+    mask-image: linear-gradient(to right, black 363px, transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, black 363px, transparent 100%);
 }
 
 .annotation.alert {
@@ -465,9 +465,9 @@
 }
 
 .label.common {
-    max-width: 468px;
-    mask-image: linear-gradient(to right, black 423px, transparent 100%);
-    -webkit-mask-image: linear-gradient(to right, black 423px, transparent 100%);
+    max-width: 408px;
+    mask-image: linear-gradient(to right, black 363px, transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, black 363px, transparent 100%);
 }
 
 .label.alert {

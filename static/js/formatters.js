@@ -536,19 +536,29 @@ function createSimpleCommonBlock(responsiveData) {
         commonLabelsHeader.innerHTML = '<strong>common labels:</strong>';
         commonLabelsSection.appendChild(commonLabelsHeader);
         
-        Object.entries(responsiveData.group_labels).forEach(([key, value]) => {
-            const labelElement = document.createElement('span');
-            labelElement.className = 'label-pill group-label';
-            labelElement.textContent = `${key}: ${value}`;
-            commonLabelsSection.appendChild(labelElement);
-        });
+        if (responsiveData.group_labels) {
+            Object.entries(responsiveData.group_labels).forEach(([key, value]) => {
+                const labelWrapper = createTruncatedPill(key, value, {
+                    wrapperClass: 'label-wrapper',
+                    pillClass: 'label group-label',
+                    highlighted: false,
+                    isCommonBlock: true
+                });
+                commonLabelsSection.appendChild(labelWrapper);
+            });
+        }
         
-        Object.entries(responsiveData.common_labels).forEach(([key, value]) => {
-            const labelElement = document.createElement('span');
-            labelElement.className = 'label-pill common-label';
-            labelElement.textContent = `${key}: ${value}`;
-            commonLabelsSection.appendChild(labelElement);
-        });
+        if (responsiveData.common_labels) {
+            Object.entries(responsiveData.common_labels).forEach(([key, value]) => {
+                const labelWrapper = createTruncatedPill(key, value, {
+                    wrapperClass: 'label-wrapper',
+                    pillClass: 'label',
+                    highlighted: false,
+                    isCommonBlock: true
+                });
+                commonLabelsSection.appendChild(labelWrapper);
+            });
+        }
         
         commonBlock.appendChild(commonLabelsSection);
     }
@@ -564,10 +574,13 @@ function createSimpleCommonBlock(responsiveData) {
         commonAnnotationsSection.appendChild(commonAnnotationsHeader);
         
         Object.entries(responsiveData.common_annotations).forEach(([key, value]) => {
-            const annotationElement = document.createElement('span');
-            annotationElement.className = 'annotation-pill';
-            annotationElement.textContent = `${key}: ${value}`;
-            commonAnnotationsSection.appendChild(annotationElement);
+            const annotationWrapper = createTruncatedPill(key, value, {
+                wrapperClass: 'annotation-wrapper',
+                pillClass: 'annotation',
+                highlighted: false,
+                isCommonBlock: true
+            });
+            commonAnnotationsSection.appendChild(annotationWrapper);
         });
         
         commonBlock.appendChild(commonAnnotationsSection);
