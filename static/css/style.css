@@ -446,7 +446,7 @@ element.style {
 /* Alerts Count Circle */
 .alerts-count-circle {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
     width: 16px;
     height: 16px;
@@ -458,6 +458,7 @@ element.style {
     font-weight: 600;
     margin: 0;
     line-height: 1;
+    padding-top: 3px;
 }
 
 
