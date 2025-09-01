@@ -42,7 +42,7 @@
     --status-error: #FF4444;
 
     /* Status Badge Colors */
-    --status-badge-firing: #D14035;
+    --status-badge-firing: #F04438;
     --status-badge-resolved: #56C15E;
     --status-badge-unknown: #C1A300;
     --status-badge-closed: #969696;
@@ -54,7 +54,7 @@
     --online-status-indicator: var(--theme-icon-color);
     --offline-status-indicator: #F04438;
 
-    --info-block-background: var(--neutral-400);
+    --info-block-background: #E4E7EC;
     
     /* Search Icon Colors */
     --search-icon-color: #38ADE6;
