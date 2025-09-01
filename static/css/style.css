@@ -451,9 +451,9 @@ element.style {
     width: 16px;
     height: 16px;
     border-radius: 50%;
-    border: 1.3px solid var(--alerts-count-text);
+    border: 1.3px solid var(--alerts-count-circle-color);
     /* background-color: var(--alerts-count-background); */
-    color: var(--alerts-count-text);
+    color: var(--alerts-count-circle-color);
     font-size: 10px;
     font-weight: 600;
     margin: 0;

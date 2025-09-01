@@ -111,7 +111,7 @@
     padding: 4px 8px;
     border-radius: 4px;
     font-size: 14px;
-    border: 1px solid var(--annotation-border);
+    border: 1.3px solid var(--annotation-border);
     background-color: transparent;
     color: var(--annotation-text);
     max-width: 400px;

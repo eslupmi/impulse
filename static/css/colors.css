@@ -72,10 +72,11 @@
     --filter-badge-text: var(--neutral-1000);
     --filter-badge-close-hover: var(--brand-primary-dark);
     
-    --alerts-count-background: #22688A;
+    --alerts-count-background: var(--theme-icon-color);
     --alerts-count-text: var(--neutral-300);
+    --alerts-count-circle-color: var(--theme-icon-color);
     
-    --label-background: var(--neutral-100);
+    --label-background: var(--neutral-400);
     --label-text: var(--neutral-900);
     --label-highlighted-background: var(--neutral-800);
     --label-highlighted-text: var(--neutral-100);
@@ -161,6 +162,7 @@
 
     --alerts-count-background: var(--neutral-800);
     --alerts-count-text: var(--neutral-800);
+    --alerts-count-circle-color: var(--alerts-count-text);
 
     --label-background: var(--neutral-300);
     --label-text: var(--neutral-800);
