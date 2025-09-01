@@ -115,7 +115,11 @@ class TelegramApplication(Application):
         if action in ['start_chain', 'stop_chain']:
             await queue_.delete_by_id(incident_.uuid, delete_steps=True, delete_status=False)
             if action == 'stop_chain':
-                logger.info(f'Incident {incident_.uuid} -> button TAKE IT pressed')
+                # if user is already assigned, do nothing
+                if incident_.assigned_user_id == user_id:
+                    logger.info(f'Incident {incident_.uuid} -> button TAKE IT pressed, but user is already assigned')
+                    return JSONResponse(payload, status_code=200)
+                logger.info(f'Incident {incident_.uuid} -> button TAKE IT pressed, assigning to {user_id}')
                 incident_.assign_user_id(user_id)
                 incident_.assign_user(user_display_name)
                 asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id, incidents))
