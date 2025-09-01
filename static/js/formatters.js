@@ -514,7 +514,7 @@ function createSimpleCommonBlock(responsiveData) {
     
     const assignedSpan = document.createElement('span');
     assignedSpan.className = 'info-item';
-    assignedSpan.innerHTML = `<strong>assigned to:</strong> ${info.assigned_user ? info.assigned_user : '-'}`;
+    assignedSpan.innerHTML = `<strong>assigned to:</strong> ${info.assigned_fullname ? info.assigned_fullname : '-'}`;
     infoStack.appendChild(assignedSpan);
     
     if (info.link) {

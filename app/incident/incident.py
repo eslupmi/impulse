@@ -242,7 +242,7 @@ class Incident:
                     'status': self.status,
                     'created': normalize_param(self.created) if self.created else None,
                     'updated': normalize_param(self.updated) if self.updated else None,
-                    'assigned_user': self.assigned_user if self.assigned_user else None,
+                    'assigned_fullname': self.assigned_fullname if self.assigned_fullname else None,
                     'channel_name': ChannelManager().get_channel_name_by_id(self.channel_id),
                     'link': self.link,
                     'chain_enabled': self.chain_enabled,
