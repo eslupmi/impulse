@@ -622,36 +622,72 @@ element.style {
 }
 
 .tabulator-footer button[data-page="first"]::before {
-    content: url('data:image/svg+xml;utf8,<svg width="10" height="10" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 9L5 5L9 1" stroke="%23EBF7FC" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 9L1 5L5 1" stroke="%23EBF7FC" stroke-linecap="round" stroke-linejoin="round"/></svg>');
-    font-size: 16px;
-    font-weight: bold;
-    line-height: 19px;
+    content: '';
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    background-color: var(--text-primary);
+    mask: url('data:image/svg+xml;utf8,<svg width="10" height="10" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 9L5 5L9 1" stroke="black" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 9L1 5L5 1" stroke="black" stroke-linecap="round" stroke-linejoin="round"/></svg>') no-repeat center;
+    -webkit-mask: url('data:image/svg+xml;utf8,<svg width="10" height="10" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 9L5 5L9 1" stroke="black" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 9L1 5L5 1" stroke="black" stroke-linecap="round" stroke-linejoin="round"/></svg>') no-repeat center;
+    mask-size: contain;
+    -webkit-mask-size: contain;
     transition: all 0.3s ease;
 }
 
 .tabulator-footer button[data-page="prev"]::before {
-    content: url('data:image/svg+xml;utf8,<svg width="6" height="10" viewBox="0 0 6 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 9L1 5L5 1" stroke="%23EBF7FC" stroke-linecap="round" stroke-linejoin="round"/></svg>');
-    font-size: 16px;
-    font-weight: bold;
-    line-height: 19px;
+    content: '';
+    display: inline-block;
+    width: 6px;
+    height: 10px;
+    background-color: var(--text-primary);
+    mask: url('data:image/svg+xml;utf8,<svg width="6" height="10" viewBox="0 0 6 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 9L1 5L5 1" stroke="black" stroke-linecap="round" stroke-linejoin="round"/></svg>') no-repeat center;
+    -webkit-mask: url('data:image/svg+xml;utf8,<svg width="6" height="10" viewBox="0 0 6 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 9L1 5L5 1" stroke="black" stroke-linecap="round" stroke-linejoin="round"/></svg>') no-repeat center;
+    mask-size: contain;
+    -webkit-mask-size: contain;
     transition: all 0.3s ease;
 }
 
 .tabulator-footer button[data-page="next"]::before {
-    content: url('data:image/svg+xml;utf8,<svg width="6" height="10" viewBox="0 0 6 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 9L5 5L1 1" stroke="%23EBF7FC" stroke-linecap="round" stroke-linejoin="round"/></svg>');
-    font-size: 16px;
-    font-weight: bold;
-    line-height: 19px;
+    content: '';
+    display: inline-block;
+    width: 6px;
+    height: 10px;
+    background-color: var(--text-primary);
+    mask: url('data:image/svg+xml;utf8,<svg width="6" height="10" viewBox="0 0 6 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 9L5 5L1 1" stroke="black" stroke-linecap="round" stroke-linejoin="round"/></svg>') no-repeat center;
+    -webkit-mask: url('data:image/svg+xml;utf8,<svg width="6" height="10" viewBox="0 0 6 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 9L5 5L1 1" stroke="black" stroke-linecap="round" stroke-linejoin="round"/></svg>') no-repeat center;
+    mask-size: contain;
+    -webkit-mask-size: contain;
     transition: all 0.3s ease;
 }
 
 .tabulator-footer button[data-page="last"]::before {
-    content: url('data:image/svg+xml;utf8,<svg width="10" height="10" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 9L5 5L1 1" stroke="%23EBF7FC" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 9L9 5L5 1" stroke="%23EBF7FC" stroke-linecap="round" stroke-linejoin="round"/></svg>');
-    font-size: 16px;
-    font-weight: bold;
-    line-height: 19px;
+    content: '';
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    background-color: var(--text-primary);
+    mask: url('data:image/svg+xml;utf8,<svg width="10" height="10" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 9L5 5L1 1" stroke="black" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 9L9 5L5 1" stroke="black" stroke-linecap="round" stroke-linejoin="round"/></svg>') no-repeat center;
+    -webkit-mask: url('data:image/svg+xml;utf8,<svg width="10" height="10" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 9L5 5L1 1" stroke="black" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 9L9 5L5 1" stroke="black" stroke-linecap="round" stroke-linejoin="round"/></svg>') no-repeat center;
+    mask-size: contain;
+    -webkit-mask-size: contain;
     transition: all 0.3s ease;
 }
+
+/* Positioning for navigation buttons arrows */
+.tabulator-footer button[data-page="first"]::before,
+.tabulator-footer button[data-page="prev"]::before,
+.tabulator-footer button[data-page="next"]::before,
+.tabulator-footer button[data-page="last"]::before {
+    padding-top: 17px;
+}
+
+.tabulator-footer button[data-page="first"]:hover::before,
+.tabulator-footer button[data-page="prev"]:hover::before,
+.tabulator-footer button[data-page="next"]:hover::before,
+.tabulator-footer button[data-page="last"]:hover::before {
+    background-color: var(--brand-primary);
+}
+
 
 .tabulator-footer button[data-page]:hover {
     background: transparent !important;
