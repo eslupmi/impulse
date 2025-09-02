@@ -136,6 +136,7 @@ class MattermostApplication(Application):
                 incident_.chain_enabled = False
             else: # release
                 logger.info(f'Incident {incident_.uuid} -> button RELEASE pressed')
+                asyncio.create_task(self.post_unassignment_notification(incident_))
                 incident_.release()
         elif action == 'status':
             if incident_.status_enabled:

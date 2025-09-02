@@ -179,3 +179,14 @@ update: assigned to @{{ fields.username }}
 update: assigned to <a href="tg://user?id={{ fields.id }}">{{ fields.username }}</a>
 {%- endif -%}
 """
+
+notification_unassignment = """
+{%- if fields.type == 'slack' -%}
+update: unassigned
+{%- elif fields.type == 'mattermost' -%}
+update: unassigned
+{%- elif fields.type == 'telegram' -%}
+update: unassigned
+{%- endif -%}
+"""
+

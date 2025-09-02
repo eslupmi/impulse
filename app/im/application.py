@@ -7,7 +7,8 @@ from aiohttp_retry import ExponentialRetry, RetryClient
 
 from app.im.chain.chain_factory import ChainFactory
 from app.im.groups import generate_user_groups
-from app.im.template import JinjaTemplate, notification_user, notification_user_group, update_status, notification_assignment
+from app.im.template import JinjaTemplate, notification_user, notification_user_group, update_status, \
+    notification_assignment, notification_unassignment
 from app.logging import logger
 from config import incident
 
@@ -37,7 +38,7 @@ class Application(ABC):
         self.users = None  # Will be initialized async
         self.user_groups = None  # Will be initialized async
         self.admin_users = None  # Will be initialized async
-        
+
         # Store config for async initialization
         self._users_config = app_config['users']
         self._user_groups_config = app_config.get('user_groups')
@@ -69,7 +70,7 @@ class Application(ABC):
             incident: The incident to assign the user name to
             user_id: The user ID to fetch the name for
             incidents: Optional incidents collection for caching lookup
-        """            
+        """
         try:
             if incidents:
                 cached_name = incidents.get_assigned_user_by_id(user_id)
@@ -78,7 +79,7 @@ class Application(ABC):
                     incident.dump()
                     logger.debug(f'Incident {incident.uuid} assigned cached user name: {cached_name}')
                     return
-            
+
             user_details = await self.get_user_details({'id': user_id})
             assigned_name = user_details.get('full_name') or "-"
             incident.assign_fullname(assigned_name)
@@ -86,7 +87,7 @@ class Application(ABC):
                 incident.assign_user(user_details.get('username'))
             incident.dump()
             logger.debug(f'Incident {incident.uuid} assigned user name from API: {assigned_name}')
-            
+
         except Exception as e:
             logger.error(f'Failed to fetch and assign user name for incident {incident.uuid}: {e}')
             incident.assign_fullname("-")
@@ -102,22 +103,47 @@ class Application(ABC):
         """
         if not incident.get('notifications', {}).get('assignment', True) or not user_id:
             return
-            
+
         try:
             text_template = JinjaTemplate(notification_assignment)
             fields = {'type': self.type, 'username': user_display_name, 'id': user_id}
             text = text_template.form_notification(fields)
-            if self.type == 'telegram':
-                message = text
-            else:
-                header = self.format_text_bold(self.header_template.form_message(incident_obj.last_state, incident_obj))
-                message = header + '\n' + text
-            
+            message = self._build_notification_message(text, incident_obj)
+
             await self.post_thread(incident_obj.channel_id, incident_obj.ts, message)
             logger.debug(f'Posted assignment notification for incident {incident_obj.uuid}: {message}')
-            
+
         except Exception as e:
             logger.error(f'Failed to post assignment notification for incident {incident_obj.uuid}: {e}')
+
+    async def post_unassignment_notification(self, incident_obj):
+        """
+        Post a notification message to the thread when a user is unassigned from an incident.
+        
+        Args:
+            incident_obj: The incident object
+        """
+        if not incident.get('notifications', {}).get('assignment', True):
+            return
+
+        try:
+            text_template = JinjaTemplate(notification_unassignment)
+            text = text_template.form_notification()
+            message = self._build_notification_message(text, incident_obj)
+
+            await self.post_thread(incident_obj.channel_id, incident_obj.ts, message)
+            logger.debug(f'Posted unassignment notification for incident {incident_obj.uuid}: {message}')
+
+        except Exception as e:
+            logger.error(f'Failed to post unassignment notification for incident {incident_obj.uuid}: {e}')
+
+    def _build_notification_message(self, text, incident_obj):
+        if self.type == 'telegram':
+            message = text
+        else:
+            header = self.format_text_bold(self.header_template.form_message(incident_obj.last_state, incident_obj))
+            message = header + '\n' + text
+        return message
 
     def get_url(self, app_config):
         return self._get_url(app_config)
@@ -171,7 +197,8 @@ class Application(ABC):
         logger.info(f'Incident {incident.uuid} -> chain step {notify_type} \'{identifier}\'')
         return response_code
 
-    async def update(self, uuid_, incident, incident_status, alert_state, updated_status, chain_enabled, status_enabled):
+    async def update(self, uuid_, incident, incident_status, alert_state, updated_status, chain_enabled,
+                     status_enabled):
         body = self.body_template.form_message(alert_state, incident)
         header = self.header_template.form_message(alert_state, incident)
         status_icons = self.status_icons_template.form_message(alert_state, incident)
@@ -206,7 +233,7 @@ class Application(ABC):
             return response_json.get(self.thread_id_key)
 
     async def update_thread(self, channel_id, id_, status, body, header, status_icons, chain_enabled=True,
-                      status_enabled=True):
+                            status_enabled=True):
         payload = self.update_thread_payload(channel_id, id_, body, header, status_icons, status, chain_enabled,
                                              status_enabled)
         await self._update_thread(id_, payload)
@@ -225,21 +252,21 @@ class Application(ABC):
             exceptions=[aiohttp.ClientError, aiohttp.ServerTimeoutError],
             max_timeout=30.0
         )
-        
+
         timeout = ClientTimeout(total=30.0)
         connector = aiohttp.TCPConnector(limit=100, limit_per_host=30)
-        
+
         session = ClientSession(
             timeout=timeout,
             connector=connector,
             raise_for_status=False
         )
-        
+
         retry_client = RetryClient(
             client_session=session,
             retry_options=retry_options
         )
-        
+
         return retry_client
 
     @abstractmethod

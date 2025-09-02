@@ -129,6 +129,7 @@ class SlackApplication(Application):
                     incident_.chain_enabled = False
                 else:
                     logger.info(f'Incident {incident_.uuid} -> button RELEASE pressed')
+                    asyncio.create_task(self.post_unassignment_notification(incident_))
                     incident_.release()
             elif action['name'] == 'status':
                 if incident_.status_enabled:
