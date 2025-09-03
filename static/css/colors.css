@@ -1,12 +1,12 @@
 /* Base theme (light) */
 :root {
     /* Brand Colors */
-    --brand-primary: #4a90e2;
-    --brand-primary-light: #D7EFFA;
+    --brand-primary: #4A90E2;
+    --brand-primary-light: #C3E6F8;
     --brand-primary-dark: #357ABD;
     --brand-secondary: #38ADE6;
     --brand-secondary-light: #C3E6F7;
-    --brand-secondary-dark: #2D8AB8;
+    --brand-secondary-dark: #0B232E;
 
     /* Neutral Colors */
     --neutral-100: #FFFFFF;
@@ -37,21 +37,27 @@
     
     /* Interactive States */
     --hover-primary: var(--brand-primary-dark);
-    --hover-secondary: var(--neutral-200);
-    --focus-primary: #007bff;
-    --focus-shadow: rgba(0, 123, 255, 0.3);
     
     /* Status Colors */
-    --status-error: #ff4444;
-    --status-success: #4caf50;
+    --status-error: #FF4444;
 
     /* Status Badge Colors */
-    --status-badge-firing: #f61f1f;
-    --status-badge-resolved: #56c15e;
+    --status-badge-firing: #F04438;
+    --status-badge-resolved: #56C15E;
+    --status-badge-unknown: #C1A300;
+    --status-badge-closed: #969696;
+    
+    /* Theme Icon Colors */
+    --theme-icon-color: #22688A;
 
     /* Online Status Colors */
-    --online-status-indicator: #22688a;
-    --offline-status-indicator: #f04438;
+    --online-status-indicator: var(--theme-icon-color);
+    --offline-status-indicator: #F04438;
+
+    --info-block-background: #E4E7EC;
+    
+    /* Search Icon Colors */
+    --search-icon-color: #38ADE6;
     
     /* Component-specific Colors */
     --header-background: var(--brand-primary-light);
@@ -63,29 +69,32 @@
     
     --filter-badge: var(--brand-secondary-dark);
     --filter-badge-hover: var(--brand-primary-dark);
-    --filter-badge-text: var(--neutral-100);
-    --filter-badge-close-hover: #ffdddd;
+    --filter-badge-text: var(--neutral-1000);
+    --filter-badge-close-hover: var(--brand-primary-dark);
     
-    --alerts-count-background: #22688A;
+    --alerts-count-background: var(--theme-icon-color);
     --alerts-count-text: var(--neutral-300);
+    --alerts-count-circle-color: var(--theme-icon-color);
     
-    --label-background: var(--neutral-100);
+    --label-background: var(--neutral-400);
     --label-text: var(--neutral-900);
     --label-highlighted-background: var(--neutral-800);
     --label-highlighted-text: var(--neutral-100);
     
     --annotation-border: var(--neutral-600);
-    --annotation-text: var(--neutral-700);
+    --annotation-text: var(--neutral-800);
     --tooltip-background: var(--alerts-count-background);
+ 
+    --footer-text: #606060;
 }
 
 /* Dark theme */
 [data-theme="dark"] {
     /* Brand Colors - slightly adjusted for dark theme */
-    --brand-primary: #5a9fe2;
-    --brand-primary-light: #0b232e;
-    --brand-primary-dark: #4a8fd2;
-    --brand-secondary: #48bde6;
+    --brand-primary: #5A9FE2;
+    --brand-primary-light: #113445;
+    --brand-primary-dark: #4A8FD2;
+    --brand-secondary: #48BDE6;
     --brand-secondary-light: #16455C;
     --brand-secondary-dark: #22688A;
 
@@ -93,13 +102,13 @@
     --neutral-100: #061117;
     --neutral-200: #131B1F;
     --neutral-300: #344054;
-    --neutral-400: #2d2d2d;
+    --neutral-400: #2D2D2D;
     --neutral-500: #333B40;
-    --neutral-600: #6d6d6d;
+    --neutral-600: #6D6D6D;
     --neutral-700: #98A2B3;
     --neutral-800: #EBF7FC;
     --neutral-900: #F2F4F7;
-    --neutral-1000: #ffffff;
+    --neutral-1000: #FFFFFF;
 
     /* Semantic Colors */
     --text-primary: var(--neutral-800);
@@ -108,7 +117,7 @@
 
     --background-primary: var(--neutral-100);
     --background-secondary: var(--brand-primary-light);
-    --background-tertiary: var(--neutral-200);
+    --background-tertiary: var(--neutral-100);
 
     --border-primary: var(--brand-secondary-light);
     --border-secondary: var(--neutral-500);
@@ -118,17 +127,27 @@
 
     /* Interactive States */
     --hover-primary: var(--brand-primary-dark);
-    --hover-secondary: var(--neutral-200);
-    --focus-primary: #007bff;
-    --focus-shadow: rgba(0, 123, 255, 0.2);
 
     /* Status Colors */
-    --status-error: #ff6666;
-    --status-success: #66cc66;
+    --status-error: #FF6666;
+
+    /* Status Badge Colors */
+    --status-badge-firing: #D14035;
+    --status-badge-resolved: #56C15E;
+    --status-badge-unknown: #C1A300;
+    --status-badge-closed: #969696;
 
     /* Online Status Colors */
-    --online-status-indicator: #38ade6;
-    --offline-status-indicator: #d14035;
+    --online-status-indicator: #38ADE6;
+    --offline-status-indicator: #D14035;
+
+    --info-block-background: var(--neutral-200);
+
+    /* Theme Icon Colors */
+    --theme-icon-color: #EBF7FC;
+
+    /* Search Icon Colors */
+    --search-icon-color: #EBF7FC;
 
     /* Component-specific Colors */
     --header-background: var(--brand-primary-light);
@@ -141,17 +160,20 @@
     --filter-badge: var(--brand-secondary-dark);
     --filter-badge-hover: var(--brand-primary-dark);
     --filter-badge-text: var(--neutral-1000);
-    --filter-badge-close-hover: #ff6666;
+    --filter-badge-close-hover: var(--brand-secondary-dark);
 
-    --alerts-count-background: #EBF7FC;
-    --alerts-count-text: var(--neutral-100);
+    --alerts-count-background: var(--neutral-800);
+    --alerts-count-text: var(--neutral-800);
+    --alerts-count-circle-color: var(--alerts-count-text);
 
     --label-background: var(--neutral-300);
-    --label-text: var(--neutral-900);
+    --label-text: var(--neutral-800);
     --label-highlighted-background: var(--neutral-700);
     --label-highlighted-text: var(--neutral-100);
 
-    --annotation-border: var(--neutral-700);
-    --annotation-text: var(--neutral-700);
+    --annotation-border: var(--neutral-300);
+    --annotation-text: var(--neutral-800);
     --tooltip-background: var(--alerts-count-background);
+
+    --footer-text: var(--text-primary);
 }

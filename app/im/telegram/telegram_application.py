@@ -60,10 +60,6 @@ class TelegramApplication(Application):
     def get_admins_text(self): #!
         return ', '.join([f'@{a.id}' for a in self.admin_users])
 
-    def format_user_mention(self, user_id, display_name=None):
-        """Format a user mention for Telegram using the tg://user link format."""
-        return f'<a href="tg://user?id={user_id}">{display_name}</a>'
-
     async def send_message(self, channel_id, text, attachment):
         params = {
             'chat_id': channel_id,
@@ -111,18 +107,24 @@ class TelegramApplication(Application):
         first_name = user_from.get('first_name', '').strip()
         last_name = user_from.get('last_name', '').strip()
         user_display_name = f"{first_name} {last_name}".strip() or user_from.get('username')
-        incident_.assign_user(user_display_name)
 
         if action in ['start_chain', 'stop_chain']:
             await queue_.delete_by_id(incident_.uuid, delete_steps=True, delete_status=False)
             if action == 'stop_chain':
-                logger.info(f'Incident {incident_.uuid} -> button TAKE IT pressed')
-                incident_.assign_user_id(user_id)
-                asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id, incidents))
-                asyncio.create_task(self.post_assignment_notification(incident_, user_id, user_display_name))
+                # if user is already assigned, do nothing
+                if incident_.assigned_user_id == user_id:
+                    logger.info(f'Incident {incident_.uuid} -> button TAKE IT pressed, but user is already assigned')
+                    return JSONResponse(payload, status_code=200)
+                else:
+                    logger.info(f'Incident {incident_.uuid} -> button TAKE IT pressed, assigning to {user_id}')
+                    incident_.assign_user_id(user_id)
+                    incident_.assign_user(user_display_name)
+                    asyncio.create_task(self.post_assignment_notification(incident_, user_id, user_display_name))
+                    asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id, incidents))
                 incident_.chain_enabled = False
             else:
                 logger.info(f'Incident {incident_.uuid} -> button RELEASE pressed')
+                asyncio.create_task(self.post_unassignment_notification(incident_))
                 incident_.release()
         elif action in ['start_status', 'stop_status']:
             if action == 'stop_status':

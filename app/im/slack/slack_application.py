@@ -83,10 +83,6 @@ class SlackApplication(Application):
         )
         return admins_text
 
-    def format_user_mention(self, user_id, display_name=None):
-        """Format a user mention for Slack."""
-        return f'<@{user_id}>'
-
     async def send_message(self, channel_id, text, attachment):
         payload = {
             'channel': channel_id,
@@ -123,13 +119,18 @@ class SlackApplication(Application):
             if action['name'] == 'chain':
                 await queue_.delete_by_id(incident_.uuid, delete_steps=True, delete_status=False)
                 if incident_.chain_enabled or incident_.status != 'resolved':
-                    logger.info(f'Incident {incident_.uuid} -> button TAKE IT pressed')
-                    incident_.assign_user_id(user_id)
-                    asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id, incidents))
-                    asyncio.create_task(self.post_assignment_notification(incident_, user_id))
+                    # if user is already assigned, do nothing
+                    if incident_.assigned_user_id == user_id:
+                        logger.info(f'Incident {incident_.uuid} -> button TAKE IT pressed, but user is already assigned')
+                    else:
+                        logger.info(f'Incident {incident_.uuid} -> button TAKE IT pressed, assigning to {user_id}')
+                        incident_.assign_user_id(user_id)
+                        asyncio.create_task(self.post_assignment_notification(incident_, user_id))
+                        asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id, incidents))
                     incident_.chain_enabled = False
                 else:
                     logger.info(f'Incident {incident_.uuid} -> button RELEASE pressed')
+                    asyncio.create_task(self.post_unassignment_notification(incident_))
                     incident_.release()
             elif action['name'] == 'status':
                 if incident_.status_enabled:

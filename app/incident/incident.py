@@ -5,6 +5,7 @@ from typing import List, Dict, Optional
 import yaml
 
 from app.im.colors import status_colors
+from app.im.channel_manager import ChannelManager
 from app.incident.helpers import gen_uuid
 from app.time import unix_sleep_to_timedelta
 from app.tools import NoAliasDumper
@@ -122,6 +123,7 @@ class Incident:
         self.chain = []
         self.assign_user_id("")
         self.assign_user("")
+        self.assign_fullname("")
         self.chain_enabled = True
         self.dump()
 
@@ -205,6 +207,7 @@ class Incident:
             "chain_enabled": self.chain_enabled,
             "chain": self.chain,
             "channel_id": self.channel_id,
+            "channel_name": ChannelManager().get_channel_name_by_id(self.channel_id),
             "last_state": self.last_state,
             "status_enabled": self.status_enabled,
             "status_update_datetime": self.status_update_datetime,
@@ -224,20 +227,28 @@ class Incident:
             group_labels = self.last_state.get('groupLabels', {})
             common_labels = self.last_state.get('commonLabels', {})
             common_annotations = self.last_state.get('commonAnnotations', {})
-            show_common_block = True
         else:
-            group_labels = self.last_state.get('groupLabels', {})
-            common_labels = group_labels
+            group_labels = {}
+            common_labels = {}
             common_annotations = {}
-            show_common_block = False
         data = {
             'uuid': str(self.uuid),
-            'indicator': status_colors.get(self.status),
+            'indicator': self.status,
             '_alerts_count': len(self.last_state.get('alerts', [])),
             '_responsive_data': {
                 'group_labels': group_labels,
-                'common_labels': filter_dict_keys(group_labels, common_labels),
+                'common_labels': filter_dict_keys(common_labels, group_labels),
                 'common_annotations': common_annotations,
+                'incident_info': {
+                    'status': self.status,
+                    'created': normalize_param(self.created) if self.created else None,
+                    'updated': normalize_param(self.updated) if self.updated else None,
+                    'assigned_fullname': self.assigned_fullname if self.assigned_fullname else None,
+                    'channel_name': ChannelManager().get_channel_name_by_id(self.channel_id),
+                    'link': self.link,
+                    'chain_enabled': self.chain_enabled,
+                    'has_chain': len(self.chain) > 0 if self.chain else False
+                },
                 'alerts': [
                     {
                         'status': alert.get('status', ''),
@@ -248,8 +259,7 @@ class Incident:
                         'annotations': filter_dict_keys(alert.get('annotations', {}), common_annotations)
                     }
                     for alert in alerts
-                ],
-                'show_common_block': show_common_block
+                ]
             }
         }
         data_object = {'incident': self, 'payload': self.last_state}
@@ -271,7 +281,7 @@ class Incident:
         self.dump()
         return False
 
-    def update_state(self, alert_state: Dict) -> (bool, bool):
+    def update_state(self, alert_state: Dict) -> tuple[bool, bool]:
         update_status = self.update_status(alert_state['status'])
         state_updated = self.last_state != alert_state
         if state_updated:

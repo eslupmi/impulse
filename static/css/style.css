@@ -2,13 +2,17 @@
 
 /* General Styling */
 body {
-    font-family: 'Inter', sans-serif;
+    font-family: 'Inter', 'Regular', sans-serif;
     font-weight: 400;
     font-size: 16px;
     background: var(--background-primary);
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+}
+
+strong {
+    font-weight: normal;
 }
 
 *, *:before, *:after {
@@ -150,6 +154,11 @@ body {
 .tabulator-col-sorter {
     position: static !important;
     margin-left: 0 !important;
+    transition: all 0.3s ease;
+}
+
+.tabulator-col-sorter:hover {
+    transform: scale(1.2);
 }
 
 /* Filter Container */
@@ -255,8 +264,7 @@ body {
     border-radius: 8px;
     height: 29px;
     box-shadow: none;
-    border: 2px solid var(--brand-primary);
-    transition: border-color 0.2s;
+    background: var(--background-primary);
 }
 
 #filter-input {
@@ -267,7 +275,7 @@ body {
     color: var(--text-secondary);
     font-size: 16px;
     transition: all 0.2s ease-in-out;
-    height: 29px;
+    height: 30px;
     line-height: 20px;
     max-width: 414px;
     min-width: 414px;
@@ -279,7 +287,7 @@ body {
 }
 
 #add-filter-btn {
-    background: var(--brand-primary);
+    background: transparent;
     color: var(--text-inverse);
     border: none;
     border-radius: 8px;
@@ -291,7 +299,7 @@ body {
     cursor: pointer;
     padding: 0;
     margin: 0;
-    transition: background 0.2s;
+    transition: all 0.3s ease;
 }
 
 #add-filter-btn svg {
@@ -299,20 +307,9 @@ body {
 }
 
 #add-filter-btn:hover {
-    background: var(--hover-primary);
+    transform: scale(1.2);
 }
 
-/* Remove old input/button styles for this area */
-#filter-input:focus {
-    border: none;
-    box-shadow: none;
-}
-
-#add-filter-btn:active {
-    background: var(--brand-secondary-dark);
-}
-
-/* Error State */
 #filter-error {
     padding: 0 20px;
     color: var(--status-error);
@@ -328,7 +325,6 @@ body {
     border-color: var(--status-error);
 }
 
-/* Pill Label */
 .pill-label {
     display: inline-block;
     padding: 2px 4px;
@@ -337,7 +333,6 @@ body {
     color: var(--text-primary);
 }
 
-/* Link field */
 .link-field a {
     color: var(--link-primary);
     text-decoration: none;
@@ -347,36 +342,30 @@ body {
     text-decoration: underline;
 }
 
-/* Filter Badges */
 .filter-badge {
     display: flex;
     align-items: center;
     gap: 6px;
-    background: var(--filter-badge);
     color: var(--filter-badge-text);
-    font-size: 18px;
+    font-size: 16px;
     font-weight: 500;
-    padding: 6px 12px;
+    padding: 6px 8px 6px 8px;
     border-radius: 8px;
     cursor: pointer;
     user-select: none;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
     transition: all 0.3s ease-in-out;
     white-space: nowrap;
-    height: 29px;
+    height: 30px;
+    border: 1.3px solid var(--brand-secondary);
 }
 
-.filter-badge:hover {
-    background: var(--filter-badge-hover);
-}
-
-/* Cross for filters */
 .cross {
     position: relative;
-    width: 12px;
-    height: 12px;
+    width: 15px;
+    height: 15px;
     cursor: pointer;
-    border: 1.5px;
+    transition: all 0.3s ease;
 }
 
 .cross::before,
@@ -385,7 +374,7 @@ body {
     position: absolute;
     left: 50%;
     top: 50%;
-    width: 2px;
+    width: 1.5px;
     height: 100%;
     background-color: var(--filter-badge-text);
     transform-origin: center;
@@ -397,6 +386,10 @@ body {
 
 .cross::after {
     transform: translate(-50%, -50%) rotate(-45deg);
+}
+
+.cross:hover {
+    transform: scale(1.2);
 }
 
 /* Remove Filter Button */
@@ -453,30 +446,31 @@ element.style {
 /* Alerts Count Circle */
 .alerts-count-circle {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
     width: 16px;
     height: 16px;
     border-radius: 50%;
-    background-color: var(--alerts-count-background);
-    color: var(--alerts-count-text);
+    border: 1.3px solid var(--alerts-count-circle-color);
+    /* background-color: var(--alerts-count-background); */
+    color: var(--alerts-count-circle-color);
     font-size: 10px;
     font-weight: 600;
-    margin: 0 auto;
+    margin: 0;
     line-height: 1;
+    padding-top: 3px;
 }
 
-/* Filter Controls */
+
 .filter-controls {
     display: flex;
     align-items: center;
     gap: 8px;
 }
 
-/* Online Status Indicator */
 .online-status-wrapper {
     position: fixed;
-    bottom: 7px;
+    bottom: 6px;
     left: 20px;
     z-index: 1000;
     font-family: 'Inter', sans-serif;
@@ -498,71 +492,73 @@ element.style {
     color: var(--offline-status-indicator);
 }
 
-/* Theme Toggle Button */
 .theme-toggle-wrapper {
     position: fixed;
-    bottom: 3px;
+    bottom: 7px;
     right: 20px;
     z-index: 1000;
 }
 
-.theme-toggle-input {
-    opacity: 0;
-    width: 0;
-    height: 0;
-    position: absolute;
+.theme-toggle-btn {
+    cursor: pointer;
+    width: 16px;
+    height: 16px;
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    padding: 0;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
 }
 
-.theme-toggle-label {
-    cursor: pointer;
-    width: 40px;
-    height: 23px;
-    background: transparent;
-    display: block;
-    border-radius: 12px;
-    border: 2px solid var(--brand-primary);
-    position: relative;
+.theme-toggle-btn:hover {
+    transform: scale(1.2);
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+.theme-toggle-btn:active {
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+.theme-toggle-btn:focus {
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+.theme-toggle-btn:hover .theme-icon {
+    stroke: var(--text-inverse);
+}
+
+.theme-icon {
+    width: 16px;
+    height: 16px;
+    stroke: var(--theme-icon-color);
+    color: var(--theme-icon-color);
     transition: all 0.3s ease;
 }
 
-.theme-toggle-label:hover {
-    transform: scale(1.05);
+.theme-icon.sun-icon {
+    display: block;
 }
 
-.theme-toggle-label:after {
-    content: '';
-    position: absolute;
-    top: 2px;
-    left: 2px;
-    width: 15px;
-    height: 15px;
-    background: var(--brand-primary);
-    border-radius: 50%;
-    transition: transform 0.3s ease;
-}
-
-.theme-toggle-input:checked + .theme-toggle-label {
-    background: transparent;
-}
-
-.theme-toggle-input:checked + .theme-toggle-label:after {
-    transform: translateX(17px);
-}
-
-/* Focus styles for accessibility */
-.theme-toggle-input:focus + .theme-toggle-label {
-    outline-offset: 2px;
-}
-
-.theme-toggle-input:focus:not(:focus-visible) + .theme-toggle-label {
-    outline: none;
-}
-
-/* Remove old styles */
-.theme-toggle-track,
-.theme-toggle-track-sun,
-.theme-toggle-track-moon {
+.theme-icon.moon-icon {
     display: none;
+}
+
+[data-theme="dark"] .theme-icon.sun-icon {
+    display: none;
+}
+
+[data-theme="dark"] .theme-icon.moon-icon {
+    display: block;
 }
 
 .tabulator-footer {
@@ -572,31 +568,159 @@ element.style {
 
 .tabulator-footer .tabulator-footer-contents {
     background-color: var(--background-secondary) !important;
+    height: 29px !important;
 }
 
 .tabulator-footer .tabulator-footer-contents .tabulator-paginator {
     justify-content: center;
     display: flex;
+    height: 19px !important;
+    align-items: center;
 }
 
+/* Navigation buttons with arrows */
 .tabulator-footer button {
-    color: var(--text-primary) !important;
-    background-color: var(--brand-primary) !important;
+    color: var(--footer-text) !important;
+    background-color: transparent !important;
     border: none !important;
+    height: 19px !important;
+    padding: 0 !important;
+    line-height: 19px !important;
 }
 
-.tabulator-footer button.active {
-    color: var(--text-inverse) !important;
-    background-color: var(--brand-primary) !important;
-    border: none !important;
+.tabulator-footer .tabulator-pages {
+    height: 19px !important;
 }
 
-.tabulator-footer button:hover {
-    background: var(--hover-primary) !important;
+/* Page number buttons - remove background, make bigger */
+.tabulator-footer .tabulator-pages button {
+    background-color: transparent !important;
+    color: var(--footer-text) !important;
+    font-weight: 500;
+    height: 19px !important;
+    line-height: 19px !important;
+    padding: 0 4px !important;
+}
+
+.tabulator-footer .tabulator-pages button.active {
+    color: var(--brand-primary) !important;
+    background-color: transparent !important;
+}
+
+.tabulator-footer .tabulator-pages button:hover {
+    background-color: transparent !important;
+    color: var(--brand-primary) !important;
+}
+
+.tabulator-footer button[data-page="first"],
+.tabulator-footer button[data-page="prev"],
+.tabulator-footer button[data-page="next"],
+.tabulator-footer button[data-page="last"] {
+    font-size: 0 !important; /* Hide text */
+    padding: 0 6px !important;
+}
+
+.tabulator-footer button[data-page="first"]::before {
+    background-color: var(--footer-text) !important;
+    content: '';
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    background-color: var(--text-primary);
+    mask: url('data:image/svg+xml;utf8,<svg width="10" height="10" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 9L5 5L9 1" stroke="black" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 9L1 5L5 1" stroke="black" stroke-linecap="round" stroke-linejoin="round"/></svg>') no-repeat center;
+    -webkit-mask: url('data:image/svg+xml;utf8,<svg width="10" height="10" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 9L5 5L9 1" stroke="black" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 9L1 5L5 1" stroke="black" stroke-linecap="round" stroke-linejoin="round"/></svg>') no-repeat center;
+    mask-size: contain;
+    -webkit-mask-size: contain;
+    transition: all 0.3s ease;
+}
+
+.tabulator-footer button[data-page="prev"]::before {
+    background-color: var(--footer-text) !important;
+    content: '';
+    display: inline-block;
+    width: 6px;
+    height: 10px;
+    background-color: var(--text-primary);
+    mask: url('data:image/svg+xml;utf8,<svg width="6" height="10" viewBox="0 0 6 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 9L1 5L5 1" stroke="black" stroke-linecap="round" stroke-linejoin="round"/></svg>') no-repeat center;
+    -webkit-mask: url('data:image/svg+xml;utf8,<svg width="6" height="10" viewBox="0 0 6 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 9L1 5L5 1" stroke="black" stroke-linecap="round" stroke-linejoin="round"/></svg>') no-repeat center;
+    mask-size: contain;
+    -webkit-mask-size: contain;
+    transition: all 0.3s ease;
+}
+
+.tabulator-footer button[data-page="next"]::before {
+    background-color: var(--footer-text) !important;
+    content: '';
+    display: inline-block;
+    width: 6px;
+    height: 10px;
+    background-color: var(--text-primary);
+    mask: url('data:image/svg+xml;utf8,<svg width="6" height="10" viewBox="0 0 6 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 9L5 5L1 1" stroke="black" stroke-linecap="round" stroke-linejoin="round"/></svg>') no-repeat center;
+    -webkit-mask: url('data:image/svg+xml;utf8,<svg width="6" height="10" viewBox="0 0 6 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 9L5 5L1 1" stroke="black" stroke-linecap="round" stroke-linejoin="round"/></svg>') no-repeat center;
+    mask-size: contain;
+    -webkit-mask-size: contain;
+    transition: all 0.3s ease;
+}
+
+.tabulator-footer button[data-page="last"]::before {
+    background-color: var(--footer-text) !important;
+    content: '';
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    background-color: var(--text-primary);
+    mask: url('data:image/svg+xml;utf8,<svg width="10" height="10" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 9L5 5L1 1" stroke="black" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 9L9 5L5 1" stroke="black" stroke-linecap="round" stroke-linejoin="round"/></svg>') no-repeat center;
+    -webkit-mask: url('data:image/svg+xml;utf8,<svg width="10" height="10" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 9L5 5L1 1" stroke="black" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 9L9 5L5 1" stroke="black" stroke-linecap="round" stroke-linejoin="round"/></svg>') no-repeat center;
+    mask-size: contain;
+    -webkit-mask-size: contain;
+    transition: all 0.3s ease;
+}
+
+/* Positioning for navigation buttons arrows */
+.tabulator-footer button[data-page="first"]::before,
+.tabulator-footer button[data-page="prev"]::before,
+.tabulator-footer button[data-page="next"]::before,
+.tabulator-footer button[data-page="last"]::before {
+    padding-top: 17px;
+}
+
+.tabulator-footer button[data-page="first"]:hover::before,
+.tabulator-footer button[data-page="prev"]:hover::before,
+.tabulator-footer button[data-page="next"]:hover::before,
+.tabulator-footer button[data-page="last"]:hover::before {
+    background-color: var(--brand-primary);
+}
+
+
+.tabulator-footer button[data-page]:hover {
+    background: transparent !important;
+    transform: scale(1.2);
 }
 
 .tabulator-placeholder-contents {
     width: 1242px;
     margin-left: 0px;
     margin-top: 50px;
+}
+
+.status-indicator {
+    display: inline-block;
+    width: 6px;
+    height: 35px;
+}
+
+.status-indicator.firing {
+    background-color: var(--status-badge-firing);
+}
+
+.status-indicator.resolved {
+    background-color: var(--status-badge-resolved);
+}
+
+.status-indicator.unknown {
+    background-color: var(--status-badge-unknown);
+}
+
+.status-indicator.closed {
+    background-color: var(--status-badge-closed);
 }
