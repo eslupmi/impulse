@@ -105,13 +105,19 @@ class Application(ABC):
             return
 
         try:
-            text_template = JinjaTemplate(notification_assignment)
+
+            header = self.format_text_italic(
+                self.header_template.form_message(incident_obj.last_state, incident_obj)
+            )
             fields = {'type': self.type, 'username': user_display_name, 'id': user_id}
-            text = text_template.form_notification(fields)
-            message = self._build_notification_message(text, incident_obj)
+            text = JinjaTemplate(notification_assignment).form_notification(fields)
+            if self.type == 'telegram':
+                message = text
+            else:
+                message = header + '\n' + text
 
             await self.post_thread(incident_obj.channel_id, incident_obj.ts, message)
-            logger.debug(f'Posted assignment notification for incident {incident_obj.uuid}: {message}')
+            logger.debug(f'Posted assignment notification for incident {incident_obj.uuid}')
 
         except Exception as e:
             logger.error(f'Failed to post assignment notification for incident {incident_obj.uuid}: {e}')
@@ -127,23 +133,20 @@ class Application(ABC):
             return
 
         try:
-            text_template = JinjaTemplate(notification_unassignment)
-            text = text_template.form_notification()
-            message = self._build_notification_message(text, incident_obj)
+            header = self.format_text_italic(
+                self.header_template.form_message(incident_obj.last_state, incident_obj)
+            )
+            text = JinjaTemplate(notification_unassignment).form_notification({})
+            if self.type == 'telegram':
+                message = text
+            else:
+                message = header + '\n' + text
 
             await self.post_thread(incident_obj.channel_id, incident_obj.ts, message)
             logger.debug(f'Posted unassignment notification for incident {incident_obj.uuid}: {message}')
 
         except Exception as e:
             logger.error(f'Failed to post unassignment notification for incident {incident_obj.uuid}: {e}')
-
-    def _build_notification_message(self, text, incident_obj):
-        if self.type == 'telegram':
-            message = text
-        else:
-            header = self.format_text_bold(self.header_template.form_message(incident_obj.last_state, incident_obj))
-            message = header + '\n' + text
-        return message
 
     def get_url(self, app_config):
         return self._get_url(app_config)

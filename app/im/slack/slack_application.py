@@ -122,10 +122,11 @@ class SlackApplication(Application):
                     # if user is already assigned, do nothing
                     if incident_.assigned_user_id == user_id:
                         logger.info(f'Incident {incident_.uuid} -> button TAKE IT pressed, but user is already assigned')
-                    logger.info(f'Incident {incident_.uuid} -> button TAKE IT pressed, assigning to {user_id}')
-                    incident_.assign_user_id(user_id)
-                    asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id, incidents))
-                    asyncio.create_task(self.post_assignment_notification(incident_, user_id))
+                    else:
+                        logger.info(f'Incident {incident_.uuid} -> button TAKE IT pressed, assigning to {user_id}')
+                        incident_.assign_user_id(user_id)
+                        asyncio.create_task(self.post_assignment_notification(incident_, user_id))
+                        asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id, incidents))
                     incident_.chain_enabled = False
                 else:
                     logger.info(f'Incident {incident_.uuid} -> button RELEASE pressed')
