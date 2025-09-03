@@ -2,7 +2,7 @@
 :root {
     /* Brand Colors */
     --brand-primary: #4A90E2;
-    --brand-primary-light: #D7EFFA;
+    --brand-primary-light: #C3E6F8;
     --brand-primary-dark: #357ABD;
     --brand-secondary: #38ADE6;
     --brand-secondary-light: #C3E6F7;
@@ -84,13 +84,15 @@
     --annotation-border: var(--neutral-600);
     --annotation-text: var(--neutral-800);
     --tooltip-background: var(--alerts-count-background);
+ 
+    --footer-text: #606060;
 }
 
 /* Dark theme */
 [data-theme="dark"] {
     /* Brand Colors - slightly adjusted for dark theme */
     --brand-primary: #5A9FE2;
-    --brand-primary-light: #0B232E;
+    --brand-primary-light: #113445;
     --brand-primary-dark: #4A8FD2;
     --brand-secondary: #48BDE6;
     --brand-secondary-light: #16455C;
@@ -172,4 +174,6 @@
     --annotation-border: var(--neutral-300);
     --annotation-text: var(--neutral-800);
     --tooltip-background: var(--alerts-count-background);
+
+    --footer-text: var(--text-primary);
 }

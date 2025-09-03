@@ -580,7 +580,7 @@ element.style {
 
 /* Navigation buttons with arrows */
 .tabulator-footer button {
-    color: var(--text-primary) !important;
+    color: var(--footer-text) !important;
     background-color: transparent !important;
     border: none !important;
     height: 19px !important;
@@ -595,7 +595,7 @@ element.style {
 /* Page number buttons - remove background, make bigger */
 .tabulator-footer .tabulator-pages button {
     background-color: transparent !important;
-    color: var(--text-primary) !important;
+    color: var(--footer-text) !important;
     font-weight: 500;
     height: 19px !important;
     line-height: 19px !important;
@@ -605,7 +605,6 @@ element.style {
 .tabulator-footer .tabulator-pages button.active {
     color: var(--brand-primary) !important;
     background-color: transparent !important;
-    font-weight: 600;
 }
 
 .tabulator-footer .tabulator-pages button:hover {
@@ -622,6 +621,7 @@ element.style {
 }
 
 .tabulator-footer button[data-page="first"]::before {
+    background-color: var(--footer-text) !important;
     content: '';
     display: inline-block;
     width: 10px;
@@ -635,6 +635,7 @@ element.style {
 }
 
 .tabulator-footer button[data-page="prev"]::before {
+    background-color: var(--footer-text) !important;
     content: '';
     display: inline-block;
     width: 6px;
@@ -648,6 +649,7 @@ element.style {
 }
 
 .tabulator-footer button[data-page="next"]::before {
+    background-color: var(--footer-text) !important;
     content: '';
     display: inline-block;
     width: 6px;
@@ -661,6 +663,7 @@ element.style {
 }
 
 .tabulator-footer button[data-page="last"]::before {
+    background-color: var(--footer-text) !important;
     content: '';
     display: inline-block;
     width: 10px;
