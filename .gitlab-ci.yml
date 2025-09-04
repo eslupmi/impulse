@@ -15,6 +15,7 @@ variables:
   CREATE_RPM: "false"
   ARCH: "amd64"  
   BUILD_ARCH: "amd64"
+  GITLAB_ADVANCED_SAST_ENABLED: "true"
   
 include:
   - project: 'devops/ci/semci'
