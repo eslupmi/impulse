@@ -1,6 +1,6 @@
 # UI
 
-The interface provides multi-level sorting, filtering, and data coloring capabilities. It includes a theme toggle and the ability to expand incidents to view their contained alerts.
+The interface provides multi-level sorting, filtering, and data coloring capabilities. It includes a theme toggle and the ability to expand incidents to view their details and contained alerts.
 
 The interface uses WebSocket for communication on the `/ws` path. If you use a reverse proxy, don't forget to properly forward the traffic.
 
