@@ -1,5 +1,16 @@
 # Changelog
 
+All notable changes to this project will be documented in this file. See
+[Conventional Commits](https://conventionalcommits.org) for commit guidelines.
+
+## [2.8.0](https://tik.r314.ru/devops/monitoring/impulse/compare/v2.7.0...2.8.0) (2025-09-04)
+
+### ✨ Features
+
+* **telegram:** add new channel/topic logic ([f8aa597](https://tik.r314.ru/devops/monitoring/impulse/commit/f8aa5972d9be9f0570c80e6f3366ecd8175f8589))
+
+# Changelog
+
 ## v2.7.0
 Changes:
 - Added online / offline status indicator in the UI
