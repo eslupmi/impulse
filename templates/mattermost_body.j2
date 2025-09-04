@@ -10,12 +10,14 @@
 {%- if commonAnnotations.description %}
 _{{ commonAnnotations.description }}_{% endif %}
 {%- if alerts | length > 1 %}
+
 **Instances:**
 {%- for a in alerts %}
     {{ a.labels.instance }}{% for l in a.labels.keys() if l != 'alertname' and l != 'instance' and l not in commonLabels.keys() -%}{% if loop.first %}  |  {% endif %}{{l}}=`{{ a.labels[l] }}`{% if not loop.last %}, {% else %}{% if a.annotations.value %}  |  value=**{{ a.annotations.value }}**{% endif %}{% endif %}{% endfor %}
 {%- endfor -%}
 {% else -%}
 {%- if alerts[0].labels.instance %}
+
 **Instance:** {{ alerts[0].labels.instance }}{% if alerts[0].annotations.value %}  |  value=**{{ alerts[0].annotations.value }}**{% endif %}
 {% endif -%}
 {% endif -%}
