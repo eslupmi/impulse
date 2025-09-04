@@ -154,7 +154,9 @@ class TelegramApplication(Application):
             return message_id
 
     async def buttons_handler(self, payload, incidents, queue_, route):
+        logger.debug(f'Button handler called with payload: {payload}')
         if 'callback_query' not in payload:
+            logger.debug('No callback_query in payload')
             return JSONResponse({}, status_code=200)
         callback = payload['callback_query']
         message_id = callback['message']['message_id']
@@ -166,9 +168,22 @@ class TelegramApplication(Application):
         else:
             # For regular messages (not in forum topics), use just message_id
             thread_id = str(message_id)
-            
+        
+        logger.debug(f'Looking for incident with thread_id: {thread_id}')
+        
+        # Debug: List all incidents and their thread_ids
+        logger.debug(f'Available incidents:')
+        for uuid, incident in incidents.by_uuid.items():
+            logger.debug(f'  - {uuid}: thread_id="{incident.thread_id}", ts="{incident.ts}", app_type="{incident.config.application_type}"')
+        
         incident_ = incidents.get_by_ts(ts=thread_id)
+        # Extra fallback: try plain message_id if not found (for compatibility with legacy incidents)
         if incident_ is None:
+            plain_id = str(message_id)
+            logger.debug(f'Incident not found by full thread_id, trying plain message_id: {plain_id}')
+            incident_ = incidents.get_by_ts(ts=plain_id)
+        if incident_ is None:
+            logger.warning(f'No incident found for thread_id: {thread_id}')
             async with self.http.post(
                 f'{self.url}/answerCallbackQuery',
                 json={'callback_query_id': callback['id']},
@@ -177,6 +192,7 @@ class TelegramApplication(Application):
                 pass
             return JSONResponse({}, status_code=200)
         action = callback['data']
+        logger.debug(f'Button action: {action}, incident: {incident_.uuid}')
 
         user_id = callback['from']['id']
         user_from = callback.get('from', {})
@@ -186,6 +202,7 @@ class TelegramApplication(Application):
         incident_.assign_user(user_display_name)
 
         if action in ['start_chain', 'stop_chain']:
+            logger.debug(f'Processing chain action: {action}')
             await queue_.delete_by_id(incident_.uuid, delete_steps=True, delete_status=False)
             if action == 'stop_chain':
                 logger.info(f'Incident {incident_.uuid} -> button TAKE IT pressed')
@@ -193,16 +210,21 @@ class TelegramApplication(Application):
                 asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id, incidents))
                 asyncio.create_task(self.post_assignment_notification(incident_, user_id, user_display_name))
                 incident_.chain_enabled = False
+                logger.debug(f'Set chain_enabled=False for incident {incident_.uuid}')
             else:
                 logger.info(f'Incident {incident_.uuid} -> button RELEASE pressed')
                 incident_.release()
+                logger.debug(f'Released incident {incident_.uuid}')
         elif action in ['start_status', 'stop_status', 'silence']:
+            logger.debug(f'Processing status action: {action}')
             if action == 'stop_status':
                 logger.info(f'Incident {incident_.uuid} -> button STATUS pressed (disabled)')
                 incident_.status_enabled = False
+                logger.debug(f'Set status_enabled=False for incident {incident_.uuid}')
             elif action == 'start_status':
                 logger.info(f'Incident {incident_.uuid} -> button STATUS pressed (enabled)')
                 incident_.status_enabled = True
+                logger.debug(f'Set status_enabled=True for incident {incident_.uuid}')
             elif action == 'silence':
                 logger.info(f'Incident {incident_.uuid} -> button Mute pressed (callback)')
                 # Allow only admin users to trigger Mute
@@ -218,7 +240,11 @@ class TelegramApplication(Application):
                 await self._handle_silence_backend(incident_, callback['id'])
                 # For silence action, we don't need to update the message or answer callback again
                 return JSONResponse({}, status_code=200)
+        else:
+            logger.warning(f'Unknown action: {action}')
         incident_.dump()
+        logger.debug(f'Incident {incident_.uuid} state after action: chain_enabled={incident_.chain_enabled}, status_enabled={incident_.status_enabled}')
+        
         body = self.body_template.form_message(incident_.last_state, incident_)
         header = self.header_template.form_message(incident_.last_state, incident_)
         # provide incident, alert_state and status for keyboard builder within this update
@@ -226,6 +252,8 @@ class TelegramApplication(Application):
         self._current_alert_state_for_keyboard = incident_.last_state
         self._current_status_for_keyboard = incident_.status
         status_icons = self.status_icons_template.form_message(incident_.last_state, incident_)
+        
+        logger.debug(f'Updating thread for incident {incident_.uuid}: chain_enabled={incident_.chain_enabled}, status_enabled={incident_.status_enabled}')
         await self.update_thread(
             incident_.channel_id, incident_.ts, incident_.status, body, header, status_icons,
             incident_.chain_enabled, incident_.status_enabled
@@ -235,6 +263,7 @@ class TelegramApplication(Application):
                 delattr(self, attr)
 
         await self._answer_callback(callback['id'])
+        logger.debug(f'Button handler completed for incident {incident_.uuid}')
         return JSONResponse({}, status_code=200)
 
     async def _answer_callback(self, cb_id, text: str = None):
@@ -370,20 +399,22 @@ class TelegramApplication(Application):
             await self.post_thread(incident_.channel_id, thread_identifier, f"❌ Failed to create silence: {e}")
 
     def _create_thread_payload(self, chat_id, body, header, status_icons, status):
-        # Build silence button - use URL button if silence URL is available, otherwise callback button
-        silence_button = self._get_silence_button()
+        # Build silence button - prefer URL button if available; fallback to callback button to keep it visible
+        silence_button = self._get_silence_button() or buttons['silence']['mute']
         
-        # Build keyboard row, filtering out None values
-        keyboard_row = [buttons['chain']['takeit'], buttons['status']['enabled']]
+        # Build keyboard as 2 rows to avoid overflow on mobile Telegram
+        # Row 1: Take/Release + Notifications; Row 2: Mute (if available)
+        row1 = [buttons['chain']['takeit'], buttons['status']['enabled']]
+        keyboard = [row1]
         if silence_button is not None:
-            keyboard_row.append(silence_button)
+            keyboard.append([silence_button])
         
         payload = {
             'chat_id': chat_id,
             'text': f'{self._format_tg_icon(status_icons)} {header}\n{body}',
             'parse_mode': 'HTML',
             'reply_markup': {
-                'inline_keyboard': [keyboard_row]
+                'inline_keyboard': keyboard
             }
         }
         
@@ -439,10 +470,8 @@ class TelegramApplication(Application):
         
         # Only update topic name if no fixed topic_id is specified in channel_id
         if not fixed_topic_id:
-            if status_enabled or status == 'closed':
-                await self._update_topic(channel_id, id_, header, status_icons)
-            else:
-                await self._update_topic(channel_id, id_, header, "5377316857231450742") # ? mark
+            # Always update topic with the correct status icon based on the current status
+            await self._update_topic(channel_id, id_, header, status_icons)
         
         payload = self.update_thread_payload(channel_id, id_, body, header, status_icons, status, chain_enabled,
                                              status_enabled)
@@ -462,13 +491,18 @@ class TelegramApplication(Application):
                 'icon_custom_emoji_id': status_icons,
                 'message_thread_id': topic_id
             }
+            logger.debug(f'Updating topic {topic_id}: header="{header}", status_icons="{status_icons}"')
             try:
                 async with self.http.post(
                     f'{self.url}/editForumTopic',
                     json=payload,
                     headers=self.headers
                 ) as response:
-                    pass
+                    response_json = await response.json()
+                    if response_json.get('ok'):
+                        logger.debug(f'Successfully updated topic {topic_id}')
+                    else:
+                        logger.warning(f'Failed to update topic {topic_id}: {response_json}')
             except aiohttp.ClientError as e:
                 logger.error(f'Failed to update topic: {e}')
 
@@ -484,16 +518,17 @@ class TelegramApplication(Application):
         
         message_text = f'{self._format_tg_icon(status_icons)} {header}\n{body}'
         
-        # Build silence button - use URL button if silence URL is available, otherwise callback button
-        silence_button = self._get_silence_button()
+        # Build silence button - prefer URL button if available; fallback to callback button to keep it visible
+        silence_button = self._get_silence_button() or buttons['silence']['mute']
         
-        # Build keyboard row, filtering out None values
-        row = [
-            buttons['chain']['takeit'] if chain_enabled or status != 'resolved' else buttons['chain']['release'],
+        # Build keyboard as 2 rows to avoid overflow on mobile Telegram
+        row1 = [
+            buttons['chain']['release'] if not chain_enabled else buttons['chain']['takeit'],
             buttons['status']['enabled'] if status_enabled else buttons['status']['disabled']
         ]
+        keyboard = [row1]
         if silence_button is not None:
-            row.append(silence_button)
+            keyboard.append([silence_button])
         
         return {
             'chat_id': chat_id,
@@ -501,7 +536,7 @@ class TelegramApplication(Application):
             'text': message_text,
             'parse_mode': 'HTML',
             'reply_markup': {
-                'inline_keyboard': [row]
+                'inline_keyboard': keyboard
             }
         }
 
@@ -552,7 +587,7 @@ class TelegramApplication(Application):
                 # Use URL button that opens in browser
                 logger.debug('Using URL button for silence')
                 return {
-                    'text': 'Mute',
+                    'text': '🔇 Mute',
                     'url': silence_url
                 }
             
@@ -644,6 +679,7 @@ class TelegramApplication(Application):
         self._current_alert_state_for_keyboard = alert_state
         self._current_status_for_keyboard = incident_status
         status_icons = self.status_icons_template.form_message(alert_state, incident)
+        logger.debug(f'Update incident {uuid_}: status="{incident_status}", status_icons="{status_icons}"')
         
         # For Telegram we use thread_id (topic_id/message_id) for topic update
         # For other applications we use ts

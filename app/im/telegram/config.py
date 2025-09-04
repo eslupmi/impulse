@@ -5,7 +5,7 @@ buttons = {
     # styles: normal, danger
     'chain': {
         'takeit': {
-            'text': 'Take It',
+            'text': 'Take',
             'callback_data': 'stop_chain'
         },
         'release': {
@@ -15,21 +15,21 @@ buttons = {
     },
     'status': {
         'enabled': {
-            'text': '🟢 Notifications ON',
+            'text': '🔔 ON',
             'callback_data': 'stop_status'
         },
         'disabled': {
-            'text': '🔴 Notifications OFF',
+            'text': '🔕 OFF',
             'callback_data': 'start_status'
         }
     },
     'silence': {
         'mute': {
-            'text': 'Mute',
+            'text': '🔇 Mute',
             'callback_data': 'silence'
         },
         'mute_url': {
-            'text': 'Mute',
+            'text': '🔇 Mute',
             'url': None  # Will be set dynamically
         }
     }

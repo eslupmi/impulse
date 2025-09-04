@@ -17,11 +17,21 @@ class Incidents:
         return self.by_uuid.get(uuid_)
 
     def get_by_ts(self, ts: str) -> Union[Incident, None]:
-        # For Telegram we search by thread_id, for other applications by ts
+        # For Telegram we search primarily by full thread_id (topic_id/message_id).
+        # Backward compatibility: older incidents may have only message_id stored in thread_id/ts.
         for incident in self.by_uuid.values():
             if incident.config.application_type == 'telegram':
+                # Exact match by full thread_id
                 if incident.thread_id == ts:
                     return incident
+                # Fallbacks: match by plain message_id when caller passed full thread_id or plain id
+                if '/' in ts:
+                    _, maybe_message_id = ts.split('/', 1)
+                    if incident.ts == maybe_message_id or incident.thread_id == maybe_message_id:
+                        return incident
+                else:
+                    if incident.ts == ts or incident.thread_id == ts:
+                        return incident
             else:
                 if incident.ts == ts:
                     return incident

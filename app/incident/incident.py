@@ -59,12 +59,15 @@ class Incident:
     def set_thread(self, thread_id: str, public_url: str):
         # For Telegram thread_id has format "topic_id/message_id", 
         # we need only message_id for link generation
+        logger.debug(f'Setting thread_id: "{thread_id}" for application_type: {self.config.application_type}')
         if self.config.application_type == 'telegram' and '/' in thread_id:
             self.ts = thread_id.split('/')[-1]  # Take only last part (message_id)
             self.thread_id = thread_id # Save full thread_id
+            logger.debug(f'Telegram thread_id set: ts="{self.ts}", thread_id="{self.thread_id}"')
         else:
             self.ts = thread_id
             self.thread_id = thread_id # Save full thread_id
+            logger.debug(f'Non-telegram thread_id set: ts="{self.ts}", thread_id="{self.thread_id}"')
         self.link = self.generate_link(public_url)
 
     def generate_link(self, public_url) -> str:
