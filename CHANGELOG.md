@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.8.1](https://tik.r314.ru/devops/monitoring/impulse/compare/2.8.0...2.8.1) (2025-09-04)
+
+### 🐞 Bug Fixes
+
+* callback buttons for old and new logic, save/search full thread_id or message_id for incidents ([6485160](https://tik.r314.ru/devops/monitoring/impulse/commit/64851605a25c312e07b0ab9aef34e91f54886263))
+
 ## [2.8.0](https://tik.r314.ru/devops/monitoring/impulse/compare/v2.7.0...2.8.0) (2025-09-04)
 
 ### ✨ Features
