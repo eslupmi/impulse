@@ -89,6 +89,9 @@ ui:
     - name: severity
       header: Severity
       value: payload.commonLabels.severity
+    - name: assigned
+      header: Assigned To
+      value: incident.assigned_fullname
   sorting:
     - severity: desc
       order: ["info", "warning", "critical"]
