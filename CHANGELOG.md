@@ -1,5 +1,12 @@
 # Changelog
 
+## v2.8.0
+Changes:
+- Interface updated. Added incident details. Improved font readability
+- Added assigned user's full name ([example](https://github.com/eslupmi/impulse/blob/183e75974167b403c3f46049a5e11ac35253b24b/examples/impulse.slack.advanced.yml#L92))
+- Added notifications in thread about user assignment ([docs](https://docs.impulse.bot/latest/config_file/#incidentnotificationsassignment))
+- Fixed template bugs
+
 ## v2.7.0
 Changes:
 - Added online / offline status indicator in the UI
