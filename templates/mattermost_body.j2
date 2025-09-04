@@ -4,8 +4,9 @@
 {%- set alerts = payload.get("alerts", {}) -%}
 {%- if alerts[0].generatorURL %}{% set url = alerts[0].generatorURL %}{% endif -%}
 {%- if commonAnnotations.runbook %}{% set runbook = commonAnnotations.runbook %}{% endif -%}
-{%- if commonAnnotations.summary %}**{{ commonAnnotations.summary }}**{% endif %}{% if url or runbook %}  |  {% if url %}[source]({{ url }}){% endif %}{% if runbook %}  |  [runbook]({{ runbook }}){% endif %}
-{% endif %}
+{%- if commonAnnotations.summary %}**{{ commonAnnotations.summary }}**  {% endif %}
+{%- if url %}|  [source]({{ url }})  {% endif %}
+{%- if runbook %}|  [runbook]({{ runbook }}){% endif %}
 {%- if commonAnnotations.description %}
 _{{ commonAnnotations.description }}_{% endif %}
 {%- if alerts | length > 1 %}
