@@ -31,8 +31,12 @@ class AsyncQueue:
 
     async def delete_by_id(self, uuid: str, delete_steps: bool = True, delete_status: bool = True):
         """Delete items by incident UUID"""
+        logger.debug(f'Deleting items for incident {uuid}: delete_steps={delete_steps}, delete_status={delete_status}')
         async with self._lock:
+            old_count = len(self._items)
             self._delete_by_id_internal(uuid, delete_steps, delete_status)
+            new_count = len(self._items)
+            logger.debug(f'Deleted {old_count - new_count} items for incident {uuid}')
 
     def _delete_by_id_internal(self, uuid: str, delete_steps: bool = True, delete_status: bool = True):
         """Internal delete method that doesn't acquire lock"""
@@ -46,15 +50,22 @@ class AsyncQueue:
 
     async def recreate(self, status: str, uuid: str, incident_chain: list):
         """Recreate queue items for incident chain"""
+        logger.debug(f'Recreating queue for incident {uuid}: status={status}, chain_length={len(incident_chain)}')
+        
         if status != 'resolved':
             new_items = []
             for i, s in enumerate(incident_chain):
                 if not s['done']:
                     new_items.append(QueueItem(s['datetime'], 'chain_step', uuid, i, None))
+                    logger.debug(f'Added queue item: step {i} at {s["datetime"]}')
 
             async with self._lock:
                 for new_item in new_items:
                     self._insert_item_sorted(new_item)
+                    
+            logger.debug(f'Recreated queue with {len(new_items)} items for incident {uuid}')
+        else:
+            logger.debug(f'Skipping queue recreation for resolved incident {uuid}')
 
     def _insert_item_sorted(self, new_item: QueueItem):
         """Insert item in sorted order by datetime"""

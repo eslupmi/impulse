@@ -78,13 +78,20 @@ class AlertHandler(BaseHandler):
         is_new_firing_alerts_added = False
         is_some_firing_alerts_removed = False
         prev_status = incident_.status
+        new_status = alert_state.get('status')
+        
+        logger.info(f'Handling update for incident {uuid_}: {prev_status} -> {new_status}')
 
-        # Generate chain from scratch if incident chain is empty
-        if prev_status == 'resolved' and incident_.chain_enabled and incident_.chain == []:
+        # Generate chain from scratch if incident chain is empty or if transitioning from resolved to firing
+        if (prev_status == 'resolved' and incident_.chain_enabled and incident_.chain == []) or \
+           (prev_status == 'resolved' and new_status == 'firing'):
+            # Clear old queue items before generating new chain
+            await self.queue.delete_by_id(uuid_, delete_steps=True, delete_status=False)
             _, chain_name = self.route.get_route(alert_state)
             incident_.generate_chain(self.app.chains, chain_name)
+            logger.info(f'Regenerated chain for incident {uuid_} transitioning from {prev_status} to {new_status}')
             
-        await self.queue.recreate(alert_state.get('status'), uuid_, incident_.get_chain())
+        await self.queue.recreate(new_status, uuid_, incident_.get_chain())
 
         # Check new alerts firing or old alerts resolved
         chain_recreate = experimental.get('recreate_chain', False)
@@ -134,7 +141,10 @@ class AlertHandler(BaseHandler):
             message = text
         else:
             message = header + '\n' + text
-        await self.app.post_thread(incident_.channel_id, incident_.ts, message)
+        # For Telegram we use thread_id (topic_id/message_id) for sending messages
+        # For other applications we use ts
+        thread_identifier = incident_.thread_id if incident_.thread_id else incident_.ts
+        await self.app.post_thread(incident_.channel_id, thread_identifier, message)
         if new_alerts_f:
             logger.info(f"Incident {uuid_} updated with new alerts firing")
         elif new_alerts_r:

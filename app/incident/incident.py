@@ -5,7 +5,6 @@ from typing import List, Dict, Optional
 import yaml
 
 from app.im.colors import status_colors
-from app.im.channel_manager import ChannelManager
 from app.incident.helpers import gen_uuid
 from app.time import unix_sleep_to_timedelta
 from app.tools import NoAliasDumper
@@ -40,8 +39,11 @@ class Incident:
     created: datetime = field(default_factory=datetime.utcnow)
     version: str = INCIDENT_ACTUAL_VERSION
     uuid: str = field(init=False)
-    ts: str = field(default='')
+    ts: str = field(default='')  # Message ID (for Telegram) or full thread_id (for other applications)
+    thread_id: str = field(default='')  # Full thread_id for Telegram (topic_id/message_id)
     link: str = field(default='')
+    status_notification_message_id: str = field(default='')  # Message ID for status notification (Telegram only)
+    tagging_message_ids: List[str] = field(default_factory=list)  # List of tagging message IDs (Telegram only)
 
     next_status = {
         'firing': 'unknown',
@@ -55,7 +57,14 @@ class Incident:
             self.created = datetime.now(timezone.utc)
 
     def set_thread(self, thread_id: str, public_url: str):
-        self.ts = thread_id
+        # For Telegram thread_id has format "topic_id/message_id", 
+        # we need only message_id for link generation
+        if self.config.application_type == 'telegram' and '/' in thread_id:
+            self.ts = thread_id.split('/')[-1]  # Take only last part (message_id)
+            self.thread_id = thread_id # Save full thread_id
+        else:
+            self.ts = thread_id
+            self.thread_id = thread_id # Save full thread_id
         self.link = self.generate_link(public_url)
 
     def generate_link(self, public_url) -> str:
@@ -64,11 +73,17 @@ class Incident:
         elif self.config.application_type == 'mattermost':
             return f'{self.config.application_url}/{self.config.application_team.lower()}/pl/{self.ts}'
         elif self.config.application_type == 'telegram':
+            # Format: https://t.me/c/3052482230/29
+            # where 3052482230 is channel ID without minus, and 29 is message ID
+            # Remove topic ID
             return f'https://t.me/c/{str(self.channel_id)[4:]}/{self.ts}'
         return ''
 
     def generate_chain(self, chains, chain_name=None):
+        logger.debug(f'Generating chain for incident {self.uuid}: chain_name={chain_name}')
+        
         if chain_name is None:
+            logger.debug('No chain name provided')
             return
 
         if chain_name not in chains.keys():
@@ -89,6 +104,16 @@ class Incident:
         if not steps:
             logger.debug(f'Chain {chain_name} has no steps for current time/conditions')
             return
+            
+        logger.debug(f'Chain {chain_name} has {len(steps)} steps')
+
+        # Clear existing chain before generating new one
+        self.chain = []
+        logger.debug(f'Cleared existing chain for incident {self.uuid}')
+
+        # Enable chain when generating new steps
+        self.chain_enabled = True
+        logger.debug(f'Enabled chain for incident {self.uuid}')
 
         steps = self._unchain(chains, steps)
 
@@ -99,6 +124,9 @@ class Incident:
                 dt += unix_sleep_to_timedelta(value)
             else:
                 self.chain_put(index=index, datetime_=dt, type_=type_, identifier=value)
+                logger.debug(f'Added chain step {index}: {type_}={value} at {dt}')
+        
+        logger.debug(f'Generated chain with {len(self.chain)} steps for incident {self.uuid}')
         self.dump()
 
     def _unchain(self, chains, steps):
@@ -123,13 +151,14 @@ class Incident:
         self.chain = []
         self.assign_user_id("")
         self.assign_user("")
-        self.assign_fullname("")
         self.chain_enabled = True
         self.dump()
 
     def get_chain(self) -> List[Dict]:
         if not self.chain_enabled:
+            logger.debug(f'Chain disabled for incident {self.uuid}, returning empty list')
             return list()
+        logger.debug(f'Returning chain with {len(self.chain)} steps for incident {self.uuid}')
         return self.chain
 
     def chain_put(self, index: int, datetime_: datetime, type_: str, identifier: str):
@@ -170,6 +199,8 @@ class Incident:
             assigned_fullname=content.get('assigned_fullname', ''),
             version=content.get('version', INCIDENT_ACTUAL_VERSION)
         )
+        # Load tagging message IDs if available
+        incident_.tagging_message_ids = content.get('tagging_message_ids', [])
         incident_.set_thread(content.get('ts'), config.application_url)
         return incident_
 
@@ -188,7 +219,8 @@ class Incident:
             "assigned_user_id": self.assigned_user_id,
             "assigned_user": self.assigned_user,
             "assigned_fullname": self.assigned_fullname,
-            "version": self.version
+            "version": self.version,
+            "tagging_message_ids": getattr(self, 'tagging_message_ids', [])
         }
         with open(f'{incidents_path}/{self.uuid}.yml', 'w') as f:
             yaml.dump(data, f, NoAliasDumper, default_flow_style=False)
@@ -207,7 +239,6 @@ class Incident:
             "chain_enabled": self.chain_enabled,
             "chain": self.chain,
             "channel_id": self.channel_id,
-            "channel_name": ChannelManager().get_channel_name_by_id(self.channel_id),
             "last_state": self.last_state,
             "status_enabled": self.status_enabled,
             "status_update_datetime": self.status_update_datetime,
@@ -219,6 +250,7 @@ class Incident:
             "assigned_fullname": self.assigned_fullname,
             "link": self.link,
             "ts": self.ts,
+            "tagging_message_ids": getattr(self, 'tagging_message_ids', []),
         }
 
     def get_table_data(self, params) -> Dict:
@@ -227,28 +259,20 @@ class Incident:
             group_labels = self.last_state.get('groupLabels', {})
             common_labels = self.last_state.get('commonLabels', {})
             common_annotations = self.last_state.get('commonAnnotations', {})
+            show_common_block = True
         else:
-            group_labels = {}
-            common_labels = {}
+            group_labels = self.last_state.get('groupLabels', {})
+            common_labels = group_labels
             common_annotations = {}
+            show_common_block = False
         data = {
             'uuid': str(self.uuid),
-            'indicator': self.status,
+            'indicator': status_colors.get(self.status),
             '_alerts_count': len(self.last_state.get('alerts', [])),
             '_responsive_data': {
                 'group_labels': group_labels,
-                'common_labels': filter_dict_keys(common_labels, group_labels),
+                'common_labels': filter_dict_keys(group_labels, common_labels),
                 'common_annotations': common_annotations,
-                'incident_info': {
-                    'status': self.status,
-                    'created': normalize_param(self.created) if self.created else None,
-                    'updated': normalize_param(self.updated) if self.updated else None,
-                    'assigned_fullname': self.assigned_fullname if self.assigned_fullname else None,
-                    'channel_name': ChannelManager().get_channel_name_by_id(self.channel_id),
-                    'link': self.link,
-                    'chain_enabled': self.chain_enabled,
-                    'has_chain': len(self.chain) > 0 if self.chain else False
-                },
                 'alerts': [
                     {
                         'status': alert.get('status', ''),
@@ -259,7 +283,8 @@ class Incident:
                         'annotations': filter_dict_keys(alert.get('annotations', {}), common_annotations)
                     }
                     for alert in alerts
-                ]
+                ],
+                'show_common_block': show_common_block
             }
         }
         data_object = {'incident': self, 'payload': self.last_state}
@@ -281,12 +306,23 @@ class Incident:
         self.dump()
         return False
 
-    def update_state(self, alert_state: Dict) -> tuple[bool, bool]:
-        update_status = self.update_status(alert_state['status'])
-        state_updated = self.last_state != alert_state
+    def update_state(self, alert_state: Dict) -> (bool, bool):
+        prev_status = self.status
+        new_status = alert_state['status']
+        update_status = self.update_status(new_status)
+        
+        # Compare state content, not object references
+        import json
+        state_updated = json.dumps(self.last_state, sort_keys=True) != json.dumps(alert_state, sort_keys=True)
+        
+        if update_status:
+            logger.info(f'Incident {self.uuid} status changed from {prev_status} to {new_status}')
+        
         if state_updated:
             self.last_state = alert_state
             self.dump()
+            logger.debug(f'Incident {self.uuid} state updated')
+            
         return update_status, state_updated
 
     def set_status(self, status: str):

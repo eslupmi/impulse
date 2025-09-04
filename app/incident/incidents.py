@@ -17,7 +17,15 @@ class Incidents:
         return self.by_uuid.get(uuid_)
 
     def get_by_ts(self, ts: str) -> Union[Incident, None]:
-        return next((incident for incident in self.by_uuid.values() if incident.ts == ts), None)
+        # For Telegram we search by thread_id, for other applications by ts
+        for incident in self.by_uuid.values():
+            if incident.config.application_type == 'telegram':
+                if incident.thread_id == ts:
+                    return incident
+            else:
+                if incident.ts == ts:
+                    return incident
+        return None
 
     def get_assigned_user_by_id(self, user_id: str) -> Union[str, None]:
         """

@@ -15,12 +15,22 @@ buttons = {
     },
     'status': {
         'enabled': {
-            'text': '🟢 Status',
+            'text': '🟢 Notifications ON',
             'callback_data': 'stop_status'
         },
         'disabled': {
-            'text': '🔴 Status',
+            'text': '🔴 Notifications OFF',
             'callback_data': 'start_status'
+        }
+    },
+    'silence': {
+        'mute': {
+            'text': 'Mute',
+            'callback_data': 'silence'
+        },
+        'mute_url': {
+            'text': 'Mute',
+            'url': None  # Will be set dynamically
         }
     }
 }

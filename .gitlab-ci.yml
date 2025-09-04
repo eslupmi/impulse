@@ -1,0 +1,23 @@
+stages:
+  - check_code
+  - check_merge
+  - check_package
+  - release
+  - build_binary
+  - packaging
+  - create_manifest
+  - create_tar
+  - docs
+
+variables:
+  CREATE_DEB: "false"
+  CREATE_IMAGE: "true"
+  CREATE_RPM: "false"
+  ARCH: "amd64"  
+  BUILD_ARCH: "amd64"
+  
+include:
+  - project: 'devops/ci/semci'
+    ref: master
+    file:
+      - '.gitlab-ci.yml'

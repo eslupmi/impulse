@@ -54,7 +54,10 @@ class StepHandler(BaseHandler):
             text = text_template.form_notification(fields)
             header = f"{self.app.format_text_italic(self.app.header_template.form_message(incident.last_state, incident))}"
             message = f"{header}" + '\n' + f'{text}'
-            await self.app.post_thread(incident.channel_id, incident.ts, message)
+            # For Telegram we use thread_id (topic_id/message_id) for sending messages
+            # For other applications we use ts
+            thread_identifier = incident.thread_id if incident.thread_id else incident.ts
+            await self.app.post_thread(incident.channel_id, thread_identifier, message)
         else:
             r_code = await self.app.notify(incident, step['type'], step['identifier'])
             incident.chain_update(identifier, done=True, result=r_code)

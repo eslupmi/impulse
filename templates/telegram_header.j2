@@ -1,2 +1,7 @@
 {%- set commonLabels = payload.get("commonLabels", {}) -%}
-{{- commonLabels.alertname -}}{% if incident.assigned_user_id != "" %}  (assigned to {{ incident.assigned_user }}){% endif %}
+{%- set alerts = payload.get("alerts", {}) -%}
+{%- set env_emoji = "🏛️" if alerts[0].labels.env == "MSR" else "🏢" if alerts[0].labels.env == "prod" else "🏭" if alerts[0].labels.env == "dev" else "🧪" if alerts[0].labels.env == "test" else "🎭" if alerts[0].labels.env == "demo" else "✈️" if alerts[0].labels.env == "pilot" else "🏗️" -%}
+{%- set project_name = alerts[0].labels.project if alerts[0].labels.project else "" -%}
+{%- set env_name = alerts[0].labels.env if alerts[0].labels.env else "" -%}
+{%- set status_text = " - Resolved!" if incident.status == "resolved" else " - Firing!" if incident.status == "firing" else " - Unknown!" if incident.status == "unknown" else " - Closed!" -%}
+{{ commonLabels.alertname }}{{ status_text }} {{ env_emoji }} [{% if project_name %} {{ project_name }}{% endif %}]{% if incident.assigned_user_id != "" %}  (assigned to {{ incident.assigned_user }}){% endif %}

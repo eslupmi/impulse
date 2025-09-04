@@ -7,8 +7,7 @@ from aiohttp_retry import ExponentialRetry, RetryClient
 
 from app.im.chain.chain_factory import ChainFactory
 from app.im.groups import generate_user_groups
-from app.im.template import JinjaTemplate, notification_user, notification_user_group, update_status, \
-    notification_assignment, notification_unassignment
+from app.im.template import JinjaTemplate, notification_user, notification_user_group, update_status
 from app.logging import logger
 from config import incident
 
@@ -38,7 +37,7 @@ class Application(ABC):
         self.users = None  # Will be initialized async
         self.user_groups = None  # Will be initialized async
         self.admin_users = None  # Will be initialized async
-
+        
         # Store config for async initialization
         self._users_config = app_config['users']
         self._user_groups_config = app_config.get('user_groups')
@@ -70,7 +69,7 @@ class Application(ABC):
             incident: The incident to assign the user name to
             user_id: The user ID to fetch the name for
             incidents: Optional incidents collection for caching lookup
-        """
+        """            
         try:
             if incidents:
                 cached_name = incidents.get_assigned_user_by_id(user_id)
@@ -79,7 +78,7 @@ class Application(ABC):
                     incident.dump()
                     logger.debug(f'Incident {incident.uuid} assigned cached user name: {cached_name}')
                     return
-
+            
             user_details = await self.get_user_details({'id': user_id})
             assigned_name = user_details.get('full_name') or "-"
             incident.assign_fullname(assigned_name)
@@ -87,7 +86,7 @@ class Application(ABC):
                 incident.assign_user(user_details.get('username'))
             incident.dump()
             logger.debug(f'Incident {incident.uuid} assigned user name from API: {assigned_name}')
-
+            
         except Exception as e:
             logger.error(f'Failed to fetch and assign user name for incident {incident.uuid}: {e}')
             incident.assign_fullname("-")
@@ -103,50 +102,16 @@ class Application(ABC):
         """
         if not incident.get('notifications', {}).get('assignment', True) or not user_id:
             return
-
+            
         try:
-
-            header = self.format_text_italic(
-                self.header_template.form_message(incident_obj.last_state, incident_obj)
-            )
-            fields = {'type': self.type, 'username': user_display_name, 'id': user_id}
-            text = JinjaTemplate(notification_assignment).form_notification(fields)
-            if self.type == 'telegram':
-                message = text
-            else:
-                message = header + '\n' + text
-
+            user_mention = self.format_user_mention(user_id, user_display_name)
+            message = f"update: assigned to {user_mention}"
+            
             await self.post_thread(incident_obj.channel_id, incident_obj.ts, message)
-            logger.debug(f'Posted assignment notification for incident {incident_obj.uuid}')
-
+            logger.debug(f'Posted assignment notification for incident {incident_obj.uuid}: {message}')
+            
         except Exception as e:
             logger.error(f'Failed to post assignment notification for incident {incident_obj.uuid}: {e}')
-
-    async def post_unassignment_notification(self, incident_obj):
-        """
-        Post a notification message to the thread when a user is unassigned from an incident.
-        
-        Args:
-            incident_obj: The incident object
-        """
-        if not incident.get('notifications', {}).get('assignment', True):
-            return
-
-        try:
-            header = self.format_text_italic(
-                self.header_template.form_message(incident_obj.last_state, incident_obj)
-            )
-            text = JinjaTemplate(notification_unassignment).form_notification({})
-            if self.type == 'telegram':
-                message = text
-            else:
-                message = header + '\n' + text
-
-            await self.post_thread(incident_obj.channel_id, incident_obj.ts, message)
-            logger.debug(f'Posted unassignment notification for incident {incident_obj.uuid}: {message}')
-
-        except Exception as e:
-            logger.error(f'Failed to post unassignment notification for incident {incident_obj.uuid}: {e}')
 
     def get_url(self, app_config):
         return self._get_url(app_config)
@@ -196,17 +161,23 @@ class Application(ABC):
             message = text
         else:
             message = header + '\n' + text
-        response_code = await self.post_thread(incident.channel_id, incident.ts, message)
+        # For Telegram we use thread_id (topic_id/message_id) for sending message
+        thread_identifier = incident.thread_id if incident.thread_id else incident.ts
+        response_code = await self.post_thread(incident.channel_id, thread_identifier, message)
         logger.info(f'Incident {incident.uuid} -> chain step {notify_type} \'{identifier}\'')
         return response_code
 
-    async def update(self, uuid_, incident, incident_status, alert_state, updated_status, chain_enabled,
-                     status_enabled):
+    async def update(self, uuid_, incident, incident_status, alert_state, updated_status, chain_enabled, status_enabled):
         body = self.body_template.form_message(alert_state, incident)
         header = self.header_template.form_message(alert_state, incident)
         status_icons = self.status_icons_template.form_message(alert_state, incident)
+        
+        # For Telegram we use thread_id (topic_id/message_id) for topic update
+        # For other applications we use ts
+        thread_identifier = incident.thread_id if incident.thread_id else incident.ts
+        
         await self.update_thread(
-            incident.channel_id, incident.ts, incident_status, body, header, status_icons, chain_enabled, status_enabled
+            incident.channel_id, thread_identifier, incident_status, body, header, status_icons, chain_enabled, status_enabled
         )
         if updated_status:
             logger.info(f'Incident {uuid_} updated with new status \'{incident_status}\'')
@@ -223,7 +194,7 @@ class Application(ABC):
                     message = text
                 else:
                     message = header + '\n' + text
-                await self.post_thread(incident.channel_id, incident.ts, message)
+                await self.post_thread(incident.channel_id, thread_identifier, message)
 
     async def create_thread(self, channel_id, body, header, status_icons, status):
         payload = self._create_thread_payload(channel_id, body, header, status_icons, status)
@@ -236,7 +207,7 @@ class Application(ABC):
             return response_json.get(self.thread_id_key)
 
     async def update_thread(self, channel_id, id_, status, body, header, status_icons, chain_enabled=True,
-                            status_enabled=True):
+                      status_enabled=True):
         payload = self.update_thread_payload(channel_id, id_, body, header, status_icons, status, chain_enabled,
                                              status_enabled)
         await self._update_thread(id_, payload)
@@ -255,21 +226,21 @@ class Application(ABC):
             exceptions=[aiohttp.ClientError, aiohttp.ServerTimeoutError],
             max_timeout=30.0
         )
-
+        
         timeout = ClientTimeout(total=30.0)
         connector = aiohttp.TCPConnector(limit=100, limit_per_host=30)
-
+        
         session = ClientSession(
             timeout=timeout,
             connector=connector,
             raise_for_status=False
         )
-
+        
         retry_client = RetryClient(
             client_session=session,
             retry_options=retry_options
         )
-
+        
         return retry_client
 
     @abstractmethod
@@ -311,6 +282,19 @@ class Application(ABC):
 
     @abstractmethod
     def format_text_italic(self, text):
+        pass
+
+    @abstractmethod
+    def format_user_mention(self, user_id, display_name=None):
+        """Format a user mention for the specific platform.
+        
+        Args:
+            user_id: The user ID to mention
+            display_name: Optional display name (may be used by some platforms)
+        
+        Returns:
+            Formatted user mention string
+        """
         pass
 
     @abstractmethod
