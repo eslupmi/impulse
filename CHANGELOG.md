@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.9.0](https://tik.r314.ru/devops/monitoring/impulse/compare/2.8.1...2.9.0) (2025-09-08)
+
+### ✨ Features
+
+* remove keyboard buttons for closed alerts ([e8746c8](https://tik.r314.ru/devops/monitoring/impulse/commit/e8746c8479b8c35b8f8af81bca6168f6f6bae178))
+
 ## [2.8.1](https://tik.r314.ru/devops/monitoring/impulse/compare/2.8.0...2.8.1) (2025-09-04)
 
 ### 🐞 Bug Fixes
