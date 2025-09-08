@@ -32,6 +32,7 @@ deploy:
     - when: never
   variables:
     ROLLBACK_TIMEOUT: "60"
+    GIT_STRATEGY: "empty"
   script:
     - |
       set -Eeuo pipefail
