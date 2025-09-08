@@ -473,6 +473,10 @@ class TelegramApplication(Application):
             # Always update topic with the correct status icon based on the current status
             await self._update_topic(channel_id, id_, header, status_icons)
         
+        # If incident is closed, remove inline keyboard before updating text
+        if status == 'closed':
+            await self._remove_reply_markup(channel_id, id_)
+
         payload = self.update_thread_payload(channel_id, id_, body, header, status_icons, status, chain_enabled,
                                              status_enabled)
         await self._update_thread(id_, payload)
@@ -530,15 +534,18 @@ class TelegramApplication(Application):
         if silence_button is not None:
             keyboard.append([silence_button])
         
-        return {
+        payload = {
             'chat_id': chat_id,
             'message_id': message_id,
             'text': message_text,
             'parse_mode': 'HTML',
-            'reply_markup': {
+        }
+        # Do not include buttons for closed incidents
+        if status != 'closed':
+            payload['reply_markup'] = {
                 'inline_keyboard': keyboard
             }
-        }
+        return payload
 
     def _extract_silence_url(self, incident=None, state=None):
         try:
@@ -638,6 +645,28 @@ class TelegramApplication(Application):
                 await asyncio.sleep(self.post_delay)
         except aiohttp.ClientError as e:
             logger.error(f'Failed to update thread: {e}')
+
+    async def _remove_reply_markup(self, channel_id, id_):
+        try:
+            chat_id, _ = self._parse_channel_id(channel_id)
+            # Handle both forum topic messages and regular messages
+            if '/' in str(id_):
+                _, message_id = id_.split('/', 1)
+            else:
+                message_id = id_
+            payload = {
+                'chat_id': chat_id,
+                'message_id': message_id,
+                'reply_markup': None
+            }
+            async with self.http.post(
+                f'{self.url}/editMessageReplyMarkup',
+                json=payload,
+                headers=self.headers
+            ) as response:
+                await asyncio.sleep(self.post_delay)
+        except aiohttp.ClientError as e:
+            logger.error(f'Failed to remove reply markup: {e}')
 
     def _markdown_links_to_native_format(self, text):
         return text
