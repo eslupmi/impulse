@@ -8,6 +8,7 @@ stages:
   - create_manifest
   - create_tar
   - docs
+  - deploy
 
 variables:
   CREATE_DEB: "false"
@@ -22,4 +23,16 @@ include:
     ref: master
     file:
       - '.gitlab-ci.yml'
+
+deploy:
+  stage: deploy
+  script: 
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+    - cd /opt/monitoring/impulse && echo "SEMVER=$SEMVER" > .env
+    - docker compose pull && docker compose up -d 
+    - docker logout
+    - echo "Новая версия $SEMVER успешно задеплоена!"
+  tags: 
+    - grafana 
+
       
