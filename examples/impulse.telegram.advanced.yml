@@ -51,6 +51,25 @@ webhooks:
       Url: http://example.com/twiml.xml
     auth: '{{ env["TWILIO_ACCOUNT_SID"] }}:{{ env["TWILIO_AUTH_TOKEN"] }}'
 
+grafana_renderer:
+  enabled: true                           # Включить/выключить рендеринг
+  renderer_url: "http://renderer:8081"   # URL Grafana Image Renderer
+  grafana_url: "http://grafana:3000"     # URL Grafana
+  render_key: "your_render_key_here"     # Ключ рендеринга (используется для X-Auth-Token и JWT секрета)
+  rate_limit: 60                         # Ограничение частоты (секунды)
+  max_size: 10485760                     # Максимальный размер изображения (байты)
+  jwt_auth:
+    enabled: true
+    keys_dir: "./data/jwt"
+    kid: "impulse-key"
+    issuer: "http://localhost:5000"
+    audience: "impulse"
+    ttl_seconds: 300
+    rotation_enabled: true
+    rotation_interval_days: 120
+    grace_period_seconds: 900
+    max_keys: 3
+
 route:
   channel: incidents_default
   routes:

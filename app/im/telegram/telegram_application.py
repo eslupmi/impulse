@@ -1,4 +1,5 @@
 import asyncio
+import time
 
 import aiohttp
 from fastapi.responses import JSONResponse
@@ -7,8 +8,9 @@ from app.im.application import Application
 from app.im.telegram.config import buttons
 from app.im.telegram.user import User
 from app.im.template import JinjaTemplate, update_status, update_alerts, notification_user, notification_user_group
+from app.im.grafana_renderer import create_grafana_renderer
 from app.logging import logger
-from config import telegram_bot_token, application
+from config import telegram_bot_token, application, grafana_renderer_url, grafana_url, grafana_render_key, grafana_render_enabled, grafana_render_rate_limit, grafana_render_max_size
 
 
 class TelegramApplication(Application):
@@ -21,6 +23,56 @@ class TelegramApplication(Application):
 
     def __init__(self, app_config, channels, users):
         super().__init__(app_config, channels, users)
+        # Инициализируем Grafana Renderer
+        self.grafana_renderer = None
+        self.render_enabled = grafana_render_enabled
+        self.render_rate_limit = grafana_render_rate_limit
+        self.render_max_size = grafana_render_max_size
+        self._last_render_times = {}  # Для rate limiting
+        self._init_grafana_renderer()
+
+    def _init_grafana_renderer(self):
+        """Инициализирует Grafana Renderer из конфигурации"""
+        logger.info(f"Инициализация Grafana Renderer: render_enabled={self.render_enabled}")
+        if not self.render_enabled:
+            logger.info("Grafana Renderer отключен в конфигурации (GRAFANA_RENDER_ENABLED=false)")
+            return
+            
+        try:
+            config = {
+                'renderer_url': grafana_renderer_url,
+                'grafana_url': grafana_url,
+                'render_key': grafana_render_key
+            }
+            logger.info(f"Конфигурация рендерера: {config}")
+            self.grafana_renderer = create_grafana_renderer(config)
+            if self.grafana_renderer:
+                logger.info(f"Grafana Renderer успешно инициализирован (rate limit: {self.render_rate_limit}s)")
+            else:
+                logger.warning("Grafana Renderer не инициализирован - проверьте конфигурацию")
+                self.render_enabled = False
+        except Exception as e:
+            logger.error(f"Ошибка при инициализации Grafana Renderer: {e}")
+            self.grafana_renderer = None
+            self.render_enabled = False
+
+    def _can_render_panel(self, incident_uuid):
+        """Проверяет, можно ли рендерить панель (rate limiting)"""
+        if not self.render_enabled or not self.grafana_renderer:
+            return False, "Рендеринг отключен"
+            
+        current_time = time.time()
+        last_render_time = self._last_render_times.get(incident_uuid, 0)
+        
+        if current_time - last_render_time < self.render_rate_limit:
+            remaining_time = int(self.render_rate_limit - (current_time - last_render_time))
+            return False, f"Подождите {remaining_time} секунд перед следующим скриншотом"
+            
+        return True, "OK"
+
+    def _update_render_time(self, incident_uuid):
+        """Обновляет время последнего рендеринга для инцидента"""
+        self._last_render_times[incident_uuid] = time.time()
 
     def _initialize_specific_params(self):
         self.url += telegram_bot_token
@@ -95,6 +147,152 @@ class TelegramApplication(Application):
             await asyncio.sleep(self.post_delay)
             response_json = await response.json()
             return response_json.get('result', {}).get('message_id')
+
+    async def send_photo(self, channel_id, text, photo_data, filename="panel.png", reply_to_message_id=None):
+        """
+        Отправляет изображение в Telegram
+        
+        Args:
+            channel_id: ID канала
+            text: Текст сообщения
+            photo_data: Байты изображения
+            filename: Имя файла
+            reply_to_message_id: ID сообщения для реплая
+            
+        Returns:
+            ID сообщения или None
+        """
+        try:
+            # Проверяем размер изображения
+            if len(photo_data) > self.render_max_size:
+                logger.warning(f"Изображение слишком большое: {len(photo_data)} байт (лимит: {self.render_max_size})")
+                # Попробуем сжать изображение
+                photo_data = await self._compress_image(photo_data)
+                if not photo_data:
+                    logger.error("Не удалось сжать изображение")
+                    return None
+            
+            # Создаем multipart/form-data для отправки изображения
+            data = aiohttp.FormData()
+            data.add_field('chat_id', str(channel_id))
+            data.add_field('text', text)
+            data.add_field('parse_mode', 'HTML')
+            data.add_field('photo', photo_data, filename=filename, content_type='image/png')
+            
+            if reply_to_message_id:
+                data.add_field('reply_to_message_id', str(reply_to_message_id))
+            
+            async with self.http.post(f'{self.url}/sendPhoto', data=data) as response:
+                await asyncio.sleep(self.post_delay)
+                response_json = await response.json()
+                if response_json.get('ok'):
+                    return response_json.get('result', {}).get('message_id')
+                else:
+                    logger.error(f"Ошибка отправки фото: {response_json}")
+                    return None
+        except Exception as e:
+            logger.error(f"Ошибка при отправке фото: {e}")
+            return None
+
+    async def _compress_image(self, image_data):
+        """Сжимает изображение если оно слишком большое"""
+        try:
+            from PIL import Image
+            import io
+            
+            # Открываем изображение
+            image = Image.open(io.BytesIO(image_data))
+            
+            # Если размер уже меньше лимита, возвращаем как есть
+            if len(image_data) <= self.render_max_size:
+                return image_data
+            
+            # Вычисляем коэффициент сжатия
+            compression_ratio = self.render_max_size / len(image_data)
+            new_width = int(image.width * (compression_ratio ** 0.5))
+            new_height = int(image.height * (compression_ratio ** 0.5))
+            
+            # Изменяем размер
+            resized_image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+            
+            # Сохраняем с сжатием
+            output = io.BytesIO()
+            resized_image.save(output, format='PNG', optimize=True, quality=85)
+            compressed_data = output.getvalue()
+            
+            logger.info(f"Сжато изображение: {len(image_data)} -> {len(compressed_data)} байт")
+            return compressed_data
+            
+        except ImportError:
+            logger.warning("PIL не установлен, сжатие недоступно")
+            return None
+        except Exception as e:
+            logger.error(f"Ошибка при сжатии изображения: {e}")
+            return None
+
+    async def render_and_send_panel(self, channel_id, alert_data, text="Скриншот панели", reply_to_message_id=None):
+        """
+        Рендерит панель Grafana и отправляет скриншот в Telegram
+        
+        Args:
+            channel_id: ID канала
+            alert_data: Данные алерта
+            text: Текст сообщения
+            reply_to_message_id: ID сообщения для реплая
+            
+        Returns:
+            ID сообщения или None
+        """
+        if not self.grafana_renderer:
+            logger.warning("Grafana Renderer не инициализирован")
+            return None
+            
+        try:
+            # Рендерим панель
+            image_data = await self.grafana_renderer.render_panel_from_alert(alert_data)
+            if not image_data:
+                logger.warning("Не удалось получить изображение панели")
+                return None
+            
+            # Отправляем изображение
+            message_id = await self.send_photo(channel_id, text, image_data, reply_to_message_id=reply_to_message_id)
+            if message_id:
+                logger.info(f"Скриншот панели успешно отправлен, message_id: {message_id}")
+            return message_id
+            
+        except Exception as e:
+            logger.error(f"Ошибка при рендеринге и отправке панели: {e}")
+            return None
+
+    async def delete_message(self, channel_id, message_id):
+        """
+        Удаляет сообщение в Telegram
+        
+        Args:
+            channel_id: ID канала
+            message_id: ID сообщения
+            
+        Returns:
+            True если успешно, False если ошибка
+        """
+        try:
+            payload = {
+                'chat_id': channel_id,
+                'message_id': message_id
+            }
+            
+            async with self.http.post(f'{self.url}/deleteMessage', json=payload, headers=self.headers) as response:
+                await asyncio.sleep(self.post_delay)
+                response_json = await response.json()
+                if response_json.get('ok'):
+                    logger.debug(f"Сообщение {message_id} успешно удалено")
+                    return True
+                else:
+                    logger.warning(f"Не удалось удалить сообщение {message_id}: {response_json}")
+                    return False
+        except Exception as e:
+            logger.error(f"Ошибка при удалении сообщения {message_id}: {e}")
+            return False
 
     async def create_thread(self, channel_id, body, header, status_icons, status):
         # Parse channel_id to extract topic_id if present
@@ -215,7 +413,7 @@ class TelegramApplication(Application):
                 logger.info(f'Incident {incident_.uuid} -> button RELEASE pressed')
                 incident_.release()
                 logger.debug(f'Released incident {incident_.uuid}')
-        elif action in ['start_status', 'stop_status', 'silence']:
+        elif action in ['start_status', 'stop_status', 'silence', 'panel_screenshot']:
             logger.debug(f'Processing status action: {action}')
             if action == 'stop_status':
                 logger.info(f'Incident {incident_.uuid} -> button STATUS pressed (disabled)')
@@ -239,6 +437,11 @@ class TelegramApplication(Application):
                     return JSONResponse({}, status_code=200)
                 await self._handle_silence_backend(incident_, callback['id'])
                 # For silence action, we don't need to update the message or answer callback again
+                return JSONResponse({}, status_code=200)
+            elif action == 'panel_screenshot':
+                logger.info(f'Incident {incident_.uuid} -> button Screenshot pressed')
+                await self._handle_panel_screenshot(incident_, callback['id'])
+                # For screenshot action, we don't need to update the message or answer callback again
                 return JSONResponse({}, status_code=200)
         else:
             logger.warning(f'Unknown action: {action}')
@@ -398,16 +601,133 @@ class TelegramApplication(Application):
             thread_identifier = incident_.thread_id if incident_.thread_id else incident_.ts
             await self.post_thread(incident_.channel_id, thread_identifier, f"❌ Failed to create silence: {e}")
 
+    async def _handle_panel_screenshot(self, incident_, callback_id):
+        """Обрабатывает запрос на скриншот панели"""
+        try:
+            # Проверяем rate limiting
+            can_render, message = self._can_render_panel(incident_.uuid)
+            if not can_render:
+                await self._answer_callback(callback_id, message)
+                return
+            
+            # Получаем данные алерта
+            alert_data = incident_.last_state or {}
+            if not alert_data:
+                await self._answer_callback(callback_id, 'Нет данных алерта для скриншота')
+                return
+            
+            # Проверяем наличие URL панели
+            panel_url = self._extract_panel_url(alert_data)
+            if not panel_url:
+                await self._answer_callback(callback_id, 'URL панели не найден в данных алерта')
+                return
+            
+            # Отвечаем на callback
+            await self._answer_callback(callback_id, 'Генерирую скриншот панели...')
+            
+            # Обновляем время последнего рендеринга
+            self._update_render_time(incident_.uuid)
+            
+            # Получаем ID основного сообщения для реплая
+            thread_identifier = incident_.thread_id if incident_.thread_id else incident_.ts
+            main_message_id = self._get_main_message_id(thread_identifier)
+            
+            # Удаляем предыдущее сообщение с изображением если есть
+            await self._delete_previous_screenshot(incident_)
+            
+            # Рендерим и отправляем скриншот
+            message_id = await self.render_and_send_panel(
+                incident_.channel_id, 
+                alert_data, 
+                "📊 Скриншот панели Grafana",
+                reply_to_message_id=main_message_id
+            )
+            
+            if message_id:
+                # Сохраняем ID сообщения с изображением в инциденте
+                self._save_screenshot_message_id(incident_, message_id)
+                logger.info(f"Скриншот панели успешно отправлен для инцидента {incident_.uuid}")
+            else:
+                # Отправляем сообщение об ошибке
+                await self.post_thread(incident_.channel_id, thread_identifier, "❌ Не удалось сгенерировать скриншот панели")
+                
+        except Exception as e:
+            logger.error(f"Ошибка при обработке скриншота панели: {e}")
+            await self._answer_callback(callback_id, f"Ошибка: {e}")
+
+    def _extract_panel_url(self, alert_data):
+        """Извлекает URL панели из данных алерта"""
+        try:
+            # Ищем URL панели в разных местах структуры алерта
+            if 'panelURL' in alert_data:
+                return alert_data['panelURL']
+            elif 'alerts' in alert_data and alert_data['alerts']:
+                first_alert = alert_data['alerts'][0]
+                if 'panelURL' in first_alert:
+                    return first_alert['panelURL']
+            return None
+        except Exception as e:
+            logger.error(f"Ошибка при извлечении URL панели: {e}")
+            return None
+
+    def _get_main_message_id(self, thread_identifier):
+        """Получает ID основного сообщения для реплая"""
+        try:
+            # Для форумов: thread_identifier = "topic_id/message_id"
+            # Для обычных чатов: thread_identifier = "message_id"
+            if '/' in str(thread_identifier):
+                _, message_id = str(thread_identifier).split('/', 1)
+                return int(message_id)
+            else:
+                return int(thread_identifier)
+        except (ValueError, AttributeError):
+            return None
+
+    async def _delete_previous_screenshot(self, incident_):
+        """Удаляет предыдущее сообщение с изображением"""
+        try:
+            screenshot_message_id = getattr(incident_, 'screenshot_message_id', None)
+            if screenshot_message_id:
+                await self.delete_message(incident_.channel_id, screenshot_message_id)
+                incident_.screenshot_message_id = None
+                incident_.dump()
+        except Exception as e:
+            logger.error(f"Ошибка при удалении предыдущего скриншота: {e}")
+
+    def _save_screenshot_message_id(self, incident_, message_id):
+        """Сохраняет ID сообщения с изображением в инциденте"""
+        try:
+            incident_.screenshot_message_id = message_id
+            incident_.dump()
+        except Exception as e:
+            logger.error(f"Ошибка при сохранении ID сообщения с изображением: {e}")
+
     def _create_thread_payload(self, chat_id, body, header, status_icons, status):
         # Build silence button - prefer URL button if available; fallback to callback button to keep it visible
         silence_button = self._get_silence_button() or buttons['silence']['mute']
         
-        # Build keyboard as 2 rows to avoid overflow on mobile Telegram
-        # Row 1: Take/Release + Notifications; Row 2: Mute (if available)
+        # Build keyboard as 3 rows to avoid overflow on mobile Telegram
+        # Row 1: Take/Release + Notifications; Row 2: Mute (if available) + Screenshot; Row 3: Screenshot (if Mute not available)
         row1 = [buttons['chain']['takeit'], buttons['status']['enabled']]
         keyboard = [row1]
+        
+        row2 = []
         if silence_button is not None:
-            keyboard.append([silence_button])
+            row2.append(silence_button)
+        
+        # Отладочная информация для кнопки скриншота
+        logger.debug(f"Проверка кнопки скриншота: render_enabled={self.render_enabled}, grafana_renderer={self.grafana_renderer is not None}")
+        if self.render_enabled and self.grafana_renderer:
+            row2.append(buttons['panel']['screenshot'])
+            logger.debug("Добавлена кнопка Screenshot в row2")
+        
+        if row2:
+            keyboard.append(row2)
+            logger.debug(f"Добавлена строка клавиатуры: {row2}")
+        elif self.render_enabled and self.grafana_renderer:
+            # Если нет кнопки Mute, но есть рендерер, добавляем Screenshot в отдельную строку
+            keyboard.append([buttons['panel']['screenshot']])
+            logger.debug("Добавлена отдельная строка с кнопкой Screenshot")
         
         payload = {
             'chat_id': chat_id,
@@ -525,14 +845,30 @@ class TelegramApplication(Application):
         # Build silence button - prefer URL button if available; fallback to callback button to keep it visible
         silence_button = self._get_silence_button() or buttons['silence']['mute']
         
-        # Build keyboard as 2 rows to avoid overflow on mobile Telegram
+        # Build keyboard as 3 rows to avoid overflow on mobile Telegram
         row1 = [
             buttons['chain']['release'] if not chain_enabled else buttons['chain']['takeit'],
             buttons['status']['enabled'] if status_enabled else buttons['status']['disabled']
         ]
         keyboard = [row1]
+        
+        row2 = []
         if silence_button is not None:
-            keyboard.append([silence_button])
+            row2.append(silence_button)
+        
+        # Отладочная информация для кнопки скриншота
+        logger.debug(f"Проверка кнопки скриншота: render_enabled={self.render_enabled}, grafana_renderer={self.grafana_renderer is not None}")
+        if self.render_enabled and self.grafana_renderer:
+            row2.append(buttons['panel']['screenshot'])
+            logger.debug("Добавлена кнопка Screenshot в row2")
+        
+        if row2:
+            keyboard.append(row2)
+            logger.debug(f"Добавлена строка клавиатуры: {row2}")
+        elif self.render_enabled and self.grafana_renderer:
+            # Если нет кнопки Mute, но есть рендерер, добавляем Screenshot в отдельную строку
+            keyboard.append([buttons['panel']['screenshot']])
+            logger.debug("Добавлена отдельная строка с кнопкой Screenshot")
         
         payload = {
             'chat_id': chat_id,
@@ -741,6 +1077,8 @@ class TelegramApplication(Application):
             elif incident_status == 'closed':
                 # Remove status notification when incident is closed
                 await self._remove_status_notification(incident, thread_identifier)
+                # Remove screenshot messages when incident is closed
+                await self._remove_screenshot_messages(incident)
 
     async def _handle_status_notification(self, incident, thread_identifier, incident_status):
         """
@@ -847,6 +1185,18 @@ class TelegramApplication(Application):
                     
         except Exception as e:
             logger.error(f'Failed to remove status notifications: {e}')
+
+    async def _remove_screenshot_messages(self, incident):
+        """Удаляет все сообщения с изображениями при закрытии инцидента"""
+        try:
+            screenshot_message_id = getattr(incident, 'screenshot_message_id', None)
+            if screenshot_message_id:
+                await self.delete_message(incident.channel_id, screenshot_message_id)
+                incident.screenshot_message_id = None
+                incident.dump()
+                logger.info(f"Удалено сообщение с изображением для инцидента {incident.uuid}")
+        except Exception as e:
+            logger.error(f"Ошибка при удалении сообщений с изображениями: {e}")
 
     async def post_assignment_notification(self, incident_obj, user_id, user_display_name=None):
         """

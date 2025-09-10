@@ -12,3 +12,4 @@ urllib3~=1.26.15
 PyJWT[crypto]~=2.10.1
 aiofiles~=23.2.1
 httpx~=0.25.2
+cryptography~=42.0.7
