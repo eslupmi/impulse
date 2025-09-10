@@ -163,10 +163,8 @@ class GrafanaRenderer:
             URL для рендерера
         """
         try:
-            # Экранируем URL панели для передачи в рендерер
-            encoded_panel_url = urllib.parse.quote(panel_url, safe='')
-            
             # Параметры рендерера в правильном порядке (как в оригинальном запросе от Grafana)
+            # НЕ кодируем URL панели отдельно - urlencode сделает это автоматически
             renderer_params = {
                 'deviceScaleFactor': '1.000000',
                 'domain': 'grafana',
@@ -174,14 +172,14 @@ class GrafanaRenderer:
                 'height': height,
                 'timeout': '30',
                 'timezone': '',
-                'url': encoded_panel_url,
+                'url': panel_url,  # Передаем URL панели без предварительного кодирования
                 'width': width
             }
             
             # НЕ добавляем renderKey - он не нужен, так как auth_token уже в URL панели
             logger.debug("Используется auth_token из URL панели, renderKey не добавляется")
             
-            # Строим URL рендерера
+            # Строим URL рендерера - urlencode автоматически закодирует все параметры
             query_string = urllib.parse.urlencode(renderer_params)
             renderer_url = f"{self.renderer_url}/render?{query_string}"
             
