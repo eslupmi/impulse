@@ -58,6 +58,7 @@ grafana_renderer:
   render_key: "your_render_key_here"     # Ключ рендеринга (используется для X-Auth-Token и JWT секрета)
   rate_limit: 60                         # Ограничение частоты (секунды)
   max_size: 10485760                     # Максимальный размер изображения (байты)
+  time_to_render: 15                     # Время в минутах для рендеринга (отступ от времени алерта)
   jwt_auth:
     enabled: true
     keys_dir: "./data/jwt"

@@ -24,6 +24,7 @@ grafana_render_key = os.getenv('GRAFANA_RENDER_KEY', default=None)
 grafana_render_enabled = os.getenv('GRAFANA_RENDER_ENABLED', default='false').lower() == 'true'
 grafana_render_rate_limit = int(os.getenv('GRAFANA_RENDER_RATE_LIMIT', default='60'))  # секунды
 grafana_render_max_size = int(os.getenv('GRAFANA_RENDER_MAX_SIZE', default='10485760'))  # 10MB в байтах
+grafana_render_time_to_render = int(os.getenv('GRAFANA_RENDER_TIME_TO_RENDER', default='15'))  # минуты
 
 # JWT auth configuration for Grafana (auth.jwt) under grafana_renderer.jwt_auth
 jwt_auth_enabled = os.getenv('GRAFANA_RENDERER_JWT_AUTH_ENABLED', default='false').lower() == 'true'
@@ -77,6 +78,8 @@ with open(f'{config_path}/impulse.yml', 'r') as file:
                 grafana_render_rate_limit = grafana_renderer_config.get('rate_limit', grafana_render_rate_limit)
             if not os.getenv('GRAFANA_RENDER_MAX_SIZE'):
                 grafana_render_max_size = grafana_renderer_config.get('max_size', grafana_render_max_size)
+            if not os.getenv('GRAFANA_RENDER_TIME_TO_RENDER'):
+                grafana_render_time_to_render = grafana_renderer_config.get('time_to_render', grafana_render_time_to_render)
 
         # JWT auth nested configuration: grafana_renderer.jwt_auth
         jwt_cfg = settings.get('grafana_renderer', {}).get('jwt_auth', {})

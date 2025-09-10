@@ -14,7 +14,7 @@ import jwt
 from app.logging import logger
 from config import jwt_auth_enabled, jwt_auth_kid, jwt_auth_issuer, jwt_auth_audience, jwt_auth_ttl_seconds
 from config import jwt_auth_rotation_enabled, jwt_auth_rotation_interval_days, jwt_auth_grace_period_seconds, jwt_auth_max_keys, jwt_auth_keys_dir
-from config import application
+from config import application, grafana_render_time_to_render
 import os
 import base64
 from pathlib import Path
@@ -27,7 +27,7 @@ from cryptography.hazmat.backends import default_backend
 class GrafanaRenderer:
     """Класс для работы с Grafana Image Renderer"""
     
-    def __init__(self, renderer_url: str, grafana_url: str, render_key: str = None):
+    def __init__(self, renderer_url: str, grafana_url: str, render_key: str = None, time_to_render: int = None):
         """
         Инициализация рендерера
         
@@ -35,10 +35,12 @@ class GrafanaRenderer:
             renderer_url: URL рендерера (например, http://renderer:8081)
             grafana_url: URL Grafana (например, http://grafana:3000)
             render_key: Ключ для рендеринга (используется и для X-Auth-Token, и для JWT секрета)
+            time_to_render: Время в минутах для рендеринга (по умолчанию из конфига)
         """
         self.renderer_url = renderer_url.rstrip('/')
         self.grafana_url = grafana_url.rstrip('/')
         self.render_key = render_key
+        self.time_to_render = time_to_render or grafana_render_time_to_render
     
         
     def _extract_panel_info(self, panel_url: str) -> Dict[str, Any]:
@@ -75,13 +77,14 @@ class GrafanaRenderer:
             logger.error(f"Ошибка при парсинге URL панели {panel_url}: {e}")
             return {}
     
-    def _build_correct_panel_url(self, panel_info: Dict[str, Any], alert_labels: Dict[str, str]) -> str:
+    def _build_correct_panel_url(self, panel_info: Dict[str, Any], alert_labels: Dict[str, str], alert_ts: int = None) -> str:
         """
         Строит корректную ссылку на панель с переменными из алерта
         
         Args:
             panel_info: Информация о панели
             alert_labels: Лейблы из алерта
+            alert_ts: Время срабатывания алерта (timestamp)
             
         Returns:
             Корректная ссылка на панель
@@ -105,6 +108,17 @@ class GrafanaRenderer:
             # Добавляем временной диапазон
             from_time = panel_info.get('from_time')
             to_time = panel_info.get('to_time')
+            
+            # Если есть время срабатывания алерта, пересчитываем временной диапазон
+            if alert_ts:
+                # Текущее время
+                current_time = int(datetime.now(timezone.utc).timestamp() * 1000)  # в миллисекундах
+                # Время начала: alert_ts - time_to_render минут
+                from_time = alert_ts - (self.time_to_render * 60 * 1000)  # в миллисекундах
+                # Время окончания: текущее время - time_to_render минут
+                to_time = current_time - (self.time_to_render * 60 * 1000)  # в миллисекундах
+                logger.debug(f"Пересчитан временной диапазон: from={from_time}, to={to_time}, alert_ts={alert_ts}, time_to_render={self.time_to_render} мин")
+            
             if from_time and to_time:
                 params['from'] = from_time
                 params['to'] = to_time
@@ -305,7 +319,7 @@ class GrafanaRenderer:
             return None
     
     async def render_panel(self, panel_url: str, alert_labels: Dict[str, str], 
-                          width: int = 1000, height: int = 500) -> Optional[bytes]:
+                          width: int = 1000, height: int = 500, alert_ts: int = None) -> Optional[bytes]:
         """
         Рендерит панель Grafana в изображение
         
@@ -314,6 +328,7 @@ class GrafanaRenderer:
             alert_labels: Лейблы из алерта
             width: Ширина изображения
             height: Высота изображения
+            alert_ts: Время срабатывания алерта (timestamp)
             
         Returns:
             Байты изображения или None в случае ошибки
@@ -326,7 +341,7 @@ class GrafanaRenderer:
                 return None
             
             # Строим корректную ссылку на панель
-            correct_panel_url = self._build_correct_panel_url(panel_info, alert_labels)
+            correct_panel_url = self._build_correct_panel_url(panel_info, alert_labels, alert_ts)
             if not correct_panel_url:
                 logger.error("Не удалось построить корректную ссылку на панель")
                 return None
@@ -442,9 +457,25 @@ class GrafanaRenderer:
                 if 'labels' in first_alert:
                     labels.update(first_alert['labels'])
             
-            logger.info(f"Рендеринг панели для алерта с лейблами: {labels}")
+            # Извлекаем время срабатывания алерта
+            alert_ts = None
+            if 'alerts' in alert_data and alert_data['alerts']:
+                first_alert = alert_data['alerts'][0]
+                if 'startsAt' in first_alert:
+                    # Парсим время в формате RFC3339
+                    try:
+                        from datetime import datetime
+                        starts_at = first_alert['startsAt']
+                        # Конвертируем в timestamp (миллисекунды)
+                        dt = datetime.fromisoformat(starts_at.replace('Z', '+00:00'))
+                        alert_ts = int(dt.timestamp() * 1000)
+                        logger.debug(f"Извлечено время срабатывания алерта: {starts_at} -> {alert_ts}")
+                    except Exception as e:
+                        logger.warning(f"Не удалось распарсить время срабатывания алерта: {e}")
             
-            return await self.render_panel(panel_url, labels, width, height)
+            logger.info(f"Рендеринг панели для алерта с лейблами: {labels}, alert_ts: {alert_ts}")
+            
+            return await self.render_panel(panel_url, labels, width, height, alert_ts)
             
         except Exception as e:
             logger.error(f"Ошибка при рендеринге панели из алерта: {e}")
@@ -490,14 +521,15 @@ def create_grafana_renderer(config: Dict[str, Any]) -> Optional[GrafanaRenderer]
         renderer_url = config.get('renderer_url')
         grafana_url = config.get('grafana_url')
         render_key = config.get('render_key')
+        time_to_render = config.get('time_to_render')
         
-        logger.info(f"Создание GrafanaRenderer: renderer_url={renderer_url}, grafana_url={grafana_url}")
+        logger.info(f"Создание GrafanaRenderer: renderer_url={renderer_url}, grafana_url={grafana_url}, time_to_render={time_to_render}")
         
         if not renderer_url or not grafana_url:
             logger.warning("Не указаны обязательные параметры для Grafana Renderer")
             return None
         
-        renderer = GrafanaRenderer(renderer_url, grafana_url, render_key)
+        renderer = GrafanaRenderer(renderer_url, grafana_url, render_key, time_to_render)
         logger.info("GrafanaRenderer успешно создан")
         return renderer
         

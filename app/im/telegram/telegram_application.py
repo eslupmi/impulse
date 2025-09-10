@@ -10,7 +10,7 @@ from app.im.telegram.user import User
 from app.im.template import JinjaTemplate, update_status, update_alerts, notification_user, notification_user_group
 from app.im.grafana_renderer import create_grafana_renderer
 from app.logging import logger
-from config import telegram_bot_token, application, grafana_renderer_url, grafana_url, grafana_render_key, grafana_render_enabled, grafana_render_rate_limit, grafana_render_max_size
+from config import telegram_bot_token, application, grafana_renderer_url, grafana_url, grafana_render_key, grafana_render_enabled, grafana_render_rate_limit, grafana_render_max_size, grafana_render_time_to_render
 
 
 class TelegramApplication(Application):
@@ -29,6 +29,7 @@ class TelegramApplication(Application):
         self.render_rate_limit = grafana_render_rate_limit
         self.render_max_size = grafana_render_max_size
         self._last_render_times = {}  # Для rate limiting
+        self._rendering_in_progress = set()  # UUID инцидентов, для которых идет рендеринг
         self._init_grafana_renderer()
 
     def _init_grafana_renderer(self):
@@ -42,12 +43,13 @@ class TelegramApplication(Application):
             config = {
                 'renderer_url': grafana_renderer_url,
                 'grafana_url': grafana_url,
-                'render_key': grafana_render_key
+                'render_key': grafana_render_key,
+                'time_to_render': grafana_render_time_to_render
             }
             logger.info(f"Конфигурация рендерера: {config}")
             self.grafana_renderer = create_grafana_renderer(config)
             if self.grafana_renderer:
-                logger.info(f"Grafana Renderer успешно инициализирован (rate limit: {self.render_rate_limit}s)")
+                logger.info(f"Grafana Renderer успешно инициализирован (rate limit: {self.render_rate_limit}s, time_to_render: {grafana_render_time_to_render} мин)")
             else:
                 logger.warning("Grafana Renderer не инициализирован - проверьте конфигурацию")
                 self.render_enabled = False
@@ -61,6 +63,10 @@ class TelegramApplication(Application):
         if not self.render_enabled or not self.grafana_renderer:
             return False, "Рендеринг отключен"
             
+        # Проверяем, не идет ли уже рендеринг для этого инцидента
+        if incident_uuid in self._rendering_in_progress:
+            return False, "Рендеринг уже выполняется, подождите..."
+            
         current_time = time.time()
         last_render_time = self._last_render_times.get(incident_uuid, 0)
         
@@ -73,6 +79,16 @@ class TelegramApplication(Application):
     def _update_render_time(self, incident_uuid):
         """Обновляет время последнего рендеринга для инцидента"""
         self._last_render_times[incident_uuid] = time.time()
+
+    def _start_rendering(self, incident_uuid):
+        """Отмечает начало рендеринга для инцидента"""
+        self._rendering_in_progress.add(incident_uuid)
+        logger.debug(f"Начат рендеринг для инцидента {incident_uuid}")
+
+    def _finish_rendering(self, incident_uuid):
+        """Отмечает окончание рендеринга для инцидента"""
+        self._rendering_in_progress.discard(incident_uuid)
+        logger.debug(f"Завершен рендеринг для инцидента {incident_uuid}")
 
     def _initialize_specific_params(self):
         self.url += telegram_bot_token
@@ -443,6 +459,10 @@ class TelegramApplication(Application):
                 await self._handle_panel_screenshot(incident_, callback['id'])
                 # For screenshot action, we don't need to update the message or answer callback again
                 return JSONResponse({}, status_code=200)
+            elif action == 'panel_screenshot_disabled':
+                logger.info(f'Incident {incident_.uuid} -> button Screenshot pressed (disabled)')
+                await self._answer_callback(callback['id'], 'Рендеринг уже выполняется, подождите...')
+                return JSONResponse({}, status_code=200)
         else:
             logger.warning(f'Unknown action: {action}')
         incident_.dump()
@@ -625,35 +645,45 @@ class TelegramApplication(Application):
             # Отвечаем на callback
             await self._answer_callback(callback_id, 'Генерирую скриншот панели...')
             
-            # Обновляем время последнего рендеринга
-            self._update_render_time(incident_.uuid)
+            # Отмечаем начало рендеринга
+            self._start_rendering(incident_.uuid)
             
-            # Получаем ID основного сообщения для реплая
-            thread_identifier = incident_.thread_id if incident_.thread_id else incident_.ts
-            main_message_id = self._get_main_message_id(thread_identifier)
-            
-            # Удаляем предыдущее сообщение с изображением если есть
-            await self._delete_previous_screenshot(incident_)
-            
-            # Рендерим и отправляем скриншот
-            message_id = await self.render_and_send_panel(
-                incident_.channel_id, 
-                alert_data, 
-                "📊 Скриншот панели Grafana",
-                reply_to_message_id=main_message_id
-            )
-            
-            if message_id:
-                # Сохраняем ID сообщения с изображением в инциденте
-                self._save_screenshot_message_id(incident_, message_id)
-                logger.info(f"Скриншот панели успешно отправлен для инцидента {incident_.uuid}")
-            else:
-                # Отправляем сообщение об ошибке как реплай к основному сообщению
-                await self.post_thread_reply(incident_.channel_id, thread_identifier, "❌ Не удалось сгенерировать скриншот панели")
+            try:
+                # Обновляем время последнего рендеринга
+                self._update_render_time(incident_.uuid)
+                
+                # Получаем ID основного сообщения для реплая
+                thread_identifier = incident_.thread_id if incident_.thread_id else incident_.ts
+                main_message_id = self._get_main_message_id(thread_identifier)
+                
+                # Рендерим и отправляем скриншот
+                message_id = await self.render_and_send_panel(
+                    incident_.channel_id, 
+                    alert_data, 
+                    "📊 Скриншот панели Grafana",
+                    reply_to_message_id=main_message_id
+                )
+                
+                if message_id:
+                    # Удаляем предыдущее сообщение с изображением только после успешного получения нового
+                    await self._delete_previous_screenshot(incident_)
+                    
+                    # Сохраняем ID нового сообщения с изображением в инциденте
+                    self._save_screenshot_message_id(incident_, message_id)
+                    logger.info(f"Скриншот панели успешно отправлен для инцидента {incident_.uuid}")
+                else:
+                    # Отправляем сообщение об ошибке как реплай к основному сообщению
+                    await self.post_thread_reply(incident_.channel_id, thread_identifier, "❌ Не удалось сгенерировать скриншот панели")
+                    
+            finally:
+                # Всегда отмечаем окончание рендеринга
+                self._finish_rendering(incident_.uuid)
                 
         except Exception as e:
             logger.error(f"Ошибка при обработке скриншота панели: {e}")
             await self._answer_callback(callback_id, f"Ошибка: {e}")
+            # Убеждаемся, что состояние рендеринга сброшено
+            self._finish_rendering(incident_.uuid)
 
     def _extract_panel_url(self, alert_data):
         """Извлекает URL панели из данных алерта"""
@@ -784,14 +814,14 @@ class TelegramApplication(Application):
             }
 
     async def update_thread(self, channel_id, id_, status, body, header, status_icons, chain_enabled=True,
-                      status_enabled=True):
+                      status_enabled=True, incident=None):
         # Check if channel_id contains a fixed topic_id
         _, fixed_topic_id = self._parse_channel_id(channel_id)
         
-        # Only update topic name if no fixed topic_id is specified in channel_id
+        # Only update topic name if no fixed topic_id is specified in channel_id (нефиксированный топик)
         if not fixed_topic_id:
             # Always update topic with the correct status icon based on the current status
-            await self._update_topic(channel_id, id_, header, status_icons)
+            await self._update_topic(channel_id, id_, header, status_icons, incident)
         
         # If incident is closed, remove inline keyboard before updating text
         if status == 'closed':
@@ -803,12 +833,23 @@ class TelegramApplication(Application):
 
 
 
-    async def _update_topic(self, channel_id, id_, header, status_icons):
+    async def _update_topic(self, channel_id, id_, header, status_icons, incident=None):
         chat_id, _ = self._parse_channel_id(channel_id)
         
-        # Only update topic if this is a forum topic message
+        # Extract topic_id from id_ (could be "topic_id/message_id" or just "message_id")
+        topic_id = None
         if '/' in str(id_):
             topic_id, _ = id_.split('/', 1)
+        else:
+            # If id_ is just message_id, try to get topic_id from incident
+            if incident and hasattr(incident, 'thread_id') and incident.thread_id and '/' in str(incident.thread_id):
+                topic_id, _ = incident.thread_id.split('/', 1)
+                logger.debug(f'Got topic_id from incident.thread_id: {topic_id}')
+            else:
+                logger.debug(f'Cannot update topic: id_ does not contain topic_id and no valid incident.thread_id: {id_}')
+                return
+            
+        if topic_id:
             payload = {
                 'chat_id': chat_id,
                 'name': header,
@@ -859,16 +900,40 @@ class TelegramApplication(Application):
         # Отладочная информация для кнопки скриншота
         logger.debug(f"Проверка кнопки скриншота: render_enabled={self.render_enabled}, grafana_renderer={self.grafana_renderer is not None}")
         if self.render_enabled and self.grafana_renderer:
-            row2.append(buttons['panel']['screenshot'])
-            logger.debug("Добавлена кнопка Screenshot в row2")
+            # Проверяем, не идет ли рендеринг для текущего инцидента
+            current_incident = getattr(self, '_current_incident_for_keyboard', None)
+            is_rendering = current_incident and current_incident.uuid in self._rendering_in_progress
+            
+            if is_rendering:
+                # Создаем неактивную кнопку во время рендеринга
+                disabled_screenshot_button = {
+                    'text': '⏳ Рендеринг...',
+                    'callback_data': 'panel_screenshot_disabled'
+                }
+                row2.append(disabled_screenshot_button)
+                logger.debug("Добавлена неактивная кнопка Screenshot (рендеринг в процессе)")
+            else:
+                row2.append(buttons['panel']['screenshot'])
+                logger.debug("Добавлена кнопка Screenshot в row2")
         
         if row2:
             keyboard.append(row2)
             logger.debug(f"Добавлена строка клавиатуры: {row2}")
         elif self.render_enabled and self.grafana_renderer:
             # Если нет кнопки Mute, но есть рендерер, добавляем Screenshot в отдельную строку
-            keyboard.append([buttons['panel']['screenshot']])
-            logger.debug("Добавлена отдельная строка с кнопкой Screenshot")
+            current_incident = getattr(self, '_current_incident_for_keyboard', None)
+            is_rendering = current_incident and current_incident.uuid in self._rendering_in_progress
+            
+            if is_rendering:
+                disabled_screenshot_button = {
+                    'text': '⏳ Рендеринг...',
+                    'callback_data': 'panel_screenshot_disabled'
+                }
+                keyboard.append([disabled_screenshot_button])
+                logger.debug("Добавлена отдельная строка с неактивной кнопкой Screenshot")
+            else:
+                keyboard.append([buttons['panel']['screenshot']])
+                logger.debug("Добавлена отдельная строка с кнопкой Screenshot")
         
         payload = {
             'chat_id': chat_id,
@@ -1053,17 +1118,21 @@ class TelegramApplication(Application):
         # Update the main message
         await self.update_thread(
             incident.channel_id, thread_identifier, incident_status, body, header, status_icons, 
-            chain_enabled, status_enabled
+            chain_enabled, status_enabled, incident
         )
         # clear context
         for attr in ['_current_incident_for_keyboard', '_current_alert_state_for_keyboard', '_current_status_for_keyboard', '_show_silence_for_keyboard']:
             if hasattr(self, attr):
                 delattr(self, attr)
         
-        if updated_status:
-            logger.info(f'Incident {uuid_} updated with new status \'{incident_status}\'')
-            
-            # Handle status notifications and tagging messages
+        # Определяем тип топика (фиксированный или нефиксированный)
+        _, fixed_topic_id = self._parse_channel_id(incident.channel_id)
+        is_fixed_topic = fixed_topic_id is not None
+        
+        logger.info(f'Incident {uuid_} updated with status \'{incident_status}\' (updated_status={updated_status}, is_fixed_topic={is_fixed_topic})')
+        
+        if is_fixed_topic:
+            # Фиксированный топик - ограниченная логика уведомлений
             if incident_status == 'resolved':
                 # Remove tagging message when incident is resolved
                 await self._remove_status_notification(incident, thread_identifier)
@@ -1072,13 +1141,29 @@ class TelegramApplication(Application):
                 # Don't send status notification for firing
                 pass
             elif status_enabled and incident_status not in ['closed', 'firing', 'resolved']:
-                # Handle other status notifications (unknown, etc.)
-                await self._handle_status_notification(incident, thread_identifier, incident_status)
+                # Handle other status notifications (unknown, etc.) - только при смене статуса
+                if updated_status:
+                    await self._handle_status_notification(incident, thread_identifier, incident_status)
             elif incident_status == 'closed':
                 # Remove status notification when incident is closed
                 await self._remove_status_notification(incident, thread_identifier)
-                # Remove screenshot messages when incident is closed
-                await self._remove_screenshot_messages(incident)
+        else:
+            # Нефиксированный топик - полная логика уведомлений
+            if incident_status == 'resolved':
+                # Не удаляем сообщения в нефиксированном топике
+                # Отправляем уведомление о резолве
+                await self._handle_status_notification(incident, thread_identifier, incident_status)
+            elif incident_status == 'firing':
+                # For firing status, we should tag people (let the chain handle this)
+                # Don't send status notification for firing
+                pass
+            elif status_enabled and incident_status not in ['closed', 'firing', 'resolved']:
+                # Handle other status notifications (unknown, etc.) - при каждом обновлении
+                await self._handle_status_notification(incident, thread_identifier, incident_status)
+            elif incident_status == 'closed':
+                # Не удаляем сообщения в нефиксированном топике
+                # Отправляем уведомление о закрытии
+                await self._handle_status_notification(incident, thread_identifier, incident_status)
 
     async def _handle_status_notification(self, incident, thread_identifier, incident_status):
         """
@@ -1225,10 +1310,15 @@ class TelegramApplication(Application):
                 # TODO: Implement embedded assignment notifications if needed
             
             # For Telegram we use thread_id (topic_id/message_id) for sending messages
-            # Disabled assignment notification message as assignment is visible in main alert message
-            # thread_identifier = incident_obj.thread_id if incident_obj.thread_id else incident_obj.ts
-            # await self.post_thread(incident_obj.channel_id, thread_identifier, message)
-            logger.debug(f'Assignment notification disabled for incident {incident_obj.uuid}: {message}')
+            thread_identifier = incident_obj.thread_id if incident_obj.thread_id else incident_obj.ts
+            
+            if fixed_topic_id:
+                # В фиксированном топике не отправляем уведомления о назначении
+                logger.debug(f'Assignment notification disabled for fixed topic incident {incident_obj.uuid}: {message}')
+            else:
+                # В нефиксированном топике отправляем уведомления о назначении
+                await self.post_thread(incident_obj.channel_id, thread_identifier, message)
+                logger.debug(f'Assignment notification sent for non-fixed topic incident {incident_obj.uuid}: {message}')
             
         except Exception as e:
             logger.error(f'Failed to post assignment notification for incident {incident_obj.uuid}: {e}')
