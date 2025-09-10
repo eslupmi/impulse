@@ -352,10 +352,10 @@ class TelegramApplication(Application):
             return message_id
 
     async def buttons_handler(self, payload, incidents, queue_, route):
-        logger.debug(f'Button handler called with payload: {payload}')
         if 'callback_query' not in payload:
-            logger.debug('No callback_query in payload')
+            # Это обычное сообщение, не callback_query - просто возвращаем пустой ответ
             return JSONResponse({}, status_code=200)
+        logger.debug(f'Button handler called with callback_query: {payload["callback_query"]}')
         callback = payload['callback_query']
         message_id = callback['message']['message_id']
         post_id = callback['message'].get('message_thread_id')
@@ -594,12 +594,12 @@ class TelegramApplication(Application):
             # Answer the callback and post result to thread
             await self._answer_callback(callback_id)
             thread_identifier = incident_.thread_id if incident_.thread_id else incident_.ts
-            await self.post_thread(incident_.channel_id, thread_identifier, msg)
+            await self.post_thread_reply(incident_.channel_id, thread_identifier, msg)
         except Exception as e:
             logger.error(f"Failed to create silence: {e}")
             await self._answer_callback(callback_id)
             thread_identifier = incident_.thread_id if incident_.thread_id else incident_.ts
-            await self.post_thread(incident_.channel_id, thread_identifier, f"❌ Failed to create silence: {e}")
+            await self.post_thread_reply(incident_.channel_id, thread_identifier, f"❌ Failed to create silence: {e}")
 
     async def _handle_panel_screenshot(self, incident_, callback_id):
         """Обрабатывает запрос на скриншот панели"""
@@ -648,8 +648,8 @@ class TelegramApplication(Application):
                 self._save_screenshot_message_id(incident_, message_id)
                 logger.info(f"Скриншот панели успешно отправлен для инцидента {incident_.uuid}")
             else:
-                # Отправляем сообщение об ошибке
-                await self.post_thread(incident_.channel_id, thread_identifier, "❌ Не удалось сгенерировать скриншот панели")
+                # Отправляем сообщение об ошибке как реплай к основному сообщению
+                await self.post_thread_reply(incident_.channel_id, thread_identifier, "❌ Не удалось сгенерировать скриншот панели")
                 
         except Exception as e:
             logger.error(f"Ошибка при обработке скриншота панели: {e}")
@@ -1110,7 +1110,7 @@ class TelegramApplication(Application):
         else:
             # This shouldn't happen if notify() was called first, but just in case
             logger.warning(f'No status notification message ID found for incident {incident.uuid}')
-            message_id = await self.post_thread(incident.channel_id, thread_identifier, status_notification)
+            message_id = await self.post_thread_reply(incident.channel_id, thread_identifier, status_notification)
             if message_id:
                 incident.status_notification_message_id = message_id
                 incident.dump()

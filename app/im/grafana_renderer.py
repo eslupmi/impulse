@@ -40,39 +40,6 @@ class GrafanaRenderer:
         self.grafana_url = grafana_url.rstrip('/')
         self.render_key = render_key
     
-    def _generate_render_key_jwt(self) -> str:
-        """
-        Генерирует JWT токен для renderKey параметра
-        
-        Returns:
-            JWT токен для аутентификации пользователя Grafana
-        """
-        try:
-            # Создаем payload с информацией о пользователе
-            payload = {
-                'renderUser': {
-                    'org_id': 1,
-                    'user_id': 1,
-                    'org_role': 'Admin',
-                },
-            }
-            
-            # Используем render_key как секрет для JWT (или "-" по умолчанию)
-            jwt_secret = self.render_key if self.render_key else "-"
-            
-            # Генерируем JWT токен
-            token = jwt.encode(
-                payload,
-                jwt_secret,
-                algorithm='HS512'
-            )
-            
-            logger.debug(f"Сгенерирован JWT токен для renderKey с секретом '{jwt_secret}': {token[:20]}...")
-            return token
-            
-        except Exception as e:
-            logger.error(f"Ошибка при генерации JWT токена: {e}")
-            return ""
         
     def _extract_panel_info(self, panel_url: str) -> Dict[str, Any]:
         """
@@ -188,7 +155,7 @@ class GrafanaRenderer:
         Строит URL для рендерера
         
         Args:
-            panel_url: URL панели Grafana
+            panel_url: URL панели Grafana (уже содержит auth_token)
             width: Ширина изображения
             height: Высота изображения
             
@@ -199,23 +166,20 @@ class GrafanaRenderer:
             # Экранируем URL панели для передачи в рендерер
             encoded_panel_url = urllib.parse.quote(panel_url, safe='')
             
-            # Параметры рендерера
+            # Параметры рендерера в правильном порядке (как в оригинальном запросе от Grafana)
             renderer_params = {
-                'url': encoded_panel_url,
-                'width': width,
-                'height': height,
                 'deviceScaleFactor': '1.000000',
+                'domain': 'grafana',
                 'encoding': 'png',
+                'height': height,
                 'timeout': '30',
                 'timezone': '',
-                'domain': 'grafana'
+                'url': encoded_panel_url,
+                'width': width
             }
             
-            # Добавляем JWT токен для renderKey
-            render_key_jwt = self._generate_render_key_jwt()
-            if render_key_jwt:
-                renderer_params['renderKey'] = render_key_jwt
-                logger.debug("Добавлен JWT токен в параметр renderKey")
+            # НЕ добавляем renderKey - он не нужен, так как auth_token уже в URL панели
+            logger.debug("Используется auth_token из URL панели, renderKey не добавляется")
             
             # Строим URL рендерера
             query_string = urllib.parse.urlencode(renderer_params)
