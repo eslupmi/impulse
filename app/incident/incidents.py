@@ -1,8 +1,10 @@
 import os
+import yaml
 from typing import Dict, Union
 
 from app.incident.helpers import gen_uuid
 from app.incident.incident import Incident, IncidentConfig
+from app.incident.migrator import IncidentMigrator
 from app.logging import logger
 from app.ui.websocket import incident_ws
 from config import incidents_path, INCIDENT_ACTUAL_VERSION
@@ -67,17 +69,20 @@ class Incidents:
 
     @classmethod
     def create_or_load(cls, application_type, application_url, application_team):
-        # Ensure the incidents directory exists or create it
         if not os.path.exists(incidents_path):
             logger.info('Creating incidents directory')
             os.makedirs(incidents_path)
         logger.info('Loading existing incidents')
 
         incidents = cls([])
+        migrator = IncidentMigrator()
 
-        # Walk through the directory and load each incident
         for path, directories, files in os.walk(incidents_path):
             for filename in files:
+                file_path = f'{incidents_path}/{filename}'
+                
+                cls._migrate_file_if_needed(migrator, file_path)
+                
                 config = IncidentConfig(
                     application_type=application_type,
                     application_url=application_url,
@@ -85,17 +90,29 @@ class Incidents:
                 )
 
                 incident_ = Incident.load(
-                    dump_file=f'{incidents_path}/{filename}',
+                    dump_file=file_path,
                     config=config
                 )
-                if incident_.version != INCIDENT_ACTUAL_VERSION:
-                    cls.update_incident(incident_)
                 incidents.add(incident_)
 
         return incidents
 
     @staticmethod
-    def update_incident(incident: Incident):
-        logger.info(f'Updating incident with uuid {incident.uuid} to version {INCIDENT_ACTUAL_VERSION}')
-        incident.version = INCIDENT_ACTUAL_VERSION
-        incident.dump()
+    def _migrate_file_if_needed(migrator: IncidentMigrator, file_path: str):
+        """
+        Check if a file needs migration and migrate it if necessary.
+        
+        Args:
+            migrator: The IncidentMigrator instance
+            file_path: Path to the incident file
+        """
+        try:
+            with open(file_path, 'r') as f:
+                content = yaml.load(f, Loader=yaml.CLoader)
+                current_version = content.get('version', 'v0.4')
+                
+            if current_version != INCIDENT_ACTUAL_VERSION:
+                migrator.migrate_file(file_path, content, current_version, INCIDENT_ACTUAL_VERSION)
+                
+        except Exception as e:
+            logger.error(f'Failed to check/migrate file {file_path}: {str(e)}')
