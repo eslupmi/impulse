@@ -16,7 +16,7 @@ class ApplicationType(str, Enum):
     SLACK = "slack"
     MATTERMOST = "mattermost"
     TELEGRAM = "telegram"
-    NULL = "none"
+    NONE = "none"
 
 
 class ChainType(str, Enum):
@@ -284,7 +284,7 @@ class TelegramApplicationConfig(BaseApplicationConfig):
 
 class NullApplicationConfig(BaseApplicationConfig):
     """Null application configuration for UI-only mode"""
-    type: Literal[ApplicationType.NULL] = Field(ApplicationType.NULL, description="Application type")
+    type: Literal[ApplicationType.NONE] = Field(ApplicationType.NONE, description="Application type")
     channels: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Channel definitions (not used)")
     users: Optional[Dict[str, Any]] = Field(default_factory=dict, description="User definitions (not used)")
     admin_users: List[str] = Field(default_factory=list, description="Admin users (not used)")
@@ -452,7 +452,7 @@ class ImpulseConfig(BaseModel):
         """Validate that route channels exist in application channels"""
 
         def validate_route_channels(route_config):
-            if route_config.channel not in self.application.channels and self.application.type != ApplicationType.NULL:
+            if route_config.channel not in self.application.channels and self.application.type != ApplicationType.NONE:
                 raise ValueError(f"Route channel '{route_config.channel}' not found in application channels")
 
             if route_config.routes:

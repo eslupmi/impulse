@@ -11,6 +11,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+from app.config.validation import ApplicationType
 from app.im.channel_manager import ChannelManager
 from app.im.helpers import get_application
 from app.incident.incidents import Incidents
@@ -80,7 +81,7 @@ async def lifespan(fastapi_app: FastAPI):
     route = generate_route(route_dict)
 
     channel_manager = ChannelManager()
-    if config.application.type == 'none':
+    if config.application.type == ApplicationType.NONE:
         if not config.application.channels or 'default' not in config.application.channels:
             config.application.channels = {'default': {'id': 'default'}}
         channels = channel_manager.initialize(['default'], config.application.channels, 'default')
