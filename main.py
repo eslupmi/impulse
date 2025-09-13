@@ -80,10 +80,11 @@ async def lifespan(fastapi_app: FastAPI):
     route = generate_route(route_dict)
 
     channel_manager = ChannelManager()
-    if config.application.get('type') == 'none':
-        channels = {'default': {'id': 'default'}}
+    if config.application.type == 'none':
+        if not config.application.channels or 'default' not in config.application.channels:
+            config.application.channels = {'default': {'id': 'default'}}
+        channels = channel_manager.initialize(['default'], config.application.channels, 'default')
         default_channel = 'default'
-        channel_manager.initialize(['default'], channels, 'default')
     else:
         channels = channel_manager.initialize(route.get_uniq_channels(), config.application.channels, route.channel)
         default_channel = route.channel

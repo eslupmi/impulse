@@ -94,7 +94,7 @@ class Incident:
 
         dt = datetime.utcnow()
         for index, step in enumerate(steps):
-            type_, value = next(iter(step.items()))
+            type_, value = self._get_step_type_and_value(step)
             if type_ == 'wait':
                 dt += unix_sleep_to_timedelta(value)
             else:
@@ -102,12 +102,12 @@ class Incident:
         self.dump()
 
     def _unchain(self, chains, steps):
-        if not any('chain' in step for step in steps):
+        if not any(self._step_has_chain(step) for step in steps):
             return steps
 
         extended_steps = []
         for step in steps:
-            type_, value = next(iter(step.items()))
+            type_, value = self._get_step_type_and_value(step)
             if type_ == 'chain':
                 nested_chain = chains.get(value)
                 if nested_chain is None:
@@ -118,6 +118,23 @@ class Incident:
             else:
                 extended_steps.append({type_: value})
         return extended_steps
+
+    def _get_step_type_and_value(self, step):
+        """Extract step type and value from either SimpleChainStep object or dictionary"""
+        if hasattr(step, 'get_type_and_value'):
+            return step.get_type_and_value()
+        elif isinstance(step, dict):
+            return next(iter(step.items()))
+        else:
+            raise ValueError(f"Unknown step format: {step}")
+
+    def _step_has_chain(self, step):
+        """Check if step has a chain reference"""
+        if hasattr(step, 'has_chain'):
+            return step.has_chain()
+        elif isinstance(step, dict):
+            return 'chain' in step
+        return False
 
     def release(self):
         self.chain = []

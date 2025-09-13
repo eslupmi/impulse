@@ -1,6 +1,7 @@
-from typing import Dict, Optional, List
+from typing import Dict, Optional, List, Union
 
 from app.logging import logger
+from app.config.validation import SlackChannel, MattermostChannel, TelegramChannel
 
 
 class ChannelManager:
@@ -21,23 +22,42 @@ class ChannelManager:
         self._initialized = True
         self._channels: Dict[str, Dict] = {}
     
-    def initialize(self, channels_list: List[str], channels_config: Dict[str, Dict], default_channel: str) -> Dict[str, Dict]:
+    def initialize(self, channels_list: List[str], channels_config: Dict[str, Union[SlackChannel, MattermostChannel, TelegramChannel, Dict]], default_channel: str) -> Dict[str, Dict]:
         logger.info('Checking all channels defined')
+        
+        channels_dict = {}
         
         for channel in channels_list:
             if channel not in channels_config:
                 logger.warning(f'.. channel {channel} not defined. Using default channel instead')
-                channels_config[channel] = {'id': channels_config.get(default_channel)['id']}
+                default_channel_obj = channels_config.get(default_channel)
+                if default_channel_obj:
+                    default_id = self._get_channel_id(default_channel_obj)
+                    channels_dict[channel] = {'id': default_id}
+                else:
+                    logger.error(f'Default channel {default_channel} not found in configuration')
+                    channels_dict[channel] = {'id': default_channel}
             else:
-                if 'id' not in channels_config[channel]:
+                channel_obj = channels_config[channel]
+                channel_id = self._get_channel_id(channel_obj)
+                
+                if channel_id is None:
                     logger.warning(f'.. channel \'{channel}\' has no \'id\'. Using default channel instead')
-                    channels_config[channel] = {'id': channels_config.get(default_channel)['id']}
-                elif channels_config[channel].get('id') is None:
-                    logger.warning(f'.. channel {channel} \'id\' is empty. Using default channel instead')
-                    channels_config[channel] = {'id': channels_config.get(default_channel)['id']}
+                    default_channel_obj = channels_config.get(default_channel)
+                    if default_channel_obj:
+                        default_id = self._get_channel_id(default_channel_obj)
+                        channels_dict[channel] = {'id': default_id}
+                    else:
+                        logger.error(f'Default channel {default_channel} not found in configuration')
+                        channels_dict[channel] = {'id': channel}
+                else:
+                    channel_dict = {'id': channel_id}
+                    if hasattr(channel_obj, 'name') and getattr(channel_obj, 'name', None):
+                        channel_dict['name'] = channel_obj.name
+                    channels_dict[channel] = channel_dict
         
         self._channels.clear()
-        for channel_name, channel_data in channels_config.items():
+        for channel_name, channel_data in channels_dict.items():
             channel_id = channel_data['id']
             self._channels[channel_id] = {
                 'id': channel_id,
@@ -45,7 +65,16 @@ class ChannelManager:
                 **{k: v for k, v in channel_data.items() if k != 'id'}
             }
         
-        return channels_config
+        return channels_dict
+    
+    def _get_channel_id(self, channel_obj):
+        """Extract channel ID from either a typed channel object or a dictionary"""
+        if hasattr(channel_obj, 'id'):
+            return channel_obj.id
+        elif isinstance(channel_obj, dict):
+            return channel_obj.get('id')
+        else:
+            return None
     
     def get_channel_name_by_id(self, channel_id: str) -> Optional[str]:
         channel_data = self._channels.get(channel_id)

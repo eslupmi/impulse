@@ -6,6 +6,7 @@ from aiohttp import ClientTimeout, ClientSession
 from aiohttp_retry import ExponentialRetry, RetryClient
 from typing import Union, Dict
 
+from app.config.config import get_config
 from app.im.chain.chain_factory import ChainFactory
 from app.im.groups import generate_user_groups
 from app.im.template import JinjaTemplate, notification_user, notification_user_group, update_status, \
@@ -103,7 +104,8 @@ class Application(ABC):
             incident_obj: The incident object
             user_id: The user ID that was assigned
         """
-        if not incident['notifications']['assignment'] or not user_id:
+        config = get_config()
+        if not config.incident.notifications.assignment or not user_id:
             return
 
         try:
@@ -131,7 +133,8 @@ class Application(ABC):
         Args:
             incident_obj: The incident object
         """
-        if not incident['notifications']['assignment']:
+        config = get_config()
+        if not config.incident.notifications.assignment:
             return
 
         try:
