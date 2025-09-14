@@ -6,6 +6,7 @@
 import asyncio
 import aiohttp
 import urllib.parse
+import time
 from typing import Dict, Any, Optional, Tuple
 from datetime import datetime, timezone
 import re
@@ -115,9 +116,10 @@ class GrafanaRenderer:
                 current_time = int(datetime.now(timezone.utc).timestamp() * 1000)  # в миллисекундах
                 # Время начала: alert_ts - time_to_render минут
                 from_time = alert_ts - (self.time_to_render * 60 * 1000)  # в миллисекундах
-                # Время окончания: текущее время - time_to_render минут
-                to_time = current_time - (self.time_to_render * 60 * 1000)  # в миллисекундах
+                # Время окончания: текущее время (не вычитаем time_to_render!)
+                to_time = current_time  # в миллисекундах
                 logger.debug(f"Пересчитан временной диапазон: from={from_time}, to={to_time}, alert_ts={alert_ts}, time_to_render={self.time_to_render} мин")
+                logger.debug(f"Временной диапазон: {self.time_to_render} минут до срабатывания алерта до текущего времени")
             
             if from_time and to_time:
                 params['from'] = from_time
@@ -333,7 +335,10 @@ class GrafanaRenderer:
         Returns:
             Байты изображения или None в случае ошибки
         """
+        start_time = time.time()
         try:
+            logger.info(f"Начало рендеринга панели: panel_url={panel_url}, alert_ts={alert_ts}, time_to_render={self.time_to_render} мин")
+            
             # Извлекаем информацию о панели
             panel_info = self._extract_panel_info(panel_url)
             if not panel_info:
@@ -390,6 +395,8 @@ class GrafanaRenderer:
                             logger.warning("Полученные данные не похожи на изображение (неверные магические байты)")
                         
                         logger.info(f"Успешно получено изображение панели, размер: {len(image_data)} байт, тип: {content_type}")
+                        end_time = time.time()
+                        logger.info(f"Рендеринг панели завершен за {end_time - start_time:.2f} секунд")
                         return image_data
                     else:
                         logger.error(f"Ошибка рендеринга панели: HTTP {response.status}")

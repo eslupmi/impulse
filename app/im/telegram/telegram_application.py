@@ -90,6 +90,40 @@ class TelegramApplication(Application):
         self._rendering_in_progress.discard(incident_uuid)
         logger.debug(f"Завершен рендеринг для инцидента {incident_uuid}")
 
+    async def _update_screenshot_button_state(self, incident_):
+        """Обновляет состояние кнопки скриншота в сообщении"""
+        try:
+            # Получаем данные для обновления сообщения
+            body = self.body_template.form_message(incident_.last_state, incident_)
+            header = self.header_template.form_message(incident_.last_state, incident_)
+            status_icons = self.status_icons_template.form_message(incident_.last_state, incident_)
+            
+            # Устанавливаем контекст для клавиатуры
+            self._current_incident_for_keyboard = incident_
+            self._current_alert_state_for_keyboard = incident_.last_state
+            self._current_status_for_keyboard = incident_.status
+            
+            # Обновляем сообщение
+            await self.update_thread(
+                incident_.channel_id, 
+                incident_.thread_id if incident_.thread_id else incident_.ts, 
+                incident_.status, 
+                body, 
+                header, 
+                status_icons,
+                incident_.chain_enabled, 
+                incident_.status_enabled,
+                incident_
+            )
+            
+            # Очищаем контекст
+            for attr in ['_current_incident_for_keyboard', '_current_alert_state_for_keyboard', '_current_status_for_keyboard']:
+                if hasattr(self, attr):
+                    delattr(self, attr)
+                    
+        except Exception as e:
+            logger.error(f"Ошибка при обновлении состояния кнопки скриншота: {e}")
+
     def _initialize_specific_params(self):
         self.url += telegram_bot_token
         self.post_message_url = self.url + '/sendMessage'
@@ -423,8 +457,19 @@ class TelegramApplication(Application):
                 incident_.assign_user_id(user_id)
                 asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id, incidents))
                 asyncio.create_task(self.post_assignment_notification(incident_, user_id, user_display_name))
-                incident_.chain_enabled = False
-                logger.debug(f'Set chain_enabled=False for incident {incident_.uuid}')
+                
+                # Check if this is a fixed topic
+                _, fixed_topic_id = self._parse_channel_id(incident_.channel_id)
+                is_fixed_topic = fixed_topic_id is not None
+                
+                if is_fixed_topic:
+                    # For fixed topics, disable chain when taken
+                    incident_.chain_enabled = False
+                    logger.debug(f'Set chain_enabled=False for fixed topic incident {incident_.uuid}')
+                else:
+                    # For non-fixed topics, keep chain enabled to send tagging messages
+                    # The chain will be disabled when incident is resolved
+                    logger.debug(f'Keeping chain_enabled=True for non-fixed topic incident {incident_.uuid}')
             else:
                 logger.info(f'Incident {incident_.uuid} -> button RELEASE pressed')
                 incident_.release()
@@ -623,6 +668,7 @@ class TelegramApplication(Application):
 
     async def _handle_panel_screenshot(self, incident_, callback_id):
         """Обрабатывает запрос на скриншот панели"""
+        start_time = time.time()
         try:
             # Проверяем rate limiting
             can_render, message = self._can_render_panel(incident_.uuid)
@@ -648,6 +694,9 @@ class TelegramApplication(Application):
             # Отмечаем начало рендеринга
             self._start_rendering(incident_.uuid)
             
+            # Обновляем клавиатуру для отображения неактивной кнопки
+            await self._update_screenshot_button_state(incident_)
+            
             try:
                 # Обновляем время последнего рендеринга
                 self._update_render_time(incident_.uuid)
@@ -657,12 +706,19 @@ class TelegramApplication(Application):
                 main_message_id = self._get_main_message_id(thread_identifier)
                 
                 # Рендерим и отправляем скриншот
+                render_start_time = time.time()
                 message_id = await self.render_and_send_panel(
                     incident_.channel_id, 
                     alert_data, 
                     "📊 Скриншот панели Grafana",
                     reply_to_message_id=main_message_id
                 )
+                render_end_time = time.time()
+                
+                # Логируем время генерации
+                total_time = render_end_time - start_time
+                render_time = render_end_time - render_start_time
+                logger.info(f"Скриншот панели для инцидента {incident_.uuid}: общее время={total_time:.2f}s, рендеринг={render_time:.2f}s")
                 
                 if message_id:
                     # Удаляем предыдущее сообщение с изображением только после успешного получения нового
@@ -678,12 +734,16 @@ class TelegramApplication(Application):
             finally:
                 # Всегда отмечаем окончание рендеринга
                 self._finish_rendering(incident_.uuid)
+                # Обновляем клавиатуру для отображения активной кнопки
+                await self._update_screenshot_button_state(incident_)
                 
         except Exception as e:
             logger.error(f"Ошибка при обработке скриншота панели: {e}")
             await self._answer_callback(callback_id, f"Ошибка: {e}")
             # Убеждаемся, что состояние рендеринга сброшено
             self._finish_rendering(incident_.uuid)
+            # Обновляем клавиатуру для отображения активной кнопки
+            await self._update_screenshot_button_state(incident_)
 
     def _extract_panel_url(self, alert_data):
         """Извлекает URL панели из данных алерта"""
@@ -1153,6 +1213,10 @@ class TelegramApplication(Application):
                 # Не удаляем сообщения в нефиксированном топике
                 # Отправляем уведомление о резолве
                 await self._handle_status_notification(incident, thread_identifier, incident_status)
+                # Отключаем цепочку при резолве в нефиксированном топике
+                incident.chain_enabled = False
+                incident.dump()
+                logger.debug(f'Disabled chain for non-fixed topic incident {incident.uuid} on resolved')
             elif incident_status == 'firing':
                 # For firing status, we should tag people (let the chain handle this)
                 # Don't send status notification for firing
@@ -1198,6 +1262,14 @@ class TelegramApplication(Application):
             message_id = await self.post_thread_reply(incident.channel_id, thread_identifier, status_notification)
             if message_id:
                 incident.status_notification_message_id = message_id
+                # For non-fixed topics, also add to tagging message IDs list
+                _, fixed_topic_id = self._parse_channel_id(incident.channel_id)
+                is_fixed_topic = fixed_topic_id is not None
+                if not is_fixed_topic:
+                    if not hasattr(incident, 'tagging_message_ids'):
+                        incident.tagging_message_ids = []
+                    if message_id not in incident.tagging_message_ids:
+                        incident.tagging_message_ids.append(message_id)
                 incident.dump()
 
     async def _update_status_notification(self, channel_id, thread_identifier, message_id, text):
@@ -1239,28 +1311,9 @@ class TelegramApplication(Application):
             
             logger.debug(f'Removing {len(tagging_message_ids)} tagging messages for incident {incident.uuid}')
             
-            # Delete each tagging message
+            # Delete each tagging message with retry logic
             for message_id in tagging_message_ids:
-                try:
-                    payload = {
-                        'chat_id': chat_id,
-                        'message_id': message_id
-                    }
-                    
-                    async with self.http.post(
-                        f'{self.url}/deleteMessage',
-                        json=payload,
-                        headers=self.headers
-                    ) as response:
-                        await asyncio.sleep(self.post_delay)
-                        response_json = await response.json()
-                        if response_json.get('ok'):
-                            logger.debug(f'Deleted tagging message {message_id}')
-                        else:
-                            logger.warning(f'Failed to delete tagging message {message_id}: {response_json}')
-                            
-                except Exception as e:
-                    logger.error(f'Failed to delete tagging message {message_id}: {e}')
+                await self._delete_message_with_retry(chat_id, message_id)
             
             # Clear the stored message IDs
             incident.status_notification_message_id = None
@@ -1270,6 +1323,53 @@ class TelegramApplication(Application):
                     
         except Exception as e:
             logger.error(f'Failed to remove status notifications: {e}')
+
+    async def _delete_message_with_retry(self, chat_id, message_id, max_retries=3, retry_delay=1):
+        """
+        Delete message with retry logic for handling temporary API errors
+        """
+        for attempt in range(max_retries):
+            try:
+                payload = {
+                    'chat_id': chat_id,
+                    'message_id': message_id
+                }
+                
+                async with self.http.post(
+                    f'{self.url}/deleteMessage',
+                    json=payload,
+                    headers=self.headers
+                ) as response:
+                    await asyncio.sleep(self.post_delay)
+                    response_json = await response.json()
+                    
+                    if response_json.get('ok'):
+                        logger.debug(f'Deleted tagging message {message_id}')
+                        return True
+                    else:
+                        error_code = response_json.get('error_code', 0)
+                        error_desc = response_json.get('description', 'Unknown error')
+                        
+                        # Check if it's a retryable error
+                        if error_code in [502, 503, 504, 429] and attempt < max_retries - 1:
+                            logger.warning(f'Failed to delete tagging message {message_id} (attempt {attempt + 1}/{max_retries}): {error_desc}. Retrying in {retry_delay}s...')
+                            await asyncio.sleep(retry_delay)
+                            retry_delay *= 2  # Exponential backoff
+                            continue
+                        else:
+                            logger.warning(f'Failed to delete tagging message {message_id}: {response_json}')
+                            return False
+                            
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    logger.warning(f'Failed to delete tagging message {message_id} (attempt {attempt + 1}/{max_retries}): {e}. Retrying in {retry_delay}s...')
+                    await asyncio.sleep(retry_delay)
+                    retry_delay *= 2  # Exponential backoff
+                else:
+                    logger.error(f'Failed to delete tagging message {message_id} after {max_retries} attempts: {e}')
+                    return False
+        
+        return False
 
     async def _remove_screenshot_messages(self, incident):
         """Удаляет все сообщения с изображениями при закрытии инцидента"""
@@ -1317,8 +1417,18 @@ class TelegramApplication(Application):
                 logger.debug(f'Assignment notification disabled for fixed topic incident {incident_obj.uuid}: {message}')
             else:
                 # В нефиксированном топике отправляем уведомления о назначении
-                await self.post_thread(incident_obj.channel_id, thread_identifier, message)
+                message_id = await self.post_thread(incident_obj.channel_id, thread_identifier, message)
                 logger.debug(f'Assignment notification sent for non-fixed topic incident {incident_obj.uuid}: {message}')
+                
+                # Store the message ID for tracking
+                if message_id:
+                    incident_obj.status_notification_message_id = message_id
+                    # Add to tagging message IDs list for non-fixed topics
+                    if not hasattr(incident_obj, 'tagging_message_ids'):
+                        incident_obj.tagging_message_ids = []
+                    if message_id not in incident_obj.tagging_message_ids:
+                        incident_obj.tagging_message_ids.append(message_id)
+                    incident_obj.dump()
             
         except Exception as e:
             logger.error(f'Failed to post assignment notification for incident {incident_obj.uuid}: {e}')
@@ -1362,10 +1472,20 @@ class TelegramApplication(Application):
                     incident.tagging_message_ids.append(response_code)
                 incident.dump()
         else:
-            # For other statuses, only store if we don't have one yet
-            if not hasattr(incident, 'status_notification_message_id') or not incident.status_notification_message_id:
+            # For other statuses, always store the message ID for non-fixed topics
+            # For fixed topics, only store if we don't have one yet
+            _, fixed_topic_id = self._parse_channel_id(incident.channel_id)
+            is_fixed_topic = fixed_topic_id is not None
+            
+            if not is_fixed_topic or not hasattr(incident, 'status_notification_message_id') or not incident.status_notification_message_id:
                 if response_code:
                     incident.status_notification_message_id = response_code
+                    # For non-fixed topics, also add to tagging message IDs list
+                    if not is_fixed_topic:
+                        if not hasattr(incident, 'tagging_message_ids'):
+                            incident.tagging_message_ids = []
+                        if response_code not in incident.tagging_message_ids:
+                            incident.tagging_message_ids.append(response_code)
                     incident.dump()
         
         logger.info(f'Incident {incident.uuid} -> chain step {notify_type} \'{identifier}\'')
