@@ -91,6 +91,14 @@ class AlertHandler(BaseHandler):
             incident_.generate_chain(self.app.chains, chain_name)
             logger.info(f'Regenerated chain for incident {uuid_} transitioning from {prev_status} to {new_status}')
             
+        # Reset assignment when transitioning from resolved to firing (new incident)
+        if prev_status == 'resolved' and new_status == 'firing':
+            incident_.assign_user_id("")
+            incident_.assign_user("")
+            incident_.assign_fullname("")
+            incident_.chain_enabled = True  # Reset chain to enabled for new firing
+            logger.info(f'Reset assignment for incident {uuid_} transitioning from {prev_status} to {new_status}')
+            
         await self.queue.recreate(new_status, uuid_, incident_.get_chain())
 
         # Check new alerts firing or old alerts resolved

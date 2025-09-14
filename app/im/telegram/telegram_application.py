@@ -474,7 +474,7 @@ class TelegramApplication(Application):
                 logger.info(f'Incident {incident_.uuid} -> button RELEASE pressed')
                 incident_.release()
                 logger.debug(f'Released incident {incident_.uuid}')
-        elif action in ['start_status', 'stop_status', 'silence', 'panel_screenshot']:
+        elif action in ['start_status', 'stop_status', 'silence', 'panel_screenshot', 'panel_screenshot_disabled']:
             logger.debug(f'Processing status action: {action}')
             if action == 'stop_status':
                 logger.info(f'Incident {incident_.uuid} -> button STATUS pressed (disabled)')
@@ -947,8 +947,14 @@ class TelegramApplication(Application):
         silence_button = self._get_silence_button() or buttons['silence']['mute']
         
         # Build keyboard as 3 rows to avoid overflow on mobile Telegram
+        # For chain button: show "Release" if incident is assigned to someone, otherwise show "Take IT" if chain is enabled
+        current_incident = getattr(self, '_current_incident_for_keyboard', None)
+        is_assigned = current_incident and current_incident.assigned_user_id and current_incident.assigned_user_id != ""
+        
+        chain_button = buttons['chain']['release'] if is_assigned else (buttons['chain']['takeit'] if chain_enabled else buttons['chain']['takeit'])
+        
         row1 = [
-            buttons['chain']['release'] if not chain_enabled else buttons['chain']['takeit'],
+            chain_button,
             buttons['status']['enabled'] if status_enabled else buttons['status']['disabled']
         ]
         keyboard = [row1]
