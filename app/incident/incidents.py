@@ -116,3 +116,4 @@ class Incidents:
                 
         except Exception as e:
             logger.error(f'Failed to check/migrate file {file_path}: {str(e)}')
+            raise
