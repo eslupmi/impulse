@@ -366,12 +366,11 @@ grafana_renderer:
     
     # Специфичные правила для конкретных дашбордов
     dashboard_specific:
-      "f58f09cc-87b2-470f-9154-f974fc9a2e47":  # dashboard_id
-        job: var-job
-        instance: var-hostname
-        maxmount: var-maxmount
-        total: var-total
-        interval: var-interval
+      job: var-job
+      instance: var-hostname
+      maxmount: var-maxmount
+      total: var-total
+      interval: var-interval
     
     # Ограничения
     max_values_per_var: 20        # максимум значений на переменную

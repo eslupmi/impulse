@@ -11,10 +11,17 @@ from typing import Dict, Any, Optional, Tuple
 from datetime import datetime, timezone
 import re
 import jwt
+import json
 
 from app.logging import logger
 from config import jwt_auth_enabled, jwt_auth_kid, jwt_auth_issuer, jwt_auth_audience, jwt_auth_ttl_seconds
 from config import jwt_auth_rotation_enabled, jwt_auth_rotation_interval_days, jwt_auth_grace_period_seconds, jwt_auth_max_keys, jwt_auth_keys_dir
+from config import jwt_auth_mode
+from config import external_jwt_env_var_name, external_jwt_http_url, external_jwt_http_method
+from config import external_jwt_http_headers, external_jwt_http_body, external_jwt_http_token_json_path
+from config import external_jwt_http_cache_ttl_seconds, external_jwt_http_timeout_seconds, external_jwt_http_retries, external_jwt_http_retry_backoff_ms
+from config import external_jwt_clock_skew_seconds, external_jwt_allow_fallback_to_disabled
+from config import panel_variables_max_values_per_var, panel_variables_max_url_length
 from config import application, grafana_render_time_to_render
 import os
 import base64
@@ -42,7 +49,181 @@ class GrafanaRenderer:
         self.grafana_url = grafana_url.rstrip('/')
         self.render_key = render_key
         self.time_to_render = time_to_render or grafana_render_time_to_render
+        # cache for external token
+        self._external_token: Optional[str] = None
+        self._external_token_exp_ts: Optional[int] = None  # epoch seconds
+        # panel variables configuration
+        self._panel_variables_config = self._load_panel_variables_config()
     
+    def _load_panel_variables_config(self) -> Dict[str, Any]:
+        """Загружает конфигурацию переменных панели из настроек приложения"""
+        try:
+            grafana_config = application.get('grafana_renderer', {})
+            panel_vars_config = grafana_config.get('panel_variables', {})
+            
+            # Default mapping для основных лейблов
+            default_mapping = panel_vars_config.get('default_mapping', {
+                'job': 'var-job',
+                'instance': 'var-hostname',
+                'env': 'var-env',
+                'compose_service': 'var-service',
+                'container_name': 'var-container',
+                'maxmount': 'var-maxmount',
+                'total': 'var-total',
+                'interval': 'var-interval'
+            })
+            
+            # Dashboard-specific mapping
+            dashboard_specific = panel_vars_config.get('dashboard_specific', {})
+            
+            return {
+                'default_mapping': default_mapping,
+                'dashboard_specific': dashboard_specific,
+                'max_values_per_var': panel_variables_max_values_per_var,
+                'max_url_length': panel_variables_max_url_length
+            }
+        except Exception as e:
+            logger.warning(f"Ошибка загрузки конфигурации переменных панели: {e}")
+            return {
+                'default_mapping': {},
+                'dashboard_specific': {},
+                'max_values_per_var': panel_variables_max_values_per_var,
+                'max_url_length': panel_variables_max_url_length
+            }
+    
+    def _collect_alert_labels(self, alert_data: Dict[str, Any]) -> Dict[str, set]:
+        """
+        Собирает все уникальные значения лейблов из алертов
+        
+        Args:
+            alert_data: Данные алерта (может содержать alerts[])
+            
+        Returns:
+            Словарь {label_name: set(unique_values)}
+        """
+        labels_collection = {}
+        
+        try:
+            # Собираем лейблы из всех алертов в группе
+            alerts = alert_data.get('alerts', [])
+            if not alerts:
+                # Если нет alerts[], берем из groupLabels/commonLabels
+                group_labels = alert_data.get('groupLabels', {})
+                common_labels = alert_data.get('commonLabels', {})
+                all_labels = {**group_labels, **common_labels}
+                for key, value in all_labels.items():
+                    if value and str(value).strip():
+                        if key not in labels_collection:
+                            labels_collection[key] = set()
+                        labels_collection[key].add(str(value).strip())
+            else:
+                # Обрабатываем каждый алерт в группе
+                for alert in alerts:
+                    alert_labels = alert.get('labels', {})
+                    for key, value in alert_labels.items():
+                        if value and str(value).strip():
+                            if key not in labels_collection:
+                                labels_collection[key] = set()
+                            labels_collection[key].add(str(value).strip())
+            
+            logger.debug(f"Собрано лейблов из алертов: {list(labels_collection.keys())}")
+            return labels_collection
+            
+        except Exception as e:
+            logger.error(f"Ошибка сбора лейблов из алертов: {e}")
+            return {}
+    
+    def _generate_panel_variables(self, panel_info: Dict[str, Any], alert_labels: Dict[str, set]) -> Dict[str, list]:
+        """
+        Генерирует переменные панели на основе лейблов алертов
+        
+        Args:
+            panel_info: Информация о панели (dashboard_id, panel_id)
+            alert_labels: Собранные лейблы {label_name: set(unique_values)}
+            
+        Returns:
+            Словарь {var_name: [values]} для добавления в URL
+        """
+        try:
+            dashboard_id = panel_info.get('dashboard_id')
+            panel_id = panel_info.get('panel_id')
+            
+            # Выбираем конфигурацию: dashboard-specific или default
+            mapping = self._panel_variables_config['default_mapping'].copy()
+            if dashboard_id and dashboard_id in self._panel_variables_config['dashboard_specific']:
+                mapping.update(self._panel_variables_config['dashboard_specific'][dashboard_id])
+                logger.debug(f"Используется dashboard-specific mapping для {dashboard_id}")
+            
+            panel_vars = {}
+            max_values = self._panel_variables_config['max_values_per_var']
+            
+            for label_name, values_set in alert_labels.items():
+                if label_name in mapping:
+                    var_name = mapping[label_name]
+                    
+                    # Конвертируем set в отсортированный список
+                    values_list = sorted(list(values_set))
+                    
+                    # Ограничиваем количество значений
+                    if len(values_list) > max_values:
+                        logger.warning(f"Превышено максимальное количество значений для {var_name}: {len(values_list)} > {max_values}, обрезаем")
+                        values_list = values_list[:max_values]
+                    
+                    # Фильтруем пустые и недопустимые значения
+                    filtered_values = []
+                    for value in values_list:
+                        if value and str(value).strip() and len(str(value)) < 1000:  # разумное ограничение длины
+                            filtered_values.append(str(value).strip())
+                    
+                    if filtered_values:
+                        panel_vars[var_name] = filtered_values
+                        logger.debug(f"Добавлена переменная {var_name} с {len(filtered_values)} значениями: {filtered_values[:3]}{'...' if len(filtered_values) > 3 else ''}")
+            
+            return panel_vars
+            
+        except Exception as e:
+            logger.error(f"Ошибка генерации переменных панели: {e}")
+            return {}
+    
+    def _build_multi_value_params(self, panel_vars: Dict[str, list]) -> str:
+        """
+        Строит строку параметров с множественными значениями
+        
+        Args:
+            panel_vars: Словарь {var_name: [values]}
+            
+        Returns:
+            Строка параметров для URL
+        """
+        try:
+            params = []
+            max_url_length = self._panel_variables_config['max_url_length']
+            
+            for var_name, values in panel_vars.items():
+                for value in values:
+                    # Кодируем каждый параметр отдельно
+                    encoded_name = urllib.parse.quote(var_name, safe='')
+                    encoded_value = urllib.parse.quote(str(value), safe='')
+                    params.append(f"{encoded_name}={encoded_value}")
+            
+            result = '&'.join(params)
+            
+            # Проверяем длину URL
+            if len(result) > max_url_length:
+                logger.warning(f"URL параметры превышают максимальную длину: {len(result)} > {max_url_length}")
+                # Обрезаем до максимальной длины, сохраняя целостность параметров
+                truncated = result[:max_url_length]
+                last_ampersand = truncated.rfind('&')
+                if last_ampersand > 0:
+                    result = truncated[:last_ampersand]
+                else:
+                    result = truncated
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Ошибка построения параметров с множественными значениями: {e}")
+            return ""
         
     def _extract_panel_info(self, panel_url: str) -> Dict[str, Any]:
         """
@@ -78,14 +259,15 @@ class GrafanaRenderer:
             logger.error(f"Ошибка при парсинге URL панели {panel_url}: {e}")
             return {}
     
-    def _build_correct_panel_url(self, panel_info: Dict[str, Any], alert_labels: Dict[str, str], alert_ts: int = None) -> str:
+    def _build_correct_panel_url(self, panel_info: Dict[str, Any], alert_data: Dict[str, Any], alert_ts: int = None, auth_token: Optional[str] = None) -> str:
         """
         Строит корректную ссылку на панель с переменными из алерта
         
         Args:
             panel_info: Информация о панели
-            alert_labels: Лейблы из алерта
+            alert_data: Полные данные алерта (содержит alerts[], groupLabels, etc.)
             alert_ts: Время срабатывания алерта (timestamp)
+            auth_token: JWT токен для авторизации (опционально)
             
         Returns:
             Корректная ссылка на панель
@@ -125,39 +307,44 @@ class GrafanaRenderer:
                 params['from'] = from_time
                 params['to'] = to_time
             
-            # Добавляем переменные из лейблов алерта
-            logger.debug(f"Лейблы алерта для подстановки: {alert_labels}")
-            for key, value in alert_labels.items():
-                if key in ['job', 'instance', 'hostname', 'interval', 'maxmount', 'total', 'Filters', 'de_job']:
-                    # Не кодируем вручную, чтобы избежать двойного кодирования (%, /)
-                    value_str = str(value)
-                    
-                    # Специальная обработка для instance -> var-hostname
-                    if key == 'instance':
-                        params['var-hostname'] = value_str
-                        logger.debug(f"Подстановка: {key}={value} -> var-hostname={value_str}")
+            # Собираем лейблы из алертов и генерируем переменные панели
+            alert_labels = self._collect_alert_labels(alert_data)
+            panel_vars = self._generate_panel_variables(panel_info, alert_labels)
+            
+            # Добавляем переменные панели к базовым параметрам
+            if panel_vars:
+                multi_value_params = self._build_multi_value_params(panel_vars)
+                if multi_value_params:
+                    # Добавляем к существующим параметрам
+                    existing_params = urllib.parse.urlencode(params)
+                    if existing_params:
+                        params_string = f"{existing_params}&{multi_value_params}"
                     else:
-                        params[f'var-{key}'] = value_str
-                        logger.debug(f"Подстановка: {key}={value} -> var-{key}={value_str}")
+                        params_string = multi_value_params
+                else:
+                    params_string = urllib.parse.urlencode(params)
+            else:
+                params_string = urllib.parse.urlencode(params)
             
             # Дополнительные параметры для корректного отображения
-            params.update({
+            additional_params = {
                 'timezone': 'browser',
                 'refresh': '15s'
-            })
+            }
             
-            # Если включена JWT-авторизация Grafana, добавим auth_token в URL
-            if jwt_auth_enabled:
-                try:
-                    auth_jwt = self._generate_grafana_auth_jwt()
-                    if auth_jwt:
-                        params['auth_token'] = auth_jwt
-                except Exception as e:
-                    logger.error(f"Не удалось сгенерировать auth_token JWT: {e}")
+            # Добавляем auth_token, если он предоставлен
+            if auth_token:
+                additional_params['auth_token'] = auth_token
+            
+            # Добавляем дополнительные параметры к строке параметров
+            additional_params_string = urllib.parse.urlencode(additional_params)
+            if params_string:
+                final_params = f"{params_string}&{additional_params_string}"
+            else:
+                final_params = additional_params_string
 
-            # Строим URL
-            query_string = urllib.parse.urlencode(params)
-            panel_url = f"{self.grafana_url}/d-solo/{dashboard_id}?{query_string}"
+            # Строим финальный URL
+            panel_url = f"{self.grafana_url}/d-solo/{dashboard_id}?{final_params}"
             
             logger.info(f"Построена корректная ссылка на панель: {panel_url}")
             return panel_url
@@ -319,15 +506,94 @@ class GrafanaRenderer:
         except Exception as e:
             logger.error(f"Ошибка генерации RS256 JWT: {e}")
             return None
+
+    def _is_token_valid(self) -> bool:
+        if not self._external_token or not self._external_token_exp_ts:
+            return False
+        now = int(time.time())
+        return now + external_jwt_clock_skew_seconds < self._external_token_exp_ts
+
+    def _cache_external_token(self, token: str) -> None:
+        self._external_token = token
+        exp_ts = None
+        try:
+            # Try to parse exp from JWT without verification
+            parts = token.split('.')
+            if len(parts) == 3:
+                payload_b64 = parts[1] + '==='  # pad
+                payload_json = json.loads(base64.urlsafe_b64decode(payload_b64).decode('utf-8'))
+                if isinstance(payload_json, dict) and payload_json.get('exp'):
+                    exp_ts = int(payload_json['exp'])
+        except Exception:
+            exp_ts = None
+        if exp_ts is None:
+            # fallback to fixed ttl from config
+            exp_ts = int(time.time()) + int(external_jwt_http_cache_ttl_seconds)
+        # apply clock skew margin when checking validity (handled in _is_token_valid)
+        self._external_token_exp_ts = exp_ts
+
+    async def _get_external_env_token(self) -> Optional[str]:
+        token = os.getenv(external_jwt_env_var_name)
+        if token:
+            # do not cache env token forever; re-read each time to allow rotation
+            self._cache_external_token(token)
+            return token
+        return None
+
+    async def _get_external_http_token(self) -> Optional[str]:
+        if self._is_token_valid():
+            return self._external_token
+        if not external_jwt_http_url:
+            return None
+        headers = {}
+        data = None
+        try:
+            if external_jwt_http_headers:
+                headers = json.loads(external_jwt_http_headers)
+        except Exception:
+            headers = {}
+        try:
+            if external_jwt_http_body:
+                data = json.loads(external_jwt_http_body)
+        except Exception:
+            data = None
+
+        attempts = max(1, int(external_jwt_http_retries) + 1)
+        backoff = max(0, int(external_jwt_http_retry_backoff_ms)) / 1000.0
+        timeout = aiohttp.ClientTimeout(total=max(1, int(external_jwt_http_timeout_seconds)))
+
+        for attempt in range(attempts):
+            try:
+                async with aiohttp.ClientSession(timeout=timeout) as session:
+                    method = (external_jwt_http_method or 'GET').upper()
+                    if method == 'POST':
+                        async with session.post(external_jwt_http_url, headers=headers, json=data) as resp:
+                            resp_json = await resp.json()
+                    else:
+                        async with session.get(external_jwt_http_url, headers=headers, params=data if isinstance(data, dict) else None) as resp:
+                            resp_json = await resp.json()
+                # Extract token by simple dotted path
+                token = resp_json
+                for part in (external_jwt_http_token_json_path or 'access_token').split('.'):
+                    if isinstance(token, dict):
+                        token = token.get(part)
+                if isinstance(token, str) and token:
+                    self._cache_external_token(token)
+                    return token
+            except Exception as e:
+                if attempt == attempts - 1:
+                    logger.warning(f"Не удалось получить внешний JWT: {e}")
+                await asyncio.sleep(backoff)
+        return None
     
-    async def render_panel(self, panel_url: str, alert_labels: Dict[str, str], 
+    async def render_panel(self, panel_url: str, alert_data: Dict[str, Any], 
                           width: int = 1000, height: int = 500, alert_ts: int = None) -> Optional[bytes]:
         """
         Рендерит панель Grafana в изображение
         
         Args:
             panel_url: URL панели из алерта
-            alert_labels: Лейблы из алерта
+            alert_data: Полные данные алерта (содержит alerts[], groupLabels, etc.)
             width: Ширина изображения
             height: Высота изображения
             alert_ts: Время срабатывания алерта (timestamp)
@@ -345,8 +611,30 @@ class GrafanaRenderer:
                 logger.error("Не удалось извлечь информацию о панели")
                 return None
             
+            # Получаем auth_token в зависимости от режима
+            auth_token: Optional[str] = None
+            try:
+                mode = (jwt_auth_mode or 'internal').lower()
+                if mode == 'disabled':
+                    auth_token = None
+                elif mode == 'internal':
+                    if jwt_auth_enabled:
+                        auth_token = self._generate_grafana_auth_jwt()
+                elif mode == 'external_env':
+                    auth_token = await self._get_external_env_token()
+                elif mode == 'external_http':
+                    auth_token = await self._get_external_http_token()
+                else:
+                    # unknown mode -> behave as disabled or fallback if allowed
+                    auth_token = None
+            except Exception as e:
+                logger.warning(f"Ошибка получения auth_token для Grafana: {e}")
+                if not external_jwt_allow_fallback_to_disabled:
+                    # proceed without token anyway
+                    pass
+
             # Строим корректную ссылку на панель
-            correct_panel_url = self._build_correct_panel_url(panel_info, alert_labels, alert_ts)
+            correct_panel_url = self._build_correct_panel_url(panel_info, alert_data, alert_ts, auth_token=auth_token)
             if not correct_panel_url:
                 logger.error("Не удалось построить корректную ссылку на панель")
                 return None
@@ -482,7 +770,7 @@ class GrafanaRenderer:
             
             logger.info(f"Рендеринг панели для алерта с лейблами: {labels}, alert_ts: {alert_ts}")
             
-            return await self.render_panel(panel_url, labels, width, height, alert_ts)
+            return await self.render_panel(panel_url, alert_data, width, height, alert_ts)
             
         except Exception as e:
             logger.error(f"Ошибка при рендеринге панели из алерта: {e}")
