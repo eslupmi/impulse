@@ -575,10 +575,8 @@ class TelegramApplication(Application):
 
     async def _handle_silence_backend(self, incident_, callback_id):
         """Create silence via backend-accessible API.
-        Order of preference:
-        1) Alertmanager API (application.alertmanager.api_url)
-        2) Grafana Alerting API (application.grafana.api_url + api_key)
-        3) If only Grafana UI deeplink (silenceURL) available, perform backend GET to that URL
+        Supported backend: Alertmanager API (application.alertmanager.api_url).
+        If Alertmanager API is not configured, backend mute is not available (use silenceURL button instead).
         """
         try:
             am_cfg = application.get('alertmanager', {}) or {}
@@ -614,47 +612,8 @@ class TelegramApplication(Application):
                     else:
                         msg = f"❌ Failed to create silence: HTTP {resp.status} {data}"
             else:
-                # Try Grafana Alerting API via Grafana proxy
-                gf_cfg = application.get('grafana', {}) or {}
-                gf_api = gf_cfg.get('api_url')  # e.g. https://grafana.example.com
-                gf_key = gf_cfg.get('api_key')  # Grafana API key with alerting rights
-                gf_duration = gf_cfg.get('silence_duration', duration)
-
-                def build_matchers():
-                    m = []
-                    for key in ['alertname', 'instance', 'project']:
-                        if key in labels:
-                            m.append({'name': key, 'value': str(labels[key]), 'isRegex': False})
-                    if not m and labels:
-                        k, v = next(iter(labels.items()))
-                        m.append({'name': k, 'value': str(v), 'isRegex': False})
-                    return m
-
-                if gf_api and gf_key:
-                    payload = {
-                        'matchers': build_matchers(),
-                        'startsAt': None,
-                        'endsAt': None,
-                        'duration': gf_duration,
-                        'createdBy': 'IMPulse',
-                        'comment': f"Muted via IMPulse (Grafana) for incident {incident_.uuid}"
-                    }
-                    headers = {
-                        'Content-Type': 'application/json',
-                        'Authorization': f"Bearer {gf_key}"
-                    }
-                    # Grafana proxy to AM v2
-                    url = f"{gf_api.rstrip('/')}/api/alertmanager/grafana/api/v2/silences"
-                    async with self.http.post(url, json=payload, headers=headers) as resp:
-                        data = await resp.json()
-                        if 200 <= resp.status < 300:
-                            silence_id = data.get('silenceID') or data.get('silenceId') or data.get('id')
-                            msg = f"✅ Silence created in Grafana (duration {gf_duration}){f' id={silence_id}' if silence_id else ''}"
-                        else:
-                            msg = f"❌ Failed to create Grafana silence: HTTP {resp.status} {data}"
-                else:
-                    # This should not happen anymore since URL buttons are handled differently
-                    msg = "❌ Cannot create silence: neither Alertmanager nor Grafana API configured, and no silenceURL in payload"
+                # No Alertmanager API configured → backend mute is unavailable
+                msg = "❌ Cannot create silence: Alertmanager API is not configured"
 
             # Answer the callback and post result to thread
             await self._answer_callback(callback_id)
@@ -894,7 +853,7 @@ class TelegramApplication(Application):
 
 
     async def _update_topic(self, channel_id, id_, header, status_icons, incident=None):
-        chat_id, _ = self._parse_channel_id(channel_id)
+        chat_id, fixed_topic_id = self._parse_channel_id(channel_id)
         
         # Extract topic_id from id_ (could be "topic_id/message_id" or just "message_id")
         topic_id = None
@@ -905,9 +864,18 @@ class TelegramApplication(Application):
             if incident and hasattr(incident, 'thread_id') and incident.thread_id and '/' in str(incident.thread_id):
                 topic_id, _ = incident.thread_id.split('/', 1)
                 logger.debug(f'Got topic_id from incident.thread_id: {topic_id}')
+            elif fixed_topic_id:
+                # If channel_id contains a fixed topic_id, use it
+                topic_id = fixed_topic_id
+                logger.debug(f'Using fixed topic_id from channel_id: {topic_id}')
             else:
-                logger.debug(f'Cannot update topic: id_ does not contain topic_id and no valid incident.thread_id: {id_}')
-                return
+                # Try to find topic by message_id (last resort)
+                topic_id = await self._find_topic_by_message_id(chat_id, id_)
+                if topic_id:
+                    logger.debug(f'Found topic_id by message_id: {topic_id}')
+                else:
+                    logger.debug(f'Cannot update topic: id_ does not contain topic_id and no valid incident.thread_id: {id_}')
+                    return
             
         if topic_id:
             payload = {
@@ -930,6 +898,46 @@ class TelegramApplication(Application):
                         logger.warning(f'Failed to update topic {topic_id}: {response_json}')
             except aiohttp.ClientError as e:
                 logger.error(f'Failed to update topic: {e}')
+
+    async def _find_topic_by_message_id(self, chat_id, message_id):
+        """
+        Try to find topic_id by searching for a message in the chat.
+        This is a fallback method when thread_id is not available.
+        """
+        try:
+            # Get chat history to find the message and its topic
+            payload = {
+                'chat_id': chat_id,
+                'limit': 100,  # Get last 100 messages
+                'offset': 0
+            }
+            
+            async with self.http.post(
+                f'{self.url}/getUpdates',
+                json=payload,
+                headers=self.headers
+            ) as response:
+                response_json = await response.json()
+                
+                if not response_json.get('ok'):
+                    logger.debug(f'Failed to get chat history: {response_json}')
+                    return None
+                
+                # Look for the message in the history
+                messages = response_json.get('result', [])
+                for message in messages:
+                    if message.get('message', {}).get('message_id') == int(message_id):
+                        topic_id = message.get('message', {}).get('message_thread_id')
+                        if topic_id:
+                            logger.debug(f'Found topic_id {topic_id} for message_id {message_id}')
+                            return str(topic_id)
+                
+                logger.debug(f'Message {message_id} not found in chat history')
+                return None
+                
+        except Exception as e:
+            logger.debug(f'Failed to find topic by message_id: {e}')
+            return None
 
     def update_thread_payload(self, channel_id, id_, body, header, status_icons, status, chain_enabled,
                               status_enabled):
@@ -1028,11 +1036,9 @@ class TelegramApplication(Application):
 
     def _is_silence_api_available(self):
         am_cfg = application.get('alertmanager', {}) or {}
-        gf_cfg = application.get('grafana', {}) or {}
-        has_am = bool(am_cfg.get('api_url'))
-        has_gf_api = bool(gf_cfg.get('api_url') and gf_cfg.get('api_key'))
-        return has_am or has_gf_api
-
+        has_alertmanager_api = bool(am_cfg.get('api_url'))
+        return has_alertmanager_api
+                                                                                                                
     def _should_show_silence_button(self, incident=None, state=None):
         has_api = self._is_silence_api_available()
         if has_api:
@@ -1180,6 +1186,29 @@ class TelegramApplication(Application):
         # For Telegram we use thread_id (topic_id/message_id) for topic update
         # For other applications we use ts
         thread_identifier = incident.thread_id if incident.thread_id else incident.ts
+        
+        # If thread_id is missing but we have ts, try to restore thread_id
+        if not incident.thread_id and incident.ts:
+            logger.debug(f'Thread_id missing, attempting to restore from ts: {incident.ts}')
+            chat_id, fixed_topic_id = self._parse_channel_id(incident.channel_id)
+            if fixed_topic_id:
+                # If channel_id contains a fixed topic_id, reconstruct thread_id
+                incident.thread_id = f'{fixed_topic_id}/{incident.ts}'
+                thread_identifier = incident.thread_id
+                logger.debug(f'Restored thread_id from fixed topic: {incident.thread_id}')
+                # Save the restored thread_id to prevent future lookups
+                incident.dump()
+            else:
+                # Try to find topic_id by message_id
+                topic_id = await self._find_topic_by_message_id(chat_id, incident.ts)
+                if topic_id:
+                    incident.thread_id = f'{topic_id}/{incident.ts}'
+                    thread_identifier = incident.thread_id
+                    logger.debug(f'Restored thread_id by message_id lookup: {incident.thread_id}')
+                    # Save the restored thread_id to prevent future lookups
+                    incident.dump()
+                else:
+                    logger.warning(f'Could not restore thread_id for message_id: {incident.ts}')
         
         # Update the main message
         await self.update_thread(

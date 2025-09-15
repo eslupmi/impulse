@@ -27,6 +27,8 @@ grafana_render_max_size = int(os.getenv('GRAFANA_RENDER_MAX_SIZE', default='1048
 grafana_render_time_to_render = int(os.getenv('GRAFANA_RENDER_TIME_TO_RENDER', default='15'))  # минуты
 
 # JWT auth configuration for Grafana (auth.jwt) under grafana_renderer.jwt_auth
+# Mode: disabled | internal | external_env | external_http
+jwt_auth_mode = os.getenv('GRAFANA_RENDERER_JWT_AUTH_MODE', default='internal')
 jwt_auth_enabled = os.getenv('GRAFANA_RENDERER_JWT_AUTH_ENABLED', default='false').lower() == 'true'
 jwt_auth_keys_dir = os.getenv('GRAFANA_RENDERER_JWT_AUTH_KEYS_DIR', default=os.path.join(data_path, 'jwt'))
 jwt_auth_kid = os.getenv('GRAFANA_RENDERER_JWT_AUTH_KID', default='impulse-key-1')
@@ -37,6 +39,24 @@ jwt_auth_rotation_enabled = os.getenv('GRAFANA_RENDERER_JWT_AUTH_ROTATION_ENABLE
 jwt_auth_rotation_interval_days = int(os.getenv('GRAFANA_RENDERER_JWT_AUTH_ROTATION_INTERVAL_DAYS', default='120'))
 jwt_auth_grace_period_seconds = int(os.getenv('GRAFANA_RENDERER_JWT_AUTH_GRACE_PERIOD_SECONDS', default='900'))
 jwt_auth_max_keys = int(os.getenv('GRAFANA_RENDERER_JWT_AUTH_MAX_KEYS', default='3'))
+
+# External JWT provider configuration
+external_jwt_env_var_name = os.getenv('GRAFANA_RENDERER_EXTERNAL_JWT_ENV_VAR_NAME', default='GRAFANA_JWT_TOKEN')
+external_jwt_http_url = os.getenv('GRAFANA_RENDERER_EXTERNAL_JWT_HTTP_URL')
+external_jwt_http_method = os.getenv('GRAFANA_RENDERER_EXTERNAL_JWT_HTTP_METHOD', default='GET')
+external_jwt_http_headers = os.getenv('GRAFANA_RENDERER_EXTERNAL_JWT_HTTP_HEADERS')  # JSON-строка
+external_jwt_http_body = os.getenv('GRAFANA_RENDERER_EXTERNAL_JWT_HTTP_BODY')  # JSON-строка
+external_jwt_http_token_json_path = os.getenv('GRAFANA_RENDERER_EXTERNAL_JWT_HTTP_TOKEN_JSON_PATH', default='access_token')
+external_jwt_http_cache_ttl_seconds = int(os.getenv('GRAFANA_RENDERER_EXTERNAL_JWT_HTTP_CACHE_TTL_SECONDS', default='240'))
+external_jwt_http_timeout_seconds = int(os.getenv('GRAFANA_RENDERER_EXTERNAL_JWT_HTTP_TIMEOUT_SECONDS', default='10'))
+external_jwt_http_retries = int(os.getenv('GRAFANA_RENDERER_EXTERNAL_JWT_HTTP_RETRIES', default='2'))
+external_jwt_http_retry_backoff_ms = int(os.getenv('GRAFANA_RENDERER_EXTERNAL_JWT_HTTP_RETRY_BACKOFF_MS', default='300'))
+external_jwt_clock_skew_seconds = int(os.getenv('GRAFANA_RENDERER_EXTERNAL_JWT_CLOCK_SKEW_SECONDS', default='15'))
+external_jwt_allow_fallback_to_disabled = os.getenv('GRAFANA_RENDERER_EXTERNAL_JWT_ALLOW_FALLBACK_TO_DISABLED', default='false').lower() == 'true'
+
+# Panel variables configuration for Grafana rendering
+panel_variables_max_values_per_var = int(os.getenv('GRAFANA_RENDERER_PANEL_VARIABLES_MAX_VALUES_PER_VAR', default='20'))
+panel_variables_max_url_length = int(os.getenv('GRAFANA_RENDERER_PANEL_VARIABLES_MAX_URL_LENGTH', default='8192'))
 
 # Get CORS allowed origins from environment variable, default to localhost
 cors_allowed_origins = os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:5000').split(',')
@@ -84,6 +104,8 @@ with open(f'{config_path}/impulse.yml', 'r') as file:
         # JWT auth nested configuration: grafana_renderer.jwt_auth
         jwt_cfg = settings.get('grafana_renderer', {}).get('jwt_auth', {})
         if jwt_cfg:
+            if not os.getenv('GRAFANA_RENDERER_JWT_AUTH_MODE'):
+                jwt_auth_mode = jwt_cfg.get('mode', jwt_auth_mode)
             if not os.getenv('GRAFANA_RENDERER_JWT_AUTH_ENABLED'):
                 jwt_auth_enabled = jwt_cfg.get('enabled', jwt_auth_enabled)
             if not os.getenv('GRAFANA_RENDERER_JWT_AUTH_KEYS_DIR'):
@@ -104,6 +126,42 @@ with open(f'{config_path}/impulse.yml', 'r') as file:
                 jwt_auth_grace_period_seconds = jwt_cfg.get('grace_period_seconds', jwt_auth_grace_period_seconds)
             if not os.getenv('GRAFANA_RENDERER_JWT_AUTH_MAX_KEYS'):
                 jwt_auth_max_keys = jwt_cfg.get('max_keys', jwt_auth_max_keys)
+
+        # External JWT provider nested configuration: grafana_renderer.external_jwt
+        ext_cfg = settings.get('grafana_renderer', {}).get('external_jwt', {})
+        if ext_cfg:
+            if not os.getenv('GRAFANA_RENDERER_EXTERNAL_JWT_ENV_VAR_NAME'):
+                external_jwt_env_var_name = ext_cfg.get('env_var_name', external_jwt_env_var_name)
+            if not os.getenv('GRAFANA_RENDERER_EXTERNAL_JWT_HTTP_URL'):
+                external_jwt_http_url = ext_cfg.get('http_url', external_jwt_http_url)
+            if not os.getenv('GRAFANA_RENDERER_EXTERNAL_JWT_HTTP_METHOD'):
+                external_jwt_http_method = ext_cfg.get('http_method', external_jwt_http_method)
+            if not os.getenv('GRAFANA_RENDERER_EXTERNAL_JWT_HTTP_HEADERS'):
+                external_jwt_http_headers = ext_cfg.get('http_headers', external_jwt_http_headers)
+            if not os.getenv('GRAFANA_RENDERER_EXTERNAL_JWT_HTTP_BODY'):
+                external_jwt_http_body = ext_cfg.get('http_body', external_jwt_http_body)
+            if not os.getenv('GRAFANA_RENDERER_EXTERNAL_JWT_HTTP_TOKEN_JSON_PATH'):
+                external_jwt_http_token_json_path = ext_cfg.get('http_token_json_path', external_jwt_http_token_json_path)
+            if not os.getenv('GRAFANA_RENDERER_EXTERNAL_JWT_HTTP_CACHE_TTL_SECONDS'):
+                external_jwt_http_cache_ttl_seconds = ext_cfg.get('http_cache_ttl_seconds', external_jwt_http_cache_ttl_seconds)
+            if not os.getenv('GRAFANA_RENDERER_EXTERNAL_JWT_HTTP_TIMEOUT_SECONDS'):
+                external_jwt_http_timeout_seconds = ext_cfg.get('http_timeout_seconds', external_jwt_http_timeout_seconds)
+            if not os.getenv('GRAFANA_RENDERER_EXTERNAL_JWT_HTTP_RETRIES'):
+                external_jwt_http_retries = ext_cfg.get('http_retries', external_jwt_http_retries)
+            if not os.getenv('GRAFANA_RENDERER_EXTERNAL_JWT_HTTP_RETRY_BACKOFF_MS'):
+                external_jwt_http_retry_backoff_ms = ext_cfg.get('http_retry_backoff_ms', external_jwt_http_retry_backoff_ms)
+            if not os.getenv('GRAFANA_RENDERER_EXTERNAL_JWT_CLOCK_SKEW_SECONDS'):
+                external_jwt_clock_skew_seconds = ext_cfg.get('clock_skew_seconds', external_jwt_clock_skew_seconds)
+            if not os.getenv('GRAFANA_RENDERER_EXTERNAL_JWT_ALLOW_FALLBACK_TO_DISABLED'):
+                external_jwt_allow_fallback_to_disabled = ext_cfg.get('allow_fallback_to_disabled', external_jwt_allow_fallback_to_disabled)
+
+        # Panel variables configuration: grafana_renderer.panel_variables
+        panel_vars_cfg = settings.get('grafana_renderer', {}).get('panel_variables', {})
+        if panel_vars_cfg:
+            if not os.getenv('GRAFANA_RENDERER_PANEL_VARIABLES_MAX_VALUES_PER_VAR'):
+                panel_variables_max_values_per_var = panel_vars_cfg.get('max_values_per_var', panel_variables_max_values_per_var)
+            if not os.getenv('GRAFANA_RENDERER_PANEL_VARIABLES_MAX_URL_LENGTH'):
+                panel_variables_max_url_length = panel_vars_cfg.get('max_url_length', panel_variables_max_url_length)
                 
     except yaml.YAMLError as e:
         print(f"Error reading YAML file: {e}")

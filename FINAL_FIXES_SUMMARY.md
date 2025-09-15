@@ -245,3 +245,161 @@ Mute → открывает страницу Grafana Silence в браузере
 - Кнопка Mute работает нативно через URL или через API, доступна только админам.
 - Больше спама нет: статус‑уведомления и теги ведут себя корректно, интерфейс чище, логи информативнее.
 
+
+---
+
+## Grafana JWT: внешние провайдеры, хранение ключей, кодирование URL
+
+### 1) Режимы JWT‑авторизации для Grafana
+В конфигурации добавлен переключатель режима JWT (auth.jwt) для ссылок рендеринга/панелей:
+
+- disabled — не использовать JWT вовсе (auth_token в URL не добавляется)
+- internal — генерировать токен локально (текущее поведение по умолчанию)
+- external_env — брать готовый токен из ENV
+- external_http — получать токен с внешнего HTTP‑провайдера
+
+Ключевые переменные окружения:
+
+```
+GRAFANA_RENDERER_JWT_AUTH_MODE=internal|external_env|external_http|disabled
+GRAFANA_RENDERER_JWT_AUTH_ENABLED=true|false               # для internal
+```
+
+### 2) Хранение ключей (internal) вне контейнера
+Чтобы JWT‑ключи (internal) не терялись при пересоздании контейнера, используйте volume:
+
+```yaml
+services:
+  impulse:
+    image: your/impulse:latest
+    environment:
+      - GRAFANA_RENDERER_JWT_AUTH_MODE=internal
+      - GRAFANA_RENDERER_JWT_AUTH_ENABLED=true
+      - GRAFANA_RENDERER_JWT_AUTH_KEYS_DIR=/config/jwt_keys
+      - GRAFANA_RENDERER_JWT_AUTH_ROTATION_ENABLED=true
+      - GRAFANA_RENDERER_JWT_AUTH_ROTATION_INTERVAL_DAYS=30
+      - GRAFANA_RENDERER_JWT_AUTH_MAX_KEYS=3
+    volumes:
+      - ./config:/config
+```
+
+Файлы, которые сохраняются:
+- `<kid>.private.pem`, `<kid>.public.pem`
+- `keys.json` (манифест)
+
+### 3) Внешний JWT из ENV (external_env)
+Используйте готовый токен провайдера:
+
+```
+GRAFANA_RENDERER_JWT_AUTH_MODE=external_env
+GRAFANA_RENDERER_EXTERNAL_JWT_ENV_VAR_NAME=GRAFANA_JWT_TOKEN
+GRAFANA_JWT_TOKEN=eyJhbGciOiJSUzI1NiIsImtpZCI6Ii4uLiJ9.eyJzdWIiOiIuLi4ifQ.SIGN
+```
+
+Поведение:
+- Токен читается из ENV и подставляется в URL как `auth_token`.
+- Токен не логируется, хранится в памяти процесса.
+
+### 4) Внешний JWT по HTTP (external_http)
+Получение токена с внешнего эндпоинта (OAuth2/IdP):
+
+```yaml
+# impulse.yml (фрагмент)
+grafana_renderer:
+  jwt_auth:
+    mode: external_http
+  external_jwt:
+    http_url: https://idp.example.com/oauth/token
+    http_method: POST
+    http_headers: '{"Content-Type":"application/json","Authorization":"Basic ..."}'
+    http_body: '{"grant_type":"client_credentials"}'
+    http_token_json_path: access_token
+    http_cache_ttl_seconds: 240   # fallback, если нет exp в токене
+    http_timeout_seconds: 10
+    http_retries: 2
+    http_retry_backoff_ms: 300
+    clock_skew_seconds: 15
+    allow_fallback_to_disabled: false
+```
+
+Поведение:
+- Токен кэшируется до `exp` (если это JWT) или по TTL.
+- Раннее обновление с учётом `clock_skew_seconds`.
+- При ошибке запроса используются ретраи, токен не логируется.
+
+### 5) Mute: удалён Grafana API, оставлены Alertmanager API и silenceURL
+- Убрана поддержка создания silence через Grafana API.
+- Остались два пути:
+  - Alertmanager API (`application.alertmanager.api_url` + опц. `silence_duration`)
+  - Кнопка URL со ссылкой `silenceURL` из payload (Grafana UI)
+- Если нет ни AM API, ни `silenceURL`, кнопка Mute не показывается.
+
+### 6) Исправлено двойное кодирование URL переменных
+Ранее значения подставлялись с предварительным `quote`, а затем снова кодировались `urlencode`, из‑за чего `%` → `%25` и, например, `var-job=localhost.admin%252Fnode_exporter`.
+
+Теперь:
+- Убрано ручное кодирование; `urlencode` делает единственное корректное кодирование.
+- Пример до/после:
+
+```
+До:  var-job=localhost.admin%252Fnode_exporter
+После: var-job=localhost.admin%2Fnode_exporter
+```
+
+### 7) Конфигурируемые переменные панели из лейблов алертов
+Добавлена гибкая система подстановки переменных Grafana из лейблов алертов с поддержкой множественных значений.
+
+**Конфигурация в `impulse.yml` (обязательна):**
+```yaml
+grafana_renderer:
+  panel_variables:
+    # Глобальные правила маппинга лейблов → переменные (настраивается под ваши нужды)
+    default_mapping:
+      job: var-job
+      instance: var-hostname
+      env: var-env
+      compose_service: var-service
+      container_name: var-container
+      maxmount: var-maxmount
+      total: var-total
+      interval: var-interval
+    
+    # Специфичные правила для конкретных дашбордов
+    dashboard_specific:
+      "f58f09cc-87b2-470f-9154-f974fc9a2e47":  # dashboard_id
+        job: var-job
+        instance: var-hostname
+        maxmount: var-maxmount
+        total: var-total
+        interval: var-interval
+    
+    # Ограничения
+    max_values_per_var: 20        # максимум значений на переменную
+    max_url_length: 8192          # максимальная длина URL
+```
+
+**Переменные окружения:**
+```
+GRAFANA_RENDERER_PANEL_VARIABLES_MAX_VALUES_PER_VAR=20
+GRAFANA_RENDERER_PANEL_VARIABLES_MAX_URL_LENGTH=8192
+```
+
+**Логика работы:**
+- Собирает все уникальные значения лейблов из `alerts[].labels` в группе алертов
+- Применяет маппинг из конфигурации: `label_name` → `var-name` (например, `instance` → `var-hostname`)
+- Если конфигурация не задана — переменные не подставляются (система не работает)
+- Генерирует повторяющиеся параметры: `var-hostname=host1&var-hostname=host2&...`
+- Поддерживает dashboard-specific конфигурацию для точного контроля
+- Ограничивает количество значений и длину URL для стабильности
+
+**Пример результата:**
+```
+https://grafana.example.com/d-solo/dashboard?var-job=node_exporter&var-hostname=host1&var-hostname=host2&var-hostname=host3&var-service=nginx&var-service=postgres
+```
+
+**Преимущества:**
+- Работает со сгруппированными алертами (несколько инстансов в одном уведомлении)
+- Контекстная фильтрация: для рестарта хоста не ищет `compose_service`
+- Безопасность: фильтрация недопустимых символов, ограничения длины
+- Гибкость: разные правила для разных дашбордов
+
