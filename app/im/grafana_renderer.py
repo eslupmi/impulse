@@ -129,16 +129,16 @@ class GrafanaRenderer:
             logger.debug(f"Лейблы алерта для подстановки: {alert_labels}")
             for key, value in alert_labels.items():
                 if key in ['job', 'instance', 'hostname', 'interval', 'maxmount', 'total', 'Filters', 'de_job']:
-                    # Экранируем значение для URL
-                    encoded_value = urllib.parse.quote(str(value), safe='')
+                    # Не кодируем вручную, чтобы избежать двойного кодирования (%, /)
+                    value_str = str(value)
                     
                     # Специальная обработка для instance -> var-hostname
                     if key == 'instance':
-                        params['var-hostname'] = encoded_value
-                        logger.debug(f"Подстановка: {key}={value} -> var-hostname={encoded_value}")
+                        params['var-hostname'] = value_str
+                        logger.debug(f"Подстановка: {key}={value} -> var-hostname={value_str}")
                     else:
-                        params[f'var-{key}'] = encoded_value
-                        logger.debug(f"Подстановка: {key}={value} -> var-{key}={encoded_value}")
+                        params[f'var-{key}'] = value_str
+                        logger.debug(f"Подстановка: {key}={value} -> var-{key}={value_str}")
             
             # Дополнительные параметры для корректного отображения
             params.update({
