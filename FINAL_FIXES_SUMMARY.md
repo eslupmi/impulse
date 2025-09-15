@@ -308,18 +308,18 @@ GRAFANA_JWT_TOKEN=eyJhbGciOiJSUzI1NiIsImtpZCI6Ii4uLiJ9.eyJzdWIiOiIuLi4ifQ.SIGN
 grafana_renderer:
   jwt_auth:
     mode: external_http
-  external_jwt:
-    http_url: https://idp.example.com/oauth/token
-    http_method: POST
-    http_headers: '{"Content-Type":"application/json","Authorization":"Basic ..."}'
-    http_body: '{"grant_type":"client_credentials"}'
-    http_token_json_path: access_token
-    http_cache_ttl_seconds: 240   # fallback, если нет exp в токене
-    http_timeout_seconds: 10
-    http_retries: 2
-    http_retry_backoff_ms: 300
-    clock_skew_seconds: 15
-    allow_fallback_to_disabled: false
+    external_jwt:
+      http_url: https://idp.example.com/oauth/token
+      http_method: POST
+      http_headers: '{"Content-Type":"application/json","Authorization":"Basic ..."}'
+      http_body: '{"grant_type":"client_credentials"}'
+      http_token_json_path: access_token
+      http_cache_ttl_seconds: 240   # fallback, если нет exp в токене
+      http_timeout_seconds: 10
+      http_retries: 2
+      http_retry_backoff_ms: 300
+      clock_skew_seconds: 15
+      allow_fallback_to_disabled: false
 ```
 
 Поведение:

@@ -128,7 +128,7 @@ with open(f'{config_path}/impulse.yml', 'r') as file:
                 jwt_auth_max_keys = jwt_cfg.get('max_keys', jwt_auth_max_keys)
 
         # External JWT provider nested configuration: grafana_renderer.external_jwt
-        ext_cfg = settings.get('grafana_renderer', {}).get('external_jwt', {})
+        ext_cfg = settings.get('grafana_renderer', {}).get('jwt_auth', {}).get('external_jwt', {})
         if ext_cfg:
             if not os.getenv('GRAFANA_RENDERER_EXTERNAL_JWT_ENV_VAR_NAME'):
                 external_jwt_env_var_name = ext_cfg.get('env_var_name', external_jwt_env_var_name)
