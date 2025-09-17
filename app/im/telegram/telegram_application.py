@@ -1568,6 +1568,16 @@ class TelegramApplication(Application):
         # For Telegram we use thread_id (topic_id/message_id) for sending message
         thread_identifier = incident.thread_id if incident.thread_id else incident.ts
         
+        # Suppress first chain tag after special firing transition in non-fixed topics
+        if incident.status == 'firing':
+            _, fixed_topic_id = self._parse_channel_id(incident.channel_id)
+            is_fixed_topic = fixed_topic_id is not None
+            if not is_fixed_topic and getattr(incident, 'skip_next_chain_tag', False):
+                logger.debug(f"Incident {incident.uuid}: suppressing first chain tag for non-fixed firing transition")
+                incident.skip_next_chain_tag = False
+                incident.dump()
+                return None
+
         # Send as reply to main alert message
         response_code = await self.post_thread_reply(incident.channel_id, thread_identifier, message)
         

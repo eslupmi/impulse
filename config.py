@@ -155,13 +155,13 @@ with open(f'{config_path}/impulse.yml', 'r') as file:
             if not os.getenv('GRAFANA_RENDERER_EXTERNAL_JWT_ALLOW_FALLBACK_TO_DISABLED'):
                 external_jwt_allow_fallback_to_disabled = ext_cfg.get('allow_fallback_to_disabled', external_jwt_allow_fallback_to_disabled)
 
-        # Panel variables configuration: grafana_renderer.panel_variables
-        panel_vars_cfg = settings.get('grafana_renderer', {}).get('panel_variables', {})
-        if panel_vars_cfg:
+        # Panel variables global limits (at grafana_renderer top-level)
+        gr_cfg = settings.get('grafana_renderer', {})
+        if gr_cfg:
             if not os.getenv('GRAFANA_RENDERER_PANEL_VARIABLES_MAX_VALUES_PER_VAR'):
-                panel_variables_max_values_per_var = panel_vars_cfg.get('max_values_per_var', panel_variables_max_values_per_var)
+                panel_variables_max_values_per_var = gr_cfg.get('panel_variables_max_values_per_var', panel_variables_max_values_per_var)
             if not os.getenv('GRAFANA_RENDERER_PANEL_VARIABLES_MAX_URL_LENGTH'):
-                panel_variables_max_url_length = panel_vars_cfg.get('max_url_length', panel_variables_max_url_length)
+                panel_variables_max_url_length = gr_cfg.get('panel_variables_max_url_length', panel_variables_max_url_length)
                 
     except yaml.YAMLError as e:
         print(f"Error reading YAML file: {e}")

@@ -22,7 +22,7 @@ from config import external_jwt_http_headers, external_jwt_http_body, external_j
 from config import external_jwt_http_cache_ttl_seconds, external_jwt_http_timeout_seconds, external_jwt_http_retries, external_jwt_http_retry_backoff_ms
 from config import external_jwt_clock_skew_seconds, external_jwt_allow_fallback_to_disabled
 from config import panel_variables_max_values_per_var, panel_variables_max_url_length
-from config import application, grafana_render_time_to_render
+from config import application, grafana_render_time_to_render, settings
 import os
 import base64
 from pathlib import Path
@@ -58,7 +58,8 @@ class GrafanaRenderer:
     def _load_panel_variables_config(self) -> Dict[str, Any]:
         """Загружает конфигурацию переменных панели из настроек приложения"""
         try:
-            grafana_config = application.get('grafana_renderer', {})
+            # Единый источник: верхний уровень settings['grafana_renderer']
+            grafana_config = settings.get('grafana_renderer', {}) if isinstance(settings, dict) else {}
             panel_vars_config = grafana_config.get('panel_variables', {})
             
             # Default mapping для основных лейблов
@@ -67,12 +68,13 @@ class GrafanaRenderer:
             # Dashboard-specific mapping
             dashboard_specific = panel_vars_config.get('dashboard_specific', {})
             
-            return {
+            result = {
                 'default_mapping': default_mapping,
                 'dashboard_specific': dashboard_specific,
                 'max_values_per_var': panel_variables_max_values_per_var,
                 'max_url_length': panel_variables_max_url_length
             }
+            return result
         except Exception as e:
             logger.warning(f"Ошибка загрузки конфигурации переменных панели: {e}")
             return {
