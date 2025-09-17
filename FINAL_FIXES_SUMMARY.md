@@ -402,3 +402,53 @@ https://grafana.example.com/d-solo/dashboard?var-job=node_exporter&var-hostname=
 - Безопасность: фильтрация недопустимых символов, ограничения длины
 - Гибкость: разные правила для разных дашбордов
 
+---
+
+## Дополнения: финальные правки логики оповещений и рендеринга (сентябрь 2025)
+
+### Telegram: фиксированные/нефиксированные топики, переходы статусов
+
+- Нефиксированные топики (topic_id не задан в `channel_id`):
+  - При `resolved` отправляется отдельное сообщение: `update: status resolved` (ничего не редактируем и не удаляем).
+  - При `unknown` отправляется `update: status unknown` (как раньше, с тегом админов из шаблона). Сообщения всегда только добавляются.
+  - При переходе `resolved/unknown → firing` отправляется дополнительное сообщение: `update: status firing (ссылка) | <тегающий блок из chain>`.
+  - Сообщения и изображения в нефиксированных топиках никогда не удаляются.
+
+- Фиксированные топики (topic_id задан в `channel_id`):
+  - Переименования темы отключены (как и раньше).
+  - При `unknown` удаляются предыдущие тегающие сообщения для firing и публикуется/обновляется одно статус‑сообщение `update: status unknown` с тегающим блоком из chain (замещает старые firing‑теги).
+  - При переходе `resolved/unknown → firing` публикуется/обновляется одно комбинированное сообщение: `update: status firing (ссылка) | <тегающий блок из chain>`.
+  - При `resolved`/`closed` удаляются все тегающие сообщения.
+
+- Реализация:
+  - `app/im/telegram/telegram_application.py`
+    - `_handle_status_notification(...)`: разведена логика fixed/non-fixed; для fixed `unknown` дополняется тегающим блоком из chain; non-fixed всегда append.
+    - `_compose_chain_tag_text(...)`: сбор тегающего блока по первому неотработанному шагу chain (`user_group`/`user`).
+    - `post_status_firing_transition(...)`: комбинированное сообщение для перехода в `firing`.
+  - `app/queue/handlers/alert_handler.py` — на переходе `resolved/unknown → firing` вызывается специальное уведомление, если поддерживается приложением.
+  - `app/im/template.py` — для `firing` добавлена ссылка на `StatusFiring` в `update_status` (Telegram).
+
+### Grafana Renderer: единый конфиг, маппинг и фолбэк
+
+- Единый источник настроек: верхний уровень `grafana_renderer` из `impulse.yml` (без бэкомпата на `application.grafana_renderer`).
+- Маппинг переменных панели:
+  - Если `panel_variables.default_mapping` НЕ пуст — используются ТОЛЬКО перечисленные лейблы (мусорные игнорируются).
+  - Если `default_mapping` пуст — включается фолбэк: для каждого лейбла строится переменная `var-<label>` (с санитацией имени: допускаются буквы/цифры/`_`/`-`).
+- Пределы вынесены на верхний уровень `grafana_renderer`:
+  - `panel_variables_max_values_per_var`
+  - `panel_variables_max_url_length`
+  В `config.py` обновлён разбор этих ключей; чтение из блока `panel_variables` удалено.
+- Логика кодирования URL сохранена: единичное корректное кодирование, поддержка повторяющихся `var-*` параметров.
+
+- Реализация:
+  - `app/im/grafana_renderer.py`
+    - `_load_panel_variables_config()`: читает `settings['grafana_renderer']`, формирует маппинг/пределы.
+    - `_generate_panel_variables(...)`: режимы mapping‑only и fallback, санитация имён переменных, ограничение значений/длины URL.
+  - `config.py`: чтение `panel_variables_max_values_per_var` и `panel_variables_max_url_length` с верхнего уровня `grafana_renderer`.
+
+### Кратко: что поменялось для пользователей
+
+- В нефиксированных топиках всегда видна полная история статусов и тегов; ничего не удаляется.
+- В фиксированных топиках поддерживается одна «актуальная» статус‑нитка; firing/unknown отображаются как ожидается, старые теги заменяются.
+- Рендеринг Grafana использует только ваш явный маппинг; при пустом маппинге — аккуратный фолбэк `var-<label>`.
+

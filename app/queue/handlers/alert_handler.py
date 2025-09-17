@@ -119,6 +119,21 @@ class AlertHandler(BaseHandler):
                 incident_.chain_enabled, incident_.status_enabled
             )
 
+        # Special notification: transition from resolved/unknown to firing
+        if prev_status in ['resolved', 'unknown'] and incident_.status == 'firing':
+            # Best-effort: not all applications may implement this method
+            if hasattr(self.app, 'post_status_firing_transition'):
+                await self.app.post_status_firing_transition(incident_)
+                # For non-fixed topics, suppress first chain tag (to avoid duplicate with combined message)
+                try:
+                    _, fixed_topic_id = self.app._parse_channel_id(incident_.channel_id)
+                    is_fixed_topic = fixed_topic_id is not None
+                except Exception:
+                    is_fixed_topic = False
+                if not is_fixed_topic:
+                    incident_.skip_next_chain_tag = True
+                    incident_.dump()
+
         if prev_status == 'firing' and incident_.status == 'firing':
             # Experimental !
             if is_new_firing_alerts_added and chain_recreate:

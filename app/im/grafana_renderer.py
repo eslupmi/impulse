@@ -22,7 +22,7 @@ from config import external_jwt_http_headers, external_jwt_http_body, external_j
 from config import external_jwt_http_cache_ttl_seconds, external_jwt_http_timeout_seconds, external_jwt_http_retries, external_jwt_http_retry_backoff_ms
 from config import external_jwt_clock_skew_seconds, external_jwt_allow_fallback_to_disabled
 from config import panel_variables_max_values_per_var, panel_variables_max_url_length
-from config import application, grafana_render_time_to_render
+from config import application, grafana_render_time_to_render, settings
 import os
 import base64
 from pathlib import Path
@@ -58,30 +58,23 @@ class GrafanaRenderer:
     def _load_panel_variables_config(self) -> Dict[str, Any]:
         """Загружает конфигурацию переменных панели из настроек приложения"""
         try:
-            grafana_config = application.get('grafana_renderer', {})
+            # Единый источник: верхний уровень settings['grafana_renderer']
+            grafana_config = settings.get('grafana_renderer', {}) if isinstance(settings, dict) else {}
             panel_vars_config = grafana_config.get('panel_variables', {})
             
             # Default mapping для основных лейблов
-            default_mapping = panel_vars_config.get('default_mapping', {
-                'job': 'var-job',
-                'instance': 'var-hostname',
-                'env': 'var-env',
-                'compose_service': 'var-service',
-                'container_name': 'var-container',
-                'maxmount': 'var-maxmount',
-                'total': 'var-total',
-                'interval': 'var-interval'
-            })
+            default_mapping = panel_vars_config.get('default_mapping', {})
             
             # Dashboard-specific mapping
             dashboard_specific = panel_vars_config.get('dashboard_specific', {})
             
-            return {
+            result = {
                 'default_mapping': default_mapping,
                 'dashboard_specific': dashboard_specific,
                 'max_values_per_var': panel_variables_max_values_per_var,
                 'max_url_length': panel_variables_max_url_length
             }
+            return result
         except Exception as e:
             logger.warning(f"Ошибка загрузки конфигурации переменных панели: {e}")
             return {
@@ -156,34 +149,63 @@ class GrafanaRenderer:
             
             panel_vars = {}
             max_values = self._panel_variables_config['max_values_per_var']
+            mapping_is_empty = len(mapping) == 0
             
             for label_name, values_set in alert_labels.items():
+                # Если маппинг непустой — используем только явно заданные лейблы
+                if not mapping_is_empty and label_name not in mapping:
+                    logger.debug(f"Лейбл '{label_name}' пропущен: нет в маппинге и фолбэк выключен (mapping задан)")
+                    continue
+                
+                # Определяем имя переменной: по маппингу или (если mapping пустой) фолбэк var-<label>
                 if label_name in mapping:
                     var_name = mapping[label_name]
-                    
-                    # Конвертируем set в отсортированный список
-                    values_list = sorted(list(values_set))
-                    
-                    # Ограничиваем количество значений
-                    if len(values_list) > max_values:
-                        logger.warning(f"Превышено максимальное количество значений для {var_name}: {len(values_list)} > {max_values}, обрезаем")
-                        values_list = values_list[:max_values]
-                    
-                    # Фильтруем пустые и недопустимые значения
-                    filtered_values = []
-                    for value in values_list:
-                        if value and str(value).strip() and len(str(value)) < 1000:  # разумное ограничение длины
-                            filtered_values.append(str(value).strip())
-                    
-                    if filtered_values:
-                        panel_vars[var_name] = filtered_values
-                        logger.debug(f"Добавлена переменная {var_name} с {len(filtered_values)} значениями: {filtered_values[:3]}{'...' if len(filtered_values) > 3 else ''}")
+                else:
+                    # mapping пустой -> фолбэк
+                    safe_label = self._sanitize_var_label(label_name)
+                    var_name = f"var-{safe_label}"
+                    logger.debug(f"Нет маппинга для лейбла '{label_name}', используем фолбэк переменной '{var_name}' (mapping пустой)")
+
+                # Конвертируем set в отсортированный список
+                values_list = sorted(list(values_set))
+                
+                # Ограничиваем количество значений
+                if len(values_list) > max_values:
+                    logger.warning(f"Превышено максимальное количество значений для {var_name}: {len(values_list)} > {max_values}, обрезаем")
+                    values_list = values_list[:max_values]
+                
+                # Фильтруем пустые и недопустимые значения
+                filtered_values = []
+                for value in values_list:
+                    if value and str(value).strip() and len(str(value)) < 1000:  # разумное ограничение длины
+                        filtered_values.append(str(value).strip())
+                
+                if filtered_values:
+                    panel_vars[var_name] = filtered_values
+                    logger.debug(f"Добавлена переменная {var_name} с {len(filtered_values)} значениями: {filtered_values[:3]}{'...' if len(filtered_values) > 3 else ''}")
             
             return panel_vars
             
         except Exception as e:
             logger.error(f"Ошибка генерации переменных панели: {e}")
             return {}
+
+    def _sanitize_var_label(self, label: str) -> str:
+        """
+        Санитизирует имя лейбла для использования в имени переменной Grafana.
+        Разрешаем буквы, цифры, '-', '_'. Остальное заменяем на '_'.
+        """
+        try:
+            # Уберем ведущие/замыкающие пробелы
+            label = str(label).strip()
+            # Заменим запрещенные символы на '_'
+            safe = re.sub(r"[^A-Za-z0-9_-]", "_", label)
+            # Уберем дубликаты '_' подряд
+            safe = re.sub(r"_+", "_", safe)
+            # Не даем имени быть пустым
+            return safe or "label"
+        except Exception:
+            return "label"
     
     def _build_multi_value_params(self, panel_vars: Dict[str, list]) -> str:
         """

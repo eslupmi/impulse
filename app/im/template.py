@@ -110,7 +110,7 @@ update: status **{% if fields.status == 'unknown' %}[unknown](https://docs.impul
 {#-   #}  |  :bell: admins ({%- for a in fields.admins %}@{{ a }}{% if not loop.last %},{% endif %}{% endfor -%})
 {#--#}{%- endif -%}
 {%- elif fields.type == 'telegram' -%}
-update: status <b>{% if fields.status == 'unknown' %}<a href="https://docs.impulse.bot/latest/warnings/StatusUnknown/">unknown</a>{% else %}{{ fields.status }}{% endif %}</b>
+update: status <b>{% if fields.status == 'unknown' %}<a href="https://docs.impulse.bot/latest/warnings/StatusUnknown/">unknown</a>{% elif fields.status == 'firing' %}firing{% else %}{{ fields.status }}{% endif %}</b>
 {#--#}{%- if fields.status == 'unknown' -%}
 {#-   #}  |  🔔 admins ({%- for a in fields.admins %}<a href="tg://user?id={{ a.id }}">{{ a.name }}</a>{% if not loop.last %},{% endif %}{% endfor -%})
 {#--#}{%- endif -%}

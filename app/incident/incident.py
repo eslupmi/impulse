@@ -44,6 +44,7 @@ class Incident:
     link: str = field(default='')
     status_notification_message_id: str = field(default='')  # Message ID for status notification (Telegram only)
     tagging_message_ids: List[str] = field(default_factory=list)  # List of tagging message IDs (Telegram only)
+    skip_next_chain_tag: bool = False  # Suppress first chain notify after special transitions
 
     next_status = {
         'firing': 'unknown',
@@ -204,6 +205,7 @@ class Incident:
         )
         # Load tagging message IDs if available
         incident_.tagging_message_ids = content.get('tagging_message_ids', [])
+        incident_.skip_next_chain_tag = content.get('skip_next_chain_tag', False)
         incident_.set_thread(content.get('ts'), config.application_url)
         return incident_
 
@@ -223,7 +225,8 @@ class Incident:
             "assigned_user": self.assigned_user,
             "assigned_fullname": self.assigned_fullname,
             "version": self.version,
-            "tagging_message_ids": getattr(self, 'tagging_message_ids', [])
+            "tagging_message_ids": getattr(self, 'tagging_message_ids', []),
+            "skip_next_chain_tag": getattr(self, 'skip_next_chain_tag', False)
         }
         with open(f'{incidents_path}/{self.uuid}.yml', 'w') as f:
             yaml.dump(data, f, NoAliasDumper, default_flow_style=False)
@@ -254,6 +257,7 @@ class Incident:
             "link": self.link,
             "ts": self.ts,
             "tagging_message_ids": getattr(self, 'tagging_message_ids', []),
+            "skip_next_chain_tag": getattr(self, 'skip_next_chain_tag', False),
         }
 
     def get_table_data(self, params) -> Dict:

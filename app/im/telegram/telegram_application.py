@@ -1238,6 +1238,8 @@ class TelegramApplication(Application):
             elif status_enabled and incident_status not in ['closed', 'firing', 'resolved']:
                 # Handle other status notifications (unknown, etc.) - только при смене статуса
                 if updated_status:
+                    # In fixed topics, on transition to unknown, remove previous tagging messages
+                    await self._remove_status_notification(incident, thread_identifier)
                     await self._handle_status_notification(incident, thread_identifier, incident_status)
             elif incident_status == 'closed':
                 # Remove status notification when incident is closed
@@ -1267,45 +1269,120 @@ class TelegramApplication(Application):
     async def _handle_status_notification(self, incident, thread_identifier, incident_status):
         """
         Handle status notification - update the first tagging message (user_group notification)
-        For resolved status, we don't need to send additional notifications since the main message is already updated
         """
-        # For resolved status, the main message already shows the status, so we don't need additional notifications
-        if incident_status == 'resolved':
-            logger.debug(f'Incident {incident.uuid} resolved - main message already updated, no additional notification needed')
-            return
         
-        # For firing status, we should tag people instead of showing status update
+        # For firing status, regular status notification is skipped; handled specially on transition
         if incident_status == 'firing':
-            logger.debug(f'Incident {incident.uuid} firing - should tag people instead of status update')
-            # Don't send status notification for firing, let the chain handle tagging
+            logger.debug(f'Incident {incident.uuid} firing - status notification handled on transition')
             return
-            
+
+        # Determine if this is a fixed topic
+        _, fixed_topic_id = self._parse_channel_id(incident.channel_id)
+        is_fixed_topic = fixed_topic_id is not None
+
         text_template = JinjaTemplate(update_status)
         admins = self.get_notification_destinations()
         fields = {'type': self.type, 'status': incident_status, 'admins': admins}
         status_notification = text_template.form_notification(fields)
+
+        # In fixed topics, augment unknown status with group/user tagging derived from chain
+        if is_fixed_topic and incident_status == 'unknown':
+            tag_text = await self._compose_chain_tag_text(incident)
+            if tag_text:
+                status_notification = f"{status_notification}  |  {tag_text}"
         
         # Check if we already have a status notification message ID stored
         status_message_id = getattr(incident, 'status_notification_message_id', None)
         
-        if status_message_id:
-            # Update existing status notification (the first user_group message)
-            await self._update_status_notification(incident.channel_id, thread_identifier, status_message_id, status_notification)
+        if is_fixed_topic:
+            # In fixed topics we replace (edit) one status message
+            if status_message_id:
+                await self._update_status_notification(incident.channel_id, thread_identifier, status_message_id, status_notification)
+            else:
+                message_id = await self.post_thread_reply(incident.channel_id, thread_identifier, status_notification)
+                if message_id:
+                    incident.status_notification_message_id = message_id
+                    incident.dump()
         else:
-            # This shouldn't happen if notify() was called first, but just in case
-            logger.warning(f'No status notification message ID found for incident {incident.uuid}')
+            # In non-fixed topics we always append a new status message (never edit or delete)
             message_id = await self.post_thread_reply(incident.channel_id, thread_identifier, status_notification)
             if message_id:
-                incident.status_notification_message_id = message_id
-                # For non-fixed topics, also add to tagging message IDs list
-                _, fixed_topic_id = self._parse_channel_id(incident.channel_id)
-                is_fixed_topic = fixed_topic_id is not None
-                if not is_fixed_topic:
+                # track as additional tagging message id
+                if not hasattr(incident, 'tagging_message_ids'):
+                    incident.tagging_message_ids = []
+                if message_id not in incident.tagging_message_ids:
+                    incident.tagging_message_ids.append(message_id)
+                # Do not overwrite status_notification_message_id to avoid later edits
+                incident.dump()
+
+    async def _compose_chain_tag_text(self, incident):
+        """Compose tagging text based on the first pending notify step in chain."""
+        try:
+            # Prefer first not-done user_group/user step
+            pending_steps = [s for s in getattr(incident, 'chain', []) if not s.get('done')]
+            target = None
+            for s in pending_steps:
+                if s.get('type') in ('user_group', 'user'):
+                    target = s
+                    break
+            if not target:
+                return None
+
+            destinations = self.get_notification_destinations()
+            if target['type'] == 'user_group':
+                unit = self.user_groups.get(target['identifier'])
+                text_template = JinjaTemplate(notification_user_group)
+                fields = {'type': self.type, 'name': target['identifier'], 'unit': unit, 'admins': destinations}
+                return text_template.form_notification(fields)
+            else:
+                unit = self.users.get(target['identifier'])
+                text_template = JinjaTemplate(notification_user)
+                fields = {'type': self.type, 'name': target['identifier'], 'unit': unit, 'admins': destinations}
+                return text_template.form_notification(fields)
+        except Exception as e:
+            logger.warning(f'Failed to compose chain tag text for incident {incident.uuid}: {e}')
+            return None
+
+    async def post_status_firing_transition(self, incident):
+        """Post or update a combined firing status message with chain tagging on transition to firing."""
+        try:
+            # Base status text with link handled by update_status template
+            text_template = JinjaTemplate(update_status)
+            admins = self.get_notification_destinations()
+            fields = {'type': self.type, 'status': 'firing', 'admins': admins}
+            status_text = text_template.form_notification(fields)
+
+            tag_text = await self._compose_chain_tag_text(incident)
+            if tag_text:
+                message_text = f"{status_text}  |  {tag_text}"
+            else:
+                message_text = status_text
+
+            thread_identifier = incident.thread_id if incident.thread_id else incident.ts
+            _, fixed_topic_id = self._parse_channel_id(incident.channel_id)
+            is_fixed_topic = fixed_topic_id is not None
+
+            if is_fixed_topic:
+                # Replace existing status message if present, otherwise create
+                status_message_id = getattr(incident, 'status_notification_message_id', None)
+                if status_message_id:
+                    await self._update_status_notification(incident.channel_id, thread_identifier, status_message_id, message_text)
+                else:
+                    message_id = await self.post_thread_reply(incident.channel_id, thread_identifier, message_text)
+                    if message_id:
+                        incident.status_notification_message_id = message_id
+                        incident.dump()
+            else:
+                # Append a new message for non-fixed topics
+                message_id = await self.post_thread_reply(incident.channel_id, thread_identifier, message_text)
+                if message_id:
                     if not hasattr(incident, 'tagging_message_ids'):
                         incident.tagging_message_ids = []
                     if message_id not in incident.tagging_message_ids:
                         incident.tagging_message_ids.append(message_id)
-                incident.dump()
+                    incident.dump()
+        except Exception as e:
+            logger.error(f'Failed to post firing transition message for incident {incident.uuid}: {e}')
 
     async def _update_status_notification(self, channel_id, thread_identifier, message_id, text):
         """
@@ -1491,6 +1568,16 @@ class TelegramApplication(Application):
         # For Telegram we use thread_id (topic_id/message_id) for sending message
         thread_identifier = incident.thread_id if incident.thread_id else incident.ts
         
+        # Suppress first chain tag after special firing transition in non-fixed topics
+        if incident.status == 'firing':
+            _, fixed_topic_id = self._parse_channel_id(incident.channel_id)
+            is_fixed_topic = fixed_topic_id is not None
+            if not is_fixed_topic and getattr(incident, 'skip_next_chain_tag', False):
+                logger.debug(f"Incident {incident.uuid}: suppressing first chain tag for non-fixed firing transition")
+                incident.skip_next_chain_tag = False
+                incident.dump()
+                return None
+
         # Send as reply to main alert message
         response_code = await self.post_thread_reply(incident.channel_id, thread_identifier, message)
         
