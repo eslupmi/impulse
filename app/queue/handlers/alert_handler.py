@@ -119,6 +119,12 @@ class AlertHandler(BaseHandler):
                 incident_.chain_enabled, incident_.status_enabled
             )
 
+        # Special notification: transition from resolved/unknown to firing
+        if prev_status in ['resolved', 'unknown'] and incident_.status == 'firing':
+            # Best-effort: not all applications may implement this method
+            if hasattr(self.app, 'post_status_firing_transition'):
+                await self.app.post_status_firing_transition(incident_)
+
         if prev_status == 'firing' and incident_.status == 'firing':
             # Experimental !
             if is_new_firing_alerts_added and chain_recreate:
