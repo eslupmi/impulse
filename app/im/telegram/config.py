@@ -32,6 +32,12 @@ buttons = {
             'text': '🔇 Mute',
             'url': None  # Will be set dynamically
         }
+    },
+    'panel': {
+        'screenshot': {
+            'text': '📊 Show',
+            'callback_data': 'panel_screenshot'
+        }
     }
 }
 

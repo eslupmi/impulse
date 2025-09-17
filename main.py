@@ -6,6 +6,7 @@ from datetime import datetime
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse
 from fastapi.templating import Jinja2Templates
 
 from app.im.channels import check_channels
@@ -19,6 +20,11 @@ from app.ui.table_config import get_all_ui_config
 from app.ui.websocket import incident_ws
 from app.webhook import generate_webhooks
 from config import settings, application, ui_config
+from config import jwt_auth_enabled, jwt_auth_kid, jwt_auth_keys_dir
+from pathlib import Path
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.backends import default_backend
+from app.logging import logger
 
 
 @asynccontextmanager
@@ -96,6 +102,44 @@ if ui_config:
     async def get_index(request: Request):
         """Serve the main page"""
         return templates.TemplateResponse("index.html", {"request": request})
+
+    if jwt_auth_enabled:
+        @app.get("/.well-known/jwks.json")
+        async def get_jwks():
+            """Отдает JWKS с публичным ключом RS256."""
+            try:
+                # Читаем манифест ключей, отдаем все публичные ключи (для grace/ротации)
+                import json, base64
+                manifest_path = Path(jwt_auth_keys_dir) / 'keys.json'
+                keys = []
+                if manifest_path.exists():
+                    manifest = json.loads(manifest_path.read_text())
+                    for entry in manifest.get('keys', []):
+                        kid = entry.get('kid')
+                        pub_path = Path(jwt_auth_keys_dir) / f"{kid}.public.pem"
+                        if not pub_path.exists():
+                            continue
+                        public_pem = pub_path.read_bytes()
+                        from cryptography.hazmat.primitives.asymmetric import rsa
+                        public_key = serialization.load_pem_public_key(public_pem, backend=default_backend())
+                        if not isinstance(public_key, rsa.RSAPublicKey):
+                            continue
+                        numbers = public_key.public_numbers()
+                        def b64url_uint(val: int) -> str:
+                            raw = val.to_bytes((val.bit_length() + 7) // 8, 'big')
+                            return base64.urlsafe_b64encode(raw).rstrip(b'=').decode('ascii')
+                        keys.append({
+                            "kty": "RSA",
+                            "kid": kid,
+                            "use": "sig",
+                            "alg": "RS256",
+                            "n": b64url_uint(numbers.n),
+                            "e": b64url_uint(numbers.e),
+                        })
+                return JSONResponse({"keys": keys})
+            except Exception as e:
+                logger.error(f"JWKS error: {e}")
+                return JSONResponse({"keys": []})
 
 
 @app.get("/queue")
