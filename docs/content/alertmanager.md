@@ -6,7 +6,7 @@ To ensure IMPulse works correctly, you need to configure Alertmanager.
 
 1. Set correct repeat_interval
 
-    Set the sum of `repeat_interval` and `group_interval` options less than [`incident.timeouts.firing`](https://github.com/DiTsi/impulse/blob/develop/examples/impulse.slack.minimal.yml) (default `6h`):
+    Set the sum of `repeat_interval` and `group_interval` options less than [`incident.timeouts.firing`](https://github.com/DiTsi/impulse/blob/develop/examples/impulse.slack.yml) (default `6h`):
     ```yaml
     route:
       repeat_interval: 354m

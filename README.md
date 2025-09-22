@@ -28,7 +28,7 @@ Visit [docs.impulse.bot](https://docs.impulse.bot) for the full documentation.
 3. Get docker-compose.yml and config
     ```bash
     wget -O docker-compose.yml https://raw.githubusercontent.com/eslupmi/impulse/develop/examples/docker-compose.yml
-    wget -O config/impulse.yml https://raw.githubusercontent.com/eslupmi/impulse/develop/examples/impulse.slack.minimal.yml
+    wget -O config/impulse.yml https://raw.githubusercontent.com/eslupmi/impulse/develop/examples/impulse.slack.yml
     ```
 
 4. Modify `config/impulse.yml` with actual data
