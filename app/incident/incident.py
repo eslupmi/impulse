@@ -24,7 +24,7 @@ class IncidentConfig:
 
 @dataclass
 class Incident:
-    last_state: Dict
+    payload: Dict
     status: str
     channel_id: str
     config: IncidentConfig
@@ -50,7 +50,7 @@ class Incident:
     }
 
     def __post_init__(self):
-        self.uuid = gen_uuid(self.last_state.get('groupLabels'))
+        self.uuid = gen_uuid(self.payload.get('groupLabels'))
         if not self.created:
             self.created = datetime.now(timezone.utc)
 
@@ -155,7 +155,7 @@ class Incident:
         with open(dump_file, 'r') as f:
             content = yaml.load(f, Loader=yaml.CLoader)
         incident_ = cls(
-            last_state=content.get('last_state'),
+            payload=content.get('payload'),
             status=content.get('status'),
             channel_id=content.get('channel_id'),
             config=config,
@@ -178,7 +178,7 @@ class Incident:
             "chain_enabled": self.chain_enabled,
             "chain": self.chain,
             "channel_id": self.channel_id,
-            "last_state": self.last_state,
+            "payload": self.payload,
             "status_enabled": self.status_enabled,
             "status_update_datetime": self.status_update_datetime,
             "status": self.status,
@@ -208,7 +208,7 @@ class Incident:
             "chain": self.chain,
             "channel_id": self.channel_id,
             "channel_name": ChannelManager().get_channel_name_by_id(self.channel_id),
-            "last_state": self.last_state,
+            "payload": self.payload,
             "status_enabled": self.status_enabled,
             "status_update_datetime": self.status_update_datetime,
             "status": self.status,
@@ -222,11 +222,11 @@ class Incident:
         }
 
     def get_table_data(self, params) -> Dict:
-        alerts = self.last_state.get('alerts', [])
+        alerts = self.payload.get('alerts', [])
         if len(alerts) > 1:
-            group_labels = self.last_state.get('groupLabels', {})
-            common_labels = self.last_state.get('commonLabels', {})
-            common_annotations = self.last_state.get('commonAnnotations', {})
+            group_labels = self.payload.get('groupLabels', {})
+            common_labels = self.payload.get('commonLabels', {})
+            common_annotations = self.payload.get('commonAnnotations', {})
         else:
             group_labels = {}
             common_labels = {}
@@ -234,7 +234,7 @@ class Incident:
         data = {
             'uuid': str(self.uuid),
             'indicator': self.status,
-            '_alerts_count': len(self.last_state.get('alerts', [])),
+            '_alerts_count': len(self.payload.get('alerts', [])),
             '_responsive_data': {
                 'group_labels': group_labels,
                 'common_labels': filter_dict_keys(common_labels, group_labels),
@@ -262,7 +262,7 @@ class Incident:
                 ]
             }
         }
-        data_object = {'incident': self, 'payload': self.last_state}
+        data_object = {'incident': self, 'payload': self.payload}
         for key, value in params.items():
             param = get_attr_by_key_chain(data_object, None, *value.split('.'))
             data[key] = normalize_param(param)
@@ -283,9 +283,9 @@ class Incident:
 
     def update_state(self, alert_state: Dict) -> tuple[bool, bool]:
         update_status = self.update_status(alert_state['status'])
-        state_updated = self.last_state != alert_state
+        state_updated = self.payload != alert_state
         if state_updated:
-            self.last_state = alert_state
+            self.payload = alert_state
             self.dump()
         return update_status, state_updated
 
@@ -302,12 +302,12 @@ class Incident:
         self.assigned_fullname = fullname
 
     def is_new_firing_alerts_added(self, alert_state: Dict) -> bool:
-        old_alerts_labels = self._get_firing_alerts_labels(self.last_state)
+        old_alerts_labels = self._get_firing_alerts_labels(self.payload)
         new_alerts_labels = self._get_firing_alerts_labels(alert_state)
         return any(label not in old_alerts_labels for label in new_alerts_labels)
 
     def is_some_firing_alerts_removed(self, alert_state: Dict) -> bool:
-        old_alerts_labels = self._get_firing_alerts_labels(self.last_state)
+        old_alerts_labels = self._get_firing_alerts_labels(self.payload)
         new_alerts_labels = self._get_firing_alerts_labels(alert_state)
         return any(label not in new_alerts_labels for label in old_alerts_labels)
 

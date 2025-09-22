@@ -15,7 +15,7 @@ class IncidentMigrator:
     
     # Define migration path - each version knows how to migrate to the next
     MIGRATION_CHAIN = {
-        'v0.3': 'v0.4',
+        'v0.4': 'v3.0.0',
     }
     
     def __init__(self):
@@ -23,7 +23,7 @@ class IncidentMigrator:
         # Add version migrations here as needed
         # Example: 'v0.4_to_v0.5': self._migrate_v0_4_to_v0_5,
         self._migration_methods = {
-            'v0.3_to_v0.4': self._migrate_v0_3_to_v0_4,
+            'v0.4_to_v3.0.0': self._migrate_v0_4_to_v3_0_0,
         }
     
     def migrate_file(self, file_path: str, incident_data: Dict, current_version: str, target_version: str):
@@ -114,9 +114,9 @@ class IncidentMigrator:
         return migrated_data
     
     # Migration methods
-    # Example:
-    def _migrate_v0_3_to_v0_4(self, data: Dict) -> Dict:
-        """Migration from v0.3 to v0.4."""
+    def _migrate_v0_4_to_v3_0_0(self, data: Dict) -> Dict:
         migrated = data.copy()
-        # Add some migration logic here applying it to the `migrated` variable
+        migrated['payload'] = migrated.pop('last_state')
+
+        migrated['version'] = 'v3.0.0'
         return migrated

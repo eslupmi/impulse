@@ -21,7 +21,7 @@ provider_service_account_file = os.getenv('GOOGLE_SERVICE_ACCOUNT_FILE', default
 cors_allowed_origins = os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:5000').split(',')
 
 incidents_path = data_path + '/incidents'
-INCIDENT_ACTUAL_VERSION = 'v0.4'
+INCIDENT_ACTUAL_VERSION = 'v3.0.0'
 
 with open(f'{config_path}/impulse.yml', 'r') as file:
     try:

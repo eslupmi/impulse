@@ -141,9 +141,9 @@ class SlackApplication(Application):
                     incident_.status_enabled = True
         incident_.dump()
 
-        body = self.body_template.form_message(incident_.last_state, incident_)
-        header = self.header_template.form_message(incident_.last_state, incident_)
-        status_icons = self.status_icons_template.form_message(incident_.last_state, incident_)
+        body = self.body_template.form_message(incident_.payload, incident_)
+        header = self.header_template.form_message(incident_.payload, incident_)
+        status_icons = self.status_icons_template.form_message(incident_.payload, incident_)
         payload = self.update_thread_payload(incident_.channel_id, incident_.ts, body, header, status_icons,
                                              incident_.status, incident_.chain_enabled, incident_.status_enabled)
         modified_message = reformat_message(original_message, payload['text'], payload['attachments'], incident_.status,
