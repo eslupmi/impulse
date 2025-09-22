@@ -147,9 +147,9 @@ class MattermostApplication(Application):
                 logger.info(f'Incident {incident_.uuid} -> button STATUS pressed (enabled)')
                 incident_.status_enabled = True
         incident_.dump()
-        status_icons = self.status_icons_template.form_message(incident_.last_state, incident_)
-        header = self.header_template.form_message(incident_.last_state, incident_)
-        message = self.body_template.form_message(incident_.last_state, incident_)
+        status_icons = self.status_icons_template.form_message(incident_.payload, incident_)
+        header = self.header_template.form_message(incident_.payload, incident_)
+        message = self.body_template.form_message(incident_.payload, incident_)
         payload = mattermost_get_button_update_payload(
             message,
             header,

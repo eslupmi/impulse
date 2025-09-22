@@ -678,7 +678,7 @@
 - **description:** data source variable (e.g., `incident.status`, `payload.commonLabels.alertname`)
 - **type:** string
 
-> Two special keywords are used: `incident` and `payload`. `incident` refers to the incident object. You can see your incident objects at `http://localhost:5000/incidents`. `payload` is the last message sent by Alertmanager for this incident (`payload` corresponds to `incident.last_state`)
+> Two special keywords are used: `incident` and `payload`. `incident` refers to the incident object. You can see your incident objects at `http://localhost:5000/incidents`. `payload` is the last message sent by Alertmanager for this incident (`payload` corresponds to `incident.payload`)
 
 #### ui.columns[].type
 

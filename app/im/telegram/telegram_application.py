@@ -134,9 +134,9 @@ class TelegramApplication(Application):
                 logger.info(f'Incident {incident_.uuid} -> button STATUS pressed (enabled)')
                 incident_.status_enabled = True
         incident_.dump()
-        body = self.body_template.form_message(incident_.last_state, incident_)
-        header = self.header_template.form_message(incident_.last_state, incident_)
-        status_icons = self.status_icons_template.form_message(incident_.last_state, incident_)
+        body = self.body_template.form_message(incident_.payload, incident_)
+        header = self.header_template.form_message(incident_.payload, incident_)
+        status_icons = self.status_icons_template.form_message(incident_.payload, incident_)
         await self.update_thread(
             incident_.channel_id, incident_.ts, incident_.status, body, header, status_icons,
             incident_.chain_enabled, incident_.status_enabled

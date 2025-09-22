@@ -46,7 +46,7 @@ class AlertHandler(BaseHandler):
             application_team=self.app.team
         )
         incident_ = Incident(
-            last_state=alert_state,
+            payload=alert_state,
             status=status,
             channel_id=channel['id'],
             config=config,
@@ -121,7 +121,7 @@ class AlertHandler(BaseHandler):
         Notify about new firing alerts added to the incident
         """
         header = self.app.format_text_italic(
-            self.app.header_template.form_message(incident_.last_state, incident_)
+            self.app.header_template.form_message(incident_.payload, incident_)
         )
         fields = {
             'type': self.app.type,
