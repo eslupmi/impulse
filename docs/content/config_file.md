@@ -450,17 +450,6 @@
     - `telegram` - Telegram messenger
     - `none` - disable messenger integration
 
-## experimental
-
-- **description:** experimental options (*WE HIGHLY RECOMMEND DO NOT USE IT*)
-- **type:** dict
-
-### experimental.recreate_chain
-
-- **description:** enables the chain and restarts it when new alerts are added to an incident
-- **type:** bool
-- **default value:** False
-
 ## incident
 
 - **description:** incidents behavior options

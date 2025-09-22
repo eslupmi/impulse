@@ -39,7 +39,6 @@ with open(f'{config_path}/impulse.yml', 'r') as file:
         incident['notifications']['new_firing'] = settings.get('incident', {}).get('notifications', {}).get('new_firing', True)
         incident['notifications']['partial_resolved'] = settings.get('incident', {}).get('notifications', {}).get('partial_resolved', False)
 
-        experimental = settings.get('experimental', {})
         application = settings.get('application')
         ui_config = settings.get('ui', {})
     except yaml.YAMLError as e:

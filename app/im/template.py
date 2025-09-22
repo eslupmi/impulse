@@ -119,11 +119,11 @@ update: status <b>{% if fields.status == 'unknown' %}<a href="https://docs.impul
 
 update_alerts = """
 {%- if fields.type == 'slack' -%}
-update: {% if fields.firing %}new alerts *firing*{% if fields.recreate %}  |  restart chain{% endif %}{% else %}some alerts *resolved*{% endif %}
+update: {% if fields.firing %}new alerts *firing*{% else %}some alerts *resolved*{% endif %}
 {%- elif fields.type == 'mattermost' -%}
-update: {% if fields.firing %}new alerts **firing**{% if fields.recreate %}  |  restart chain{% endif %}{% else %}some alerts **resolved**{% endif %}
+update: {% if fields.firing %}new alerts **firing**{% else %}some alerts **resolved**{% endif %}
 {%- elif fields.type == 'telegram' -%}
-update: {% if fields.firing %}new alerts <b>firing</b>{% if fields.recreate %}  |  restart chain{% endif %}{% else %}some alerts <b>resolved</b>{% endif %}
+update: {% if fields.firing %}new alerts <b>firing</b>{% else %}some alerts <b>resolved</b>{% endif %}
 {%- endif -%}
 """
 

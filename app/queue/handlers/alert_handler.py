@@ -5,7 +5,7 @@ from app.incident.incident import IncidentConfig, Incident
 from app.logging import logger
 from app.queue.handlers.base_handler import BaseHandler
 from app.time import unix_sleep_to_timedelta
-from config import INCIDENT_ACTUAL_VERSION, incident, experimental
+from config import INCIDENT_ACTUAL_VERSION, incident
 
 
 class AlertHandler(BaseHandler):
@@ -87,36 +87,23 @@ class AlertHandler(BaseHandler):
         await self.queue.recreate(alert_state.get('status'), uuid_, incident_.get_chain())
 
         # Check new alerts firing or old alerts resolved
-        chain_recreate = experimental.get('recreate_chain', False)
-        if incident['notifications']['new_firing'] or chain_recreate:
+        if incident['notifications']['new_firing']:
             is_new_firing_alerts_added = incident_.is_new_firing_alerts_added(alert_state)
         if incident['notifications']['partial_resolved']:
             is_some_firing_alerts_removed = incident_.is_some_firing_alerts_removed(alert_state)
         is_status_updated, is_state_updated = incident_.update_state(alert_state)
         
-        # Experimental !
-        if prev_status == 'firing' and chain_recreate and is_new_firing_alerts_added:
-            incident_.chain_enabled = True
-
         if is_state_updated or is_status_updated:
             await self.app.update(
                 uuid_, incident_, alert_state['status'], alert_state, is_status_updated,
                 incident_.chain_enabled, incident_.status_enabled
             )
 
-        if prev_status == 'firing' and incident_.status == 'firing':
-            # Experimental !
-            if is_new_firing_alerts_added and chain_recreate:
-                await self._new_alerts_recreate_chain(alert_state, incident_, uuid_)
-            # Some alerts status change notification
-            if (is_new_firing_alerts_added or is_some_firing_alerts_removed) and incident_.status_enabled:
-                await self._notify_new_fire_alert(
-                    incident_, is_new_firing_alerts_added, is_some_firing_alerts_removed,
-                    uuid_, chain_recreate
-                )
+        if prev_status == 'firing' and incident_.status == 'firing' and (is_new_firing_alerts_added or is_some_firing_alerts_removed) and incident_.status_enabled:
+            await self._notify_new_fire_alert(incident_, is_new_firing_alerts_added, is_some_firing_alerts_removed, uuid_)
         await self.queue.update(uuid_, incident_.status_update_datetime, incident_.status)
 
-    async def _notify_new_fire_alert(self, incident_, new_alerts_f, new_alerts_r, uuid_, experimental_recreate):
+    async def _notify_new_fire_alert(self, incident_, new_alerts_f, new_alerts_r, uuid_):
         """
         Notify about new firing alerts added to the incident
         """
@@ -126,8 +113,7 @@ class AlertHandler(BaseHandler):
         fields = {
             'type': self.app.type,
             'firing': new_alerts_f,
-            'resolved': new_alerts_r,
-            'recreate': experimental_recreate
+            'resolved': new_alerts_r
         }
         text = JinjaTemplate(update_alerts).form_notification(fields)
         if self.app.type == 'telegram':
@@ -139,18 +125,6 @@ class AlertHandler(BaseHandler):
             logger.info(f"Incident {uuid_} updated with new alerts firing")
         elif new_alerts_r:
             logger.info(f"Incident {uuid_} updated with some alerts resolved")
-
-    async def _new_alerts_recreate_chain(self, alert_state, incident_, uuid_):
-        """
-        EXPERIMENTAL: release incident and recreate chain by new firing alerts
-        """
-        await self.queue.delete_by_id(incident_.uuid, delete_steps=True, delete_status=False)
-        _, chain_name = self.route.get_route(alert_state)
-        incident_.chain = []
-        incident_.generate_chain(self.app.chains, chain_name)
-        await self.queue.recreate(incident_.status, incident_.uuid, incident_.chain)
-        incident_.dump()
-        logger.info(f"Incident {uuid_} chain recreated")
 
     async def _create_thread(self, incident_, alert_state):
         body = self.app.body_template.form_message(alert_state, incident_)
