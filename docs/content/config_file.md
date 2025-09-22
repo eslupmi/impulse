@@ -16,10 +16,7 @@
 
 > The only configuration file for IMPulse is `impulse.yml`. To change default `impulse.yml` path, see [Environment Variables](envs.md).
 
-> [Here](https://github.com/eslupmi/impulse/tree/develop/examples) you can find examples of both minimal and advanced configuration files for all the messengers we support.
-
-> - **minimal** — includes only the required fields to get started;
-> - **advanced** — includes additional options with comments, serving as a reference example;
+> [Here](https://github.com/eslupmi/impulse/tree/develop/examples) you can find complex example for `impulse.yml`.
 
 > Fields marked with "*" are mandatory within their parent section, but only if that parent section is present in the configuration.
 
@@ -32,7 +29,7 @@
 
 ### application.address * (Mattermost)
 
-- **description:** your Mattermost server address
+- **description:** your messenger server address
 - **type:** string
 
 ### application.admin_users *
@@ -69,10 +66,10 @@
 
 ### application.chains
 
-- **description:** defines notification order. See [details](#applicationchains)
+- **description:** escallation chains
 - **type:** dict
 
-> Chains define how to notify people about incidents. Chains are used in the [route](#route) section.
+> Chains specify notification sequences for incident escalation. They are referenced in the [route](#route) section to determine who gets notified and in what order.
 
 > Each chain contains a list of **steps**. There are 5 step types. 3 of them are notifications:
 
@@ -350,7 +347,7 @@
 
 ### application.impulse_address * (Mattermost, Telegram)
 
-- **description:** URL for Mattermost / Telegram button callbacks
+- **description:** IMPulse address for button callbacks. Telegram supported only HTTPS.
 - **type:** string
 
 ### application.users *
@@ -358,30 +355,30 @@
 - **description:** users declaration. Defines users used in [chains](#applicationchains) for direct notifications.
 - **type:** dict
 
-> See instructions for getting user `id` for Slack ([here](https://www.workast.com/help/article/how-to-find-a-slack-user-id/)), Mattermost ([here](https://docs.mattermost.com/configure/user-management-configuration-settings.html#identify-a-user-s-id)), Telegram ([here](telegram.md#configure-group)).
+> See instructions for getting user `id` for Slack ([here](https://www.workast.com/help/article/how-to-find-a-slack-user-id/)), Mattermost ([here](https://docs.mattermost.com/administration-guide/configure/user-management-configuration-settings.html#identify-a-user-s-id)), Telegram ([here](telegram.md#configure-group)).
 
 > **Example**
 
 > === "Slack"
-> ```yaml
-> application:
->   users:
->     Dmitry: {id: U73MD1YLR4M}
-> ```
+>     ```yaml
+>     application:
+>       users:
+>         Dmitry: {id: U73MD1YLR4M}
+>     ```
 
 > === "Mattermost"
-> ```yaml
-> application:
->   users:
->     Dmitry: {id: ic8pft3ac7rjrd9eopxp4kc7qy}
-> ```
+>     ```yaml
+>     application:
+>       users:
+>         Dmitry: {id: ic8pft3ac7rjrd9eopxp4kc7qy}
+>     ```
 
 > === "Telegram"
-> ```yaml
-> application:
->   users:
->     Dmitry: {id: 482913726}
-> ```
+>     ```yaml
+>     application:
+>       users:
+>         Dmitry: {id: 482913726}
+>     ```
 
 ### application.user_groups
 
@@ -398,7 +395,7 @@
 
 ### application.team * (Mattermost)
 
-- **description:** Mattermost team name
+- **description:** team name
 - **type:** string
 
 ### application.template_files
