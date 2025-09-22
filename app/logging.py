@@ -1,6 +1,5 @@
 import logging
-
-from config import log_level
+import os
 
 
 class CustomFormatter(logging.Formatter):
@@ -39,10 +38,10 @@ def configure_uvicorn_logging():
     """Configure uvicorn and FastAPI loggers to use our custom formatter and appropriate levels"""
     uvicorn_access_logger = logging.getLogger("uvicorn.access")
     uvicorn_access_logger.setLevel(logging.WARNING)
-    
+
     uvicorn_logger = logging.getLogger("uvicorn")
     uvicorn_logger.setLevel(logging.WARNING)
-    
+
     for logger_name in ["uvicorn", "uvicorn.access", "uvicorn.error"]:
         logger_obj = logging.getLogger(logger_name)
         logger_obj.handlers.clear()
@@ -52,5 +51,13 @@ def configure_uvicorn_logging():
         logger_obj.propagate = False
 
 
-log_level = getattr(logging, log_level.upper(), logging.INFO)
+try:
+    from app.config.environment import get_environment_config
+    env_config = get_environment_config()
+    log_level = getattr(logging, env_config.log_level, logging.INFO)
+except ImportError:
+    # Fallback for cases where the config system isn't available yet
+    log_level = os.getenv('LOG_LEVEL', default='INFO')
+    log_level = getattr(logging, log_level.upper(), logging.INFO)
+
 logger = create_logger('main_logger', log_level)

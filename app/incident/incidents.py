@@ -7,7 +7,7 @@ from app.incident.incident import Incident, IncidentConfig
 from app.incident.migrator import IncidentMigrator
 from app.logging import logger
 from app.ui.websocket import incident_ws
-from config import incidents_path, INCIDENT_ACTUAL_VERSION
+from app.config.config import get_config
 
 
 class Incidents:
@@ -42,10 +42,11 @@ class Incidents:
         self.by_uuid[incident.uuid] = incident
 
     def del_by_uuid(self, uuid_: str):
+        config = get_config()
         incident = self.by_uuid.pop(uuid_, None)
         if incident:
             try:
-                os.remove(f'{incidents_path}/{uuid_}.yml')
+                os.remove(f'{config.incidents_path}/{uuid_}.yml')
                 logger.info(f'Incident {uuid_} closed. Link: {incident.link}')
             except FileNotFoundError:
                 logger.error(f'Failed to delete incident file for uuid: {uuid_}. File not found.')
@@ -69,21 +70,23 @@ class Incidents:
 
     @classmethod
     def create_or_load(cls, application_type, application_url, application_team):
-        if not os.path.exists(incidents_path):
+        config = get_config()
+        # Ensure the incidents directory exists or create it
+        if not os.path.exists(config.incidents_path):
             logger.info('Creating incidents directory')
-            os.makedirs(incidents_path)
+            os.makedirs(config.incidents_path)
         logger.info('Loading existing incidents')
 
         incidents = cls([])
         migrator = IncidentMigrator()
 
-        for path, directories, files in os.walk(incidents_path):
+        for path, directories, files in os.walk(config.incidents_path):
             for filename in files:
-                file_path = f'{incidents_path}/{filename}'
-                
+                file_path = f'{config.incidents_path}/{filename}'
+
                 cls._migrate_file_if_needed(migrator, file_path)
-                
-                config = IncidentConfig(
+
+                incident_config = IncidentConfig(
                     application_type=application_type,
                     application_url=application_url,
                     application_team=application_team
@@ -91,8 +94,10 @@ class Incidents:
 
                 incident_ = Incident.load(
                     dump_file=file_path,
-                    config=config
+                    incident_config=incident_config
                 )
+                if incident_.version != config.INCIDENT_ACTUAL_VERSION:
+                    cls.update_incident(incident_)
                 incidents.add(incident_)
 
         return incidents
@@ -101,19 +106,20 @@ class Incidents:
     def _migrate_file_if_needed(migrator: IncidentMigrator, file_path: str):
         """
         Check if a file needs migration and migrate it if necessary.
-        
+
         Args:
             migrator: The IncidentMigrator instance
             file_path: Path to the incident file
         """
+        config = get_config()
         try:
             with open(file_path, 'r') as f:
                 content = yaml.load(f, Loader=yaml.CLoader)
                 current_version = content.get('version', 'v0.4')
-                
-            if current_version != INCIDENT_ACTUAL_VERSION:
-                migrator.migrate_file(file_path, content, current_version, INCIDENT_ACTUAL_VERSION)
-                
+
+            if current_version != config.INCIDENT_ACTUAL_VERSION:
+                migrator.migrate_file(file_path, content, current_version, config.INCIDENT_ACTUAL_VERSION)
+
         except Exception as e:
             logger.error(f'Failed to check/migrate file {file_path}: {str(e)}')
             raise

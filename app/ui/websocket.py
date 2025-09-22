@@ -2,8 +2,8 @@ import asyncio
 import json
 from typing import Set
 from fastapi import WebSocket
-from config import ui_config
 from app.logging import logger
+from app.config.config import get_config
 
 
 class AsyncIncidentWS:
@@ -11,7 +11,7 @@ class AsyncIncidentWS:
     
     def __init__(self):
         self.connections: Set[WebSocket] = set()
-        self.table_config = ui_config
+        self.table_config = get_config().ui_config
 
     async def connect(self, websocket: WebSocket):
         """Accept a new WebSocket connection"""
@@ -79,12 +79,12 @@ class AsyncIncidentWS:
     def _get_values(self):
         """Get values mapping for table configuration"""
         values_map = {}
-        for field in self.table_config.get('columns', []):
-            if field.get('type') == 'link':
-                values_map[field['name']] = field['value']
-                values_map[f'{field["name"]}Url'] = field['url']
+        for field in self.table_config.columns:
+            if field.type == 'link':
+                values_map[field.name] = field.value
+                values_map[f'{field.name}Url'] = field.url
             else:
-                values_map[field['name']] = field['value']
+                values_map[field.name] = field.value
         return values_map
 
 

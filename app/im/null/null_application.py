@@ -2,6 +2,7 @@ import uuid
 from fastapi.responses import JSONResponse
 
 from app.im.application import Application
+from app.config.validation import NullApplicationConfig
 
 
 class NullApplication(Application):
@@ -11,18 +12,7 @@ class NullApplication(Application):
     """
 
     def __init__(self, app_config, channels, default_channel):
-        minimal_config = {
-            'type': 'none',
-            'users': {},
-            'admin_users': [],
-            'user_groups': {},
-            'chains': {},
-            'template_files': {}
-        }
-        
-        minimal_config.update(app_config)
-        
-        super().__init__(minimal_config, channels, default_channel)
+        super().__init__(app_config, channels, default_channel)
 
     def generate_template(self):
         """Override template generation to avoid requiring template files"""
