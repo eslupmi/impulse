@@ -363,25 +363,25 @@
 > **Example**
 
 > === "Slack"
-> ```yaml
-> application:
->   users:
->     Dmitry: {id: U73MD1YLR4M}
-> ```
+>     ```yaml
+>     application:
+>       users:
+>         Dmitry: {id: U73MD1YLR4M}
+>     ```
 
 > === "Mattermost"
-> ```yaml
-> application:
->   users:
->     Dmitry: {id: ic8pft3ac7rjrd9eopxp4kc7qy}
-> ```
+>     ```yaml
+>     application:
+>       users:
+>         Dmitry: {id: ic8pft3ac7rjrd9eopxp4kc7qy}
+>     ```
 
 > === "Telegram"
-> ```yaml
-> application:
->   users:
->     Dmitry: {id: 482913726}
-> ```
+>     ```yaml
+>     application:
+>       users:
+>         Dmitry: {id: 482913726}
+>     ```
 
 ### application.user_groups
 
