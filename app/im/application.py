@@ -101,7 +101,7 @@ class Application(ABC):
             incident_obj: The incident object
             user_id: The user ID that was assigned
         """
-        if not incident.get('notifications', {}).get('assignment', True) or not user_id:
+        if not incident['notifications']['assignment'] or not user_id:
             return
 
         try:
@@ -129,7 +129,7 @@ class Application(ABC):
         Args:
             incident_obj: The incident object
         """
-        if not incident.get('notifications', {}).get('assignment', True):
+        if not incident['notifications']['assignment']:
             return
 
         try:

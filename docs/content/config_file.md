@@ -466,18 +466,6 @@
 - **description:** incidents behavior options
 - **type:** dict
 
-### incident.alerts_firing_notifications
-
-- **description:** notification about new firing instances
-- **type:** bool
-- **default value:** False
-
-### incident.alerts_resolved_notifications
-
-- **description:** nofitication about old resolved instances
-- **type:** bool
-- **default value:** False
-
 ### incident.notifications
 
 - **description:** incident notifications settings
@@ -488,6 +476,18 @@
 - **description:** enable/disable notifications about incident assignment changes
 - **type:** bool
 - **default value:** True
+
+#### incident.notifications.new_firing
+
+- **description:** notification about new firing instances
+- **type:** bool
+- **default value:** True
+
+#### incident.notifications.partial_resolved
+
+- **description:** nofitication about some resolved instances
+- **type:** bool
+- **default value:** False
 
 ### incident.timeouts
 

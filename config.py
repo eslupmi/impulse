@@ -28,14 +28,16 @@ with open(f'{config_path}/impulse.yml', 'r') as file:
         settings = yaml.safe_load(file)
 
         incident = dict()
-        incident['alerts_firing_notifications'] = settings.get('incident', {}).get('alerts_firing_notifications', False)
-        incident['alerts_resolved_notifications'] = settings.get('incident', {}).get('alerts_resolved_notifications', False)
+        
         incident['timeouts'] = dict()
         incident['timeouts']['firing'] = settings.get('incident', {}).get('timeouts', {}).get('firing', '6h')
         incident['timeouts']['unknown'] = settings.get('incident', {}).get('timeouts', {}).get('unknown', '6h')
         incident['timeouts']['resolved'] = settings.get('incident', {}).get('timeouts', {}).get('resolved', '12h')
+
         incident['notifications'] = dict()
         incident['notifications']['assignment'] = settings.get('incident', {}).get('notifications', {}).get('assignment', True)
+        incident['notifications']['new_firing'] = settings.get('incident', {}).get('notifications', {}).get('new_firing', True)
+        incident['notifications']['partial_resolved'] = settings.get('incident', {}).get('notifications', {}).get('partial_resolved', False)
 
         experimental = settings.get('experimental', {})
         application = settings.get('application')
