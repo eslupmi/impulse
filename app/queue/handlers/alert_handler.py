@@ -88,9 +88,9 @@ class AlertHandler(BaseHandler):
 
         # Check new alerts firing or old alerts resolved
         chain_recreate = experimental.get('recreate_chain', False)
-        if incident.get('alerts_firing_notifications') or chain_recreate:
+        if incident['notifications']['new_firing'] or chain_recreate:
             is_new_firing_alerts_added = incident_.is_new_firing_alerts_added(alert_state)
-        if incident.get('alerts_resolved_notifications'):
+        if incident['notifications']['partial_resolved']:
             is_some_firing_alerts_removed = incident_.is_some_firing_alerts_removed(alert_state)
         is_status_updated, is_state_updated = incident_.update_state(alert_state)
         

@@ -1,5 +1,14 @@
 # Changelog
 
+## v3.0.0
+Upgrade instructions:
+- Move `incident.alerts_firing_notifications` to `incident.notifications.new_firing` option in **impulse.yml**
+- Move `incident.alerts_resolved_notifications` to `incident.notifications.partial_resolved` option in **impulse.yml**
+
+Changes:
+- `last_state` incident field renamed to `payload`
+- `incident.notifications.new_firing` set to `True` by default
+
 ## v2.8.0
 Changes:
 - Interface updated. Added incident details. Improved font readability
