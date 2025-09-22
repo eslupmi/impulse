@@ -17,7 +17,7 @@ class UnifiedConfig:
         self.app = app
         self.legacy = legacy
         
-        self.INCIDENT_ACTUAL_VERSION = 'v0.4'
+        self.INCIDENT_ACTUAL_VERSION = 'v3.0.0'
         self.check_updates = True
 
     @property
