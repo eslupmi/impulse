@@ -1410,21 +1410,29 @@ class TelegramApplication(Application):
 
     async def _remove_status_notification(self, incident, thread_identifier):
         """
-        Remove all tagging messages when incident is resolved
+        Remove all tagging messages when incident is resolved/closed (fixed topics)
         """
         try:
             chat_id, _ = self._parse_channel_id(incident.channel_id)
             
-            # Get all tagging message IDs
+            # Collect all stored message IDs: primary status message and extra tagging messages
+            message_ids = []
+            status_msg_id = getattr(incident, 'status_notification_message_id', None)
+            if status_msg_id:
+                message_ids.append(status_msg_id)
             tagging_message_ids = getattr(incident, 'tagging_message_ids', [])
             if not tagging_message_ids:
-                logger.debug(f'No tagging messages to remove for incident {incident.uuid}')
+                logger.debug(f'No extra tagging messages stored for incident {incident.uuid}')
+            else:
+                message_ids.extend(tagging_message_ids)
+            if not message_ids:
+                logger.debug(f'No status/tagging messages to remove for incident {incident.uuid}')
                 return
             
-            logger.debug(f'Removing {len(tagging_message_ids)} tagging messages for incident {incident.uuid}')
+            logger.debug(f'Removing {len(message_ids)} status/tagging messages for incident {incident.uuid}')
             
             # Delete each tagging message with retry logic
-            for message_id in tagging_message_ids:
+            for message_id in message_ids:
                 await self._delete_message_with_retry(chat_id, message_id)
             
             # Clear the stored message IDs
@@ -1568,15 +1576,12 @@ class TelegramApplication(Application):
         # For Telegram we use thread_id (topic_id/message_id) for sending message
         thread_identifier = incident.thread_id if incident.thread_id else incident.ts
         
-        # Suppress first chain tag after special firing transition in non-fixed topics
-        if incident.status == 'firing':
-            _, fixed_topic_id = self._parse_channel_id(incident.channel_id)
-            is_fixed_topic = fixed_topic_id is not None
-            if not is_fixed_topic and getattr(incident, 'skip_next_chain_tag', False):
-                logger.debug(f"Incident {incident.uuid}: suppressing first chain tag for non-fixed firing transition")
-                incident.skip_next_chain_tag = False
-                incident.dump()
-                return None
+        # Suppress first chain tag after special firing transition (both fixed and non-fixed topics)
+        if incident.status == 'firing' and getattr(incident, 'skip_next_chain_tag', False):
+            logger.debug(f"Incident {incident.uuid}: suppressing first chain tag for firing transition")
+            incident.skip_next_chain_tag = False
+            incident.dump()
+            return None
 
         # Send as reply to main alert message
         response_code = await self.post_thread_reply(incident.channel_id, thread_identifier, message)
