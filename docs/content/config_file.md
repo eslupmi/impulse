@@ -22,22 +22,22 @@
 
 > Below you'll see all the options supported by IMPulse.
 
-## application *
+## messenger *
 
 - **description:** messenger configuration
 - **type:** dict
 
-### application.address * (Mattermost)
+### messenger.address * (Mattermost)
 
 - **description:** your messenger server address
 - **type:** string
 
-### application.admin_users *
+### messenger.admin_users *
 
-- **description:** IMPulse administrators (from `application.users`) notified of any warnings
+- **description:** IMPulse administrators (from `messenger.users`) notified of any warnings
 - **type:** list
 
-### application.channels *
+### messenger.channels *
 
 - **description:** define channels by their ID to use them in the [route](#route) section. Use your messenger's UI to find the channel IDs.
 - **type:** dict
@@ -45,26 +45,26 @@
 > **Example**
 > === "Slack"
 >     ```yaml
->     application:
+>     messenger:
 >       channels:
 >         incidents_default: {id: C09NSUL269T}
 >     ```
 > 
 > === "Mattermost"
 >     ```yaml
->     application:
+>     messenger:
 >       channels:
 >         incidents_default: {id: w8gvebq58fgo9civ8begs6renw}
 >     ```
 > 
 > === "Telegram"
 >     ```yaml
->     application:
+>     messenger:
 >       channels:
 >         incidents_default: {id: -1003748296152}
 >     ```
 
-### application.chains
+### messenger.chains
 
 - **description:** escallation chains
 - **type:** dict
@@ -73,8 +73,8 @@
 
 > Each chain contains a list of **steps**. There are 5 step types. 3 of them are notifications:
 
-> - [`user`](#applicationusers)
-> - [`user_group`](#applicationuser_groups)
+> - [`user`](#messengerusers)
+> - [`user_group`](#messengeruser_groups)
 > - [`webhook`](#webhooks)
 
 > The fourth step type is `wait`, which delays the execution of the next notification. Its format is similar to the [sleep](https://www.gnu.org/software/coreutils/manual/html_node/sleep-invocation.html) utility format, but it does not support floats or combined expressions like `1m 3s`. Valid units: `s` (seconds), `m` (minutes), `h` (hours), `d` (days).
@@ -95,7 +95,7 @@
 > **Example**:
 > ```yaml
 > # Defined two simple chains for DevOps team
-> application:
+> messenger:
 >   chains:
 >     devops:
 >       - user: Dmitry
@@ -120,7 +120,7 @@
 
 > **Examples:**
 > ```yaml
-> application:
+> messenger:
 >   chains:
 >     support:
 >       type: schedule
@@ -153,7 +153,7 @@
 > ```
 > 
 > ```yaml
-> application:
+> messenger:
 >   chains:
 >     support:
 >       type: schedule
@@ -165,25 +165,25 @@
 >         - {steps: [{user: Oleg }]} # full Sunday and 00:00 to 12:00 every day
 > ```
 
-##### application.chains[].type *
+##### messenger.chains[].type *
 
 - **description:** set chain type using `type: schedule`
 - **type:** string
 
-##### application.chains[].timezone
+##### messenger.chains[].timezone
 
 - **description:** time zone in "TZ identifier" format (details [here](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#Time_zone_abbreviations))
 - **type:** string
 - **default value:** UTC
 
-##### application.chains[].schedule
+##### messenger.chains[].schedule
 
 - **description:** list of matchers with corresponding steps. IMPulse evaluates matchers from top to bottom. If a `matcher` matches the current time, the corresponding `steps` defined for that `matcher` are selected.
 - **type:** list
 
 > **Examples:**
 > ```yaml
-> application:
+> messenger:
 >   chains:
 >     support:
 >       type: schedule
@@ -249,26 +249,26 @@
 > - `CHAIN_PROVIDER_SYNC_INTERVAL_SECONDS`
 > - `GOOGLE_SERVICE_ACCOUNT_FILE`
 
-##### application.chains[].type *
+##### messenger.chains[].type *
 
 - **description:** chain type
 - **type:** string
 - **options:**
     - `cloud` only
 
-##### application.chains[].provider *
+##### messenger.chains[].provider *
 
 - **description:** cloud calendar provider
 - **type:** string
 - **options:**
     - `google` only
 
-##### application.chains[].calendar_id *
+##### messenger.chains[].calendar_id *
 
 - **description:** calendar ID. Get it on calendar settings page
 - **type:** string
 
-##### application.chains[].default_steps
+##### messenger.chains[].default_steps
 
 - **description:** chain steps if there are no calendar events at the moment
 - **type:** list
@@ -298,7 +298,7 @@
 > and config
 > 
 > ```yaml
-> application:
+> messenger:
 >   chains:
 >     devops:
 >       type: cloud
@@ -313,7 +313,7 @@
 > Under the hood, the following `schedule chain` will be generated:
 > 
 > ```yaml
-> application:
+> messenger:
 >   chains:
 >     devops:
 >       type: schedule
@@ -333,7 +333,7 @@
 > **Example**
 > 
 > ```yaml
-> application:
+> messenger:
 >   chains:
 >     devops:
 >       - user: Dmitry
@@ -345,14 +345,14 @@
 >       - chain: devops
 > ```
 
-### application.impulse_address * (Mattermost, Telegram)
+### messenger.impulse_address * (Mattermost, Telegram)
 
 - **description:** IMPulse address for button callbacks. Telegram supported only HTTPS.
 - **type:** string
 
-### application.users *
+### messenger.users *
 
-- **description:** users declaration. Defines users used in [chains](#applicationchains) for direct notifications.
+- **description:** users declaration. Defines users used in [chains](#messengerchains) for direct notifications.
 - **type:** dict
 
 > See instructions for getting user `id` for Slack ([here](https://www.workast.com/help/article/how-to-find-a-slack-user-id/)), Mattermost ([here](https://docs.mattermost.com/administration-guide/configure/user-management-configuration-settings.html#identify-a-user-s-id)), Telegram ([here](telegram.md#configure-group)).
@@ -361,44 +361,44 @@
 
 > === "Slack"
 >     ```yaml
->     application:
+>     messenger:
 >       users:
 >         Dmitry: {id: U73MD1YLR4M}
 >     ```
 
 > === "Mattermost"
 >     ```yaml
->     application:
+>     messenger:
 >       users:
 >         Dmitry: {id: ic8pft3ac7rjrd9eopxp4kc7qy}
 >     ```
 
 > === "Telegram"
 >     ```yaml
->     application:
+>     messenger:
 >       users:
 >         Dmitry: {id: 482913726}
 >     ```
 
-### application.user_groups
+### messenger.user_groups
 
-- **description:** groups of users for bulk notification. Used in [chains](#applicationchains).
+- **description:** groups of users for bulk notification. Used in [chains](#messengerchains).
 - **type:** list
 
 > **Example**
 
 > ```yaml
-> application:
+> messenger:
 >   user_groups:
 >     developers: {users: ["Dmitry", "Alexander"]}
 > ```
 
-### application.team * (Mattermost)
+### messenger.team * (Mattermost)
 
 - **description:** team name
 - **type:** string
 
-### application.template_files
+### messenger.template_files
 
 - **description:** path to custom template files for `status_icons`, `header`, and `body` (see [Incident Structure](concepts.md#structure))
 - **type:** dict
@@ -412,32 +412,32 @@
 > **Example**
 
 > ```yaml
-> application:
+> messenger:
 >   template_files:
 >     status_icons: ./templates/status_icons.yml
 >     header: ./templates/header.yml
 >     body: ./templates/body.yml
 > ```
 
-#### application.template_files.body
+#### messenger.template_files.body
 
 - **description:** path to the custom template file that defines the format of `body`
 - **type:** string
-- **default value:** ./templates/[&lt;application.type&gt;](#applicationtype)_body.j2
+- **default value:** ./templates/[&lt;messenger.type&gt;](#messengertype)_body.j2
 
-#### application.template_files.header
+#### messenger.template_files.header
 
 - **description:** path to the custom template file that defines the format of `header`
 - **type:** string
-- **default value:** ./templates/[&lt;application.type&gt;](#applicationtype)_header.j2
+- **default value:** ./templates/[&lt;messenger.type&gt;](#messengertype)_header.j2
 
-#### application.template_files.status_icons
+#### messenger.template_files.status_icons
 
 - **description:** path to the custom template file that defines the format of `status_icons`
 - **type:** string
-- **default value:** ./templates/[&lt;application.type&gt;](#applicationtype)_status_icons.j2
+- **default value:** ./templates/[&lt;messenger.type&gt;](#messengertype)_status_icons.j2
 
-### application.type *
+### messenger.type *
 
 - **description:** messenger type
 - **type:** string
@@ -503,7 +503,7 @@
 - **description:** incident routing rules based on alert fields. See [details](#route)
 - **type:** dict
 
-> Route configure messenger channels, where incidents will be created, and [chains](#applicationchains) to notify people by rules.
+> Route configure messenger channels, where incidents will be created, and [chains](#messengerchains) to notify people by rules.
 
 > It is very similar to Alertmanager's [route](https://prometheus.io/docs/alerting/latest/configuration/#route). But has only four instructions: `routes`, `matchers`, `channel`, `chain`.
 
@@ -553,12 +553,12 @@
 
 ### route.channel *
 
-- **description:** default [channel](#applicationchannels) where incidents will be created if they don't match any matchers
+- **description:** default [channel](#messengerchannels) where incidents will be created if they don't match any matchers
 - **type:** string
 
 ### route.chain
 
-- **description:** default [chain](#applicationchains) to notify users if alert don't match any matchers inside [route.routes](#routeroutes)
+- **description:** default [chain](#messengerchains) to notify users if alert don't match any matchers inside [route.routes](#routeroutes)
 - **type:** string
 
 ### route.routes
@@ -573,12 +573,12 @@
 
 #### route.routes[].channel
 
-- **description:** [channel](#applicationchannels) where incidents will be created if they match the matchers
+- **description:** [channel](#messengerchannels) where incidents will be created if they match the matchers
 - **type:** string
 
 #### route.routes[].chain
 
-- **description:** [chain](#applicationchains) to notify users if incidents match the matchers
+- **description:** [chain](#messengerchains) to notify users if incidents match the matchers
 - **type:** string
 
 #### route.routes[].routes

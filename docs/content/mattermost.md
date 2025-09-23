@@ -31,13 +31,13 @@
     /invite @impulse
     ```
 
-2. Users listed in `application.admin_users` **must** be present in all channels defined in `route`.
+2. Users listed in `messenger.admin_users` **must** be present in all channels defined in `route`.
 
-3. Users mentioned in `application.chains` should be added to their respective channels.
+3. Users mentioned in `messenger.chains` should be added to their respective channels.
     
-    To simplify this, you can add all `application.users` to all channels from the `route` block.
+    To simplify this, you can add all `messenger.users` to all channels from the `route` block.
 
-4. We highly recommend configuring notification preferences for `application.users` in their `route` channels:
+4. We highly recommend configuring notification preferences for `messenger.users` in their `route` channels:
     - select the channel in main list and press on it
     - click the **View Info** icon (`i`) in the top right, click **Notifications Preferences**
     - in the "Notify me about..." choose "Mentions, direct messages, and keywords only"

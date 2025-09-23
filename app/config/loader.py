@@ -78,7 +78,7 @@ def get_legacy_config_dict(validated_config: ImpulseConfig) -> Dict[str, Any]:
     
     # Legacy format adjustments
     legacy_config = {
-        'application': config_dict['application'],
+        'messenger': config_dict['messenger'],
         'incident': config_dict.get('incident', {}),
         'experimental': config_dict.get('experimental', {}),
         'route': config_dict['route'],
@@ -86,9 +86,9 @@ def get_legacy_config_dict(validated_config: ImpulseConfig) -> Dict[str, Any]:
         'webhooks': config_dict.get('webhooks', {})
     }
     
-    # Ensure template_files is properly handled in application section
-    if 'template_files' not in legacy_config['application'] or legacy_config['application']['template_files'] is None:
-        legacy_config['application']['template_files'] = {}
+    # Ensure template_files is properly handled in messenger section
+    if 'template_files' not in legacy_config['messenger'] or legacy_config['messenger']['template_files'] is None:
+        legacy_config['messenger']['template_files'] = {}
     
     # Ensure incident defaults
     if 'incident' not in legacy_config or legacy_config['incident'] is None:

@@ -4,7 +4,7 @@ IMPulse is installed between Alertmanager and a messenger.
 
 ![None](media/impulse.excalidraw.svg)
 
-IMPulse receives alerts from Alertmanager and sends them to your messenger channel based on `application` and `route` configuration (see [Configuration File](config_file.md)).
+IMPulse receives alerts from Alertmanager and sends them to your messenger channel based on `messenger` and `route` configuration (see [Configuration File](config_file.md)).
 
 Alertmanager sends alerts with one of two statuses: **firing** and **resolved**. The first status is always **firing** when a problem occurs. Based on these statuses, IMPulse creates Incidents.
 
@@ -22,7 +22,7 @@ Starting from [`v1.0.0`](https://github.com/DiTsi/impulse/releases/tag/v1.0.0) i
 
 Default templates for `status icons`, `header` and `body` are [here](https://github.com/DiTsi/impulse/tree/develop/templates).
 
-You can create your own template files based on defaults and set their path in [application.template_files](config_file.md).
+You can create your own template files based on defaults and set their path in [messenger.template_files](config_file.md).
 
 
 ### Statuses and their colors
@@ -54,7 +54,7 @@ Possible causes of **unknown** status:
 - `repeat_interval` + `group_interval` exceeds IMPulse's `incident.timeouts.firing`
 
 
-When an incident becomes **unknown** , IMPulse sends a warning message to `application.admin_users`.
+When an incident becomes **unknown** , IMPulse sends a warning message to `messenger.admin_users`.
 
 #### closed
 

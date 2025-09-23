@@ -4,6 +4,7 @@
 Upgrade instructions:
 - Move `incident.alerts_firing_notifications` to `incident.notifications.new_firing` option in **impulse.yml**
 - Move `incident.alerts_resolved_notifications` to `incident.notifications.partial_resolved` option in **impulse.yml**
+- Rename `application` with `messenger` in **impulse.yml**
 
 Changes:
 - `last_state` incident field renamed to `payload`
