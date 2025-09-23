@@ -27,7 +27,7 @@ include:
 deploy:
   stage: deploy
   rules:
-    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH =~ "/^(master|main)$/" && $CI_COMMIT_MESSAGE =~ /^Merge.*/'
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH =~ "/^(test|master|main)$/" && $CI_COMMIT_MESSAGE =~ /^Merge.*/'
       when: on_success
     - when: never
   variables:
