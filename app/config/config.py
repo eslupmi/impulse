@@ -29,10 +29,6 @@ class UnifiedConfig:
         return self.app.incident
     
     @property
-    def experimental(self):
-        return self.app.experimental
-    
-    @property
     def application(self):
         return self.app.application
     
