@@ -28,7 +28,6 @@ incidents_path = config.incidents_path
 # Legacy application configuration (for backward compatibility)
 settings = config.settings
 incident = config.incident
-experimental = config.experimental
 application = config.application
 ui_config = config.ui_config
 

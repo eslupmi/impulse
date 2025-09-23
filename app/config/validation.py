@@ -333,11 +333,6 @@ class IncidentConfig(BaseModel):
     timeouts: Optional[IncidentTimeouts] = Field(None, description="Incident timeouts")
 
 
-class ExperimentalConfig(BaseModel):
-    """Experimental configuration"""
-    recreate_chain: Optional[bool] = Field(False, description="Recreate chain on new alerts")
-
-
 class RouteConfig(BaseModel):
     """Route configuration"""
     channel: str = Field(..., description="Default channel")
@@ -442,7 +437,6 @@ class ImpulseConfig(BaseModel):
     """Main Impulse configuration"""
     application: ApplicationConfig = Field(..., description="Application configuration", discriminator='type')
     incident: Optional[IncidentConfig] = Field(None, description="Incident configuration")
-    experimental: Optional[ExperimentalConfig] = Field(None, description="Experimental configuration")
     route: RouteConfig = Field(..., description="Route configuration")
     ui: Optional[UIConfig] = Field(None, description="UI configuration")
     webhooks: Optional[Dict[str, WebhookConfig]] = Field(None, description="Webhook configurations")

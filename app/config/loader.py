@@ -80,7 +80,6 @@ def get_legacy_config_dict(validated_config: ImpulseConfig) -> Dict[str, Any]:
     legacy_config = {
         'application': config_dict['application'],
         'incident': config_dict.get('incident', {}),
-        'experimental': config_dict.get('experimental', {}),
         'route': config_dict['route'],
         'ui': config_dict.get('ui', {}),
         'webhooks': config_dict.get('webhooks', {})
@@ -107,18 +106,6 @@ def get_legacy_config_dict(validated_config: ImpulseConfig) -> Dict[str, Any]:
     for key, default_value in incident_defaults.items():
         if key not in legacy_config['incident']:
             legacy_config['incident'][key] = default_value
-    
-    # Ensure experimental defaults
-    if 'experimental' not in legacy_config or legacy_config['experimental'] is None:
-        legacy_config['experimental'] = {}
-    
-    experimental_defaults = {
-        'recreate_chain': False
-    }
-    
-    for key, default_value in experimental_defaults.items():
-        if key not in legacy_config['experimental']:
-            legacy_config['experimental'][key] = default_value
     
     return legacy_config
 
