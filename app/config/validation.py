@@ -319,8 +319,8 @@ class IncidentTimeouts(BaseModel):
 
 class IncidentNotifications(BaseModel):
     """Incident notification configuration"""
-    assignment: Optional[bool] = Field(False, description="Assigned notification")
-    new_firing: Optional[bool] = Field(False, description="New firing notification")
+    assignment: Optional[bool] = Field(True, description="Assigned notification")
+    new_firing: Optional[bool] = Field(True, description="New firing notification")
     partial_resolved: Optional[bool] = Field(False, description="Partial resolved notification")
 
     def get(self, key: str) -> bool:
@@ -329,8 +329,6 @@ class IncidentNotifications(BaseModel):
 
 class IncidentConfig(BaseModel):
     """Incident configuration"""
-    alerts_firing_notifications: Optional[bool] = Field(False, description="Enable firing notifications")
-    alerts_resolved_notifications: Optional[bool] = Field(False, description="Enable resolved notifications")
     notifications: Optional[IncidentNotifications] = Field(IncidentNotifications(), description="Incident timeouts")
     timeouts: Optional[IncidentTimeouts] = Field(None, description="Incident timeouts")
 
