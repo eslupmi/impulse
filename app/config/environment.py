@@ -99,7 +99,7 @@ class EnvironmentConfig(BaseModel):
     @property
     def config_file_path(self) -> str:
         """Computed property for config file path"""
-        return f"{self.config_path}/impulse.yml"
+        return os.path.join(self.config_path, "impulse.yml")
 
 
 # Global instance - created once and reused
