@@ -117,6 +117,4 @@ class IncidentMigrator:
     def _migrate_v0_4_to_v3_0_0(self, data: Dict) -> Dict:
         migrated = data.copy()
         migrated['payload'] = migrated.pop('last_state')
-
-        migrated['version'] = 'v3.0.0'
         return migrated
