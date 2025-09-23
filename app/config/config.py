@@ -30,7 +30,7 @@ class UnifiedConfig:
     
     @property
     def application(self):
-        return self.app.application
+        return self.app.messenger
     
     @property
     def ui_config(self):

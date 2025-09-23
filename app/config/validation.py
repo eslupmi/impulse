@@ -11,8 +11,8 @@ import yaml
 import os
 
 
-class ApplicationType(str, Enum):
-    """Supported application types"""
+class MessengerType(str, Enum):
+    """Supported messenger types"""
     SLACK = "slack"
     MATTERMOST = "mattermost"
     TELEGRAM = "telegram"
@@ -183,8 +183,8 @@ class TemplateFiles(BaseModel):
 
 
 class BaseApplicationConfig(BaseModel):
-    """Base application configuration with common fields"""
-    type: ApplicationType = Field(..., description="Application type")
+    """Base messenger configuration with common fields"""
+    type: MessengerType = Field(..., description="Application type")
     admin_users: List[str] = Field(..., description="Admin users")
     user_groups: Optional[Dict[str, UserGroup]] = Field(None, description="User groups")
     chains: Optional[Dict[str, Any]] = Field(None, description="Chain definitions")
@@ -257,15 +257,15 @@ class BaseApplicationConfig(BaseModel):
 
 
 class SlackApplicationConfig(BaseApplicationConfig):
-    """Slack application configuration"""
-    type: Literal[ApplicationType.SLACK] = Field(ApplicationType.SLACK, description="Application type")
+    """Slack messenger configuration"""
+    type: Literal[MessengerType.SLACK] = Field(MessengerType.SLACK, description="Application type")
     channels: Dict[str, SlackChannel] = Field(..., description="Channel definitions")
     users: Dict[str, SlackUser] = Field(..., description="User definitions")
 
 
 class MattermostApplicationConfig(BaseApplicationConfig):
-    """Mattermost application configuration"""
-    type: Literal[ApplicationType.MATTERMOST] = Field(ApplicationType.MATTERMOST, description="Application type")
+    """Mattermost messenger configuration"""
+    type: Literal[MessengerType.MATTERMOST] = Field(MessengerType.MATTERMOST, description="Application type")
     channels: Dict[str, MattermostChannel] = Field(..., description="Channel definitions")
     users: Dict[str, MattermostUser] = Field(..., description="User definitions")
     address: str = Field(..., description="Mattermost server address")
@@ -274,8 +274,8 @@ class MattermostApplicationConfig(BaseApplicationConfig):
 
 
 class TelegramApplicationConfig(BaseApplicationConfig):
-    """Telegram application configuration"""
-    type: Literal[ApplicationType.TELEGRAM] = Field(ApplicationType.TELEGRAM, description="Application type")
+    """Telegram messenger configuration"""
+    type: Literal[MessengerType.TELEGRAM] = Field(MessengerType.TELEGRAM, description="Application type")
     channels: Dict[str, TelegramChannel] = Field(..., description="Channel definitions")
     users: Dict[str, TelegramUser] = Field(..., description="User definitions")
     impulse_address: str = Field(..., description="Impulse callback address")
@@ -283,8 +283,8 @@ class TelegramApplicationConfig(BaseApplicationConfig):
 
 
 class NullApplicationConfig(BaseApplicationConfig):
-    """Null application configuration for UI-only mode"""
-    type: Literal[ApplicationType.NONE] = Field(ApplicationType.NONE, description="Application type")
+    """Null messenger configuration for UI-only mode"""
+    type: Literal[MessengerType.NONE] = Field(MessengerType.NONE, description="Application type")
     channels: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Channel definitions (not used)")
     users: Optional[Dict[str, Any]] = Field(default_factory=dict, description="User definitions (not used)")
     admin_users: List[str] = Field(default_factory=list, description="Admin users (not used)")
@@ -292,17 +292,17 @@ class NullApplicationConfig(BaseApplicationConfig):
     @field_validator('admin_users')
     @classmethod
     def validate_admin_users_exist(cls, v, info):
-        """Skip admin users validation for null application"""
+        """Skip admin users validation for null messenger"""
         return v
 
     @field_validator('chains')
     @classmethod
     def validate_chains_structure_and_references(cls, v, info):
-        """Skip chain validation for null application"""
+        """Skip chain validation for null messenger"""
         return v
 
 
-# Union type for all application configurations
+# Union type for all messenger configurations
 ApplicationConfig = Union[
     SlackApplicationConfig, MattermostApplicationConfig, TelegramApplicationConfig, NullApplicationConfig]
 
@@ -435,7 +435,7 @@ class WebhookConfig(BaseModel):
 
 class ImpulseConfig(BaseModel):
     """Main Impulse configuration"""
-    application: ApplicationConfig = Field(..., description="Application configuration", discriminator='type')
+    messenger: ApplicationConfig = Field(..., description="Messenger configuration", discriminator='type')
     incident: Optional[IncidentConfig] = Field(None, description="Incident configuration")
     route: RouteConfig = Field(..., description="Route configuration")
     ui: Optional[UIConfig] = Field(None, description="UI configuration")
@@ -443,11 +443,11 @@ class ImpulseConfig(BaseModel):
 
     @model_validator(mode='after')
     def validate_route_channel_exists(self):
-        """Validate that route channels exist in application channels"""
+        """Validate that route channels exist in messenger channels"""
 
         def validate_route_channels(route_config):
-            if route_config.channel not in self.application.channels and self.application.type != ApplicationType.NONE:
-                raise ValueError(f"Route channel '{route_config.channel}' not found in application channels")
+            if route_config.channel not in self.messenger.channels and self.messenger.type != MessengerType.NONE:
+                raise ValueError(f"Route channel '{route_config.channel}' not found in messenger channels")
 
             if route_config.routes:
                 for nested_route in route_config.routes:
@@ -458,16 +458,16 @@ class ImpulseConfig(BaseModel):
 
     @model_validator(mode='after')
     def validate_route_chain_exists(self):
-        """Validate that route chains exist in application chains"""
-        if not self.application.chains:
+        """Validate that route chains exist in messenger chains"""
+        if not self.messenger.chains:
             return self
 
-        chains = self.application.chains
+        chains = self.messenger.chains
 
         def validate_route_chain(route_config):
             if hasattr(route_config, 'chain') and route_config.chain:
                 if route_config.chain not in chains:
-                    raise ValueError(f"Route chain '{route_config.chain}' not found in application chains")
+                    raise ValueError(f"Route chain '{route_config.chain}' not found in messenger chains")
 
             if hasattr(route_config, 'routes') and route_config.routes:
                 for nested_route in route_config.routes:

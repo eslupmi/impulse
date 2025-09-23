@@ -53,11 +53,11 @@
     /invite @IMPulse
     ```
 
-2. All users from `application.admin_users` **must** be present in every channel listed in the `route` block.
+2. All users from `messenger.admin_users` **must** be present in every channel listed in the `route` block.
 
-3. Add users from `application.chains` to their respective channels.
+3. Add users from `messenger.chains` to their respective channels.
 
-    For simplicity, you can add all users from `application.users` to all channels listed in the `route` block.
+    For simplicity, you can add all users from `messenger.users` to all channels listed in the `route` block.
 
 4. We highly recommend setting notification preferences to "Just @mentions" for each user in their `route` channels.
    Each user should:

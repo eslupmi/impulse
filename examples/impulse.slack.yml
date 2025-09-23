@@ -1,11 +1,11 @@
-application:  # messenger configuration
+messenger:  # messenger configuration
   # address: https://<your_messenger_domain>  # your messenger server address (Mattermost)
-  admin_users: ["Dmitry"]  # IMPulse administrators (from application.users) notified of any warnings
-  channels:  # define channels by their ID to use them in the route section (https://docs.impulse.bot/latest/config_file/#applicationchannels)
+  admin_users: ["Dmitry"]  # IMPulse administrators (from messenger.users) notified of any warnings
+  channels:  # define channels by their ID to use them in the route section (https://docs.impulse.bot/latest/config_file/#messengerchannels)
     incidents_default: {id: C09NSUL269T}
     incidents_infrastructure: {id: C07EVS3EL14}
     incidents_services: {id: C07EMUB2T8X}
-  chains:  # escallation chains (https://docs.impulse.bot/latest/config_file/#applicationchains)
+  chains:  # escallation chains (https://docs.impulse.bot/latest/config_file/#messengerchains)
     devops:
       - user_group: devops
     devops_critical: # simple chain (https://docs.impulse.bot/latest/config_file/#simple-chain)
@@ -21,11 +21,11 @@ application:  # messenger configuration
       - wait: 20m
       - user: CEO
   # impulse_address: https://<your_impulse_domain>  # IMPulse address for button callbacks (Mattermost, Telegram). Telegram supported only HTTPS
-  users:  # users declaration (https://docs.impulse.bot/latest/config_file/#applicationusers)
+  users:  # users declaration (https://docs.impulse.bot/latest/config_file/#messengerusers)
     Dmitry: {id: U73MD1YLR4M}
     Valery: {id: X58QP9ZKT2N}
     Grigory: {id: V64JRM8YB3L}
-  user_groups:  # groups of users for bulk notification (https://docs.impulse.bot/latest/config_file/#applicationuser_groups)
+  user_groups:  # groups of users for bulk notification (https://docs.impulse.bot/latest/config_file/#messengeruser_groups)
     devops: {users: ["Dmitry", "Valery"]}
   team: KOMANDA  # team name (Mattermost)
   template_files:  # path to custom template files for status_icons, header, and body (https://docs.impulse.bot/latest/concepts/#structure)
