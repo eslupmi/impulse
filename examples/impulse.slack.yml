@@ -1,14 +1,14 @@
 messenger:  # messenger configuration
   # address: https://<your_messenger_domain>  # your messenger server address (Mattermost)
   admin_users: ["Dmitry"]  # IMPulse administrators (from messenger.users) notified of any warnings
-  channels:  # define channels by their ID to use them in the route section (https://docs.impulse.bot/latest/config_file/#messengerchannels)
+  channels:  # define channels by their ID to use them in the route section (https://docs.impulse.bot/stable/config_file/#messengerchannels)
     incidents_default: {id: C09NSUL269T}
     incidents_infrastructure: {id: C07EVS3EL14}
     incidents_services: {id: C07EMUB2T8X}
-  chains:  # escallation chains (https://docs.impulse.bot/latest/config_file/#messengerchains)
+  chains:  # escallation chains (https://docs.impulse.bot/stable/config_file/#messengerchains)
     devops:
       - user_group: devops
-    devops_critical: # simple chain (https://docs.impulse.bot/latest/config_file/#simple-chain)
+    devops_critical: # simple chain (https://docs.impulse.bot/stable/config_file/#simple-chain)
       - user: Valery
       - wait: 10m
       - user: Dmitry
@@ -21,14 +21,14 @@ messenger:  # messenger configuration
       - wait: 20m
       - user: CEO
   # impulse_address: https://<your_impulse_domain>  # IMPulse address for button callbacks (Mattermost, Telegram). Telegram supported only HTTPS
-  users:  # users declaration (https://docs.impulse.bot/latest/config_file/#messengerusers)
+  users:  # users declaration (https://docs.impulse.bot/stable/config_file/#messengerusers)
     Dmitry: {id: U73MD1YLR4M}
     Valery: {id: X58QP9ZKT2N}
     Grigory: {id: V64JRM8YB3L}
-  user_groups:  # groups of users for bulk notification (https://docs.impulse.bot/latest/config_file/#messengeruser_groups)
+  user_groups:  # groups of users for bulk notification (https://docs.impulse.bot/stable/config_file/#messengeruser_groups)
     devops: {users: ["Dmitry", "Valery"]}
   team: KOMANDA  # team name (Mattermost)
-  template_files:  # path to custom template files for status_icons, header, and body (https://docs.impulse.bot/latest/concepts/#structure)
+  template_files:  # path to custom template files for status_icons, header, and body (https://docs.impulse.bot/stable/concepts/#structure)
     status_icons: templates/mattermost_status_icons.j2
     header: templates/mattermost_header.j2
     body: templates/mattermost_body.j2
@@ -39,12 +39,12 @@ incident:  # incidents behavior options
   #   assignment: True  # enable/disable notifications about incident assignment changes
   #   new_firing: True  # notification about new firing instances
   #   partial_resolved: False  # nofitication about some resolved instances
-  timeouts:  # incident status timeouts (https://docs.impulse.bot/latest/concepts/#lifecycle)
+  timeouts:  # incident status timeouts (https://docs.impulse.bot/stable/concepts/#lifecycle)
     firing: 6h  # after this time, incident status changes from 'firing' to 'unknown' if no alerts appear
     unknown: 6h  # after this time, incident status changes from 'unknown' to 'closed' if no alerts appear
     resolved: 12h  # after this time, incident status changes from 'resolved' to 'closed' if no alerts appear
 
-route:  # incident routing rules based on alert fields (https://docs.impulse.bot/latest/config_file/#route)
+route:  # incident routing rules based on alert fields (https://docs.impulse.bot/stable/config_file/#route)
   channel: incidents_default  # default channel where incidents will be created if they don't match any matchers
   chain: devops  # default chain to notify users if alert don't match any matchers inside route.routes
   routes:  # list of routing rules based on matchers to determine which channel and chain to use for incidents
@@ -62,20 +62,20 @@ route:  # incident routing rules based on alert fields (https://docs.impulse.bot
       channel: incidents_services
       chain: developers
 
-  ui:  # user interface configuration (https://docs.impulse.bot/latest/ui/)
-  colors:  # Color scheme for different values (https://docs.impulse.bot/latest/config_file/#uicolors)
+  ui:  # user interface configuration (https://docs.impulse.bot/stable/ui/)
+  colors:  # Color scheme for different values (https://docs.impulse.bot/stable/config_file/#uicolors)
     severity:
       critical: "#FF0000"
       warning: "#FFA500"
       info: "#00FF00"
-  columns:  # defines the columns that are used in the user interface (https://docs.impulse.bot/latest/config_file/#uicolumns)
+  columns:  # defines the columns that are used in the user interface (https://docs.impulse.bot/stable/config_file/#uicolumns)
     - name: status  # unique identifier for the column, used for filtering and sorting
       header: Status  # display name shown in the column header
       visible: False  # whether the column is visible by default in the UI. Invisible columns can be used in search fields
-      value: incident.status  # data source variable (https://docs.impulse.bot/latest/config_file/#uicolumnsvalue)
+      value: incident.status  # data source variable (https://docs.impulse.bot/stable/config_file/#uicolumnsvalue)
     - name: created
       header: Created
-      type: datetime  # column data type that determines how the value is rendered (https://docs.impulse.bot/latest/config_file/#uicolumnstype)
+      type: datetime  # column data type that determines how the value is rendered (https://docs.impulse.bot/stable/config_file/#uicolumnstype)
       value: incident.created
     - name: alertname
       header: Alertname
@@ -91,9 +91,9 @@ route:  # incident routing rules based on alert fields (https://docs.impulse.bot
     - name: assigned
       header: Assigned To
       value: incident.assigned_fullname
-  filters:  # defines the default filters applied in the user interface (https://docs.impulse.bot/latest/config_file/#uifilters)
+  filters:  # defines the default filters applied in the user interface (https://docs.impulse.bot/stable/config_file/#uifilters)
     - severity=~"warning|critical"
-  sorting:  # the default column sorting order (https://docs.impulse.bot/latest/config_file/#uisorting)
+  sorting:  # the default column sorting order (https://docs.impulse.bot/stable/config_file/#uisorting)
     - severity: desc
       order: ["info", "warning", "critical"]
     - created: desc

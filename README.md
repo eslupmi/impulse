@@ -6,18 +6,18 @@ Visit [docs.impulse.bot](https://docs.impulse.bot) for the full documentation.
 
 ## Features
 - Mattermost, Slack, Telegram integrations
-- Twilio and another integrations using [webhooks](https://docs.impulse.bot/latest/config_file/#webhooks-examples)
-- [Incident lifecycle](https://docs.impulse.bot/latest/concepts/#lifecycle) reduces incidents chaos
-- Scheduling using providers like Google Calendar via [cloud chains](https://docs.impulse.bot/latest/config_file/#cloud-chain)
-- Support for [nested chains](https://docs.impulse.bot/latest/config_file/#nested-chain) with unlimited depth
-- Flexible [message structure](https://docs.impulse.bot/latest/concepts/#structure) you can modify
-- Customizable [UI](https://docs.impulse.bot/latest/ui) with multi-column sorting and advanced filtering capabilities
+- Twilio and another integrations using [webhooks](https://docs.impulse.bot/stable/config_file/#webhooks)
+- [Incident lifecycle](https://docs.impulse.bot/stable/concepts/#lifecycle) reduces incidents chaos
+- Scheduling using providers like Google Calendar via [cloud chains](https://docs.impulse.bot/stable/config_file/#cloud-chain)
+- Support for [nested chains](https://docs.impulse.bot/stable/config_file/#nested-chain) with unlimited depth
+- Flexible [message structure](https://docs.impulse.bot/stable/concepts/#structure) you can modify
+- Customizable [UI](https://docs.impulse.bot/stable/ui) with multi-column sorting and advanced filtering capabilities
 
 ## Quick Start
 
 *Docker installation example for Slack*
 
-1. Use [instructions](https://docs.impulse.bot/latest/slack) to create and configure bot
+1. Use [instructions](https://docs.impulse.bot/stable/slack) to create and configure bot
 
 2. Create directories
     ```bash

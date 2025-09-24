@@ -16,18 +16,18 @@ Changes:
 Changes:
 - Interface updated. Added incident details. Improved font readability
 - Added assigned user's full name ([example](https://github.com/eslupmi/impulse/blob/183e75974167b403c3f46049a5e11ac35253b24b/examples/impulse.slack.advanced.yml#L92))
-- Added notifications in thread about user assignment ([docs](https://docs.impulse.bot/latest/config_file/#incidentnotificationsassignment))
+- Added notifications in thread about user assignment ([docs](https://docs.impulse.bot/v2.8.0/config_file/#incidentnotificationsassignment))
 - Fixed template bugs
 
 ## v2.7.0
 Changes:
 - Added online / offline status indicator in the UI
-- Added `application.type: none` support for running IMPulse without messenger integration ([docs](https://docs.impulse.bot/latest/config_file/#applicationtype))
+- Added `application.type: none` support for running IMPulse without messenger integration ([docs](https://docs.impulse.bot/v2.7.0/config_file/#applicationtype))
 - Removed update check functionality
 
 ## v2.6.0
 Changes:
-- [UI](https://docs.impulse.bot/latest/ui/) with multi-column sorting and value-based [highlighting](https://docs.impulse.bot/latest/config_file/#uicolors)
+- [UI](https://docs.impulse.bot/v2.6.0/ui/) with multi-column sorting and value-based [highlighting](https://docs.impulse.bot/v2.6.0/config_file/#uicolors)
 - Switched to `asyncio` for asynchronous processing
 - Updated documentation and added table of contents
 
@@ -51,8 +51,8 @@ Changes:
 
 ## v2.4.0
 Changes:
-- Added Google Calendar support ([docs](https://docs.impulse.bot/latest/google/))
-- Updated logic for **Take It** / **Release** button ([docs](https://docs.impulse.bot/latest/howto/#buttons))
+- Added Google Calendar support ([docs](https://docs.impulse.bot/v2.4.0/google/))
+- Updated logic for **Take It** / **Release** button ([docs](https://docs.impulse.bot/v2.4.0/howto/#buttons))
 - Added logging for button events
 - [Telegram] Fixed incident link
 
@@ -70,16 +70,16 @@ Changes:
 
 ## v2.1.0
 Changes:
-- Added support for scheduled chains ([docs](https://docs.impulse.bot/latest/config_file/#schedule-chain))
+- Added support for scheduled chains ([docs](https://docs.impulse.bot/stable/config_file/#schedule-chain))
 
 ## v2.0.0
 Upgrade instructions:
-- Modify `application.users`. Define users by their IDs instead of names ([docs](https://docs.impulse.bot/latest/config_file/#users))
-- Add `application.channels` and define channels explicitly ([docs](https://docs.impulse.bot/latest/config_file/#channels))
+- Modify `application.users`. Define users by their IDs instead of names ([docs](https://docs.impulse.bot/stable/config_file/#users))
+- Add `application.channels` and define channels explicitly ([docs](https://docs.impulse.bot/stable/config_file/#channels))
 - Replace Docker image `ghcr.io/ditsi/impulse` with `ghcr.io/eslupmi/impulse`
-- Move `timeouts` under `incident` ([docs](https://docs.impulse.bot/latest/config_file/#all-options))
-- [Mattermost] Rename `application.url` to `application.address` ([docs](https://docs.impulse.bot/latest/config_file/#all-options))
-- [Mattermost] Move `url` under `application` and rename it to `impulse_address` ([docs](https://docs.impulse.bot/latest/config_file/#all-options))
+- Move `timeouts` under `incident` ([docs](https://docs.impulse.bot/stable/config_file/#all-options))
+- [Mattermost] Rename `application.url` to `application.address` ([docs](https://docs.impulse.bot/stable/config_file/#all-options))
+- [Mattermost] Move `url` under `application` and rename it to `impulse_address` ([docs](https://docs.impulse.bot/stable/config_file/#all-options))
 
 Changes:
 - Replaced **Chain** button with **Take It** / **Release**
@@ -114,9 +114,9 @@ Changes:
 
 ## v1.2.0
 Changes:
-- Enabled use of incident object attributes in [templates](https://docs.impulse.bot/latest/templates/) and [webhooks](https://docs.impulse.bot/latest/webhooks/)
+- Enabled use of incident object attributes in templates and webhooks
 - Template refactoring
-- Added runbook link to message templates ([docs](https://docs.impulse.bot/latest/templates/#source-and-runbook-links))
+- Added runbook link to message templates
 - Fixed user notifications for undefined users
 
 ## v1.1.0
