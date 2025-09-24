@@ -10,6 +10,7 @@ Changes:
 - `last_state` incident field renamed to `payload`
 - `incident.notifications.new_firing` set to `True` by default
 - Removed `experimental` features
+- Documentation now defaults to stable version instead of latest
 
 ## v2.8.0
 Changes:
