@@ -1,0 +1,99 @@
+# Example values for Mattermost configuration
+# Copy this file and modify as needed, then use: helm install impulse . -f values-mattermost.yaml
+
+image:
+  repository: ghcr.io/eslupmi/impulse
+  tag: ""  # If empty, will use .Chart.AppVersion
+
+# Mattermost configuration
+impulseConfig:
+  application:
+    type: "mattermost"
+    team: "team_name"
+    address: "https://mattermost.example.com"
+    impulse_address: "https://impulse.example.com"
+    admin_users: ["admin_user"]
+    users:
+      admin_user:
+        id: "user_id_from_mattermost"
+    channels:
+      incidents_default:
+        id: "channel_id_from_mattermost"
+    chains:
+      default:
+        - user: "admin_user"
+          wait: "10m"
+  
+  incident:
+    alerts_firing_notifications: false
+    alerts_resolved_notifications: false
+    timeouts:
+      firing: "6h"
+      unknown: "6h"
+      resolved: "12h"
+  
+  route:
+    channel: "incidents_default"
+  
+  ui:
+    columns:
+      - name: status
+        header: Status
+        visible: false
+        value: incident.status
+      - name: created
+        type: datetime
+        header: Created
+        value: incident.created
+      - name: alertname
+        header: Alertname
+        type: link
+        url: incident.link
+        value: payload.commonLabels.alertname
+      - name: service
+        header: Service
+        value: payload.commonLabels.service
+      - name: severity
+        header: Severity
+        value: payload.commonLabels.severity
+    sorting:
+      - severity: desc
+        order: ["info", "warning", "critical"]
+      - created: desc
+    colors:
+      severity:
+        critical: "#FF0000"
+        warning: "#FFA500"
+        info: "#00FF00"
+
+# Mattermost secrets (replace with your actual token)
+secrets:
+  # Option 1: Use existing secrets (recommended for production)
+  # existing:
+  #   mattermost:
+  #     secretName: "my-mattermost-secrets"
+  #     accessTokenKey: "access-token"
+  
+  # Option 2: Inline secrets (for development/testing)
+  # Leave empty if using existing secrets above
+  inline:
+    mattermost:
+      accessToken: "your-mattermost-access-token"
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 5000
+
+# Resource limits
+resources:
+  limits:
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+# Persistence
+persistence:
+  enabled: true
+  size: 1Gi
