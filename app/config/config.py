@@ -132,7 +132,7 @@ def load_unified_config(config_path: Optional[str] = None, exit_on_error: bool =
     except ConfigValidationError as e:
         error_msg = (f"{e}\n"
                     f"Please check your impulse.yml file and fix any validation errors.\n"
-                    f"Documentation: https://docs.impulse.bot/latest/config_file/")
+                    f"Documentation: https://docs.impulse.bot/stable/config_file/")
         if exit_on_error:
             logger.error(error_msg)
             raise SystemExit(1)
