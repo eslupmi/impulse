@@ -9,6 +9,7 @@ on:
     - 'develop'
     tags:
     - 'v*'
+    - 'dev-*'
 
 env:
   REGISTRY: ghcr.io
