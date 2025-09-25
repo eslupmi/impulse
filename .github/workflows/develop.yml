@@ -102,6 +102,7 @@ jobs:
 
       - name: Copy packaged chart to helm-charts repository
         run: |
+          mkdir helm-charts-repo/${{ env.TARGET_DIR }}/
           cp packaged/*.tgz helm-charts-repo/${{ env.TARGET_DIR }}/
           cd helm-charts-repo/${{ env.TARGET_DIR }}
           helm repo index . --url ${{ env.PUBLISH_BASE_URL }}
