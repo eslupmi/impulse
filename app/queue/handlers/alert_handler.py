@@ -61,6 +61,7 @@ class AlertHandler(BaseHandler):
             assigned_user_id="",
             assigned_user="",
             assigned_fullname="",
+            messenger_type=self.app.type.value,
             version=config.INCIDENT_ACTUAL_VERSION
         )
         await self._create_thread(incident_, alert_state)

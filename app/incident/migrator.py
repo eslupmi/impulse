@@ -3,6 +3,7 @@ import yaml
 from typing import Dict, List, Optional
 from app.logging import logger
 from app.tools import NoAliasDumper
+from app.config.config import get_config
 
 
 class IncidentMigrator:
@@ -43,7 +44,7 @@ class IncidentMigrator:
         with open(file_path, 'w') as f:
             yaml.dump(migrated_data, f, NoAliasDumper, default_flow_style=False)
         
-        logger.info(f'Successfully migrated {os.path.basename(file_path)} to {target_version}')
+        logger.info(f'Successfully migrated {os.path.basename(file_path)}')
     
     def _migrate_data(self, incident_data: Dict, from_version: str, to_version: str) -> Dict:
         """
@@ -70,8 +71,6 @@ class IncidentMigrator:
             next_version = migration_path[i + 1]
             
             current_data = self._apply_single_migration(current_data, current_version, next_version)
-            logger.debug(f"Migrated from {current_version} to {next_version}")
-        
         return current_data
     
     def _get_migration_path(self, from_version: str, to_version: str) -> List[str]:
@@ -113,8 +112,10 @@ class IncidentMigrator:
         migrated_data['version'] = to_version
         return migrated_data
     
-    # Migration methods
     def _migrate_v0_4_to_v3_0_0(self, data: Dict) -> Dict:
         migrated = data.copy()
         migrated['payload'] = migrated.pop('last_state')
+        
+        config = get_config()
+        migrated['messenger_type'] = config.application.type.value
         return migrated
