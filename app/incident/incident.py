@@ -32,6 +32,7 @@ class Incident:
     assigned_user_id: str
     assigned_user: str
     assigned_fullname: str
+    messenger_type: str = field(default='')
     created: datetime = None
     chain: List[Dict] = field(default_factory=list)
     chain_enabled: bool = False
@@ -186,6 +187,7 @@ class Incident:
             assigned_user_id=content.get('assigned_user_id', ''),
             assigned_user=content.get('assigned_user', ''),
             assigned_fullname=content.get('assigned_fullname', ''),
+            messenger_type=content.get('messenger_type', ''),
             version=content.get('version', config.INCIDENT_ACTUAL_VERSION)
         )
         incident_.set_thread(content.get('ts'), incident_config.application_url)
@@ -207,6 +209,7 @@ class Incident:
             "assigned_user_id": self.assigned_user_id,
             "assigned_user": self.assigned_user,
             "assigned_fullname": self.assigned_fullname,
+            "messenger_type": self.messenger_type,
             "version": self.version
         }
         with open(f'{config.incidents_path}/{self.uuid}.yml', 'w') as f:
@@ -236,6 +239,7 @@ class Incident:
             "assigned_user_id": self.assigned_user_id,
             "assigned_user": self.assigned_user,
             "assigned_fullname": self.assigned_fullname,
+            "messenger_type": self.messenger_type,
             "link": self.link,
             "ts": self.ts,
         }
