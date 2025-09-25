@@ -32,7 +32,7 @@ class Incident:
     assigned_user_id: str
     assigned_user: str
     assigned_fullname: str
-    messenger_type: str = field(default='')
+    messenger_type: str
     created: datetime = None
     chain: List[Dict] = field(default_factory=list)
     chain_enabled: bool = False
