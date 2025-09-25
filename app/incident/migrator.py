@@ -44,7 +44,7 @@ class IncidentMigrator:
         with open(file_path, 'w') as f:
             yaml.dump(migrated_data, f, NoAliasDumper, default_flow_style=False)
         
-        logger.info(f'Successfully migrated {os.path.basename(file_path)} to {target_version}')
+        logger.info(f'Successfully migrated {os.path.basename(file_path)}')
     
     def _migrate_data(self, incident_data: Dict, from_version: str, to_version: str) -> Dict:
         """
