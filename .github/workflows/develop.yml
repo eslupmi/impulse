@@ -19,7 +19,7 @@ env:
   TARGET_REPO: helm-charts
   TARGET_BRANCH: main
   TARGET_DIR: packages
-  PUBLISH_BASE_URL: https://eslupmi.github.io/packages
+  PUBLISH_BASE_URL: https://eslupmi.github.io/helm-charts/packages
 
 jobs:
   build-and-push-image:
