@@ -4,9 +4,6 @@ concurrency:
   group: ${{ github.ref }}
 
 on:
-  push:
-    tags:
-    - 'v*'
   workflow_dispatch:
 
 env:
