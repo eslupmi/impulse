@@ -63,8 +63,8 @@ image:
 
 **Examples:**
 - Use Chart.AppVersion: `tag: ""` (default)
-- Use specific tag: `tag: "v2.7.0"`
-- Use different repository: `repository: "docker.io/myorg/impulse"`
+- Use specific tag: `tag: "v3.0.0"`
+- Use different repository: `repository: "ghcr.io/eslupmi/impulse"`
 
 #### Custom Labels
 Add custom labels to all resources:

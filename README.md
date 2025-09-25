@@ -1,4 +1,8 @@
-<h1><img alt="Prometheus" src="logo.svg" width="50"> IMPulse</h1>
+<h1><img alt="IMPulse" src="logo.svg" width="50"> IMPulse</h1>
+
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![Release](https://img.shields.io/github/v/release/eslupmi/impulse?sort=semver)](https://github.com/eslupmi/impulse/releases)
+[![Docker](https://img.shields.io/badge/ghcr.io-eslupmi/impulse-blue?logo=docker)](https://ghcr.io/eslupmi/impulse)
 
 <div align="center"><img src="https://github.com/eslupmi/site/blob/main/static/ui.png?raw=true" width="700"></div>
 
