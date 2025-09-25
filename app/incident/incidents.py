@@ -97,8 +97,6 @@ class Incidents:
                     incident_config=incident_config
                 )
                 if incident_.messenger_type == config.application.type.value:
-                    if incident_.version != config.INCIDENT_ACTUAL_VERSION:
-                        cls.update_incident(incident_)
                     incidents.add(incident_)
                 else:
                     logger.warning(f'Skipping incident {filename}: messenger_type mismatch. '
