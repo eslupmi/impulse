@@ -77,14 +77,42 @@ class AsyncIncidentWS:
         await websocket.send_text(json.dumps({"event": "pong"}))
 
     def _get_values(self):
-        """Get values mapping for table configuration"""
+        """Get values mapping for table configuration (supports dict and Pydantic UIConfig)"""
         values_map = {}
-        for field in self.table_config.get('columns', []):
-            if field.get('type') == 'link':
-                values_map[field['name']] = field['value']
-                values_map[f'{field["name"]}Url'] = field['url']
-            else:
-                values_map[field['name']] = field['value']
+
+        # Determine columns source: Pydantic model or legacy dict
+        if hasattr(self.table_config, 'columns') and isinstance(getattr(self.table_config, 'columns'), list):
+            columns = self.table_config.columns
+            for field in columns:
+                # Pydantic UIColumn
+                name = getattr(field, 'name', None)
+                ftype = getattr(field, 'type', None)
+                value = getattr(field, 'value', None)
+                url = getattr(field, 'url', None)
+                if not name or not value:
+                    continue
+                if ftype == 'link' and url:
+                    values_map[name] = value
+                    values_map[f'{name}Url'] = url
+                else:
+                    values_map[name] = value
+        else:
+            # Legacy dict
+            for field in (self.table_config.get('columns', []) if isinstance(self.table_config, dict) else []):
+                if not isinstance(field, dict):
+                    continue
+                name = field.get('name')
+                ftype = field.get('type')
+                value = field.get('value')
+                url = field.get('url')
+                if not name or not value:
+                    continue
+                if ftype == 'link' and url:
+                    values_map[name] = value
+                    values_map[f'{name}Url'] = url
+                else:
+                    values_map[name] = value
+
         return values_map
 
 

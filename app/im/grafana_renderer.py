@@ -14,6 +14,7 @@ import jwt
 import json
 
 from app.logging import logger
+from app.config.config import get_config
 from config import jwt_auth_enabled, jwt_auth_kid, jwt_auth_issuer, jwt_auth_audience, jwt_auth_ttl_seconds
 from config import jwt_auth_rotation_enabled, jwt_auth_rotation_interval_days, jwt_auth_grace_period_seconds, jwt_auth_max_keys, jwt_auth_keys_dir
 from config import jwt_auth_mode
@@ -58,9 +59,28 @@ class GrafanaRenderer:
     def _load_panel_variables_config(self) -> Dict[str, Any]:
         """Загружает конфигурацию переменных панели из настроек приложения"""
         try:
-            # Единый источник: верхний уровень settings['grafana_renderer']
-            grafana_config = settings.get('grafana_renderer', {}) if isinstance(settings, dict) else {}
-            panel_vars_config = grafana_config.get('panel_variables', {})
+            # Предпочитаем валидированный конфиг Pydantic
+            panel_vars_config = {}
+            max_values_per_var = panel_variables_max_values_per_var
+            max_url_length_local = panel_variables_max_url_length
+            try:
+                cfg = get_config()
+                gr = getattr(cfg.app, 'grafana_renderer', None)
+                if gr is not None:
+                    pv = getattr(gr, 'panel_variables', None)
+                    if pv is not None:
+                        # pydantic модели имеют атрибуты
+                        panel_vars_config = {
+                            'default_mapping': getattr(pv, 'default_mapping', {}) or {},
+                            'dashboard_specific': getattr(pv, 'dashboard_specific', {}) or {},
+                        }
+                    # лимиты
+                    max_values_per_var = getattr(gr, 'panel_variables_max_values_per_var', max_values_per_var) or max_values_per_var
+                    max_url_length_local = getattr(gr, 'panel_variables_max_url_length', max_url_length_local) or max_url_length_local
+            except Exception:
+                # Фолбэк на legacy settings
+                grafana_config = settings.get('grafana_renderer', {}) if isinstance(settings, dict) else {}
+                panel_vars_config = grafana_config.get('panel_variables', {}) or {}
             
             # Default mapping для основных лейблов
             default_mapping = panel_vars_config.get('default_mapping', {})
@@ -71,8 +91,8 @@ class GrafanaRenderer:
             result = {
                 'default_mapping': default_mapping,
                 'dashboard_specific': dashboard_specific,
-                'max_values_per_var': panel_variables_max_values_per_var,
-                'max_url_length': panel_variables_max_url_length
+                'max_values_per_var': max_values_per_var,
+                'max_url_length': max_url_length_local
             }
             return result
         except Exception as e:

@@ -1,6 +1,5 @@
 import logging
-
-from config import log_level
+import os
 
 
 class CustomFormatter(logging.Formatter):
@@ -52,5 +51,6 @@ def configure_uvicorn_logging():
         logger_obj.propagate = False
 
 
-log_level = getattr(logging, log_level.upper(), logging.INFO)
+_level_name = os.getenv('LOG_LEVEL', 'INFO')
+log_level = getattr(logging, _level_name.upper(), logging.INFO)
 logger = create_logger('main_logger', log_level)

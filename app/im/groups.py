@@ -7,7 +7,7 @@ def generate_user_groups(user_groups_dict=None, users=None):
     if user_groups_dict:
         logger.info(f'Creating user_groups')
         for name in user_groups_dict.keys():
-            user_names = user_groups_dict[name]['users']
+            user_names = user_groups_dict[name].users
             user_objects = list()
             for user_name in user_names:
                 user_object = users.get(user_name, UndefinedUser(user_name))

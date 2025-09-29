@@ -5,7 +5,8 @@ from app.incident.incident import IncidentConfig, Incident
 from app.logging import logger
 from app.queue.handlers.base_handler import BaseHandler
 from app.time import unix_sleep_to_timedelta
-from config import INCIDENT_ACTUAL_VERSION, incident, experimental
+from app.config.config import get_config
+from config import INCIDENT_ACTUAL_VERSION
 
 
 class AlertHandler(BaseHandler):
@@ -38,7 +39,13 @@ class AlertHandler(BaseHandler):
 
         status = alert_state['status']
         updated_datetime = datetime.utcnow()
-        status_update_datetime = datetime.utcnow() + unix_sleep_to_timedelta(incident['timeouts'].get(status))
+        # Timeouts: prefer validated config, fallback to legacy if ever needed
+        try:
+            cfg = get_config()
+            timeout_value = cfg.incident.timeouts.get(status)
+        except Exception:
+            timeout_value = None
+        status_update_datetime = datetime.utcnow() + unix_sleep_to_timedelta(timeout_value or '6h')
 
         config = IncidentConfig(
             application_type=self.app.type,
@@ -102,11 +109,32 @@ class AlertHandler(BaseHandler):
         await self.queue.recreate(new_status, uuid_, incident_.get_chain())
 
         # Check new alerts firing or old alerts resolved
-        chain_recreate = experimental.get('recreate_chain', False)
-        if incident.get('alerts_firing_notifications') or chain_recreate:
+        cfg = get_config()
+        chain_recreate = bool(getattr(cfg.experimental, 'recreate_chain', False))
+        # Support both new (pydantic) and legacy notification keys
+        notif = getattr(cfg.incident, 'notifications', None)
+        new_firing_enabled = bool(getattr(notif, 'new_firing', False)) if notif is not None else False
+        resolved_enabled = bool(getattr(notif, 'resolved', False)) if notif is not None else False
+        # Legacy fallback
+        try:
+            legacy_incident = cfg.settings.get('incident', {}) if isinstance(cfg.settings, dict) else {}
+            if not new_firing_enabled:
+                new_firing_enabled = bool(legacy_incident.get('alerts_firing_notifications'))
+            if not resolved_enabled:
+                resolved_enabled = bool(legacy_incident.get('alerts_resolved_notifications'))
+        except Exception:
+            pass
+
+        # Initialize variables
+        is_new_firing_alerts_added = False
+        is_some_firing_alerts_removed = False
+
+        if new_firing_enabled or chain_recreate:
             is_new_firing_alerts_added = incident_.is_new_firing_alerts_added(alert_state)
-        if incident.get('alerts_resolved_notifications'):
+            logger.debug(f'New firing alerts check: enabled={new_firing_enabled}, chain_recreate={chain_recreate}, is_new_firing={is_new_firing_alerts_added}')
+        if resolved_enabled:
             is_some_firing_alerts_removed = incident_.is_some_firing_alerts_removed(alert_state)
+            logger.debug(f'Resolved alerts check: enabled={resolved_enabled}, is_some_resolved={is_some_firing_alerts_removed}')
         is_status_updated, is_state_updated = incident_.update_state(alert_state)
         
         # Experimental !
@@ -114,6 +142,8 @@ class AlertHandler(BaseHandler):
             incident_.chain_enabled = True
 
         if is_state_updated or is_status_updated:
+            # Save previous status for transition detection
+            incident_.prev_status = prev_status
             await self.app.update(
                 uuid_, incident_, alert_state['status'], alert_state, is_status_updated,
                 incident_.chain_enabled, incident_.status_enabled
@@ -124,20 +154,30 @@ class AlertHandler(BaseHandler):
             # Best-effort: not all applications may implement this method
             if hasattr(self.app, 'post_status_firing_transition'):
                 await self.app.post_status_firing_transition(incident_)
-                # Suppress first chain tag everywhere (fixed and non-fixed) to avoid duplicate with combined message
-                incident_.skip_next_chain_tag = True
-                incident_.dump()
+                # For non-fixed topics, suppress first chain tag (to avoid duplicate with combined message)
+                try:
+                    _, fixed_topic_id = self.app._parse_channel_id(incident_.channel_id)
+                    is_fixed_topic = fixed_topic_id is not None
+                except Exception:
+                    is_fixed_topic = False
+                if not is_fixed_topic:
+                    incident_.skip_next_chain_tag = True
+                    incident_.dump()
 
         if prev_status == 'firing' and incident_.status == 'firing':
             # Experimental !
             if is_new_firing_alerts_added and chain_recreate:
                 await self._new_alerts_recreate_chain(alert_state, incident_, uuid_)
             # Some alerts status change notification
+            logger.debug(f'Firing->firing notification check: new_firing={is_new_firing_alerts_added}, resolved={is_some_firing_alerts_removed}, status_enabled={incident_.status_enabled}')
             if (is_new_firing_alerts_added or is_some_firing_alerts_removed) and incident_.status_enabled:
+                logger.debug(f'Sending new fire alert notification for incident {uuid_}')
                 await self._notify_new_fire_alert(
                     incident_, is_new_firing_alerts_added, is_some_firing_alerts_removed,
                     uuid_, chain_recreate
                 )
+            else:
+                logger.debug(f'Skipping new fire alert notification for incident {uuid_}: new_firing={is_new_firing_alerts_added}, resolved={is_some_firing_alerts_removed}, status_enabled={incident_.status_enabled}')
         await self.queue.update(uuid_, incident_.status_update_datetime, incident_.status)
 
     async def _notify_new_fire_alert(self, incident_, new_alerts_f, new_alerts_r, uuid_, experimental_recreate):
@@ -147,21 +187,41 @@ class AlertHandler(BaseHandler):
         header = self.app.format_text_italic(
             self.app.header_template.form_message(incident_.last_state, incident_)
         )
+        
+        # For Telegram, compose chain tag text based on the first pending notify step in chain
+        group_tag = None
+        if self.app.type == 'telegram' and hasattr(self.app, '_compose_chain_tag_text'):
+            group_tag = await self.app._compose_chain_tag_text(incident_)
+        
+        # Fallback to admin destinations if no chain tag available
+        if not group_tag:
+            destinations = self.app.get_notification_destinations()
+            if self.app.type == 'telegram':
+                # For Telegram, format as proper user tags
+                group_tag = ', '.join([f'<a href="tg://user?id={user.id}">{user.name}</a>' for user in destinations if hasattr(user, 'id') and hasattr(user, 'name')])
+            else:
+                # For other apps, use simple names
+                group_tag = ', '.join([getattr(user, 'name', str(user)) for user in destinations])
+        
         fields = {
             'type': self.app.type,
             'firing': new_alerts_f,
             'resolved': new_alerts_r,
-            'recreate': experimental_recreate
+            'recreate': experimental_recreate,
+            'group_tag': group_tag
         }
         text = JinjaTemplate(update_alerts).form_notification(fields)
         if self.app.type == 'telegram':
             message = text
         else:
             message = header + '\n' + text
-        # For Telegram we use thread_id (topic_id/message_id) for sending messages
-        # For other applications we use ts
+        # Always reply to main message for visibility
         thread_identifier = incident_.thread_id if incident_.thread_id else incident_.ts
-        await self.app.post_thread(incident_.channel_id, thread_identifier, message)
+        # Telegram: use special method for new alerts that removes previous messages
+        if self.app.type == 'telegram':
+            await self.app.post_new_alerts_notification(incident_, message)
+        else:
+            await self.app.post_thread(incident_.channel_id, thread_identifier, message)
         if new_alerts_f:
             logger.info(f"Incident {uuid_} updated with new alerts firing")
         elif new_alerts_r:
@@ -184,7 +244,15 @@ class AlertHandler(BaseHandler):
         header = self.app.header_template.form_message(alert_state, incident_)
         status_icons = self.app.status_icons_template.form_message(alert_state, incident_)
         thread_id = await self.app.create_thread(
-            incident_.channel_id, body, header, status_icons, status=alert_state['status']
+            incident_.channel_id, body, header, status_icons, status=alert_state['status'], 
+            incident=incident_, alert_state=alert_state
         )
         incident_.set_thread(thread_id, self.app.public_url)
+        
+        # Initialize current topic name and icon for Telegram to avoid unnecessary updates
+        if self.app.type == 'telegram':
+            incident_.current_topic_name = header
+            incident_.current_topic_icon = status_icons
+            incident_.dump()
+        
         return thread_id

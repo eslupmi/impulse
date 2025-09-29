@@ -7,10 +7,11 @@ from fastapi.responses import JSONResponse
 from app.im.application import Application
 from app.im.telegram.config import buttons
 from app.im.telegram.user import User
-from app.im.template import JinjaTemplate, update_status, update_alerts, notification_user, notification_user_group
+from app.im.template import JinjaTemplate, update_status, update_alerts, notification_user, notification_user_group, notification_unassignment
 from app.im.grafana_renderer import create_grafana_renderer
 from app.logging import logger
 from config import telegram_bot_token, application, grafana_renderer_url, grafana_url, grafana_render_key, grafana_render_enabled, grafana_render_rate_limit, grafana_render_max_size, grafana_render_time_to_render
+from app.config.config import get_config
 
 
 class TelegramApplication(Application):
@@ -34,10 +35,23 @@ class TelegramApplication(Application):
 
     def _init_grafana_renderer(self):
         """Инициализирует Grafana Renderer из конфигурации"""
-        logger.info(f"Инициализация Grafana Renderer: render_enabled={self.render_enabled}")
-        if not self.render_enabled:
-            logger.info("Grafana Renderer отключен в конфигурации (GRAFANA_RENDER_ENABLED=false)")
-            return
+        try:
+            cfg = get_config()
+            gr = getattr(cfg.app, 'grafana_renderer', None)
+            if gr is not None:
+                # Перекрываем env/legacy значениями из валидированного конфига
+                self.render_enabled = bool(getattr(gr, 'enabled', self.render_enabled))
+                self.render_rate_limit = int(getattr(gr, 'rate_limit', self.render_rate_limit) or self.render_rate_limit)
+                self.render_max_size = int(getattr(gr, 'max_size', self.render_max_size) or self.render_max_size)
+            logger.info(f"Инициализация Grafana Renderer: render_enabled={self.render_enabled}")
+            if not self.render_enabled:
+                logger.info("Grafana Renderer отключен в конфигурации")
+                return
+        except Exception:
+            logger.info(f"Инициализация Grafana Renderer: render_enabled={self.render_enabled}")
+            if not self.render_enabled:
+                logger.info("Grafana Renderer отключен в конфигурации (legacy)")
+                return
             
         try:
             config = {
@@ -181,7 +195,11 @@ class TelegramApplication(Application):
         return f'{self.icon_map.get(icon)}'
 
     def get_admins_text(self): #!
-        return ', '.join([f'@{a.id}' for a in self.admin_users])
+        admin_texts = []
+        for a in self.admin_users or []:
+            if hasattr(a, 'id') and isinstance(a.id, (int, str)):
+                admin_texts.append(f'@{a.id}')
+        return ', '.join(admin_texts)
 
     def format_user_mention(self, user_id, display_name=None):
         """Format a user mention for Telegram using the tg://user link format."""
@@ -344,7 +362,13 @@ class TelegramApplication(Application):
             logger.error(f"Ошибка при удалении сообщения {message_id}: {e}")
             return False
 
-    async def create_thread(self, channel_id, body, header, status_icons, status):
+    async def create_thread(self, channel_id, body, header, status_icons, status, incident=None, alert_state=None):
+        # Set context for keyboard builder
+        if incident is not None:
+            self._current_incident_for_keyboard = incident
+        if alert_state is not None:
+            self._current_alert_state_for_keyboard = alert_state
+        
         # Parse channel_id to extract topic_id if present
         chat_id, topic_id = self._parse_channel_id(channel_id)
         
@@ -447,7 +471,6 @@ class TelegramApplication(Application):
         first_name = user_from.get('first_name', '').strip()
         last_name = user_from.get('last_name', '').strip()
         user_display_name = f"{first_name} {last_name}".strip() or user_from.get('username')
-        incident_.assign_user(user_display_name)
 
         if action in ['start_chain', 'stop_chain']:
             logger.debug(f'Processing chain action: {action}')
@@ -455,6 +478,7 @@ class TelegramApplication(Application):
             if action == 'stop_chain':
                 logger.info(f'Incident {incident_.uuid} -> button TAKE IT pressed')
                 incident_.assign_user_id(user_id)
+                incident_.assign_user(user_display_name)
                 asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id, incidents))
                 asyncio.create_task(self.post_assignment_notification(incident_, user_id, user_display_name))
                 
@@ -470,10 +494,20 @@ class TelegramApplication(Application):
                     # For non-fixed topics, keep chain enabled to send tagging messages
                     # The chain will be disabled when incident is resolved
                     logger.debug(f'Keeping chain_enabled=True for non-fixed topic incident {incident_.uuid}')
+                    
+                    # Update topic name immediately for non-fixed topics
+                    asyncio.create_task(self._update_topic_after_assignment(incident_))
             else:
                 logger.info(f'Incident {incident_.uuid} -> button RELEASE pressed')
+                asyncio.create_task(self.post_unassignment_notification(incident_))
                 incident_.release()
                 logger.debug(f'Released incident {incident_.uuid}')
+                
+                # Update topic name immediately for non-fixed topics after release
+                _, fixed_topic_id = self._parse_channel_id(incident_.channel_id)
+                is_fixed_topic = fixed_topic_id is not None
+                if not is_fixed_topic:
+                    asyncio.create_task(self._update_topic_after_assignment(incident_))
         elif action in ['start_status', 'stop_status', 'silence', 'panel_screenshot', 'panel_screenshot_disabled']:
             logger.debug(f'Processing status action: {action}')
             if action == 'stop_status':
@@ -487,7 +521,10 @@ class TelegramApplication(Application):
             elif action == 'silence':
                 logger.info(f'Incident {incident_.uuid} -> button Mute pressed (callback)')
                 # Allow only admin users to trigger Mute
-                admin_ids = {u.id for u in self.admin_users or []}
+                admin_ids = set()
+                for u in self.admin_users or []:
+                    if hasattr(u, 'id') and isinstance(u.id, (int, str)):
+                        admin_ids.add(u.id)
                 if user_id not in admin_ids:
                     await self._answer_callback(callback['id'], 'You are not allowed to mute (admins only)')
                     return JSONResponse({}, status_code=200)
@@ -579,9 +616,16 @@ class TelegramApplication(Application):
         If Alertmanager API is not configured, backend mute is not available (use silenceURL button instead).
         """
         try:
-            am_cfg = application.get('alertmanager', {}) or {}
-            api_url = am_cfg.get('api_url')
-            duration = am_cfg.get('silence_duration', '2h')
+            # application is now a Pydantic model, not a dict
+            if hasattr(application, 'alertmanager'):
+                am_cfg = application.alertmanager
+                api_url = getattr(am_cfg, 'api_url', None)
+                duration = getattr(am_cfg, 'silence_duration', '2h')
+            else:
+                # Fallback for legacy dict format
+                am_cfg = getattr(application, 'get', lambda x, y: {})({'alertmanager', {}}) or {}
+                api_url = am_cfg.get('api_url')
+                duration = am_cfg.get('silence_duration', '2h')
 
             alert = incident_.last_state or {}
             labels = alert.get('groupLabels') or alert.get('commonLabels') or {}
@@ -753,7 +797,12 @@ class TelegramApplication(Application):
 
     def _create_thread_payload(self, chat_id, body, header, status_icons, status):
         # Build silence button - prefer URL button if available; fallback to callback button to keep it visible
-        silence_button = self._get_silence_button() or buttons['silence']['mute']
+        # Only try to get silence button if we have context (incident and state are set)
+        silence_button = None
+        if hasattr(self, '_current_incident_for_keyboard') and hasattr(self, '_current_alert_state_for_keyboard'):
+            silence_button = self._get_silence_button()
+        if silence_button is None:
+            silence_button = buttons['silence']['mute']
         
         # Build keyboard as 3 rows to avoid overflow on mobile Telegram
         # Row 1: Take/Release + Notifications; Row 2: Mute (if available) + Screenshot; Row 3: Screenshot (if Mute not available)
@@ -855,10 +904,13 @@ class TelegramApplication(Application):
     async def _update_topic(self, channel_id, id_, header, status_icons, incident=None):
         chat_id, fixed_topic_id = self._parse_channel_id(channel_id)
         
+        logger.debug(f'Updating topic: channel_id={channel_id}, id_={id_}, incident.thread_id={getattr(incident, "thread_id", None) if incident else None}')
+        
         # Extract topic_id from id_ (could be "topic_id/message_id" or just "message_id")
         topic_id = None
         if '/' in str(id_):
             topic_id, _ = id_.split('/', 1)
+            logger.debug(f'Extracted topic_id from id_: {topic_id}')
         else:
             # If id_ is just message_id, try to get topic_id from incident
             if incident and hasattr(incident, 'thread_id') and incident.thread_id and '/' in str(incident.thread_id):
@@ -878,63 +930,50 @@ class TelegramApplication(Application):
                     return
             
         if topic_id:
-            payload = {
-                'chat_id': chat_id,
-                'name': header,
-                'icon_custom_emoji_id': status_icons,
-                'message_thread_id': topic_id
-            }
-            logger.debug(f'Updating topic {topic_id}: header="{header}", status_icons="{status_icons}"')
-            try:
-                async with self.http.post(
-                    f'{self.url}/editForumTopic',
-                    json=payload,
-                    headers=self.headers
-                ) as response:
-                    response_json = await response.json()
-                    if response_json.get('ok'):
-                        logger.debug(f'Successfully updated topic {topic_id}')
-                    else:
-                        logger.warning(f'Failed to update topic {topic_id}: {response_json}')
-            except aiohttp.ClientError as e:
-                logger.error(f'Failed to update topic: {e}')
+            # Check if we need to update the topic (avoid TOPIC_NOT_MODIFIED error)
+            current_topic_name = getattr(incident, 'current_topic_name', None)
+            current_topic_icon = getattr(incident, 'current_topic_icon', None)
+            
+            # Only update if name or icon has changed
+            if current_topic_name != header or current_topic_icon != status_icons:
+                payload = {
+                    'chat_id': chat_id,
+                    'name': header,
+                    'icon_custom_emoji_id': status_icons,
+                    'message_thread_id': topic_id
+                }
+                logger.debug(f'Updating topic {topic_id}: header="{header}", status_icons="{status_icons}"')
+                try:
+                    async with self.http.post(
+                        f'{self.url}/editForumTopic',
+                        json=payload,
+                        headers=self.headers
+                    ) as response:
+                        response_json = await response.json()
+                        if response_json.get('ok'):
+                            logger.debug(f'Successfully updated topic {topic_id}')
+                            # Store current topic name and icon to avoid unnecessary updates
+                            if incident:
+                                incident.current_topic_name = header
+                                incident.current_topic_icon = status_icons
+                                incident.dump()
+                        else:
+                            logger.warning(f'Failed to update topic {topic_id}: {response_json}')
+                except aiohttp.ClientError as e:
+                    logger.error(f'Failed to update topic: {e}')
+            else:
+                logger.debug(f'Topic {topic_id} name and icon unchanged, skipping update')
 
     async def _find_topic_by_message_id(self, chat_id, message_id):
         """
         Try to find topic_id by searching for a message in the chat.
         This is a fallback method when thread_id is not available.
+        Note: This method is disabled when webhook is active to avoid conflicts.
         """
         try:
-            # Get chat history to find the message and its topic
-            payload = {
-                'chat_id': chat_id,
-                'limit': 100,  # Get last 100 messages
-                'offset': 0
-            }
-            
-            async with self.http.post(
-                f'{self.url}/getUpdates',
-                json=payload,
-                headers=self.headers
-            ) as response:
-                response_json = await response.json()
-                
-                if not response_json.get('ok'):
-                    logger.debug(f'Failed to get chat history: {response_json}')
-                    return None
-                
-                # Look for the message in the history
-                messages = response_json.get('result', [])
-                for message in messages:
-                    if message.get('message', {}).get('message_id') == int(message_id):
-                        topic_id = message.get('message', {}).get('message_thread_id')
-                        if topic_id:
-                            logger.debug(f'Found topic_id {topic_id} for message_id {message_id}')
-                            return str(topic_id)
-                
-                logger.debug(f'Message {message_id} not found in chat history')
-                return None
-                
+            # Skip this method when webhook is active to avoid conflicts
+            logger.debug(f'Skipping topic lookup by message_id {message_id} - webhook is active')
+            return None
         except Exception as e:
             logger.debug(f'Failed to find topic by message_id: {e}')
             return None
@@ -952,7 +991,12 @@ class TelegramApplication(Application):
         message_text = f'{self._format_tg_icon(status_icons)} {header}\n{body}'
         
         # Build silence button - prefer URL button if available; fallback to callback button to keep it visible
-        silence_button = self._get_silence_button() or buttons['silence']['mute']
+        # Only try to get silence button if we have context (incident and state are set)
+        silence_button = None
+        if hasattr(self, '_current_incident_for_keyboard') and hasattr(self, '_current_alert_state_for_keyboard'):
+            silence_button = self._get_silence_button()
+        if silence_button is None:
+            silence_button = buttons['silence']['mute']
         
         # Build keyboard as 3 rows to avoid overflow on mobile Telegram
         # For chain button: show "Release" if incident is assigned to someone, otherwise show "Take IT" if chain is enabled
@@ -1024,8 +1068,13 @@ class TelegramApplication(Application):
 
     def _extract_silence_url(self, incident=None, state=None):
         try:
-            if state is None:
+            if state is None or state is False:
                 state = incident.last_state if incident is not None else getattr(self, '_current_alert_state_for_keyboard', {}) or {}
+            
+            # Ensure state is a dict-like object
+            if not isinstance(state, dict):
+                return None
+                
             alerts = state.get('alerts') or []
             if alerts and alerts[0].get('silenceURL'):
                 return alerts[0].get('silenceURL')
@@ -1035,8 +1084,14 @@ class TelegramApplication(Application):
             return None
 
     def _is_silence_api_available(self):
-        am_cfg = application.get('alertmanager', {}) or {}
-        has_alertmanager_api = bool(am_cfg.get('api_url'))
+        # application is now a Pydantic model, not a dict
+        if hasattr(application, 'alertmanager'):
+            am_cfg = application.alertmanager
+            has_alertmanager_api = bool(getattr(am_cfg, 'api_url', None))
+        else:
+            # Fallback for legacy dict format
+            am_cfg = getattr(application, 'get', lambda x, y: {})({'alertmanager', {}}) or {}
+            has_alertmanager_api = bool(am_cfg.get('api_url'))
         return has_alertmanager_api
                                                                                                                 
     def _should_show_silence_button(self, incident=None, state=None):
@@ -1057,9 +1112,16 @@ class TelegramApplication(Application):
             incident = getattr(self, '_current_incident_for_keyboard', None)
             state = getattr(self, '_current_alert_state_for_keyboard', None)
             
+            # Ensure incident and state are not False (which can happen during initialization)
+            if incident is False:
+                incident = None
+            if state is False:
+                state = None
+            
             logger.debug(f'Getting silence button: incident={incident is not None}, state={state is not None}')
             
             # Check if we have a silence URL available
+            # application may be Pydantic model; get impulse_address safely if needed elsewhere
             silence_url = self._extract_silence_url(incident=incident, state=state)
             logger.debug(f'Silence URL: {silence_url}')
             
@@ -1210,21 +1272,67 @@ class TelegramApplication(Application):
                 else:
                     logger.warning(f'Could not restore thread_id for message_id: {incident.ts}')
         
-        # Update the main message
+        # Update the main message - always update when called, regardless of status change
+        # This ensures resolved alerts are properly marked in the main message
         await self.update_thread(
             incident.channel_id, thread_identifier, incident_status, body, header, status_icons, 
             chain_enabled, status_enabled, incident
         )
-        # clear context
-        for attr in ['_current_incident_for_keyboard', '_current_alert_state_for_keyboard', '_current_status_for_keyboard', '_show_silence_for_keyboard']:
-            if hasattr(self, attr):
-                delattr(self, attr)
         
         # Определяем тип топика (фиксированный или нефиксированный)
         _, fixed_topic_id = self._parse_channel_id(incident.channel_id)
         is_fixed_topic = fixed_topic_id is not None
         
+        # Check if incident assignment changed and update topic name accordingly
+        # Only update topic name for non-fixed topics
+        if not is_fixed_topic:
+            logger.debug(f'Non-fixed topic detected, checking assignment change for incident {incident.uuid}')
+            logger.debug(f'Current assignment: user_id="{incident.assigned_user_id}", user="{incident.assigned_user}"')
+            logger.debug(f'Incident thread_id: "{incident.thread_id}"')
+            
+            if incident.assigned_user_id != "" and incident.assigned_user != "":
+                # Incident is assigned, update topic name to include assignment info
+                logger.debug(f'Incident {incident.uuid} is assigned, updating topic name')
+                await self._update_topic(incident.channel_id, incident.thread_id, header, status_icons, incident)
+            elif incident.assigned_user_id == "" and incident.assigned_user == "":
+                # Incident is unassigned, update topic name to remove assignment info
+                logger.debug(f'Incident {incident.uuid} is unassigned, updating topic name')
+                await self._update_topic(incident.channel_id, incident.thread_id, header, status_icons, incident)
+        
+        # clear context
+        for attr in ['_current_incident_for_keyboard', '_current_alert_state_for_keyboard', '_current_status_for_keyboard', '_show_silence_for_keyboard']:
+            if hasattr(self, attr):
+                delattr(self, attr)
+        
         logger.info(f'Incident {uuid_} updated with status \'{incident_status}\' (updated_status={updated_status}, is_fixed_topic={is_fixed_topic})')
+        
+        # Handle status notification from base class for fixed topics only
+        # Only send base status notification for non-firing statuses or when not transitioning to firing
+        # BUT NOT for resolved status - resolved should only remove existing messages, not send new ones
+        if updated_status and status_enabled and incident_status not in ['closed', 'resolved'] and is_fixed_topic:
+            # Check if this is a transition to firing (handled by post_status_firing_transition)
+            prev_status = getattr(incident, 'prev_status', None)
+            is_firing_transition = prev_status in ['resolved', 'unknown'] and incident_status == 'firing'
+            
+            if not is_firing_transition:
+                # Send status notification and save message ID for later cleanup
+                header = self.format_text_italic(self.header_template.form_message(incident.last_state, incident))
+                text_template = JinjaTemplate(update_status)
+                admins = self.get_notification_destinations()
+                fields = {'type': self.type, 'status': incident_status, 'admins': admins}
+                text = text_template.form_notification(fields)
+                
+                # Send the status notification and get message ID
+                message_id = await self.post_thread(incident.channel_id, thread_identifier, text)
+                
+                # Save message ID for cleanup
+                if message_id:
+                    if not hasattr(incident, 'base_status_message_ids'):
+                        incident.base_status_message_ids = []
+                    if message_id not in incident.base_status_message_ids:
+                        incident.base_status_message_ids.append(message_id)
+                    incident.dump()
+                    logger.debug(f'Saved base status message ID {message_id} for incident {incident.uuid}')
         
         if is_fixed_topic:
             # Фиксированный топик - ограниченная логика уведомлений
@@ -1233,7 +1341,7 @@ class TelegramApplication(Application):
                 await self._remove_status_notification(incident, thread_identifier)
             elif incident_status == 'firing':
                 # For firing status, we should tag people (let the chain handle this)
-                # Don't send status notification for firing
+                # Don't send status notification for firing - handled by post_status_firing_transition
                 pass
             elif status_enabled and incident_status not in ['closed', 'firing', 'resolved']:
                 # Handle other status notifications (unknown, etc.) - только при смене статуса
@@ -1256,7 +1364,7 @@ class TelegramApplication(Application):
                 logger.debug(f'Disabled chain for non-fixed topic incident {incident.uuid} on resolved')
             elif incident_status == 'firing':
                 # For firing status, we should tag people (let the chain handle this)
-                # Don't send status notification for firing
+                # Don't send status notification for firing - handled by post_status_firing_transition
                 pass
             elif status_enabled and incident_status not in ['closed', 'firing', 'resolved']:
                 # Handle other status notifications (unknown, etc.) - при каждом обновлении
@@ -1343,6 +1451,57 @@ class TelegramApplication(Application):
             logger.warning(f'Failed to compose chain tag text for incident {incident.uuid}: {e}')
             return None
 
+    async def _update_topic_after_assignment(self, incident):
+        """
+        Update topic name after assignment change (take/release) for non-fixed topics.
+        This method is called immediately after assignment change to update topic name.
+        """
+        try:
+            # Generate current header with assignment info
+            header = self.header_template.form_message(incident.last_state, incident)
+            status_icons = self.status_icons_template.form_message(incident.last_state, incident)
+            
+            logger.debug(f'Updating topic after assignment change for incident {incident.uuid}')
+            logger.debug(f'New header: "{header}"')
+            logger.debug(f'Incident thread_id: "{incident.thread_id}"')
+            
+            # Update topic name
+            await self._update_topic(incident.channel_id, incident.thread_id, header, status_icons, incident)
+            
+        except Exception as e:
+            logger.error(f'Failed to update topic after assignment change for incident {incident.uuid}: {e}')
+
+    async def post_unassignment_notification(self, incident_obj):
+        """
+        Post a notification message to the thread when a user is unassigned from an incident.
+        For Telegram, only send this notification in non-fixed topics.
+        """
+        config = get_config()
+        if not config.incident.notifications.assignment:
+            return
+
+        # Check if this is a fixed topic - skip notification for fixed topics
+        _, fixed_topic_id = self._parse_channel_id(incident_obj.channel_id)
+        is_fixed_topic = fixed_topic_id is not None
+        
+        if is_fixed_topic:
+            logger.debug(f'Skipping unassignment notification for fixed topic incident {incident_obj.uuid}')
+            return
+
+        try:
+            header = self.format_text_italic(
+                self.header_template.form_message(incident_obj.last_state, incident_obj)
+            )
+            text = JinjaTemplate(notification_unassignment).form_notification({})
+            message = text  # For Telegram, use only text without header
+
+            thread_identifier = incident_obj.thread_id if incident_obj.thread_id else incident_obj.ts
+            await self.post_thread(incident_obj.channel_id, thread_identifier, message)
+            logger.debug(f'Posted unassignment notification for non-fixed topic incident {incident_obj.uuid}: {message}')
+
+        except Exception as e:
+            logger.error(f'Failed to post unassignment notification for incident {incident_obj.uuid}: {e}')
+
     async def post_status_firing_transition(self, incident):
         """Post or update a combined firing status message with chain tagging on transition to firing."""
         try:
@@ -1384,6 +1543,36 @@ class TelegramApplication(Application):
         except Exception as e:
             logger.error(f'Failed to post firing transition message for incident {incident.uuid}: {e}')
 
+    async def post_new_alerts_notification(self, incident, message_text):
+        """
+        Post new alerts notification and remove previous status messages
+        """
+        try:
+            thread_identifier = incident.thread_id if incident.thread_id else incident.ts
+            _, fixed_topic_id = self._parse_channel_id(incident.channel_id)
+            is_fixed_topic = fixed_topic_id is not None
+
+            if is_fixed_topic:
+                # Remove previous status messages
+                await self._remove_status_notification(incident, thread_identifier)
+                
+                # Send new message
+                message_id = await self.post_thread_reply(incident.channel_id, thread_identifier, message_text)
+                if message_id:
+                    incident.status_notification_message_id = message_id
+                    incident.dump()
+            else:
+                # For non-fixed topics, just append new message
+                message_id = await self.post_thread_reply(incident.channel_id, thread_identifier, message_text)
+                if message_id:
+                    if not hasattr(incident, 'tagging_message_ids'):
+                        incident.tagging_message_ids = []
+                    if message_id not in incident.tagging_message_ids:
+                        incident.tagging_message_ids.append(message_id)
+                    incident.dump()
+        except Exception as e:
+            logger.error(f'Failed to post new alerts notification for incident {incident.uuid}: {e}')
+
     async def _update_status_notification(self, channel_id, thread_identifier, message_id, text):
         """
         Update existing status notification message
@@ -1415,7 +1604,7 @@ class TelegramApplication(Application):
         try:
             chat_id, _ = self._parse_channel_id(incident.channel_id)
             
-            # Collect all stored message IDs: primary status message and extra tagging messages
+            # Collect all stored message IDs: primary status message, extra tagging messages, and base status messages
             message_ids = []
             status_msg_id = getattr(incident, 'status_notification_message_id', None)
             if status_msg_id:
@@ -1425,6 +1614,11 @@ class TelegramApplication(Application):
                 logger.debug(f'No extra tagging messages stored for incident {incident.uuid}')
             else:
                 message_ids.extend(tagging_message_ids)
+            # Add base status messages (from base class update method)
+            base_status_message_ids = getattr(incident, 'base_status_message_ids', [])
+            if base_status_message_ids:
+                message_ids.extend(base_status_message_ids)
+                logger.debug(f'Found {len(base_status_message_ids)} base status messages to remove for incident {incident.uuid}')
             if not message_ids:
                 logger.debug(f'No status/tagging messages to remove for incident {incident.uuid}')
                 return
@@ -1438,6 +1632,7 @@ class TelegramApplication(Application):
             # Clear the stored message IDs
             incident.status_notification_message_id = None
             incident.tagging_message_ids = []
+            incident.base_status_message_ids = []
             incident.dump()
             logger.debug(f'Cleared all tagging message IDs for incident {incident.uuid}')
                     
@@ -1674,8 +1869,9 @@ class TelegramApplication(Application):
                 # TODO: Implement embedded alert update notifications if needed
             
             # For Telegram we use thread_id (topic_id/message_id) for sending messages
+            # Always reply to main message so it stays in context, for both fixed and non-fixed
             thread_identifier = incident_obj.thread_id if incident_obj.thread_id else incident_obj.ts
-            await self.post_thread(incident_obj.channel_id, thread_identifier, message)
+            await self.post_thread_reply(incident_obj.channel_id, thread_identifier, message)
             logger.debug(f'Posted alert update notification for incident {incident_obj.uuid}: {message}')
             
         except Exception as e:
@@ -1683,9 +1879,13 @@ class TelegramApplication(Application):
 
     async def _setup_webhook(self):
         try:
+            # Support both legacy dict and Pydantic application config
+            app_cfg = application if isinstance(application, dict) else application
+            impulse_addr = app_cfg.get('impulse_address') if isinstance(app_cfg, dict) else getattr(app_cfg, 'impulse_address', None)
+            webhook_url = f"{impulse_addr}/app" if impulse_addr else None
             async with self.http.post(
                 f'{self.url}/setWebhook',
-                params={'url': f"{application.get('impulse_address')}/app"},
+                params={'url': webhook_url} if webhook_url else None,
                 headers=self.headers
             ) as response:
                 await asyncio.sleep(self.post_delay)
