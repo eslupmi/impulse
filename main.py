@@ -1,5 +1,8 @@
 import asyncio
 import json
+import argparse
+import sys
+import signal
 from contextlib import asynccontextmanager
 from datetime import datetime
 
@@ -9,7 +12,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
 from fastapi.templating import Jinja2Templates
 
-from app.im.channels import check_channels
+from app.config.validation import ApplicationType
+from app.im.channel_manager import ChannelManager
 from app.im.helpers import get_application
 from app.incident.incidents import Incidents
 from app.logging import logger, configure_uvicorn_logging
@@ -19,49 +23,96 @@ from app.route import generate_route
 from app.ui.table_config import get_all_ui_config
 from app.ui.websocket import incident_ws
 from app.webhook import generate_webhooks
-from config import settings, application, ui_config
+from app.config.config import get_config, reload_config
+from app.logging import logger
 from config import jwt_auth_enabled, jwt_auth_kid, jwt_auth_keys_dir
 from pathlib import Path
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.backends import default_backend
-from app.logging import logger
+
+
+def setup_sighup_handler():
+    """Setup only SIGHUP signal handler for configuration reloading, preserving other Uvicorn handlers"""
+
+    def handle_sighup(signum, frame):
+        """Handle SIGHUP signal to reload configuration"""
+        try:
+            logger.info("Received SIGHUP signal, reloading configuration...")
+            success = reload_config()
+            if success:
+                logger.info("Configuration reload completed successfully")
+        except Exception as e:
+            logger.error(f"Error in SIGHUP signal handler: {e}")
+            logger.warning(
+                "Configuration reload aborted due to unexpected error, continuing with current configuration")
+
+    if hasattr(signal, 'SIGHUP'):
+        signal.signal(signal.SIGHUP, handle_sighup)
+        logger.info("SIGHUP signal handler registered for configuration reloading (overriding Uvicorn)")
+    else:
+        logger.info("SIGHUP signal not available on this platform")
+
+
+def validate_config_only():
+    """Validate configuration and exit"""
+    try:
+        config = get_config()
+        logger.info("Configuration validation successful!\n"
+                    f"Application type: {config.app.application.type}\n"
+                    f"Channels configured: {len(config.app.application.channels)}\n"
+                    f"Users configured: {len(config.app.application.users)}")
+        if config.app.incident:
+            logger.info(f"Incident config: Success")
+        if config.app.ui:
+            logger.info(f"UI config: Success")
+        if config.app.route:
+            logger.info(f"Route config: Success")
+        sys.exit(0)
+    except SystemExit as e:
+        if e.code != 0:
+            logger.error("Configuration validation failed!")
+            sys.exit(1)
+    except Exception as e:
+        logger.error(f"Configuration validation failed: {e}")
+        sys.exit(1)
 
 
 @asynccontextmanager
 async def lifespan(fastapi_app: FastAPI):
     """Manage application lifecycle"""
-    # Initialize components
-    route_dict = settings.get('route')
-    webhooks_dict = settings.get('webhooks')
+    config = get_config()
+    route_dict = config.settings.get('route')
+    webhooks_dict = config.settings.get('webhooks')
 
     route = generate_route(route_dict)
-    
 
-    if application.get('type') == 'none':
-        channels = {'default': {'id': 'default'}}
+    channel_manager = ChannelManager()
+    if config.application.type == ApplicationType.NONE:
+        if not config.application.channels or 'default' not in config.application.channels:
+            config.application.channels = {'default': {'id': 'default'}}
+        channels = channel_manager.initialize(['default'], config.application.channels, 'default')
         default_channel = 'default'
     else:
-        channels = check_channels(route.get_uniq_channels(), application['channels'], route.channel)
+        channels = channel_manager.initialize(route.get_uniq_channels(), config.application.channels, route.channel)
         default_channel = route.channel
-    
-    messenger = get_application(application, channels, default_channel)
+
+    messenger = get_application(config.application, channels, default_channel)
     await messenger.initialize_async()
     webhooks = generate_webhooks(webhooks_dict)
     incidents = Incidents.create_or_load(messenger.type, messenger.public_url, messenger.team)
 
-    # Create async queue and manager
     queue = await AsyncQueue.recreate_queue(incidents)
     queue_manager = AsyncQueueManager(queue, messenger, incidents, webhooks, route)
 
-    # Attach to app state
     fastapi_app.state.queue = queue
     fastapi_app.state.queue_manager = queue_manager
     fastapi_app.state.incidents = incidents
     fastapi_app.state.messenger = messenger
     fastapi_app.state.webhooks = webhooks
     fastapi_app.state.route = route
+    fastapi_app.state.channel_manager = channel_manager
+    fastapi_app.state.config = config
 
-    # Start background queue processing
     await queue_manager.start_processing()
 
     logger.info('IMPulse started!')
@@ -71,11 +122,9 @@ async def lifespan(fastapi_app: FastAPI):
     if fastapi_app.state.queue_manager:
         await fastapi_app.state.queue_manager.stop_processing()
 
-    # Close HTTP session
     if hasattr(fastapi_app.state.messenger, 'close'):
         await fastapi_app.state.messenger.close()
 
-    # Cleanup chains
     if hasattr(fastapi_app.state.messenger, 'chains'):
         for chain in fastapi_app.state.messenger.chains.values():
             if hasattr(chain, 'cleanup'):
@@ -93,7 +142,7 @@ app = FastAPI(
     redoc_url=None
 )
 
-if ui_config:
+if get_config().ui_config:
     app.mount("/static", StaticFiles(directory="static"), name="static")
     templates = Jinja2Templates(directory="templates")
 
@@ -226,15 +275,33 @@ async def websocket_endpoint(websocket: WebSocket):
         await incident_ws.disconnect(websocket)
 
 
-if __name__ == "__main__":
-    import uvicorn
-
-    configure_uvicorn_logging()
-
-    uvicorn.run(
-        "main:app",
-        host="0.0.0.0",
-        port=5000,
-        reload=True,
-        log_level="warning"
+def parse_arguments():
+    """Parse command line arguments"""
+    parser = argparse.ArgumentParser(description="IMPulse - Incident Management Platform")
+    parser.add_argument(
+        '--check',
+        action='store_true',
+        help='Validate configuration and exit'
     )
+    return parser.parse_args()
+
+
+if __name__ == "__main__":
+    args = parse_arguments()
+
+    if args.check:
+        validate_config_only()
+    else:
+        setup_sighup_handler()
+        
+        import uvicorn
+
+        configure_uvicorn_logging()
+
+        uvicorn.run(
+            "main:app",
+            host="0.0.0.0",
+            port=5000,
+            reload=True,
+            log_level="warning"
+        )

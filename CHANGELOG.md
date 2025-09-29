@@ -1,27 +1,21 @@
 # Changelog
 
-All notable changes to this project will be documented in this file. See
-[Conventional Commits](https://conventionalcommits.org) for commit guidelines.
+## v3.0.0
+Upgrade instructions:
+- Move `incident.alerts_firing_notifications` to `incident.notifications.new_firing` option in **impulse.yml**
+- Move `incident.alerts_resolved_notifications` to `incident.notifications.partial_resolved` option in **impulse.yml**
 
-## [2.9.0](https://tik.r314.ru/devops/monitoring/impulse/compare/2.8.1...2.9.0) (2025-09-08)
+Changes:
+- `last_state` incident field renamed to `payload`
+- `incident.notifications.new_firing` set to `True` by default
+- Removed `experimental` features
 
-### ✨ Features
-
-* remove keyboard buttons for closed alerts ([e8746c8](https://tik.r314.ru/devops/monitoring/impulse/commit/e8746c8479b8c35b8f8af81bca6168f6f6bae178))
-
-## [2.8.1](https://tik.r314.ru/devops/monitoring/impulse/compare/2.8.0...2.8.1) (2025-09-04)
-
-### 🐞 Bug Fixes
-
-* callback buttons for old and new logic, save/search full thread_id or message_id for incidents ([6485160](https://tik.r314.ru/devops/monitoring/impulse/commit/64851605a25c312e07b0ab9aef34e91f54886263))
-
-## [2.8.0](https://tik.r314.ru/devops/monitoring/impulse/compare/v2.7.0...2.8.0) (2025-09-04)
-
-### ✨ Features
-
-* **telegram:** add new channel/topic logic ([f8aa597](https://tik.r314.ru/devops/monitoring/impulse/commit/f8aa5972d9be9f0570c80e6f3366ecd8175f8589))
-
-# Changelog
+## v2.8.0
+Changes:
+- Interface updated. Added incident details. Improved font readability
+- Added assigned user's full name ([example](https://github.com/eslupmi/impulse/blob/183e75974167b403c3f46049a5e11ac35253b24b/examples/impulse.slack.advanced.yml#L92))
+- Added notifications in thread about user assignment ([docs](https://docs.impulse.bot/latest/config_file/#incidentnotificationsassignment))
+- Fixed template bugs
 
 ## v2.7.0
 Changes:

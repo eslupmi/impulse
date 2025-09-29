@@ -85,7 +85,7 @@ notification_user_group = """
 {#--#}{%- endif -%}
 {%- elif fields.type == 'telegram' -%}
 {%- set existing_users = [] -%}
-{%- for u in fields.get('unit').users if u.exists %}{% set _ = existing_users.append(u) %}{% endfor -%}
+{%- for u in fields.unit.users if u.exists %}{% set _ = existing_users.append(u) %}{% endfor -%}
 🔔 user_group <b>{{ fields.name }}</b>
 {#--#}{%- if not fields.unit -%}
 {#-   #} (<a href="https://docs.impulse.bot/latest/warnings/NotDefined/">NotDefined</a>)  |  🔔 admins ({%- for a in fields.admins %}<a href="tg://user?id={{ a.id }}">{{ a.name }}</a>{% if not loop.last %},{% endif %}{% endfor -%})
@@ -110,7 +110,7 @@ update: status **{% if fields.status == 'unknown' %}[unknown](https://docs.impul
 {#-   #}  |  :bell: admins ({%- for a in fields.admins %}@{{ a }}{% if not loop.last %},{% endif %}{% endfor -%})
 {#--#}{%- endif -%}
 {%- elif fields.type == 'telegram' -%}
-update: status <b>{% if fields.status == 'unknown' %}<a href="https://docs.impulse.bot/latest/warnings/StatusUnknown/">unknown</a>{% elif fields.status == 'firing' %}firing{% else %}{{ fields.status }}{% endif %}</b>
+update: status <b>{% if fields.status == 'unknown' %}<a href="https://docs.impulse.bot/latest/warnings/StatusUnknown/">unknown</a>{% else %}{{ fields.status }}{% endif %}</b>
 {#--#}{%- if fields.status == 'unknown' -%}
 {#-   #}  |  🔔 admins ({%- for a in fields.admins %}<a href="tg://user?id={{ a.id }}">{{ a.name }}</a>{% if not loop.last %},{% endif %}{% endfor -%})
 {#--#}{%- endif -%}
@@ -119,11 +119,11 @@ update: status <b>{% if fields.status == 'unknown' %}<a href="https://docs.impul
 
 update_alerts = """
 {%- if fields.type == 'slack' -%}
-update: {% if fields.firing %}new alerts *firing*{% if fields.recreate %}  |  restart chain{% endif %}{% else %}some alerts *resolved*{% endif %}
+update: {% if fields.firing %}new alerts{% endif %}{% if fields.resolved %}{% if fields.firing %} and {% else %}some alerts{% endif %}{% endif %}{% if fields.firing %} firing{% endif %}{% if fields.resolved %} resolved{% endif %}{% if fields.group_tag %}  |  :loudspeaker: {{ fields.group_tag }}{% endif %}
 {%- elif fields.type == 'mattermost' -%}
-update: {% if fields.firing %}new alerts **firing**{% if fields.recreate %}  |  restart chain{% endif %}{% else %}some alerts **resolved**{% endif %}
+update: {% if fields.firing %}new alerts{% endif %}{% if fields.resolved %}{% if fields.firing %} and {% else %}some alerts{% endif %}{% endif %}{% if fields.firing %} firing{% endif %}{% if fields.resolved %} resolved{% endif %}{% if fields.group_tag %}  |  :bell: {{ fields.group_tag }}{% endif %}
 {%- elif fields.type == 'telegram' -%}
-update: {% if fields.firing %}new alerts <b>firing</b>{% if fields.recreate %}  |  restart chain{% endif %}{% else %}some alerts <b>resolved</b>{% endif %}
+update: {% if fields.firing %}new alerts{% endif %}{% if fields.resolved %}{% if fields.firing %} and {% else %}some alerts{% endif %}{% endif %}{% if fields.firing %} firing{% endif %}{% if fields.resolved %} resolved{% endif %}{% if fields.group_tag %}  |  🔔 {{ fields.group_tag }}{% endif %}
 {%- endif -%}
 """
 
@@ -169,3 +169,15 @@ notification_webhook = """
 {#--#}{%- endif -%}
 {%- endif -%}
 """
+
+notification_assignment = """
+{%- if fields.type == 'slack' -%}
+update: assigned to <@{{ fields.id }}>
+{%- elif fields.type == 'mattermost' -%}
+update: assigned to @{{ fields.username }}
+{%- elif fields.type == 'telegram' -%}
+update: assigned to <a href="tg://user?id={{ fields.id }}">{{ fields.username }}</a>
+{%- endif -%}
+"""
+
+notification_unassignment = """update: unassigned"""

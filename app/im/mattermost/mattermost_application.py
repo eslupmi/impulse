@@ -5,22 +5,27 @@ from fastapi.responses import JSONResponse
 
 from app.im.application import Application
 from app.im.colors import status_colors
-from app.im.mattermost.config import (mattermost_headers, mattermost_request_delay, mattermost_bold_text,
+from app.im.mattermost.config import (mattermost_request_delay, mattermost_bold_text,
                                       mattermost_env, mattermost_admins_template_string)
 from app.im.mattermost.threads import mattermost_get_create_thread_payload, mattermost_get_update_payload, \
     mattermost_get_button_update_payload
 from app.im.mattermost.user import User
 from app.logging import logger
+from app.config.config import get_config
+from app.config.validation import ApplicationConfig, MattermostUser
 
 
 class MattermostApplication(Application):
 
-    def __init__(self, app_config, channels, default_channel):
+    def __init__(self, app_config: ApplicationConfig, channels, default_channel):
         super().__init__(app_config, channels, default_channel)
 
     def _initialize_specific_params(self):
         self.post_message_url = f'{self.url}/api/v4/posts'
-        self.headers = mattermost_headers
+        self.headers = {
+            'Content-Type': 'application/json',
+            'Authorization': f'Bearer {get_config().mattermost_access_token}',
+        }
         self.post_delay = mattermost_request_delay
         self.thread_id_key = 'id'
 
@@ -39,15 +44,15 @@ class MattermostApplication(Application):
             logger.error(f'Failed to retrieve channel list: {e}')
             return {}
 
-    def _get_url(self, app_config):
-        return app_config['address']
+    def _get_url(self, app_config: ApplicationConfig):
+        return app_config.address
 
-    def _get_public_url(self, app_config):
-        return app_config['address']
+    def _get_public_url(self, app_config: ApplicationConfig):
+        return app_config.address
 
-    def _get_team_name(self, app_config):
+    def _get_team_name(self, app_config: ApplicationConfig):
         logger.info(f'Get {self.type.capitalize()} team name')
-        return app_config['team']
+        return app_config.team
 
     async def get_user_details(self, user_details):
         id_ = user_details.get('id')
@@ -55,11 +60,11 @@ class MattermostApplication(Application):
             if response.status == 404:
                 logger.debug(f'User not found for {id_}: HTTP 404')
                 return {'id': id_, 'username': None, 'exists': False, 'full_name': None}
-            
+
             if response.status != 200:
                 logger.debug(f'Failed to get user details for {id_}: HTTP {response.status}')
                 return {'id': id_, 'username': None, 'exists': False, 'full_name': None}
-            
+
             data = await response.json()
             first_name = data.get('first_name', '').strip()
             last_name = data.get('last_name', '').strip()
@@ -91,10 +96,6 @@ class MattermostApplication(Application):
             users=self.get_notification_destinations()
         )
         return admins_text
-
-    def format_user_mention(self, user_id, display_name=None):
-        """Format a user mention for Mattermost using username."""
-        return f'@{display_name}'
 
     async def send_message(self, channel_id, text, attachment):
         payload = {
@@ -128,13 +129,20 @@ class MattermostApplication(Application):
         if action == 'chain':
             await queue_.delete_by_id(incident_.uuid, delete_steps=True, delete_status=False)
             if incident_.chain_enabled or incident_.status != 'resolved':
-                logger.info(f'Incident {incident_.uuid} -> button TAKE IT pressed')
-                incident_.assign_user_id(user_id)
-                asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id, incidents))
-                asyncio.create_task(self.post_assignment_notification(incident_, user_id, user_name))
+                # if user is already assigned, do nothing
+                if incident_.assigned_user_id == user_id:
+                    logger.info(f'Incident {incident_.uuid} -> button TAKE IT pressed, but user is already assigned')
+                    return JSONResponse(payload, status_code=200)
+                else:
+                    logger.info(f'Incident {incident_.uuid} -> button TAKE IT pressed, assigning to {user_id}')
+                    incident_.assign_user_id(user_id)
+                    incident_.assign_user(user_name)
+                    asyncio.create_task(self.post_assignment_notification(incident_, user_id, user_name))
+                    asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id, incidents))
                 incident_.chain_enabled = False
             else: # release
                 logger.info(f'Incident {incident_.uuid} -> button RELEASE pressed')
+                asyncio.create_task(self.post_unassignment_notification(incident_))
                 incident_.release()
         elif action == 'status':
             if incident_.status_enabled:
@@ -144,9 +152,9 @@ class MattermostApplication(Application):
                 logger.info(f'Incident {incident_.uuid} -> button STATUS pressed (enabled)')
                 incident_.status_enabled = True
         incident_.dump()
-        status_icons = self.status_icons_template.form_message(incident_.last_state, incident_)
-        header = self.header_template.form_message(incident_.last_state, incident_)
-        message = self.body_template.form_message(incident_.last_state, incident_)
+        status_icons = self.status_icons_template.form_message(incident_.payload, incident_)
+        header = self.header_template.form_message(incident_.payload, incident_)
+        message = self.body_template.form_message(incident_.payload, incident_)
         payload = mattermost_get_button_update_payload(
             message,
             header,
@@ -170,7 +178,7 @@ class MattermostApplication(Application):
     async def _update_thread(self, id_, payload):
         async with self.http.put(
             f'{self.url}/api/v4/posts/{id_}',
-            headers=mattermost_headers,
+            headers=self.headers,
             json=payload
         ) as response:
             await asyncio.sleep(self.post_delay)

@@ -5,12 +5,14 @@ from typing import List, Dict, Optional
 import yaml
 
 from app.im.colors import status_colors
+from app.im.channel_manager import ChannelManager
 from app.incident.helpers import gen_uuid
 from app.time import unix_sleep_to_timedelta
 from app.tools import NoAliasDumper
 from app.ui.websocket import incident_ws
 from app.utils import get_attr_by_key_chain, normalize_param, filter_dict_keys
 from config import incidents_path, incident, INCIDENT_ACTUAL_VERSION
+from app.config.config import get_config
 from app.logging import logger
 
 
@@ -31,7 +33,7 @@ class Incident:
     assigned_user_id: str
     assigned_user: str
     assigned_fullname: str
-    created: datetime = None
+    # created is initialized automatically; remove duplicate optional field
     chain: List[Dict] = field(default_factory=list)
     chain_enabled: bool = False
     status_enabled: bool = False
@@ -123,7 +125,11 @@ class Incident:
 
         dt = datetime.utcnow()
         for index, step in enumerate(steps):
-            type_, value = next(iter(step.items()))
+            # Support both dict and Pydantic SimpleChainStep
+            if hasattr(step, 'get_type_and_value'):
+                type_, value = step.get_type_and_value()
+            else:
+                type_, value = next(iter(step.items()))
             if type_ == 'wait':
                 dt += unix_sleep_to_timedelta(value)
             else:
@@ -134,12 +140,22 @@ class Incident:
         self.dump()
 
     def _unchain(self, chains, steps):
-        if not any('chain' in step for step in steps):
+        def step_has_chain(step_obj):
+            if hasattr(step_obj, 'has_chain'):
+                return step_obj.has_chain()
+            if isinstance(step_obj, dict):
+                return 'chain' in step_obj
+            return False
+
+        if not any(step_has_chain(step) for step in steps):
             return steps
 
         extended_steps = []
         for step in steps:
-            type_, value = next(iter(step.items()))
+            if hasattr(step, 'get_type_and_value'):
+                type_, value = step.get_type_and_value()
+            else:
+                type_, value = next(iter(step.items()))
             if type_ == 'chain':
                 nested_chain = chains.get(value)
                 if nested_chain is None:
@@ -148,13 +164,18 @@ class Incident:
                 nested_steps = nested_chain.steps
                 extended_steps.extend(self._unchain(chains, nested_steps))
             else:
-                extended_steps.append({type_: value})
+                # Preserve original type (object or dict) for downstream processing
+                if hasattr(step, 'get_type_and_value'):
+                    extended_steps.append(step)
+                else:
+                    extended_steps.append({type_: value})
         return extended_steps
 
     def release(self):
         self.chain = []
         self.assign_user_id("")
         self.assign_user("")
+        self.assign_fullname("")
         self.chain_enabled = True
         self.dump()
 
@@ -245,6 +266,7 @@ class Incident:
             "chain_enabled": self.chain_enabled,
             "chain": self.chain,
             "channel_id": self.channel_id,
+            "channel_name": ChannelManager().get_channel_name_by_id(self.channel_id),
             "last_state": self.last_state,
             "status_enabled": self.status_enabled,
             "status_update_datetime": self.status_update_datetime,
@@ -304,7 +326,13 @@ class Incident:
         now = datetime.utcnow()
         self.updated = now
         if status != 'closed':
-            self.status_update_datetime = now + unix_sleep_to_timedelta(incident['timeouts'].get(status))
+            # Prefer new validated config timeouts if available; fallback to legacy dict
+            try:
+                cfg = get_config()
+                timeout_value = cfg.incident.timeouts.get(status)
+            except Exception:
+                timeout_value = incident['timeouts'].get(status)
+            self.status_update_datetime = now + unix_sleep_to_timedelta(timeout_value)
         if self.status != status:
             self.set_status(status)
             logger.debug(f'Incident {self.uuid} status updated to {status}')
@@ -347,7 +375,15 @@ class Incident:
     def is_new_firing_alerts_added(self, alert_state: Dict) -> bool:
         old_alerts_labels = self._get_firing_alerts_labels(self.last_state)
         new_alerts_labels = self._get_firing_alerts_labels(alert_state)
-        return any(label not in old_alerts_labels for label in new_alerts_labels)
+        
+        logger.debug(f'Checking new firing alerts for incident {self.uuid}:')
+        logger.debug(f'  Old firing alerts: {len(old_alerts_labels)}')
+        logger.debug(f'  New firing alerts: {len(new_alerts_labels)}')
+        
+        new_alerts = [label for label in new_alerts_labels if label not in old_alerts_labels]
+        logger.debug(f'  New alerts found: {len(new_alerts)}')
+        
+        return len(new_alerts) > 0
 
     def is_some_firing_alerts_removed(self, alert_state: Dict) -> bool:
         old_alerts_labels = self._get_firing_alerts_labels(self.last_state)

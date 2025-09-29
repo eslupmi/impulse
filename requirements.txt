@@ -5,6 +5,7 @@ requests~=2.32.3
 aiohttp~=3.12.10
 aiohttp-retry~=2.8.3
 Jinja2~=3.1.3
+pydantic~=2.11.7
 PyYAML~=6.0.1
 python-dotenv~=1.0.1
 python-multipart~=0.0.20
@@ -12,4 +13,5 @@ urllib3~=1.26.15
 PyJWT[crypto]~=2.10.1
 aiofiles~=23.2.1
 httpx~=0.25.2
+
 cryptography~=42.0.7
