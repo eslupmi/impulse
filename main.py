@@ -52,9 +52,9 @@ def validate_config_only():
     try:
         config = get_config()
         logger.info("Configuration validation successful!\n"
-                    f"Application type: {config.app.application.type}\n"
-                    f"Channels configured: {len(config.app.application.channels)}\n"
-                    f"Users configured: {len(config.app.application.users)}")
+                    f"Application type: {config.application.type}\n"
+                    f"Channels configured: {len(config.application.channels)}\n"
+                    f"Users configured: {len(config.application.users)}")
         if config.app.incident:
             logger.info(f"Incident config: Success")
         if config.app.ui:
@@ -75,10 +75,10 @@ def validate_config_only():
 async def lifespan(fastapi_app: FastAPI):
     """Manage application lifecycle"""
     config = get_config()
-    route_dict = config.settings.get('route')
-    webhooks_dict = config.settings.get('webhooks')
+    route_config = config.app.route
+    webhooks_config = config.app.webhooks
 
-    route = generate_route(route_dict)
+    route = generate_route(route_config)
 
     channel_manager = ChannelManager()
     if config.application.type == MessengerType.NONE:
@@ -92,7 +92,7 @@ async def lifespan(fastapi_app: FastAPI):
 
     messenger = get_application(config.application, channels, default_channel)
     await messenger.initialize_async()
-    webhooks = generate_webhooks(webhooks_dict)
+    webhooks = generate_webhooks(webhooks_config)
     incidents = Incidents.create_or_load(messenger.type, messenger.public_url, messenger.team)
 
     queue = await AsyncQueue.recreate_queue(incidents)

@@ -143,7 +143,7 @@ class ScheduleMatcherExpression(BaseModel):
 
 class ScheduleEntry(BaseModel):
     """Schedule entry configuration"""
-    matcher: Optional[List[ScheduleMatcherExpression]] = Field(None, description="List of matcher expressions")
+    matcher: Optional[List[ScheduleMatcherExpression]] = Field([], description="List of matcher expressions")
     steps: List[SimpleChainStep] = Field(..., description="Chain steps")
 
 
@@ -164,7 +164,7 @@ class CloudChain(BaseModel):
     type: Literal[ChainType.CLOUD] = Field(..., description="Chain type")
     provider: CloudProvider = Field(..., description="Cloud provider")
     calendar_id: str = Field(..., description="Calendar ID")
-    default_steps: Optional[List[SimpleChainStep]] = Field(None, description="Default steps")
+    default_steps: Optional[List[SimpleChainStep]] = Field([], description="Default steps")
 
 
 class UserGroup(BaseModel):
@@ -186,8 +186,8 @@ class BaseApplicationConfig(BaseModel):
     """Base messenger configuration with common fields"""
     type: MessengerType = Field(..., description="Application type")
     admin_users: List[str] = Field(..., description="Admin users")
-    user_groups: Optional[Dict[str, UserGroup]] = Field(None, description="User groups")
-    chains: Optional[Dict[str, Any]] = Field(None, description="Chain definitions")
+    user_groups: Optional[Dict[str, UserGroup]] = Field({}, description="User groups")
+    chains: Optional[Dict[str, Any]] = Field({}, description="Chain definitions")
     template_files: Optional[TemplateFiles] = Field(TemplateFiles(status_icons=None, header=None, body=None),
                                                     description="Template files")
 
@@ -337,8 +337,8 @@ class RouteConfig(BaseModel):
     """Route configuration"""
     channel: str = Field(..., description="Default channel")
     chain: Optional[str] = Field(None, description="Default chain")
-    matchers: Optional[List[str]] = Field(None, description="Route matchers")
-    routes: Optional[List['RouteConfig']] = Field(None, description="Nested routes")
+    matchers: Optional[List[str]] = Field([], description="Route matchers")
+    routes: Optional[List['RouteConfig']] = Field([], description="Nested routes")
 
 
 class UIColumn(BaseModel):
@@ -400,9 +400,9 @@ class UISorting(BaseModel):
 class UIConfig(BaseModel):
     """UI configuration"""
     columns: List[UIColumn] = Field(..., description="Column configurations")
-    colors: Optional[Dict[str, Dict[str, str]]] = Field({None}, description="Color configurations")
-    filters: Optional[List[str]] = Field(None, description="Default filters")
-    sorting: Optional[List[UISorting]] = Field(None, description="Sort rules")
+    colors: Optional[Dict[str, Dict[str, str]]] = Field({}, description="Color configurations")
+    filters: Optional[List[str]] = Field([], description="Default filters")
+    sorting: Optional[List[UISorting]] = Field([], description="Sort rules")
 
     @field_validator('sorting', mode='before')
     @classmethod
@@ -429,7 +429,7 @@ class UIConfig(BaseModel):
 class WebhookConfig(BaseModel):
     """Webhook configuration"""
     url: str = Field(..., description="Webhook URL")
-    data: Optional[Dict[str, Any]] = Field(None, description="Webhook data")
+    data: Optional[Dict[str, Any]] = Field({}, description="Webhook data")
     auth: Optional[str] = Field(None, description="HTTP Basic Auth")
 
 
@@ -439,7 +439,7 @@ class ImpulseConfig(BaseModel):
     incident: Optional[IncidentConfig] = Field(None, description="Incident configuration")
     route: RouteConfig = Field(..., description="Route configuration")
     ui: Optional[UIConfig] = Field(None, description="UI configuration")
-    webhooks: Optional[Dict[str, WebhookConfig]] = Field(None, description="Webhook configurations")
+    webhooks: Optional[Dict[str, WebhookConfig]] = Field({}, description="Webhook configurations")
 
     @model_validator(mode='after')
     def validate_route_channel_exists(self):

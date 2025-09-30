@@ -69,7 +69,7 @@ class AsyncQueueManager:
             elif type_ == 'alert':
                 await self.handle_alert(data)
         except Exception as e:
-            logger.error(f"Error handling queue item {type_}: {e}")
+            logger.error(f"Error handling queue item {type_}: {repr(e)}")
         
         # Always yield control after processing an item
         await asyncio.sleep(0)
