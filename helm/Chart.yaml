@@ -2,7 +2,7 @@ apiVersion: v2
 name: impulse
 description: A Helm chart for Impulse - Incident Management Program
 type: application
-version: "%VERSION%"
+version: "v0.0.2"
 appVersion: "%VERSION%"
 icon: https://raw.githubusercontent.com/eslupmi/impulse/refs/heads/develop/logo.svg
 kubeVersion: ">=1.12.0-0"

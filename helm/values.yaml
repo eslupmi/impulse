@@ -63,10 +63,10 @@ ingress:
 
 resources:
   limits:
-    memory: 128Mi
+    memory: 256Mi
   requests: 
     cpu: 100m
-    memory: 256Mi
+    memory: 128Mi
 
 # Should not be changed until Impulse supports multiple replicas
 # autoscaling:
