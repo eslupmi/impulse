@@ -35,7 +35,7 @@ def mattermost_get_button_update_payload(body, header, status_icons, status, cha
                                 "name": chain_attrs(chain_enabled, status)[0],
                                 "style": chain_attrs(chain_enabled, status)[1],
                                 "integration": {
-                                    "url": f"{config.application.impulse_address}/app",
+                                    "url": f"{config.messenger.impulse_address}/app",
                                     "context": {
                                         "action": "chain"
                                     }
@@ -49,7 +49,7 @@ def mattermost_get_button_update_payload(body, header, status_icons, status, cha
                                 "style": buttons['status']['enabled']['style'] if status_enabled else
                                 buttons['status']['disabled']['style'],
                                 "integration": {
-                                    "url": f"{config.application.impulse_address}/app",
+                                    "url": f"{config.messenger.impulse_address}/app",
                                     "context": {
                                         "action": "status"
                                     }
@@ -84,7 +84,7 @@ def mattermost_get_update_payload(channel_id, thread_id, body, header, status_ic
                             "name": chain_attrs(chain_enabled, status)[0],
                             "style": chain_attrs(chain_enabled, status)[1],
                             "integration": {
-                                "url": f"{config.application.impulse_address}/app",
+                                "url": f"{config.messenger.impulse_address}/app",
                                 "context": {
                                     "action": "chain"
                                 }
@@ -98,7 +98,7 @@ def mattermost_get_update_payload(channel_id, thread_id, body, header, status_ic
                             "style": buttons['status']['enabled']['style'] if status_enabled else
                             buttons['status']['disabled']['style'],
                             "integration": {
-                                "url": f"{config.application.impulse_address}/app",
+                                "url": f"{config.messenger.impulse_address}/app",
                                 "context": {
                                     "action": "status"
                                 }
@@ -130,7 +130,7 @@ def mattermost_get_create_thread_payload(channel_id, body, header, status_icons,
                             "name": buttons['chain']['takeit']['text'],
                             "style": buttons['chain']['takeit']['style'],
                             "integration": {
-                                "url": f"{config.application.impulse_address}/app",
+                                "url": f"{config.messenger.impulse_address}/app",
                                 "context": {
                                     "action": "chain"
                                 }
@@ -142,7 +142,7 @@ def mattermost_get_create_thread_payload(channel_id, body, header, status_icons,
                             "name": buttons['status']['enabled']['text'],
                             "style": buttons['status']['enabled']['style'],
                             "integration": {
-                                "url": f"{config.application.impulse_address}/app",
+                                "url": f"{config.messenger.impulse_address}/app",
                                 "context": {
                                     "action": "status"
                                 }

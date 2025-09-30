@@ -96,7 +96,7 @@ class Incidents:
                     dump_file=file_path,
                     incident_config=incident_config
                 )
-                if incident_.messenger_type == config.application.type.value:
+                if incident_.messenger_type == config.messenger.type.value:
                     incidents.add(incident_)
                 else:
                     logger.warning(f'Skipping incident {filename}: messenger_type mismatch. '

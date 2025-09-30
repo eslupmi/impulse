@@ -24,7 +24,7 @@ class UnifiedConfig:
         return self.app.incident
 
     @property
-    def application(self):
+    def messenger(self):
         return self.app.messenger
 
     @property
