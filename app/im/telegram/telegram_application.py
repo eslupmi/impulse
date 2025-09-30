@@ -283,7 +283,7 @@ class TelegramApplication(Application):
         try:
             async with self.http.post(
                 f'{self.url}/setWebhook',
-                params={'url': f"{config.application.impulse_address}/app"},
+                params={'url': f"{config.messenger.impulse_address}/app"},
                 headers=self.headers
             ) as response:
                 await asyncio.sleep(self.post_delay)

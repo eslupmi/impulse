@@ -1,19 +1,18 @@
-import json
-from abc import ABC, abstractmethod
 import asyncio
+from abc import ABC, abstractmethod
+from typing import Union, Dict
+
 import aiohttp
 from aiohttp import ClientTimeout, ClientSession
 from aiohttp_retry import ExponentialRetry, RetryClient
-from typing import Union, Dict
 
 from app.config.config import get_config
+from app.config.validation import ApplicationConfig, MattermostUser, SlackUser, TelegramUser
 from app.im.chain.chain_factory import ChainFactory
 from app.im.groups import generate_user_groups
 from app.im.template import JinjaTemplate, notification_user, notification_user_group, update_status, \
     notification_assignment, notification_unassignment
 from app.logging import logger
-from app.config.validation import ApplicationConfig, MattermostUser, SlackUser, TelegramUser
-from config import incident
 
 
 class Application(ABC):

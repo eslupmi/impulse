@@ -1,19 +1,22 @@
+from typing import List
+
 from app.logging import logger
-from .matcher import Matcher
+from app.route.matcher import Matcher
+from app.config.validation import RouteConfig
 
 
 class MainRoute:
-    def __init__(self, channel, chain=None, routes_list=None):
+    def __init__(self, channel: str, chain: str = None, routes_list: List[RouteConfig] = None):
         self.channel = channel
         self.chain = chain
         self.routes = list()
         if routes_list:
             for r in routes_list:
-                if r.get('routes') is None:
-                    route = Route(r.get('channel'), r.get('chain'), [], r.get('matchers'))
+                if not r.routes:
+                    route = Route(r.channel, r.chain, [], r.matchers)
                     self.routes.append(route)
                 else:
-                    route = Route(r.get('channel'), r.get('chain'), r.get('routes'), r.get('matchers'))
+                    route = Route(r.channel, r.chain, r.routes, r.matchers)
                     self.routes.append(route)
 
     def get_route(self, alert_state):
@@ -41,7 +44,7 @@ class MainRoute:
 
 
 class Route(MainRoute):
-    def __init__(self, channel, chain, routes_list, matchers):
+    def __init__(self, channel: str, chain: str, routes_list: List[RouteConfig], matchers: List[str]):
         super().__init__(channel, chain, routes_list)
         self.matchers = [Matcher(m) for m in matchers]
 
@@ -66,11 +69,11 @@ class Route(MainRoute):
         return channels
 
 
-def generate_route(route_dict):
+def generate_route(route_config: RouteConfig):
     logger.info(f'Creating route')
-    main_channel_name = route_dict['channel']
-    main_chain = route_dict.get('chain')
-    routes = route_dict.get('routes')
+    main_channel_name = route_config.channel
+    main_chain = route_config.chain
+    routes = route_config.routes
 
     route_ = MainRoute(main_channel_name, main_chain, routes)
     return route_
