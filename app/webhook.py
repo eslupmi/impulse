@@ -1,10 +1,12 @@
-import os
 import asyncio
+import os
+from typing import Dict
 
 import aiohttp
-from jinja2 import Template
 from aiohttp import BasicAuth
+from jinja2 import Template
 
+from app.config.validation import WebhookConfig
 from app.incident.incident import Incident
 from app.logging import logger
 
@@ -30,10 +32,10 @@ class Webhook:
         try:
             timeout = aiohttp.ClientTimeout(total=5.0)
             async with session.post(
-                url=self._url, 
-                data=rendered_data, 
-                auth=auth, 
-                timeout=timeout
+                    url=self._url,
+                    data=rendered_data,
+                    auth=auth,
+                    timeout=timeout
             ) as response:
                 return 'ok', response.status
         except asyncio.TimeoutError:
@@ -62,13 +64,13 @@ class Webhook:
         return tmplt.render(env=os.environ, **kwargs)
 
 
-def generate_webhooks(webhooks_dict=None):
+def generate_webhooks(webhooks_config: Dict[str, WebhookConfig] = None):
     webhooks = dict()
-    if webhooks_dict:
-        for name in webhooks_dict.keys():
-            webhook_dict = webhooks_dict[name]
-            url = webhook_dict.get('url')
-            data = webhook_dict.get('data')
-            auth = webhook_dict.get('auth')
+    if webhooks_config:
+        for name in webhooks_config.keys():
+            webhook_obj = webhooks_config[name]
+            url = webhook_obj.url
+            data = webhook_obj.data
+            auth = webhook_obj.auth
             webhooks[name] = Webhook(url, data, auth)
     return webhooks

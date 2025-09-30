@@ -52,9 +52,9 @@ def validate_config_only():
     try:
         config = get_config()
         logger.info("Configuration validation successful!\n"
-                    f"Application type: {config.app.application.type}\n"
-                    f"Channels configured: {len(config.app.application.channels)}\n"
-                    f"Users configured: {len(config.app.application.users)}")
+                    f"Application type: {config.messenger.type}\n"
+                    f"Channels configured: {len(config.messenger.channels)}\n"
+                    f"Users configured: {len(config.messenger.users)}")
         if config.app.incident:
             logger.info(f"Incident config: Success")
         if config.app.ui:
@@ -75,24 +75,24 @@ def validate_config_only():
 async def lifespan(fastapi_app: FastAPI):
     """Manage application lifecycle"""
     config = get_config()
-    route_dict = config.settings.get('route')
-    webhooks_dict = config.settings.get('webhooks')
+    route_config = config.app.route
+    webhooks_config = config.app.webhooks
 
-    route = generate_route(route_dict)
+    route = generate_route(route_config)
 
     channel_manager = ChannelManager()
-    if config.application.type == MessengerType.NONE:
-        if not config.application.channels or 'default' not in config.application.channels:
-            config.application.channels = {'default': {'id': 'default'}}
-        channels = channel_manager.initialize(['default'], config.application.channels, 'default')
+    if config.messenger.type == MessengerType.NONE:
+        if not config.messenger.channels or 'default' not in config.messenger.channels:
+            config.messenger.channels = {'default': {'id': 'default'}}
+        channels = channel_manager.initialize(['default'], config.messenger.channels, 'default')
         default_channel = 'default'
     else:
-        channels = channel_manager.initialize(route.get_uniq_channels(), config.application.channels, route.channel)
+        channels = channel_manager.initialize(route.get_uniq_channels(), config.messenger.channels, route.channel)
         default_channel = route.channel
 
-    messenger = get_application(config.application, channels, default_channel)
+    messenger = get_application(config.messenger, channels, default_channel)
     await messenger.initialize_async()
-    webhooks = generate_webhooks(webhooks_dict)
+    webhooks = generate_webhooks(webhooks_config)
     incidents = Incidents.create_or_load(messenger.type, messenger.public_url, messenger.team)
 
     queue = await AsyncQueue.recreate_queue(incidents)
