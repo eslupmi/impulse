@@ -4,15 +4,15 @@ from typing import List, Dict, Optional
 
 import yaml
 
-from app.im.colors import status_colors
+from app.config.config import get_config
+from app.config.validation import MessengerType
 from app.im.channel_manager import ChannelManager
 from app.incident.helpers import gen_uuid
+from app.logging import logger
 from app.time import unix_sleep_to_timedelta
 from app.tools import NoAliasDumper
 from app.ui.websocket import incident_ws
 from app.utils import get_attr_by_key_chain, normalize_param, filter_dict_keys
-from app.config.config import get_config
-from app.logging import logger
 
 
 @dataclass
@@ -60,11 +60,11 @@ class Incident:
         self.link = self.generate_link(public_url)
 
     def generate_link(self, public_url) -> str:
-        if self.config.application_type == 'slack':
+        if self.config.application_type == MessengerType.SLACK:
             return f'{public_url}' + f'archives/{self.channel_id}/p{self.ts.replace(".", "")}'
-        elif self.config.application_type == 'mattermost':
+        elif self.config.application_type == MessengerType.MATTERMOST:
             return f'{self.config.application_url}/{self.config.application_team.lower()}/pl/{self.ts}'
-        elif self.config.application_type == 'telegram':
+        elif self.config.application_type == MessengerType.TELEGRAM:
             return f'https://t.me/c/{str(self.channel_id)[4:]}/{self.ts}'
         return ''
 

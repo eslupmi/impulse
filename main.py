@@ -52,7 +52,7 @@ def validate_config_only():
     try:
         config = get_config()
         logger.info("Configuration validation successful!\n"
-                    f"Application type: {config.messenger.type}\n"
+                    f"Application type: {config.messenger.type.value}\n"
                     f"Channels configured: {len(config.messenger.channels)}\n"
                     f"Users configured: {len(config.messenger.users)}")
         if config.app.incident:
