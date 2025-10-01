@@ -68,6 +68,12 @@ class EnvironmentConfig(BaseModel):
         description="Logging level"
     )
     
+    # HTTP prefix configuration
+    http_prefix: str = Field(
+        default_factory=lambda: os.getenv('HTTP_PREFIX', ''),
+        description="HTTP prefix for reverse proxy deployments (e.g., '/impulse')"
+    )
+    
     @field_validator('provider_sync_interval', 'provider_max_events', 'provider_days_to_sync')
     @classmethod
     def validate_positive_integers(cls, v):
@@ -90,6 +96,16 @@ class EnvironmentConfig(BaseModel):
         if v.upper() not in valid_levels:
             raise ValueError(f"Log level must be one of: {', '.join(valid_levels)}")
         return v.upper()
+    
+    @field_validator('http_prefix')
+    @classmethod
+    def validate_http_prefix(cls, v):
+        """Validate HTTP prefix format"""
+        if v and not v.startswith('/'):
+            raise ValueError("HTTP prefix must start with '/' (e.g., '/impulse')")
+        if v and v.endswith('/'):
+            raise ValueError("HTTP prefix must not end with '/' (e.g., '/impulse' not '/impulse/')")
+        return v
     
     @property
     def incidents_path(self) -> str:

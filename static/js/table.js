@@ -1,3 +1,4 @@
+import {getBaseUrl} from "./constants.js";
 import {
     formatterMap,
     formatterParamsMap,
@@ -40,7 +41,15 @@ const sorterMap = {
 // Fetch table configuration and sorting, then initialize the table
 async function initializeTable() {
     try {
-        const uiConfigResponse = await fetch('/ui_config').then(res => res.json());
+        const baseUrl = getBaseUrl();
+        const apiUrl = `${baseUrl}/ui_config`;
+        
+        const uiConfigResponse = await fetch(apiUrl).then(res => {
+            if (!res.ok) {
+                throw new Error(`HTTP error! status: ${res.status}`);
+            }
+            return res.json();
+        });
         
         const configResponse = uiConfigResponse.table_config;
         const sortingResponse = uiConfigResponse.sorting;

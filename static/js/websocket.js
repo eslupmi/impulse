@@ -1,5 +1,6 @@
 import {table} from "./table.js";
 import {updateZoomIcons} from "./filters.js";
+import {getBaseUrl} from "./constants.js";
 
 let socket;
 let heartbeatInterval;
@@ -90,7 +91,8 @@ function preserveScrollDuringOperation(operation) {
 function setupWebSocketEvents() {
     // Create WebSocket connection
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws`;
+    const baseUrl = getBaseUrl();
+    const wsUrl = `${protocol}//${window.location.host}${baseUrl}/ws`;
     
     socket = new WebSocket(wsUrl);
 

@@ -78,6 +78,10 @@ class UnifiedConfig:
     @property
     def cors_allowed_origins(self) -> list:
         return self.env.cors_allowed_origins
+    
+    @property
+    def http_prefix(self) -> str:
+        return self.env.http_prefix
 
 
 _config: Optional[UnifiedConfig] = None

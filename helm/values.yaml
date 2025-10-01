@@ -60,6 +60,9 @@ ingress:
   #  - secretName: impulse-tls
   #    hosts:
   #      - impulse.local
+  
+  # HTTP prefix configuration for reverse proxy deployments
+  httpPrefix: ""  # "/impulse" for example
 
 resources:
   limits:
@@ -106,6 +109,9 @@ config:
     
     # CORS settings
     CORS_ALLOWED_ORIGINS: "http://localhost:5000"
+    
+    # HTTP prefix configuration
+    HTTP_PREFIX: ""  # "/impulse" for example
     
     # Slack configuration (if using Slack)
     SLACK_BOT_USER_OAUTH_TOKEN: ""
