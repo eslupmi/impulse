@@ -179,9 +179,9 @@ class Application(ABC):
             file_path = self.templates.get(file_key, default_path)
             return JinjaTemplate(open(file_path).read())
 
-        body_template = read_template('body', f'./templates/{self.type}_body.j2')
-        header_template = read_template('header', f'./templates/{self.type}_header.j2')
-        status_icons_template = read_template('status_icons', f'./templates/{self.type}_status_icons.j2')
+        body_template = read_template('body', f'./templates/{self.type.value}_body.j2')
+        header_template = read_template('header', f'./templates/{self.type.value}_header.j2')
+        status_icons_template = read_template('status_icons', f'./templates/{self.type.value}_status_icons.j2')
 
         return body_template, header_template, status_icons_template
 
