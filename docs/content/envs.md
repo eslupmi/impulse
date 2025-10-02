@@ -11,6 +11,7 @@ Environment variables are created in `.env` file for python installation or in `
 | CORS_ALLOWED_ORIGINS | Сomma-separated list of origins<br> allowed to make cross-origin<br> requests to the server | http://localhost:5000 | for UI |
 | DATA_PATH | Path to data directory | ./data | - |
 | GOOGLE_SERVICE_ACCOUNT_FILE | Path to Google service account file<br/>(for [cloud chain](config_file.md#cloud-chain)) | ./key.json | - |
+| HTTP_PREFIX | HTTP prefix for reverse proxy deployments<br/>(e.g., `/impulse`) | | - |
 | LOG_LEVEL | [Log level](https://github.com/DiTsi/impulse/blob/develop/app/logging.py#L15) | INFO | - |
 | MATTERMOST_ACCESS_TOKEN | [Mattermost 'Access Token'](mattermost.md) | | for Mattermost |
 | SLACK_BOT_USER_OAUTH_TOKEN | [Slack 'Bot User OAuth Token'](slack.md) | | for Slack |

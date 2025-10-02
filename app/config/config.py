@@ -78,6 +78,10 @@ class UnifiedConfig:
     @property
     def cors_allowed_origins(self) -> list:
         return self.env.cors_allowed_origins
+    
+    @property
+    def http_prefix(self) -> str:
+        return self.env.http_prefix
 
 
 _config: Optional[UnifiedConfig] = None
@@ -157,7 +161,7 @@ def reload_config(config_path: Optional[str] = None) -> bool:
 
     try:
         new_config = load_unified_config(config_path, exit_on_error=False)
-        if new_config.app.application.type == current_config.app.application.type:
+        if new_config.messenger.type == current_config.messenger.type:
             _config = new_config
             logger.info("Configuration reloaded successfully")
             return True

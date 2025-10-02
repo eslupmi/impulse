@@ -58,3 +58,7 @@ Modify configuration in `impulse.yml`.
 ## 5. Configure Alertmanger
 
 See the [Alertmanager instruction](alertmanager.md)
+
+## 6. Reverse proxy
+
+If you are using reverse proxy and need an HTTP prefix, use the **HTTP_PREFIX** environment variable ([env](envs.md)). Don't forget to update your `impulse_address` in the configuration to include the prefix.

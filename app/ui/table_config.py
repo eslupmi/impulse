@@ -82,21 +82,17 @@ def get_incident_table_sorting():
 
     if ui_config and ui_config.sorting:
         for rule in ui_config.sorting:
-            for column, sort_config in rule.items():
-                if column == "order":
-                    continue
-                    
-                sorting_rule = {"column": column}
-
-                if isinstance(sort_config, str):
-                    if sort_config in ["asc", "desc"]:
-                        sorting_rule["direction"] = sort_config
-                        if "order" in rule:
-                            sorting_rule["order"] = rule["order"]
-                    elif sort_config == "none" and "order" in rule:
-                        sorting_rule["order"] = rule["order"]
-                
-                tabulator_sorting.append(sorting_rule)
+            # rule is now a UISorting object, not a dict
+            sorting_rule = {"column": rule.column_name}
+            
+            if rule.sort_order in ["asc", "desc"]:
+                sorting_rule["direction"] = rule.sort_order
+                if rule.order:
+                    sorting_rule["order"] = rule.order
+            elif rule.sort_order == "none" and rule.order:
+                sorting_rule["order"] = rule.order
+            
+            tabulator_sorting.append(sorting_rule)
     
     return tabulator_sorting
 

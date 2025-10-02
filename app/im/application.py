@@ -7,7 +7,7 @@ from aiohttp import ClientTimeout, ClientSession
 from aiohttp_retry import ExponentialRetry, RetryClient
 
 from app.config.config import get_config
-from app.config.validation import ApplicationConfig, MattermostUser, SlackUser, TelegramUser
+from app.config.validation import ApplicationConfig, MattermostUser, SlackUser, TelegramUser, MessengerType
 from app.im.chain.chain_factory import ChainFactory
 from app.im.groups import generate_user_groups
 from app.im.template import JinjaTemplate, notification_user, notification_user_group, update_status, \
@@ -112,9 +112,9 @@ class Application(ABC):
             header = self.format_text_italic(
                 self.header_template.form_message(incident_obj.payload, incident_obj)
             )
-            fields = {'type': self.type, 'username': user_display_name, 'id': user_id}
+            fields = {'type': self.type.value, 'username': user_display_name, 'id': user_id}
             text = JinjaTemplate(notification_assignment).form_notification(fields)
-            if self.type == 'telegram':
+            if self.type == MessengerType.TELEGRAM:
                 message = text
             else:
                 message = header + '\n' + text
@@ -141,7 +141,7 @@ class Application(ABC):
                 self.header_template.form_message(incident_obj.payload, incident_obj)
             )
             text = JinjaTemplate(notification_unassignment).form_notification({})
-            if self.type == 'telegram':
+            if self.type.value == MessengerType.TELEGRAM:
                 message = text
             else:
                 message = header + '\n' + text
@@ -166,7 +166,7 @@ class Application(ABC):
             if user_info.id is not None:
                 user_details = await self.get_user_details(user_info)
                 if not user_details['exists']:
-                    logger.warning(f'.. user {name} not found in {self.type.capitalize()} and will not be notified')
+                    logger.warning(f'.. user {name} not found in {self.type.value.capitalize()} and will not be notified')
             else:
                 logger.warning(f'.. user {name} has no \'id\' and will not be notified')
                 user_details = {}
@@ -179,9 +179,9 @@ class Application(ABC):
             file_path = self.templates.get(file_key, default_path)
             return JinjaTemplate(open(file_path).read())
 
-        body_template = read_template('body', f'./templates/{self.type}_body.j2')
-        header_template = read_template('header', f'./templates/{self.type}_header.j2')
-        status_icons_template = read_template('status_icons', f'./templates/{self.type}_status_icons.j2')
+        body_template = read_template('body', f'./templates/{self.type.value}_body.j2')
+        header_template = read_template('header', f'./templates/{self.type.value}_header.j2')
+        status_icons_template = read_template('status_icons', f'./templates/{self.type.value}_status_icons.j2')
 
         return body_template, header_template, status_icons_template
 
@@ -193,10 +193,10 @@ class Application(ABC):
         else:
             unit = self.user_groups.get(identifier)
             text_template = JinjaTemplate(notification_user_group)
-        fields = {'type': self.type, 'name': identifier, 'unit': unit, 'admins': destinations}
+        fields = {'type': self.type.value, 'name': identifier, 'unit': unit, 'admins': destinations}
         text = text_template.form_notification(fields)
         header = self.format_text_italic(self.header_template.form_message(incident.payload, incident))
-        if self.type == 'telegram':
+        if self.type == MessengerType.TELEGRAM:
             message = text
         else:
             message = header + '\n' + text
@@ -220,10 +220,10 @@ class Application(ABC):
 
                 text_template = JinjaTemplate(update_status)
                 admins = self.get_notification_destinations()
-                fields = {'type': self.type, 'status': incident_status, 'admins': admins}
+                fields = {'type': self.type.value, 'status': incident_status, 'admins': admins}
                 text = text_template.form_notification(fields)
 
-                if self.type == 'telegram':
+                if self.type == MessengerType.TELEGRAM:
                     message = text
                 else:
                     message = header + '\n' + text

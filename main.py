@@ -6,7 +6,7 @@ import signal
 from contextlib import asynccontextmanager
 from datetime import datetime
 
-from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, HTTPException
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, HTTPException, APIRouter
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -42,9 +42,9 @@ def setup_sighup_handler():
 
     if hasattr(signal, 'SIGHUP'):
         signal.signal(signal.SIGHUP, handle_sighup)
-        logger.info("SIGHUP signal handler registered for configuration reloading (overriding Uvicorn)")
+        logger.debug("SIGHUP signal handler registered for configuration reloading (overriding Uvicorn)")
     else:
-        logger.info("SIGHUP signal not available on this platform")
+        logger.warning("SIGHUP signal not available on this platform")
 
 
 def validate_config_only():
@@ -52,7 +52,7 @@ def validate_config_only():
     try:
         config = get_config()
         logger.info("Configuration validation successful!\n"
-                    f"Application type: {config.messenger.type}\n"
+                    f"Application type: {config.messenger.type.value}\n"
                     f"Channels configured: {len(config.messenger.channels)}\n"
                     f"Users configured: {len(config.messenger.users)}")
         if config.app.incident:
@@ -127,6 +127,10 @@ async def lifespan(fastapi_app: FastAPI):
     logger.info('IMPulse shutdown complete')
 
 
+# Get HTTP prefix from configuration
+config = get_config()
+http_prefix = config.http_prefix
+
 app = FastAPI(
     title="IMPulse",
     description="Incident Management Program",
@@ -136,24 +140,37 @@ app = FastAPI(
     redoc_url=None
 )
 
+# Create router with HTTP prefix if specified
+if http_prefix:
+    router = APIRouter(prefix=http_prefix)
+else:
+    router = APIRouter()
+
+# Mount static files with prefix
 if get_config().ui_config:
-    app.mount("/static", StaticFiles(directory="static"), name="static")
+    if http_prefix:
+        app.mount(f"{http_prefix}/static", StaticFiles(directory="static"), name="static")
+    else:
+        app.mount("/static", StaticFiles(directory="static"), name="static")
     templates = Jinja2Templates(directory="templates")
 
 
-    @app.get("/", response_class=HTMLResponse)
+    @router.get("/", response_class=HTMLResponse)
     async def get_index(request: Request):
         """Serve the main page"""
-        return templates.TemplateResponse("index.html", {"request": request})
+        return templates.TemplateResponse("index.html", {
+            "request": request,
+            "http_prefix": http_prefix
+        })
 
 
-@app.get("/queue")
+@router.get("/queue")
 async def get_queue(request: Request):
     """Get current queue state"""
     return await request.app.state.queue.serialize()
 
 
-@app.post("/")
+@router.post("/")
 async def post_alert(request: Request):
     """Handle incoming alerts"""
     try:
@@ -165,8 +182,8 @@ async def post_alert(request: Request):
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@app.post("/app")
-@app.put("/app")
+@router.post("/app")
+@router.put("/app")
 async def handle_app_buttons(request: Request):
     """Handle application button interactions"""
     try:
@@ -187,19 +204,19 @@ async def handle_app_buttons(request: Request):
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@app.get("/incidents")
+@router.get("/incidents")
 async def get_incidents(request: Request):
     """Get all incidents"""
     return request.app.state.incidents.serialize()
 
 
-@app.get("/ui_config")
+@router.get("/ui_config")
 async def get_ui_config():
     """Get complete UI configuration"""
     return get_all_ui_config()
 
 
-@app.websocket("/ws")
+@router.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     """Handle WebSocket connections"""
     await incident_ws.connect(websocket)
@@ -227,6 +244,9 @@ async def websocket_endpoint(websocket: WebSocket):
     except Exception as e:
         logger.error(f"WebSocket error: {e}")
         await incident_ws.disconnect(websocket)
+
+# Include router in the app
+app.include_router(router)
 
 
 def parse_arguments():

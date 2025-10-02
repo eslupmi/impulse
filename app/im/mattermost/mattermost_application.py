@@ -51,7 +51,7 @@ class MattermostApplication(Application):
         return app_config.address
 
     def _get_team_name(self, app_config: ApplicationConfig):
-        logger.info(f'Get {self.type.capitalize()} team name')
+        logger.info(f'Get {self.type.value.capitalize()} team name')
         return app_config.team
 
     async def get_user_details(self, user_details):
