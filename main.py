@@ -1,8 +1,7 @@
-import asyncio
-import json
 import argparse
-import sys
+import json
 import signal
+import sys
 from contextlib import asynccontextmanager
 from datetime import datetime
 
@@ -11,6 +10,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+from app.config.config import get_config, reload_config
 from app.config.validation import MessengerType
 from app.im.channel_manager import ChannelManager
 from app.im.helpers import get_application
@@ -22,7 +22,6 @@ from app.route import generate_route
 from app.ui.table_config import get_all_ui_config
 from app.ui.websocket import incident_ws
 from app.webhook import generate_webhooks
-from app.config.config import get_config, reload_config
 
 
 def setup_sighup_handler():
@@ -81,14 +80,11 @@ async def lifespan(fastapi_app: FastAPI):
     route = generate_route(route_config)
 
     channel_manager = ChannelManager()
-    if config.messenger.type == MessengerType.NONE:
-        if not config.messenger.channels or 'default' not in config.messenger.channels:
-            config.messenger.channels = {'default': {'id': 'default'}}
-        channels = channel_manager.initialize(['default'], config.messenger.channels, 'default')
-        default_channel = 'default'
-    else:
-        channels = channel_manager.initialize(route.get_uniq_channels(), config.messenger.channels, route.channel)
-        default_channel = route.channel
+    if (config.messenger.type == MessengerType.NONE and
+            (not config.messenger.channels or 'default' not in config.messenger.channels)):
+        config.messenger.channels = {'default': {'id': 'default'}}
+    channels = channel_manager.initialize(route.get_uniq_channels(), config.messenger.channels, route.channel)
+    default_channel = route.channel
 
     messenger = get_application(config.messenger, channels, default_channel)
     await messenger.initialize_async()
@@ -246,6 +242,7 @@ async def websocket_endpoint(websocket: WebSocket):
         logger.error(f"WebSocket error: {e}")
         await incident_ws.disconnect(websocket)
 
+
 # Include router in the app
 app.include_router(router)
 
@@ -268,7 +265,7 @@ if __name__ == "__main__":
         validate_config_only()
     else:
         setup_sighup_handler()
-        
+
         import uvicorn
 
         configure_uvicorn_logging()

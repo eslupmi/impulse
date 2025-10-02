@@ -1,8 +1,8 @@
 from typing import List
 
+from app.config.validation import RouteConfig
 from app.logging import logger
 from app.route.matcher import Matcher
-from app.config.validation import RouteConfig
 
 
 class MainRoute:
@@ -71,6 +71,8 @@ class Route(MainRoute):
 
 def generate_route(route_config: RouteConfig):
     logger.info(f'Creating route')
+    if not route_config:
+        return MainRoute('default')
     main_channel_name = route_config.channel
     main_chain = route_config.chain
     routes = route_config.routes
