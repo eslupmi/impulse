@@ -67,11 +67,10 @@ class AlertHandler(BaseHandler):
         await self._create_thread(incident_, alert_state)
         incident_.dump()
 
-        self.incidents.add(incident_)
-
         logger.info(f'Incident {incident_.uuid} created. Link: {incident_.link}')
         [logger.info(f'  {i}: {alert_state["groupLabels"][i]}') for i in alert_state['groupLabels'].keys()]
-        logger.debug(f'{alert_state}')
+
+        self.incidents.add(incident_)
 
         await self.queue.put(status_update_datetime, 'update_status', incident_.uuid)
 
