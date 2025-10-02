@@ -13,3 +13,10 @@ urllib3~=1.26.15
 PyJWT[crypto]~=2.10.1
 aiofiles~=23.2.1
 httpx~=0.25.2
+
+# Testing dependencies
+pytest~=8.3.2
+pytest-asyncio~=0.24.0
+pytest-cov~=5.0.0
+pytest-mock~=3.14.0
+pytest-xdist~=3.6.0
