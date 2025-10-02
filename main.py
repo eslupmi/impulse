@@ -175,6 +175,7 @@ async def post_alert(request: Request):
     """Handle incoming alerts"""
     try:
         alert_state = await request.json()
+        logger.debug(f"Got alert. Payload: {alert_state}")
         await request.app.state.queue.put_first(datetime.utcnow(), 'alert', None, None, alert_state)
         return alert_state
     except Exception as e:
