@@ -1,38 +1,5 @@
 messenger:  # messenger configuration
-  # address: https://<your_messenger_domain>  # your messenger server address (Mattermost)
-  admin_users: ["Dmitry"]  # IMPulse administrators (from messenger.users) notified of any warnings
-  channels:  # define channels by their ID to use them in the route section (https://docs.impulse.bot/stable/config_file/#messengerchannels)
-    incidents_default: {id: C09NSUL269T}
-    incidents_infrastructure: {id: C07EVS3EL14}
-    incidents_services: {id: C07EMUB2T8X}
-  chains:  # escallation chains (https://docs.impulse.bot/stable/config_file/#messengerchains)
-    devops:
-      - user_group: devops
-    devops_critical: # simple chain (https://docs.impulse.bot/stable/config_file/#simple-chain)
-      - user: Valery
-      - wait: 10m
-      - user: Dmitry
-      - wait: 10m
-      - webhook: Dmitry_call
-    developers:
-      - user: Dmitry
-      - wait: 10m
-      - user: Valery
-      - wait: 20m
-      - user: CEO
-  # impulse_address: https://<your_impulse_domain>  # IMPulse address for button callbacks (Mattermost, Telegram). Telegram supported only HTTPS
-  users:  # users declaration (https://docs.impulse.bot/stable/config_file/#messengerusers)
-    Dmitry: {id: U73MD1YLR4M}
-    Valery: {id: X58QP9ZKT2N}
-    Grigory: {id: V64JRM8YB3L}
-  user_groups:  # groups of users for bulk notification (https://docs.impulse.bot/stable/config_file/#messengeruser_groups)
-    devops: {users: ["Dmitry", "Valery"]}
-  team: KOMANDA  # team name (Mattermost)
-  template_files:  # path to custom template files for status_icons, header, and body (https://docs.impulse.bot/stable/concepts/#structure)
-    status_icons: templates/mattermost_status_icons.j2
-    header: templates/mattermost_header.j2
-    body: templates/mattermost_body.j2
-  type: slack  # messenger type (mattermost, none, slack, telegram)
+  type: none  # messenger type (mattermost, none, slack, telegram)
 
 incident:  # incidents behavior options
   # notifications:  # incident notifications settings
@@ -43,24 +10,6 @@ incident:  # incidents behavior options
     firing: 6h  # after this time, incident status changes from 'firing' to 'unknown' if no alerts appear
     unknown: 6h  # after this time, incident status changes from 'unknown' to 'closed' if no alerts appear
     resolved: 12h  # after this time, incident status changes from 'resolved' to 'closed' if no alerts appear
-
-route:  # incident routing rules based on alert fields (https://docs.impulse.bot/stable/config_file/#route)
-  channel: incidents_default  # default channel where incidents will be created if they don't match any matchers
-  chain: devops  # default chain to notify users if alert don't match any matchers inside route.routes
-  routes:  # list of routing rules based on matchers to determine which channel and chain to use for incidents
-    - matchers:  # conditions to match alert fields using Python regex patterns
-        - service=~"nginx|postgresql"
-      channel: incidents_infrastructure  # channel where incidents will be created if they match the matchers
-      chain: devops  # chain to notify users if alert don't match any matchers inside routes
-      routes:
-        - matchers:
-            - severity="critical"
-          channel: incidents_infrastructure
-          chain: devops_critical
-    - matchers:
-        - service=~"bim|omni"
-      channel: incidents_services
-      chain: developers
 
 ui:  # user interface configuration (https://docs.impulse.bot/stable/ui/)
   colors:  # Color scheme for different values (https://docs.impulse.bot/stable/config_file/#uicolors)
