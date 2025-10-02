@@ -1,6 +1,6 @@
 import {table} from "./table.js";
 import {updateZoomIcons} from "./filters.js";
-import {getBaseUrl} from "./constants.js";
+import {getBaseUrl} from "./utils.js";
 
 let socket;
 let heartbeatInterval;

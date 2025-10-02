@@ -1,4 +1,4 @@
-import {getBaseUrl} from "./constants.js";
+import {getBaseUrl} from "./utils.js";
 import {
     formatterMap,
     formatterParamsMap,
