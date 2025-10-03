@@ -437,23 +437,36 @@ class ImpulseConfig(BaseModel):
     """Main Impulse configuration"""
     messenger: ApplicationConfig = Field(..., description="Messenger configuration", discriminator='type')
     incident: Optional[IncidentConfig] = Field(None, description="Incident configuration")
-    route: RouteConfig = Field(..., description="Route configuration")
+    route: Optional[RouteConfig] = Field(None, description="Route configuration")
     ui: Optional[UIConfig] = Field(None, description="UI configuration")
     webhooks: Optional[Dict[str, WebhookConfig]] = Field({}, description="Webhook configurations")
+
+    @model_validator(mode='after')
+    def validate_route_exists(self):
+        """Validate that route exists"""
+
+        def validate_route(route_config: RouteConfig):
+            if not route_config:
+                raise ValueError(f"'route' field is required when type is {self.messenger.type.value}")
+
+        if self.messenger.type != MessengerType.NONE:
+            validate_route(self.route)
+        return self
 
     @model_validator(mode='after')
     def validate_route_channel_exists(self):
         """Validate that route channels exist in messenger channels"""
 
         def validate_route_channels(route_config):
-            if route_config.channel not in self.messenger.channels and self.messenger.type != MessengerType.NONE:
+            if route_config.channel not in self.messenger.channels:
                 raise ValueError(f"Route channel '{route_config.channel}' not found in messenger channels")
 
             if route_config.routes:
                 for nested_route in route_config.routes:
                     validate_route_channels(nested_route)
 
-        validate_route_channels(self.route)
+        if self.messenger.type != MessengerType.NONE:
+            validate_route_channels(self.route)
         return self
 
     @model_validator(mode='after')
