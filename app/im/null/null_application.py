@@ -1,8 +1,8 @@
 import uuid
+
 from fastapi.responses import JSONResponse
 
 from app.im.application import Application
-from app.config.validation import NullApplicationConfig
 
 
 class NullApplication(Application):
