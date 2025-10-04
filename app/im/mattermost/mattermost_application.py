@@ -58,7 +58,7 @@ class MattermostApplication(Application):
         id_ = user_details.get('id')
         async with self.http.get(f'{self.url}/api/v4/users/{id_}?user_id={id_}', headers=self.headers) as response:
             if response.status == 404:
-                logger.debug(f'User not found for {id_}: HTTP 404')
+                logger.debug(f'Failed to get user details for ID {id_}: Not Found (HTTP 404)')
                 return {'id': id_, 'username': None, 'exists': False, 'full_name': None}
 
             if response.status != 200:
