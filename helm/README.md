@@ -1,6 +1,6 @@
 # IMPulse Helm Chart
 
-A Helm chart for deploying [IMPulse](https://github.com/your-org/impulse) - an Incident Management Program that integrates with Slack, Mattermost, and Telegram.
+A Helm chart for deploying [IMPulse](https://github.com/your-org/impulse) - an Incident Management Platform that integrates with Slack, Mattermost, and Telegram.
 
 ## Prerequisites
 

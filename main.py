@@ -129,7 +129,7 @@ http_prefix = config.http_prefix
 
 app = FastAPI(
     title="IMPulse",
-    description="Incident Management Program",
+    description="Incident Management Platform",
     version="0.0.0",
     lifespan=lifespan,
     docs_url=None,
