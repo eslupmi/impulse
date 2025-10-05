@@ -1,8 +1,8 @@
 apiVersion: v2
 name: impulse
-description: A Helm chart for Impulse - Incident Management Platform
+description: A Helm chart for IMPulse
 type: application
-version: "v0.0.3"
+version: "v0.0.4"
 appVersion: "%VERSION%"
 icon: https://raw.githubusercontent.com/eslupmi/impulse/refs/heads/develop/logo.svg
 kubeVersion: ">=1.12.0-0"
@@ -29,3 +29,4 @@ annotations:
       url: https://github.com/eslupmi/impulse
     - name: Documentation
       url: https://docs.impulse.bot
+  artifacthub.io/repositoryID: "8463be1d-2ded-4e14-b15c-2be5820ff537"
