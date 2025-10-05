@@ -2,15 +2,29 @@
 
 ## v3.0.0
 Upgrade instructions:
+- Rename `application` with `messenger` in **impulse.yml**
 - Move `incident.alerts_firing_notifications` to `incident.notifications.new_firing` option in **impulse.yml**
 - Move `incident.alerts_resolved_notifications` to `incident.notifications.partial_resolved` option in **impulse.yml**
-- Rename `application` with `messenger` in **impulse.yml**
+- Rename `last_state` to `payload` in [ui.columns[].value](https://docs.impulse.bot/stable/config_file/#uicolumnsvalue) if you use it
+- Check your configuration using `python main.py --check` before restart
 
 Changes:
+- Added `--check` option support ([docs]((https://docs.impulse.bot/stable/check.md/)))
+- Added reloading configuration using `HUP` signal
+- Added Helm chart ([Artifactory Hub](https://artifacthub.io/packages/helm/impulse/impulse))
 - `last_state` incident field renamed to `payload`
 - `incident.notifications.new_firing` set to `True` by default
 - Removed `experimental` features
+- Added URL prefix support (`HTTP_PREFIX` [environment variable](https://docs.impulse.bot/stable/envs/))
+- Experimental features removed
+- Moved `incident.alerts_firing_notifications` to `incident.notifications.new_firing` option in **impulse.yml**
+- Moved `incident.alerts_resolved_notifications` to `incident.notifications.partial_resolved` option in **impulse.yml**
+- Renamed `last_state` field to `payload` in incident files
 - Documentation now defaults to stable version instead of latest
+- Updated documentation
+
+Thanks to:
+- https://github.com/zorek187 for Helm chart realisation
 
 ## v2.8.0
 Changes:
