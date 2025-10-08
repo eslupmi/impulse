@@ -1,10 +1,11 @@
 __pycache__
+.pytest_cache
 
 .idea
 .vscode
 
-env
-venv
+env*
+venv*
 
 .env
 .coverage
