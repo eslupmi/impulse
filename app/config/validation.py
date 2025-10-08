@@ -136,14 +136,15 @@ class SimpleChainStep(BaseModel):
 
 class ScheduleMatcherExpression(BaseModel):
     """Schedule matcher expression - fully flexible"""
-    expr: str = Field(..., description="Custom expression")
+    start_day_expr: str = Field(..., description="Start day expression")
+    start_day_values: List[Any] = Field(..., description="Start day values")
     start_time: Any = Field(..., description="Start time in any format")
     duration: Any = Field(..., description="Duration in any format")
 
 
 class ScheduleEntry(BaseModel):
     """Schedule entry configuration"""
-    matcher: Optional[List[ScheduleMatcherExpression]] = Field([], description="List of matcher expressions")
+    matcher: Optional[ScheduleMatcherExpression] = Field(None, description="Matcher expression")
     steps: List[SimpleChainStep] = Field(..., description="Chain steps")
 
 
