@@ -88,7 +88,7 @@ class TestMainApplication:
         """Test that the FastAPI app is created correctly."""
         assert main.app is not None
         assert main.app.title == "IMPulse"
-        assert main.app.description == "Incident Management Program"
+        assert main.app.description == "Incident Management Platform"
         assert main.app.version == "0.0.0"
 
     @patch('main.get_config')
