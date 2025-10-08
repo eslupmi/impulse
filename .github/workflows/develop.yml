@@ -73,8 +73,6 @@ jobs:
         run: |
           mkdir -p packaged
           if [ -f "helm/Chart.yaml" ]; then
-            echo ">> Updating appVersion to ${{ github.ref_name }}"
-            sed -i "s/%VERSION%/${{ github.ref_name }}/g" helm/Chart.yaml
             echo ">> Packaging helm chart"
             helm dependency update helm/ || true
             helm package helm/ -d packaged
