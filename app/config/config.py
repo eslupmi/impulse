@@ -82,7 +82,17 @@ class UnifiedConfig:
     @property
     def http_prefix(self) -> str:
         return self.env.http_prefix
-
+    
+    @property
+    def listen_host(self) -> str:
+        """Host to listen on"""
+        return self.env.listen_host
+    
+    @property
+    def listen_port(self) -> int:
+        """Port to listen on"""
+        return self.env.listen_port
+    
 
 _config: Optional[UnifiedConfig] = None
 
@@ -163,7 +173,6 @@ def reload_config(config_path: Optional[str] = None) -> bool:
         new_config = load_unified_config(config_path, exit_on_error=False)
         if new_config.messenger.type == current_config.messenger.type:
             _config = new_config
-            logger.info("Configuration reloaded successfully")
             return True
         else:
             logger.warning("Application type changed, keeping current configuration")

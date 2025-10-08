@@ -12,6 +12,8 @@ Environment variables are created in `.env` file for python installation or in `
 | DATA_PATH | Path to data directory | ./data | - |
 | GOOGLE_SERVICE_ACCOUNT_FILE | Path to Google service account file<br/>(for [cloud chain](config_file.md#cloud-chain)) | ./key.json | - |
 | HTTP_PREFIX | HTTP prefix for reverse proxy deployments<br/>(e.g., `/impulse`) | | - |
+| LISTEN_HOST | Host to listen on | 0.0.0.0 | - |
+| LISTEN_PORT | Port to listen on | 5000 | - |
 | LOG_LEVEL | [Log level](https://github.com/DiTsi/impulse/blob/develop/app/logging.py#L15) | INFO | - |
 | MATTERMOST_ACCESS_TOKEN | [Mattermost 'Access Token'](mattermost.md) | | for Mattermost |
 | SLACK_BOT_USER_OAUTH_TOKEN | [Slack 'Bot User OAuth Token'](slack.md) | | for Slack |
