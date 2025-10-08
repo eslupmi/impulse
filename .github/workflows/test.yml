@@ -58,6 +58,6 @@ jobs:
             docker-compose down
             rm -rf /opt/impulse/test/data/incidents
 
-            cp config/impulse.yml."${{ github.event.inputs.target }}" config/impulse.yml
+            cp config/impulse.yml."${{ github.event.inputs.messenger }}" config/impulse.yml
             docker-compose pull
             docker-compose up -d
