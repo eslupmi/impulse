@@ -2,7 +2,7 @@ apiVersion: v2
 name: impulse
 description: A Helm chart for IMPulse
 type: application
-version: "v1.0.0"
+version: "v1.0.1"
 appVersion: "v3.0.0"
 icon: https://raw.githubusercontent.com/eslupmi/impulse/refs/heads/develop/logo.svg
 kubeVersion: ">=1.12.0-0"
@@ -12,7 +12,7 @@ keywords:
   - slack
   - mattermost
   - telegram
-home: https://artifacthub.io/packages/helm/eslupmi/impulse
+home: https://artifacthub.io/packages/helm/impulse/impulse
 sources:
   - https://github.com/eslupmi/impulse
 maintainers:
