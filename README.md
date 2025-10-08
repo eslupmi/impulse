@@ -1,8 +1,8 @@
 <h1><img alt="IMPulse" src="logo.svg" width="50"> IMPulse</h1>
 
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Release](https://img.shields.io/github/v/release/eslupmi/impulse?sort=semver)](https://github.com/eslupmi/impulse/releases)
 [![Docker](https://img.shields.io/badge/ghcr.io-eslupmi/impulse-blue?logo=docker)](https://ghcr.io/eslupmi/impulse)
+[![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/impulse&color=grey)](https://artifacthub.io/packages/search?repo=impulse)
 
 <div align="center"><img src="https://github.com/eslupmi/site/blob/main/static/ui.png?raw=true" width="700"></div>
 
@@ -10,7 +10,7 @@ Visit [docs.impulse.bot](https://docs.impulse.bot) for the full documentation.
 
 ## Features
 - Mattermost, Slack, Telegram integrations
-- Twilio and another integrations using [webhooks](https://docs.impulse.bot/stable/config_file/#webhooks)
+- Twilio and other integrations using [webhooks](https://docs.impulse.bot/stable/config_file/#webhooks)
 - [Incident lifecycle](https://docs.impulse.bot/stable/concepts/#lifecycle) reduces incidents chaos
 - Scheduling using providers like Google Calendar via [cloud chains](https://docs.impulse.bot/stable/config_file/#cloud-chain)
 - Support for [nested chains](https://docs.impulse.bot/stable/config_file/#nested-chain) with unlimited depth
@@ -19,31 +19,29 @@ Visit [docs.impulse.bot](https://docs.impulse.bot) for the full documentation.
 
 ## Quick Start
 
-1. Create directories
-    ```bash
-    mkdir impulse impulse/config impulse/data
-    cd impulse
-    ```
+```bash
+# Prepare "impulse" directory
+git clone https://github.com/eslupmi/impulse.git impulse.bak
+mkdir -p impulse/config impulse/data
+cp impulse.bak/examples/docker-compose.yml impulse/docker-compose.yml
+cp impulse.bak/examples/impulse.none.yml impulse/config/impulse.yml
+rm -rf impulse.bak
 
-2. Get docker-compose.yml and config
-    ```bash
-    wget -O docker-compose.yml https://raw.githubusercontent.com/eslupmi/impulse/develop/examples/docker-compose.yml
-    wget -O config/impulse.yml https://raw.githubusercontent.com/eslupmi/impulse/develop/examples/impulse.none.yml
-    ```
+# Replace "<release_tag>" with the latest stable Docker tag
+tag=$(git ls-remote --tags https://github.com/eslupmi/impulse.git | awk -F/ '{print $NF}' | tail -n1)
+sed -i "s|<release_tag>|$tag|" impulse/docker-compose.yml
 
-3. Replace `<release_tag>` in `docker-compose.yml` with latest tag from [here](https://github.com/eslupmi/impulse/releases)
+# Run IMPulse without messenger integration
+cd impulse
+docker-compose up
+```
 
-4. Run
-    ```bash
-    docker-compose up
-    ```
-    and open http://localhost:5000
+Now IMPulse is available at http://localhost:5000/.
 
-5. Test
+You can try to send a test alert with:
 
-    To ensure IMPulse works fine send test alert:
+```bash
+curl -XPOST -H "Content-Type: application/json" http://localhost:5000/ -d '{"receiver":"webhook-alerts","status":"firing","alerts":[{"status":"firing","labels":{"alertname":"InstanceDown4","instance":"localhost:9100","job":"node","severity":"warning"},"annotations":{"summary":"Instanceunavailable"},"startsAt":"2024-07-28T19:26:43.604Z","endsAt":"0001-01-01T00:00:00Z","generatorURL":"http://eva:9090/graph?g0.expr=up+%3D%3D+0&g0.tab=1","fingerprint":"a7ddb1de342424cb"}],"groupLabels":{"alertname":"InstanceDown"},"commonLabels":{"alertname":"InstanceDown","instance":"localhost:9100","job":"node","severity":"warning"},"commonAnnotations":{"summary":"Instanceunavailable"},"externalURL":"http://eva:9093","version":"4","groupKey":"{}:{alertname=\"InstanceDown\"}","truncatedAlerts":0}'
+```
 
-    ```bash
-    curl -XPOST -H "Content-Type: application/json" http://localhost:5000/ -d '{"receiver":"webhook-alerts","status":"firing","alerts":[{"status":"firing","labels":{"alertname":"InstanceDown4","instance":"localhost:9100","job":"node","severity":"warning"},"annotations":{"summary":"Instanceunavailable"},"startsAt":"2024-07-28T19:26:43.604Z","endsAt":"0001-01-01T00:00:00Z","generatorURL":"http://eva:9090/graph?g0.expr=up+%3D%3D+0&g0.tab=1","fingerprint":"a7ddb1de342424cb"}],"groupLabels":{"alertname":"InstanceDown"},"commonLabels":{"alertname":"InstanceDown","instance":"localhost:9100","job":"node","severity":"warning"},"commonAnnotations":{"summary":"Instanceunavailable"},"externalURL":"http://eva:9093","version":"4","groupKey":"{}:{alertname=\"InstanceDown\"}","truncatedAlerts":0}'
-    ```
-See [documentation](https://docs.impulse.bot) and Slack [example](https://github.com/eslupmi/impulse/blob/develop/examples/impulse.slack.yml) to configure IMPulse for your messenger.
+See [documentation](https://docs.impulse.bot) and the Slack [example](https://github.com/eslupmi/impulse/blob/develop/examples/impulse.slack.yml) to configure IMPulse for your messenger.

@@ -74,12 +74,22 @@ class EnvironmentConfig(BaseModel):
         description="HTTP prefix for reverse proxy deployments (e.g., '/impulse')"
     )
     
-    @field_validator('provider_sync_interval', 'provider_max_events', 'provider_days_to_sync')
+    # Server configuration
+    listen_host: str = Field(
+        default_factory=lambda: os.getenv('LISTEN_HOST', '0.0.0.0'),
+        description="Host to listen on"
+    )
+    listen_port: int = Field(
+        default_factory=lambda: int(os.getenv('LISTEN_PORT', '5000')),
+        description="Port to listen on"
+    )
+    
+    @field_validator('provider_sync_interval', 'provider_max_events', 'provider_days_to_sync', 'listen_port')
     @classmethod
     def validate_positive_integers(cls, v):
-        """Validate that provider settings are positive integers"""
+        """Validate that numeric settings are positive integers"""
         if v <= 0:
-            raise ValueError("Provider configuration values must be positive integers")
+            raise ValueError("Configuration values must be positive integers")
         return v
     
     @field_validator('cors_allowed_origins')

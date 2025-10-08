@@ -1,0 +1,69 @@
+name: helm
+
+concurrency:
+  group: ${{ github.ref }}
+
+on:
+  push:
+    branches:
+    - 'develop'
+    tags:
+    - 'v*'
+    paths:
+    - 'helm/**'
+
+env:
+  OWNER: eslupmi
+  TARGET_REPO: helm-charts
+  TARGET_BRANCH: main
+  TARGET_DIR: packages
+  PUBLISH_BASE_URL: https://eslupmi.github.io/helm-charts/packages
+
+jobs:
+  publish-helm-charts:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+
+      - name: Package charts from ./helm
+        run: |
+          mkdir -p packaged
+          if [ -f "helm/Chart.yaml" ]; then
+            echo ">> Packaging helm chart"
+            helm dependency update helm/ || true
+            helm package helm/ -d packaged
+          else
+            echo "No Chart.yaml found in helm/ directory"
+            exit 1
+          fi
+          ls -l packaged
+
+      - name: Checkout helm-charts repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.OWNER }}/${{ env.TARGET_REPO }}
+          ref: ${{ env.TARGET_BRANCH }}
+          token: ${{ secrets.HELM_TOKEN }}
+          path: helm-charts-repo
+
+      - name: Copy packaged chart to helm-charts repository
+        run: |
+          mkdir -p helm-charts-repo/${{ env.TARGET_DIR }}/
+          cp packaged/*.tgz helm-charts-repo/${{ env.TARGET_DIR }}/
+          cd helm-charts-repo/${{ env.TARGET_DIR }}
+          helm repo index . --url ${{ env.PUBLISH_BASE_URL }}
+
+      - name: Commit and push to helm-charts repository
+        run: |
+          cd helm-charts-repo
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add ${{ env.TARGET_DIR }}/
+          git commit -m "Update helm chart: ${{ github.ref_name }}" || exit 0
+          git push

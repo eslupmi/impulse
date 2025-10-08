@@ -14,13 +14,14 @@
 }  
 </style>
 
-> The only configuration file for IMPulse is `impulse.yml`. To change default `impulse.yml` path, see [Environment Variables](envs.md).
+> IMPulse uses a single configuration file called `impulse.yml`. You can customize its location using the [CONFIG_PATH](envs.md) environment variable.
 
-> [Here](https://github.com/eslupmi/impulse/tree/develop/examples) you can find complex example for `impulse.yml`.
+> The configuration can be [reloaded](check.md) while IMPulse is running without requiring a restart.
 
-> Fields marked with "*" are mandatory within their parent section, but only if that parent section is present in the configuration.
+!!! info "Required fields"
+    Fields marked with "*" are mandatory within their parent section, but only if that parent section is present in the configuration.
 
-> Below you'll see all the options supported by IMPulse.
+> Below are all the configuration options supported by IMPulse.
 
 ## messenger *
 

@@ -48,8 +48,9 @@ nav:
   - installation.md
   - Configuration:
     - alertmanager.md
-    - envs.md
+    - check.md
     - config_file.md
+    - envs.md
   - Features:
     - google.md
     - ui.md
