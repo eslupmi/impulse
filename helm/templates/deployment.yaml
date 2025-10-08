@@ -18,17 +18,17 @@ spec:
         # Force pod recreation when configmap or secrets change
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
         {{- $hasInlineSecrets := false }}
-        {{- if eq .Values.impulseConfig.application.type "slack" }}
+        {{- if eq .Values.impulseConfig.messenger.type "slack" }}
           {{- if .Values.secrets.inline.slack.botUserOauthToken }}
             {{- $hasInlineSecrets = true }}
           {{- end }}
         {{- end }}
-        {{- if eq .Values.impulseConfig.application.type "mattermost" }}
+        {{- if eq .Values.impulseConfig.messenger.type "mattermost" }}
           {{- if .Values.secrets.inline.mattermost.accessToken }}
             {{- $hasInlineSecrets = true }}
           {{- end }}
         {{- end }}
-        {{- if eq .Values.impulseConfig.application.type "telegram" }}
+        {{- if eq .Values.impulseConfig.messenger.type "telegram" }}
           {{- if .Values.secrets.inline.telegram.botToken }}
             {{- $hasInlineSecrets = true }}
           {{- end }}
@@ -90,7 +90,7 @@ spec:
               value: {{ .Values.config.env.HTTP_PREFIX | quote }}
             - name: GOOGLE_SERVICE_ACCOUNT_FILE
               value: {{ .Values.config.env.GOOGLE_SERVICE_ACCOUNT_FILE | quote }}
-            {{- if eq .Values.impulseConfig.application.type "slack" }}
+            {{- if eq .Values.impulseConfig.messenger.type "slack" }}
             {{- if and .Values.secrets.existing .Values.secrets.existing.slack .Values.secrets.existing.slack.secretName }}
             - name: SLACK_BOT_USER_OAUTH_TOKEN
               valueFrom:
@@ -115,7 +115,7 @@ spec:
                   key: slack-verification-token
             {{- end }}
             {{- end }}
-            {{- if eq .Values.impulseConfig.application.type "mattermost" }}
+            {{- if eq .Values.impulseConfig.messenger.type "mattermost" }}
             {{- if and .Values.secrets.existing .Values.secrets.existing.mattermost .Values.secrets.existing.mattermost.secretName }}
             - name: MATTERMOST_ACCESS_TOKEN
               valueFrom:
@@ -130,7 +130,7 @@ spec:
                   key: mattermost-access-token
             {{- end }}
             {{- end }}
-            {{- if eq .Values.impulseConfig.application.type "telegram" }}
+            {{- if eq .Values.impulseConfig.messenger.type "telegram" }}
             {{- if and .Values.secrets.existing .Values.secrets.existing.telegram .Values.secrets.existing.telegram.secretName }}
             - name: TELEGRAM_BOT_TOKEN
               valueFrom:

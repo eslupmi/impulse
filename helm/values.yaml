@@ -130,8 +130,8 @@ config:
 
 # Impulse configuration file
 impulseConfig:
-  # Application configuration
-  application:
+  # Messenger configuration
+  messenger:
     type: "slack"  # slack, mattermost, telegram, none
     admin_users: []
     users: {}
@@ -141,8 +141,9 @@ impulseConfig:
   
   # Incident configuration
   incident:
-    alerts_firing_notifications: false
-    alerts_resolved_notifications: false
+    notifications:
+      new_firing: false
+      partial_resolved: false
     timeouts:
       firing: "6h"
       unknown: "6h"
