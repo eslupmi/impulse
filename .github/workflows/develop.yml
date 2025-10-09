@@ -13,15 +13,10 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
-
-  # Helm
-  OWNER: eslupmi
-  TARGET_REPO: helm-charts
-  TARGET_BRANCH: main
-  TARGET_DIR: packages
-  PUBLISH_BASE_URL: https://eslupmi.github.io/helm-charts/packages
-
 jobs:
+  tests:
+    uses: .github/workflows/feature.yml
+
   build-and-push-image:
     runs-on: ubuntu-24.04
     permissions:

@@ -6,13 +6,14 @@ on:
     - 'feature/**'
     - 'feat/**'
     - '[0-9]*-**'
+  workflow_call:
 
 jobs:
   tests:
     runs-on: ubuntu-24.04
     strategy:
       matrix:
-        python-version: ['3.9', '3.10', '3.11', '3.12']
+        python-version: ['3.9', '3.10', '3.11', '3.12', '3.13']
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
