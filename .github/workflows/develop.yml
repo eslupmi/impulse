@@ -15,7 +15,7 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 jobs:
   tests:
-    uses: .github/workflows/feature.yml
+    uses: ./.github/workflows/feature.yml@develop
 
   build-and-push-image:
     runs-on: ubuntu-24.04
