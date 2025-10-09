@@ -1,9 +1,6 @@
 from typing import Dict, List, Optional, Union, Any
 
-try:
-    from typing import Literal
-except ImportError:
-    from typing_extensions import Literal
+from typing import Literal
 from pydantic import BaseModel, Field, field_validator, model_validator
 from enum import Enum
 import re
