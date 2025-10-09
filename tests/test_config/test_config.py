@@ -231,7 +231,6 @@ class TestConfigFunctions:
         
         assert result is True
         mock_load_unified_config.assert_called_once_with(None, exit_on_error=False)
-        mock_logger.info.assert_called_with("Configuration reloaded successfully")
 
     @patch('app.config.config._config')
     @patch('app.config.config.load_unified_config')

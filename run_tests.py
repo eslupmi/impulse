@@ -37,14 +37,14 @@ def main():
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
     
     commands = {
-        "all": ("python3 -m pytest tests/ -v", "All tests"),
-        "unit": ("python3 -m pytest tests/test_utils.py tests/test_time.py -v", "Unit tests"),
-        "config": ("python3 -m pytest tests/test_config/ -v", "Configuration tests"),
-        "incident": ("python3 -m pytest tests/test_incident/ -v", "Incident tests"),
-        "main": ("python3 -m pytest tests/test_main.py -v", "Main application tests"),
-        "coverage": ("python3 -m pytest tests/ --cov=app --cov-report=html --cov-report=term", "Tests with coverage"),
-        "fast": ("python3 -m pytest tests/ -x --tb=short", "Fast tests (stop on first failure)"),
-        "parallel": ("python3 -m pytest tests/ -n auto", "Parallel tests"),
+        "all": ("python3 -m pytest tests/ --color=yes -v", "All tests"),
+        "unit": ("python3 -m pytest tests/test_utils.py tests/test_time.py --color=yes -v", "Unit tests"),
+        "config": ("python3 -m pytest tests/test_config/ --color=yes -v", "Configuration tests"),
+        "incident": ("python3 -m pytest tests/test_incident/ --color=yes -v", "Incident tests"),
+        "main": ("python3 -m pytest tests/test_main.py --color=yes -v", "Main application tests"),
+        "coverage": ("python3 -m pytest tests/ --color=yes --cov=app --cov-report=html --cov-report=term", "Tests with coverage"),
+        "fast": ("python3 -m pytest tests/ --color=yes -x --tb=short", "Fast tests (stop on first failure)"),
+        "parallel": ("python3 -m pytest tests/ --color=yes -n auto", "Parallel tests"),
     }
     
     if test_type not in commands:
