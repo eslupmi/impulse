@@ -9,6 +9,7 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3 import Retry
 
+from app.config.validation import CloudChain, ScheduleEntry, ScheduleMatcherExpression, SimpleChainStep
 from app.im.chain.schedule_chain import ScheduleChain
 from app.logging import logger
 from app.tools import HTMLTextExtractor
@@ -16,17 +17,17 @@ from app.config.config import get_config
 
 
 class GoogleCalendarChain(ScheduleChain):
-    def __init__(self, name, config: dict):
+    def __init__(self, name, config: CloudChain):
         super().__init__(name)
         
         # Get environment configuration
         self._app_config = get_config()
 
-        self.calendar_id = config.get('calendar_id')
+        self.calendar_id = config.calendar_id
         if not self.calendar_id:
             raise ValueError("calendar_id is required in config")
 
-        self.default_steps = config.get('default_steps', [])
+        self.default_steps = config.default_steps
         self._load_credentials()
 
         # Create a task for syncing
@@ -94,9 +95,7 @@ class GoogleCalendarChain(ScheduleChain):
 
         # Add default steps as a separate entry if they exist
         if self.default_steps:
-            matchers.append({
-                'steps': self.default_steps
-            })
+            matchers.append(ScheduleEntry(matcher=None, steps=self.default_steps))
 
         self.schedule = matchers
         self._last_sync_time = datetime.datetime.now(datetime.timezone.utc)
@@ -275,7 +274,7 @@ class GoogleCalendarChain(ScheduleChain):
                     steps.append({key: value})
         return steps
 
-    def _convert_event_to_matcher(self, event: Dict[str, Any]) -> Dict[str, Any]:
+    def _convert_event_to_matcher(self, event: Dict[str, Any]) -> ScheduleEntry:
         """Convert Google Calendar event to matcher format."""
         start_time = event['start'].get('dateTime', event['start'].get('date'))
         end_time = event['end'].get('dateTime', event['end'].get('date'))
@@ -288,18 +287,18 @@ class GoogleCalendarChain(ScheduleChain):
         duration = end_dt - start_dt
         duration_str = f"{int(duration.total_seconds() / 60)}m"
 
-        # Get steps from description
-        steps = self._parse_steps_from_description(event.get('description', ''))
+        steps_dicts = self._parse_steps_from_description(event.get('description', ''))
+        steps = [SimpleChainStep(**step_dict) for step_dict in steps_dicts]
 
-        return {
-            'matcher': {
-                'start_day_expr': 'date',
-                'start_day_values': [start_dt.strftime('%Y-%m-%d')],
-                'start_time': start_dt.strftime('%H:%M'),
-                'duration': duration_str
-            },
-            'steps': steps
-        }
+        # Create matcher expression
+        matcher = ScheduleMatcherExpression(
+            start_day_expr='date',
+            start_day_values=[start_dt.strftime('%Y-%m-%d')],
+            start_time=start_dt.strftime('%H:%M'),
+            duration=duration_str
+        )
+
+        return ScheduleEntry(matcher=matcher, steps=steps)
 
     async def _sync_calendar(self) -> None:
         """Periodically sync calendar events with error recovery."""
