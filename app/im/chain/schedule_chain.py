@@ -97,7 +97,7 @@ class ScheduleChain:
 
         value = now[selector]
         if divider is not None:
-            value = value % divider
+            value = value % int(divider)
 
         if selector == 'dow':
             return self._match_dow_condition(value, start_day_values)
