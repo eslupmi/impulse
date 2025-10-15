@@ -9,6 +9,7 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3 import Retry
 
+from app.config.validation import CloudChain
 from app.im.chain.schedule_chain import ScheduleChain
 from app.logging import logger
 from app.tools import HTMLTextExtractor
@@ -16,17 +17,17 @@ from app.config.config import get_config
 
 
 class GoogleCalendarChain(ScheduleChain):
-    def __init__(self, name, config: dict):
+    def __init__(self, name, config: CloudChain):
         super().__init__(name)
         
         # Get environment configuration
         self._app_config = get_config()
 
-        self.calendar_id = config.get('calendar_id')
+        self.calendar_id = config.calendar_id
         if not self.calendar_id:
             raise ValueError("calendar_id is required in config")
 
-        self.default_steps = config.get('default_steps', [])
+        self.default_steps = config.default_steps
         self._load_credentials()
 
         # Create a task for syncing

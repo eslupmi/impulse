@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Tuple, Optional
 from zoneinfo import ZoneInfo
 
+from app.config.validation import ScheduleEntry, ScheduleMatcherExpression, SimpleChainStep
 from app.logging import logger
 from app.time import unix_sleep_to_timedelta
 
@@ -11,7 +12,7 @@ class ScheduleChain:
     DAY_MAP = {0: "Sun", 1: "Mon", 2: "Tue", 3: "Wed", 4: "Thu", 5: "Fri", 6: "Sat", 7: "Sun"}
     DEFAULT_TIMEZONE = "UTC"
 
-    def __init__(self, name, timezone: str = DEFAULT_TIMEZONE, schedule: List[Dict] = None):
+    def __init__(self, name, timezone: str = DEFAULT_TIMEZONE, schedule: List[ScheduleEntry] = None):
         self.name = name
         self.timezone = timezone or self.DEFAULT_TIMEZONE
         self.schedule = schedule if schedule else []
@@ -21,35 +22,35 @@ class ScheduleChain:
         return self.name
 
     @property
-    def steps(self) -> List[Dict]:
+    def steps(self) -> List[SimpleChainStep]:
         """
         Get the steps for the current time.
         """
         current_time = datetime.now()
         return self._get_steps(current_time)
 
-    def _get_steps(self, current_time: datetime) -> List[Dict]:
+    def _get_steps(self, current_time: datetime) -> List[SimpleChainStep]:
         """
         Get the steps based on the matchers and schedule.
         """
         current_time = current_time.astimezone(self.tz)
 
         for entry in self.schedule:
-            if 'matcher' in entry:
-                if self._match_conditions(entry['matcher'], current_time):
-                    return entry['steps']
+            if entry.matcher:
+                if self._match_conditions(entry.matcher, current_time):
+                    return entry.steps
             else:
-                return entry['steps']
+                return entry.steps
         return []
 
-    def _match_conditions(self, matcher, current_time: datetime) -> bool:
+    def _match_conditions(self, matcher: ScheduleMatcherExpression, current_time: datetime) -> bool:
         """
         Check each condition in the list against the current date and time.
         """
-        start_day_expr = matcher.get('start_day_expr')
-        start_day_values = matcher.get('start_day_values')
-        start_time = matcher.get('start_time')
-        duration = matcher.get('duration')
+        start_day_expr = matcher.start_day_expr
+        start_day_values = matcher.start_day_values
+        start_time = matcher.start_time
+        duration = matcher.duration
 
         duration_ = self._get_duration(duration)
         day_condition = self._check_day_condition(start_day_expr, start_day_values, current_time)

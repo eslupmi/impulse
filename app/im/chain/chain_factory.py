@@ -1,5 +1,6 @@
 from typing import Union
 
+from app.config.validation import ChainType, CloudChain, ScheduleChain as ScheduleChainType
 from app.im.chain.chain import Chain
 from app.im.chain.schedule_chain import ScheduleChain
 from app.im.chain.google_calendar_chain import GoogleCalendarChain
@@ -8,13 +9,13 @@ from app.logging import logger
 
 class ChainFactory:
     @staticmethod
-    def _create_chain(name: str, config: Union[dict, list]):
+    def _create_chain(name: str, config: Union[ScheduleChainType, CloudChain, list]):
         """
         Create and return a Chain, ScheduleChain or GoogleCalendarChain instance 
         based on the configuration.
         """
-        if 'type' in config:
-            if config.get('type') == 'cloud' and config.get('provider') == 'google':
+        if hasattr(config, 'type'):
+            if config.type == ChainType.CLOUD and config.provider == 'google':
                 try:
                     chain = GoogleCalendarChain(name, config)
                     if isinstance(chain, GoogleCalendarChain):
@@ -23,18 +24,18 @@ class ChainFactory:
                 except Exception as e:
                     logger.error(f"Failed to create GoogleCalendarChain '{name}': {e}")
                     return None
-            elif config.get('type') == 'schedule':
+            elif config.type == ChainType.SCHEDULE:
                 try:
                     return ScheduleChain(
                         name=name,
-                        timezone=config.get('timezone', ScheduleChain.DEFAULT_TIMEZONE),
-                        schedule=config.get('schedule', []),
+                        timezone=config.timezone,
+                        schedule=config.schedule,
                     )
                 except Exception as e:
                     logger.error(f"Failed to create ScheduleChain '{name}': {e}")
                     return None
             else:
-                logger.error(f"Unknown chain type '{config.get('type')}' for chain '{name}'. Check impulse.yml")
+                logger.error(f"Unknown chain type '{config.type.value }' for chain '{name}'. Check impulse.yml")
                 return None
         else:
             try:
