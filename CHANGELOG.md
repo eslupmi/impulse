@@ -1,5 +1,9 @@
 # Changelog
 
+## v3.0.1
+Changes:
+- Fixed bug in scheduled chains
+
 ## v3.0.0
 Upgrade instructions:
 - Rename `application` with `messenger` in **impulse.yml**
