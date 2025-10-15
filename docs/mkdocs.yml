@@ -54,6 +54,7 @@ nav:
   - Features:
     - google.md
     - ui.md
+    - webhooks.md
   - concepts.md
   - versioning.md
 - Workflow:
