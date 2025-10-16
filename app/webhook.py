@@ -117,10 +117,8 @@ class Webhook:
                 rendered_list.append(self._render_nested_dict(item, incident_data))
             return rendered_list
         elif isinstance(data, str):
-            # Render string values as Jinja2 templates
             return self.render(data, incident=incident_data)
         else:
-            # Return primitive values as-is (int, float, bool, None)
             return data
 
     def _get_auth(self):

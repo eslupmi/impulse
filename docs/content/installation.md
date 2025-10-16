@@ -1,12 +1,12 @@
 # Installation
 
-There are two options to install IMPulse: via **Python** (3.9..3.13) or using the **Docker** image.
+There are two options to install IMPulse: via **Python** (3.9 - 3.13) or using the **Docker** image.
 
 Select your preferred method and continue.
 
 ## 1. Messenger
 
-See **INTEGRATIONS** to create bot and configure your messenger.
+See **INTEGRATIONS / Messengers** menu to create bot and configure your messenger.
 
 We support integrations with [Mattermost](mattermost.md), [Slack](slack.md) and [Telegram](telegram.md). Visit their pages to learn how to create and configure a bot.
 

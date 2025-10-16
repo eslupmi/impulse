@@ -40,23 +40,27 @@ extra_css:
 
 nav:
 - index.md
-- Integrations:
-  - mattermost.md
-  - slack.md
-  - telegram.md
-- IMPulse Server:
+- INTEGRATIONS:
+  - Alert Sources:
+    - alertmanager.md
+  - Messengers:
+    - mattermost.md
+    - slack.md
+    - telegram.md
+  - External:
+    - twilio.md
+    - zvonok.md
+- IMPULSE SERVER:
   - installation.md
   - Configuration:
-    - alertmanager.md
-    - check.md
-    - config_file.md
     - envs.md
+    - impulse.yml: config_file.md
   - Features:
+    - check.md
     - google.md
     - ui.md
-    - webhooks.md
   - concepts.md
   - versioning.md
-- Workflow:
+- WORKFLOW:
   - best.md
   - howto.md

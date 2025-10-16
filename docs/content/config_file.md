@@ -761,8 +761,10 @@
 
 ## webhooks
 
-- **description:** webhooks provide alternative notification options via HTTP POST requests to custom endpoints (see [details](webhooks.md))
+- **description:** webhooks provide alternative notification options via HTTP POST requests to custom endpoints
 - **type:** dict
+
+> see **INTEGRATIONS / External** menu for provider examples
 
 ### webhooks[].auth
 
@@ -775,7 +777,7 @@
 - **limitations**: cannot be used together with `webhooks[].json`
 - **type:** dict
 
-> supports special variables:
+> Supports special variables:
 > 
 > - `env` - to get environment variables (e.g. passwords, tokens)
 > - `incident` - to get current incident fields
@@ -795,18 +797,30 @@
 - **limitations**: cannot be used together with `webhooks[].data`
 - **type:** dict or str
 
-> supports special variables:
+> Supports special variables:
 > 
 > - `env` - to get environment variables (e.g. passwords, tokens)
 > - `incident` - to get current incident fields
 
-> **Example:**
+> **Examples:**
+
 > ```yaml
+> # Send alert payload
 > webhooks:
->   Dmitry_call:
->     url: 'http://internal_system:8080'
->     data:
->       channel_id: '{{ incident["channel_id"] }}'
+>   send_payload:
+>     url: 'http://another_host:5003/'
+>     json: '{{ incident["payload"] }}'
+> ```
+
+> ```yaml
+> # Create custom JSON
+> webhooks:
+>   generate_json:
+>     url: 'http://another_host:5003/'
+>     json:
+>       channel:
+>         id: '{{ incident["channel_id"] }}'
+>       status: '{{ incident["status"] }}'
 > ```
 
 ### webhooks[].url *
