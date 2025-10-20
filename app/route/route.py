@@ -9,7 +9,7 @@ class MainRoute:
     def __init__(self, channel: str, chain: str = None, routes_list: List[RouteConfig] = None):
         self.channel = channel
         self.chain = chain
-        self.routes = list()
+        self.routes = []
         if routes_list:
             for r in routes_list:
                 if not r.routes:
@@ -30,7 +30,7 @@ class MainRoute:
             return self.channel, self.chain
 
     def get_uniq_channels(self):
-        channels = list()
+        channels = []
         channels.append(self.channel)
         for r in self.routes:
             if len(r.routes) == 0:
@@ -70,7 +70,7 @@ class Route(MainRoute):
 
 
 def generate_route(route_config: RouteConfig):
-    logger.info(f'Creating route')
+    logger.info('Creating route')
     if not route_config:
         return MainRoute('default')
     main_channel_name = route_config.channel

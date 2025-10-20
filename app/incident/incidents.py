@@ -55,7 +55,7 @@ class Incidents:
             try:
                 loop = asyncio.get_event_loop()
                 if loop.is_running():
-                    asyncio.create_task(incident_ws.remove_row(incident))
+                    task_remove_row = asyncio.create_task(incident_ws.remove_row(incident))
             except RuntimeError:
                 # No event loop running, skip websocket update
                 pass
@@ -100,7 +100,6 @@ class Incidents:
                     incidents.add(incident_)
                 else:
                     logger.warning(f'Skipping incident {filename}: messenger_type mismatch')
-                    continue
 
         return incidents
 

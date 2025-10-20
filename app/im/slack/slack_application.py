@@ -35,7 +35,7 @@ class SlackApplication(Application):
 
     async def _get_public_url(self, app_config: ApplicationConfig):
         async with self.http.get(
-            f'https://slack.com/api/auth.test',
+            'https://slack.com/api/auth.test',
             headers=self.headers
         ) as response:
             await asyncio.sleep(slack_request_delay)
@@ -109,7 +109,7 @@ class SlackApplication(Application):
     async def buttons_handler(self, payload, incidents, queue_, route):
         config = get_config()
         if payload.get('token') != config.slack_verification_token:
-            logger.error(f'Unauthorized request to \'/slack\'')
+            logger.error('Unauthorized request to \'/slack\'')
             return JSONResponse({}, status_code=401)
 
         incident_ = incidents.get_by_ts(ts=payload['message_ts'])
@@ -130,12 +130,14 @@ class SlackApplication(Application):
                     else:
                         logger.info(f'Incident {incident_.uuid} -> button TAKE IT pressed, assigning to {user_id}')
                         incident_.assign_user_id(user_id)
-                        asyncio.create_task(self.post_assignment_notification(incident_, user_id))
-                        asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id, incidents))
+                        task_assignment = asyncio.create_task(self.post_assignment_notification(incident_, user_id))
+                        task_fetch = asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id, incidents))
+                        await asyncio.gather(task_assignment, task_fetch)
                     incident_.chain_enabled = False
                 else:
                     logger.info(f'Incident {incident_.uuid} -> button RELEASE pressed')
-                    asyncio.create_task(self.post_unassignment_notification(incident_))
+                    task_unassignment = asyncio.create_task(self.post_unassignment_notification(incident_))
+                    await task_unassignment
                     incident_.release()
             elif action['name'] == 'status':
                 if incident_.status_enabled:
@@ -171,7 +173,7 @@ class SlackApplication(Application):
             f'{self.url}/api/chat.update',
             headers=self.headers,
             json=payload
-        ) as response:
+        ):
             await asyncio.sleep(self.post_delay)
 
     def _markdown_links_to_native_format(self, text):

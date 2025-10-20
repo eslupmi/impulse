@@ -3,7 +3,7 @@ from app.logging import logger
 
 
 def generate_user_groups(user_groups_dict=None, users=None):
-    user_groups = dict()
+    user_groups = {}
     if user_groups_dict:
         logger.info(f'Creating user_groups')
         for name in user_groups_dict.keys():

@@ -94,12 +94,11 @@ class TelegramApplication(Application):
         thread_id = f'{post_id}/{message_id}'
         incident_ = incidents.get_by_ts(ts=thread_id)
         if incident_ is None:
-            async with self.http.post(
+            await self.http.post(
                 f'{self.url}/answerCallbackQuery',
                 json={'callback_query_id': callback['id']},
                 headers=self.headers
-            ) as response:
-                pass
+            )
             return JSONResponse({}, status_code=200)
         action = callback['data']
 
@@ -120,12 +119,14 @@ class TelegramApplication(Application):
                     logger.info(f'Incident {incident_.uuid} -> button TAKE IT pressed, assigning to {user_id}')
                     incident_.assign_user_id(user_id)
                     incident_.assign_user(user_display_name)
-                    asyncio.create_task(self.post_assignment_notification(incident_, user_id, user_display_name))
-                    asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id, incidents))
+                    task_assignment = asyncio.create_task(self.post_assignment_notification(incident_, user_id, user_display_name))
+                    task_fetch = asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id, incidents))
+                    await asyncio.gather(task_assignment, task_fetch)
                 incident_.chain_enabled = False
             else:
                 logger.info(f'Incident {incident_.uuid} -> button RELEASE pressed')
-                asyncio.create_task(self.post_unassignment_notification(incident_))
+                task_unassignment = asyncio.create_task(self.post_unassignment_notification(incident_))
+                await task_unassignment
                 incident_.release()
         elif action in ['start_status', 'stop_status']:
             if action == 'stop_status':
@@ -143,12 +144,11 @@ class TelegramApplication(Application):
             incident_.chain_enabled, incident_.status_enabled
         )
 
-        async with self.http.post(
+        await self.http.post(
             f'{self.url}/answerCallbackQuery',
             json={'callback_query_id': callback['id']},
             headers=self.headers
-        ) as response:
-            pass
+        )
         return JSONResponse({}, status_code=200)
 
     async def _create_topic(self, channel_id, header, status_icons):
@@ -216,7 +216,7 @@ class TelegramApplication(Application):
                 f'{self.url}/editForumTopic',
                 json=payload,
                 headers=self.headers
-            ) as response:
+            ):
                 pass
         except aiohttp.ClientError as e:
             logger.error(f'Failed to update topic: {e}')
@@ -245,7 +245,7 @@ class TelegramApplication(Application):
                 f'{self.url}/editMessageText',
                 json=payload,
                 headers=self.headers
-            ) as response:
+            ):
                 await asyncio.sleep(self.post_delay)
         except aiohttp.ClientError as e:
             logger.error(f'Failed to update thread: {e}')
@@ -285,7 +285,7 @@ class TelegramApplication(Application):
                 f'{self.url}/setWebhook',
                 params={'url': f"{config.messenger.impulse_address}/app"},
                 headers=self.headers
-            ) as response:
+            ):
                 await asyncio.sleep(self.post_delay)
         except aiohttp.ClientError as e:
             logger.error(f'Failed to set webhook: {e}')

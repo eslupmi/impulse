@@ -47,9 +47,9 @@ class Webhook:
             return 'ClientError', None
 
     def _render_data(self, incident: Incident = None):
-        rendered_data = dict()
+        rendered_data = {}
         if self._pre_render_data:
-            serialized_incident = incident.serialize() if incident else dict()
+            serialized_incident = incident.serialize() if incident else {}
             for key, value in self._pre_render_data.items():
                 rendered_data[key] = self.render(value, incident=serialized_incident)
         return rendered_data
@@ -65,7 +65,7 @@ class Webhook:
 
 
 def generate_webhooks(webhooks_config: Dict[str, WebhookConfig] = None):
-    webhooks = dict()
+    webhooks = {}
     if webhooks_config:
         for name in webhooks_config.keys():
             webhook_obj = webhooks_config[name]

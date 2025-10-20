@@ -74,7 +74,7 @@ class AsyncQueueManager:
         # Always yield control after processing an item
         await asyncio.sleep(0)
 
-    async def start_processing(self):
+    def start_processing(self):
         """Start the background queue processing task"""
         if self._running:
             return
@@ -94,6 +94,7 @@ class AsyncQueueManager:
             try:
                 await self._task
             except asyncio.CancelledError:
+                # Expected when cancelling the task, suppress the exception
                 pass
         logger.info("Stopped queue")
 
@@ -105,6 +106,8 @@ class AsyncQueueManager:
                 await asyncio.sleep(0.1)
             except asyncio.CancelledError:
                 break
+                # Re-raise the exception to propagate cancellation
+                raise
             except Exception as e:
                 logger.error(f"Error in queue processing loop: {e}")
                 await asyncio.sleep(1)

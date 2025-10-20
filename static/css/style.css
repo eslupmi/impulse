@@ -431,10 +431,6 @@ strong {
     border: 0px solid var(--border-secondary);
 }
 
-element.style {
-    margin-bottom: 16px;
-}
-
 /* Alerts Count Column */
 .alerts-count-column {
     display: inline-flex !important;
@@ -452,7 +448,6 @@ element.style {
     height: 16px;
     border-radius: 50%;
     border: 1.3px solid var(--alerts-count-circle-color);
-    /* background-color: var(--alerts-count-background); */
     color: var(--alerts-count-circle-color);
     font-size: 10px;
     font-weight: 600;
@@ -621,7 +616,6 @@ element.style {
 }
 
 .tabulator-footer button[data-page="first"]::before {
-    background-color: var(--footer-text) !important;
     content: '';
     display: inline-block;
     width: 10px;
@@ -635,7 +629,6 @@ element.style {
 }
 
 .tabulator-footer button[data-page="prev"]::before {
-    background-color: var(--footer-text) !important;
     content: '';
     display: inline-block;
     width: 6px;
@@ -649,7 +642,6 @@ element.style {
 }
 
 .tabulator-footer button[data-page="next"]::before {
-    background-color: var(--footer-text) !important;
     content: '';
     display: inline-block;
     width: 6px;
@@ -663,7 +655,6 @@ element.style {
 }
 
 .tabulator-footer button[data-page="last"]::before {
-    background-color: var(--footer-text) !important;
     content: '';
     display: inline-block;
     width: 10px;

@@ -17,7 +17,7 @@ def run_command(command, description):
     print('='*60)
     
     try:
-        result = subprocess.run(command, shell=True, check=True, 
+        subprocess.run(command, shell=True, check=True, 
                               capture_output=False, text=True)
         print(f"{description} completed successfully!")
         return True
@@ -49,17 +49,17 @@ def main():
     
     if test_type not in commands:
         print(f"Available test types: {', '.join(commands.keys())}")
-        print(f"Usage: python3 run_tests.py [test_type]")
-        print(f"Example: python3 run_tests.py unit")
+        print("Usage: python3 run_tests.py [test_type]")
+        print("Example: python3 run_tests.py unit")
         return
     
     command, description = commands[test_type]
     success = run_command(command, description)
     
     if success:
-        print(f"\nTest execution completed successfully!")
+        print("\nTest execution completed successfully!")
     else:
-        print(f"\nTest execution failed!")
+        print("\nTest execution failed!")
         sys.exit(1)
 
 

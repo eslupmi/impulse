@@ -161,7 +161,7 @@ class Application(ABC):
     async def _generate_users(self, users_dict: Dict[str, Union[SlackUser, MattermostUser, TelegramUser]]):
         logger.info(f'Creating users')
 
-        users = dict()
+        users = {}
         for name, user_info in users_dict.items():
             if user_info.id is not None:
                 user_details = await self.get_user_details(user_info)

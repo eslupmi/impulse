@@ -26,7 +26,6 @@ class NullApplication(Application):
     async def initialize_async(self):
         """No async initialization needed"""
         self.public_url = ''
-        pass
 
     async def buttons_handler(self, payload, incidents, queue_, route):
         """No button handling support"""
@@ -67,10 +66,6 @@ class NullApplication(Application):
     def format_text_italic(self, text):
         """Return text as-is"""
         return text
-
-    def format_user_mention(self, user_id, display_name=None):
-        """Return user_id as-is for null application"""
-        return user_id if user_id else ''
 
     def get_admins_text(self):
         """No admins"""

@@ -128,7 +128,7 @@ def load_unified_config(config_path: Optional[str] = None, exit_on_error: bool =
         if config_path is None:
             config_path = env_config.config_file_path
 
-        validated_config, raw_config = load_and_validate_config(config_path)
+        validated_config, _ = load_and_validate_config(config_path)
 
         return UnifiedConfig(
             env=env_config,

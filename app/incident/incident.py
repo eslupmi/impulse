@@ -33,7 +33,7 @@ class Incident:
     assigned_user: str
     assigned_fullname: str
     messenger_type: str
-    created: datetime = None
+    created: datetime
     chain: List[Dict] = field(default_factory=list)
     chain_enabled: bool = False
     status_enabled: bool = False
@@ -147,7 +147,7 @@ class Incident:
 
     def get_chain(self) -> List[Dict]:
         if not self.chain_enabled:
-            return list()
+            return []
         return self.chain
 
     def chain_put(self, index: int, datetime_: datetime, type_: str, identifier: str):
@@ -219,7 +219,7 @@ class Incident:
         try:
             loop = asyncio.get_event_loop()
             if loop.is_running():
-                asyncio.create_task(incident_ws.update_row(self))
+                update_row = asyncio.create_task(incident_ws.update_row(self))
         except RuntimeError:
             # No event loop running, skip websocket update
             pass

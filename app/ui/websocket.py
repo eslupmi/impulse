@@ -19,7 +19,7 @@ class AsyncIncidentWS:
         self.connections.add(websocket)
         logger.info(f"WebSocket connected. Total connections: {len(self.connections)}")
 
-    async def disconnect(self, websocket: WebSocket):
+    def disconnect(self, websocket: WebSocket):
         """Remove a WebSocket connection"""
         self.connections.discard(websocket)
         logger.info(f"WebSocket disconnected. Total connections: {len(self.connections)}")
