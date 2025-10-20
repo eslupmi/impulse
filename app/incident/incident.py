@@ -219,7 +219,7 @@ class Incident:
         try:
             loop = asyncio.get_event_loop()
             if loop.is_running():
-                update_row = asyncio.create_task(incident_ws.update_row(self))
+                asyncio.create_task(incident_ws.update_row(self))
         except RuntimeError:
             # No event loop running, skip websocket update
             pass
