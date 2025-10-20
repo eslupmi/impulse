@@ -665,9 +665,9 @@ function responsiveLayoutCollapseFormatter(data) {
 }
 
 function updateTimeTooltip(tooltipText, timeSpan) {
-    const startsAt = timeSpan.getAttribute('data-starts-at');
-    const endsAt = timeSpan.getAttribute('data-ends-at');
-    const status = timeSpan.getAttribute('data-status');
+    const startsAt = timeSpan.dataset.startsAt;
+    const endsAt = timeSpan.dataset.endsAt;
+    const status = timeSpan.dataset.status;
     
     const createdTime = new Date(startsAt);
     const createdTimeStr = formatDate(createdTime);
@@ -697,7 +697,7 @@ function updateRelativeTimeSpans() {
         if (!collapseArea) return;
         
         collapseArea.querySelectorAll('.relative-time').forEach(timeSpan => {
-            const timestamp = Number.parseFloat(timeSpan.getAttribute('data-timestamp'));
+            const timestamp = Number.parseFloat(timeSpan.dataset.timestamp);
             if (!Number.isNaN(timestamp)) {
                 timeSpan.textContent = formatRelativeTime(timestamp);
                 // Update tooltip if it exists
@@ -713,7 +713,7 @@ function updateRelativeTimeSpans() {
 function updateRelativeTimeFieldsInResponsiveData() {
     document.querySelectorAll('.responsive-collapse').forEach(collapse => {
             collapse.querySelectorAll('.info-item-time').forEach(timeSpan => {
-            const timestamp = Number.parseFloat(timeSpan.getAttribute('data-timestamp'));
+            const timestamp = Number.parseFloat(timeSpan.dataset.timestamp);
             if (!Number.isNaN(timestamp)) {
                 timeSpan.querySelector('.relative-time-label').textContent = formatRelativeTime(timestamp);
             }
