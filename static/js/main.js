@@ -9,7 +9,9 @@ import {ThemeManager} from "./theme.js";
 // **Initialize Everything**
 updateOnlineStatus(false);
 
-initializeTable().then(() => {
+(async () => {
+    await initializeTable();
+    
     loadFiltersFromURL();
     setupTableFiltering();
     setupSortingListener();
@@ -27,4 +29,4 @@ initializeTable().then(() => {
     
     // Update header block relative time spans every minute
     setInterval(() => updateRelativeTimeSpans(), 60000);
-});
+})();

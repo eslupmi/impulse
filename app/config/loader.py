@@ -59,7 +59,7 @@ def load_and_validate_config(config_path: str = None) -> Tuple[ImpulseConfig, Di
             loc = " -> ".join(str(x) for x in error['loc'])
             error_details.append(f"  {loc}: {error['msg']}")
         
-        error_message = f"Configuration validation failed:\n" + "\n".join(error_details)
+        error_message = "Configuration validation failed:\n" + "\n".join(error_details)
         raise ConfigValidationError(error_message, e.errors())
 
 
@@ -127,7 +127,7 @@ def format_validation_errors(errors: list) -> str:
     for i, error in enumerate(errors, 1):
         formatted_errors.append(f"{i}. {error}")
     
-    return f"Configuration validation errors:\n" + "\n".join(formatted_errors)
+    return "Configuration validation errors:\n" + "\n".join(formatted_errors)
 
 
 def validate_config_and_show_errors(config_path: str = None) -> ImpulseConfig:

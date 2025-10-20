@@ -159,7 +159,7 @@ class Application(ABC):
         return self._get_team_name(app_config)
 
     async def _generate_users(self, users_dict: Dict[str, Union[SlackUser, MattermostUser, TelegramUser]]):
-        logger.info(f'Creating users')
+        logger.info('Creating users')
 
         users = {}
         for name, user_info in users_dict.items():

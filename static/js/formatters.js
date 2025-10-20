@@ -177,7 +177,7 @@ function formatterWrapper(formatter) {
             const filterForThisCell = filters.find(f => {
                 const match = f.match(/^(.+?)(=)(.*)$/);
                 if (match) {
-                    const [, field, operator, value] = match;
+                    const [, field, , value] = match;
                     const trimmedValue = value.trim().replace(/^["']|["']$/g, '');
                     return field.trim() === columnName && trimmedValue === cellValue;
                 }
@@ -248,7 +248,7 @@ function formatterWrapper(formatter) {
                 const filterForThisCell = filters.find(f => {
                     const match = f.match(/^(.+?)(=)(.*)$/);
                     if (match) {
-                        const [, field, operator, value] = match;
+                        const [, field, , value] = match;
                         const trimmedValue = value.trim().replace(/^["']|["']$/g, '');
                         return field.trim() === cell.getColumn().getField() && trimmedValue === cell.getValue();
                     }
@@ -324,10 +324,10 @@ function createHeaderBlock(headerData) {
         const timeDate = new Date(time);
         const unixTimestamp = timeDate.getTime()/1000;
         timeSpan.textContent = formatRelativeTime(unixTimestamp);
-        timeSpan.setAttribute('data-timestamp', unixTimestamp);
-        timeSpan.setAttribute('data-starts-at', headerData.startsAt);
-        timeSpan.setAttribute('data-ends-at', headerData.endsAt);
-        timeSpan.setAttribute('data-status', headerData.status);
+        timeSpan.dataset.timestamp = unixTimestamp;
+        timeSpan.dataset.startsAt = headerData.startsAt;
+        timeSpan.dataset.endsAt = headerData.endsAt;
+        timeSpan.dataset.status = headerData.status;
         timeSpan.className = 'relative-time';
         
         // Create tooltip with detailed time information
@@ -366,7 +366,14 @@ function createTruncatedPill(key, value, options = {}) {
     wrapper.className = wrapperClass;
 
     const pill = document.createElement('span');
-    pill.className = pillClass + (highlighted ? ' highlighted' : '') + (isCommonBlock !== undefined ? (isCommonBlock ? ' common' : ' alert') : '');
+    let pillClassName = pillClass;
+    if (highlighted) {
+        pillClassName += ' highlighted';
+    }
+    if (isCommonBlock !== undefined) {
+        pillClassName += isCommonBlock ? ' common' : ' alert';
+    }
+    pill.className = pillClassName;
     pill.textContent = `${key}: ${value}`;
 
     // Check if the text is truncated
@@ -378,7 +385,7 @@ function createTruncatedPill(key, value, options = {}) {
         temp.textContent = `${key}: ${value}`;
         document.body.appendChild(temp);
         const fullWidth = temp.offsetWidth;
-        document.body.removeChild(temp);
+        temp.remove();
         return fullWidth > (isCommonBlock ? 430 : 285);
     };
 
@@ -499,7 +506,7 @@ function createSimpleCommonBlock(responsiveData) {
     const createdTimeAgo = formatRelativeTime(info.created);
     const createdSpan = document.createElement('span');
     createdSpan.className = 'info-item info-item-time';
-    createdSpan.setAttribute('data-timestamp', info.created);
+    createdSpan.dataset.timestamp = info.created;
     createdSpan.innerHTML = `<strong>created:</strong> <div class="relative-time-label">${createdTimeAgo}</div>`;
     createdSpan.title = formatTimestamp(info.created);
     infoStack.appendChild(createdSpan);
@@ -507,7 +514,7 @@ function createSimpleCommonBlock(responsiveData) {
     const updatedTimeAgo = formatRelativeTime(info.updated);
     const updatedSpan = document.createElement('span');
     updatedSpan.className = 'info-item info-item-time';
-    updatedSpan.setAttribute('data-timestamp', info.updated);
+    updatedSpan.dataset.timestamp = info.updated;
     updatedSpan.innerHTML = `<strong>updated:</strong> <div class="relative-time-label">${updatedTimeAgo}</div>`;
     updatedSpan.title = formatTimestamp(info.updated);
     infoStack.appendChild(updatedSpan);
@@ -690,8 +697,8 @@ function updateRelativeTimeSpans() {
         if (!collapseArea) return;
         
         collapseArea.querySelectorAll('.relative-time').forEach(timeSpan => {
-            const timestamp = parseFloat(timeSpan.getAttribute('data-timestamp'));
-            if (!isNaN(timestamp)) {
+            const timestamp = Number.parseFloat(timeSpan.getAttribute('data-timestamp'));
+            if (!Number.isNaN(timestamp)) {
                 timeSpan.textContent = formatRelativeTime(timestamp);
                 // Update tooltip if it exists
                 const tooltipText = timeSpan.querySelector('.tooltip-text');
@@ -706,8 +713,8 @@ function updateRelativeTimeSpans() {
 function updateRelativeTimeFieldsInResponsiveData() {
     document.querySelectorAll('.responsive-collapse').forEach(collapse => {
             collapse.querySelectorAll('.info-item-time').forEach(timeSpan => {
-            const timestamp = parseFloat(timeSpan.getAttribute('data-timestamp'));
-            if (!isNaN(timestamp)) {
+            const timestamp = Number.parseFloat(timeSpan.getAttribute('data-timestamp'));
+            if (!Number.isNaN(timestamp)) {
                 timeSpan.querySelector('.relative-time-label').textContent = formatRelativeTime(timestamp);
             }
         });
