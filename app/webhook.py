@@ -33,39 +33,30 @@ class Webhook:
     async def _make_request(self, session: aiohttp.ClientSession, rendered_data, rendered_json, auth):
         try:
             timeout = aiohttp.ClientTimeout(total=5.0)
+            request_params = {
+                'url': self._url,
+                'auth': auth,
+                'timeout': timeout
+            }
             
-            # Determine whether to send as JSON or form data
+            # Determine request type and parameters
             if rendered_json is not None:
                 if isinstance(rendered_json, str):
-                    # If it's a string, send as raw JSON text
+                    request_params.update({
+                        'data': rendered_json,
+                        'headers': {'Content-Type': 'application/json'}
+                    })
                     logger.debug(f'Sending webhook JSON string to {self._url}: {rendered_json}')
-                    async with session.post(
-                            url=self._url,
-                            data=rendered_json,
-                            headers={'Content-Type': 'application/json'},
-                            auth=auth,
-                            timeout=timeout
-                    ) as response:
-                        return 'ok', response.status
                 else:
-                    # If it's a dict, use json parameter
+                    request_params['json'] = rendered_json
                     logger.debug(f'Sending webhook JSON dict to {self._url}: {rendered_json}')
-                    async with session.post(
-                            url=self._url,
-                            json=rendered_json,
-                            auth=auth,
-                            timeout=timeout
-                    ) as response:
-                        return 'ok', response.status
             else:
+                request_params['data'] = rendered_data
                 logger.debug(f'Sending webhook form data to {self._url}: {rendered_data}')
-                async with session.post(
-                        url=self._url,
-                        data=rendered_data,
-                        auth=auth,
-                        timeout=timeout
-                ) as response:
-                    return 'ok', response.status
+            
+            async with session.post(**request_params) as response:
+                return 'ok', response.status
+                
         except asyncio.TimeoutError:
             return 'Timeout', None
         except aiohttp.ClientConnectionError:
