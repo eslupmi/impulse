@@ -48,6 +48,7 @@ nav:
     - slack.md
     - telegram.md
   - External:
+    - instatus.md
     - twilio.md
     - zvonok.md
 - IMPULSE SERVER:
