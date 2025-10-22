@@ -75,9 +75,9 @@ class Webhook:
             return 'ClientError', None
 
     def _render_data(self, incident: Incident = None):
-        rendered_data = dict()
+        rendered_data = {}
         if self._pre_render_data:
-            serialized_incident = incident.serialize() if incident else dict()
+            serialized_incident = incident.serialize() if incident else {}
             for key, value in self._pre_render_data.items():
                 rendered_data[key] = self.render(value, incident=serialized_incident)
         return rendered_data
@@ -88,11 +88,11 @@ class Webhook:
             
         if isinstance(self._json_payload, str):
             # If json_payload is a string, render it as a template
-            serialized_incident = incident.serialize() if incident else dict()
+            serialized_incident = incident.serialize() if incident else {}
             return self.render(self._json_payload, incident=serialized_incident)
         else:
             # If json_payload is a dict, render recursively
-            serialized_incident = incident.serialize() if incident else dict()
+            serialized_incident = incident.serialize() if incident else {}
             return self._render_nested_dict(self._json_payload, serialized_incident)
 
     def _render_nested_dict(self, data, incident_data):
@@ -132,7 +132,7 @@ class Webhook:
 
 
 def generate_webhooks(webhooks_config: Dict[str, WebhookConfig] = None):
-    webhooks = dict()
+    webhooks = {}
     if webhooks_config:
         for name in webhooks_config.keys():
             webhook_obj = webhooks_config[name]

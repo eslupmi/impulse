@@ -147,7 +147,7 @@ class Incident:
 
     def get_chain(self) -> List[Dict]:
         if not self.chain_enabled:
-            return list()
+            return []
         return self.chain
 
     def chain_put(self, index: int, datetime_: datetime, type_: str, identifier: str):
