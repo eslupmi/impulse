@@ -41,8 +41,11 @@ class IncidentMigrator:
         
         migrated_data = self._migrate_data(incident_data, current_version, target_version)
         
-        with open(file_path, 'w') as f:
-            yaml.dump(migrated_data, f, NoAliasDumper, default_flow_style=False)
+        try:
+            with open(file_path, 'w') as f:
+                yaml.dump(migrated_data, f, NoAliasDumper, default_flow_style=False)
+        except Exception as e:
+            logger.error(f'Failed to write migrated incident file {os.path.basename(file_path)}: {str(e)}')
         
         logger.info(f'Successfully migrated {os.path.basename(file_path)}')
     
