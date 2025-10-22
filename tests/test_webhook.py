@@ -11,7 +11,7 @@ from aiohttp import ClientSession, BasicAuth
 from app.config.validation import WebhookConfig
 from app.incident.incident import Incident, IncidentConfig
 from app.webhook import Webhook, generate_webhooks
-from tests.utils import MockContextManager, setup_mock_session_class_patch
+from tests.utils import setup_mock_session_class_patch
 
 
 class TestWebhook:
@@ -138,7 +138,7 @@ class TestWebhook:
     async def test_push_without_session(self, sample_incident):
         """Test push method without provided session (creates temporary session)."""
         with patch('aiohttp.ClientSession') as mock_session_class:
-            mock_session, mock_response = setup_mock_session_class_patch(mock_session_class, 200)
+            setup_mock_session_class_patch(mock_session_class, 200)
             
             webhook = Webhook("https://example.com/webhook", data={"message": "test"})
             result = await webhook.push(incident=sample_incident)
@@ -385,7 +385,7 @@ class TestWebhookIntegration:
     async def test_complete_webhook_flow_form_data(self, sample_incident):
         """Test complete webhook flow with form data."""
         with patch('aiohttp.ClientSession') as mock_session_class:
-            mock_session, mock_response = setup_mock_session_class_patch(mock_session_class, 201)
+            mock_session, _ = setup_mock_session_class_patch(mock_session_class, 201)
             
             webhook = Webhook(
                 url="https://example.com/webhook",
@@ -414,7 +414,7 @@ class TestWebhookIntegration:
     async def test_complete_webhook_flow_json_dict(self, sample_incident):
         """Test complete webhook flow with JSON dict."""
         with patch('aiohttp.ClientSession') as mock_session_class:
-            mock_session, mock_response = setup_mock_session_class_patch(mock_session_class, 200)
+            mock_session, _ = setup_mock_session_class_patch(mock_session_class, 200)
             
             webhook = Webhook(
                 url="https://example.com/webhook",
@@ -441,7 +441,7 @@ class TestWebhookIntegration:
     async def test_complete_webhook_flow_json_string(self, sample_incident):
         """Test complete webhook flow with JSON string."""
         with patch('aiohttp.ClientSession') as mock_session_class:
-            mock_session, mock_response = setup_mock_session_class_patch(mock_session_class, 200)
+            mock_session, _ = setup_mock_session_class_patch(mock_session_class, 200)
             
             webhook = Webhook(
                 url="https://example.com/webhook",
