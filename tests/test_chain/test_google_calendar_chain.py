@@ -1,11 +1,11 @@
 """
 Unit tests for app.im.chain.google_calendar_chain module.
 """
-import pytest
-import json
 import datetime
-from unittest.mock import Mock, patch, MagicMock, mock_open
-from zoneinfo import ZoneInfo
+import json
+from unittest.mock import Mock, patch, mock_open
+
+import pytest
 
 from app.config.validation import CloudChain, ScheduleEntry, ScheduleMatcherExpression, SimpleChainStep
 from app.im.chain.google_calendar_chain import GoogleCalendarChain
@@ -84,15 +84,15 @@ class TestGoogleCalendarChainInit:
     @patch('app.im.chain.google_calendar_chain.get_config')
     @patch('builtins.open', new_callable=mock_open)
     @patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data')
-    def test_init_success(self, mock_fetch, mock_file, mock_get_config, 
-                         mock_config, mock_app_config, mock_service_account_credentials):
+    def test_init_success(self, mock_fetch, mock_file, mock_get_config,
+                          mock_config, mock_app_config, mock_service_account_credentials):
         """Test successful initialization."""
         mock_get_config.return_value = mock_app_config
         mock_file.return_value.read.return_value = json.dumps(mock_service_account_credentials)
-        
+
         with patch('json.load', return_value=mock_service_account_credentials):
             chain = GoogleCalendarChain(name="test_chain", config=mock_config)
-        
+
         assert chain.name == "test_chain"
         assert chain.calendar_id == "test@example.com"
         assert chain.default_steps == mock_config.default_steps
@@ -101,15 +101,15 @@ class TestGoogleCalendarChainInit:
     @patch('app.im.chain.google_calendar_chain.get_config')
     @patch('builtins.open', new_callable=mock_open)
     @patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data')
-    def test_init_missing_calendar_id(self, mock_fetch, mock_file, mock_get_config, 
-                                     mock_app_config, mock_service_account_credentials):
+    def test_init_missing_calendar_id(self, mock_fetch, mock_file, mock_get_config,
+                                      mock_app_config, mock_service_account_credentials):
         """Test initialization with missing calendar_id."""
         mock_get_config.return_value = mock_app_config
-        
+
         config = Mock(spec=CloudChain)
         config.calendar_id = None
         config.default_steps = []
-        
+
         with pytest.raises(ValueError, match="calendar_id is required"):
             GoogleCalendarChain(name="test_chain", config=config)
 
@@ -117,10 +117,10 @@ class TestGoogleCalendarChainInit:
     @patch('builtins.open', side_effect=FileNotFoundError)
     @patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data')
     def test_init_missing_credentials_file(self, mock_fetch, mock_file, mock_get_config,
-                                          mock_config, mock_app_config):
+                                           mock_config, mock_app_config):
         """Test initialization with missing credentials file."""
         mock_get_config.return_value = mock_app_config
-        
+
         with pytest.raises(ValueError, match="Service account file .* not found"):
             GoogleCalendarChain(name="test_chain", config=mock_config)
 
@@ -132,7 +132,7 @@ class TestGoogleCalendarChainInit:
         """Test initialization with invalid credentials (missing required field)."""
         mock_get_config.return_value = mock_app_config
         invalid_creds = {'client_email': 'test@test.com'}  # Missing private_key and token_uri
-        
+
         with patch('json.load', return_value=invalid_creds):
             with pytest.raises(ValueError, match="Missing required field"):
                 GoogleCalendarChain(name="test_chain", config=mock_config)
@@ -155,7 +155,7 @@ class TestGoogleCalendarChainParseSteps:
         """Test parsing single step."""
         description = "- user: test_user"
         result = GoogleCalendarChain._parse_steps_from_description(description)
-        
+
         assert len(result) == 1
         assert result[0] == {'user': 'test_user'}
 
@@ -163,7 +163,7 @@ class TestGoogleCalendarChainParseSteps:
         """Test parsing multiple steps."""
         description = "- user: test_user\n- wait: 5m\n- user_group: admins"
         result = GoogleCalendarChain._parse_steps_from_description(description)
-        
+
         assert len(result) == 3
         assert result[0] == {'user': 'test_user'}
         assert result[1] == {'wait': '5m'}
@@ -173,7 +173,7 @@ class TestGoogleCalendarChainParseSteps:
         """Test parsing steps with extra whitespace."""
         description = "-  user  :  test_user  \n-  wait  :  5m  "
         result = GoogleCalendarChain._parse_steps_from_description(description)
-        
+
         assert len(result) == 2
         assert result[0] == {'user': 'test_user'}
         assert result[1] == {'wait': '5m'}
@@ -182,7 +182,7 @@ class TestGoogleCalendarChainParseSteps:
         """Test parsing steps from HTML description."""
         description = "<p>- user: test_user</p><p>- wait: 5m</p>"
         result = GoogleCalendarChain._parse_steps_from_description(description)
-        
+
         # Should extract text from HTML
         assert len(result) == 2
         assert 'user' in result[0]
@@ -192,7 +192,7 @@ class TestGoogleCalendarChainParseSteps:
         """Test parsing steps with invalid format (no colon)."""
         description = "- user test_user\n- wait 5m"
         result = GoogleCalendarChain._parse_steps_from_description(description)
-        
+
         # Should skip invalid lines
         assert len(result) == 0
 
@@ -200,7 +200,7 @@ class TestGoogleCalendarChainParseSteps:
         """Test parsing steps with mixed valid and invalid lines."""
         description = "Some text\n- user: test_user\nMore text\n- wait: 5m\nRandom line"
         result = GoogleCalendarChain._parse_steps_from_description(description)
-        
+
         assert len(result) == 2
         assert result[0] == {'user': 'test_user'}
         assert result[1] == {'wait': '5m'}
@@ -209,7 +209,7 @@ class TestGoogleCalendarChainParseSteps:
         """Test parsing steps with multiple colons in value."""
         description = "- webhook: http://example.com:8080/webhook"
         result = GoogleCalendarChain._parse_steps_from_description(description)
-        
+
         # Should only split on first colon
         assert len(result) == 0  # Will be empty because split(':') creates more than 2 parts
 
@@ -224,9 +224,9 @@ class TestGoogleCalendarChainConvertEvent:
                 with patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data'):
                     chain = GoogleCalendarChain.__new__(GoogleCalendarChain)
                     chain.name = "test"
-                    
+
                     result = chain._convert_event_to_matcher(sample_calendar_event)
-        
+
         assert isinstance(result, ScheduleEntry)
         assert isinstance(result.matcher, ScheduleMatcherExpression)
         assert result.matcher.start_day_expr == 'date'
@@ -241,9 +241,9 @@ class TestGoogleCalendarChainConvertEvent:
                 with patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data'):
                     chain = GoogleCalendarChain.__new__(GoogleCalendarChain)
                     chain.name = "test"
-                    
+
                     result = chain._convert_event_to_matcher(sample_calendar_event)
-        
+
         assert isinstance(result, ScheduleEntry)
         assert len(result.steps) == 2
         assert isinstance(result.steps[0], SimpleChainStep)
@@ -258,15 +258,15 @@ class TestGoogleCalendarChainConvertEvent:
             'start': {'dateTime': '2024-01-15T09:00:00+00:00'},
             'end': {'dateTime': '2024-01-15T17:00:00+00:00'}
         }
-        
+
         with patch('app.im.chain.google_calendar_chain.get_config'):
             with patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._load_credentials'):
                 with patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data'):
                     chain = GoogleCalendarChain.__new__(GoogleCalendarChain)
                     chain.name = "test"
-                    
+
                     result = chain._convert_event_to_matcher(event)
-        
+
         assert isinstance(result, ScheduleEntry)
         assert len(result.steps) == 0
 
@@ -279,15 +279,15 @@ class TestGoogleCalendarChainConvertEvent:
             'start': {'date': '2024-01-15'},
             'end': {'date': '2024-01-16'}
         }
-        
+
         with patch('app.im.chain.google_calendar_chain.get_config'):
             with patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._load_credentials'):
                 with patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data'):
                     chain = GoogleCalendarChain.__new__(GoogleCalendarChain)
                     chain.name = "test"
-                    
+
                     result = chain._convert_event_to_matcher(event)
-        
+
         assert isinstance(result, ScheduleEntry)
         assert isinstance(result.matcher, ScheduleMatcherExpression)
 
@@ -300,15 +300,15 @@ class TestGoogleCalendarChainConvertEvent:
             'start': {'dateTime': '2024-01-15T09:00:00-05:00'},  # EST
             'end': {'dateTime': '2024-01-15T17:00:00-05:00'}
         }
-        
+
         with patch('app.im.chain.google_calendar_chain.get_config'):
             with patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._load_credentials'):
                 with patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data'):
                     chain = GoogleCalendarChain.__new__(GoogleCalendarChain)
                     chain.name = "test"
-                    
+
                     result = chain._convert_event_to_matcher(event)
-        
+
         assert isinstance(result, ScheduleEntry)
         # Time should be converted properly
         assert result.matcher.start_time is not None
@@ -322,15 +322,15 @@ class TestGoogleCalendarChainConvertEvent:
             'start': {'dateTime': '2024-01-15T09:00:00+00:00'},
             'end': {'dateTime': '2024-01-15T09:30:00+00:00'}  # 30 minutes
         }
-        
+
         with patch('app.im.chain.google_calendar_chain.get_config'):
             with patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._load_credentials'):
                 with patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data'):
                     chain = GoogleCalendarChain.__new__(GoogleCalendarChain)
                     chain.name = "test"
-                    
+
                     result = chain._convert_event_to_matcher(event)
-        
+
         assert result.matcher.duration == '30m'
 
 
@@ -341,15 +341,15 @@ class TestGoogleCalendarChainUpdateSchedule:
     @patch('builtins.open', new_callable=mock_open)
     @patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data')
     def test_update_schedule_empty_events(self, mock_fetch, mock_file, mock_get_config,
-                                         mock_config, mock_app_config, mock_service_account_credentials):
+                                          mock_config, mock_app_config, mock_service_account_credentials):
         """Test updating schedule with empty events list."""
         mock_get_config.return_value = mock_app_config
         mock_config.default_steps = []
-        
+
         with patch('json.load', return_value=mock_service_account_credentials):
             chain = GoogleCalendarChain(name="test_chain", config=mock_config)
             chain._update_schedule([])
-        
+
         assert chain.schedule == []
         assert chain._last_sync_time is not None
 
@@ -357,16 +357,16 @@ class TestGoogleCalendarChainUpdateSchedule:
     @patch('builtins.open', new_callable=mock_open)
     @patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data')
     def test_update_schedule_with_events(self, mock_fetch, mock_file, mock_get_config,
-                                        mock_config, mock_app_config, mock_service_account_credentials,
-                                        sample_calendar_events):
+                                         mock_config, mock_app_config, mock_service_account_credentials,
+                                         sample_calendar_events):
         """Test updating schedule with events."""
         mock_get_config.return_value = mock_app_config
         mock_config.default_steps = []
-        
+
         with patch('json.load', return_value=mock_service_account_credentials):
             chain = GoogleCalendarChain(name="test_chain", config=mock_config)
             chain._update_schedule(sample_calendar_events)
-        
+
         assert len(chain.schedule) == 2
         assert all(isinstance(entry, ScheduleEntry) for entry in chain.schedule)
 
@@ -374,18 +374,18 @@ class TestGoogleCalendarChainUpdateSchedule:
     @patch('builtins.open', new_callable=mock_open)
     @patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data')
     def test_update_schedule_with_default_steps(self, mock_fetch, mock_file, mock_get_config,
-                                               mock_config, mock_app_config, mock_service_account_credentials,
-                                               sample_calendar_events):
+                                                mock_config, mock_app_config, mock_service_account_credentials,
+                                                sample_calendar_events):
         """Test updating schedule with default steps."""
         mock_get_config.return_value = mock_app_config
-        
+
         with patch('json.load', return_value=mock_service_account_credentials):
             chain = GoogleCalendarChain(name="test_chain", config=mock_config)
             chain._update_schedule(sample_calendar_events)
-        
+
         # Should have 2 events + 1 default entry
         assert len(chain.schedule) == 3
-        
+
         # Last entry should be default steps with no matcher
         last_entry = chain.schedule[-1]
         assert last_entry.matcher is None
@@ -400,21 +400,21 @@ class TestGoogleCalendarChainAPIRequests:
     @patch('builtins.open', new_callable=mock_open)
     @patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data')
     def test_make_api_request_success(self, mock_fetch, mock_file, mock_get_config,
-                                     mock_config, mock_app_config, mock_service_account_credentials):
+                                      mock_config, mock_app_config, mock_service_account_credentials):
         """Test successful API request."""
         mock_get_config.return_value = mock_app_config
         mock_config.default_steps = []
-        
+
         with patch('json.load', return_value=mock_service_account_credentials):
             chain = GoogleCalendarChain(name="test_chain", config=mock_config)
-        
+
         # Mock session.request
         mock_response = Mock()
         mock_response.json.return_value = {'success': True}
         chain.session.request = Mock(return_value=mock_response)
-        
+
         result = chain._make_api_request('GET', 'http://test.com')
-        
+
         assert result == {'success': True}
         chain.session.request.assert_called_once()
 
@@ -422,18 +422,18 @@ class TestGoogleCalendarChainAPIRequests:
     @patch('builtins.open', new_callable=mock_open)
     @patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data')
     def test_make_api_request_failure(self, mock_fetch, mock_file, mock_get_config,
-                                     mock_config, mock_app_config, mock_service_account_credentials):
+                                      mock_config, mock_app_config, mock_service_account_credentials):
         """Test failed API request."""
         mock_get_config.return_value = mock_app_config
         mock_config.default_steps = []
-        
+
         with patch('json.load', return_value=mock_service_account_credentials):
             chain = GoogleCalendarChain(name="test_chain", config=mock_config)
-        
+
         # Mock failed request
         import requests
         chain.session.request = Mock(side_effect=requests.exceptions.RequestException("API Error"))
-        
+
         with pytest.raises(requests.exceptions.RequestException):
             chain._make_api_request('GET', 'http://test.com')
 
@@ -446,15 +446,15 @@ class TestGoogleCalendarChainAccessToken:
     @patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data')
     @patch('jwt.encode')
     def test_get_access_token_new_token(self, mock_jwt, mock_fetch, mock_file, mock_get_config,
-                                       mock_config, mock_app_config, mock_service_account_credentials):
+                                        mock_config, mock_app_config, mock_service_account_credentials):
         """Test getting new access token."""
         mock_get_config.return_value = mock_app_config
         mock_config.default_steps = []
         mock_jwt.return_value = 'signed_jwt_token'
-        
+
         with patch('json.load', return_value=mock_service_account_credentials):
             chain = GoogleCalendarChain(name="test_chain", config=mock_config)
-        
+
         # Mock successful token response
         mock_response = Mock()
         mock_response.json.return_value = {
@@ -462,9 +462,9 @@ class TestGoogleCalendarChainAccessToken:
             'expires_in': 3600
         }
         chain.session.post = Mock(return_value=mock_response)
-        
+
         token = chain._get_access_token()
-        
+
         assert token == 'test_access_token'
         assert chain._last_token == 'test_access_token'
         assert chain._token_expiry is not None
@@ -473,51 +473,51 @@ class TestGoogleCalendarChainAccessToken:
     @patch('builtins.open', new_callable=mock_open)
     @patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data')
     def test_get_access_token_cached(self, mock_fetch, mock_file, mock_get_config,
-                                    mock_config, mock_app_config, mock_service_account_credentials):
+                                     mock_config, mock_app_config, mock_service_account_credentials):
         """Test getting cached access token."""
         mock_get_config.return_value = mock_app_config
         mock_config.default_steps = []
-        
+
         with patch('json.load', return_value=mock_service_account_credentials):
             chain = GoogleCalendarChain(name="test_chain", config=mock_config)
-        
+
         # Set cached token
         future_time = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1)
         chain._last_token = 'cached_token'
         chain._token_expiry = future_time
-        
+
         token = chain._get_access_token()
-        
+
         assert token == 'cached_token'
 
     @patch('app.im.chain.google_calendar_chain.get_config')
     @patch('builtins.open', new_callable=mock_open)
     @patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data')
     def test_get_access_token_expired(self, mock_fetch, mock_file, mock_get_config,
-                                     mock_config, mock_app_config, mock_service_account_credentials):
+                                      mock_config, mock_app_config, mock_service_account_credentials):
         """Test getting new token when cached token is expired."""
         mock_get_config.return_value = mock_app_config
         mock_config.default_steps = []
-        
+
         with patch('json.load', return_value=mock_service_account_credentials):
             chain = GoogleCalendarChain(name="test_chain", config=mock_config)
-        
+
         # Set expired token
         past_time = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=1)
         chain._last_token = 'expired_token'
         chain._token_expiry = past_time
-        
+
         # Mock new token response
         mock_response = Mock()
         mock_response.json.return_value = {
             'access_token': 'new_token',
             'expires_in': 3600
         }
-        
+
         with patch('jwt.encode', return_value='signed_jwt'):
             chain.session.post = Mock(return_value=mock_response)
             token = chain._get_access_token()
-        
+
         assert token == 'new_token'
 
 
@@ -528,16 +528,16 @@ class TestGoogleCalendarChainSync:
     @patch('builtins.open', new_callable=mock_open)
     @patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data')
     def test_cleanup(self, mock_fetch, mock_file, mock_get_config,
-                    mock_config, mock_app_config, mock_service_account_credentials):
+                     mock_config, mock_app_config, mock_service_account_credentials):
         """Test cleanup method."""
         mock_get_config.return_value = mock_app_config
         mock_config.default_steps = []
-        
+
         with patch('json.load', return_value=mock_service_account_credentials):
             chain = GoogleCalendarChain(name="test_chain", config=mock_config)
-        
+
         chain.cleanup()
-        
+
         # Session should be closed
         assert chain._sync_task is None
 
@@ -549,17 +549,17 @@ class TestGoogleCalendarChainTimezone:
     @patch('builtins.open', new_callable=mock_open)
     @patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data')
     def test_update_timezone(self, mock_fetch, mock_file, mock_get_config,
-                            mock_config, mock_app_config, mock_service_account_credentials):
+                             mock_config, mock_app_config, mock_service_account_credentials):
         """Test updating timezone."""
         mock_get_config.return_value = mock_app_config
         mock_config.default_steps = []
-        
+
         with patch('json.load', return_value=mock_service_account_credentials):
             chain = GoogleCalendarChain(name="test_chain", config=mock_config)
-        
+
         initial_tz = chain.timezone
         chain._update_timezone("America/New_York")
-        
+
         assert chain.timezone == "America/New_York"
         assert chain.timezone != initial_tz
 
@@ -567,41 +567,41 @@ class TestGoogleCalendarChainTimezone:
     @patch('builtins.open', new_callable=mock_open)
     @patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data')
     def test_get_calendar_timezone_success(self, mock_fetch, mock_file, mock_get_config,
-                                          mock_config, mock_app_config, mock_service_account_credentials):
+                                           mock_config, mock_app_config, mock_service_account_credentials):
         """Test getting calendar timezone successfully."""
         mock_get_config.return_value = mock_app_config
         mock_config.default_steps = []
-        
+
         with patch('json.load', return_value=mock_service_account_credentials):
             chain = GoogleCalendarChain(name="test_chain", config=mock_config)
-        
+
         # Mock token and API response
         chain._get_access_token = Mock(return_value='test_token')
         chain._make_api_request = Mock(return_value={'timeZone': 'America/Los_Angeles'})
-        
+
         timezone = chain._get_calendar_timezone()
-        
+
         assert timezone == 'America/Los_Angeles'
 
     @patch('app.im.chain.google_calendar_chain.get_config')
     @patch('builtins.open', new_callable=mock_open)
     @patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data')
     def test_get_calendar_timezone_failure(self, mock_fetch, mock_file, mock_get_config,
-                                          mock_config, mock_app_config, mock_service_account_credentials):
+                                           mock_config, mock_app_config, mock_service_account_credentials):
         """Test getting calendar timezone with failure."""
         mock_get_config.return_value = mock_app_config
         mock_config.default_steps = []
-        
+
         with patch('json.load', return_value=mock_service_account_credentials):
             chain = GoogleCalendarChain(name="test_chain", config=mock_config)
-        
+
         # Mock token and API failure
         import requests
         chain._get_access_token = Mock(return_value='test_token')
         chain._make_api_request = Mock(side_effect=requests.exceptions.RequestException("API Error"))
-        
+
         timezone = chain._get_calendar_timezone()
-        
+
         # Should fallback to UTC
         assert timezone == 'UTC'
 
@@ -618,16 +618,16 @@ class TestGoogleCalendarChainFetchEvents:
         """Test fetching events successfully."""
         mock_get_config.return_value = mock_app_config
         mock_config.default_steps = []
-        
+
         with patch('json.load', return_value=mock_service_account_credentials):
             chain = GoogleCalendarChain(name="test_chain", config=mock_config)
-        
+
         # Mock token and API response
         chain._get_access_token = Mock(return_value='test_token')
         chain._make_api_request = Mock(return_value={'items': sample_calendar_events})
-        
+
         events = chain._fetch_events()
-        
+
         assert len(events) == 2
         assert events[0]['id'] == 'event1'
         assert events[1]['id'] == 'event2'
@@ -640,17 +640,17 @@ class TestGoogleCalendarChainFetchEvents:
         """Test fetching events with failure."""
         mock_get_config.return_value = mock_app_config
         mock_config.default_steps = []
-        
+
         with patch('json.load', return_value=mock_service_account_credentials):
             chain = GoogleCalendarChain(name="test_chain", config=mock_config)
-        
+
         # Mock token and API failure
         import requests
         chain._get_access_token = Mock(return_value='test_token')
         chain._make_api_request = Mock(side_effect=requests.exceptions.RequestException("API Error"))
-        
+
         events = chain._fetch_events()
-        
+
         # Should return empty list on failure
         assert events == []
 
@@ -662,16 +662,16 @@ class TestGoogleCalendarChainFetchEvents:
         """Test fetching events when no items returned."""
         mock_get_config.return_value = mock_app_config
         mock_config.default_steps = []
-        
+
         with patch('json.load', return_value=mock_service_account_credentials):
             chain = GoogleCalendarChain(name="test_chain", config=mock_config)
-        
+
         # Mock token and API response with no items
         chain._get_access_token = Mock(return_value='test_token')
         chain._make_api_request = Mock(return_value={})
-        
+
         events = chain._fetch_events()
-        
+
         assert events == []
 
 
@@ -682,10 +682,10 @@ class TestGoogleCalendarChainEdgeCases:
         """Test parsing steps when HTML parser encounters error."""
         # Very large description that might cause MemoryError
         description = "- user: test_user"
-        
+
         with patch('app.tools.HTMLTextExtractor.feed', side_effect=ValueError("Parse error")):
             result = GoogleCalendarChain._parse_steps_from_description(description)
-            
+
             # Should still try to parse the original description
             assert isinstance(result, list)
 
@@ -698,15 +698,289 @@ class TestGoogleCalendarChainEdgeCases:
             'start': {'dateTime': '2024-01-15T09:00:00Z'},  # Z instead of +00:00
             'end': {'dateTime': '2024-01-15T17:00:00Z'}
         }
-        
+
         with patch('app.im.chain.google_calendar_chain.get_config'):
             with patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._load_credentials'):
                 with patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data'):
                     chain = GoogleCalendarChain.__new__(GoogleCalendarChain)
                     chain.name = "test"
-                    
+
                     result = chain._convert_event_to_matcher(event)
-        
+
         assert isinstance(result, ScheduleEntry)
         assert result.matcher.start_time == '09:00'
 
+
+class TestGoogleCalendarChainAdditionalCoverage:
+    """Test cases for additional coverage."""
+
+    @patch('app.im.chain.google_calendar_chain.get_config')
+    @patch('builtins.open', new_callable=mock_open)
+    @patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data')
+    def test_make_api_request_with_response_text(self, mock_fetch, mock_file, mock_get_config,
+                                                 mock_config, mock_app_config, mock_service_account_credentials):
+        """Test API request with response text in exception."""
+        mock_get_config.return_value = mock_app_config
+        mock_config.default_steps = []
+
+        with patch('json.load', return_value=mock_service_account_credentials):
+            chain = GoogleCalendarChain(name="test_chain", config=mock_config)
+
+        # Mock failed request with response text
+        import requests
+        mock_response = Mock()
+        mock_response.text = "Error response text"
+        mock_exception = requests.exceptions.RequestException("API Error")
+        mock_exception.response = mock_response
+
+        chain.session.request = Mock(side_effect=mock_exception)
+
+        with patch('app.im.chain.google_calendar_chain.logger') as mock_logger:
+            with pytest.raises(requests.exceptions.RequestException):
+                chain._make_api_request('GET', 'http://test.com')
+
+            # Should log both error message and response text
+            assert mock_logger.error.call_count == 2
+
+    @patch('app.im.chain.google_calendar_chain.get_config')
+    @patch('builtins.open', new_callable=mock_open)
+    @patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data')
+    def test_update_timezone_same_timezone(self, mock_fetch, mock_file, mock_get_config,
+                                           mock_config, mock_app_config, mock_service_account_credentials):
+        """Test updating timezone when timezone is the same."""
+        mock_get_config.return_value = mock_app_config
+        mock_config.default_steps = []
+
+        with patch('json.load', return_value=mock_service_account_credentials):
+            chain = GoogleCalendarChain(name="test_chain", config=mock_config)
+
+        initial_tz = chain.timezone
+        chain._update_timezone(initial_tz)  # Same timezone
+
+        # Should not change
+        assert chain.timezone == initial_tz
+
+    @patch('app.im.chain.google_calendar_chain.get_config')
+    @patch('builtins.open', new_callable=mock_open)
+    def test_fetch_initial_data_exception(self, mock_file, mock_get_config,
+                                          mock_config, mock_app_config, mock_service_account_credentials):
+        """Test _fetch_initial_data with exception."""
+        mock_get_config.return_value = mock_app_config
+        mock_config.default_steps = []
+
+        with patch('json.load', return_value=mock_service_account_credentials):
+            chain = GoogleCalendarChain(name="test_chain", config=mock_config)
+
+        # Mock exception in _fetch_initial_data
+        chain._get_calendar_timezone = Mock(side_effect=Exception("Timezone error"))
+
+        with patch('app.im.chain.google_calendar_chain.logger') as mock_logger:
+            chain._fetch_initial_data()
+
+            # Should log error and initialize with empty schedule
+            mock_logger.error.assert_called_once()
+            assert chain.schedule == []
+
+    @patch('app.im.chain.google_calendar_chain.get_config')
+    @patch('builtins.open', new_callable=mock_open)
+    @patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data')
+    def test_start_sync_no_event_loop(self, mock_fetch, mock_file, mock_get_config,
+                                      mock_config, mock_app_config, mock_service_account_credentials):
+        """Test start_sync when no event loop is running."""
+        mock_get_config.return_value = mock_app_config
+        mock_config.default_steps = []
+
+        with patch('json.load', return_value=mock_service_account_credentials):
+            chain = GoogleCalendarChain(name="test_chain", config=mock_config)
+
+        # Mock no running event loop
+        with patch('asyncio.get_event_loop') as mock_get_loop:
+            mock_loop = Mock()
+            mock_loop.is_running.return_value = False
+            mock_get_loop.return_value = mock_loop
+
+            with patch('app.im.chain.google_calendar_chain.logger') as mock_logger:
+                chain.start_sync()
+
+                mock_logger.warning.assert_called_once()
+                assert chain._sync_task is None
+
+    @patch('app.im.chain.google_calendar_chain.get_config')
+    @patch('builtins.open', new_callable=mock_open)
+    @patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data')
+    def test_start_sync_runtime_error(self, mock_fetch, mock_file, mock_get_config,
+                                      mock_config, mock_app_config, mock_service_account_credentials):
+        """Test start_sync with RuntimeError."""
+        mock_get_config.return_value = mock_app_config
+        mock_config.default_steps = []
+
+        with patch('json.load', return_value=mock_service_account_credentials):
+            chain = GoogleCalendarChain(name="test_chain", config=mock_config)
+
+        # Mock RuntimeError when getting event loop
+        with patch('asyncio.get_event_loop', side_effect=RuntimeError("No event loop")):
+            with patch('app.im.chain.google_calendar_chain.logger') as mock_logger:
+                chain.start_sync()
+
+                mock_logger.error.assert_called_once()
+                assert chain._sync_task is None
+
+    @patch('app.im.chain.google_calendar_chain.get_config')
+    @patch('builtins.open', new_callable=mock_open)
+    @patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data')
+    def test_stop_sync_with_task(self, mock_fetch, mock_file, mock_get_config,
+                                 mock_config, mock_app_config, mock_service_account_credentials):
+        """Test stop_sync when sync task exists."""
+        mock_get_config.return_value = mock_app_config
+        mock_config.default_steps = []
+
+        with patch('json.load', return_value=mock_service_account_credentials):
+            chain = GoogleCalendarChain(name="test_chain", config=mock_config)
+
+        # Mock sync task
+        mock_task = Mock()
+        chain._sync_task = mock_task
+
+        with patch('app.im.chain.google_calendar_chain.logger') as mock_logger:
+            chain.stop_sync()
+
+            mock_task.cancel.assert_called_once()
+            mock_logger.info.assert_called_once()
+            assert chain._sync_task is None
+
+    @patch('app.im.chain.google_calendar_chain.get_config')
+    @patch('builtins.open', new_callable=mock_open)
+    @patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data')
+    def test_get_access_token_jwt_error(self, mock_fetch, mock_file, mock_get_config,
+                                        mock_config, mock_app_config, mock_service_account_credentials):
+        """Test get_access_token with JWT error."""
+        mock_get_config.return_value = mock_app_config
+        mock_config.default_steps = []
+
+        with patch('json.load', return_value=mock_service_account_credentials):
+            chain = GoogleCalendarChain(name="test_chain", config=mock_config)
+
+        # Mock JWT error
+        import jwt
+        with patch('jwt.encode', side_effect=jwt.InvalidTokenError("JWT Error")):
+            with patch('app.im.chain.google_calendar_chain.logger') as mock_logger:
+                with pytest.raises(jwt.InvalidTokenError):
+                    chain._get_access_token()
+
+                mock_logger.error.assert_called_once()
+
+    @patch('app.im.chain.google_calendar_chain.get_config')
+    @patch('builtins.open', new_callable=mock_open)
+    @patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data')
+    def test_get_access_token_request_error_with_response(self, mock_fetch, mock_file, mock_get_config,
+                                                          mock_config, mock_app_config,
+                                                          mock_service_account_credentials):
+        """Test get_access_token with request error that has response."""
+        mock_get_config.return_value = mock_app_config
+        mock_config.default_steps = []
+
+        with patch('json.load', return_value=mock_service_account_credentials):
+            chain = GoogleCalendarChain(name="test_chain", config=mock_config)
+
+        # Mock request error with response
+        import requests
+        mock_response = Mock()
+        mock_response.text = "Token error response"
+        mock_exception = requests.exceptions.RequestException("Token request failed")
+        mock_exception.response = mock_response
+
+        with patch('jwt.encode', return_value='signed_jwt'):
+            chain.session.post = Mock(side_effect=mock_exception)
+
+            with patch('app.im.chain.google_calendar_chain.logger') as mock_logger:
+                with pytest.raises(requests.exceptions.RequestException):
+                    chain._get_access_token()
+
+                # Should log both error message and response text
+                assert mock_logger.error.call_count == 2
+
+    @patch('app.im.chain.google_calendar_chain.get_config')
+    @patch('builtins.open', new_callable=mock_open)
+    @patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data')
+    def test_get_access_token_key_error(self, mock_fetch, mock_file, mock_get_config,
+                                        mock_config, mock_app_config, mock_service_account_credentials):
+        """Test get_access_token with KeyError."""
+        mock_get_config.return_value = mock_app_config
+        mock_config.default_steps = []
+
+        with patch('json.load', return_value=mock_service_account_credentials):
+            chain = GoogleCalendarChain(name="test_chain", config=mock_config)
+
+        # Mock response without access_token
+        mock_response = Mock()
+        mock_response.json.return_value = {'expires_in': 3600}  # Missing access_token
+        chain.session.post = Mock(return_value=mock_response)
+
+        with patch('jwt.encode', return_value='signed_jwt'):
+            with patch('app.im.chain.google_calendar_chain.logger') as mock_logger:
+                with pytest.raises(KeyError):
+                    chain._get_access_token()
+
+                mock_logger.error.assert_called_once()
+
+    @patch('app.im.chain.google_calendar_chain.get_config')
+    @patch('builtins.open', new_callable=mock_open)
+    @patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data')
+    def test_sync_calendar_exception_handling(self, mock_fetch, mock_file, mock_get_config,
+                                              mock_config, mock_app_config, mock_service_account_credentials):
+        """Test _sync_calendar exception handling."""
+        mock_get_config.return_value = mock_app_config
+        mock_config.default_steps = []
+
+        with patch('json.load', return_value=mock_service_account_credentials):
+            chain = GoogleCalendarChain(name="test_chain", config=mock_config)
+
+        # Mock exception in sync
+        chain._get_calendar_timezone = Mock(side_effect=Exception("Sync error"))
+
+        with patch('app.im.chain.google_calendar_chain.logger') as mock_logger:
+            with patch('asyncio.sleep') as mock_sleep:
+                # Mock the while loop to run once by making sleep raise an exception
+                mock_sleep.side_effect = Exception("Stop loop")
+
+                async def test_sync():
+                    try:
+                        await chain._sync_calendar()
+                    except Exception:
+                        pass  # Stop the infinite loop
+
+                import asyncio
+                asyncio.run(test_sync())
+
+                mock_logger.error.assert_called_once()
+                mock_sleep.assert_called_once()
+
+    @patch('app.im.chain.google_calendar_chain.get_config')
+    @patch('builtins.open', new_callable=mock_open)
+    @patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data')
+    def test_parse_steps_memory_error(self, mock_fetch, mock_file, mock_get_config,
+                                      mock_config, mock_app_config, mock_service_account_credentials):
+        """Test parsing steps with MemoryError."""
+        description = "- user: test_user"
+
+        with patch('app.tools.HTMLTextExtractor.feed', side_effect=MemoryError("Memory error")):
+            with patch('app.im.chain.google_calendar_chain.logger') as mock_logger:
+                result = GoogleCalendarChain._parse_steps_from_description(description)
+
+                mock_logger.error.assert_called_once()
+                assert isinstance(result, list)
+
+    @patch('app.im.chain.google_calendar_chain.get_config')
+    @patch('builtins.open', new_callable=mock_open)
+    @patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data')
+    def test_parse_steps_general_exception(self, mock_fetch, mock_file, mock_get_config,
+                                           mock_config, mock_app_config, mock_service_account_credentials):
+        """Test parsing steps with general exception."""
+        description = "- user: test_user"
+
+        with patch('app.tools.HTMLTextExtractor.feed', side_effect=Exception("General error")):
+            with patch('app.im.chain.google_calendar_chain.logger') as mock_logger:
+                result = GoogleCalendarChain._parse_steps_from_description(description)
+
+                mock_logger.warning.assert_called_once()
+                assert isinstance(result, list)
