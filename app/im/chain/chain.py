@@ -1,5 +1,5 @@
 class Chain:
-    def __init__(self, name, steps):
+    def __init__(self, name: str, steps: list):
         self.name = name
         self.steps = steps
 
