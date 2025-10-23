@@ -4,8 +4,8 @@
 [![Docker](https://img.shields.io/badge/ghcr.io-eslupmi/impulse-blue?logo=docker)](https://ghcr.io/eslupmi/impulse)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/impulse&color=grey)](https://artifacthub.io/packages/search?repo=impulse)
 
-<!-- [![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=eslupmi_impulse&metric=sqale_rating)](https://sonarcloud.io/dashboard?id=eslupmi_impulse)
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=eslupmi_impulse&metric=alert_status)](https://sonarcloud.io/dashboard?id=eslupmi_impulse)
+<!-- [![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=eslupmi_impulse&metric=sqale_rating)](https://sonarcloud.io/dashboard?id=eslupmi_impulse)
 [![Bugs](https://sonarcloud.io/api/project_badges/measure?project=eslupmi_impulse&metric=bugs)](https://sonarcloud.io/dashboard?id=eslupmi_impulse)
 [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=eslupmi_impulse&metric=coverage)](https://sonarcloud.io/dashboard?id=eslupmi_impulse)
 [![Duplicated Lines (%)](https://sonarcloud.io/api/project_badges/measure?project=eslupmi_impulse&metric=duplicated_lines_density)](https://sonarcloud.io/dashboard?id=eslupmi_impulse)
