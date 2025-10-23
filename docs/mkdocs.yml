@@ -43,6 +43,7 @@ nav:
 - INTEGRATIONS:
   - Alert Sources:
     - alertmanager.md
+    - grafana.md
   - Messengers:
     - mattermost.md
     - slack.md

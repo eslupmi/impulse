@@ -17,12 +17,12 @@ class AsyncIncidentWS:
         """Accept a new WebSocket connection"""
         await websocket.accept()
         self.connections.add(websocket)
-        logger.info(f"WebSocket connected. Total connections: {len(self.connections)}")
+        logger.debug(f"WebSocket connected. Total connections: {len(self.connections)}")
 
     async def disconnect(self, websocket: WebSocket):
         """Remove a WebSocket connection"""
         self.connections.discard(websocket)
-        logger.info(f"WebSocket disconnected. Total connections: {len(self.connections)}")
+        logger.debug(f"WebSocket disconnected. Total connections: {len(self.connections)}")
 
     async def broadcast(self, event: str, data: dict):
         """Broadcast a message to all connected clients"""

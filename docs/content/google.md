@@ -7,14 +7,14 @@ Google Calendar can be used as a [cloud chain](config_file.md#cloud-chain). To e
 1. Create a Google Cloud project [here](https://console.cloud.google.com)
 2. Navigate to **"APIs & Services"** and enable **"Google Calendar API"**
 3. Open **"Service Accounts"** and create a new service account
-4. In the newly created service account, go to the **"Keys"** tab, click **Add key** -> **Create new key** -> **JSON**. The `key.json` file will be downloaded automatically
+4. In the newly created service account, go to the **"Keys"** tab, click **Add key** > **Create new key** > **JSON**. The `key.json` file will be downloaded automatically
 5. Move this file to the path specified in `GOOGLE_SERVICE_ACCOUNT_FILE` (`./key.json` by default)
 
 ## Set up calendar access for your service account
 
 ### For personal Google Cloud
 
-1. Go to the created **Service Account** -> **Details**
+1. Go to the created **Service Account** > **Details**
 2. Copy the **Email**, open your calendar settings, and share the calendar with this email. Set permissions to **"See all event details"**
 
 ### For corporate Google Cloud (Google Workspace)
