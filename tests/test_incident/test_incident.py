@@ -525,7 +525,9 @@ class TestIncident:
         }
 
         with patch('app.incident.incident.logger') as mock_logger:
-            sample_incident.generate_chain(chains, 'main_chain')
+            with patch('builtins.open', mock_open()):
+                with patch('os.makedirs'):
+                    sample_incident.generate_chain(chains, 'main_chain')
 
         mock_logger.warning.assert_called_once()
         # Should have 1 step: user (missing nested chain and wait are skipped)
