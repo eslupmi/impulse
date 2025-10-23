@@ -1,37 +1,36 @@
 # Alertmanager
 
-> All code examples below are for [`alertmanager.yml`](https://prometheus.io/docs/alerting/latest/configuration/).
+## Group and repeat intervals
 
-To ensure IMPulse works correctly, you need to configure Alertmanager.
+!!! warning ""
+    Configure group and repeat intervals correctly to ensure IMPulse works properly (the explanation is [here](concepts.md#unknown))
 
-1. Set correct repeat_interval
+Set the sum of `route.repeat_interval` and `route.group_interval` [Alertmanager's options](https://prometheus.io/docs/alerting/latest/configuration/) less than [`incident.timeouts.firing`](https://github.com/DiTsi/impulse/blob/develop/examples/impulse.slack.yml) (default `6h`):
 
-    Set the sum of `repeat_interval` and `group_interval` options less than [`incident.timeouts.firing`](https://github.com/DiTsi/impulse/blob/develop/examples/impulse.slack.yml) (default `6h`):
-    ```yaml
-    route:
-      repeat_interval: 354m
-      group_interval: 5m
-    ```
-    The explanation is [here](concepts.md#unknown).
+```yaml title="alertmanager.yml"
+route:
+  repeat_interval: 354m
+  group_interval: 5m
+```
 
-2. Alerts routing
+## Receiver
 
-    IMPulse's [route](config_file.md#route) is similar to Alertmanager's, but simpler.
+Set IMPulse as default receiver:
 
-    If you used alert routing in Alertmanager, the routing rules need to be moved to IMPulse. For this, you can move the entire Alertmanager's [`route`](https://prometheus.io/docs/alerting/latest/configuration/#route) block from `alertmanager.yml` to `impulse.yml`. Don't forget to remove all unused fields and replace all `receiver` entries with `chain` and `channel`. Fill them in correctly.
+```yaml title="alertmanager.yml"
+receivers:
+  - name: 'impulse'
+    webhook_configs:
+      - url: 'http://<impulse_host>:<impulse_port>/'
 
-    Details [here](config_file.md#route).
+route:
+  receiver: 'impulse'
+```
 
-3. Modify receiver
+## Routing
 
-    Set IMPulse as default receiver:
+IMPulse's [route](config_file.md#route) is similar to Alertmanager's, but simpler.
 
-    ```yaml
-    receivers:
-      - name: 'impulse'
-        webhook_configs:
-          - url: 'http://<impulse_host>:<impulse_port>/'
+If you used alert routing in Alertmanager, the routing rules need to be moved to IMPulse. For this, you can move the entire Alertmanager's [`route`](https://prometheus.io/docs/alerting/latest/configuration/#route) block from `alertmanager.yml` to `impulse.yml`. Don't forget to remove all unused fields and replace all `receiver` entries with `chain` and `channel`. Fill them in correctly.
 
-    route:
-      receiver: 'impulse'
-    ```
+Details [here](config_file.md#route).

@@ -2,10 +2,10 @@
 
 ## Create bot
 
-1. Go to Menu (3×3 dots) > System Console > Integrations > Bot Accounts:
-    - set "Enable Bot Account Creation" to `True` and press **Save**
+1. Go to **menu (3×3 dots)** > **System Console** > **Integrations** > **Bot Accounts**:
+    - set **Enable Bot Account Creation** to `True` and press **Save**
 
-2. Go to Menu (dots 3x3) > Integarations > Bot Accounts:
+2. Go to **menu (dots 3x3)** > **Integarations** > **Bot Accounts**:
     - click **Add Bot Account**
     - set **Username** to "impulse"
     - optionally set [our logo](https://github.com/eslupmi/site/blob/develop/static/logo.png?raw=true) as the **Bot Icon**
@@ -17,7 +17,7 @@
 
 ## Configure bot
 
-1. Go to Menu (dots 3x3) > System Console > User Management > Teams:
+1. Go to **menu (dots 3x3)** > **System Console** > **User Management** > **Teams**:
     - press on your Team
     - press the button **Add Members**
     - type "impulse" in search, select it and press the button **Add**
