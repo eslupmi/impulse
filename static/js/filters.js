@@ -1,7 +1,7 @@
 import {table} from "./table.js";
 import {ZOOM_IN_ICON, ZOOM_OUT_ICON} from "./constants.js";
 
-const symbolicOperators = ["=", ">", "<", ">=", "<=", "!=", "=~", "!~"];
+const symbolicOperators = new Set(["=", ">", "<", ">=", "<=", "!=", "=~", "!~"]);
 // Mapping of custom filter operators to Tabulator's built-in operators
 const tabulatorOperators = {
     "=": "=",
@@ -189,7 +189,7 @@ function applyFilters() {
         if (parsedFilter) {
             let {field, operator, value} = parsedFilter;
 
-            value = value.replace(/^["']|["']$/g, '');
+            value = value.replace(/^(?:["'])|(?:["'])$/g, '');
             
             const columnExists = table.getColumns().some(col => col.getField() === field);
             
@@ -288,7 +288,7 @@ function addFilterFromInput() {
         return;
     }
 
-    const formattedFilter = symbolicOperators.includes(operator) ? `${field}${operator}${value}` : `${field} ${operator} ${value}`;
+    const formattedFilter = symbolicOperators.has(operator) ? `${field}${operator}${value}` : `${field} ${operator} ${value}`;
 
     let filters = getCurrentFilters();
 
@@ -453,8 +453,8 @@ function updateZoomIcons() {
             const filterForThisCell = filters.find(f => {
                 const match = f.match(/^(.+?)(=)(.*)$/);
                 if (match) {
-                    const [, fieldName, operator, filterValue] = match;
-                    const trimmedValue = filterValue.trim().replace(/^["']|["']$/g, '');
+                    const [, fieldName, , filterValue] = match;
+                    const trimmedValue = filterValue.trim().replace(/^(?:["'])|(?:["'])$/g, '');
                     return fieldName.trim() === field && trimmedValue === value;
                 }
                 return false;

@@ -100,7 +100,6 @@ class Incidents:
                     incidents.add(incident_)
                 else:
                     logger.warning(f'Skipping incident {filename}: messenger_type mismatch')
-                    continue
 
         return incidents
 

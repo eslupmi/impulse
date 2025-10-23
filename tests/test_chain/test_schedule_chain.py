@@ -169,7 +169,6 @@ class TestScheduleChainDayConditions:
         chain = ScheduleChain(name="test_chain")
         test_time = datetime(2024, 1, 15, 12, 0, 0, tzinfo=ZoneInfo("UTC"))  # 15th day
         
-        # 15 % 2 = 1
         result = chain._check_day_condition("dom % 2", [1], test_time)
         assert result is True
         

@@ -69,7 +69,7 @@ class TestMainApplication:
             
             # Setup mock queue manager
             mock_qm_instance = Mock()
-            mock_qm_instance.start_processing = AsyncMock()
+            mock_qm_instance.start_processing = Mock()
             mock_qm_instance.stop_processing = AsyncMock()
             mock_queue_manager.return_value = mock_qm_instance
             

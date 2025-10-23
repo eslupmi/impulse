@@ -70,7 +70,7 @@ class Route(MainRoute):
 
 
 def generate_route(route_config: RouteConfig):
-    logger.info(f'Creating route')
+    logger.info('Creating route')
     if not route_config:
         return MainRoute('default')
     main_channel_name = route_config.channel

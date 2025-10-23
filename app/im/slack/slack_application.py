@@ -35,7 +35,7 @@ class SlackApplication(Application):
 
     async def _get_public_url(self, app_config: ApplicationConfig):
         async with self.http.get(
-            f'https://slack.com/api/auth.test',
+            'https://slack.com/api/auth.test',
             headers=self.headers
         ) as response:
             await asyncio.sleep(slack_request_delay)
@@ -109,7 +109,7 @@ class SlackApplication(Application):
     async def buttons_handler(self, payload, incidents, queue_, route):
         config = get_config()
         if payload.get('token') != config.slack_verification_token:
-            logger.error(f'Unauthorized request to \'/slack\'')
+            logger.error('Unauthorized request to \'/slack\'')
             return JSONResponse({}, status_code=401)
 
         incident_ = incidents.get_by_ts(ts=payload['message_ts'])
@@ -171,7 +171,7 @@ class SlackApplication(Application):
             f'{self.url}/api/chat.update',
             headers=self.headers,
             json=payload
-        ) as response:
+        ):
             await asyncio.sleep(self.post_delay)
 
     def _markdown_links_to_native_format(self, text):

@@ -180,7 +180,7 @@ class MattermostApplication(Application):
             f'{self.url}/api/v4/posts/{id_}',
             headers=self.headers,
             json=payload
-        ) as response:
+        ):
             await asyncio.sleep(self.post_delay)
 
     def _markdown_links_to_native_format(self, text):

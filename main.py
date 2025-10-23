@@ -55,11 +55,11 @@ def validate_config_only():
                     f"Channels configured: {len(config.messenger.channels)}\n"
                     f"Users configured: {len(config.messenger.users)}")
         if config.app.incident:
-            logger.info(f"Incident config: Success")
+            logger.info("Incident config: Success")
         if config.app.ui:
-            logger.info(f"UI config: Success")
+            logger.info("UI config: Success")
         if config.app.route:
-            logger.info(f"Route config: Success")
+            logger.info("Route config: Success")
         sys.exit(0)
     except SystemExit as e:
         if e.code != 0:
@@ -103,7 +103,7 @@ async def lifespan(fastapi_app: FastAPI):
     fastapi_app.state.channel_manager = channel_manager
     fastapi_app.state.config = config
 
-    await queue_manager.start_processing()
+    queue_manager.start_processing()
 
     logger.info('IMPulse started!')
 
@@ -237,10 +237,10 @@ async def websocket_endpoint(websocket: WebSocket):
                 logger.error(f"Error handling WebSocket message: {e}")
 
     except WebSocketDisconnect:
-        await incident_ws.disconnect(websocket)
+        incident_ws.disconnect(websocket)
     except Exception as e:
         logger.error(f"WebSocket error: {e}")
-        await incident_ws.disconnect(websocket)
+        incident_ws.disconnect(websocket)
 
 
 # Include router in the app

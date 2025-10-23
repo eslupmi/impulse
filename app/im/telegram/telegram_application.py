@@ -94,12 +94,11 @@ class TelegramApplication(Application):
         thread_id = f'{post_id}/{message_id}'
         incident_ = incidents.get_by_ts(ts=thread_id)
         if incident_ is None:
-            async with self.http.post(
+            await self.http.post(
                 f'{self.url}/answerCallbackQuery',
                 json={'callback_query_id': callback['id']},
                 headers=self.headers
-            ) as response:
-                pass
+            )
             return JSONResponse({}, status_code=200)
         action = callback['data']
 
@@ -143,12 +142,11 @@ class TelegramApplication(Application):
             incident_.chain_enabled, incident_.status_enabled
         )
 
-        async with self.http.post(
+        await self.http.post(
             f'{self.url}/answerCallbackQuery',
             json={'callback_query_id': callback['id']},
             headers=self.headers
-        ) as response:
-            pass
+        )
         return JSONResponse({}, status_code=200)
 
     async def _create_topic(self, channel_id, header, status_icons):
@@ -216,7 +214,7 @@ class TelegramApplication(Application):
                 f'{self.url}/editForumTopic',
                 json=payload,
                 headers=self.headers
-            ) as response:
+            ):
                 pass
         except aiohttp.ClientError as e:
             logger.error(f'Failed to update topic: {e}')
@@ -245,7 +243,7 @@ class TelegramApplication(Application):
                 f'{self.url}/editMessageText',
                 json=payload,
                 headers=self.headers
-            ) as response:
+            ):
                 await asyncio.sleep(self.post_delay)
         except aiohttp.ClientError as e:
             logger.error(f'Failed to update thread: {e}')
@@ -285,7 +283,7 @@ class TelegramApplication(Application):
                 f'{self.url}/setWebhook',
                 params={'url': f"{config.messenger.impulse_address}/app"},
                 headers=self.headers
-            ) as response:
+            ):
                 await asyncio.sleep(self.post_delay)
         except aiohttp.ClientError as e:
             logger.error(f'Failed to set webhook: {e}')

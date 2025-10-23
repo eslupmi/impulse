@@ -16,7 +16,7 @@ def slack_get_update_payload(channel_id, ts, body, header, status_icons, status,
             },
             {
                 'color': status_colors.get(status),
-                'text': f'',
+                'text': '',
                 "callback_id": "buttons",
                 "actions": [
                     {

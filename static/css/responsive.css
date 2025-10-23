@@ -70,7 +70,6 @@
     display: flex;
     flex-wrap: wrap;
     margin-bottom: 12px;
-    /* justify-content: space-between; */
 }
 
 /* Specific styling for simple common block labels section */
@@ -432,15 +431,6 @@
     transform: translateX(-50%);
 }
 
-/* Ensure tooltip is above other content */
-.block-annotations {
-    position: relative;
-}
-
-.annotation .tooltip-text {
-    position: fixed;
-    transform: translateY(-100%);
-}
 
 /* Fix annotation tooltip positioning */
 .annotation.tooltip {

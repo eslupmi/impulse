@@ -1,5 +1,6 @@
 .wy-nav-content {
     max-width: 1000px;
+    background: #ffffff;
 }
 /* hide buttons Previous / Next */
 .rst-versions .rst-current-version {
@@ -26,12 +27,9 @@ h3 {
 .rst-content blockquote {
     margin-bottom: 0px;
 }
-.wy-nav-content {
-	background: #ffffff;
-}
 img {
 	color: #555555;
-	padding: 10px;
+	padding: 0px;
 }
 /* hide site_name from menu */
 .md-nav__title {
@@ -44,10 +42,6 @@ img {
 /* header color */
 .md-header {
   background-color: #278fd6;
-}
-/* no padding for logo */
-img {
-  padding: 0px;
 }
 .md-nav__item--section.md-nav__item--nested > .md-nav__link {
   color: #278fd6;
