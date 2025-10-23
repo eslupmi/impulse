@@ -139,12 +139,10 @@ class MattermostApplication(Application):
                     incident_.assign_user(user_name)
                     asyncio.create_task(self.post_assignment_notification(incident_, user_id, user_name))
                     asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id, incidents))
-                    await asyncio.gather(task_assignment, task_fetch)
                 incident_.chain_enabled = False
             else: # release
                 logger.info(f'Incident {incident_.uuid} -> button RELEASE pressed')
                 asyncio.create_task(self.post_unassignment_notification(incident_))
-                await task_unassignment
                 incident_.release()
         elif action == 'status':
             if incident_.status_enabled:
