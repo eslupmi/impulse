@@ -428,7 +428,22 @@ class WebhookConfig(BaseModel):
     """Webhook configuration"""
     url: str = Field(..., description="Webhook URL")
     data: Optional[Dict[str, Any]] = Field({}, description="Webhook data")
+    json_payload: Optional[Union[Dict[str, Any], str]] = Field(None, alias="json", description="Webhook JSON payload")
     auth: Optional[str] = Field(None, description="HTTP Basic Auth")
+
+    @model_validator(mode='after')
+    def validate_data_json_conflict(self):
+        """Validate that data and json are mutually exclusive"""
+        has_data = self.data and len(self.data) > 0
+        has_json = self.json_payload is not None and (
+            (isinstance(self.json_payload, dict) and len(self.json_payload) > 0) or 
+            (isinstance(self.json_payload, str) and len(self.json_payload.strip()) > 0)
+        )
+        
+        if has_data and has_json:
+            raise ValueError("Cannot specify both 'data' and 'json' fields - use one or the other")
+        
+        return self
 
 
 class ImpulseConfig(BaseModel):

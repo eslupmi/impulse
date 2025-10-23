@@ -4,6 +4,18 @@
 [![Docker](https://img.shields.io/badge/ghcr.io-eslupmi/impulse-blue?logo=docker)](https://ghcr.io/eslupmi/impulse)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/impulse&color=grey)](https://artifacthub.io/packages/search?repo=impulse)
 
+<!-- [![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=eslupmi_impulse&metric=sqale_rating)](https://sonarcloud.io/dashboard?id=eslupmi_impulse)
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=eslupmi_impulse&metric=alert_status)](https://sonarcloud.io/dashboard?id=eslupmi_impulse)
+[![Bugs](https://sonarcloud.io/api/project_badges/measure?project=eslupmi_impulse&metric=bugs)](https://sonarcloud.io/dashboard?id=eslupmi_impulse)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=eslupmi_impulse&metric=coverage)](https://sonarcloud.io/dashboard?id=eslupmi_impulse)
+[![Duplicated Lines (%)](https://sonarcloud.io/api/project_badges/measure?project=eslupmi_impulse&metric=duplicated_lines_density)](https://sonarcloud.io/dashboard?id=eslupmi_impulse)
+[![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=eslupmi_impulse&metric=reliability_rating)](https://sonarcloud.io/dashboard?id=eslupmi_impulse)
+[![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=eslupmi_impulse&metric=security_rating)](https://sonarcloud.io/dashboard?id=eslupmi_impulse)
+[![Technical Debt](https://sonarcloud.io/api/project_badges/measure?project=eslupmi_impulse&metric=sqale_index)](https://sonarcloud.io/dashboard?id=eslupmi_impulse)
+[![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=eslupmi_impulse&metric=vulnerabilities)](https://sonarcloud.io/dashboard?id=eslupmi_impulse) -->
+
+
+
 <div align="center"><img src="https://github.com/eslupmi/site/blob/main/static/ui.png?raw=true" width="700"></div>
 
 Visit [docs.impulse.bot](https://docs.impulse.bot) for the full documentation.
@@ -18,6 +30,8 @@ Visit [docs.impulse.bot](https://docs.impulse.bot) for the full documentation.
 - Customizable [UI](https://docs.impulse.bot/stable/ui) with multi-column sorting and advanced filtering capabilities
 
 ## Quick Start
+
+Run without messenger integration:
 
 ```bash
 # Prepare "impulse" directory

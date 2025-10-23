@@ -1,4 +1,4 @@
-# UI
+# UI [↰](config_file.md/#ui)
 
 The interface provides multi-level sorting, filtering, and data coloring capabilities. It includes a theme toggle and the ability to expand incidents to view their details and contained alerts.
 
