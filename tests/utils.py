@@ -633,3 +633,387 @@ def create_mock_webhook(
     webhook.name = name
     webhook.push = AsyncMock(return_value=(push_result, response_code))
     return webhook
+
+
+# ============================================================================
+# Configuration Test Utilities
+# ============================================================================
+
+def create_mock_impulse_config(
+        messenger_type: str = "slack",
+        channels: Optional[Dict[str, Dict[str, str]]] = None,
+        users: Optional[Dict[str, Dict[str, str]]] = None,
+        admin_users: Optional[List[str]] = None,
+        incident_config: Optional[Dict[str, Any]] = None,
+        ui_config: Optional[Dict[str, Any]] = None
+) -> Mock:
+    """
+    Create a mock ImpulseConfig for testing.
+    
+    Args:
+        messenger_type: Type of messenger (slack, mattermost, telegram)
+        channels: Dictionary of channel configurations
+        users: Dictionary of user configurations
+        admin_users: List of admin users
+        incident_config: Incident configuration dictionary
+        ui_config: UI configuration dictionary
+        
+    Returns:
+        Mock ImpulseConfig object
+    """
+    if channels is None:
+        channels = {"default": {"id": "C123456789"}}
+    if users is None:
+        users = {"admin1": {"id": "U123456"}}
+    if admin_users is None:
+        admin_users = ["admin1", "admin2"]
+    if incident_config is None:
+        incident_config = {"timeouts": {"firing": "1h", "unknown": "30m", "resolved": "5m"}}
+    if ui_config is None:
+        ui_config = {"columns": [{"name": "status", "header": "Status", "value": "status"}]}
+
+    config = Mock()
+    config.messenger = Mock()
+    config.messenger.type = Mock()
+    config.messenger.type.value = messenger_type
+    config.messenger.channels = channels
+    config.messenger.users = users
+    config.messenger.admin_users = admin_users
+    config.messenger.chains = {}
+    config.messenger.template_files = Mock()
+    config.messenger.template_files.status_icons = None
+    config.messenger.template_files.header = None
+    config.messenger.template_files.body = None
+    
+    config.incident = Mock()
+    config.incident.timeouts = incident_config.get("timeouts", {})
+    config.incident.notifications = incident_config.get("notifications", {})
+    
+    config.ui = ui_config
+    config.webhooks = {}
+    
+    return config
+
+
+def create_mock_environment_config(
+        slack_bot_token: str = "test-slack-token",
+        slack_verification_token: str = "test-verification-token",
+        mattermost_token: str = "test-mattermost-token",
+        telegram_token: str = "test-telegram-token",
+        data_path: str = "test_data",
+        config_path: str = "test_config.yml",
+        incidents_path: str = "test_data/incidents",
+        provider_sync_interval: int = 300,
+        provider_max_events: int = 100,
+        provider_days_to_sync: int = 7,
+        service_account_file: str = "test_service_account.json",
+        cors_origins: Optional[List[str]] = None,
+        http_prefix: str = "",
+        log_level: str = "INFO",
+        listen_host: str = "0.0.0.0",
+        listen_port: int = 5000
+) -> Mock:
+    """
+    Create a mock EnvironmentConfig for testing.
+    
+    Args:
+        slack_bot_token: Slack bot user OAuth token
+        slack_verification_token: Slack verification token
+        mattermost_token: Mattermost access token
+        telegram_token: Telegram bot token
+        data_path: Data directory path
+        config_path: Configuration file path
+        incidents_path: Incidents directory path
+        provider_sync_interval: Provider sync interval
+        provider_max_events: Maximum events to sync
+        provider_days_to_sync: Days to sync
+        service_account_file: Service account file path
+        cors_origins: CORS allowed origins
+        http_prefix: HTTP prefix
+        
+    Returns:
+        Mock EnvironmentConfig object
+    """
+    if cors_origins is None:
+        cors_origins = ["*"]
+
+    env_config = Mock()
+    env_config.slack_bot_user_oauth_token = slack_bot_token
+    env_config.slack_verification_token = slack_verification_token
+    env_config.mattermost_access_token = mattermost_token
+    env_config.telegram_bot_token = telegram_token
+    env_config.data_path = data_path
+    env_config.config_path = config_path
+    env_config.incidents_path = incidents_path
+    env_config.provider_sync_interval = provider_sync_interval
+    env_config.provider_max_events = provider_max_events
+    env_config.provider_days_to_sync = provider_days_to_sync
+    env_config.provider_service_account_file = service_account_file
+    env_config.cors_allowed_origins = cors_origins
+    env_config.http_prefix = http_prefix
+    env_config.log_level = log_level
+    env_config.listen_host = listen_host
+    env_config.listen_port = listen_port
+    
+    return env_config
+
+
+def create_slack_config_data(
+        admin_users: Optional[List[str]] = None,
+        channels: Optional[Dict[str, Dict[str, str]]] = None,
+        users: Optional[Dict[str, Dict[str, str]]] = None,
+        chains: Optional[Dict[str, Any]] = None,
+        ui_columns: Optional[List[Dict[str, str]]] = None
+) -> Dict[str, Any]:
+    """
+    Create a standardized Slack configuration data for testing.
+    
+    Args:
+        admin_users: List of admin users
+        channels: Dictionary of channel configurations
+        users: Dictionary of user configurations
+        chains: Dictionary of chain configurations
+        ui_columns: List of UI column configurations
+        
+    Returns:
+        Slack configuration data dictionary
+    """
+    if admin_users is None:
+        admin_users = ["admin1", "admin2"]
+    if channels is None:
+        channels = {"default": {"id": "C123456789"}}
+    if users is None:
+        users = {"admin1": {"id": "U123456"}}
+    if chains is None:
+        chains = {}
+    if ui_columns is None:
+        ui_columns = [{"name": "status", "header": "Status", "value": "status"}]
+
+    return {
+        "messenger": {
+            "type": "slack",
+            "admin_users": admin_users,
+            "channels": channels,
+            "users": users,
+            "template_files": {},
+            "chains": chains
+        },
+        "route": {
+            "channel": "default",
+            "chain": "test_chain",
+            "routes": [],
+            "matchers": []
+        },
+        "ui": {
+            "columns": ui_columns
+        }
+    }
+
+
+def create_mattermost_config_data(
+        admin_users: Optional[List[str]] = None,
+        channels: Optional[Dict[str, Dict[str, str]]] = None,
+        users: Optional[Dict[str, Dict[str, str]]] = None,
+        address: str = "https://mattermost.example.com",
+        team: str = "test-team",
+        impulse_address: str = "https://impulse.example.com"
+) -> Dict[str, Any]:
+    """
+    Create a standardized Mattermost configuration data for testing.
+    
+    Args:
+        admin_users: List of admin users
+        channels: Dictionary of channel configurations
+        users: Dictionary of user configurations
+        address: Mattermost server address
+        team: Mattermost team name
+        impulse_address: Impulse callback address
+        
+    Returns:
+        Mattermost configuration data dictionary
+    """
+    if admin_users is None:
+        admin_users = ["admin1"]
+    if channels is None:
+        channels = {"default": {"id": "channel123"}}
+    if users is None:
+        users = {"admin1": {"id": "user123"}}
+
+    return {
+        "messenger": {
+            "type": "mattermost",
+            "admin_users": admin_users,
+            "channels": channels,
+            "users": users,
+            "template_files": {},
+            "address": address,
+            "team": team,
+            "impulse_address": impulse_address
+        },
+        "route": {
+            "channel": "default",
+            "chain": "test_chain",
+            "routes": [],
+            "matchers": []
+        },
+        "ui": {
+            "columns": [{"name": "status", "header": "Status", "value": "status"}]
+        }
+    }
+
+
+def create_telegram_config_data(
+        admin_users: Optional[List[str]] = None,
+        channels: Optional[Dict[str, Dict[str, int]]] = None,
+        users: Optional[Dict[str, Dict[str, int]]] = None,
+        impulse_address: str = "https://impulse.example.com"
+) -> Dict[str, Any]:
+    """
+    Create a standardized Telegram configuration data for testing.
+    
+    Args:
+        admin_users: List of admin users
+        channels: Dictionary of channel configurations
+        users: Dictionary of user configurations
+        impulse_address: Impulse callback address
+        
+    Returns:
+        Telegram configuration data dictionary
+    """
+    if admin_users is None:
+        admin_users = ["admin1"]
+    if channels is None:
+        channels = {"default": {"id": -1001234567890}}
+    if users is None:
+        users = {"admin1": {"id": 123456789}}
+
+    return {
+        "messenger": {
+            "type": "telegram",
+            "admin_users": admin_users,
+            "channels": channels,
+            "users": users,
+            "template_files": {},
+            "impulse_address": impulse_address
+        },
+        "route": {
+            "channel": "default",
+            "chain": "test_chain",
+            "routes": [],
+            "matchers": []
+        },
+        "ui": {
+            "columns": [{"name": "status", "header": "Status", "value": "status"}]
+        }
+    }
+
+
+def create_incident_config_data(
+        notifications: Optional[Dict[str, bool]] = None,
+        timeouts: Optional[Dict[str, str]] = None
+) -> Dict[str, Any]:
+    """
+    Create a standardized incident configuration data for testing.
+    
+    Args:
+        notifications: Incident notification settings
+        timeouts: Incident timeout settings
+        
+    Returns:
+        Incident configuration data dictionary
+    """
+    if notifications is None:
+        notifications = {
+            "assignment": True,
+            "new_firing": True,
+            "partial_resolved": False
+        }
+    if timeouts is None:
+        timeouts = {
+            "firing": "6h",
+            "unknown": "1h",
+            "resolved": "5m"
+        }
+
+    return {
+        "notifications": notifications,
+        "timeouts": timeouts
+    }
+
+
+def create_webhook_config_data(
+        name: str = "test_webhook",
+        url: str = "https://example.com/webhook",
+        data: Optional[Dict[str, Any]] = None,
+        json_payload: Optional[Dict[str, Any]] = None,
+        auth: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Create a standardized webhook configuration data for testing.
+    
+    Args:
+        name: Webhook name
+        url: Webhook URL
+        data: Webhook data payload
+        json_payload: Webhook JSON payload
+        auth: HTTP Basic Auth
+        
+    Returns:
+        Webhook configuration data dictionary
+    """
+    if data is None:
+        data = {"message": "test"}
+    if json_payload is None:
+        json_payload = None
+    if auth is None:
+        auth = "user:pass"
+
+    webhook_config = {
+        "url": url,
+        "auth": auth
+    }
+    
+    if json_payload is not None:
+        webhook_config["json"] = json_payload
+    else:
+        webhook_config["data"] = data
+
+    return webhook_config
+
+
+def create_ui_config_data(
+        columns: Optional[List[Dict[str, str]]] = None,
+        colors: Optional[Dict[str, Dict[str, str]]] = None,
+        filters: Optional[List[str]] = None,
+        sorting: Optional[List[Dict[str, str]]] = None
+) -> Dict[str, Any]:
+    """
+    Create a standardized UI configuration data for testing.
+    
+    Args:
+        columns: List of UI column configurations
+        colors: Color configurations
+        filters: Default filters
+        sorting: Sort rules
+        
+    Returns:
+        UI configuration data dictionary
+    """
+    if columns is None:
+        columns = [
+            {"name": "status", "header": "Status", "value": "status"},
+            {"name": "created", "header": "Created", "value": "created", "type": "datetime"}
+        ]
+    if colors is None:
+        colors = {}
+    if filters is None:
+        filters = []
+    if sorting is None:
+        sorting = []
+
+    return {
+        "columns": columns,
+        "colors": colors,
+        "filters": filters,
+        "sorting": sorting
+    }
