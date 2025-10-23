@@ -1,12 +1,16 @@
 """
 Unit tests for app.incident.incident module.
 """
-import pytest
+from datetime import datetime, timezone
 from unittest.mock import Mock, patch, mock_open
-from datetime import datetime, timezone, timedelta
 
-from app.incident.incident import Incident, IncidentConfig
+import pytest
+
 from app.config.validation import MessengerType
+from app.incident.incident import Incident, IncidentConfig
+from tests.utils import (
+    create_mock_chains_config, create_mock_incident_data, create_mock_event_loop
+)
 
 
 class TestIncidentConfig:
@@ -40,7 +44,7 @@ class TestIncident:
             assigned_fullname="",
             messenger_type="slack"
         )
-        
+
         assert incident.payload == sample_alert_payload
         assert incident.status == "firing"
         assert incident.channel_id == "C123456789"
@@ -60,7 +64,7 @@ class TestIncident:
     def test_incident_uuid_generation(self, mock_gen_uuid, sample_alert_payload, incident_config):
         """Test that UUID is generated correctly."""
         mock_gen_uuid.return_value = "test-uuid"
-        
+
         incident = Incident(
             payload=sample_alert_payload,
             status="firing",
@@ -72,7 +76,7 @@ class TestIncident:
             assigned_fullname="",
             messenger_type="slack"
         )
-        
+
         mock_gen_uuid.assert_called_once_with(sample_alert_payload.get('groupLabels'))
         assert incident.uuid == "test-uuid"
 
@@ -80,7 +84,7 @@ class TestIncident:
         """Test setting thread for Slack."""
         sample_incident.config.application_type = MessengerType.SLACK
         sample_incident.set_thread("1234567890.123456", "https://test.slack.com")
-        
+
         assert sample_incident.ts == "1234567890.123456"
         assert "archives/C123456789/p1234567890123456" in sample_incident.link
 
@@ -88,7 +92,7 @@ class TestIncident:
         """Test setting thread for Mattermost."""
         sample_incident.config.application_type = MessengerType.MATTERMOST
         sample_incident.set_thread("thread123", "https://mattermost.test.com")
-        
+
         assert sample_incident.ts == "thread123"
         assert sample_incident.link == "https://test.slack.com/test-team/pl/thread123"
 
@@ -97,7 +101,7 @@ class TestIncident:
         sample_incident.config.application_type = MessengerType.TELEGRAM
         sample_incident.channel_id = "-1001234567890"
         sample_incident.set_thread("123", "https://t.me")
-        
+
         assert sample_incident.ts == "123"
         assert sample_incident.link == "https://t.me/c/1234567890/123"
 
@@ -105,7 +109,7 @@ class TestIncident:
         """Test link generation for Slack."""
         sample_incident.config.application_type = MessengerType.SLACK
         sample_incident.ts = "1234567890.123456"
-        
+
         link = sample_incident.generate_link("https://test.slack.com")
         # The actual implementation concatenates without a / between public_url and archives
         assert link == "https://test.slack.comarchives/C123456789/p1234567890123456"
@@ -114,7 +118,7 @@ class TestIncident:
         """Test link generation for Mattermost."""
         sample_incident.config.application_type = MessengerType.MATTERMOST
         sample_incident.ts = "thread123"
-        
+
         link = sample_incident.generate_link("https://mattermost.test.com")
         assert link == "https://test.slack.com/test-team/pl/thread123"
 
@@ -123,7 +127,7 @@ class TestIncident:
         sample_incident.config.application_type = MessengerType.TELEGRAM
         sample_incident.channel_id = "-1001234567890"
         sample_incident.ts = "123"
-        
+
         link = sample_incident.generate_link("https://t.me")
         assert link == "https://t.me/c/1234567890/123"
 
@@ -165,15 +169,14 @@ class TestIncident:
         """Test updating status with timeout configuration."""
         mock_get_config.return_value = mock_unified_config
         mock_unified_config.incident.timeouts = {"unknown": "1h"}
-        
+
         # Set initial status to something different to ensure change
         sample_incident.status = "firing"
-        
+
         with patch.object(sample_incident, 'dump'), \
-             patch.object(sample_incident, 'set_status') as mock_set_status:
-            
+                patch.object(sample_incident, 'set_status') as mock_set_status:
             result = sample_incident.update_status("unknown")
-            
+
             assert result is True
             mock_set_status.assert_called_once_with("unknown")
             assert isinstance(sample_incident.status_update_datetime, datetime)
@@ -181,12 +184,11 @@ class TestIncident:
     def test_update_status_no_change(self, sample_incident):
         """Test updating status when status doesn't change."""
         sample_incident.status = "firing"
-        
+
         with patch.object(sample_incident, 'dump'), \
-             patch.object(sample_incident, 'set_status') as mock_set_status:
-            
+                patch.object(sample_incident, 'set_status') as mock_set_status:
             result = sample_incident.update_status("firing")
-            
+
             assert result is False
             mock_set_status.assert_not_called()
 
@@ -194,13 +196,12 @@ class TestIncident:
         """Test updating incident state when status changes."""
         new_payload = sample_alert_payload.copy()
         new_payload['status'] = 'resolved'
-        
+
         with patch.object(sample_incident, 'update_status') as mock_update_status, \
-             patch.object(sample_incident, 'dump'):
-            
+                patch.object(sample_incident, 'dump'):
             mock_update_status.return_value = True
             status_updated, state_updated = sample_incident.update_state(new_payload)
-            
+
             assert status_updated is True
             assert state_updated is True
             assert sample_incident.payload == new_payload
@@ -210,7 +211,7 @@ class TestIncident:
         with patch.object(sample_incident, 'update_status') as mock_update_status:
             mock_update_status.return_value = False
             status_updated, state_updated = sample_incident.update_state(sample_alert_payload)
-            
+
             assert status_updated is False
             assert state_updated is False
 
@@ -218,10 +219,10 @@ class TestIncident:
         """Test user assignment methods."""
         sample_incident.assign_user_id("U123456")
         assert sample_incident.assigned_user_id == "U123456"
-        
+
         sample_incident.assign_user("john.doe")
         assert sample_incident.assigned_user == "john.doe"
-        
+
         sample_incident.assign_fullname("John Doe")
         assert sample_incident.assigned_fullname == "John Doe"
 
@@ -239,7 +240,7 @@ class TestIncident:
             ]
         }
         sample_incident.payload = old_payload
-        
+
         new_payload = {
             "alerts": [
                 {"status": "firing", "labels": {"alert": "alert1"}},
@@ -247,7 +248,7 @@ class TestIncident:
                 {"status": "resolved", "labels": {"alert": "alert2"}}
             ]
         }
-        
+
         result = sample_incident.is_new_firing_alerts_added(new_payload)
         assert result is True
 
@@ -260,14 +261,14 @@ class TestIncident:
             ]
         }
         sample_incident.payload = old_payload
-        
+
         new_payload = {
             "alerts": [
                 {"status": "firing", "labels": {"alert": "alert1"}},
                 {"status": "resolved", "labels": {"alert": "alert2"}}
             ]
         }
-        
+
         result = sample_incident.is_new_firing_alerts_added(new_payload)
         assert result is False
 
@@ -280,14 +281,14 @@ class TestIncident:
             ]
         }
         sample_incident.payload = old_payload
-        
+
         new_payload = {
             "alerts": [
                 {"status": "firing", "labels": {"alert": "alert1"}},
                 {"status": "resolved", "labels": {"alert": "alert2"}}  # No longer firing
             ]
         }
-        
+
         result = sample_incident.is_some_firing_alerts_removed(new_payload)
         assert result is True
 
@@ -300,14 +301,14 @@ class TestIncident:
             ]
         }
         sample_incident.payload = old_payload
-        
+
         new_payload = {
             "alerts": [
                 {"status": "firing", "labels": {"alert": "alert1"}},
                 {"status": "resolved", "labels": {"alert": "alert2"}}
             ]
         }
-        
+
         result = sample_incident.is_some_firing_alerts_removed(new_payload)
         assert result is False
 
@@ -320,7 +321,7 @@ class TestIncident:
                 {"status": "firing", "labels": {"alert": "alert3"}}
             ]
         }
-        
+
         labels = Incident._get_firing_alerts_labels(alert_state)
         expected = [{"alert": "alert1"}, {"alert": "alert3"}]
         assert labels == expected
@@ -331,10 +332,10 @@ class TestIncident:
         sample_incident.assigned_user_id = "U123456"
         sample_incident.assigned_user = "john.doe"
         sample_incident.assigned_fullname = "John Doe"
-        
+
         with patch.object(sample_incident, 'dump'):
             sample_incident.release()
-        
+
         assert sample_incident.chain == []
         assert sample_incident.assigned_user_id == ""
         assert sample_incident.assigned_user == ""
@@ -345,7 +346,7 @@ class TestIncident:
         """Test getting chain when enabled."""
         sample_incident.chain_enabled = True
         sample_incident.chain = [{"test": "data"}]
-        
+
         result = sample_incident.get_chain()
         assert result == [{"test": "data"}]
 
@@ -353,7 +354,7 @@ class TestIncident:
         """Test getting chain when disabled."""
         sample_incident.chain_enabled = False
         sample_incident.chain = [{"test": "data"}]
-        
+
         result = sample_incident.get_chain()
         assert result == []
 
@@ -361,7 +362,7 @@ class TestIncident:
         """Test putting item in chain."""
         dt = datetime.utcnow()
         sample_incident.chain_put(0, dt, "test_type", "test_id")
-        
+
         assert len(sample_incident.chain) == 1
         assert sample_incident.chain[0]['datetime'] == dt
         assert sample_incident.chain[0]['type'] == "test_type"
@@ -373,10 +374,10 @@ class TestIncident:
         """Test updating chain item."""
         dt = datetime.utcnow()
         sample_incident.chain_put(0, dt, "test_type", "test_id")
-        
+
         with patch.object(sample_incident, 'dump'):
             sample_incident.chain_update(0, True, "test_result")
-        
+
         assert sample_incident.chain[0]['done'] is True
         assert sample_incident.chain[0]['result'] == "test_result"
 
@@ -387,10 +388,10 @@ class TestIncident:
         """Test dumping incident to file."""
         mock_get_config.return_value = mock_unified_config
         mock_unified_config.incidents_path = "/test/incidents"
-        
+
         with patch('app.incident.incident.incident_ws'):
             sample_incident.dump()
-        
+
         mock_file_open.assert_called_once()
         mock_yaml_dump.assert_called_once()
 
@@ -398,9 +399,9 @@ class TestIncident:
     def test_serialize(self, mock_channel_manager, sample_incident):
         """Test incident serialization."""
         mock_channel_manager.return_value.get_channel_name_by_id.return_value = "test-channel"
-        
+
         result = sample_incident.serialize()
-        
+
         assert result['status'] == sample_incident.status
         assert result['channel_id'] == sample_incident.channel_id
         assert result['channel_name'] == "test-channel"
@@ -417,3 +418,357 @@ class TestIncident:
         assert 'messenger_type' in result
         assert 'link' in result
         assert 'ts' in result
+
+    def test_generate_chain_with_valid_chain(self, sample_incident):
+        """Test generating chain with valid chain configuration."""
+        chains = create_mock_chains_config({
+            'test_chain': [
+                {'user': 'testuser'},
+                {'wait': '5m'},
+                {'user': 'admin'}
+            ]
+        })
+
+        with patch.object(sample_incident, 'dump'):
+            sample_incident.generate_chain(chains, 'test_chain')
+
+        # The chain generation processes steps and creates chain items
+        # Wait steps don't create chain items, they just adjust timing
+        assert len(sample_incident.chain) == 2  # Only user steps create chain items
+        assert sample_incident.chain[0]['type'] == 'user'
+        assert sample_incident.chain[0]['identifier'] == 'testuser'
+        assert sample_incident.chain[1]['type'] == 'user'
+        assert sample_incident.chain[1]['identifier'] == 'admin'
+
+    def test_generate_chain_with_none_chain_name(self, sample_incident):
+        """Test generating chain with None chain name."""
+        chains = create_mock_chains_config({'test_chain': []})
+
+        with patch.object(sample_incident, 'dump'):
+            sample_incident.generate_chain(chains, None)
+
+        assert len(sample_incident.chain) == 0
+
+    def test_generate_chain_with_missing_chain(self, sample_incident):
+        """Test generating chain with missing chain name."""
+        chains = create_mock_chains_config({'other_chain': []})
+
+        with patch('app.incident.incident.logger') as mock_logger:
+            sample_incident.generate_chain(chains, 'missing_chain')
+
+        mock_logger.warning.assert_called_once()
+        assert len(sample_incident.chain) == 0
+
+    def test_generate_chain_with_none_chain(self, sample_incident):
+        """Test generating chain with None chain object."""
+        chains = {'test_chain': None}
+
+        with patch('app.incident.incident.logger') as mock_logger:
+            sample_incident.generate_chain(chains, 'test_chain')
+
+        mock_logger.warning.assert_called_once()
+        assert len(sample_incident.chain) == 0
+
+    def test_generate_chain_with_no_steps_attribute(self, sample_incident):
+        """Test generating chain with chain that has no steps attribute."""
+        chains = {'test_chain': Mock()}
+        del chains['test_chain'].steps
+
+        with patch('app.incident.incident.logger') as mock_logger:
+            sample_incident.generate_chain(chains, 'test_chain')
+
+        mock_logger.error.assert_called_once()
+        assert len(sample_incident.chain) == 0
+
+    def test_generate_chain_with_empty_steps(self, sample_incident):
+        """Test generating chain with empty steps."""
+        chains = {'test_chain': Mock(steps=[])}
+
+        with patch('app.incident.incident.logger') as mock_logger:
+            sample_incident.generate_chain(chains, 'test_chain')
+
+        mock_logger.debug.assert_called_once()
+        assert len(sample_incident.chain) == 0
+
+    def test_generate_chain_with_nested_chains(self, sample_incident):
+        """Test generating chain with nested chain references."""
+        chains = create_mock_chains_config({
+            'main_chain': [
+                {'user': 'testuser'},
+                {'chain': 'nested_chain'},
+                {'wait': '10m'}
+            ],
+            'nested_chain': [
+                {'user': 'admin'},
+                {'wait': '5m'}
+            ]
+        })
+
+        with patch.object(sample_incident, 'dump'):
+            sample_incident.generate_chain(chains, 'main_chain')
+
+        # Should have 2 user steps (wait steps don't create chain items)
+        assert len(sample_incident.chain) == 2
+        assert sample_incident.chain[0]['type'] == 'user'
+        assert sample_incident.chain[0]['identifier'] == 'testuser'
+        assert sample_incident.chain[1]['type'] == 'user'
+        assert sample_incident.chain[1]['identifier'] == 'admin'
+
+    def test_generate_chain_with_missing_nested_chain(self, sample_incident):
+        """Test generating chain with missing nested chain."""
+        chains = {
+            'main_chain': Mock(steps=[
+                {'user': 'testuser'},
+                {'chain': 'missing_nested'},
+                {'wait': '10m'}
+            ])
+        }
+
+        with patch('app.incident.incident.logger') as mock_logger:
+            sample_incident.generate_chain(chains, 'main_chain')
+
+        mock_logger.warning.assert_called_once()
+        # Should have 1 step: user (missing nested chain and wait are skipped)
+        assert len(sample_incident.chain) == 1
+
+    def test_get_step_type_and_value_with_dict(self, sample_incident):
+        """Test _get_step_type_and_value with dictionary step."""
+        step = {'user': 'testuser'}
+        type_, value = sample_incident._get_step_type_and_value(step)
+        assert type_ == 'user'
+        assert value == 'testuser'
+
+    def test_get_step_type_and_value_with_object(self, sample_incident):
+        """Test _get_step_type_and_value with object step."""
+        mock_step = Mock()
+        mock_step.get_type_and_value.return_value = ('user', 'testuser')
+
+        type_, value = sample_incident._get_step_type_and_value(mock_step)
+        assert type_ == 'user'
+        assert value == 'testuser'
+        mock_step.get_type_and_value.assert_called_once()
+
+    def test_get_step_type_and_value_with_unknown_format(self, sample_incident):
+        """Test _get_step_type_and_value with unknown step format."""
+        with pytest.raises(ValueError, match="Unknown step format"):
+            sample_incident._get_step_type_and_value("invalid_step")
+
+    def test_step_has_chain_with_dict(self, sample_incident):
+        """Test _step_has_chain with dictionary step."""
+        step_with_chain = {'chain': 'nested_chain'}
+        step_without_chain = {'user': 'testuser'}
+
+        assert sample_incident._step_has_chain(step_with_chain) is True
+        assert sample_incident._step_has_chain(step_without_chain) is False
+
+    def test_step_has_chain_with_object(self, sample_incident):
+        """Test _step_has_chain with object step."""
+        mock_step = Mock()
+        mock_step.has_chain.return_value = True
+
+        result = sample_incident._step_has_chain(mock_step)
+        assert result is True
+        mock_step.has_chain.assert_called_once()
+
+    def test_step_has_chain_with_unknown_format(self, sample_incident):
+        """Test _step_has_chain with unknown step format."""
+        result = sample_incident._step_has_chain("invalid_step")
+        assert result is False
+
+    def test_unchain_with_no_chains(self, sample_incident):
+        """Test _unchain with steps that have no chain references."""
+        chains = {}
+        steps = [{'user': 'testuser'}, {'wait': '5m'}]
+
+        result = sample_incident._unchain(chains, steps)
+        assert result == steps
+
+    def test_unchain_with_chains(self, sample_incident):
+        """Test _unchain with steps that have chain references."""
+        chains = {
+            'nested_chain': Mock(steps=[{'user': 'admin'}, {'wait': '3m'}])
+        }
+        steps = [{'user': 'testuser'}, {'chain': 'nested_chain'}, {'wait': '5m'}]
+
+        result = sample_incident._unchain(chains, steps)
+        assert len(result) == 4
+        assert result[0] == {'user': 'testuser'}
+        assert result[1] == {'user': 'admin'}
+        assert result[2] == {'wait': '3m'}
+        assert result[3] == {'wait': '5m'}
+
+    def test_unchain_with_missing_nested_chain(self, sample_incident):
+        """Test _unchain with missing nested chain."""
+        chains = {}
+        steps = [{'user': 'testuser'}, {'chain': 'missing_chain'}, {'wait': '5m'}]
+
+        with patch('app.incident.incident.logger') as mock_logger:
+            result = sample_incident._unchain(chains, steps)
+
+        mock_logger.warning.assert_called_once()
+        assert len(result) == 2  # Missing chain is skipped
+        assert result[0] == {'user': 'testuser'}
+        assert result[1] == {'wait': '5m'}
+
+    def test_unchain_with_none_nested_chain(self, sample_incident):
+        """Test _unchain with None nested chain."""
+        chains = {'nested_chain': None}
+        steps = [{'user': 'testuser'}, {'chain': 'nested_chain'}, {'wait': '5m'}]
+
+        with patch('app.incident.incident.logger') as mock_logger:
+            result = sample_incident._unchain(chains, steps)
+
+        mock_logger.warning.assert_called_once()
+        assert len(result) == 2  # None chain is skipped
+        assert result[0] == {'user': 'testuser'}
+        assert result[1] == {'wait': '5m'}
+
+    @patch('app.incident.incident.get_config')
+    @patch('builtins.open', new_callable=mock_open)
+    @patch('yaml.load')
+    def test_load_incident(self, mock_yaml_load, mock_file_open, mock_get_config, incident_config, mock_unified_config):
+        """Test loading incident from file."""
+        mock_get_config.return_value = mock_unified_config
+
+        # Use utility function to create mock incident data
+        mock_incident_data = create_mock_incident_data()
+        mock_yaml_load.return_value = mock_incident_data
+
+        incident = Incident.load('/test/incident.yml', incident_config)
+
+        assert incident.status == 'firing'
+        assert incident.channel_id == 'C123456789'
+        assert incident.payload == {'alertname': 'TestAlert', 'severity': 'critical'}
+        assert incident.assigned_user_id == 'U123456'
+        assert incident.assigned_user == 'testuser'
+        assert incident.assigned_fullname == 'Test User'
+        assert incident.messenger_type == 'slack'
+        assert incident.ts == '1234567890.123456'
+        assert incident.link == 'https://test.slack.comarchives/C123456789/p1234567890123456'
+
+    @patch('app.incident.incident.get_config')
+    @patch('builtins.open', new_callable=mock_open)
+    @patch('yaml.dump')
+    @patch('asyncio.get_event_loop')
+    @patch('app.incident.incident.incident_ws')
+    def test_dump_with_websocket_update(self, mock_incident_ws, mock_get_loop, mock_yaml_dump, mock_file_open,
+                                        mock_get_config, sample_incident, mock_unified_config):
+        """Test dumping incident with websocket update."""
+        mock_get_config.return_value = mock_unified_config
+        mock_unified_config.incidents_path = "/test/incidents"
+
+        # Use utility function to create mock event loop
+        mock_loop = create_mock_event_loop(running=True)
+        mock_get_loop.return_value = mock_loop
+
+        sample_incident.dump()
+
+        mock_file_open.assert_called_once()
+        mock_yaml_dump.assert_called_once()
+        mock_incident_ws.update_row.assert_called_once_with(sample_incident)
+
+    @patch('app.incident.incident.get_config')
+    @patch('builtins.open', new_callable=mock_open)
+    @patch('yaml.dump')
+    @patch('asyncio.get_event_loop', side_effect=RuntimeError("No event loop"))
+    @patch('app.incident.incident.incident_ws')
+    def test_dump_without_websocket_update(self, mock_incident_ws, mock_get_loop, mock_yaml_dump, mock_file_open,
+                                           mock_get_config, sample_incident, mock_unified_config):
+        """Test dumping incident without websocket update (no event loop)."""
+        mock_get_config.return_value = mock_unified_config
+        mock_unified_config.incidents_path = "/test/incidents"
+
+        sample_incident.dump()
+
+        mock_file_open.assert_called_once()
+        mock_yaml_dump.assert_called_once()
+        mock_incident_ws.update_row.assert_not_called()
+
+    def test_get_table_data_single_alert(self, sample_incident):
+        """Test get_table_data with single alert."""
+        sample_incident.payload = {
+            'alerts': [{'status': 'firing', 'labels': {'alert': 'test'}}]
+        }
+
+        result = sample_incident.get_table_data({})
+
+        assert result['uuid'] == str(sample_incident.uuid)
+        assert result['indicator'] == sample_incident.status
+        assert result['_alerts_count'] == 1
+        assert 'group_labels' in result['_responsive_data']
+        assert 'common_labels' in result['_responsive_data']
+        assert 'common_annotations' in result['_responsive_data']
+        assert 'incident_info' in result['_responsive_data']
+        assert 'alerts' in result['_responsive_data']
+
+    def test_get_table_data_multiple_alerts(self, sample_incident):
+        """Test get_table_data with multiple alerts."""
+        sample_incident.payload = {
+            'alerts': [
+                {'status': 'firing', 'labels': {'alert': 'test1'}},
+                {'status': 'resolved', 'labels': {'alert': 'test2'}}
+            ],
+            'groupLabels': {'alertname': 'TestAlert'},
+            'commonLabels': {'severity': 'critical'},
+            'commonAnnotations': {'summary': 'Test alert'}
+        }
+
+        result = sample_incident.get_table_data({})
+
+        assert result['_alerts_count'] == 2
+        assert result['_responsive_data']['group_labels'] == {'alertname': 'TestAlert'}
+        assert result['_responsive_data']['common_labels'] == {'severity': 'critical'}
+        assert result['_responsive_data']['common_annotations'] == {'summary': 'Test alert'}
+
+    def test_get_table_data_with_params(self, sample_incident):
+        """Test get_table_data with custom parameters."""
+        sample_incident.payload = {'alerts': []}
+
+        params = {
+            'custom_field': 'incident.status',
+            'another_field': 'incident.payload.alertname'
+        }
+
+        result = sample_incident.get_table_data(params)
+
+        assert 'custom_field' in result
+        assert 'another_field' in result
+
+    def test_created_datetime_handling(self, sample_alert_payload, incident_config):
+        """Test that created datetime is set when not provided."""
+        # Create incident without created datetime
+        incident = Incident(
+            payload=sample_alert_payload,
+            status="firing",
+            channel_id="C123456789",
+            config=incident_config,
+            status_update_datetime=datetime.now(timezone.utc),
+            assigned_user_id="",
+            assigned_user="",
+            assigned_fullname="",
+            messenger_type="slack"
+        )
+
+        # Should have created datetime set
+        assert incident.created is not None
+        assert isinstance(incident.created, datetime)
+
+    def test_created_datetime_when_falsy(self, sample_alert_payload, incident_config):
+        """Test that created datetime is set when created is falsy."""
+        # Create incident with falsy created datetime
+        incident = Incident(
+            payload=sample_alert_payload,
+            status="firing",
+            channel_id="C123456789",
+            config=incident_config,
+            status_update_datetime=datetime.now(timezone.utc),
+            assigned_user_id="",
+            assigned_user="",
+            assigned_fullname="",
+            messenger_type="slack",
+            created=None  # Explicitly set to None to trigger the condition
+        )
+
+        # Should have created datetime set
+        assert incident.created is not None
+        assert isinstance(incident.created, datetime)
