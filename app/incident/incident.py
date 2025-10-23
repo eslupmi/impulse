@@ -215,7 +215,7 @@ class Incident:
         try:
             with open(f'{config.incidents_path}/{self.uuid}.yml', 'w') as f:
                 yaml.dump(data, f, NoAliasDumper, default_flow_style=False)
-        except Exception as e:
+        except (OSError, PermissionError, FileNotFoundError) as e:
             logger.error(f'Failed to write incident file for {self.uuid}: {str(e)}')
         # Schedule async websocket update
         import asyncio

@@ -48,9 +48,7 @@ class Incidents:
             try:
                 os.remove(f'{config.incidents_path}/{uuid_}.yml')
                 logger.info(f'Incident {uuid_} closed. Link: {incident.link}')
-            except FileNotFoundError:
-                logger.error(f'Failed to delete incident file for uuid: {uuid_}. File not found.')
-            except Exception as e:
+            except (OSError, PermissionError, FileNotFoundError) as e:
                 logger.error(f'Failed to delete incident file for uuid: {uuid_}: {str(e)}')
             # Schedule async websocket update
             import asyncio
@@ -78,7 +76,7 @@ class Incidents:
             logger.info('Creating incidents directory')
             try:
                 os.makedirs(config.incidents_path)
-            except Exception as e:
+            except (PermissionError, OSError) as e:
                 logger.error(f'Failed to create incidents directory: {config.incidents_path}: {str(e)}')
         logger.info('Loading existing incidents')
 
