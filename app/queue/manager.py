@@ -106,8 +106,6 @@ class AsyncQueueManager:
                 await asyncio.sleep(0.1)
             except asyncio.CancelledError:
                 break
-                # Re-raise the exception to propagate cancellation
-                raise
             except Exception as e:
                 logger.error(f"Error in queue processing loop: {e}")
                 await asyncio.sleep(1)
