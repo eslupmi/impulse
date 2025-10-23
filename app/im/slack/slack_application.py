@@ -130,13 +130,13 @@ class SlackApplication(Application):
                     else:
                         logger.info(f'Incident {incident_.uuid} -> button TAKE IT pressed, assigning to {user_id}')
                         incident_.assign_user_id(user_id)
-                        task_assignment = asyncio.create_task(self.post_assignment_notification(incident_, user_id))
-                        task_fetch = asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id, incidents))
+                        asyncio.create_task(self.post_assignment_notification(incident_, user_id))
+                        asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id, incidents))
                         await asyncio.gather(task_assignment, task_fetch)
                     incident_.chain_enabled = False
                 else:
                     logger.info(f'Incident {incident_.uuid} -> button RELEASE pressed')
-                    task_unassignment = asyncio.create_task(self.post_unassignment_notification(incident_))
+                    asyncio.create_task(self.post_unassignment_notification(incident_))
                     await task_unassignment
                     incident_.release()
             elif action['name'] == 'status':
