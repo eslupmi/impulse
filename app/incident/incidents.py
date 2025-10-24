@@ -74,10 +74,7 @@ class Incidents:
         # Ensure the incidents directory exists or create it
         if not os.path.exists(config.incidents_path):
             logger.info('Creating incidents directory')
-            try:
-                os.makedirs(config.incidents_path)
-            except (PermissionError, OSError) as e:
-                logger.error(f'Failed to create incidents directory: {config.incidents_path}: {str(e)}')
+            os.makedirs(config.incidents_path)
         logger.info('Loading existing incidents')
 
         incidents = cls([])
