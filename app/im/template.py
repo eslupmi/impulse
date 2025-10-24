@@ -4,7 +4,7 @@ from app.incident.incident import Incident
 
 
 class JinjaTemplate:
-    def __init__(self, template):
+    def __init__(self, template: str):
         self.template = template
 
     def form_message(self, alert_state, incident: Incident = None):
