@@ -408,7 +408,7 @@
 
 > Incident message contains three parts ([picture](concepts.md/#structure)). Default template files for theese parts is [here](https://github.com/DiTsi/impulse/tree/develop/templates). You can copy the default templates, modify them, and specify custom paths.
 
-> Template files can contain special words `incident` and `payload` as variables to show additional info. `incident` contains [incident attributes](https://github.com/DiTsi/impulse/blob/v1.4.0/app/incident/incident.py#L21) (used [here](https://github.com/DiTsi/impulse/blob/develop/templates/slack_status_icons.j2#L1)). `payload` is an Alertmanager alerts payload
+> Template files can contain special words `incident` and `payload` as variables to show additional info. `incident` contains [incident attributes](https://github.com/DiTsi/impulse/blob/v1.4.0/app/incident/incident.py#L21) (used [here](https://github.com/DiTsi/impulse/blob/develop/templates/slack_status_icons.j2#L1)). `payload` is an alert payload.
 
 > **Example**
 
@@ -665,7 +665,7 @@
 - **description:** data source variable (e.g., `incident.status`, `payload.commonLabels.alertname`)
 - **type:** string
 
-> Two special keywords are used: `incident` and `payload`. `incident` refers to the incident object. You can see your incident objects at `http://localhost:5000/incidents`. `payload` is the last message sent by Alertmanager for this incident (`payload` corresponds to `incident.payload`)
+> Two special keywords are used: `incident` and `payload`. `incident` refers to the incident object. You can see your incident objects at `http://localhost:5000/incidents`. `payload` is the last alert payload for this incident (`payload` corresponds to `incident.payload`)
 
 #### ui.columns[].type
 

@@ -28,7 +28,7 @@ class AlertHandler(BaseHandler):
         if incident_ is None:
             await self._handle_create(alert_state)
         else:
-            logger.debug(f'New Alertmanager event for incident {incident_.uuid}:')
+            logger.debug(f'New alert for incident {incident_.uuid}:')
             logger.debug(f'{alert_state}')
             await self._handle_update(incident_.uuid, incident_, alert_state)
 

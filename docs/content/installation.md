@@ -57,9 +57,9 @@ Modify configuration in `impulse.yml`.
 
 To configure the host and port that IMPulse listens on, use the `LISTEN_HOST` and `LISTEN_PORT` environment variables. See [environment variables](envs.md) for more details.
 
-## 5. Configure Alertmanger
+## 5. Configure source of alerts
 
-See the [Alertmanager instruction](alertmanager.md)
+See instructions in the **INTEGRATIONS** > **Alert Sources** section of the menu.
 
 ## 6. Reverse proxy
 

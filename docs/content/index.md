@@ -1,19 +1,6 @@
 # Overview
 
-## What is IMPulse?
+This is documentation of **[IMPulse](https://impulse.bot) - ChatOps incident management platform**
 
-IMPulse - an Incident Management Platform that processes [Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/) alerts and creates incidents in messengers.
-
-![None](https://github.com/eslupmi/site/blob/main/static/ui.png?raw=true)
-
-If you want to understand how IMPulse works see [Concepts](concepts.md).
-
-## Features
-
-- Mattermost, Slack, Telegram integrations
-- Twilio and another integrations using [webhooks](config_file.md/#webhooks)
-- [Incident lifecycle](concepts.md/#lifecycle) reduces incidents chaos
-- Scheduling using providers like Google Calendar via [cloud chains](config_file.md/#cloud-chain)
-- Support for [nested chains](config_file.md/#nested-chain) with unlimited depth
-- Flexible [message structure](concepts.md/#structure) you can modify
-- Customizable [UI](ui.md) with multi-column sorting and advanced filtering capabilities
+!!! info ""
+    If you notice any shortcomings in the documentation, please email to [support@impulse.bot](mailto:support@impulse.bot)

@@ -1,5 +1,12 @@
 # Changelog
 
+## v3.1.0
+Changes:
+- Added JSON support for webhooks ([docs](https://docs.impulse.bot/stable/config_file/#webhooksjson))
+- Added Grafana as an alert source ([docs](https://docs.impulse.bot/stable/grafana/))
+- IMPulse can continue work on read-only filesystem (thanks [zorek187](https://github.com/zorek187))
+- Switch to slim python docker image
+
 ## v3.0.1
 Changes:
 - Fixed bug in scheduled chains

@@ -1,6 +1,9 @@
 # Concepts
 
-IMPulse is installed between Alertmanager and a messenger.
+IMPulse is installed between alert source and a messenger.
+
+!!! info
+    For example, let's take Alertmanager as the alert source.
 
 ![None](media/impulse.excalidraw.svg)
 

@@ -21,8 +21,9 @@
 Visit [docs.impulse.bot](https://docs.impulse.bot) for the full documentation.
 
 ## Features
+
 - Mattermost, Slack, Telegram integrations
-- Twilio and other integrations using [webhooks](https://docs.impulse.bot/stable/config_file/#webhooks)
+- Powerful [webhooks](https://docs.impulse.bot/stable/config_file/#webhooks) for Twilio, Instatus and other third-party integrations
 - [Incident lifecycle](https://docs.impulse.bot/stable/concepts/#lifecycle) reduces incidents chaos
 - Scheduling using providers like Google Calendar via [cloud chains](https://docs.impulse.bot/stable/config_file/#cloud-chain)
 - Support for [nested chains](https://docs.impulse.bot/stable/config_file/#nested-chain) with unlimited depth
