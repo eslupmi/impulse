@@ -22,6 +22,12 @@ from tests.utils import (
 class TestSlackApplication:
     """Test cases for SlackApplication class."""
 
+    @pytest.fixture(autouse=True)
+    def mock_asyncio_sleep(self):
+        """Mock asyncio.sleep to avoid delays in tests."""
+        with patch('asyncio.sleep') as mock_sleep:
+            yield mock_sleep
+
     def create_slack_app(self, app_config, channels, default_channel):
         """Helper method to create SlackApplication with proper mocking."""
         with patch('builtins.open', mock_open(read_data="template content")):

@@ -19,6 +19,12 @@ from tests.utils import (
 class TestMattermostApplication:
     """Test cases for MattermostApplication class."""
 
+    @pytest.fixture(autouse=True)
+    def mock_asyncio_sleep(self):
+        """Mock asyncio.sleep to avoid delays in tests."""
+        with patch('asyncio.sleep') as mock_sleep:
+            yield mock_sleep
+
     def setup_method(self):
         """Setup for each test method."""
         self.app_config = Mock(spec=ApplicationConfig)
