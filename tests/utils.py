@@ -699,70 +699,83 @@ def create_mock_impulse_config(
     return config
 
 
-def create_mock_environment_config(
-        *,
-        # Token parameters
-        slack_bot_token: str = "test-slack-token",
-        slack_verification_token: str = "test-verification-token",
-        mattermost_token: str = "test-mattermost-token",
-        telegram_token: str = "test-telegram-token",
-        # Path parameters
-        data_path: str = "test_data",
-        config_path: str = "test_config.yml",
-        incidents_path: str = "test_data/incidents",
-        service_account_file: str = "test_service_account.json",
-        # Provider parameters
-        provider_sync_interval: int = 300,
-        provider_max_events: int = 100,
-        provider_days_to_sync: int = 7,
-        # Server parameters
-        cors_origins: Optional[List[str]] = None,
-        http_prefix: str = "",
-        log_level: str = "INFO",
-        listen_host: str = "0.0.0.0",
-        listen_port: int = 5000
-) -> Mock:
+def create_mock_environment_config(**overrides) -> Mock:
     """
     Create a mock EnvironmentConfig for testing.
     
+    This function creates a mock EnvironmentConfig with sensible defaults.
+    You can override any attribute by passing it as a keyword argument.
+    
     Args:
-        slack_bot_token: Slack bot user OAuth token
-        slack_verification_token: Slack verification token
-        mattermost_token: Mattermost access token
-        telegram_token: Telegram bot token
-        data_path: Data directory path
-        config_path: Configuration file path
-        incidents_path: Incidents directory path
-        provider_sync_interval: Provider sync interval
-        provider_max_events: Maximum events to sync
-        provider_days_to_sync: Days to sync
-        service_account_file: Service account file path
-        cors_origins: CORS allowed origins
-        http_prefix: HTTP prefix
+        **overrides: Any EnvironmentConfig attributes to override from defaults
+        
+    Common overrides:
+        slack_bot_token: Slack bot user OAuth token (default: "test-slack-token")
+        slack_verification_token: Slack verification token (default: "test-verification-token")
+        mattermost_token: Mattermost access token (default: "test-mattermost-token")
+        telegram_token: Telegram bot token (default: "test-telegram-token")
+        data_path: Data directory path (default: "test_data")
+        config_path: Configuration file path (default: "test_config.yml")
+        incidents_path: Incidents directory path (default: "test_data/incidents")
+        provider_sync_interval: Provider sync interval (default: 300)
+        provider_max_events: Maximum events to sync (default: 100)
+        provider_days_to_sync: Days to sync (default: 7)
+        service_account_file: Service account file path (default: "test_service_account.json")
+        cors_origins: CORS allowed origins (default: ["*"])
+        http_prefix: HTTP prefix (default: "")
+        log_level: Log level (default: "INFO")
+        listen_host: Listen host (default: "0.0.0.0")
+        listen_port: Listen port (default: 5000)
         
     Returns:
         Mock EnvironmentConfig object
+        
+    Examples:
+        >>> config = create_mock_environment_config()
+        >>> config = create_mock_environment_config(log_level="DEBUG")
+        >>> config = create_mock_environment_config(data_path="/custom/data", log_level="DEBUG")
     """
-    if cors_origins is None:
-        cors_origins = ["*"]
-
+    # Default values
+    defaults = {
+        "slack_bot_user_oauth_token": "test-slack-token",
+        "slack_verification_token": "test-verification-token",
+        "mattermost_access_token": "test-mattermost-token",
+        "telegram_bot_token": "test-telegram-token",
+        "data_path": "test_data",
+        "config_path": "test_config.yml",
+        "incidents_path": "test_data/incidents",
+        "provider_sync_interval": 300,
+        "provider_max_events": 100,
+        "provider_days_to_sync": 7,
+        "provider_service_account_file": "test_service_account.json",
+        "cors_allowed_origins": ["*"],
+        "http_prefix": "",
+        "log_level": "INFO",
+        "listen_host": "0.0.0.0",
+        "listen_port": 5000
+    }
+    
+    # Handle parameter name mapping for backwards compatibility
+    param_mapping = {
+        "slack_bot_token": "slack_bot_user_oauth_token",
+        "mattermost_token": "mattermost_access_token",
+        "telegram_token": "telegram_bot_token",
+        "service_account_file": "provider_service_account_file",
+        "cors_origins": "cors_allowed_origins"
+    }
+    
+    # Apply parameter name mapping
+    for old_name, new_name in param_mapping.items():
+        if old_name in overrides:
+            overrides[new_name] = overrides.pop(old_name)
+    
+    # Merge overrides with defaults
+    config_values = {**defaults, **overrides}
+    
+    # Create mock object with all attributes
     env_config = Mock()
-    env_config.slack_bot_user_oauth_token = slack_bot_token
-    env_config.slack_verification_token = slack_verification_token
-    env_config.mattermost_access_token = mattermost_token
-    env_config.telegram_bot_token = telegram_token
-    env_config.data_path = data_path
-    env_config.config_path = config_path
-    env_config.incidents_path = incidents_path
-    env_config.provider_sync_interval = provider_sync_interval
-    env_config.provider_max_events = provider_max_events
-    env_config.provider_days_to_sync = provider_days_to_sync
-    env_config.provider_service_account_file = service_account_file
-    env_config.cors_allowed_origins = cors_origins
-    env_config.http_prefix = http_prefix
-    env_config.log_level = log_level
-    env_config.listen_host = listen_host
-    env_config.listen_port = listen_port
+    for key, value in config_values.items():
+        setattr(env_config, key, value)
 
     return env_config
 
@@ -1196,98 +1209,72 @@ def create_buttons_handler_context_manager(app, payload, incidents, queue, route
     from unittest.mock import patch
     from fastapi.responses import JSONResponse
     
-    @asynccontextmanager
-    async def test_context():
-        # Apply additional patches if any
+    def _prepare_patches():
+        """Prepare all patches and patch objects."""
+        patch_objects = {}
+        patches_context = []
+        
+        # Process additional patches
         if additional_patches:
-            patch_objects = {}
-            patches_context = []
-            
             for patch_name, patch_value in additional_patches.items():
                 patch_value = convert_mock_to_async_if_needed(patch_name, patch_value)
                 patch_objects[patch_name] = patch_value
                 patches_context.append(patch.object(app, patch_name, patch_value))
+        
+        # Add app-specific patches
+        if app_specific_patches:
+            patches_context.extend(app_specific_patches)
+        
+        return patches_context, patch_objects
+    
+    def _find_logger_mock(patches_context):
+        """Find the logger mock from patches."""
+        for patch_context in patches_context:
+            if hasattr(patch_context, 'new') and 'logger' in str(patch_context):
+                return patch_context.new
+        return None
+    
+    def _apply_patches(patches_context):
+        """Start all patches."""
+        for patch_context in patches_context:
+            patch_context.start()
+    
+    def _cleanup_patches(patches_context):
+        """Stop all patches."""
+        for patch_context in patches_context:
+            patch_context.stop()
+    
+    @asynccontextmanager
+    async def test_context():
+        # Prepare patches
+        patches_context, patch_objects = _prepare_patches()
+        
+        # Call app-specific setup
+        if app_specific_setup:
+            app_specific_setup(app)
+        
+        # Apply all patches
+        _apply_patches(patches_context)
+        
+        try:
+            # Execute the handler
+            result = await app.buttons_handler(payload, incidents, queue, route)
             
-            # Apply app-specific patches
-            if app_specific_patches:
-                patches_context.extend(app_specific_patches)
+            # Common assertions
+            assert isinstance(result, JSONResponse)
+            assert result.status_code == 200
             
-            # Call app-specific setup
-            if app_specific_setup:
-                app_specific_setup(app)
+            # Log message assertion
+            mock_logger = None
+            if expected_log_message and patches_context:
+                mock_logger = _find_logger_mock(patches_context)
+                if mock_logger:
+                    mock_logger.info.assert_called_with(expected_log_message)
             
-            # Apply all patches
-            for patch_context in patches_context:
-                patch_context.start()
-            
-            try:
-                result = await app.buttons_handler(payload, incidents, queue, route)
-                
-                # Assertions
-                assert isinstance(result, JSONResponse)
-                assert result.status_code == 200
-                if expected_log_message:
-                    # Find the logger mock from patches
-                    mock_logger = None
-                    for patch_context in patches_context:
-                        if hasattr(patch_context, 'new') and 'logger' in str(patch_context):
-                            mock_logger = patch_context.new
-                            break
-                    if mock_logger:
-                        mock_logger.info.assert_called_with(expected_log_message)
-                
-                yield result, mock_logger, patch_objects
-            finally:
-                # Stop all patches
-                for patch_context in patches_context:
-                    patch_context.stop()
-        else:
-            # Apply app-specific patches
-            if app_specific_patches:
-                patches_context = app_specific_patches
-                for patch_context in patches_context:
-                    patch_context.start()
-                
-                try:
-                    # Call app-specific setup
-                    if app_specific_setup:
-                        app_specific_setup(app)
-                    
-                    result = await app.buttons_handler(payload, incidents, queue, route)
-                    
-                    # Assertions
-                    assert isinstance(result, JSONResponse)
-                    assert result.status_code == 200
-                    if expected_log_message:
-                        # Find the logger mock from patches
-                        mock_logger = None
-                        for patch_context in patches_context:
-                            if hasattr(patch_context, 'new') and 'logger' in str(patch_context):
-                                mock_logger = patch_context.new
-                                break
-                        if mock_logger:
-                            mock_logger.info.assert_called_with(expected_log_message)
-                    
-                    yield result, mock_logger, {}
-                finally:
-                    # Stop all patches
-                    for patch_context in patches_context:
-                        patch_context.stop()
-            else:
-                # Call app-specific setup
-                if app_specific_setup:
-                    app_specific_setup(app)
-                
-                result = await app.buttons_handler(payload, incidents, queue, route)
-                
-                # Assertions
-                assert isinstance(result, JSONResponse)
-                assert result.status_code == 200
-                if expected_log_message:
-                    # This case doesn't have logger mock, so we can't assert
-                    pass
-                
-                yield result, None, {}
+            yield result, mock_logger, patch_objects
+        finally:
+            # Cleanup all patches
+            _cleanup_patches(patches_context)
     
     return test_context()
 
