@@ -1127,6 +1127,165 @@ def create_mock_get_config_patch(impulse_address: str = DEFAULT_IMPULSE_ADDRESS)
 
 
 # ============================================================================
+# Application Test Utilities (Shared)
+# ============================================================================
+
+def setup_app_templates(app):
+    """
+    Setup mock templates for any application tests.
+    
+    Args:
+        app: The application instance
+    """
+    app.body_template = Mock()
+    app.body_template.form_message.return_value = "Test body"
+    app.header_template = Mock()
+    app.header_template.form_message.return_value = "Test header"
+    app.status_icons_template = Mock()
+    app.status_icons_template.form_message.return_value = "Test icons"
+
+
+def convert_mock_to_async_if_needed(patch_name: str, patch_value):
+    """
+    Convert Mock to AsyncMock if needed for async methods.
+    
+    Args:
+        patch_name: Name of the patch
+        patch_value: The patch value
+        
+    Returns:
+        Converted patch value
+    """
+    async_methods = ['post_assignment_notification', 'post_unassignment_notification', 'fetch_and_assign_user_name']
+    if patch_name in async_methods and not hasattr(patch_value, '__await__'):
+        from unittest.mock import AsyncMock
+        return AsyncMock()
+    return patch_value
+
+
+def create_buttons_handler_context_manager(app, payload, incidents, queue, route,
+                                         expected_log_message: str = None,
+                                         additional_patches: dict = None,
+                                         app_specific_setup=None,
+                                         app_specific_patches=None):
+    """
+    Create a generic context manager for testing buttons_handler with common setup.
+    
+    Args:
+        app: The application instance
+        payload: The payload
+        incidents: Mock incidents collection
+        queue: Mock queue
+        route: Mock route
+        expected_log_message: Expected log message for assertion
+        additional_patches: Additional patches to apply
+        app_specific_setup: Function to call for app-specific setup
+        app_specific_patches: List of app-specific patches to apply
+        
+    Returns:
+        Context manager that yields (result, mock_logger, patch_objects)
+    """
+    from contextlib import asynccontextmanager
+    from unittest.mock import patch
+    from fastapi.responses import JSONResponse
+    
+    @asynccontextmanager
+    async def test_context():
+        # Apply additional patches if any
+        if additional_patches:
+            patch_objects = {}
+            patches_context = []
+            
+            for patch_name, patch_value in additional_patches.items():
+                patch_value = convert_mock_to_async_if_needed(patch_name, patch_value)
+                patch_objects[patch_name] = patch_value
+                patches_context.append(patch.object(app, patch_name, patch_value))
+            
+            # Apply app-specific patches
+            if app_specific_patches:
+                patches_context.extend(app_specific_patches)
+            
+            # Call app-specific setup
+            if app_specific_setup:
+                app_specific_setup(app)
+            
+            # Apply all patches
+            for patch_context in patches_context:
+                patch_context.start()
+            
+            try:
+                result = await app.buttons_handler(payload, incidents, queue, route)
+                
+                # Assertions
+                assert isinstance(result, JSONResponse)
+                assert result.status_code == 200
+                if expected_log_message:
+                    # Find the logger mock from patches
+                    mock_logger = None
+                    for patch_context in patches_context:
+                        if hasattr(patch_context, 'new') and 'logger' in str(patch_context):
+                            mock_logger = patch_context.new
+                            break
+                    if mock_logger:
+                        mock_logger.info.assert_called_with(expected_log_message)
+                
+                yield result, mock_logger, patch_objects
+            finally:
+                # Stop all patches
+                for patch_context in patches_context:
+                    patch_context.stop()
+        else:
+            # Apply app-specific patches
+            if app_specific_patches:
+                patches_context = app_specific_patches
+                for patch_context in patches_context:
+                    patch_context.start()
+                
+                try:
+                    # Call app-specific setup
+                    if app_specific_setup:
+                        app_specific_setup(app)
+                    
+                    result = await app.buttons_handler(payload, incidents, queue, route)
+                    
+                    # Assertions
+                    assert isinstance(result, JSONResponse)
+                    assert result.status_code == 200
+                    if expected_log_message:
+                        # Find the logger mock from patches
+                        mock_logger = None
+                        for patch_context in patches_context:
+                            if hasattr(patch_context, 'new') and 'logger' in str(patch_context):
+                                mock_logger = patch_context.new
+                                break
+                        if mock_logger:
+                            mock_logger.info.assert_called_with(expected_log_message)
+                    
+                    yield result, mock_logger, {}
+                finally:
+                    # Stop all patches
+                    for patch_context in patches_context:
+                        patch_context.stop()
+            else:
+                # Call app-specific setup
+                if app_specific_setup:
+                    app_specific_setup(app)
+                
+                result = await app.buttons_handler(payload, incidents, queue, route)
+                
+                # Assertions
+                assert isinstance(result, JSONResponse)
+                assert result.status_code == 200
+                if expected_log_message:
+                    # This case doesn't have logger mock, so we can't assert
+                    pass
+                
+                yield result, None, {}
+    
+    return test_context()
+
+
+# ============================================================================
 # Slack Application Test Utilities
 # ============================================================================
 
@@ -1145,21 +1304,6 @@ def create_slack_mock_config(token: str = "valid_token"):
     return mock_config
 
 
-def setup_slack_app_templates(app):
-    """
-    Setup mock templates for Slack application tests.
-    
-    Args:
-        app: The Slack application instance
-    """
-    app.body_template = Mock()
-    app.body_template.form_message.return_value = "Test body"
-    app.header_template = Mock()
-    app.header_template.form_message.return_value = "Test header"
-    app.status_icons_template = Mock()
-    app.status_icons_template.form_message.return_value = "Test icons"
-
-
 def create_slack_buttons_handler_context(app, payload, incidents, queue, route, 
                                         expected_log_message: str = None,
                                         additional_patches: dict = None):
@@ -1176,95 +1320,35 @@ def create_slack_buttons_handler_context(app, payload, incidents, queue, route,
         additional_patches: Additional patches to apply
         
     Returns:
-        Context manager that yields (result, mock_logger, mock_reformat)
+        Context manager that yields (result, mock_logger, mock_reformat, patch_objects)
     """
     from contextlib import asynccontextmanager
     from unittest.mock import patch
-    from fastapi.responses import JSONResponse
     
     @asynccontextmanager
-    async def slack_test_context():
+    async def slack_context():
         with patch('app.im.slack.slack_application.get_config') as mock_get_config:
             mock_config = create_slack_mock_config()
             mock_get_config.return_value = mock_config
             
             with patch('app.im.slack.slack_application.logger') as mock_logger:
-                setup_slack_app_templates(app)
-                
-                patches = {}
-                if additional_patches:
-                    patches.update(additional_patches)
-                
-                # Apply additional patches if any
-                if patches:
-                    # Use patch.object for app instance methods
-                    patch_objects = {}
-                    patches_context = []
-                    for patch_name, patch_value in patches.items():
-                        # Convert Mock to AsyncMock if needed for async methods
-                        if patch_name in ['post_assignment_notification', 'post_unassignment_notification', 'fetch_and_assign_user_name']:
-                            if not hasattr(patch_value, '__await__'):
-                                from unittest.mock import AsyncMock
-                                patch_value = AsyncMock()
-                        patch_objects[patch_name] = patch_value
-                        patches_context.append(patch.object(app, patch_name, patch_value))
+                with patch('app.im.slack.slack_application.reformat_message') as mock_reformat:
+                    mock_reformat.return_value = {"text": "Modified message"}
                     
-                    with patch('app.im.slack.slack_application.reformat_message') as mock_reformat:
-                        mock_reformat.return_value = {"text": "Modified message"}
-                        
-                        # Apply all patches
-                        for patch_context in patches_context:
-                            patch_context.start()
-                        
-                        try:
-                            result = await app.buttons_handler(payload, incidents, queue, route)
-                            
-                            # Assertions
-                            assert isinstance(result, JSONResponse)
-                            assert result.status_code == 200
-                            if expected_log_message:
-                                mock_logger.info.assert_called_with(expected_log_message)
-                            
-                            yield result, mock_logger, mock_reformat, patch_objects
-                        finally:
-                            # Stop all patches
-                            for patch_context in patches_context:
-                                patch_context.stop()
-                else:
-                    with patch('app.im.slack.slack_application.reformat_message') as mock_reformat:
-                        mock_reformat.return_value = {"text": "Modified message"}
-                        
-                        result = await app.buttons_handler(payload, incidents, queue, route)
-                        
-                        # Assertions
-                        assert isinstance(result, JSONResponse)
-                        assert result.status_code == 200
-                        if expected_log_message:
-                            mock_logger.info.assert_called_with(expected_log_message)
-                        
-                        yield result, mock_logger, mock_reformat, {}
+                    async with create_buttons_handler_context_manager(
+                        app, payload, incidents, queue, route,
+                        expected_log_message=expected_log_message,
+                        additional_patches=additional_patches,
+                        app_specific_setup=lambda app: setup_app_templates(app)
+                    ) as (result, _, patch_objects):
+                        yield result, mock_logger, mock_reformat, patch_objects
     
-    return slack_test_context()
+    return slack_context()
 
 
 # ============================================================================
 # Mattermost Application Test Utilities
 # ============================================================================
-
-def setup_mattermost_app_templates(app):
-    """
-    Setup mock templates for Mattermost application tests.
-    
-    Args:
-        app: The Mattermost application instance
-    """
-    app.body_template = Mock()
-    app.body_template.form_message.return_value = "Test body"
-    app.header_template = Mock()
-    app.header_template.form_message.return_value = "Test header"
-    app.status_icons_template = Mock()
-    app.status_icons_template.form_message.return_value = "Test icons"
-
 
 def create_mattermost_buttons_handler_context(app, payload, incidents, queue, route, 
                                              expected_log_message: str = None,
@@ -1288,106 +1372,34 @@ def create_mattermost_buttons_handler_context(app, payload, incidents, queue, ro
     """
     from contextlib import asynccontextmanager
     from unittest.mock import patch
-    from fastapi.responses import JSONResponse
     
     @asynccontextmanager
-    async def mattermost_test_context():
+    async def mattermost_context():
         with patch('app.im.mattermost.mattermost_application.logger') as mock_logger:
-            # Apply additional patches if any
-            if additional_patches:
-                # Use patch.object for app instance methods
-                patch_objects = {}
-                patches_context = []
-                for patch_name, patch_value in additional_patches.items():
-                    # Convert Mock to AsyncMock if needed for async methods
-                    if patch_name in ['post_assignment_notification', 'post_unassignment_notification', 'fetch_and_assign_user_name']:
-                        if not hasattr(patch_value, '__await__'):
-                            from unittest.mock import AsyncMock
-                            patch_value = AsyncMock()
-                    patch_objects[patch_name] = patch_value
-                    patches_context.append(patch.object(app, patch_name, patch_value))
-                
-                if patch_get_config:
-                    with patch('app.config.config.get_config', create_mock_get_config_patch()):
-                        setup_mattermost_app_templates(app)
-                        
-                        # Apply all patches
-                        for patch_context in patches_context:
-                            patch_context.start()
-                        
-                        try:
-                            result = await app.buttons_handler(payload, incidents, queue, route)
-                            
-                            # Assertions
-                            assert isinstance(result, JSONResponse)
-                            assert result.status_code == 200
-                            if expected_log_message:
-                                mock_logger.info.assert_called_with(expected_log_message)
-                            
-                            yield result, mock_logger, patch_objects
-                        finally:
-                            # Stop all patches
-                            for patch_context in patches_context:
-                                patch_context.stop()
-                else:
-                    setup_mattermost_app_templates(app)
-                    
-                    # Apply all patches
-                    for patch_context in patches_context:
-                        patch_context.start()
-                    
-                    try:
-                        result = await app.buttons_handler(payload, incidents, queue, route)
-                        
-                        # Assertions
-                        assert isinstance(result, JSONResponse)
-                        assert result.status_code == 200
-                        if expected_log_message:
-                            mock_logger.info.assert_called_with(expected_log_message)
-                        
+            if patch_get_config:
+                with patch('app.config.config.get_config', create_mock_get_config_patch()):
+                    async with create_buttons_handler_context_manager(
+                        app, payload, incidents, queue, route,
+                        expected_log_message=expected_log_message,
+                        additional_patches=additional_patches,
+                        app_specific_setup=lambda app: setup_app_templates(app)
+                    ) as (result, _, patch_objects):
                         yield result, mock_logger, patch_objects
-                    finally:
-                        # Stop all patches
-                        for patch_context in patches_context:
-                            patch_context.stop()
             else:
-                if patch_get_config:
-                    with patch('app.config.config.get_config', create_mock_get_config_patch()):
-                        setup_mattermost_app_templates(app)
-                        result = await app.buttons_handler(payload, incidents, queue, route)
-                else:
-                    setup_mattermost_app_templates(app)
-                    result = await app.buttons_handler(payload, incidents, queue, route)
-                
-                # Assertions
-                assert isinstance(result, JSONResponse)
-                assert result.status_code == 200
-                if expected_log_message:
-                    mock_logger.info.assert_called_with(expected_log_message)
-                
-                yield result, mock_logger, {}
+                async with create_buttons_handler_context_manager(
+                    app, payload, incidents, queue, route,
+                    expected_log_message=expected_log_message,
+                    additional_patches=additional_patches,
+                    app_specific_setup=lambda app: setup_app_templates(app)
+                ) as (result, _, patch_objects):
+                    yield result, mock_logger, patch_objects
     
-    return mattermost_test_context()
+    return mattermost_context()
 
 
 # ============================================================================
 # Telegram Application Test Utilities
 # ============================================================================
-
-def setup_telegram_app_templates(app):
-    """
-    Setup mock templates for Telegram application tests.
-    
-    Args:
-        app: The Telegram application instance
-    """
-    app.body_template = Mock()
-    app.body_template.form_message.return_value = "Test body"
-    app.header_template = Mock()
-    app.header_template.form_message.return_value = "Test header"
-    app.status_icons_template = Mock()
-    app.status_icons_template.form_message.return_value = "Test icons"
-
 
 def create_telegram_buttons_handler_context(app, payload, incidents, queue, route, 
                                            expected_log_message: str = None,
@@ -1409,61 +1421,19 @@ def create_telegram_buttons_handler_context(app, payload, incidents, queue, rout
     """
     from contextlib import asynccontextmanager
     from unittest.mock import patch, AsyncMock
-    from fastapi.responses import JSONResponse
     
     @asynccontextmanager
-    async def telegram_test_context():
+    async def telegram_context():
         with patch('app.im.telegram.telegram_application.logger') as mock_logger:
-            # Apply additional patches if any
-            if additional_patches:
-                # Use patch.object for app instance methods
-                patch_objects = {}
-                patches_context = []
-                for patch_name, patch_value in additional_patches.items():
-                    # Convert Mock to AsyncMock if needed for async methods
-                    if patch_name in ['post_assignment_notification', 'post_unassignment_notification', 'fetch_and_assign_user_name']:
-                        if not hasattr(patch_value, '__await__'):
-                            patch_value = AsyncMock()
-                    patch_objects[patch_name] = patch_value
-                    patches_context.append(patch.object(app, patch_name, patch_value))
-                
-                # Always patch update_thread and http.post for Telegram
-                patches_context.append(patch.object(app, 'update_thread'))
-                patches_context.append(patch.object(app.http, 'post', new_callable=AsyncMock))
-                
-                setup_telegram_app_templates(app)
-                
-                # Apply all patches
-                for patch_context in patches_context:
-                    patch_context.start()
-                
-                try:
-                    result = await app.buttons_handler(payload, incidents, queue, route)
-                    
-                    # Assertions
-                    assert isinstance(result, JSONResponse)
-                    assert result.status_code == 200
-                    if expected_log_message:
-                        mock_logger.info.assert_called_with(expected_log_message)
-                    
-                    yield result, mock_logger, patch_objects
-                finally:
-                    # Stop all patches
-                    for patch_context in patches_context:
-                        patch_context.stop()
-            else:
-                # Default patches for Telegram (update_thread and http.post)
-                with patch.object(app, 'update_thread'):
-                    with patch.object(app.http, 'post', new_callable=AsyncMock):
-                        setup_telegram_app_templates(app)
-                        result = await app.buttons_handler(payload, incidents, queue, route)
-                
-                # Assertions
-                assert isinstance(result, JSONResponse)
-                assert result.status_code == 200
-                if expected_log_message:
-                    mock_logger.info.assert_called_with(expected_log_message)
-                
-                yield result, mock_logger, {}
+            # Always patch update_thread and http.post for Telegram
+            with patch.object(app, 'update_thread'):
+                with patch.object(app.http, 'post', new_callable=AsyncMock):
+                    async with create_buttons_handler_context_manager(
+                        app, payload, incidents, queue, route,
+                        expected_log_message=expected_log_message,
+                        additional_patches=additional_patches,
+                        app_specific_setup=lambda app: setup_app_templates(app)
+                    ) as (result, _, patch_objects):
+                        yield result, mock_logger, patch_objects
     
-    return telegram_test_context()
+    return telegram_context()
