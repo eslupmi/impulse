@@ -16,7 +16,6 @@ class TestNoAliasDumper:
         # This is typically used with yaml.dump() which handles the stream
         dumper = NoAliasDumper(None)  # Pass None as stream for testing
 
-        assert dumper is not None
         assert hasattr(dumper, 'ignore_aliases')
 
     def test_no_alias_dumper_ignore_aliases(self):
@@ -299,7 +298,6 @@ class TestHTMLTextExtractor:
         """Test HTMLTextExtractor initialization."""
         extractor = HTMLTextExtractor()
 
-        assert extractor is not None
         assert extractor.text_parts == []
         assert not extractor.in_br
 
