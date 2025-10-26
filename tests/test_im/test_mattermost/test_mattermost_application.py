@@ -12,7 +12,8 @@ from app.config.validation import ApplicationConfig, MattermostUser, MessengerTy
 from tests.utils import (
     create_mock_application, create_mock_incident_for_handlers, 
     create_mock_queue, create_mock_incidents_collection,
-    create_mock_route, create_test_datetime, MockContextManager
+    create_mock_route, create_test_datetime, MockContextManager,
+    create_mock_get_config_patch
 )
 
 
@@ -332,15 +333,17 @@ class TestMattermostApplication:
         with patch('app.im.mattermost.mattermost_application.logger') as mock_logger:
             with patch.object(app, 'post_assignment_notification') as mock_notification:
                 with patch.object(app, 'fetch_and_assign_user_name') as mock_fetch:
-                    # Mock templates to avoid Jinja2 errors
-                    app.body_template = Mock()
-                    app.body_template.form_message.return_value = "Test body"
-                    app.header_template = Mock()
-                    app.header_template.form_message.return_value = "Test header"
-                    app.status_icons_template = Mock()
-                    app.status_icons_template.form_message.return_value = "Test icons"
-                    
-                    result = await app.buttons_handler(payload, incidents, queue, route)
+                    with patch('app.im.mattermost.threads.get_config', create_mock_get_config_patch()):
+                        
+                        # Mock templates to avoid Jinja2 errors
+                        app.body_template = Mock()
+                        app.body_template.form_message.return_value = "Test body"
+                        app.header_template = Mock()
+                        app.header_template.form_message.return_value = "Test header"
+                        app.status_icons_template = Mock()
+                        app.status_icons_template.form_message.return_value = "Test icons"
+                        
+                        result = await app.buttons_handler(payload, incidents, queue, route)
                     
                     assert isinstance(result, JSONResponse)
                     assert result.status_code == 200
@@ -381,15 +384,16 @@ class TestMattermostApplication:
         
         with patch('app.im.mattermost.mattermost_application.logger') as mock_logger:
             with patch.object(app, 'post_unassignment_notification') as mock_notification:
-                # Mock templates to avoid Jinja2 errors
-                app.body_template = Mock()
-                app.body_template.form_message.return_value = "Test body"
-                app.header_template = Mock()
-                app.header_template.form_message.return_value = "Test header"
-                app.status_icons_template = Mock()
-                app.status_icons_template.form_message.return_value = "Test icons"
-                
-                result = await app.buttons_handler(payload, incidents, queue, route)
+                with patch('app.im.mattermost.threads.get_config', create_mock_get_config_patch()):
+                    # Mock templates to avoid Jinja2 errors
+                    app.body_template = Mock()
+                    app.body_template.form_message.return_value = "Test body"
+                    app.header_template = Mock()
+                    app.header_template.form_message.return_value = "Test header"
+                    app.status_icons_template = Mock()
+                    app.status_icons_template.form_message.return_value = "Test icons"
+                    
+                    result = await app.buttons_handler(payload, incidents, queue, route)
                 
                 assert isinstance(result, JSONResponse)
                 assert result.status_code == 200
@@ -428,15 +432,16 @@ class TestMattermostApplication:
         }
         
         with patch('app.im.mattermost.mattermost_application.logger') as mock_logger:
-            # Mock templates to avoid Jinja2 errors
-            app.body_template = Mock()
-            app.body_template.form_message.return_value = "Test body"
-            app.header_template = Mock()
-            app.header_template.form_message.return_value = "Test header"
-            app.status_icons_template = Mock()
-            app.status_icons_template.form_message.return_value = "Test icons"
-            
-            result = await app.buttons_handler(payload, incidents, queue, route)
+            with patch('app.im.mattermost.threads.get_config', create_mock_get_config_patch()):
+                # Mock templates to avoid Jinja2 errors
+                app.body_template = Mock()
+                app.body_template.form_message.return_value = "Test body"
+                app.header_template = Mock()
+                app.header_template.form_message.return_value = "Test header"
+                app.status_icons_template = Mock()
+                app.status_icons_template.form_message.return_value = "Test icons"
+                
+                result = await app.buttons_handler(payload, incidents, queue, route)
             
             assert isinstance(result, JSONResponse)
             assert result.status_code == 200
@@ -475,15 +480,16 @@ class TestMattermostApplication:
         }
         
         with patch('app.im.mattermost.mattermost_application.logger') as mock_logger:
-            # Mock templates to avoid Jinja2 errors
-            app.body_template = Mock()
-            app.body_template.form_message.return_value = "Test body"
-            app.header_template = Mock()
-            app.header_template.form_message.return_value = "Test header"
-            app.status_icons_template = Mock()
-            app.status_icons_template.form_message.return_value = "Test icons"
-            
-            result = await app.buttons_handler(payload, incidents, queue, route)
+            with patch('app.im.mattermost.threads.get_config', create_mock_get_config_patch()):
+                # Mock templates to avoid Jinja2 errors
+                app.body_template = Mock()
+                app.body_template.form_message.return_value = "Test body"
+                app.header_template = Mock()
+                app.header_template.form_message.return_value = "Test header"
+                app.status_icons_template = Mock()
+                app.status_icons_template.form_message.return_value = "Test icons"
+                
+                result = await app.buttons_handler(payload, incidents, queue, route)
             
             assert isinstance(result, JSONResponse)
             assert result.status_code == 200

@@ -1085,3 +1085,26 @@ def create_mock_async_task(cancelled: bool = False) -> MockAsyncTask:
         MockAsyncTask object that behaves like a real asyncio.Task
     """
     return MockAsyncTask(cancelled=cancelled)
+
+
+# ============================================================================
+# Configuration Mocking Utilities
+# ============================================================================
+
+def create_mock_get_config_patch(impulse_address: str = "https://impulse.example.com"):
+    """
+    Create a mock for get_config() that returns a config with impulse_address.
+    
+    This utility helps avoid AttributeError when testing applications that call
+    get_config() internally and expect impulse_address to be available.
+    
+    Args:
+        impulse_address: The impulse address to set in the mock config
+        
+    Returns:
+        Mock object that can be used with patch
+    """
+    mock_config = Mock()
+    mock_config.messenger = Mock()
+    mock_config.messenger.impulse_address = impulse_address
+    return Mock(return_value=mock_config)

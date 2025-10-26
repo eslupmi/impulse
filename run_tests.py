@@ -36,6 +36,9 @@ def main():
     # Change to project directory
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
     
+    # Set environment variable to use test config file
+    os.environ['CONFIG_PATH'] = 'tests'
+    
     commands = {
         "all": ("python3 -m pytest tests/ --color=yes -v", "All tests"),
         "unit": ("python3 -m pytest tests/test_utils.py tests/test_time.py --color=yes -v", "Unit tests"),

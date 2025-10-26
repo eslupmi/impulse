@@ -38,7 +38,7 @@ class Incident:
     status_enabled: bool = False
     updated: datetime = field(default_factory=datetime.utcnow)
     created: datetime = field(default_factory=datetime.utcnow)
-    version: str = get_config().INCIDENT_ACTUAL_VERSION
+    version: str = field(default="v3.0.0")
     uuid: str = field(init=False)
     ts: str = field(default='')
     link: str = field(default='')

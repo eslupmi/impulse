@@ -3,7 +3,7 @@ Pytest configuration and fixtures for the IMPulse application test suite.
 """
 import pytest
 import asyncio
-from unittest.mock import Mock, AsyncMock
+from unittest.mock import Mock, AsyncMock, patch
 from datetime import datetime, timezone
 from typing import Dict, Any
 
@@ -165,3 +165,5 @@ def mock_file_operations():
          pytest.mock.patch('yaml.dump'), \
          pytest.mock.patch('yaml.load'):
         yield
+
+
