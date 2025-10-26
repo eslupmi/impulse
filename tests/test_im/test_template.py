@@ -49,7 +49,7 @@ class TestJinjaTemplate:
         template = JinjaTemplate(template_str)
 
         alert_state = {"status": "resolved"}
-        result = template.form_message(alert_state, None)
+        result = template.form_message(alert_state)
 
         assert "Alert: resolved" in result
 
