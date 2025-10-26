@@ -9,7 +9,8 @@ import pytest
 from app.queue.manager import AsyncQueueManager
 from tests.utils import (
     create_mock_queue, create_mock_application, create_mock_incidents_collection,
-    create_mock_route, create_mock_webhooks_collection, create_alert_payload
+    create_mock_route, create_mock_webhooks_collection, create_alert_payload,
+    create_mock_async_task
 )
 
 
@@ -97,12 +98,9 @@ class TestAsyncQueueManager:
     async def test_stop_processing(self, queue_manager):
         """Test stopping queue processing."""
 
-        # Start processing first with a real task
-        async def dummy_task():
-            await asyncio.sleep(0.1)
-
-        # Create a real task
-        queue_manager._task = asyncio.create_task(dummy_task())
+        # Create a mock task using utility function
+        mock_task = create_mock_async_task()
+        queue_manager._task = mock_task
         queue_manager._running = True
 
         await queue_manager.stop_processing()
@@ -279,15 +277,23 @@ class TestAsyncQueueManager:
     async def test_start_processing_logging(self, queue_manager):
         """Test that start_processing logs the start message."""
         with patch('app.queue.manager.logger') as mock_logger:
-            queue_manager.start_processing()
+            with patch('asyncio.create_task') as mock_create_task:
+                mock_task = Mock()
+                mock_create_task.return_value = mock_task
+                
+                queue_manager.start_processing()
 
-            mock_logger.info.assert_called_once_with("Started Queue")
+                mock_logger.info.assert_called_once_with("Started Queue")
 
     @pytest.mark.asyncio
     async def test_stop_processing_logging(self, queue_manager):
         """Test that stop_processing logs the stop message."""
-        # Start processing first
-        queue_manager.start_processing()
+        # Start processing first with mocked task creation
+        with patch('asyncio.create_task') as mock_create_task:
+            # Create a mock task using utility function
+            mock_task = create_mock_async_task()
+            mock_create_task.return_value = mock_task
+            queue_manager.start_processing()
 
         with patch('app.queue.manager.logger') as mock_logger:
             await queue_manager.stop_processing()
@@ -298,15 +304,9 @@ class TestAsyncQueueManager:
     async def test_stop_processing_with_task_cancellation(self, queue_manager):
         """Test stop_processing with task cancellation."""
 
-        # Create a task that will be cancelled
-        async def dummy_task():
-            try:
-                await asyncio.sleep(1)  # Long sleep to ensure cancellation
-            except asyncio.CancelledError:
-                pass  # Expected when cancelled
-
-        # Create a real task
-        queue_manager._task = asyncio.create_task(dummy_task())
+        # Create a mock task using utility function
+        mock_task = create_mock_async_task()
+        queue_manager._task = mock_task
         queue_manager._running = True
 
         await queue_manager.stop_processing()

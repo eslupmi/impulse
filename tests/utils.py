@@ -1017,3 +1017,50 @@ def create_ui_config_data(
         "filters": filters,
         "sorting": sorting
     }
+
+
+# ============================================================================
+# Async Task Test Utilities
+# ============================================================================
+
+class MockAsyncTask:
+    """
+    A mock asyncio.Task that can be awaited and behaves like a real task.
+    
+    This utility helps avoid RuntimeWarnings about coroutines not being awaited
+    when testing async queue managers and other async components.
+    """
+    
+    def __init__(self, cancelled: bool = False):
+        """
+        Initialize the mock task.
+        
+        Args:
+            cancelled: Whether the task is initially cancelled
+        """
+        self._cancelled = cancelled
+    
+    def cancel(self):
+        """Cancel the task."""
+        self._cancelled = True
+    
+    def cancelled(self):
+        """Check if the task is cancelled."""
+        return self._cancelled
+    
+    def __await__(self):
+        """Make the task awaitable by returning an empty iterator."""
+        return iter([])
+
+
+def create_mock_async_task(cancelled: bool = False) -> MockAsyncTask:
+    """
+    Create a mock asyncio.Task for testing.
+    
+    Args:
+        cancelled: Whether the task should be initially cancelled
+        
+    Returns:
+        MockAsyncTask object that behaves like a real asyncio.Task
+    """
+    return MockAsyncTask(cancelled=cancelled)
