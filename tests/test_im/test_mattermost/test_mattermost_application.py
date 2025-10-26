@@ -31,6 +31,7 @@ class TestMattermostApplication:
         self.app_config.type = MessengerType.MATTERMOST
         self.app_config.address = "https://mattermost.example.com"
         self.app_config.team = "test-team"
+        self.app_config.impulse_address = "https://impulse.example.com"
         self.app_config.chains = {}
         self.app_config.template_files = {}
         self.app_config.users = {}
