@@ -17,8 +17,14 @@ def run_command(command, description):
     print('='*60)
     
     try:
+        # Set up environment variables
+        env = os.environ.copy()
+        os.chdir(os.path.dirname(os.path.abspath(__file__)))
+        # Set environment variable to use test config file
+        env['CONFIG_PATH'] = 'tests'
+        
         subprocess.run(command, shell=True, check=True, 
-                              capture_output=False, text=True)
+                              capture_output=False, text=True, env=env)
         print(f"{description} completed successfully!")
         return True
     except subprocess.CalledProcessError as e:

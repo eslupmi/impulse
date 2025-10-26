@@ -1116,12 +1116,19 @@ def create_mock_get_config_patch(impulse_address: str = DEFAULT_IMPULSE_ADDRESS)
     # Create a mock that mimics the UnifiedConfig structure
     mock_config = Mock()
     
-    # Create a mock messenger config with impulse_address
+    # Create a mock app config (ImpulseConfig)
+    mock_app = Mock()
+    
+    # Create a mock messenger config with impulse_address (MattermostApplicationConfig)
     mock_messenger = Mock()
     mock_messenger.impulse_address = impulse_address
+    mock_messenger.type = Mock()
+    mock_messenger.type.value = "mattermost"
     
     # Set up the messenger property to return our mock
-    mock_config.messenger = mock_messenger
+    mock_app.messenger = mock_messenger
+    mock_config.app = mock_app
+    mock_config.messenger = mock_messenger  # Direct access for convenience
     
     return Mock(return_value=mock_config)
 
@@ -1376,8 +1383,19 @@ def create_mattermost_buttons_handler_context(app, payload, incidents, queue, ro
     @asynccontextmanager
     async def mattermost_context():
         with patch('app.im.mattermost.mattermost_application.logger') as mock_logger:
-            if patch_get_config:
-                with patch('app.config.config.get_config', create_mock_get_config_patch()):
+            # Always patch threads.get_config since it's called by mattermost_get_button_update_payload
+            with patch('app.im.mattermost.threads.get_config', create_mock_get_config_patch()):
+                if patch_get_config:
+                    # Also patch the main get_config for other uses
+                    with patch('app.config.config.get_config', create_mock_get_config_patch()):
+                        async with create_buttons_handler_context_manager(
+                            app, payload, incidents, queue, route,
+                            expected_log_message=expected_log_message,
+                            additional_patches=additional_patches,
+                            app_specific_setup=lambda app: setup_app_templates(app)
+                        ) as (result, _, patch_objects):
+                            yield result, mock_logger, patch_objects
+                else:
                     async with create_buttons_handler_context_manager(
                         app, payload, incidents, queue, route,
                         expected_log_message=expected_log_message,
@@ -1385,14 +1403,6 @@ def create_mattermost_buttons_handler_context(app, payload, incidents, queue, ro
                         app_specific_setup=lambda app: setup_app_templates(app)
                     ) as (result, _, patch_objects):
                         yield result, mock_logger, patch_objects
-            else:
-                async with create_buttons_handler_context_manager(
-                    app, payload, incidents, queue, route,
-                    expected_log_message=expected_log_message,
-                    additional_patches=additional_patches,
-                    app_specific_setup=lambda app: setup_app_templates(app)
-                ) as (result, _, patch_objects):
-                    yield result, mock_logger, patch_objects
     
     return mattermost_context()
 
