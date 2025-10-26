@@ -31,7 +31,6 @@ class TestCustomFormatter:
         """Test CustomFormatter initialization."""
         formatter = CustomFormatter()
 
-        assert formatter is not None
         assert hasattr(formatter, 'grey')
         assert hasattr(formatter, 'yellow')
         assert hasattr(formatter, 'white')
