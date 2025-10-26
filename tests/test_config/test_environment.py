@@ -429,13 +429,6 @@ class TestEnvironmentConfigFunctions:
 
     def test_get_messenger_token_unknown_type(self):
         """Test get_messenger_token for unknown messenger type."""
-        # Use utility to create mock config for comparison
-        mock_config = create_mock_environment_config(
-            slack_bot_token='xoxb-slack-token',
-            mattermost_token='mm-token',
-            telegram_token='tg-token'
-        )
-
         env_vars = {
             'SLACK_BOT_USER_OAUTH_TOKEN': 'xoxb-slack-token',
             'MATTERMOST_ACCESS_TOKEN': 'mm-token',

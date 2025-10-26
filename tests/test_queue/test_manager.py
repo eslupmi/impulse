@@ -243,7 +243,7 @@ class TestAsyncQueueManager:
         """Test that start_processing logs the start message."""
         with patch('app.queue.manager.logger') as mock_logger:
             with patch('asyncio.create_task') as mock_create_task, \
-                    patch.object(queue_manager, '_process_queue_loop') as mock_loop:
+                    patch.object(queue_manager, '_process_queue_loop'):
                 # Create a mock task using utility function
                 mock_task = create_mock_async_task()
                 mock_create_task.return_value = mock_task
@@ -257,7 +257,7 @@ class TestAsyncQueueManager:
         """Test that stop_processing logs the stop message."""
         # Start processing first with mocked task creation and loop method
         with patch('asyncio.create_task') as mock_create_task, \
-                patch.object(queue_manager, '_process_queue_loop') as mock_loop:
+                patch.object(queue_manager, '_process_queue_loop'):
             # Create a mock task using utility function
             mock_task = create_mock_async_task()
             mock_create_task.return_value = mock_task

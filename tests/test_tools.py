@@ -24,16 +24,16 @@ class TestNoAliasDumper:
         dumper = NoAliasDumper(None)
 
         # Test with various data types - should always return True
-        assert dumper.ignore_aliases(None) is True
-        assert dumper.ignore_aliases("string") is True
-        assert dumper.ignore_aliases(123) is True
-        assert dumper.ignore_aliases(123.45) is True
-        assert dumper.ignore_aliases(True) is True
-        assert dumper.ignore_aliases(False) is True
-        assert dumper.ignore_aliases([]) is True
-        assert dumper.ignore_aliases({}) is True
-        assert dumper.ignore_aliases([1, 2, 3]) is True
-        assert dumper.ignore_aliases({"key": "value"}) is True
+        assert dumper.ignore_aliases(None)
+        assert dumper.ignore_aliases("string")
+        assert dumper.ignore_aliases(123)
+        assert dumper.ignore_aliases(123.45)
+        assert dumper.ignore_aliases(True)
+        assert dumper.ignore_aliases(False)
+        assert dumper.ignore_aliases([])
+        assert dumper.ignore_aliases({})
+        assert dumper.ignore_aliases([1, 2, 3])
+        assert dumper.ignore_aliases({"key": "value"})
 
     def test_no_alias_dumper_with_yaml_dump(self):
         """Test NoAliasDumper with yaml.dump."""

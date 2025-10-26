@@ -375,7 +375,7 @@ class TestChainFactory:
         with patch.object(ChainFactory, '_create_chain') as mock_create_chain:
             mock_create_chain.side_effect = Exception("Chain creation error")
 
-            with patch('app.im.chain.chain_factory.logger') as mock_logger:
+            with patch('app.im.chain.chain_factory.logger'):
                 # The generate method doesn't catch exceptions from _create_chain
                 # So we expect the exception to propagate
                 with pytest.raises(Exception, match="Chain creation error"):
@@ -394,7 +394,7 @@ class TestChainFactory:
             mock_chain3 = Mock()
             mock_create_chain.side_effect = [mock_chain1, Exception("Chain2 error"), mock_chain3]
 
-            with patch('app.im.chain.chain_factory.logger') as mock_logger:
+            with patch('app.im.chain.chain_factory.logger'):
                 # The generate method doesn't catch exceptions from _create_chain
                 # So we expect the exception to propagate
                 with pytest.raises(Exception, match="Chain2 error"):

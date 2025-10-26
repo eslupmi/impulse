@@ -230,7 +230,7 @@ class TestIncidents:
 
         with patch('os.remove') as mock_remove, \
                 patch('asyncio.get_event_loop') as mock_get_loop, \
-                patch('app.incident.incidents.incident_ws') as mock_ws:
+                patch('app.incident.incidents.incident_ws'):
             # Use utility function for mock event loop
             mock_loop = create_mock_event_loop(running=True)
             mock_get_loop.return_value = mock_loop

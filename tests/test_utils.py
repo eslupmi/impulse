@@ -115,7 +115,7 @@ class TestNormalizeParam:
         for test_case in test_cases:
             result = normalize_param(test_case)
             assert result == test_case
-            assert type(result) == type(test_case)
+            assert isinstance(result, type(test_case))
 
 
 class TestFilterDictKeys:

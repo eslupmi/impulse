@@ -1,7 +1,7 @@
 """
 Unit tests for app.queue.queue module.
 """
-from datetime import datetime, timedelta
+from datetime import timedelta
 from unittest.mock import Mock, patch
 
 import pytest

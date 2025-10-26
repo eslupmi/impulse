@@ -105,7 +105,7 @@ class TestLoadAndValidateConfig:
         with patch('builtins.open', mock_open(read_data=yaml.dump(valid_config))):
             with patch('os.path.exists', return_value=True):
                 with patch.dict('os.environ', {'CONFIG_PATH': '/custom/path'}):
-                    config, raw_config = load_and_validate_config()
+                    config, _ = load_and_validate_config()
 
         assert isinstance(config, ImpulseConfig)
 
@@ -115,7 +115,7 @@ class TestLoadAndValidateConfig:
 
         with patch('builtins.open', mock_open(read_data=yaml.dump(valid_config))) as mock_file:
             with patch('os.path.exists', return_value=True):
-                config, raw_config = load_and_validate_config('/custom/path/config.yml')
+                config, _ = load_and_validate_config('/custom/path/config.yml')
 
         mock_file.assert_called_once_with('/custom/path/config.yml', 'r', encoding='utf-8')
         assert isinstance(config, ImpulseConfig)

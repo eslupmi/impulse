@@ -456,8 +456,8 @@ class TestTelegramApplication:
         }
 
         with patch('app.im.telegram.telegram_application.logger') as mock_logger:
-            with patch.object(app, 'update_thread') as mock_update:
-                with patch.object(app.http, 'post', new_callable=AsyncMock) as mock_post:
+            with patch.object(app, 'update_thread'):
+                with patch.object(app.http, 'post', new_callable=AsyncMock) as _:
                     # Mock templates to avoid Jinja2 errors
                     app.body_template = Mock()
                     app.body_template.form_message.return_value = "Test body"
@@ -518,8 +518,8 @@ class TestTelegramApplication:
         with patch('app.im.telegram.telegram_application.logger') as mock_logger:
             with patch.object(app, 'post_assignment_notification') as mock_notification:
                 with patch.object(app, 'fetch_and_assign_user_name') as mock_fetch:
-                    with patch.object(app, 'update_thread') as mock_update:
-                        with patch.object(app.http, 'post', new_callable=AsyncMock) as mock_post:
+                    with patch.object(app, 'update_thread') as _:
+                        with patch.object(app.http, 'post', new_callable=AsyncMock) as _:
                             # Mock templates to avoid Jinja2 errors
                             app.body_template = Mock()
                             app.body_template.form_message.return_value = "Test body"
@@ -579,8 +579,8 @@ class TestTelegramApplication:
 
         with patch('app.im.telegram.telegram_application.logger') as mock_logger:
             with patch.object(app, 'post_unassignment_notification') as mock_notification:
-                with patch.object(app, 'update_thread') as mock_update:
-                    with patch.object(app.http, 'post', new_callable=AsyncMock) as mock_post:
+                with patch.object(app, 'update_thread') as _:
+                    with patch.object(app.http, 'post', new_callable=AsyncMock) as _:
                         # Mock templates to avoid Jinja2 errors
                         app.body_template = Mock()
                         app.body_template.form_message.return_value = "Test body"
@@ -638,8 +638,8 @@ class TestTelegramApplication:
         }
 
         with patch('app.im.telegram.telegram_application.logger') as mock_logger:
-            with patch.object(app, 'update_thread') as mock_update:
-                with patch.object(app.http, 'post', new_callable=AsyncMock) as mock_post:
+            with patch.object(app, 'update_thread'):
+                with patch.object(app.http, 'post', new_callable=AsyncMock) as _:
                     # Mock templates to avoid Jinja2 errors
                     app.body_template = Mock()
                     app.body_template.form_message.return_value = "Test body"
@@ -696,8 +696,8 @@ class TestTelegramApplication:
         }
 
         with patch('app.im.telegram.telegram_application.logger') as mock_logger:
-            with patch.object(app, 'update_thread') as mock_update:
-                with patch.object(app.http, 'post', new_callable=AsyncMock) as mock_post:
+            with patch.object(app, 'update_thread'):
+                with patch.object(app.http, 'post', new_callable=AsyncMock) as _:
                     # Mock templates to avoid Jinja2 errors
                     app.body_template = Mock()
                     app.body_template.form_message.return_value = "Test body"
