@@ -17,7 +17,8 @@ from tests.utils import (
     create_mock_incident_for_handlers,
     create_mock_incidents_collection,
     create_mock_queue,
-    create_mock_route
+    create_mock_route,
+    create_telegram_buttons_handler_context
 )
 
 
@@ -455,24 +456,11 @@ class TestTelegramApplication:
             }
         }
 
-        with patch('app.im.telegram.telegram_application.logger') as mock_logger:
-            with patch.object(app, 'update_thread'):
-                with patch.object(app.http, 'post', new_callable=AsyncMock) as _:
-                    # Mock templates to avoid Jinja2 errors
-                    app.body_template = Mock()
-                    app.body_template.form_message.return_value = "Test body"
-                    app.header_template = Mock()
-                    app.header_template.form_message.return_value = "Test header"
-                    app.status_icons_template = Mock()
-                    app.status_icons_template.form_message.return_value = "Test icons"
-
-                    result = await app.buttons_handler(payload, incidents, queue, route)
-
-                    assert isinstance(result, JSONResponse)
-                    assert result.status_code == 200
-                    mock_logger.info.assert_called_with(
-                        'Incident test-uuid -> button TAKE IT pressed, but user is already assigned'
-                    )
+        async with create_telegram_buttons_handler_context(
+            app, payload, incidents, queue, route,
+            expected_log_message='Incident test-uuid -> button TAKE IT pressed, but user is already assigned'
+        ) as (result, mock_logger, _):
+            pass  # All assertions are handled by the context manager
 
     @pytest.mark.asyncio
     async def test_buttons_handler_chain_action_assign(self, app_config, channels, users):
@@ -515,28 +503,16 @@ class TestTelegramApplication:
             }
         }
 
-        with patch('app.im.telegram.telegram_application.logger') as mock_logger:
-            with patch.object(app, 'post_assignment_notification') as mock_notification:
-                with patch.object(app, 'fetch_and_assign_user_name') as mock_fetch:
-                    with patch.object(app, 'update_thread') as _:
-                        with patch.object(app.http, 'post', new_callable=AsyncMock) as _:
-                            # Mock templates to avoid Jinja2 errors
-                            app.body_template = Mock()
-                            app.body_template.form_message.return_value = "Test body"
-                            app.header_template = Mock()
-                            app.header_template.form_message.return_value = "Test header"
-                            app.status_icons_template = Mock()
-                            app.status_icons_template.form_message.return_value = "Test icons"
-
-                            result = await app.buttons_handler(payload, incidents, queue, route)
-
-                            assert isinstance(result, JSONResponse)
-                            assert result.status_code == 200
-                            mock_logger.info.assert_called_with(
-                                'Incident test-uuid -> button TAKE IT pressed, assigning to 123456789'
-                            )
-                            mock_notification.assert_called_once()
-                            mock_fetch.assert_called_once()
+        async with create_telegram_buttons_handler_context(
+            app, payload, incidents, queue, route,
+            expected_log_message='Incident test-uuid -> button TAKE IT pressed, assigning to 123456789',
+            additional_patches={
+                'post_assignment_notification': Mock(),
+                'fetch_and_assign_user_name': Mock()
+            }
+        ) as (result, mock_logger, patch_objects):
+            patch_objects['post_assignment_notification'].assert_called_once()
+            patch_objects['fetch_and_assign_user_name'].assert_called_once()
 
     @pytest.mark.asyncio
     async def test_buttons_handler_chain_action_release(self, app_config, channels, users):
@@ -577,27 +553,15 @@ class TestTelegramApplication:
             }
         }
 
-        with patch('app.im.telegram.telegram_application.logger') as mock_logger:
-            with patch.object(app, 'post_unassignment_notification') as mock_notification:
-                with patch.object(app, 'update_thread') as _:
-                    with patch.object(app.http, 'post', new_callable=AsyncMock) as _:
-                        # Mock templates to avoid Jinja2 errors
-                        app.body_template = Mock()
-                        app.body_template.form_message.return_value = "Test body"
-                        app.header_template = Mock()
-                        app.header_template.form_message.return_value = "Test header"
-                        app.status_icons_template = Mock()
-                        app.status_icons_template.form_message.return_value = "Test icons"
-
-                        result = await app.buttons_handler(payload, incidents, queue, route)
-
-                        assert isinstance(result, JSONResponse)
-                        assert result.status_code == 200
-                        mock_logger.info.assert_called_with(
-                            'Incident test-uuid -> button RELEASE pressed'
-                        )
-                        mock_notification.assert_called_once()
-                        incident.release.assert_called_once()
+        async with create_telegram_buttons_handler_context(
+            app, payload, incidents, queue, route,
+            expected_log_message='Incident test-uuid -> button RELEASE pressed',
+            additional_patches={
+                'post_unassignment_notification': Mock()
+            }
+        ) as (result, mock_logger, patch_objects):
+            patch_objects['post_unassignment_notification'].assert_called_once()
+            incident.release.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_buttons_handler_status_action_enable(self, app_config, channels, users):
@@ -637,25 +601,11 @@ class TestTelegramApplication:
             }
         }
 
-        with patch('app.im.telegram.telegram_application.logger') as mock_logger:
-            with patch.object(app, 'update_thread'):
-                with patch.object(app.http, 'post', new_callable=AsyncMock) as _:
-                    # Mock templates to avoid Jinja2 errors
-                    app.body_template = Mock()
-                    app.body_template.form_message.return_value = "Test body"
-                    app.header_template = Mock()
-                    app.header_template.form_message.return_value = "Test header"
-                    app.status_icons_template = Mock()
-                    app.status_icons_template.form_message.return_value = "Test icons"
-
-                    result = await app.buttons_handler(payload, incidents, queue, route)
-
-                    assert isinstance(result, JSONResponse)
-                    assert result.status_code == 200
-                    mock_logger.info.assert_called_with(
-                        'Incident test-uuid -> button STATUS pressed (enabled)'
-                    )
-                    assert incident.status_enabled is True
+        async with create_telegram_buttons_handler_context(
+            app, payload, incidents, queue, route,
+            expected_log_message='Incident test-uuid -> button STATUS pressed (enabled)'
+        ) as (result, mock_logger, _):
+            assert incident.status_enabled is True
 
     @pytest.mark.asyncio
     async def test_buttons_handler_status_action_disable(self, app_config, channels, users):
@@ -695,25 +645,11 @@ class TestTelegramApplication:
             }
         }
 
-        with patch('app.im.telegram.telegram_application.logger') as mock_logger:
-            with patch.object(app, 'update_thread'):
-                with patch.object(app.http, 'post', new_callable=AsyncMock) as _:
-                    # Mock templates to avoid Jinja2 errors
-                    app.body_template = Mock()
-                    app.body_template.form_message.return_value = "Test body"
-                    app.header_template = Mock()
-                    app.header_template.form_message.return_value = "Test header"
-                    app.status_icons_template = Mock()
-                    app.status_icons_template.form_message.return_value = "Test icons"
-
-                    result = await app.buttons_handler(payload, incidents, queue, route)
-
-                    assert isinstance(result, JSONResponse)
-                    assert result.status_code == 200
-                    mock_logger.info.assert_called_with(
-                        'Incident test-uuid -> button STATUS pressed (disabled)'
-                    )
-                    assert incident.status_enabled is False
+        async with create_telegram_buttons_handler_context(
+            app, payload, incidents, queue, route,
+            expected_log_message='Incident test-uuid -> button STATUS pressed (disabled)'
+        ) as (result, mock_logger, _):
+            assert incident.status_enabled is False
 
     def test_create_topic_method(self, app_config, channels, users):
         """Test _create_topic method signature."""

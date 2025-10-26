@@ -3,7 +3,7 @@ Pytest configuration and fixtures for the IMPulse application test suite.
 """
 import asyncio
 from datetime import datetime, timezone
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -11,6 +11,15 @@ from app.config.config import UnifiedConfig
 from app.config.environment import EnvironmentConfig
 from app.config.validation import ImpulseConfig, SlackApplicationConfig, MessengerType
 from app.incident.incident import Incident, IncidentConfig
+
+
+@pytest.fixture(scope="session", autouse=True)
+def mock_get_config_globally():
+    """Globally mock get_config() for all tests."""
+    from tests.utils import create_mock_get_config_patch
+    
+    with patch('app.config.config.get_config', create_mock_get_config_patch()):
+        yield
 
 
 @pytest.fixture(scope="session")

@@ -6,13 +6,14 @@ from unittest.mock import Mock, AsyncMock, patch
 import pytest
 from fastapi.responses import JSONResponse
 
-from app.config.validation import ApplicationConfig, MessengerType
+from app.config.validation import ApplicationConfig, MessengerType, MattermostApplicationConfig
 from app.im.mattermost.mattermost_application import MattermostApplication
 from tests.utils import (
     create_mock_incident_for_handlers,
     create_mock_queue, create_mock_incidents_collection,
     create_mock_route, MockContextManager,
-    create_mock_get_config_patch
+    create_mock_get_config_patch,
+    create_mattermost_buttons_handler_context
 )
 
 
@@ -27,7 +28,7 @@ class TestMattermostApplication:
 
     def setup_method(self):
         """Setup for each test method."""
-        self.app_config = Mock(spec=ApplicationConfig)
+        self.app_config = Mock(spec=MattermostApplicationConfig)
         self.app_config.type = MessengerType.MATTERMOST
         self.app_config.address = "https://mattermost.example.com"
         self.app_config.team = "test-team"
@@ -292,14 +293,11 @@ class TestMattermostApplication:
             "user_name": "testuser"
         }
 
-        with patch('app.im.mattermost.mattermost_application.logger') as mock_logger:
-            result = await app.buttons_handler(payload, incidents, queue, route)
-
-            assert isinstance(result, JSONResponse)
-            assert result.status_code == 200
-            mock_logger.info.assert_called_with(
-                'Incident test-uuid -> button TAKE IT pressed, but user is already assigned'
-            )
+        async with create_mattermost_buttons_handler_context(
+            app, payload, incidents, queue, route,
+            expected_log_message='Incident test-uuid -> button TAKE IT pressed, but user is already assigned'
+        ) as (result, mock_logger, _):
+            pass  # All assertions are handled by the context manager
 
     @pytest.mark.asyncio
     async def test_buttons_handler_chain_action_assign(self):
@@ -330,27 +328,16 @@ class TestMattermostApplication:
             "user_name": "testuser"
         }
 
-        with patch('app.im.mattermost.mattermost_application.logger') as mock_logger:
-            with patch.object(app, 'post_assignment_notification') as mock_notification:
-                with patch.object(app, 'fetch_and_assign_user_name') as mock_fetch:
-                    with patch('app.im.mattermost.threads.get_config', create_mock_get_config_patch()):
-                        # Mock templates to avoid Jinja2 errors
-                        app.body_template = Mock()
-                        app.body_template.form_message.return_value = "Test body"
-                        app.header_template = Mock()
-                        app.header_template.form_message.return_value = "Test header"
-                        app.status_icons_template = Mock()
-                        app.status_icons_template.form_message.return_value = "Test icons"
-
-                        result = await app.buttons_handler(payload, incidents, queue, route)
-
-                    assert isinstance(result, JSONResponse)
-                    assert result.status_code == 200
-                    mock_logger.info.assert_called_with(
-                        'Incident test-uuid -> button TAKE IT pressed, assigning to user123'
-                    )
-                    mock_notification.assert_called_once()
-                    mock_fetch.assert_called_once()
+        async with create_mattermost_buttons_handler_context(
+            app, payload, incidents, queue, route,
+            expected_log_message='Incident test-uuid -> button TAKE IT pressed, assigning to user123',
+            additional_patches={
+                'post_assignment_notification': Mock(),
+                'fetch_and_assign_user_name': Mock()
+            }
+        ) as (result, mock_logger, patch_objects):
+            patch_objects['post_assignment_notification'].assert_called_once()
+            patch_objects['fetch_and_assign_user_name'].assert_called_once()
 
     @pytest.mark.asyncio
     async def test_buttons_handler_chain_action_release(self):
@@ -381,25 +368,14 @@ class TestMattermostApplication:
             "user_name": "testuser"
         }
 
-        with patch('app.im.mattermost.mattermost_application.logger') as mock_logger:
-            with patch.object(app, 'post_unassignment_notification') as mock_notification:
-                with patch('app.im.mattermost.threads.get_config', create_mock_get_config_patch()):
-                    # Mock templates to avoid Jinja2 errors
-                    app.body_template = Mock()
-                    app.body_template.form_message.return_value = "Test body"
-                    app.header_template = Mock()
-                    app.header_template.form_message.return_value = "Test header"
-                    app.status_icons_template = Mock()
-                    app.status_icons_template.form_message.return_value = "Test icons"
-
-                    result = await app.buttons_handler(payload, incidents, queue, route)
-
-                assert isinstance(result, JSONResponse)
-                assert result.status_code == 200
-                mock_logger.info.assert_called_with(
-                    'Incident test-uuid -> button RELEASE pressed'
-                )
-                mock_notification.assert_called_once()
+        async with create_mattermost_buttons_handler_context(
+            app, payload, incidents, queue, route,
+            expected_log_message='Incident test-uuid -> button RELEASE pressed',
+            additional_patches={
+                'post_unassignment_notification': Mock()
+            }
+        ) as (result, mock_logger, patch_objects):
+            patch_objects['post_unassignment_notification'].assert_called_once()
 
     @pytest.mark.asyncio
     async def test_buttons_handler_status_action_enable(self):
@@ -430,23 +406,11 @@ class TestMattermostApplication:
             "user_name": "testuser"
         }
 
-        with patch('app.im.mattermost.mattermost_application.logger') as mock_logger:
-            with patch('app.im.mattermost.threads.get_config', create_mock_get_config_patch()):
-                # Mock templates to avoid Jinja2 errors
-                app.body_template = Mock()
-                app.body_template.form_message.return_value = "Test body"
-                app.header_template = Mock()
-                app.header_template.form_message.return_value = "Test header"
-                app.status_icons_template = Mock()
-                app.status_icons_template.form_message.return_value = "Test icons"
-
-                result = await app.buttons_handler(payload, incidents, queue, route)
-
-            assert isinstance(result, JSONResponse)
-            assert result.status_code == 200
-            mock_logger.info.assert_called_with(
-                'Incident test-uuid -> button STATUS pressed (enabled)'
-            )
+        async with create_mattermost_buttons_handler_context(
+            app, payload, incidents, queue, route,
+            expected_log_message='Incident test-uuid -> button STATUS pressed (enabled)',
+            patch_get_config=False
+        ) as (result, mock_logger, _):
             assert incident.status_enabled is True
 
     @pytest.mark.asyncio
@@ -478,23 +442,11 @@ class TestMattermostApplication:
             "user_name": "testuser"
         }
 
-        with patch('app.im.mattermost.mattermost_application.logger') as mock_logger:
-            with patch('app.im.mattermost.threads.get_config', create_mock_get_config_patch()):
-                # Mock templates to avoid Jinja2 errors
-                app.body_template = Mock()
-                app.body_template.form_message.return_value = "Test body"
-                app.header_template = Mock()
-                app.header_template.form_message.return_value = "Test header"
-                app.status_icons_template = Mock()
-                app.status_icons_template.form_message.return_value = "Test icons"
-
-                result = await app.buttons_handler(payload, incidents, queue, route)
-
-            assert isinstance(result, JSONResponse)
-            assert result.status_code == 200
-            mock_logger.info.assert_called_with(
-                'Incident test-uuid -> button STATUS pressed (disabled)'
-            )
+        async with create_mattermost_buttons_handler_context(
+            app, payload, incidents, queue, route,
+            expected_log_message='Incident test-uuid -> button STATUS pressed (disabled)',
+            patch_get_config=False
+        ) as (result, mock_logger, _):
             assert incident.status_enabled is False
 
     @pytest.mark.asyncio

@@ -16,7 +16,8 @@ from tests.utils import (
     create_mock_incidents_collection,
     create_mock_queue,
     create_mock_route,
-    MockContextManager
+    MockContextManager,
+    create_slack_buttons_handler_context
 )
 
 
@@ -410,30 +411,11 @@ class TestSlackApplication:
             "user": {"id": "U123456"}
         }
 
-        with patch('app.im.slack.slack_application.get_config') as mock_get_config:
-            mock_config = Mock()
-            mock_config.slack_verification_token = "valid_token"
-            mock_get_config.return_value = mock_config
-
-            with patch('app.im.slack.slack_application.logger') as mock_logger:
-                # Mock templates to avoid Jinja2 errors
-                app.body_template = Mock()
-                app.body_template.form_message.return_value = "Test body"
-                app.header_template = Mock()
-                app.header_template.form_message.return_value = "Test header"
-                app.status_icons_template = Mock()
-                app.status_icons_template.form_message.return_value = "Test icons"
-
-                with patch('app.im.slack.slack_application.reformat_message') as mock_reformat:
-                    mock_reformat.return_value = {"text": "Modified message"}
-
-                    result = await app.buttons_handler(payload, incidents, queue, route)
-
-                    assert isinstance(result, JSONResponse)
-                    assert result.status_code == 200
-                    mock_logger.info.assert_called_with(
-                        'Incident test-uuid -> button TAKE IT pressed, but user is already assigned'
-                    )
+        async with create_slack_buttons_handler_context(
+            app, payload, incidents, queue, route,
+            expected_log_message='Incident test-uuid -> button TAKE IT pressed, but user is already assigned'
+        ) as (result, mock_logger, mock_reformat, _):
+            pass  # All assertions are handled by the context manager
 
     @pytest.mark.asyncio
     async def test_buttons_handler_chain_action_assign(self, app_config, channels, default_channel):
@@ -467,34 +449,16 @@ class TestSlackApplication:
             "user": {"id": "U123456"}
         }
 
-        with patch('app.im.slack.slack_application.get_config') as mock_get_config:
-            mock_config = Mock()
-            mock_config.slack_verification_token = "valid_token"
-            mock_get_config.return_value = mock_config
-
-            with patch('app.im.slack.slack_application.logger') as mock_logger:
-                with patch.object(app, 'post_assignment_notification') as mock_notification:
-                    with patch.object(app, 'fetch_and_assign_user_name') as mock_fetch:
-                        # Mock templates to avoid Jinja2 errors
-                        app.body_template = Mock()
-                        app.body_template.form_message.return_value = "Test body"
-                        app.header_template = Mock()
-                        app.header_template.form_message.return_value = "Test header"
-                        app.status_icons_template = Mock()
-                        app.status_icons_template.form_message.return_value = "Test icons"
-
-                        with patch('app.im.slack.slack_application.reformat_message') as mock_reformat:
-                            mock_reformat.return_value = {"text": "Modified message"}
-
-                            result = await app.buttons_handler(payload, incidents, queue, route)
-
-                            assert isinstance(result, JSONResponse)
-                            assert result.status_code == 200
-                            mock_logger.info.assert_called_with(
-                                'Incident test-uuid -> button TAKE IT pressed, assigning to U123456'
-                            )
-                            mock_notification.assert_called_once()
-                            mock_fetch.assert_called_once()
+        async with create_slack_buttons_handler_context(
+            app, payload, incidents, queue, route,
+            expected_log_message='Incident test-uuid -> button TAKE IT pressed, assigning to U123456',
+            additional_patches={
+                'post_assignment_notification': Mock(),
+                'fetch_and_assign_user_name': Mock()
+            }
+        ) as (result, mock_logger, mock_reformat, patch_objects):
+            patch_objects['post_assignment_notification'].assert_called_once()
+            patch_objects['fetch_and_assign_user_name'].assert_called_once()
 
     @pytest.mark.asyncio
     async def test_buttons_handler_chain_action_release(self, app_config, channels, default_channel):
@@ -527,33 +491,15 @@ class TestSlackApplication:
             "user": {"id": "U123456"}
         }
 
-        with patch('app.im.slack.slack_application.get_config') as mock_get_config:
-            mock_config = Mock()
-            mock_config.slack_verification_token = "valid_token"
-            mock_get_config.return_value = mock_config
-
-            with patch('app.im.slack.slack_application.logger') as mock_logger:
-                with patch.object(app, 'post_unassignment_notification') as mock_notification:
-                    # Mock templates to avoid Jinja2 errors
-                    app.body_template = Mock()
-                    app.body_template.form_message.return_value = "Test body"
-                    app.header_template = Mock()
-                    app.header_template.form_message.return_value = "Test header"
-                    app.status_icons_template = Mock()
-                    app.status_icons_template.form_message.return_value = "Test icons"
-
-                    with patch('app.im.slack.slack_application.reformat_message') as mock_reformat:
-                        mock_reformat.return_value = {"text": "Modified message"}
-
-                        result = await app.buttons_handler(payload, incidents, queue, route)
-
-                        assert isinstance(result, JSONResponse)
-                        assert result.status_code == 200
-                        mock_logger.info.assert_called_with(
-                            'Incident test-uuid -> button RELEASE pressed'
-                        )
-                        mock_notification.assert_called_once()
-                        incident.release.assert_called_once()
+        async with create_slack_buttons_handler_context(
+            app, payload, incidents, queue, route,
+            expected_log_message='Incident test-uuid -> button RELEASE pressed',
+            additional_patches={
+                'post_unassignment_notification': Mock()
+            }
+        ) as (result, mock_logger, mock_reformat, patch_objects):
+            patch_objects['post_unassignment_notification'].assert_called_once()
+            incident.release.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_buttons_handler_status_action_enable(self, app_config, channels, default_channel):
@@ -585,31 +531,11 @@ class TestSlackApplication:
             "user": {"id": "U123456"}
         }
 
-        with patch('app.im.slack.slack_application.get_config') as mock_get_config:
-            mock_config = Mock()
-            mock_config.slack_verification_token = "valid_token"
-            mock_get_config.return_value = mock_config
-
-            with patch('app.im.slack.slack_application.logger') as mock_logger:
-                # Mock templates to avoid Jinja2 errors
-                app.body_template = Mock()
-                app.body_template.form_message.return_value = "Test body"
-                app.header_template = Mock()
-                app.header_template.form_message.return_value = "Test header"
-                app.status_icons_template = Mock()
-                app.status_icons_template.form_message.return_value = "Test icons"
-
-                with patch('app.im.slack.slack_application.reformat_message') as mock_reformat:
-                    mock_reformat.return_value = {"text": "Modified message"}
-
-                    result = await app.buttons_handler(payload, incidents, queue, route)
-
-                    assert isinstance(result, JSONResponse)
-                    assert result.status_code == 200
-                    mock_logger.info.assert_called_with(
-                        'Incident test-uuid -> button STATUS pressed (enabled)'
-                    )
-                    assert incident.status_enabled is True
+        async with create_slack_buttons_handler_context(
+            app, payload, incidents, queue, route,
+            expected_log_message='Incident test-uuid -> button STATUS pressed (enabled)'
+        ) as (result, mock_logger, mock_reformat, _):
+            assert incident.status_enabled is True
 
     @pytest.mark.asyncio
     async def test_buttons_handler_status_action_disable(self, app_config, channels, default_channel):
@@ -641,31 +567,11 @@ class TestSlackApplication:
             "user": {"id": "U123456"}
         }
 
-        with patch('app.im.slack.slack_application.get_config') as mock_get_config:
-            mock_config = Mock()
-            mock_config.slack_verification_token = "valid_token"
-            mock_get_config.return_value = mock_config
-
-            with patch('app.im.slack.slack_application.logger') as mock_logger:
-                # Mock templates to avoid Jinja2 errors
-                app.body_template = Mock()
-                app.body_template.form_message.return_value = "Test body"
-                app.header_template = Mock()
-                app.header_template.form_message.return_value = "Test header"
-                app.status_icons_template = Mock()
-                app.status_icons_template.form_message.return_value = "Test icons"
-
-                with patch('app.im.slack.slack_application.reformat_message') as mock_reformat:
-                    mock_reformat.return_value = {"text": "Modified message"}
-
-                    result = await app.buttons_handler(payload, incidents, queue, route)
-
-                    assert isinstance(result, JSONResponse)
-                    assert result.status_code == 200
-                    mock_logger.info.assert_called_with(
-                        'Incident test-uuid -> button STATUS pressed (disabled)'
-                    )
-                    assert incident.status_enabled is False
+        async with create_slack_buttons_handler_context(
+            app, payload, incidents, queue, route,
+            expected_log_message='Incident test-uuid -> button STATUS pressed (disabled)'
+        ) as (result, mock_logger, mock_reformat, _):
+            assert incident.status_enabled is False
 
     @pytest.mark.asyncio
     async def test_get_public_url_success(self, app_config, channels, default_channel):
