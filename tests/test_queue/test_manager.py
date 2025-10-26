@@ -209,15 +209,7 @@ class TestAsyncQueueManager:
     async def test_process_queue_loop_with_sleep(self, queue_manager, mock_queue):
         """Test processing loop with sleep between iterations."""
         # Mock the _process_queue_loop method to avoid infinite loop
-        with patch.object(queue_manager, '_process_queue_loop') as mock_loop:
-            # Mock the actual loop behavior
-            async def mock_loop_behavior():
-                # Simulate one iteration of the loop
-                await queue_manager.queue_handle_once()
-                await asyncio.sleep(0.1)
-
-            mock_loop.side_effect = mock_loop_behavior
-
+        with patch.object(queue_manager, '_process_queue_loop', new_callable=AsyncMock) as mock_loop:
             # Set running to True and call the mocked loop
             queue_manager._running = True
             await queue_manager._process_queue_loop()
@@ -229,20 +221,7 @@ class TestAsyncQueueManager:
     async def test_process_queue_loop_exception_handling(self, queue_manager, mock_queue):
         """Test processing loop exception handling."""
         # Mock the _process_queue_loop method to avoid infinite loop
-        with patch.object(queue_manager, '_process_queue_loop') as mock_loop:
-            # Mock the actual loop behavior with exception
-            async def mock_loop_behavior():
-                # Simulate exception in queue_handle_once
-                try:
-                    await queue_manager.queue_handle_once()
-                except Exception as e:
-                    # Simulate the exception handling in the real loop
-                    with patch('app.queue.manager.logger') as mock_logger:
-                        mock_logger.error(f"Error in queue processing loop: {e}")
-                        await asyncio.sleep(1)
-
-            mock_loop.side_effect = mock_loop_behavior
-
+        with patch.object(queue_manager, '_process_queue_loop', new_callable=AsyncMock) as mock_loop:
             # Set running to True and call the mocked loop
             queue_manager._running = True
             await queue_manager._process_queue_loop()
@@ -254,18 +233,7 @@ class TestAsyncQueueManager:
     async def test_process_queue_loop_cancelled_error(self, queue_manager):
         """Test processing loop with CancelledError."""
         # Mock the _process_queue_loop method to avoid infinite loop
-        with patch.object(queue_manager, '_process_queue_loop') as mock_loop:
-            # Mock the actual loop behavior with CancelledError
-            async def mock_loop_behavior():
-                # Simulate CancelledError in queue_handle_once
-                try:
-                    await queue_manager.queue_handle_once()
-                except asyncio.CancelledError:
-                    # Simulate the break in the real loop
-                    return
-
-            mock_loop.side_effect = mock_loop_behavior
-
+        with patch.object(queue_manager, '_process_queue_loop', new_callable=AsyncMock) as mock_loop:
             # Set running to True and call the mocked loop
             queue_manager._running = True
             await queue_manager._process_queue_loop()
@@ -278,7 +246,8 @@ class TestAsyncQueueManager:
         """Test that start_processing logs the start message."""
         with patch('app.queue.manager.logger') as mock_logger:
             with patch('asyncio.create_task') as mock_create_task:
-                mock_task = Mock()
+                # Create a mock task using utility function
+                mock_task = create_mock_async_task()
                 mock_create_task.return_value = mock_task
                 
                 queue_manager.start_processing()
@@ -295,6 +264,9 @@ class TestAsyncQueueManager:
             mock_create_task.return_value = mock_task
             queue_manager.start_processing()
 
+        # Ensure the task is properly set
+        queue_manager._task = mock_task
+
         with patch('app.queue.manager.logger') as mock_logger:
             await queue_manager.stop_processing()
 
@@ -309,8 +281,13 @@ class TestAsyncQueueManager:
         queue_manager._task = mock_task
         queue_manager._running = True
 
-        await queue_manager.stop_processing()
+        try:
+            await queue_manager.stop_processing()
 
-        assert queue_manager._running is False
-        # The task should be cancelled but not None (this is the actual behavior)
-        assert queue_manager._task.cancelled()
+            assert queue_manager._running is False
+            # The task should be cancelled but not None (this is the actual behavior)
+            assert queue_manager._task.cancelled()
+        finally:
+            # Ensure cleanup
+            queue_manager._task = None
+            queue_manager._running = False

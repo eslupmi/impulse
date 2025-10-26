@@ -1039,18 +1039,39 @@ class MockAsyncTask:
             cancelled: Whether the task is initially cancelled
         """
         self._cancelled = cancelled
+        # Ensure no coroutines are created during initialization
+        self._done = False
+        self._result = None
+        self._exception = None
     
     def cancel(self):
         """Cancel the task."""
         self._cancelled = True
+        # Don't create any coroutines here
     
     def cancelled(self):
         """Check if the task is cancelled."""
         return self._cancelled
     
+    def done(self):
+        """Check if the task is done."""
+        return self._done or self._cancelled
+    
+    def result(self):
+        """Get the task result."""
+        return self._result
+    
+    def exception(self):
+        """Get the task exception."""
+        return self._exception
+    
     def __await__(self):
         """Make the task awaitable by returning an empty iterator."""
         return iter([])
+    
+    def __repr__(self):
+        """String representation."""
+        return f"MockAsyncTask(cancelled={self._cancelled})"
 
 
 def create_mock_async_task(cancelled: bool = False) -> MockAsyncTask:
