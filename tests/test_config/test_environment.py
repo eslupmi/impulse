@@ -28,7 +28,7 @@ class TestEnvironmentConfig:
         assert config.provider_max_events == 10
         assert config.provider_days_to_sync == 7
         assert config.provider_service_account_file == "./key.json"
-        assert config.cors_allowed_origins == ["http://localhost:5000"]
+        assert config.cors_allowed_origins == ["https://localhost:5000"]
         assert config.log_level == "INFO"
         assert config.http_prefix == ""
         assert config.listen_host == "0.0.0.0"
@@ -47,7 +47,7 @@ class TestEnvironmentConfig:
             'CHAIN_PROVIDER_MAX_EVENTS': '50',
             'CHAIN_PROVIDER_DAYS_TO_SYNC': '14',
             'GOOGLE_SERVICE_ACCOUNT_FILE': '/path/to/key.json',
-            'CORS_ALLOWED_ORIGINS': 'http://localhost:3000,https://app.example.com',
+            'CORS_ALLOWED_ORIGINS': 'https://localhost:3000,https://app.example.com',
             'LOG_LEVEL': 'DEBUG',
             'HTTP_PREFIX': '/api/v1',
             'LISTEN_HOST': '127.0.0.1',
@@ -67,7 +67,7 @@ class TestEnvironmentConfig:
         assert config.provider_max_events == 50
         assert config.provider_days_to_sync == 14
         assert config.provider_service_account_file == '/path/to/key.json'
-        assert config.cors_allowed_origins == ['http://localhost:3000', 'https://app.example.com']
+        assert config.cors_allowed_origins == ['https://localhost:3000', 'https://app.example.com']
         assert config.log_level == 'DEBUG'
         assert config.http_prefix == '/api/v1'
         assert config.listen_host == '127.0.0.1'
@@ -121,14 +121,14 @@ class TestEnvironmentConfig:
         """Test CORS origins parsing and cleaning."""
         # Test with direct model creation to trigger validation
         config_data = {
-            'cors_allowed_origins': [' http://localhost:3000 ', ' https://app.example.com ',
+            'cors_allowed_origins': [' https://localhost:3000 ', ' https://app.example.com ',
                                      ' https://api.example.com ']
         }
 
         config = EnvironmentConfig(**config_data)
 
         assert config.cors_allowed_origins == [
-            'http://localhost:3000',
+            'https://localhost:3000',
             'https://app.example.com',
             'https://api.example.com'
         ]
@@ -137,14 +137,14 @@ class TestEnvironmentConfig:
         """Test CORS origins with empty values."""
         # Test with direct model creation to trigger validation
         config_data = {
-            'cors_allowed_origins': ['http://localhost:3000', '', 'https://app.example.com', ' ']
+            'cors_allowed_origins': ['https://localhost:3000', '', 'https://app.example.com', ' ']
         }
 
         config = EnvironmentConfig(**config_data)
 
         # Should filter out empty values
         assert config.cors_allowed_origins == [
-            'http://localhost:3000',
+            'https://localhost:3000',
             'https://app.example.com'
         ]
 
@@ -230,7 +230,7 @@ class TestEnvironmentConfig:
             'cors_allowed_origins': ['https://custom.com'],
             'log_level': 'WARNING',
             'http_prefix': '/custom/api',
-            'listen_host': '192.168.1.100',
+            'listen_host': 'fake-host',
             'listen_port': 9000
         }
 
@@ -244,7 +244,7 @@ class TestEnvironmentConfig:
         assert config.cors_allowed_origins == ['https://custom.com']
         assert config.log_level == 'WARNING'
         assert config.http_prefix == '/custom/api'
-        assert config.listen_host == '192.168.1.100'
+        assert config.listen_host == 'fake-host'
         assert config.listen_port == 9000
 
     def test_model_validation_with_invalid_values(self):

@@ -141,7 +141,7 @@ class TestGetLegacyConfigDict:
             },
             'route': {'channel': 'default'},
             'ui': True,
-            'webhooks': {'test': {'url': 'http://test.com'}}
+            'webhooks': {'test': {'url': 'https://test.com'}}
         }
 
         legacy_config = get_legacy_config_dict(mock_config)
@@ -150,7 +150,7 @@ class TestGetLegacyConfigDict:
         assert legacy_config['incident']['alerts_firing_notifications'] is True
         assert legacy_config['route']['channel'] == 'default'
         assert legacy_config['ui'] is True
-        assert legacy_config['webhooks']['test']['url'] == 'http://test.com'
+        assert legacy_config['webhooks']['test']['url'] == 'https://test.com'
 
     def test_convert_with_none_incident(self):
         """Test converting config with None incident section."""

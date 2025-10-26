@@ -165,7 +165,7 @@ def create_alert_payload(
         },
         "startsAt": "2023-10-01T10:00:00Z",
         "endsAt": "0001-01-01T00:00:00Z" if status == "firing" else "2023-10-01T11:00:00Z",
-        "generatorURL": f"http://prometheus:9090/graph?g0.expr=up%7Bjob%3D%22{service}%22%7D+%3D%3D+0&g0.tab=1"
+        "generatorURL": f"https://prometheus:9090/graph?g0.expr=up%7Bjob%3D%22{service}%22%7D+%3D%3D+0&g0.tab=1"
     }
 
     alerts = [base_alert]
@@ -194,7 +194,7 @@ def create_alert_payload(
             "summary": f"{alertname} summary",
             "description": f"{alertname} description"
         },
-        "externalURL": "http://alertmanager:9093",
+        "externalURL": "https://alertmanager:9093",
         "alerts": alerts
     }
 
@@ -229,7 +229,7 @@ def create_firing_alerts_payload(
             },
             "startsAt": "2023-10-01T10:00:00Z",
             "endsAt": "0001-01-01T00:00:00Z",
-            "generatorURL": f"http://prometheus:9090/graph?g0.expr=up%7Bjob%3D%22test-service-{i + 1}%22%7D+%3D%3D+0&g0.tab=1"
+            "generatorURL": f"https://prometheus:9090/graph?g0.expr=up%7Bjob%3D%22test-service-{i + 1}%22%7D+%3D%3D+0&g0.tab=1"
         })
 
     return {
@@ -250,7 +250,7 @@ def create_firing_alerts_payload(
             "summary": f"{base_alertname} summary",
             "description": f"{base_alertname} description"
         },
-        "externalURL": "http://alertmanager:9093",
+        "externalURL": "https://alertmanager:9093",
         "alerts": alerts
     }
 

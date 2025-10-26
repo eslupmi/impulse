@@ -207,7 +207,7 @@ class TestGoogleCalendarChainParseSteps:
 
     def test_parse_steps_with_multiple_colons(self):
         """Test parsing steps with multiple colons in value."""
-        description = "- webhook: http://example.com:8080/webhook"
+        description = "- webhook: https://example.com:8080/webhook"
         result = GoogleCalendarChain._parse_steps_from_description(description)
 
         # Should only split on first colon
@@ -413,7 +413,7 @@ class TestGoogleCalendarChainAPIRequests:
         mock_response.json.return_value = {'success': True}
         chain.session.request = Mock(return_value=mock_response)
 
-        result = chain._make_api_request('GET', 'http://test.com')
+        result = chain._make_api_request('GET', 'https://test.com')
 
         assert result == {'success': True}
         chain.session.request.assert_called_once()
@@ -435,7 +435,7 @@ class TestGoogleCalendarChainAPIRequests:
         chain.session.request = Mock(side_effect=requests.exceptions.RequestException("API Error"))
 
         with pytest.raises(requests.exceptions.RequestException):
-            chain._make_api_request('GET', 'http://test.com')
+            chain._make_api_request('GET', 'https://test.com')
 
 
 class TestGoogleCalendarChainAccessToken:
@@ -737,7 +737,7 @@ class TestGoogleCalendarChainAdditionalCoverage:
 
         with patch('app.im.chain.google_calendar_chain.logger') as mock_logger:
             with pytest.raises(requests.exceptions.RequestException):
-                chain._make_api_request('GET', 'http://test.com')
+                chain._make_api_request('GET', 'https://test.com')
 
             # Should log both error message and response text
             assert mock_logger.error.call_count == 2

@@ -572,7 +572,7 @@ class TestHTMLTextExtractor:
     def test_html_text_extractor_with_a_tags(self):
         """Test HTMLTextExtractor with anchor tags."""
         extractor = HTMLTextExtractor()
-        html = "<p>Text before</p><a href='http://example.com'>Link text</a><p>Text after</p>"
+        html = "<p>Text before</p><a href='https://example.com'>Link text</a><p>Text after</p>"
 
         extractor.feed(html)
         result = extractor.get_text()
