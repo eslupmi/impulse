@@ -1183,6 +1183,75 @@ def convert_mock_to_async_if_needed(patch_name: str, patch_value):
     return patch_value
 
 
+def _prepare_button_handler_patches(app, additional_patches, app_specific_patches):
+    """
+    Prepare all patches and patch objects for button handler tests.
+    
+    Args:
+        app: The application instance
+        additional_patches: Additional patches to apply
+        app_specific_patches: List of app-specific patches to apply
+        
+    Returns:
+        Tuple of (patches_context, patch_objects)
+    """
+    from unittest.mock import patch
+    
+    patch_objects = {}
+    patches_context = []
+    
+    # Process additional patches
+    if additional_patches:
+        for patch_name, patch_value in additional_patches.items():
+            patch_value = convert_mock_to_async_if_needed(patch_name, patch_value)
+            patch_objects[patch_name] = patch_value
+            patches_context.append(patch.object(app, patch_name, patch_value))
+    
+    # Add app-specific patches
+    if app_specific_patches:
+        patches_context.extend(app_specific_patches)
+    
+    return patches_context, patch_objects
+
+
+def _find_logger_mock_in_patches(patches_context):
+    """
+    Find the logger mock from patches.
+    
+    Args:
+        patches_context: List of patch contexts
+        
+    Returns:
+        Logger mock if found, None otherwise
+    """
+    for patch_context in patches_context:
+        if hasattr(patch_context, 'new') and 'logger' in str(patch_context):
+            return patch_context.new
+    return None
+
+
+def _apply_all_patches(patches_context):
+    """
+    Start all patches.
+    
+    Args:
+        patches_context: List of patch contexts to start
+    """
+    for patch_context in patches_context:
+        patch_context.start()
+
+
+def _cleanup_all_patches(patches_context):
+    """
+    Stop all patches.
+    
+    Args:
+        patches_context: List of patch contexts to stop
+    """
+    for patch_context in patches_context:
+        patch_context.stop()
+
+
 def create_buttons_handler_context_manager(app, payload, incidents, queue, route,
                                          expected_log_message: str = None,
                                          additional_patches: dict = None,
@@ -1206,55 +1275,21 @@ def create_buttons_handler_context_manager(app, payload, incidents, queue, route
         Context manager that yields (result, mock_logger, patch_objects)
     """
     from contextlib import asynccontextmanager
-    from unittest.mock import patch
     from fastapi.responses import JSONResponse
-    
-    def _prepare_patches():
-        """Prepare all patches and patch objects."""
-        patch_objects = {}
-        patches_context = []
-        
-        # Process additional patches
-        if additional_patches:
-            for patch_name, patch_value in additional_patches.items():
-                patch_value = convert_mock_to_async_if_needed(patch_name, patch_value)
-                patch_objects[patch_name] = patch_value
-                patches_context.append(patch.object(app, patch_name, patch_value))
-        
-        # Add app-specific patches
-        if app_specific_patches:
-            patches_context.extend(app_specific_patches)
-        
-        return patches_context, patch_objects
-    
-    def _find_logger_mock(patches_context):
-        """Find the logger mock from patches."""
-        for patch_context in patches_context:
-            if hasattr(patch_context, 'new') and 'logger' in str(patch_context):
-                return patch_context.new
-        return None
-    
-    def _apply_patches(patches_context):
-        """Start all patches."""
-        for patch_context in patches_context:
-            patch_context.start()
-    
-    def _cleanup_patches(patches_context):
-        """Stop all patches."""
-        for patch_context in patches_context:
-            patch_context.stop()
     
     @asynccontextmanager
     async def test_context():
         # Prepare patches
-        patches_context, patch_objects = _prepare_patches()
+        patches_context, patch_objects = _prepare_button_handler_patches(
+            app, additional_patches, app_specific_patches
+        )
         
         # Call app-specific setup
         if app_specific_setup:
             app_specific_setup(app)
         
         # Apply all patches
-        _apply_patches(patches_context)
+        _apply_all_patches(patches_context)
         
         try:
             # Execute the handler
@@ -1267,14 +1302,14 @@ def create_buttons_handler_context_manager(app, payload, incidents, queue, route
             # Log message assertion
             mock_logger = None
             if expected_log_message and patches_context:
-                mock_logger = _find_logger_mock(patches_context)
+                mock_logger = _find_logger_mock_in_patches(patches_context)
                 if mock_logger:
                     mock_logger.info.assert_called_with(expected_log_message)
             
             yield result, mock_logger, patch_objects
         finally:
             # Cleanup all patches
-            _cleanup_patches(patches_context)
+            _cleanup_all_patches(patches_context)
     
     return test_context()
 
