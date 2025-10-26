@@ -301,7 +301,7 @@ class TestHTMLTextExtractor:
 
         assert extractor is not None
         assert extractor.text_parts == []
-        assert extractor.in_br is False
+        assert not extractor.in_br
 
     def test_html_text_extractor_simple_text(self):
         """Test HTMLTextExtractor with simple text."""

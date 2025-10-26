@@ -379,7 +379,7 @@ class TestConfigureUvicornLogging:
             configure_uvicorn_logging()
 
             # Should set propagate to False
-            assert mock_logger.propagate == False
+            assert not mock_logger.propagate
 
     def test_configure_uvicorn_logging_sets_formatter(self):
         """Test configure_uvicorn_logging sets custom formatter."""

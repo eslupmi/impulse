@@ -8,6 +8,9 @@ from datetime import datetime, timezone
 from typing import Dict, List, Any, Optional
 from unittest.mock import Mock, AsyncMock
 
+# Constants for test configuration
+DEFAULT_IMPULSE_ADDRESS = "https://impulse.example.com"
+
 
 class MockContextManager:
     """
@@ -262,7 +265,7 @@ def create_test_datetime(
         hour: int = 12,
         minute: int = 0,
         second: int = 0,
-        tz: Optional[timezone] = timezone.utc
+        tz: Optional[timezone] = None
 ) -> datetime:
     """
     Create a standardized test datetime.
@@ -816,7 +819,7 @@ def create_mattermost_config_data(
         users: Optional[Dict[str, Dict[str, str]]] = None,
         address: str = "https://mattermost.example.com",
         team: str = "test-team",
-        impulse_address: str = "https://impulse.example.com"
+        impulse_address: str = DEFAULT_IMPULSE_ADDRESS
 ) -> Dict[str, Any]:
     """
     Create a standardized Mattermost configuration data for testing.
@@ -866,7 +869,7 @@ def create_telegram_config_data(
         admin_users: Optional[List[str]] = None,
         channels: Optional[Dict[str, Dict[str, int]]] = None,
         users: Optional[Dict[str, Dict[str, int]]] = None,
-        impulse_address: str = "https://impulse.example.com"
+        impulse_address: str = DEFAULT_IMPULSE_ADDRESS
 ) -> Dict[str, Any]:
     """
     Create a standardized Telegram configuration data for testing.
@@ -1091,7 +1094,7 @@ def create_mock_async_task(cancelled: bool = False) -> MockAsyncTask:
 # Configuration Mocking Utilities
 # ============================================================================
 
-def create_mock_get_config_patch(impulse_address: str = "https://impulse.example.com"):
+def create_mock_get_config_patch(impulse_address: str = DEFAULT_IMPULSE_ADDRESS):
     """
     Create a mock for get_config() that returns a config with impulse_address.
     

@@ -95,7 +95,7 @@ class TestAsyncQueue:
     @pytest.mark.asyncio
     async def test_delete_by_id_steps_and_status(self, queue):
         """Test deleting items by UUID for both steps and status."""
-        dt = datetime.utcnow()
+        dt = create_test_datetime()
 
         # Add items of different types
         await queue.put(dt, 'chain_step', 'incident123', '0', None)
@@ -110,7 +110,7 @@ class TestAsyncQueue:
     @pytest.mark.asyncio
     async def test_delete_by_id_steps_only(self, queue):
         """Test deleting items by UUID for steps only."""
-        dt = datetime.utcnow()
+        dt = create_test_datetime()
 
         await queue.put(dt, 'chain_step', 'incident123', '0', None)
         await queue.put(dt, 'update_status', 'incident123', None, None)
@@ -123,7 +123,7 @@ class TestAsyncQueue:
     @pytest.mark.asyncio
     async def test_delete_by_id_status_only(self, queue):
         """Test deleting items by UUID for status only."""
-        dt = datetime.utcnow()
+        dt = create_test_datetime()
 
         await queue.put(dt, 'chain_step', 'incident123', '0', None)
         await queue.put(dt, 'update_status', 'incident123', None, None)
@@ -136,7 +136,7 @@ class TestAsyncQueue:
     @pytest.mark.asyncio
     async def test_delete_by_id_nonexistent_uuid(self, queue):
         """Test deleting items with non-existent UUID."""
-        dt = datetime.utcnow()
+        dt = create_test_datetime()
 
         await queue.put(dt, 'chain_step', 'incident123', '0', None)
 
@@ -148,9 +148,9 @@ class TestAsyncQueue:
     async def test_recreate_resolved_status(self, queue):
         """Test recreate with resolved status (should not add items)."""
         incident_chain = [
-            {'done': False, 'datetime': datetime.utcnow()},
-            {'done': True, 'datetime': datetime.utcnow()},
-            {'done': False, 'datetime': datetime.utcnow()}
+            {'done': False, 'datetime': create_test_datetime()},
+            {'done': True, 'datetime': create_test_datetime()},
+            {'done': False, 'datetime': create_test_datetime()}
         ]
 
         await queue.recreate('resolved', 'incident123', incident_chain)
@@ -160,7 +160,7 @@ class TestAsyncQueue:
     @pytest.mark.asyncio
     async def test_recreate_non_resolved_status(self, queue):
         """Test recreate with non-resolved status (should add items)."""
-        dt = datetime.utcnow()
+        dt = create_test_datetime()
         incident_chain = [
             {'done': False, 'datetime': dt, 'type': 'step1'},
             {'done': True, 'datetime': dt, 'type': 'step2'},
@@ -178,7 +178,7 @@ class TestAsyncQueue:
     @pytest.mark.asyncio
     async def test_update_resolved_status(self, queue):
         """Test update with resolved status."""
-        dt = datetime.utcnow()
+        dt = create_test_datetime()
 
         # Add some existing items
         await queue.put(dt, 'chain_step', 'incident123', '0', None)
@@ -213,7 +213,7 @@ class TestAsyncQueue:
     @pytest.mark.asyncio
     async def test_get_next_ready_item_ready(self, queue):
         """Test getting next ready item when item is ready."""
-        past_time = datetime.utcnow() - timedelta(minutes=1)
+        past_time = create_test_datetime() - timedelta(minutes=1)
 
         await queue.put(past_time, 'test_type', 'incident123', 'identifier456', {'data': 'test'})
 
@@ -228,7 +228,7 @@ class TestAsyncQueue:
     @pytest.mark.asyncio
     async def test_get_next_ready_item_not_ready(self, queue):
         """Test getting next ready item when no item is ready."""
-        future_time = datetime.utcnow() + timedelta(minutes=1)
+        future_time = create_test_datetime(year=2030) + timedelta(minutes=1)
 
         await queue.put(future_time, 'test_type', 'incident123', 'identifier456', {'data': 'test'})
 
@@ -253,7 +253,7 @@ class TestAsyncQueue:
     @pytest.mark.asyncio
     async def test_serialize(self, queue):
         """Test serializing queue items."""
-        dt = datetime.utcnow()
+        dt = create_test_datetime()
 
         await queue.put(dt, 'test_type', 'incident123', 'identifier456', {'data': 'test'})
         await queue.put(dt + timedelta(minutes=1), 'another_type', 'incident456', 'identifier789', None)
@@ -278,7 +278,7 @@ class TestAsyncQueue:
     @pytest.mark.asyncio
     async def test_concurrent_access(self, queue):
         """Test concurrent access to queue."""
-        dt = datetime.utcnow()
+        dt = create_test_datetime()
 
         # Simulate concurrent access
         import asyncio
@@ -301,7 +301,7 @@ class TestAsyncQueue:
     @pytest.mark.asyncio
     async def test_insert_item_sorted_edge_cases(self, queue):
         """Test _insert_item_sorted with edge cases."""
-        base_time = datetime.utcnow()
+        base_time = create_test_datetime()
 
         # Test inserting at the beginning
         await queue.put(base_time + timedelta(seconds=30), 'type3', 'incident3', 'id3', None)

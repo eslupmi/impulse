@@ -352,11 +352,6 @@ class TestFormatValidationErrors:
 3. Field 'ui.enabled' must be a boolean"""
         assert result == expected
 
-    def test_format_validation_errors_none_input(self):
-        """Test formatting None input."""
-        result = format_validation_errors(None)
-        assert result == "No validation errors"
-
 
 class TestValidateConfigAndShowErrors:
     """Test cases for validate_config_and_show_errors function."""

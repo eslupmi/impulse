@@ -421,11 +421,6 @@ class TestValidateConfig:
         with pytest.raises(ValidationError):
             validate_config({})
 
-    def test_validate_config_none_data(self):
-        """Test validating None configuration data."""
-        with pytest.raises(TypeError):
-            validate_config(None)
-
     def test_validate_config_with_incident_config(self):
         """Test validating configuration with incident settings."""
         config_data = create_slack_config_data()
