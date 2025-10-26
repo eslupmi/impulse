@@ -684,14 +684,14 @@ def create_mock_impulse_config(
     config.messenger.template_files.status_icons = None
     config.messenger.template_files.header = None
     config.messenger.template_files.body = None
-    
+
     config.incident = Mock()
     config.incident.timeouts = incident_config.get("timeouts", {})
     config.incident.notifications = incident_config.get("notifications", {})
-    
+
     config.ui = ui_config
     config.webhooks = {}
-    
+
     return config
 
 
@@ -754,7 +754,7 @@ def create_mock_environment_config(
     env_config.log_level = log_level
     env_config.listen_host = listen_host
     env_config.listen_port = listen_port
-    
+
     return env_config
 
 
@@ -972,7 +972,7 @@ def create_webhook_config_data(
         "url": url,
         "auth": auth
     }
-    
+
     if json_payload is not None:
         webhook_config["json"] = json_payload
     else:
@@ -1030,7 +1030,7 @@ class MockAsyncTask:
     This utility helps avoid RuntimeWarnings about coroutines not being awaited
     when testing async queue managers and other async components.
     """
-    
+
     def __init__(self, cancelled: bool = False):
         """
         Initialize the mock task.
@@ -1043,32 +1043,32 @@ class MockAsyncTask:
         self._done = False
         self._result = None
         self._exception = None
-    
+
     def cancel(self):
         """Cancel the task."""
         self._cancelled = True
         # Don't create any coroutines here
-    
+
     def cancelled(self):
         """Check if the task is cancelled."""
         return self._cancelled
-    
+
     def done(self):
         """Check if the task is done."""
         return self._done or self._cancelled
-    
+
     def result(self):
         """Get the task result."""
         return self._result
-    
+
     def exception(self):
         """Get the task exception."""
         return self._exception
-    
+
     def __await__(self):
         """Make the task awaitable by returning an empty iterator."""
         return iter([])
-    
+
     def __repr__(self):
         """String representation."""
         return f"MockAsyncTask(cancelled={self._cancelled})"

@@ -24,7 +24,7 @@ class TestAsyncIncidentWS:
         mock_get_config.return_value = mock_config
 
         ws = AsyncIncidentWS()
-        
+
         assert ws.connections == set()
         assert ws.table_config == mock_ui_config
 

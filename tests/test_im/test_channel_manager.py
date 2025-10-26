@@ -19,14 +19,14 @@ class TestChannelManager:
         """Test that ChannelManager is a singleton."""
         manager1 = ChannelManager()
         manager2 = ChannelManager()
-        
+
         assert manager1 is manager2
         assert manager1._initialized is True
 
     def test_channel_manager_initialization(self):
         """Test ChannelManager initialization."""
         manager = ChannelManager()
-        
+
         assert manager._initialized is True
         assert manager._channels == {}
 
@@ -39,31 +39,31 @@ class TestChannelManager:
         channel2_mock = Mock()
         channel2_mock.id = "C987654321"
         channel2_mock.name = "Test Channel 2"
-        
+
         channels_config = {
             "channel1": channel1_mock,
             "channel2": channel2_mock
         }
         default_channel = "default"
-        
+
         with patch('app.im.channel_manager.logger') as mock_logger:
             manager = ChannelManager()
             result = manager.initialize(channels_list, channels_config, default_channel)
-            
+
             # Check logger was called
             mock_logger.info.assert_called_once_with('Checking all channels defined')
-            
+
             # Check result structure
             assert len(result) == 2
             assert "channel1" in result
             assert "channel2" in result
-            
+
             # Check channel data
             assert result["channel1"]["id"] == "C123456789"
             assert result["channel1"]["name"] == "Test Channel 1"
             assert result["channel2"]["id"] == "C987654321"
             assert result["channel2"]["name"] == "Test Channel 2"
-            
+
             # Check internal channels storage
             assert len(manager._channels) == 2
             assert "C123456789" in manager._channels
@@ -78,27 +78,27 @@ class TestChannelManager:
         default_mock = Mock()
         default_mock.id = "C999999999"
         default_mock.name = "Default Channel"
-        
+
         channels_config = {
             "channel1": channel1_mock,
             "default": default_mock
         }
         default_channel = "default"
-        
+
         with patch('app.im.channel_manager.logger') as mock_logger:
             manager = ChannelManager()
             result = manager.initialize(channels_list, channels_config, default_channel)
-            
+
             # Check warning was logged
             mock_logger.warning.assert_called_once_with(
                 '.. channel undefined_channel not defined. Using default channel instead'
             )
-            
+
             # Check result structure
             assert len(result) == 2
             assert "channel1" in result
             assert "undefined_channel" in result
-            
+
             # Check that undefined channel uses default
             assert result["undefined_channel"]["id"] == "C999999999"
 
@@ -109,16 +109,16 @@ class TestChannelManager:
             "channel1": Mock(id="C123456789", name="Test Channel 1")
         }
         default_channel = "missing_default"
-        
+
         with patch('app.im.channel_manager.logger') as mock_logger:
             manager = ChannelManager()
             result = manager.initialize(channels_list, channels_config, default_channel)
-            
+
             # Check error was logged
             mock_logger.error.assert_called_once_with(
                 'Default channel missing_default not found in configuration'
             )
-            
+
             # Check that undefined channel uses default channel name as ID
             assert result["undefined_channel"]["id"] == "missing_default"
 
@@ -131,16 +131,16 @@ class TestChannelManager:
             "default": Mock(id="C999999999", name="Default Channel")
         }
         default_channel = "default"
-        
+
         with patch('app.im.channel_manager.logger') as mock_logger:
             manager = ChannelManager()
             result = manager.initialize(channels_list, channels_config, default_channel)
-            
+
             # Check warning was logged
             mock_logger.warning.assert_called_once_with(
                 ".. channel 'no_id_channel' has no 'id'. Using default channel instead"
             )
-            
+
             # Check that no_id_channel uses default
             assert result["no_id_channel"]["id"] == "C999999999"
 
@@ -151,11 +151,11 @@ class TestChannelManager:
             "channel1": {"id": "C123456789", "name": "Test Channel 1"}
         }
         default_channel = "default"
-        
+
         with patch('app.im.channel_manager.logger'):
             manager = ChannelManager()
             result = manager.initialize(channels_list, channels_config, default_channel)
-            
+
             # Check result structure
             assert result["channel1"]["id"] == "C123456789"
             # Note: name is not copied from dict config, only from object config
@@ -167,16 +167,16 @@ class TestChannelManager:
         channel1_mock = Mock()
         channel1_mock.id = "C123456789"
         channel1_mock.name = "Test Channel 1"
-        
+
         channels_config = {
             "channel1": channel1_mock
         }
         default_channel = "default"
-        
+
         with patch('app.im.channel_manager.logger'):
             manager = ChannelManager()
             manager.initialize(channels_list, channels_config, default_channel)
-            
+
             # Test getting channel name by ID
             channel_name = manager.get_channel_name_by_id("C123456789")
             assert channel_name == "Test Channel 1"
@@ -184,7 +184,7 @@ class TestChannelManager:
     def test_get_channel_name_by_id_nonexistent(self):
         """Test get_channel_name_by_id with non-existent channel."""
         manager = ChannelManager()
-        
+
         # Test getting channel name for non-existent ID
         channel_name = manager.get_channel_name_by_id("nonexistent")
         assert channel_name is None
@@ -192,7 +192,7 @@ class TestChannelManager:
     def test_get_channel_id_from_object(self):
         """Test _get_channel_id with channel object."""
         manager = ChannelManager()
-        
+
         # Test with object that has id attribute
         channel_obj = Mock(id="C123456789")
         channel_id = manager._get_channel_id(channel_obj)
@@ -201,7 +201,7 @@ class TestChannelManager:
     def test_get_channel_id_from_dict(self):
         """Test _get_channel_id with dictionary."""
         manager = ChannelManager()
-        
+
         # Test with dictionary
         channel_dict = {"id": "C123456789"}
         channel_id = manager._get_channel_id(channel_dict)
@@ -210,7 +210,7 @@ class TestChannelManager:
     def test_get_channel_id_from_invalid_object(self):
         """Test _get_channel_id with invalid object."""
         manager = ChannelManager()
-        
+
         # Test with object that has no id attribute
         channel_obj = Mock(spec=[])  # Mock with no attributes
         channel_id = manager._get_channel_id(channel_obj)
@@ -224,23 +224,23 @@ class TestChannelManager:
             "channel1": Mock(id="C123456789", name="Test Channel 1")
         }
         default_channel = "default"
-        
+
         with patch('app.im.channel_manager.logger'):
             manager = ChannelManager()
             manager.initialize(channels_list1, channels_config1, default_channel)
-            
+
             # Check channels are set
             assert len(manager._channels) == 1
             assert "C123456789" in manager._channels
-            
+
             # Second initialization with different channels
             channels_list2 = ["channel2"]
             channels_config2 = {
                 "channel2": Mock(id="C987654321", name="Test Channel 2")
             }
-            
+
             manager.initialize(channels_list2, channels_config2, default_channel)
-            
+
             # Check that old channels are cleared
             assert len(manager._channels) == 1
             assert "C123456789" not in manager._channels

@@ -1,21 +1,21 @@
 messenger:
   type: slack
-  admin_users: ["admin1", "admin2"]
+  admin_users: [ "admin1", "admin2" ]
   channels:
     default:
       id: "C123456789"
   users:
     admin1:
       id: "U123456"
-  template_files: {}
-  chains: {}
+  template_files: { }
+  chains: { }
   impulse_address: "https://impulse.example.com"
 
 route:
   channel: default
   chain: test_chain
-  routes: []
-  matchers: []
+  routes: [ ]
+  matchers: [ ]
 
 ui:
   columns:

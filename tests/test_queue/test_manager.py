@@ -1,7 +1,6 @@
 """
 Unit tests for app.queue.manager module.
 """
-import asyncio
 from unittest.mock import Mock, AsyncMock, patch
 
 import pytest
@@ -53,7 +52,7 @@ class TestAsyncQueueManager:
         class AwaitableMock(Mock):
             def __await__(self):
                 return iter([])
-        
+
         manager.alert_handler = Mock()
         manager.alert_handler.handle = AwaitableMock()
         manager.status_update_handler = Mock()
@@ -244,11 +243,11 @@ class TestAsyncQueueManager:
         """Test that start_processing logs the start message."""
         with patch('app.queue.manager.logger') as mock_logger:
             with patch('asyncio.create_task') as mock_create_task, \
-                 patch.object(queue_manager, '_process_queue_loop') as mock_loop:
+                    patch.object(queue_manager, '_process_queue_loop') as mock_loop:
                 # Create a mock task using utility function
                 mock_task = create_mock_async_task()
                 mock_create_task.return_value = mock_task
-                
+
                 queue_manager.start_processing()
 
                 mock_logger.info.assert_called_once_with("Started Queue")
@@ -258,7 +257,7 @@ class TestAsyncQueueManager:
         """Test that stop_processing logs the stop message."""
         # Start processing first with mocked task creation and loop method
         with patch('asyncio.create_task') as mock_create_task, \
-             patch.object(queue_manager, '_process_queue_loop') as mock_loop:
+                patch.object(queue_manager, '_process_queue_loop') as mock_loop:
             # Create a mock task using utility function
             mock_task = create_mock_async_task()
             mock_create_task.return_value = mock_task

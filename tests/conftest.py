@@ -1,11 +1,11 @@
 """
 Pytest configuration and fixtures for the IMPulse application test suite.
 """
-import pytest
 import asyncio
-from unittest.mock import Mock, AsyncMock, patch
 from datetime import datetime, timezone
-from typing import Dict, Any
+from unittest.mock import Mock
+
+import pytest
 
 from app.config.config import UnifiedConfig
 from app.config.environment import EnvironmentConfig
@@ -45,7 +45,7 @@ def mock_environment_config():
 def mock_impulse_config():
     """Mock ImpulseConfig for testing."""
     config = Mock(spec=ImpulseConfig)
-    
+
     # Mock messenger config
     messenger = Mock(spec=SlackApplicationConfig)
     messenger.type = MessengerType.SLACK
@@ -54,12 +54,12 @@ def mock_impulse_config():
     messenger.route = True
     messenger.webhooks = Mock()
     config.messenger = messenger
-    
+
     # Mock other configs
     config.incident = Mock()
     config.incident.timeouts = {"firing": "1h", "unknown": "30m", "resolved": "5m"}
     config.ui = True
-    
+
     return config
 
 
@@ -162,8 +162,6 @@ def mock_datetime():
 def mock_file_operations():
     """Mock file operations for testing."""
     with pytest.mock.patch('builtins.open'), \
-         pytest.mock.patch('yaml.dump'), \
-         pytest.mock.patch('yaml.load'):
+            pytest.mock.patch('yaml.dump'), \
+            pytest.mock.patch('yaml.load'):
         yield
-
-

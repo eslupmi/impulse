@@ -17,10 +17,10 @@ class TestGetApplication:
         mock_config.type = 'slack'
         channels = Mock()
         default_channel = Mock()
-        
+
         with patch('app.im.helpers.SlackApplication') as mock_slack_app:
             result = get_application(mock_config, channels, default_channel)
-            
+
             mock_slack_app.assert_called_once_with(mock_config, channels, default_channel)
             assert result == mock_slack_app.return_value
 
@@ -30,10 +30,10 @@ class TestGetApplication:
         mock_config.type = 'mattermost'
         channels = Mock()
         default_channel = Mock()
-        
+
         with patch('app.im.helpers.MattermostApplication') as mock_mattermost_app:
             result = get_application(mock_config, channels, default_channel)
-            
+
             mock_mattermost_app.assert_called_once_with(mock_config, channels, default_channel)
             assert result == mock_mattermost_app.return_value
 
@@ -43,10 +43,10 @@ class TestGetApplication:
         mock_config.type = 'telegram'
         channels = Mock()
         default_channel = Mock()
-        
+
         with patch('app.im.helpers.TelegramApplication') as mock_telegram_app:
             result = get_application(mock_config, channels, default_channel)
-            
+
             mock_telegram_app.assert_called_once_with(mock_config, channels, default_channel)
             assert result == mock_telegram_app.return_value
 
@@ -56,10 +56,10 @@ class TestGetApplication:
         mock_config.type = 'none'
         channels = Mock()
         default_channel = Mock()
-        
+
         with patch('app.im.helpers.NullApplication') as mock_null_app:
             result = get_application(mock_config, channels, default_channel)
-            
+
             mock_null_app.assert_called_once_with(mock_config, channels, default_channel)
             assert result == mock_null_app.return_value
 
@@ -69,7 +69,7 @@ class TestGetApplication:
         mock_config.type = 'unknown'
         channels = Mock()
         default_channel = Mock()
-        
+
         with pytest.raises(ValueError, match="Unknown application type: unknown"):
             get_application(mock_config, channels, default_channel)
 
@@ -79,7 +79,7 @@ class TestGetApplication:
         mock_config.type = ''
         channels = Mock()
         default_channel = Mock()
-        
+
         with pytest.raises(ValueError, match="Unknown application type: "):
             get_application(mock_config, channels, default_channel)
 
@@ -89,6 +89,6 @@ class TestGetApplication:
         mock_config.type = None
         channels = Mock()
         default_channel = Mock()
-        
+
         with pytest.raises(ValueError, match="Unknown application type: None"):
             get_application(mock_config, channels, default_channel)

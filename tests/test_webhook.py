@@ -2,7 +2,7 @@
 Unit tests for the Webhook class and related functionality.
 """
 import asyncio
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import AsyncMock, patch
 
 import aiohttp
 import pytest
@@ -139,10 +139,10 @@ class TestWebhook:
         """Test push method without provided session (creates temporary session)."""
         with patch('aiohttp.ClientSession') as mock_session_class:
             setup_mock_session_class_patch(mock_session_class, 200)
-            
+
             webhook = Webhook("https://example.com/webhook", data={"message": "test"})
             result = await webhook.push(incident=sample_incident)
-            
+
             assert result == ('ok', 200)
             mock_session_class.assert_called_once()
 
@@ -386,7 +386,7 @@ class TestWebhookIntegration:
         """Test complete webhook flow with form data."""
         with patch('aiohttp.ClientSession') as mock_session_class:
             mock_session, _ = setup_mock_session_class_patch(mock_session_class, 201)
-            
+
             webhook = Webhook(
                 url="https://example.com/webhook",
                 data={
@@ -395,12 +395,12 @@ class TestWebhookIntegration:
                 },
                 auth="user:pass"
             )
-            
+
             result = await webhook.push(incident=sample_incident)
-            
+
             assert result == ('ok', 201)
             mock_session.post.assert_called_once()
-            
+
             # Verify the call parameters
             call_args = mock_session.post.call_args
             assert call_args[1]['url'] == "https://example.com/webhook"
@@ -415,7 +415,7 @@ class TestWebhookIntegration:
         """Test complete webhook flow with JSON dict."""
         with patch('aiohttp.ClientSession') as mock_session_class:
             mock_session, _ = setup_mock_session_class_patch(mock_session_class, 200)
-            
+
             webhook = Webhook(
                 url="https://example.com/webhook",
                 json_payload={
@@ -423,12 +423,12 @@ class TestWebhookIntegration:
                     "severity": "{{ incident.payload.commonLabels.severity }}"
                 }
             )
-            
+
             result = await webhook.push(incident=sample_incident)
-            
+
             assert result == ('ok', 200)
             mock_session.post.assert_called_once()
-            
+
             # Verify the call parameters
             call_args = mock_session.post.call_args
             assert call_args[1]['url'] == "https://example.com/webhook"
@@ -442,17 +442,17 @@ class TestWebhookIntegration:
         """Test complete webhook flow with JSON string."""
         with patch('aiohttp.ClientSession') as mock_session_class:
             mock_session, _ = setup_mock_session_class_patch(mock_session_class, 200)
-            
+
             webhook = Webhook(
                 url="https://example.com/webhook",
                 json_payload='{"alert": "{{ incident.payload.commonLabels.alertname }}"}'
             )
-            
+
             result = await webhook.push(incident=sample_incident)
-            
+
             assert result == ('ok', 200)
             mock_session.post.assert_called_once()
-            
+
             # Verify the call parameters
             call_args = mock_session.post.call_args
             assert call_args[1]['url'] == "https://example.com/webhook"

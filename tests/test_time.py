@@ -1,8 +1,9 @@
 """
 Unit tests for app.time module.
 """
-import pytest
 from datetime import timedelta
+
+import pytest
 
 from app.time import unix_sleep_to_timedelta
 
@@ -42,7 +43,7 @@ class TestUnixSleepToTimedelta:
             ("1h", timedelta(hours=1)),
             ("1d", timedelta(days=1))
         ]
-        
+
         for input_val, expected in test_cases:
             result = unix_sleep_to_timedelta(input_val)
             assert result == expected
@@ -55,7 +56,7 @@ class TestUnixSleepToTimedelta:
             ("24h", timedelta(hours=24)),
             ("365d", timedelta(days=365))
         ]
-        
+
         for input_val, expected in test_cases:
             result = unix_sleep_to_timedelta(input_val)
             assert result == expected
@@ -68,7 +69,7 @@ class TestUnixSleepToTimedelta:
             ("0h", timedelta(hours=0)),
             ("0d", timedelta(days=0))
         ]
-        
+
         for input_val, expected in test_cases:
             result = unix_sleep_to_timedelta(input_val)
             assert result == expected
