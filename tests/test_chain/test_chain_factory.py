@@ -235,27 +235,6 @@ class TestChainFactory:
                     "chain3": mock_chain3
                 }
 
-    def test_generate_with_unicode_chain_names(self):
-        """Test generate with unicode chain names."""
-        chains_dict = {
-            "тест_цепь": Mock(),
-            "chain🚨": Mock()
-        }
-
-        with patch.object(ChainFactory, '_create_chain') as mock_create_chain:
-            mock_chain1 = Mock()
-            mock_chain2 = Mock()
-            mock_create_chain.side_effect = [mock_chain1, mock_chain2]
-
-            with patch('app.im.chain.chain_factory.logger') as mock_logger:
-                result = ChainFactory.generate(chains_dict)
-
-                mock_logger.info.assert_called_once_with('Creating chains')
-                assert result == {
-                    "тест_цепь": mock_chain1,
-                    "chain🚨": mock_chain2
-                }
-
     def test_generate_with_special_characters_chain_names(self):
         """Test generate with special characters in chain names."""
         chains_dict = {

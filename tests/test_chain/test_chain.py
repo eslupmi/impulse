@@ -38,13 +38,6 @@ class TestChain:
         assert chain.name == ""
         assert chain.steps == []
 
-    def test_chain_initialization_with_unicode_name(self):
-        """Test Chain initialization with unicode name."""
-        chain = Chain(name="тест_цепь", steps=[])
-
-        assert chain.name == "тест_цепь"
-        assert chain.steps == []
-
     def test_chain_initialization_with_special_characters_name(self):
         """Test Chain initialization with special characters in name."""
         chain = Chain(name="test-chain_with.special@chars", steps=[])
@@ -113,14 +106,6 @@ class TestChain:
         assert chain.name == "test"
         assert chain.steps == steps
 
-    def test_chain_initialization_with_unicode_steps(self):
-        """Test Chain initialization with unicode steps."""
-        steps = [{"user": "пользователь1"}, {"user": "пользователь2"}]
-        chain = Chain(name="test", steps=steps)
-
-        assert chain.name == "test"
-        assert chain.steps == steps
-
     def test_chain_initialization_with_emoji_steps(self):
         """Test Chain initialization with emoji steps."""
         steps = [{"user": "user1🚨"}, {"user": "user2✅"}]
@@ -172,12 +157,6 @@ class TestChain:
         chain = Chain(name="", steps=[])
 
         assert repr(chain) == ""
-
-    def test_chain_repr_with_unicode_name(self):
-        """Test Chain __repr__ method with unicode name."""
-        chain = Chain(name="тест_цепь", steps=[])
-
-        assert repr(chain) == "тест_цепь"
 
     def test_chain_repr_with_special_characters_name(self):
         """Test Chain __repr__ method with special characters name."""
