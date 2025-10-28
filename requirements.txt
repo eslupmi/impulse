@@ -1,4 +1,4 @@
-fastapi~=0.104.1
+fastapi~=0.120.1
 uvicorn[standard]~=0.24.0
 websockets~=12.0
 requests~=2.32.3
@@ -9,7 +9,7 @@ pydantic~=2.11.7
 PyYAML~=6.0.1
 python-dotenv~=1.0.1
 python-multipart~=0.0.20
-urllib3~=1.26.15
+urllib3~=2.5.0
 PyJWT[crypto]~=2.10.1
 aiofiles~=23.2.1
 httpx~=0.25.2
