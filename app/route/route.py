@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 from app.config.validation import RouteConfig
 from app.logging import logger
@@ -69,7 +69,7 @@ class Route(MainRoute):
         return channels
 
 
-def generate_route(route_config: RouteConfig):
+def generate_route(route_config: Optional[RouteConfig]):
     logger.info('Creating route')
     if not route_config:
         return MainRoute('default')

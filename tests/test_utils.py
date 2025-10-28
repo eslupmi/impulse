@@ -1,8 +1,9 @@
 """
 Unit tests for app.utils module.
 """
-import pytest
 from datetime import datetime, timezone
+
+import pytest
 
 from app.utils import get_attr_by_key_chain, normalize_param, filter_dict_keys
 
@@ -24,20 +25,22 @@ class TestGetAttrByKeyChain:
 
     def test_object_attribute_access(self):
         """Test accessing object attributes."""
+
         class TestObj:
             def __init__(self):
                 self.attr = "test_value"
-        
+
         obj = TestObj()
         result = get_attr_by_key_chain(obj, None, "attr")
         assert result == "test_value"
 
     def test_mixed_dict_and_object_access(self):
         """Test accessing mixed dictionary and object attributes."""
+
         class TestObj:
             def __init__(self):
                 self.nested = {"key": "mixed_value"}
-        
+
         obj = TestObj()
         result = get_attr_by_key_chain(obj, None, "nested", "key")
         assert result == "mixed_value"
@@ -56,9 +59,10 @@ class TestGetAttrByKeyChain:
 
     def test_missing_attribute_returns_default(self):
         """Test that missing attributes return the default value."""
+
         class TestObj:
             pass
-        
+
         obj = TestObj()
         result = get_attr_by_key_chain(obj, "default", "missing_attr")
         assert result == "default"
@@ -107,11 +111,11 @@ class TestNormalizeParam:
             {},
             {"key": "value"}
         ]
-        
+
         for test_case in test_cases:
             result = normalize_param(test_case)
             assert result == test_case
-            assert type(result) == type(test_case)
+            assert isinstance(result, type(test_case))
 
 
 class TestFilterDictKeys:
@@ -158,9 +162,9 @@ class TestFilterDictKeys:
         source = {"a": 1, "b": 2, "c": 3}
         keys_to_exclude = {"b": "value"}
         original_source = source.copy()
-        
+
         result = filter_dict_keys(source, keys_to_exclude)
-        
+
         # Original should be unchanged
         assert source == original_source
         # Result should be different
