@@ -60,6 +60,7 @@ nav:
   - Features:
     - check.md
     - google.md
+    # - ha.md
     - ui.md
   - concepts.md
   - versioning.md

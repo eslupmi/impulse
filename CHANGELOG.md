@@ -4,8 +4,11 @@
 Changes:
 - Added JSON support for webhooks ([docs](https://docs.impulse.bot/stable/config_file/#webhooksjson))
 - Added Grafana as an alert source ([docs](https://docs.impulse.bot/stable/grafana/))
-- IMPulse can continue work on read-only filesystem (thanks [zorek187](https://github.com/zorek187))
+- IMPulse continue work on full (read-only) filesystem ([docs](https://docs.impulse.bot/stable/ha/))
 - Switch to slim python docker image
+
+Thanks:
+- https://github.com/zorek187 for implementing read-only filesystem support
 
 ## v3.0.1
 Changes:
