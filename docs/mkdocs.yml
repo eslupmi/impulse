@@ -49,9 +49,10 @@ nav:
     - slack.md
     - telegram.md
   - External:
-    - instatus.md
-    - twilio.md
-    - zvonok.md
+    - integrations/external/instatus.md
+    - integrations/external/telegram.md
+    - integrations/external/twilio.md
+    - integrations/external/zvonok.md
 - IMPULSE SERVER:
   - installation.md
   - Configuration:
