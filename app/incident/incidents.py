@@ -82,7 +82,7 @@ class Incidents:
 
         for path, directories, files in os.walk(config.incidents_path):
             for filename in files:
-                file_path = f'{config.incidents_path}/{filename}'
+                file_path = os.path.join(path, filename)
 
                 cls._migrate_file_if_needed(migrator, file_path)
 
