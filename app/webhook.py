@@ -14,7 +14,7 @@ from app.logging import logger
 class Webhook:
     def __init__(self, url, data=None, json_payload=None, auth=None):
         self._url = self.render(url)
-        self._pre_render_data = data
+        self._data = data
         self._json_payload = json_payload
         self._auth = auth
 
@@ -67,9 +67,9 @@ class Webhook:
 
     def _render_data(self, incident: Incident = None):
         rendered_data = {}
-        if self._pre_render_data:
+        if self._data:
             serialized_incident = incident.serialize() if incident else {}
-            for key, value in self._pre_render_data.items():
+            for key, value in self._data.items():
                 rendered_data[key] = self.render(value, incident=serialized_incident)
         return rendered_data
 
