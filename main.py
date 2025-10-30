@@ -3,7 +3,7 @@ import json
 import signal
 import sys
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, HTTPException, APIRouter
 from fastapi.responses import HTMLResponse
@@ -172,7 +172,7 @@ async def post_alert(request: Request):
     try:
         alert_state = await request.json()
         logger.debug(f"Got alert. Payload: {alert_state}")
-        await request.app.state.queue.put_first(datetime.utcnow(), 'alert', None, None, alert_state)
+        await request.app.state.queue.put_first(datetime.now(timezone.utc), 'alert', None, None, alert_state)
         return alert_state
     except Exception as e:
         logger.error(f"Error processing alert: {e}")

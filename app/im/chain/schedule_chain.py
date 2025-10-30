@@ -1,5 +1,5 @@
 import re
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Tuple, Optional
 from zoneinfo import ZoneInfo
 
@@ -26,7 +26,7 @@ class ScheduleChain:
         """
         Get the steps for the current time.
         """
-        current_time = datetime.now()
+        current_time = datetime.now(timezone.utc)
         return self._get_steps(current_time)
 
     def _get_steps(self, current_time: datetime) -> List[SimpleChainStep]:
@@ -111,7 +111,7 @@ class ScheduleChain:
         Check if the current time falls within the specified shift window.
         """
         shift_start, shift_end = self._get_shift_time(start_time, duration, current_time)
-        return shift_start <= datetime.now().astimezone(self.tz) < shift_end
+        return shift_start <= datetime.now(self.tz) < shift_end
 
     @staticmethod
     def _get_duration(duration: str) -> Optional[str]:

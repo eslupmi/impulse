@@ -360,7 +360,7 @@ class TestIncident:
 
     def test_chain_put(self, sample_incident):
         """Test putting item in chain."""
-        dt = datetime.utcnow()
+        dt = datetime.now(timezone.utc)
         sample_incident.chain_put(0, dt, "test_type", "test_id")
 
         assert len(sample_incident.chain) == 1
@@ -372,7 +372,7 @@ class TestIncident:
 
     def test_chain_update(self, sample_incident):
         """Test updating chain item."""
-        dt = datetime.utcnow()
+        dt = datetime.now(timezone.utc)
         sample_incident.chain_put(0, dt, "test_type", "test_id")
 
         with patch.object(sample_incident, 'dump'):

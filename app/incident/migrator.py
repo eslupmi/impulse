@@ -1,6 +1,7 @@
 import os
 import yaml
-from typing import Dict, List, Optional
+from typing import Dict, List
+from datetime import datetime, timezone
 from app.logging import logger
 from app.tools import NoAliasDumper
 from app.config.config import get_config
@@ -17,6 +18,7 @@ class IncidentMigrator:
     # Define migration path - each version knows how to migrate to the next
     MIGRATION_CHAIN = {
         'v0.4': 'v3.0.0',
+        'v3.0.0': 'v3.2.0',
     }
     
     def __init__(self):
@@ -25,6 +27,7 @@ class IncidentMigrator:
         # Example: 'v0.4_to_v0.5': self._migrate_v0_4_to_v0_5,
         self._migration_methods = {
             'v0.4_to_v3.0.0': self._migrate_v0_4_to_v3_0_0,
+            'v3.0.0_to_v3.2.0': self._migrate_v3_0_0_to_v3_2_0,
         }
     
     def migrate_file(self, file_path: str, incident_data: Dict, current_version: str, target_version: str):
@@ -121,4 +124,39 @@ class IncidentMigrator:
         
         config = get_config()
         migrated['messenger_type'] = config.messenger.type.value
+        return migrated
+
+    def _migrate_v3_0_0_to_v3_2_0(self, data: Dict) -> Dict:
+        migrated = data.copy()
+
+        def to_aware_utc(value):
+            if value is None:
+                return None
+            if isinstance(value, datetime):
+                if value.tzinfo is None:
+                    return value.replace(tzinfo=timezone.utc)
+                return value.astimezone(timezone.utc)
+            if isinstance(value, str):
+                try:
+                    dt = datetime.fromisoformat(value.replace('Z', '+00:00'))
+                    if dt.tzinfo is None:
+                        dt = dt.replace(tzinfo=timezone.utc)
+                    return dt.astimezone(timezone.utc)
+                except ValueError:
+                    return value
+            return value
+
+        for key in ('status_update_datetime', 'updated', 'created'):
+            if key in migrated:
+                migrated[key] = to_aware_utc(migrated.get(key))
+
+        chain = migrated.get('chain') or []
+        new_chain = []
+        for step in chain:
+            step_copy = step.copy()
+            if 'datetime' in step_copy:
+                step_copy['datetime'] = to_aware_utc(step_copy.get('datetime'))
+            new_chain.append(step_copy)
+        migrated['chain'] = new_chain
+
         return migrated

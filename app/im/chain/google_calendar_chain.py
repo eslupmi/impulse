@@ -224,12 +224,12 @@ class GoogleCalendarChain(ScheduleChain):
         try:
             token = self._get_access_token()
 
-            date_from = datetime.datetime.utcnow()
+            date_from = datetime.datetime.now(datetime.timezone.utc)
             date_to = date_from + datetime.timedelta(days=self._app_config.provider_days_to_sync)
 
             params = {
-                'timeMin': date_from.isoformat() + 'Z',
-                'timeMax': date_to.isoformat() + 'Z',
+                'timeMin': date_from.isoformat().replace('+00:00', 'Z'),
+                'timeMax': date_to.isoformat().replace('+00:00', 'Z'),
                 'maxResults': self._app_config.provider_max_events,
                 'singleEvents': 'true',
                 'orderBy': 'startTime'

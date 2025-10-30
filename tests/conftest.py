@@ -83,7 +83,7 @@ def mock_get_config_globally():
         unified_config = Mock(spec=UnifiedConfig)
         unified_config.env = env_config
         unified_config.app = app_config
-        unified_config.INCIDENT_ACTUAL_VERSION = "v3.0.0"
+        unified_config.INCIDENT_ACTUAL_VERSION = "v3.2.0"
         unified_config.check_updates = True
         unified_config.messenger = messenger
         unified_config.incident = app_config.incident
@@ -189,7 +189,7 @@ def mock_unified_config(mock_environment_config, mock_impulse_config):
     config = Mock(spec=UnifiedConfig)
     config.env = mock_environment_config
     config.app = mock_impulse_config
-    config.INCIDENT_ACTUAL_VERSION = "v3.0.0"
+    config.INCIDENT_ACTUAL_VERSION = "v3.2.0"
     config.check_updates = True
     config.messenger = mock_impulse_config.messenger
     config.incident = mock_impulse_config.incident

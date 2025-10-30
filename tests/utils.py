@@ -266,7 +266,7 @@ def create_test_datetime(
         hour: int = 12,
         minute: int = 0,
         second: int = 0,
-        tz: Optional[timezone] = None
+        tz: Optional[timezone] = timezone.utc
 ) -> datetime:
     """
     Create a standardized test datetime.
@@ -307,7 +307,7 @@ def create_mock_config(
 
     mock_config = Mock()
     mock_config.incidents_path = incidents_path
-    mock_config.INCIDENT_ACTUAL_VERSION = "v3.0.0"
+    mock_config.INCIDENT_ACTUAL_VERSION = "v3.2.0"
 
     # Mock incident config
     mock_incident_config = Mock()
@@ -390,7 +390,7 @@ def create_mock_incident_data(
     test_datetime = create_test_datetime()
 
     return {
-        'version': 'v3.0.0',
+        'version': 'v3.2.0',
         'status': status,
         'channel_id': channel_id,
         'payload': {'alertname': 'TestAlert', 'severity': 'critical'},
