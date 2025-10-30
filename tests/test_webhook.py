@@ -51,7 +51,7 @@ class TestWebhook:
         webhook = Webhook("https://example.com/webhook")
 
         assert webhook._url == "https://example.com/webhook"
-        assert webhook._pre_render_data is None
+        assert webhook._data is None
         assert webhook._json_payload is None
         assert webhook._auth is None
 
@@ -61,7 +61,7 @@ class TestWebhook:
         webhook = Webhook("https://example.com/webhook", data=data)
 
         assert webhook._url == "https://example.com/webhook"
-        assert webhook._pre_render_data == data
+        assert webhook._data == data
         assert webhook._json_payload is None
 
     def test_webhook_initialization_with_json_dict(self):
@@ -71,7 +71,7 @@ class TestWebhook:
 
         assert webhook._url == "https://example.com/webhook"
         assert webhook._json_payload == json_payload
-        assert webhook._pre_render_data is None
+        assert webhook._data is None
 
     def test_webhook_initialization_with_json_string(self):
         """Test webhook initialization with JSON string payload."""
@@ -364,7 +364,7 @@ class TestGenerateWebhooks:
         # Test first webhook
         test_webhook = webhooks["test_webhook"]
         assert test_webhook._url == "https://example.com/webhook"
-        assert test_webhook._pre_render_data == {"message": "test"}
+        assert test_webhook._data == {"message": "test"}
         assert test_webhook._auth == "user:pass"
 
         # Test second webhook
