@@ -17,6 +17,9 @@ from app.config.config import get_config
 
 
 class GoogleCalendarChain(ScheduleChain):
+    _UTC_OFFSET = '+00:00'
+    _Z_TIMEZONE = 'Z'
+
     def __init__(self, name, config: CloudChain):
         super().__init__(name)
         
@@ -228,8 +231,8 @@ class GoogleCalendarChain(ScheduleChain):
             date_to = date_from + datetime.timedelta(days=self._app_config.provider_days_to_sync)
 
             params = {
-                'timeMin': date_from.isoformat().replace('+00:00', 'Z'),
-                'timeMax': date_to.isoformat().replace('+00:00', 'Z'),
+                'timeMin': date_from.isoformat().replace(self._UTC_OFFSET, self._Z_TIMEZONE),
+                'timeMax': date_to.isoformat().replace(self._UTC_OFFSET, self._Z_TIMEZONE),
                 'maxResults': self._app_config.provider_max_events,
                 'singleEvents': 'true',
                 'orderBy': 'startTime'
@@ -280,8 +283,8 @@ class GoogleCalendarChain(ScheduleChain):
         end_time = event['end'].get('dateTime', event['end'].get('date'))
 
         # Convert to datetime objects in calendar's timezone
-        start_dt = datetime.datetime.fromisoformat(start_time.replace('Z', '+00:00'))
-        end_dt = datetime.datetime.fromisoformat(end_time.replace('Z', '+00:00'))
+        start_dt = datetime.datetime.fromisoformat(start_time.replace(self._Z_TIMEZONE, self._UTC_OFFSET))
+        end_dt = datetime.datetime.fromisoformat(end_time.replace(self._Z_TIMEZONE, self._UTC_OFFSET))
 
         # Calculate duration
         duration = end_dt - start_dt

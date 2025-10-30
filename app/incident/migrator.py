@@ -126,36 +126,29 @@ class IncidentMigrator:
         migrated['messenger_type'] = config.messenger.type.value
         return migrated
 
+    @staticmethod
+    def _to_aware_utc(value):
+        if value is None:
+            return None
+        if isinstance(value, datetime):
+            if value.tzinfo is None:
+                return value.replace(tzinfo=timezone.utc)
+            return value.astimezone(timezone.utc)
+        return value
+
     def _migrate_v3_0_0_to_v3_2_0(self, data: Dict) -> Dict:
         migrated = data.copy()
 
-        def to_aware_utc(value):
-            if value is None:
-                return None
-            if isinstance(value, datetime):
-                if value.tzinfo is None:
-                    return value.replace(tzinfo=timezone.utc)
-                return value.astimezone(timezone.utc)
-            if isinstance(value, str):
-                try:
-                    dt = datetime.fromisoformat(value.replace('Z', '+00:00'))
-                    if dt.tzinfo is None:
-                        dt = dt.replace(tzinfo=timezone.utc)
-                    return dt.astimezone(timezone.utc)
-                except ValueError:
-                    return value
-            return value
-
         for key in ('status_update_datetime', 'updated', 'created'):
             if key in migrated:
-                migrated[key] = to_aware_utc(migrated.get(key))
+                migrated[key] = self._to_aware_utc(migrated.get(key))
 
         chain = migrated.get('chain') or []
         new_chain = []
         for step in chain:
             step_copy = step.copy()
             if 'datetime' in step_copy:
-                step_copy['datetime'] = to_aware_utc(step_copy.get('datetime'))
+                step_copy['datetime'] = self._to_aware_utc(step_copy.get('datetime'))
             new_chain.append(step_copy)
         migrated['chain'] = new_chain
 
