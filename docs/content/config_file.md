@@ -408,7 +408,7 @@
 
 > Incident message contains three parts ([picture](concepts.md/#structure)). Default template files for theese parts is [here](https://github.com/DiTsi/impulse/tree/develop/templates). You can copy the default templates, modify them, and specify custom paths.
 
-> Template files can contain special words `incident` and `payload` as variables to show additional info. `incident` contains [incident attributes](https://github.com/DiTsi/impulse/blob/v1.4.0/app/incident/incident.py#L21) (used [here](https://github.com/DiTsi/impulse/blob/develop/templates/slack_status_icons.j2#L1)). `payload` is an alert payload.
+> Template files supported [special variables](special_variables.md): `incident` (used [here](https://github.com/DiTsi/impulse/blob/develop/templates/slack_status_icons.j2#L1)) and `payload`.
 
 > **Example**
 
@@ -665,7 +665,7 @@
 - **description:** data source variable (e.g., `incident.status`, `payload.commonLabels.alertname`)
 - **type:** string
 
-> Two special keywords are used: `incident` and `payload`. `incident` refers to the incident object. You can see your incident objects at `http://localhost:5000/incidents`. `payload` is the last alert payload for this incident (`payload` corresponds to `incident.payload`)
+> Supported [special variables](special_variables.md): `incident` and `payload`.
 
 #### ui.columns[].type
 
@@ -687,6 +687,8 @@
 
 - **description:** variable containing the required link (e.g., `incident.link`) (used with `type: link`)
 - **type:** string
+
+> Supported [special variables](special_variables.md): `env` and `incident`.
 
 #### ui.columns[].format
 
@@ -771,16 +773,15 @@
 - **description:** string for HTTP Basic Auth (e.g., user:password)
 - **type:** string
 
+> Supported [special variables](special_variables.md): `env`.
+
 ### webhooks[].data
 
 - **description:** data to be sent in the POST request body
 - **limitations**: cannot be used together with `webhooks[].json`
 - **type:** dict
 
-> Supports special variables:
-> 
-> - `env` - to get environment variables (e.g. passwords, tokens)
-> - `incident` - to get current incident fields
+> Supported [special variables](special_variables.md): `env` and `incident`.
 
 > **Example:**
 > ```yaml
@@ -797,10 +798,7 @@
 - **limitations**: cannot be used together with `webhooks[].data`
 - **type:** dict or str
 
-> Supports special variables:
-> 
-> - `env` - to get environment variables (e.g. passwords, tokens)
-> - `incident` - to get current incident fields
+> Supported [special variables](special_variables.md): `env` and `incident`.
 
 > **Examples:**
 
@@ -827,3 +825,5 @@
 
 - **description:** URL to which the HTTP POST request will be sent
 - **type:** string
+
+> Supported [special variables](special_variables.md): `env`.

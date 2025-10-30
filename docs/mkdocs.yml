@@ -62,6 +62,7 @@ nav:
     - check.md
     - google.md
     # - ha.md
+    - special_variables.md
     - ui.md
   - concepts.md
   - versioning.md
