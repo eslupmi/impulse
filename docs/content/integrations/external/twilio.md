@@ -1,17 +1,17 @@
 # twilio.com
 
 !!! info ""
-    Integration work using [webhooks](config_file.md/#webhooks)
+    Integration work using [webhooks](../../config_file.md/#webhooks)
 
 ## Call example
 
-*To make this configs works you should add theese custom [Environment Variables](envs.md)*:
+*To make this configs works you should add theese custom [Environment Variables](../../envs.md)*:
 
 - TWILIO_ACCOUNT_SID
 - TWILIO_AUTH_TOKEN
 - TWILIO_NUMBER
 
-and add webhook to [impulse.yml](config_file.md):
+and add webhook to [impulse.yml](../../config_file.md):
 
 ```yaml
 webhooks:
