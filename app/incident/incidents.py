@@ -80,7 +80,7 @@ class Incidents:
         incidents = cls([])
         migrator = IncidentMigrator()
 
-        for path, directories, files in os.walk(config.incidents_path):
+        for path, _, files in os.walk(config.incidents_path):
             for filename in files:
                 file_path = os.path.join(path, filename)
 
