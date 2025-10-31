@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.im.template import JinjaTemplate, update_alerts
 from app.incident.incident import IncidentConfig, Incident
@@ -39,9 +39,9 @@ class AlertHandler(BaseHandler):
         channel = self.app.channels[channel_name]
 
         status = alert_state['status']
-        updated_datetime = datetime.utcnow()
+        updated_datetime = datetime.now(timezone.utc)
         timeout_value = config.incident.timeouts.get(status)
-        status_update_datetime = datetime.utcnow() + unix_sleep_to_timedelta(timeout_value)
+        status_update_datetime = datetime.now(timezone.utc) + unix_sleep_to_timedelta(timeout_value)
 
         incident_config = IncidentConfig(
             application_type=self.app.type,

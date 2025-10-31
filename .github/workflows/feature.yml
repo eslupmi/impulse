@@ -35,4 +35,4 @@ jobs:
       
       - name: Run tests
         run: |
-          python run_tests.py
+          python -m pytest tests/ --color=yes -v

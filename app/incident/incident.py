@@ -36,8 +36,8 @@ class Incident:
     chain: List[Dict] = field(default_factory=list)
     chain_enabled: bool = False
     status_enabled: bool = False
-    updated: datetime = field(default_factory=datetime.utcnow)
-    created: datetime = field(default_factory=datetime.utcnow)
+    updated: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    created: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     version: str = get_config().INCIDENT_ACTUAL_VERSION
     uuid: str = field(init=False)
     ts: str = field(default='')
@@ -92,7 +92,7 @@ class Incident:
 
         steps = self._unchain(chains, steps)
 
-        dt = datetime.utcnow()
+        dt = datetime.now(timezone.utc)
         for index, step in enumerate(steps):
             type_, value = self._get_step_type_and_value(step)
             if type_ == 'wait':
@@ -294,7 +294,7 @@ class Incident:
         return data
 
     def update_status(self, status: str) -> bool:
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         self.updated = now
         if status != 'closed':
             config = get_config()

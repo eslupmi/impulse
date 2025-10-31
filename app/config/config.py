@@ -16,7 +16,7 @@ class UnifiedConfig:
         self.env = env
         self.app = app
 
-        self.INCIDENT_ACTUAL_VERSION = 'v3.0.0'
+        self.INCIDENT_ACTUAL_VERSION = 'v3.2.0'
         self.check_updates = True
 
     @property

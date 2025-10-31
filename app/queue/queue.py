@@ -1,6 +1,6 @@
 import asyncio
 from collections import namedtuple
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, Tuple, Any
 
 from app.logging import logger
@@ -76,7 +76,7 @@ class AsyncQueue:
 
     async def get_next_ready_item(self) -> Optional[Tuple[str, str, str, Any]]:
         """Get the next item that's ready to be processed (datetime <= now)"""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         async with self._lock:
             if self._items and self._items[0].datetime <= now:
                 item = self._items.pop(0)
