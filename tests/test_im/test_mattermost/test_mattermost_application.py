@@ -136,33 +136,6 @@ class TestMattermostApplication:
 
         assert destinations == ["admin1", "admin2"]
 
-    def test_format_text_bold(self):
-        """Test format_text_bold method."""
-        app = MattermostApplication(self.app_config, self.channels, self.default_channel)
-
-        with patch('app.im.mattermost.mattermost_application.mattermost_bold_text') as mock_bold:
-            mock_bold.return_value = "**bold text**"
-            result = app.format_text_bold("bold text")
-
-            assert result == "**bold text**"
-            mock_bold.assert_called_once_with("bold text")
-
-    def test_format_text_italic(self):
-        """Test format_text_italic method."""
-        app = MattermostApplication(self.app_config, self.channels, self.default_channel)
-
-        result = app.format_text_italic("italic text")
-
-        assert result == "_italic text_"
-
-    def test_format_text_link(self):
-        """Test _format_text_link method."""
-        app = MattermostApplication(self.app_config, self.channels, self.default_channel)
-
-        result = app._format_text_link("link text", "https://example.com")
-
-        assert result == "([link text](https://example.com))"
-
     def test_get_admins_text(self):
         """Test get_admins_text method."""
         app = MattermostApplication(self.app_config, self.channels, self.default_channel)

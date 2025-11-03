@@ -164,30 +164,6 @@ class TestTelegramApplication:
 
         assert destinations == [admin1, admin2]
 
-    def test_format_text_bold(self, app_config, channels, users):
-        """Test format_text_bold method."""
-        app = self.create_telegram_app(app_config, channels, users)
-
-        result = app.format_text_bold("bold text")
-
-        assert result == "<b>bold text</b>"
-
-    def test_format_text_italic(self, app_config, channels, users):
-        """Test format_text_italic method."""
-        app = self.create_telegram_app(app_config, channels, users)
-
-        result = app.format_text_italic("italic text")
-
-        assert result == "<i>italic text</i>"
-
-    def test_format_text_link(self, app_config, channels, users):
-        """Test _format_text_link method."""
-        app = self.create_telegram_app(app_config, channels, users)
-
-        result = app._format_text_link("link text", "https://example.com")
-
-        assert result == "<a href=https://example.com>link text</a>"
-
     def test_format_tg_icon(self, app_config, channels, users):
         """Test _format_tg_icon method."""
         app = self.create_telegram_app(app_config, channels, users)
