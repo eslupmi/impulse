@@ -112,9 +112,7 @@ class AlertHandler(BaseHandler):
         """
         Notify about new firing alerts added to the incident
         """
-        header = self.app.format_text_italic(
-            self.app.header_template.form_message(incident_.payload, incident_)
-        )
+        header = self.app.header_template.form_message(incident_.payload, incident_)
         fields = {
             'type': self.app.type,
             'firing': new_alerts_f,

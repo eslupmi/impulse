@@ -52,8 +52,8 @@ class StepHandler(BaseHandler):
                 )
 
             text = text_template.form_notification(fields)
-            header = f"{self.app.format_text_italic(self.app.header_template.form_message(incident.payload, incident))}"
-            message = f"{header}" + '\n' + f'{text}'
+            header = self.app.header_template.form_message(incident.payload, incident)
+            message = header + '\n' + text
             await self.app.post_thread(incident.channel_id, incident.ts, message)
         else:
             r_code = await self.app.notify(incident, step['type'], step['identifier'])
