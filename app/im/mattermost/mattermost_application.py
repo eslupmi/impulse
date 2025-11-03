@@ -82,15 +82,6 @@ class MattermostApplication(Application):
     def get_notification_destinations(self):
         return [a.username for a in self.admin_users]
 
-    def format_text_bold(self, text):
-        return mattermost_bold_text(text)
-
-    def format_text_italic(self, text):
-        return f'_{text}_'
-
-    def _format_text_link(self, text, url):
-        return f"([{text}]({url}))"
-
     def get_admins_text(self):
         admins_text = mattermost_env.from_string(mattermost_admins_template_string).render(
             users=self.get_notification_destinations()

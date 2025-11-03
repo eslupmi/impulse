@@ -178,34 +178,6 @@ class TestSlackApplication:
 
         assert destinations == ["U123456", "U789012"]
 
-    def test_format_text_bold(self, app_config, channels, default_channel):
-        """Test format_text_bold method."""
-        app = self.create_slack_app(app_config, channels, default_channel)
-
-        with patch('app.im.slack.slack_application.slack_bold_text') as mock_bold:
-            mock_bold.return_value = "*bold text*"
-
-            result = app.format_text_bold("bold text")
-
-            assert result == "*bold text*"
-            mock_bold.assert_called_once_with("bold text")
-
-    def test_format_text_italic(self, app_config, channels, default_channel):
-        """Test format_text_italic method."""
-        app = self.create_slack_app(app_config, channels, default_channel)
-
-        result = app.format_text_italic("italic text")
-
-        assert result == "_italic text_"
-
-    def test_format_text_link(self, app_config, channels, default_channel):
-        """Test _format_text_link method."""
-        app = self.create_slack_app(app_config, channels, default_channel)
-
-        result = app._format_text_link("link text", "https://example.com")
-
-        assert result == "(<https://example.com|link text>)"
-
     def test_get_admins_text(self, app_config, channels, default_channel):
         """Test get_admins_text method."""
         app = self.create_slack_app(app_config, channels, default_channel)

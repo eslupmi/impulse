@@ -46,15 +46,6 @@ class TelegramApplication(Application):
     def get_notification_destinations(self):
         return self.admin_users
 
-    def format_text_bold(self, text):
-        return f'<b>{text}</b>'
-
-    def _format_text_link(self, text, url):
-        return f'<a href={url}>{text}</a>'
-
-    def format_text_italic(self, text):
-        return f'<i>{text}</i>'
-
     def _format_tg_icon(self, icon):
         return f'{self.icon_map.get(icon)}'
 

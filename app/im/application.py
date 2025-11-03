@@ -108,10 +108,7 @@ class Application(ABC):
             return
 
         try:
-
-            header = self.format_text_italic(
-                self.header_template.form_message(incident_obj.payload, incident_obj)
-            )
+            header = self.header_template.form_message(incident_obj.payload, incident_obj)
             fields = {'type': self.type.value, 'username': user_display_name, 'id': user_id}
             text = JinjaTemplate(notification_assignment).form_notification(fields)
             if self.type == MessengerType.TELEGRAM:
@@ -137,9 +134,7 @@ class Application(ABC):
             return
 
         try:
-            header = self.format_text_italic(
-                self.header_template.form_message(incident_obj.payload, incident_obj)
-            )
+            self.header_template.form_message(incident_obj.payload, incident_obj)
             text = JinjaTemplate(notification_unassignment).form_notification({})
             if self.type.value == MessengerType.TELEGRAM:
                 message = text
@@ -195,7 +190,7 @@ class Application(ABC):
             text_template = JinjaTemplate(notification_user_group)
         fields = {'type': self.type.value, 'name': identifier, 'unit': unit, 'admins': destinations}
         text = text_template.form_notification(fields)
-        header = self.format_text_italic(self.header_template.form_message(incident.payload, incident))
+        header = self.header_template.form_message(incident.payload, incident)
         if self.type == MessengerType.TELEGRAM:
             message = text
         else:
@@ -216,7 +211,7 @@ class Application(ABC):
             logger.info(f'Incident {uuid_} updated with new status \'{incident_status}\'')
             # post to thread
             if status_enabled and incident_status != 'closed':
-                header = self.format_text_italic(self.header_template.form_message(incident.payload, incident))
+                header = self.header_template.form_message(incident.payload, incident)
 
                 text_template = JinjaTemplate(update_status)
                 admins = self.get_notification_destinations()
@@ -303,18 +298,6 @@ class Application(ABC):
 
     @abstractmethod
     def get_notification_destinations(self):
-        pass
-
-    @abstractmethod
-    def format_text_bold(self, text):
-        pass
-
-    @abstractmethod
-    def _format_text_link(self, text, url):
-        pass
-
-    @abstractmethod
-    def format_text_italic(self, text):
         pass
 
     @abstractmethod

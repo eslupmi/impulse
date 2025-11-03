@@ -1,2 +1,2 @@
 {%- set commonLabels = payload.get("commonLabels", {}) -%}
-{{- commonLabels.alertname -}}
+{{- '_' ~ commonLabels.get("alertname", "") ~ '_' -}}

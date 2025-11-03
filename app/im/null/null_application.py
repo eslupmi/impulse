@@ -55,18 +55,6 @@ class NullApplication(Application):
         """No notification destinations"""
         return []
 
-    def format_text_bold(self, text):
-        """Return text as-is"""
-        return text
-
-    def _format_text_link(self, text, url):
-        """Return text as-is"""
-        return text
-
-    def format_text_italic(self, text):
-        """Return text as-is"""
-        return text
-
     def get_admins_text(self):
         """No admins"""
         return ''
