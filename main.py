@@ -123,10 +123,6 @@ async def lifespan(fastapi_app: FastAPI):
     logger.info('IMPulse shutdown complete')
 
 
-# Get HTTP prefix from configuration
-config = get_config()
-http_prefix = config.http_prefix
-
 app = FastAPI(
     title="IMPulse",
     description="Incident Management Platform",
@@ -136,11 +132,9 @@ app = FastAPI(
     redoc_url=None
 )
 
-# Create router with HTTP prefix if specified
-if http_prefix:
-    router = APIRouter(prefix=http_prefix)
-else:
-    router = APIRouter()
+config = get_config()
+http_prefix = config.http_prefix
+router = APIRouter(prefix=http_prefix)
 
 # Mount static files with prefix
 if get_config().ui_config:
