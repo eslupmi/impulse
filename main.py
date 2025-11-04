@@ -1,4 +1,5 @@
 import argparse
+import asyncio
 import json
 import signal
 import sys
@@ -12,6 +13,7 @@ from fastapi.templating import Jinja2Templates
 
 from app.config.config import get_config, reload_config
 from app.config.validation import MessengerType
+from app.file_lock import FileLock
 from app.im.channel_manager import ChannelManager
 from app.im.helpers import get_application
 from app.incident.incidents import Incidents
@@ -73,6 +75,18 @@ def validate_config_only():
 @asynccontextmanager
 async def lifespan(fastapi_app: FastAPI):
     """Manage application lifecycle"""
+    file_lock = FileLock()
+    is_locked = file_lock.locked()
+    
+    if is_locked:
+        logger.info("Another IMPulse instance is running, working as backup server")
+        await file_lock.wait_for_unlock()
+    
+    if is_locked:
+        logger.info("Lock acquired, starting as primary server")
+    
+    heartbeat_task = asyncio.create_task(file_lock.heartbeat())
+        
     config = get_config()
     route_config = config.app.route
     webhooks_config = config.app.webhooks
@@ -102,12 +116,15 @@ async def lifespan(fastapi_app: FastAPI):
     fastapi_app.state.route = route
     fastapi_app.state.channel_manager = channel_manager
     fastapi_app.state.config = config
+    fastapi_app.state.file_lock = file_lock
 
     queue_manager.start_processing()
 
     logger.info('IMPulse started!')
 
     yield
+
+    heartbeat_task.cancel()
 
     if fastapi_app.state.queue_manager:
         await fastapi_app.state.queue_manager.stop_processing()
@@ -120,6 +137,7 @@ async def lifespan(fastapi_app: FastAPI):
             if hasattr(chain, 'cleanup'):
                 chain.cleanup()
 
+    file_lock.release_lock()
     logger.info('IMPulse shutdown complete')
 
 
