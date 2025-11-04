@@ -34,5 +34,6 @@ jobs:
           cp examples/impulse.none.yml impulse.yml
       
       - name: Run tests
+        timeout-minutes: 5
         run: |
           python -m pytest tests/ --color=yes -v
