@@ -553,10 +553,11 @@ class TestSlackApplication:
         # Mock HTTP response
         mock_response = AsyncMock()
         mock_response.json = AsyncMock(return_value={"url": "https://test-workspace.slack.com"})
+        mock_response.close = Mock()
 
         # Mock HTTP client
         app.http = Mock()
-        app.http.get = Mock(return_value=MockContextManager(mock_response))
+        app.http.get = AsyncMock(return_value=mock_response)
 
         result = await app._get_public_url(app_config)
 
@@ -579,10 +580,11 @@ class TestSlackApplication:
                 }
             }
         })
+        mock_response.close = Mock()
 
         # Mock HTTP client
         app.http = Mock()
-        app.http.get = Mock(return_value=MockContextManager(mock_response))
+        app.http.get = AsyncMock(return_value=mock_response)
 
         result = await app.get_user_details({"id": "U123456"})
 
@@ -599,10 +601,11 @@ class TestSlackApplication:
 
         mock_response = AsyncMock()
         mock_response.status = 500
+        mock_response.close = Mock()
 
         # Mock HTTP client
         app.http = Mock()
-        app.http.get = Mock(return_value=MockContextManager(mock_response))
+        app.http.get = AsyncMock(return_value=mock_response)
 
         result = await app.get_user_details({"id": "U123456"})
 
@@ -624,10 +627,11 @@ class TestSlackApplication:
             "ok": False,
             "error": "user_not_found"
         })
+        mock_response.close = Mock()
 
         # Mock HTTP client
         app.http = Mock()
-        app.http.get = Mock(return_value=MockContextManager(mock_response))
+        app.http.get = AsyncMock(return_value=mock_response)
 
         result = await app.get_user_details({"id": "U123456"})
 
@@ -645,10 +649,11 @@ class TestSlackApplication:
 
         mock_response = AsyncMock()
         mock_response.json = AsyncMock(return_value={"ts": "1234567890.123456"})
+        mock_response.close = Mock()
 
         # Mock HTTP client
         app.http = Mock()
-        app.http.post = Mock(return_value=MockContextManager(mock_response))
+        app.http.post = AsyncMock(return_value=mock_response)
 
         result = await app.send_message("C123456789", "Test message", "Test attachment")
 
@@ -661,10 +666,11 @@ class TestSlackApplication:
         app = self.create_slack_app(app_config, channels, default_channel)
 
         mock_response = AsyncMock()
+        mock_response.close = Mock()
 
         # Mock HTTP client
         app.http = Mock()
-        app.http.post = Mock(return_value=MockContextManager(mock_response))
+        app.http.post = AsyncMock(return_value=mock_response)
 
         await app._update_thread("1234567890.123456", {"text": "Updated message"})
 
