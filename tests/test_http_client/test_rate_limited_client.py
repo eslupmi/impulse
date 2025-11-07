@@ -111,7 +111,7 @@ class TestRateLimitedClient:
         async with RateLimitedClient(rate_limit=rate_limit, rate_window=rate_window) as client:
             info = client.get_rate_limit_info()
             assert info['rate_limit'] == rate_limit
-            assert info['rate_window'] == rate_window
+            assert abs(info['rate_window'] - rate_window) < 0.001
             assert info['request_count'] == 0
             assert info['window_start_time'] is None
             assert info['last_request_time'] is None

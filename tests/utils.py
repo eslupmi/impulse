@@ -1075,7 +1075,7 @@ class FakeTime:
         """
         self.current_time += seconds
     
-    async def sleep(self, seconds: float):
+    async def sleep(self, seconds: float): # NOSONAR - test mock
         """
         Simulate asyncio.sleep by advancing time instantly.
         

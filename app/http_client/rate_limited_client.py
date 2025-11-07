@@ -47,8 +47,8 @@ class RetryAfterRetry(ExponentialRetry):
                     return min(wait_time, self._max_timeout)
                 except ValueError:
                     logger.warning(
-                        f"Rate limit hit (429) with date-format Retry-After header, "
-                        f"using exponential backoff"
+                        "Rate limit hit (429) with date-format Retry-After header, "
+                        "using exponential backoff"
                     )
         
         return super().get_timeout(attempt, response)
@@ -206,7 +206,7 @@ class RateLimitedClient:
             
             logger.debug(
                 f"Request {self._request_count}/{self.rate_limit or 'unlimited'} "
-                f"in current window"
+                "in current window"
             )
     
     async def request(self, method: str, url: str, **kwargs):

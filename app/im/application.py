@@ -47,7 +47,7 @@ class Application(ABC):
 
     async def initialize_async(self):
         """Initialize async components after object creation"""
-        self.http = await self._setup_http()
+        self.http = self._setup_http()
         if hasattr(self, '_get_public_url') and callable(getattr(self, '_get_public_url')):
             if asyncio.iscoroutinefunction(self._get_public_url):
                 self.public_url = await self._get_public_url(self._app_config)
@@ -246,7 +246,7 @@ class Application(ABC):
         response.close()
         return status
 
-    async def _setup_http(self):
+    def _setup_http(self):
         """
         Setup HTTP client with rate limiting.
         
