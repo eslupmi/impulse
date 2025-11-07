@@ -199,7 +199,7 @@ class RateLimitedClient:
                 self._window_start_time = time.monotonic()
                 self._request_count = 0
                 logger.debug("Starting new rate limit window")
-            
+
             # Increment request counter
             self._request_count += 1
             self._last_request_time = time.monotonic()

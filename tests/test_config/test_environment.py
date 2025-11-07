@@ -34,7 +34,7 @@ class TestEnvironmentConfig:
         assert config.listen_host == "0.0.0.0"
         assert config.listen_port == 5000
         assert config.http_rate_limit is None
-        assert abs(config.http_rate_window - 1.0) < 0.001
+        assert config.http_rate_window is None
 
     def test_environment_variable_loading(self):
         """Test loading values from environment variables."""
@@ -331,10 +331,10 @@ class TestEnvironmentConfig:
             assert config.http_rate_limit is None
 
     def test_http_rate_window_default(self):
-        """Test that http_rate_window defaults to 1.0."""
+        """Test that http_rate_window defaults to None."""
         with patch.dict('os.environ', {}, clear=True):
             config = EnvironmentConfig()
-            assert abs(config.http_rate_window - 1.0) < 0.001
+            assert config.http_rate_window is None
 
     def test_http_rate_limit_from_env(self):
         """Test that http_rate_limit can be set from environment."""

@@ -66,7 +66,7 @@ class TestTelegramApplication:
                 app.post_message_url = "https://api.telegram.org/bot/sendMessage"
                 app.headers = {'Content-Type': 'application/json'}
                 app.rate_limit = 15
-                app.wait_time = 60.0
+                app.rate_window = 60.0
                 app.thread_id_key = "message_id"
 
                 return app

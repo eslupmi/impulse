@@ -87,11 +87,11 @@ class EnvironmentConfig(BaseModel):
     # HTTP Client Rate Limiting
     http_rate_limit: int | None = Field(
         default_factory=lambda: int(os.getenv('HTTP_RATE_LIMIT')) if os.getenv('HTTP_RATE_LIMIT') else None,
-        description="Global HTTP rate limit (requests per rate_window). If set, overrides application-specific rate limits."
+        description="Global HTTP rate limit (requests per rate_window)"
     )
-    http_rate_window: float = Field(
-        default_factory=lambda: float(os.getenv('HTTP_RATE_WINDOW', '1.0')),
-        description="HTTP rate limit window in seconds (default: 1.0)"
+    http_rate_window: float | None = Field(
+        default_factory=lambda: float(os.getenv('HTTP_RATE_WINDOW')) if os.getenv('HTTP_RATE_WINDOW') else None,
+        description="HTTP rate limit window in seconds"
     )
     
     @field_validator('provider_sync_interval', 'provider_max_events', 'provider_days_to_sync', 'listen_port')
@@ -114,7 +114,7 @@ class EnvironmentConfig(BaseModel):
     @classmethod
     def validate_http_rate_window(cls, v):
         """Validate that HTTP rate window is positive"""
-        if v <= 0:
+        if v is not None and v <= 0:
             raise ValueError("HTTP rate window must be a positive number")
         return v
     

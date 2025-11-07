@@ -255,9 +255,8 @@ class Application(ABC):
         """
         env_config = get_environment_config()
         
-        # Use environment config if set, otherwise use application-specific rate limit
         rate_limit = env_config.http_rate_limit if env_config.http_rate_limit is not None else self.rate_limit
-        rate_window = env_config.http_rate_window
+        rate_window = env_config.http_rate_window if env_config.http_rate_window is not None else self.rate_window
         
         if rate_limit:
             logger.info(
