@@ -2,11 +2,8 @@ import asyncio
 from abc import ABC, abstractmethod
 from typing import Union, Dict
 
-import aiohttp
-from aiohttp import ClientTimeout, ClientSession
-from aiohttp_retry import ExponentialRetry, RetryClient
-
 from app.config.config import get_config
+from app.config.environment import get_environment_config
 from app.config.validation import ApplicationConfig, MattermostUser, SlackUser, TelegramUser, MessengerType
 from app.http_client import RateLimitedClient
 from app.im.chain.chain_factory import ChainFactory
@@ -33,7 +30,7 @@ class Application(ABC):
         self.post_message_url = None
         self.headers = None
         self.rate_limit = None
-        self.wait_time = 1.0
+        self.rate_window = 1.0
         self.thread_id_key = None
         self._initialize_specific_params()
 
@@ -256,17 +253,23 @@ class Application(ABC):
         Returns:
             RateLimitedClient instance
         """
-        if self.rate_limit:
+        env_config = get_environment_config()
+        
+        # Use environment config if set, otherwise use application-specific rate limit
+        rate_limit = env_config.http_rate_limit if env_config.http_rate_limit is not None else self.rate_limit
+        rate_window = env_config.http_rate_window
+        
+        if rate_limit:
             logger.info(
                 f"{self.type.value.capitalize()} rate limiting enabled: "
-                f"{self.rate_limit} requests per second"
+                f"{rate_limit} requests per {rate_window}s window"
             )
         else:
             logger.info(f"{self.type.value.capitalize()} rate limiting disabled")
         
         client = RateLimitedClient(
-            rate_limit=self.rate_limit,
-            wait_time=self.wait_time,
+            rate_limit=rate_limit,
+            rate_window=rate_window,
             retry_attempts=3,
             timeout=30.0,
             connector_limit=100,

@@ -1042,6 +1042,90 @@ def create_ui_config_data(
 
 
 # ============================================================================
+# HTTP Rate Limiting Test Utilities
+# ============================================================================
+
+class FakeTime:
+    """
+    Helper class to simulate time progression without actual waiting.
+    
+    This utility is used to speed up rate limiting tests by mocking
+    time.monotonic() and asyncio.sleep() calls.
+    """
+    
+    def __init__(self, start_time: float = 1000.0):
+        """
+        Initialize fake time.
+        
+        Args:
+            start_time: Initial time value (default: 1000.0)
+        """
+        self.current_time = start_time
+    
+    def monotonic(self) -> float:
+        """Get current fake time."""
+        return self.current_time
+    
+    def advance(self, seconds: float):
+        """
+        Advance fake time by specified seconds.
+        
+        Args:
+            seconds: Number of seconds to advance
+        """
+        self.current_time += seconds
+    
+    async def sleep(self, seconds: float):
+        """
+        Simulate asyncio.sleep by advancing time instantly.
+        
+        Args:
+            seconds: Number of seconds to sleep
+        """
+        self.advance(seconds)
+
+
+def create_test_server_url(server, path: str = '/test') -> str:
+    """
+    Create a test server URL for HTTP requests.
+    
+    Args:
+        server: The aiohttp test server instance
+        path: URL path (default: '/test')
+        
+    Returns:
+        Complete HTTP URL for testing
+        
+    Note:
+        Uses http:// for local test servers (NOSONAR compliant)
+    """
+    return f'http://{server.host}:{server.port}{path}'  # NOSONAR - test mock server
+
+
+async def make_requests_and_close(client, url: str, count: int) -> list:
+    """
+    Make multiple HTTP requests and close all responses.
+    
+    Args:
+        client: HTTP client instance
+        url: URL to request
+        count: Number of requests to make
+        
+    Returns:
+        List of response objects (already closed)
+    """
+    responses = []
+    for _ in range(count):
+        response = await client.get(url)
+        responses.append(response)
+    
+    for response in responses:
+        response.close()
+    
+    return responses
+
+
+# ============================================================================
 # Async Task Test Utilities
 # ============================================================================
 

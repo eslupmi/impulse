@@ -84,12 +84,38 @@ class EnvironmentConfig(BaseModel):
         description="Port to listen on"
     )
     
+    # HTTP Client Rate Limiting
+    http_rate_limit: int | None = Field(
+        default_factory=lambda: int(os.getenv('HTTP_RATE_LIMIT')) if os.getenv('HTTP_RATE_LIMIT') else None,
+        description="Global HTTP rate limit (requests per rate_window). If set, overrides application-specific rate limits."
+    )
+    http_rate_window: float = Field(
+        default_factory=lambda: float(os.getenv('HTTP_RATE_WINDOW', '1.0')),
+        description="HTTP rate limit window in seconds (default: 1.0)"
+    )
+    
     @field_validator('provider_sync_interval', 'provider_max_events', 'provider_days_to_sync', 'listen_port')
     @classmethod
     def validate_positive_integers(cls, v):
         """Validate that numeric settings are positive integers"""
         if v <= 0:
             raise ValueError("Configuration values must be positive integers")
+        return v
+    
+    @field_validator('http_rate_limit', mode='after')
+    @classmethod
+    def validate_http_rate_limit(cls, v):
+        """Validate that HTTP rate limit is positive if set"""
+        if v is not None and v <= 0:
+            raise ValueError("HTTP rate limit must be a positive integer")
+        return v
+    
+    @field_validator('http_rate_window', mode='after')
+    @classmethod
+    def validate_http_rate_window(cls, v):
+        """Validate that HTTP rate window is positive"""
+        if v <= 0:
+            raise ValueError("HTTP rate window must be a positive number")
         return v
     
     @field_validator('cors_allowed_origins')

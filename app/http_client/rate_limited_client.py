@@ -60,11 +60,11 @@ class RateLimitedClient:
     
     This client tracks the number of requests made within a time window and
     automatically waits when the rate limit is about to be exceeded. If the API
-    is idle for the wait_time duration, the counter resets.
+    is idle for the rate_window duration, the counter resets.
     
     Args:
-        rate_limit: Maximum number of requests allowed per wait_time period (None = no limit)
-        wait_time: Time window in seconds for the rate limit (default: 1.0)
+        rate_limit: Maximum number of requests allowed per rate_window period (None = no limit)
+        rate_window: Time window in seconds for the rate limit (default: 1.0)
         retry_attempts: Number of retry attempts for failed requests (default: 3)
         timeout: Request timeout in seconds (default: 30.0)
         connector_limit: Total connection limit (default: 100)
@@ -74,14 +74,14 @@ class RateLimitedClient:
     def __init__(
         self,
         rate_limit: Optional[int] = None,
-        wait_time: float = 1.0,
+        rate_window: float = 1.0,
         retry_attempts: int = 3,
         timeout: float = 30.0,
         connector_limit: int = 100,
         connector_limit_per_host: int = 30
     ):
         self.rate_limit = rate_limit
-        self.wait_time = wait_time
+        self.rate_window = rate_window
         
         # Rate limiting state
         self._request_count = 0
@@ -140,7 +140,7 @@ class RateLimitedClient:
         
         logger.debug(
             f"RateLimitedClient initialized with rate_limit={self.rate_limit}, "
-            f"wait_time={self.wait_time}s"
+            f"rate_window={self.rate_window}s"
         )
     
     async def close(self):
@@ -156,7 +156,7 @@ class RateLimitedClient:
         Check rate limit and wait if necessary.
         
         This method:
-        1. Resets the counter if idle for wait_time duration
+        1. Resets the counter if idle for rate_window duration
         2. Waits if the rate limit has been reached within the current window
         3. Updates request tracking state
         """
@@ -167,10 +167,10 @@ class RateLimitedClient:
         async with self._lock:
             current_time = time.monotonic()
             
-            # Reset counter if idle for wait_time duration
+            # Reset counter if idle for rate_window duration
             if self._last_request_time is not None:
                 idle_duration = current_time - self._last_request_time
-                if idle_duration >= self.wait_time:
+                if idle_duration >= self.rate_window:
                     self._request_count = 0
                     self._window_start_time = None
                     logger.debug(
@@ -187,8 +187,8 @@ class RateLimitedClient:
             
             if self._request_count >= self.rate_limit:
                 # We've reached the limit, need to wait for window to expire
-                if time_since_window_start < self.wait_time:
-                    wait_duration = self.wait_time - time_since_window_start
+                if time_since_window_start < self.rate_window:
+                    wait_duration = self.rate_window - time_since_window_start
                     logger.debug(
                         f"Rate limit reached ({self._request_count}/{self.rate_limit}), "
                         f"waiting {wait_duration:.2f}s"
@@ -261,14 +261,14 @@ class RateLimitedClient:
         Returns:
             dict with keys:
                 - rate_limit: Maximum requests per window
-                - wait_time: Window duration in seconds
+                - rate_window: Window duration in seconds
                 - request_count: Current requests in window
                 - window_start_time: Start time of current window
                 - last_request_time: Time of last request
         """
         return {
             'rate_limit': self.rate_limit,
-            'wait_time': self.wait_time,
+            'rate_window': self.rate_window,
             'request_count': self._request_count,
             'window_start_time': self._window_start_time,
             'last_request_time': self._last_request_time
