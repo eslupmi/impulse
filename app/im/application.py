@@ -277,7 +277,7 @@ class Application(ABC):
         )
         
         # Initialize the client
-        await client._initialize_client()
+        client._initialize_client()
         
         return client
 

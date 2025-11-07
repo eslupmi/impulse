@@ -34,7 +34,7 @@ class TestEnvironmentConfig:
         assert config.listen_host == "0.0.0.0"
         assert config.listen_port == 5000
         assert config.http_rate_limit is None
-        assert config.http_rate_window == 1.0
+        assert abs(config.http_rate_window - 1.0) < 0.001
 
     def test_environment_variable_loading(self):
         """Test loading values from environment variables."""
@@ -77,7 +77,7 @@ class TestEnvironmentConfig:
         assert config.listen_host == '127.0.0.1'
         assert config.listen_port == 8080
         assert config.http_rate_limit == 100
-        assert config.http_rate_window == 2.0
+        assert abs(config.http_rate_window - 2.0) < 0.001
 
     def test_positive_integer_validation(self):
         """Test validation of positive integer fields."""
@@ -334,7 +334,7 @@ class TestEnvironmentConfig:
         """Test that http_rate_window defaults to 1.0."""
         with patch.dict('os.environ', {}, clear=True):
             config = EnvironmentConfig()
-            assert config.http_rate_window == 1.0
+            assert abs(config.http_rate_window - 1.0) < 0.001
 
     def test_http_rate_limit_from_env(self):
         """Test that http_rate_limit can be set from environment."""
@@ -346,14 +346,14 @@ class TestEnvironmentConfig:
         """Test that http_rate_window can be set from environment."""
         with patch.dict('os.environ', {'HTTP_RATE_WINDOW': '2.5'}, clear=True):
             config = EnvironmentConfig()
-            assert config.http_rate_window == 2.5
+            assert abs(config.http_rate_window - 2.5) < 0.001
 
     def test_http_rate_limit_and_window_from_env(self):
         """Test that both http_rate_limit and http_rate_window can be set from environment."""
         with patch.dict('os.environ', {'HTTP_RATE_LIMIT': '30', 'HTTP_RATE_WINDOW': '0.5'}, clear=True):
             config = EnvironmentConfig()
             assert config.http_rate_limit == 30
-            assert config.http_rate_window == 0.5
+            assert abs(config.http_rate_window - 0.5) < 0.001
 
 
 class TestEnvironmentConfigFunctions:

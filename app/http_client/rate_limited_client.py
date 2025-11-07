@@ -101,14 +101,14 @@ class RateLimitedClient:
     
     async def __aenter__(self):
         """Async context manager entry"""
-        await self._initialize_client()
+        self._initialize_client()
         return self
     
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Async context manager exit"""
         await self.close()
     
-    async def _initialize_client(self):
+    def _initialize_client(self):
         """Initialize the HTTP client if not already initialized"""
         if self._client is not None:
             return
@@ -212,16 +212,16 @@ class RateLimitedClient:
     async def request(self, method: str, url: str, **kwargs):
         """
         Make an HTTP request with rate limiting.
-        
+
         Args:
             method: HTTP method (GET, POST, PUT, DELETE, etc.)
             url: Request URL
             **kwargs: Additional arguments to pass to aiohttp
-            
+
         Returns:
             aiohttp.ClientResponse
         """
-        await self._initialize_client()
+        self._initialize_client()
         await self._wait_for_rate_limit()
         
         return await self._client.request(method, url, **kwargs)

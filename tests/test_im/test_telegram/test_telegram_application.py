@@ -888,7 +888,7 @@ class TestTelegramApplication:
         })
         mock_response.close = Mock()
 
-        with patch.object(app.http, 'get', new=AsyncMock(return_value=mock_response)) as mock_get:
+        with patch.object(app.http, 'get', new=AsyncMock(return_value=mock_response)):
             result = await app.get_user_details({'id': '123456'})
 
             assert result == {
@@ -908,7 +908,7 @@ class TestTelegramApplication:
         mock_response.status = 404
         mock_response.close = Mock()
 
-        with patch.object(app.http, 'get', new=AsyncMock(return_value=mock_response)) as mock_get:
+        with patch.object(app.http, 'get', new=AsyncMock(return_value=mock_response)):
             result = await app.get_user_details({'id': '123456'})
 
             assert result == {
@@ -932,7 +932,7 @@ class TestTelegramApplication:
         })
         mock_response.close = Mock()
 
-        with patch.object(app.http, 'get', new=AsyncMock(return_value=mock_response)) as mock_get:
+        with patch.object(app.http, 'get', new=AsyncMock(return_value=mock_response)):
             result = await app.get_user_details({'id': '123456'})
 
             assert result == {

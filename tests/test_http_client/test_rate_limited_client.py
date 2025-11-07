@@ -16,7 +16,7 @@ async def mock_server(aiohttp_server):
     """Create a mock HTTP server for testing"""
     request_times = []
     
-    async def handler(request):
+    def handler(request):
         request_times.append(time.monotonic())
         return web.json_response({'status': 'ok'})
     
@@ -41,14 +41,14 @@ class TestRateLimitedClient:
         """Test that client initializes correctly without rate limit"""
         async with RateLimitedClient() as client:
             assert client.rate_limit is None
-            assert client.rate_window == 1.0
+            assert abs(client.rate_window - 1.0) < 0.001
             assert client._request_count == 0
     
     async def test_initialization_with_rate_limit(self):
         """Test that client initializes correctly with rate limit"""
         async with RateLimitedClient(rate_limit=20, rate_window=1.0) as client:
             assert client.rate_limit == 20
-            assert client.rate_window == 1.0
+            assert abs(client.rate_window - 1.0) < 0.001
             assert client._request_count == 0
     
     async def test_requests_without_rate_limit(self, mock_server):
@@ -163,7 +163,7 @@ class TestRateLimitedClient:
         client = RateLimitedClient(rate_limit=10, rate_window=1.0)
         
         async with client:
-            await client._initialize_client()
+            client._initialize_client()
             assert client._client is not None
             assert client._session is not None
         
@@ -173,7 +173,7 @@ class TestRateLimitedClient:
     async def test_manual_close(self):
         """Test that manual close works correctly"""
         client = RateLimitedClient(rate_limit=10, rate_window=1.0)
-        await client._initialize_client()
+        client._initialize_client()
         
         assert client._client is not None
         assert client._session is not None
@@ -242,7 +242,7 @@ class TestRateLimitedClient:
         """Test that 429 responses with Retry-After header are handled correctly"""
         call_count = 0
         
-        async def handler(request):
+        def handler(request):
             nonlocal call_count
             call_count += 1
             if call_count == 1:
@@ -268,7 +268,7 @@ class TestRateLimitedClient:
         """Test that 429 responses without Retry-After use exponential backoff"""
         call_count = 0
         
-        async def handler(request):
+        def handler(request):
             nonlocal call_count
             call_count += 1
             if call_count == 1:
@@ -289,7 +289,23 @@ class TestRateLimitedClient:
                 
                 response.close()
     
-    async def test_retry_after_respects_max_timeout(self):
+    async def test_rate_limit_parameters(self):
+        """Test that rate limit parameters are correctly set"""
+        async with RateLimitedClient(rate_limit=15, rate_window=2.0) as client:
+            assert client.rate_limit == 15
+            assert abs(client.rate_window - 2.0) < 0.001
+    
+    async def test_no_rate_limit_parameters(self):
+        """Test that client works without rate limit"""
+        async with RateLimitedClient(rate_limit=None, rate_window=1.0) as client:
+            assert client.rate_limit is None
+            assert abs(client.rate_window - 1.0) < 0.001
+
+
+class TestRetryAfterRetry:
+    """Test cases for RetryAfterRetry policy (synchronous tests)"""
+    
+    def test_retry_after_respects_max_timeout(self):
         """Test that Retry-After values are capped by max_timeout"""
         retry_policy = RetryAfterRetry(attempts=3, statuses=[429], max_timeout=5.0)
         
@@ -298,9 +314,9 @@ class TestRateLimitedClient:
         mock_response.headers = {'Retry-After': '100'}
         
         timeout = retry_policy.get_timeout(attempt=1, response=mock_response)
-        assert timeout == 5.0
+        assert abs(timeout - 5.0) < 0.001
     
-    async def test_retry_after_with_invalid_value(self):
+    def test_retry_after_with_invalid_value(self):
         """Test that invalid Retry-After values fall back to exponential backoff"""
         retry_policy = RetryAfterRetry(attempts=3, statuses=[429], max_timeout=30.0)
         
@@ -310,16 +326,4 @@ class TestRateLimitedClient:
         
         timeout = retry_policy.get_timeout(attempt=1, response=mock_response)
         assert timeout > 0
-    
-    async def test_rate_limit_parameters(self):
-        """Test that rate limit parameters are correctly set"""
-        async with RateLimitedClient(rate_limit=15, rate_window=2.0) as client:
-            assert client.rate_limit == 15
-            assert client.rate_window == 2.0
-    
-    async def test_no_rate_limit_parameters(self):
-        """Test that client works without rate limit"""
-        async with RateLimitedClient(rate_limit=None, rate_window=1.0) as client:
-            assert client.rate_limit is None
-            assert client.rate_window == 1.0
 
