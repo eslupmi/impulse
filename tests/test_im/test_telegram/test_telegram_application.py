@@ -12,7 +12,6 @@ from fastapi.responses import JSONResponse
 
 from app.config.validation import TelegramApplicationConfig, TelegramUser, MessengerType
 from app.im.telegram.telegram_application import TelegramApplication
-from tests.utils import MockContextManager
 from tests.utils import (
     create_mock_incident_for_handlers,
     create_mock_incidents_collection,

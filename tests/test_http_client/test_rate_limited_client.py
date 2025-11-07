@@ -1,10 +1,9 @@
 import asyncio
 import time
-from unittest.mock import AsyncMock, Mock, patch, MagicMock
+from unittest.mock import patch, MagicMock
 
 import pytest
 import pytest_asyncio
-import aiohttp
 from aiohttp import web
 
 from app.http_client import RateLimitedClient
@@ -70,7 +69,7 @@ class TestRateLimitedClient:
     async def test_requests_without_rate_limit(self, mock_server):
         """Test that requests work normally without rate limit"""
         async with RateLimitedClient() as client:
-            url = f'http://{mock_server.host}:{mock_server.port}/test'
+            url = f'https://{mock_server.host}:{mock_server.port}/test'
             
             # Make multiple requests quickly
             start_time = time.monotonic()
@@ -94,7 +93,7 @@ class TestRateLimitedClient:
         wait_time = 1.0
         
         async with RateLimitedClient(rate_limit=rate_limit, wait_time=wait_time) as client:
-            url = f'http://{mock_server.host}:{mock_server.port}/test'
+            url = f'https://{mock_server.host}:{mock_server.port}/test'
             
             # Clear any previous request times
             mock_server.request_times.clear()
@@ -173,7 +172,7 @@ class TestRateLimitedClient:
         wait_time = 0.5
         
         async with RateLimitedClient(rate_limit=rate_limit, wait_time=wait_time) as client:
-            url = f'http://{mock_server.host}:{mock_server.port}/test'
+            url = f'https://{mock_server.host}:{mock_server.port}/test'
             mock_server.request_times.clear()
             
             # Launch concurrent requests
@@ -204,7 +203,7 @@ class TestRateLimitedClient:
     async def test_http_methods(self, mock_server):
         """Test that all HTTP methods work correctly"""
         async with RateLimitedClient(rate_limit=10, wait_time=1.0) as client:
-            url = f'http://{mock_server.host}:{mock_server.port}/test'
+            url = f'https://{mock_server.host}:{mock_server.port}/test'
             
             # Test GET
             response = await client.get(url)
@@ -332,7 +331,7 @@ class TestRateLimitedClient:
         
         with patch('asyncio.sleep', self.fake_time.sleep):
             async with RateLimitedClient(rate_limit=10, wait_time=1.0) as client:
-                url = f'http://{server.host}:{server.port}/test'
+                url = f'https://{server.host}:{server.port}/test'
                 
                 # This should fail with 429, wait 1 second (from Retry-After), then succeed
                 response = await client.get(url)
@@ -364,7 +363,7 @@ class TestRateLimitedClient:
         
         with patch('asyncio.sleep', self.fake_time.sleep):
             async with RateLimitedClient(rate_limit=10, wait_time=1.0) as client:
-                url = f'http://{server.host}:{server.port}/test'
+                url = f'https://{server.host}:{server.port}/test'
                 
                 # This should fail with 429, use exponential backoff, then succeed
                 response = await client.get(url)
