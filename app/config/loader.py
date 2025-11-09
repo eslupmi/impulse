@@ -63,53 +63,6 @@ def load_and_validate_config(config_path: str = None) -> Tuple[ImpulseConfig, Di
         raise ConfigValidationError(error_message, e.errors())
 
 
-def get_legacy_config_dict(validated_config: ImpulseConfig) -> Dict[str, Any]:
-    """
-    Convert validated Pydantic config to legacy dictionary format for backward compatibility.
-    
-    Args:
-        validated_config: Validated Pydantic configuration object
-        
-    Returns:
-        dict: Configuration in legacy format
-    """
-    # Convert to dict and restructure for legacy code
-    config_dict = validated_config.model_dump()
-    
-    # Legacy format adjustments
-    legacy_config = {
-        'messenger': config_dict['messenger'],
-        'incident': config_dict.get('incident', {}),
-        'route': config_dict['route'],
-        'ui': config_dict.get('ui', {}),
-        'webhooks': config_dict.get('webhooks', {})
-    }
-    
-    # Ensure template_files is properly handled in messenger section
-    if 'template_files' not in legacy_config['messenger'] or legacy_config['messenger']['template_files'] is None:
-        legacy_config['messenger']['template_files'] = {}
-    
-    # Ensure incident defaults
-    if 'incident' not in legacy_config or legacy_config['incident'] is None:
-        legacy_config['incident'] = {}
-    
-    incident_defaults = {
-        'alerts_firing_notifications': False,
-        'alerts_resolved_notifications': False,
-        'timeouts': {
-            'firing': '6h',
-            'unknown': '6h', 
-            'resolved': '12h'
-        }
-    }
-    
-    for key, default_value in incident_defaults.items():
-        if key not in legacy_config['incident']:
-            legacy_config['incident'][key] = default_value
-    
-    return legacy_config
-
-
 def format_validation_errors(errors: list) -> str:
     """
     Format validation errors for user-friendly display.
