@@ -10,6 +10,7 @@ incident:  # incidents behavior options
     firing: 6h  # after this time, incident status changes from 'firing' to 'unknown' if no alerts appear
     unknown: 6h  # after this time, incident status changes from 'unknown' to 'closed' if no alerts appear
     resolved: 12h  # after this time, incident status changes from 'resolved' to 'closed' if no alerts appear
+    closed: 90d  # after this time, 'closed' incident will be deleted
 
 task_management:  # task tracking system integration configuration (e.g., Jira) (https://docs.impulse.bot/stable/task_management/)
   type: jira  # task tracking system type

@@ -61,18 +61,28 @@
 - **description:** after this time, incident status changes from 'firing' to 'unknown' if no alerts appear
 - **type:** string
 - **default value:** 6h
+- **allowed values:** same time format as `wait` in [messenger chains](config_file.md/#messengerchains)
 
 #### incident.timeouts.unknown
 
 - **description:** after this time, incident status changes from 'unknown' to 'closed' if no alerts appear
 - **type:** string
 - **default value:** 6h
+- **allowed values:** same time format as `wait` in [messenger chains](config_file.md/#messengerchains)
 
 #### incident.timeouts.resolved
 
 - **description:** after this time, incident status changes from 'resolved' to 'closed' if no alerts appear
 - **type:** string
 - **default value:** 12h
+- **allowed values:** same time format as `wait` in [messenger chains](config_file.md/#messengerchains)
+
+#### incident.timeouts.closed
+
+- **description:** after this time, 'closed' incident will be deleted
+- **type:** string
+- **default value:** 90d
+- **allowed values:** same time format as `wait` in [messenger chains](config_file.md/#messengerchains)
 
 ## messenger *
 
@@ -305,14 +315,14 @@
 
 - **description:** chain type
 - **type:** string
-- **options:**
+- **allowed values:**
     - `cloud` only
 
 ##### messenger.chains[].provider *
 
 - **description:** cloud calendar provider
 - **type:** string
-- **options:**
+- **allowed values:**
     - `google` only
 
 ##### messenger.chains[].calendar_id *
@@ -455,20 +465,20 @@
 - **description:** path to custom template files for `status_icons`, `header`, and `body` (see [Incident Structure](concepts.md#structure))
 - **type:** dict
 
-> IMPulse uses [Jinja](https://pypi.org/project/Jinja2/) templates to set messages format. And you can modify it.
+> IMPulse uses [jinja2 templates](https://pypi.org/project/Jinja2/) to set messages format. And you can modify it.
 
 > Incident message contains three parts ([picture](concepts.md/#structure)). Default template files for theese parts is [here](https://github.com/DiTsi/impulse/tree/develop/templates). You can copy the default templates, modify them, and specify custom paths.
 
-> Template files use support [special variables](special_variables.md): `incident` (used [here](https://github.com/DiTsi/impulse/blob/develop/templates/slack_status_icons.j2#L1)) and `payload`.
+> Template files supported [special variables](special_variables.md): `incident` (used [here](https://github.com/DiTsi/impulse/blob/develop/templates/slack_status_icons.j2#L1)) and `payload`.
 
 > **Example**
 
 > ```yaml
 > messenger:
 >   template_files:
->     status_icons: templates/status_icons.yml
->     header: templates/header.yml
->     body: templates/body.yml
+>     status_icons: ./templates/status_icons.yml
+>     header: ./templates/header.yml
+>     body: ./templates/body.yml
 > ```
 
 #### messenger.template_files.body
@@ -493,7 +503,7 @@
 
 - **description:** messenger type
 - **type:** string
-- **options:**
+- **allowed values:**
     - `slack` - Slack messenger
     - `mattermost` - Mattermost messenger
     - `telegram` - Telegram messenger
@@ -731,7 +741,7 @@
 - **description:** column data type that determines how the value is rendered
 - **type:** string
 - **default value:** `string`
-- **options:**
+- **allowed values:**
     - `string` - plain text
     - `datetime` - date/time values with [formatting options](#uicolumnsformat)
     - `link` - clickable links (requires [url](#uicolumnsurl) field)
@@ -754,7 +764,7 @@
 - **description:** formatting option for datetime columns (used with `type: datetime`)
 - **type:** string
 - **default value:** relative
-- **options:**
+- **allowed values:**
     - `absolute` - full date and time
     - `relative` - relative time (e.g., "2h ago")
 
@@ -832,7 +842,7 @@
 - **description:** string for HTTP Basic Auth (e.g., user:password)
 - **type:** string
 
-> Supported [Jinja](https://pypi.org/project/Jinja2/) and [special variables](special_variables.md): `env`.
+> Supported [special variables](special_variables.md): `env`.
 
 ### webhooks[].data
 
@@ -840,7 +850,7 @@
 - **limitations**: cannot be used together with `webhooks[].json`
 - **type:** dict
 
-> Supported [Jinja](https://pypi.org/project/Jinja2/) and [special variables](special_variables.md): `env` and `incident`.
+> Supported [special variables](special_variables.md): `env` and `incident`.
 
 > **Example:**
 > ```yaml
@@ -862,7 +872,7 @@
 - **limitations**: cannot be used together with `webhooks[].data`
 - **type:** dict or str
 
-> Supported [Jinja](https://pypi.org/project/Jinja2/) and [special variables](special_variables.md): `env` and `incident`.
+> Supported [special variables](special_variables.md): `env` and `incident`.
 
 > **Examples:**
 
@@ -890,4 +900,4 @@
 - **description:** URL to which the HTTP POST request will be sent
 - **type:** string
 
-> Supported [Jinja](https://pypi.org/project/Jinja2/) and [special variables](special_variables.md): `env`.
+> Supported [special variables](special_variables.md): `env`.

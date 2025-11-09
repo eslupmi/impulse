@@ -33,6 +33,7 @@ impulseConfig:
       firing: "6h"
       unknown: "6h"
       resolved: "12h"
+      closed: "90d"
   
   route:
     channel: "incidents_default"
