@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from app.logging import logger
 from app.tools import NoAliasDumper
 from app.config.config import get_config
+from app.incident.incident import Incident
 
 
 class IncidentMigrator:
@@ -47,7 +48,7 @@ class IncidentMigrator:
         try:
             with open(file_path, 'w') as f:
                 yaml.dump(migrated_data, f, NoAliasDumper, default_flow_style=False)
-        except  (OSError, PermissionError, FileNotFoundError) as e:
+        except (OSError, PermissionError, FileNotFoundError) as e:
             logger.error(f'Failed to write migrated incident file {os.path.basename(file_path)}: {str(e)}')
         
         logger.info(f'Successfully migrated {os.path.basename(file_path)}')
@@ -151,5 +152,10 @@ class IncidentMigrator:
                 step_copy['datetime'] = self._to_aware_utc(step_copy.get('datetime'))
             new_chain.append(step_copy)
         migrated['chain'] = new_chain
+
+        migrated['uniq_id'] = Incident.gen_uniq_id(
+            migrated.get('payload', {}).get('groupLabels', {}),
+            migrated.get('created')
+        )
 
         return migrated

@@ -594,12 +594,14 @@ class TestIncidentTimeouts:
         timeouts = IncidentTimeouts(
             firing="6h",
             unknown="1h",
-            resolved="12h"
+            resolved="12h",
+            closed="90d"
         )
 
         assert timeouts.firing == "6h"
         assert timeouts.unknown == "1h"
         assert timeouts.resolved == "12h"
+        assert timeouts.closed == "90d"
 
     def test_incident_timeouts_defaults(self):
         """Test IncidentTimeouts with default values."""
@@ -608,6 +610,13 @@ class TestIncidentTimeouts:
         assert timeouts.firing == "6h"
         assert timeouts.unknown == "6h"
         assert timeouts.resolved == "12h"
+        assert timeouts.closed == "90d"
+
+    def test_incident_timeouts_missing_closed(self):
+        """Test IncidentTimeouts with missing closed."""
+        timeouts = IncidentTimeouts(firing="6h", unknown="1h", resolved="12h")
+    
+        assert timeouts.closed == "90d"
 
     def test_incident_timeouts_get_method(self):
         """Test IncidentTimeouts get method."""

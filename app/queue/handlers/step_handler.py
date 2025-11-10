@@ -20,7 +20,7 @@ class StepHandler(BaseHandler):
         self.webhooks = webhooks
 
     async def handle(self, uuid_, identifier):
-        incident = self.incidents.by_uuid[uuid_]
+        incident = self.incidents.uniq_ids[uuid_]
         step = incident.chain[identifier]
         if step['type'] == 'webhook':
             webhook_name = step['identifier']

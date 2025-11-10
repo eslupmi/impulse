@@ -29,26 +29,26 @@ class AsyncQueueManager:
         self._running = False
         self._task = None
 
-    async def handle_step(self, uuid_: str, identifier: str):
+    async def handle_step(self, uniq_id: str, identifier: str):
         """
         Handle step.
 
-        :param uuid_: String uuid.
+        :param uniq_id: String unique id.
         :param identifier: String identifier.
         """
-        await self.step_handler.handle(uuid_, identifier)
+        await self.step_handler.handle(uniq_id, identifier)
 
-    async def handle_status_update(self, uuid_: str):
+    async def handle_status_update(self, uniq_id: str):
         """
         Handle status update.
-        :param uuid_: String uuid.
+        :param uniq_id: String unique id.
         """
-        await self.status_update_handler.handle(uuid_)
+        await self.status_update_handler.handle(uniq_id)
 
-    async def handle_message_update(self, uuid_: str):
+    async def handle_message_update(self, uniq_id: str):
         """
         Handle message update without status changes.
-        :param uuid_: String uuid.
+        :param uniq_id: String unique id.
         """
         await self.message_update_handler.handle(uuid_)
 
@@ -66,17 +66,17 @@ class AsyncQueueManager:
         """
         # Don't check items count - just try to get next item
         # The get_next_ready_item() method handles empty queue safely
-        type_, uuid_, identifier, data = await self.queue.get_next_ready_item()
+        type_, uniq_id, identifier, data = await self.queue.get_next_ready_item()
         if type_ is None:
             return
 
         try:
             if type_ == 'update_status':
-                await self.handle_status_update(uuid_)
+                await self.handle_status_update(uniq_id)
             elif type_ == 'update_message':
-                await self.handle_message_update(uuid_)
+                await self.handle_message_update(uniq_id)
             elif type_ == 'chain_step':
-                await self.handle_step(uuid_, identifier)
+                await self.handle_step(uniq_id, identifier)
             elif type_ == 'alert':
                 await self.handle_alert(data)
         except Exception as e:

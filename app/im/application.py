@@ -252,7 +252,7 @@ class Application(ABC):
             incident.channel_id, incident.ts, incident_status, body, header, status_icons, chain_enabled, status_enabled, task_link
         )
         if updated_status:
-            logger.info(f'Incident {uuid_} updated with new status \'{incident_status}\'')
+            logger.info(f'Incident {incident.uuid} updated with new status \'{incident_status}\'')
             # post to thread
             if status_enabled and incident_status != 'closed':
                 header = self.header_template.form_message(incident.payload, incident)
