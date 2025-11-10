@@ -158,8 +158,6 @@ def mock_environment_config():
     env_config.provider_service_account_file = "test_service_account.json"
     env_config.cors_allowed_origins = ["*"]
     env_config.http_prefix = ""
-    env_config.http_rate_limit = None
-    env_config.http_rate_window = 1.0
     return env_config
 
 

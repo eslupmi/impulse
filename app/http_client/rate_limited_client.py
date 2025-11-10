@@ -14,7 +14,7 @@ class RetryAfterRetry(ExponentialRetry):
     Custom retry policy that respects the Retry-After header for 429 responses.
     
     For 429 (Too Many Requests) responses, uses the Retry-After header value
-    if present. Otherwise falls back to exponential backoff for other errors.
+    if present. Otherwise, falls back to exponential backoff for other errors.
     """
     
     def get_timeout(
@@ -116,8 +116,8 @@ class RateLimitedClient:
         # Use custom retry policy that respects Retry-After header for 429 responses
         retry_options = RetryAfterRetry(
             attempts=self._retry_attempts,
-            statuses=[429, 500, 502, 503, 504],
-            exceptions=[aiohttp.ClientError, aiohttp.ServerTimeoutError],
+            statuses={429, 500, 502, 503, 504},
+            exceptions={aiohttp.ClientError, aiohttp.ServerTimeoutError},
             max_timeout=self._timeout
         )
         

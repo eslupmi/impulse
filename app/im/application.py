@@ -1,9 +1,8 @@
 import asyncio
 from abc import ABC, abstractmethod
-from typing import Union, Dict
+from typing import Union, Dict, Optional
 
 from app.config.config import get_config
-from app.config.environment import get_environment_config
 from app.config.validation import ApplicationConfig, MattermostUser, SlackUser, TelegramUser, MessengerType
 from app.http_client import RateLimitedClient
 from app.im.chain.chain_factory import ChainFactory
@@ -16,7 +15,7 @@ from app.logging import logger
 class Application(ABC):
 
     def __init__(self, app_config: ApplicationConfig, channels, default_channel):
-        self.http = None  # Will be initialized async
+        self.http: Optional[RateLimitedClient] = None  # Will be initialized async
         self.type = app_config.type
         self.url = self.get_url(app_config)
         self.public_url = None  # Will be set in async initialization
@@ -101,6 +100,7 @@ class Application(ABC):
         Args:
             incident_obj: The incident object
             user_id: The user ID that was assigned
+            user_display_name: The display name of the user that was assigned
         """
         config = get_config()
         if not config.incident.notifications.assignment or not user_id:
@@ -246,29 +246,24 @@ class Application(ABC):
         response.close()
         return status
 
-    def _setup_http(self):
+    def _setup_http(self) -> RateLimitedClient:
         """
         Setup HTTP client with rate limiting.
         
         Returns:
             RateLimitedClient instance
         """
-        env_config = get_environment_config()
-        
-        rate_limit = env_config.http_rate_limit if env_config.http_rate_limit is not None else self.rate_limit
-        rate_window = env_config.http_rate_window if env_config.http_rate_window is not None else self.rate_window
-        
-        if rate_limit:
+        if self.rate_limit:
             logger.info(
                 f"{self.type.value.capitalize()} rate limiting enabled: "
-                f"{rate_limit} requests per {rate_window}s window"
+                f"{self.rate_limit} requests per {self.rate_window}s window"
             )
         else:
             logger.info(f"{self.type.value.capitalize()} rate limiting disabled")
         
         client = RateLimitedClient(
-            rate_limit=rate_limit,
-            rate_window=rate_window,
+            rate_limit=self.rate_limit,
+            rate_window=self.rate_window,
             retry_attempts=3,
             timeout=30.0,
             connector_limit=100,
@@ -334,7 +329,7 @@ class Application(ABC):
         pass
 
     @abstractmethod
-    async def get_user_details(self, user_info: Union[SlackUser, MattermostUser, TelegramUser]):
+    async def get_user_details(self, user_info: Union[SlackUser, MattermostUser, TelegramUser, Dict]):
         """Fetch user-specific details (ID, name, etc.) from the system. Must be implemented by subclasses."""
         pass
 

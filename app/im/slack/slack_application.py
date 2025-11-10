@@ -26,7 +26,7 @@ class SlackApplication(Application):
             'Content-Type': 'application/json',
             'Authorization': f'Bearer {get_config().slack_bot_user_oauth_token}',
         }
-        self.rate_limit = 10
+        self.rate_limit = 1
         self.thread_id_key = 'ts'
 
     def _get_url(self, app_config: ApplicationConfig):
