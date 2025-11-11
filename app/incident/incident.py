@@ -181,10 +181,6 @@ class Incident:
         self.chain[index]['result'] = result
         self.dump()
 
-    def set_next_status(self):
-        new_status = Incident.next_status[self.status]
-        return self.update_status(new_status)
-
     @classmethod
     def load(cls, dump_file: str, incident_config: IncidentConfig):
         config = get_config()
@@ -236,10 +232,10 @@ class Incident:
             "task_link": self.task_link
         }
         try:
-            if self.status != 'closed':
-                incident_filename = f'{config.incidents_path}/{self.uuid}.yml'
-            else:
+            if self.status == 'closed' or self.status == 'deleted':
                 incident_filename = f'{config.incidents_path}/{self.uuid}__{self.closed}.yml'
+            else:
+                incident_filename = f'{config.incidents_path}/{self.uuid}.yml'
             with open(incident_filename, 'w') as f:
                 yaml.dump(data, f, NoAliasDumper, default_flow_style=False)
         except (OSError, PermissionError, FileNotFoundError) as e:
@@ -332,7 +328,6 @@ class Incident:
             self.status_update_datetime = now + unix_sleep_to_timedelta(timeout_value)
         if self.status != status:
             self.set_status(status)
-            logger.debug(f'Incident {self.uuid} status updated to {status}')
             self.dump()
             return True
         self.dump()
@@ -348,6 +343,7 @@ class Incident:
 
     def set_status(self, status: str):
         self.status = status
+        logger.debug(f'Incident {self.uuid} status set to {status}')
         if status == 'closed' and not self.closed:
             self.closed = self.datetime_serialize(datetime.now(timezone.utc))
 

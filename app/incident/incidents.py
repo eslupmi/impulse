@@ -52,19 +52,21 @@ class Incidents:
         if incident.status != 'closed':
             self.active_map[incident.uuid] = incident.uniq_id
 
-    def del_by_uniq_id(self, uniq_id: str):
+    def remove_file(self, incident: Incident):
         config = get_config()
+        self.remove_from_active_map(incident.uuid)
+        try:
+            if incident.status == 'closed' or incident.status == 'deleted':
+                os.remove(f'{config.incidents_path}/{incident.uuid}__{incident.closed}.yml')
+            else:
+                os.remove(f'{config.incidents_path}/{incident.uuid}.yml')
+        except (OSError, PermissionError, FileNotFoundError) as e:
+            logger.error(f'Failed to delete incident file for uuid: {incident.uuid}: {str(e)}')
+
+    def del_by_uniq_id(self, uniq_id: str):
         incident = self.uniq_ids.pop(uniq_id, None)
         if incident:
-            self.remove_from_active_map(incident.uuid)
-            try:
-                if incident.status != 'closed':
-                    os.remove(f'{config.incidents_path}/{incident.uuid}.yml')
-                else:
-                    os.remove(f'{config.incidents_path}/{incident.uuid}__{incident.closed}.yml')
-                    logger.info(f'Incident {incident.uuid} deleted')
-            except (OSError, PermissionError, FileNotFoundError) as e:
-                logger.error(f'Failed to delete incident file for uuid: {incident.uuid}: {str(e)}')
+            self.remove_file(incident)
             # Schedule async websocket update
             import asyncio
             try:
@@ -74,17 +76,9 @@ class Incidents:
             except RuntimeError:
                 # No event loop running, skip websocket update
                 pass
+            logger.info(f'Incident {incident.uuid} deleted')
         else:
             logger.warning(f'Incident with uuid {incident.uuid} not found in the collection.')
-
-    def del_active(self, uuid: str):
-        self.remove_from_active_map(uuid)
-        config = get_config()
-        old_path = f'{config.incidents_path}/{uuid}.yml'
-        try:
-            os.remove(old_path)
-        except (OSError, PermissionError, FileNotFoundError) as e:
-            logger.error(f'Failed to remove incident file for {uuid}: {str(e)}')
 
     def serialize(self) -> Dict[str, Dict]:
         return {str(uuid_): incident.serialize() for uuid_, incident in self.uniq_ids.items()}

@@ -7,7 +7,10 @@ class StatusUpdateHandler(BaseHandler):
     """
     async def handle(self, uniq_id):
         incident = self.incidents.uniq_ids.get(uniq_id)
-        status_updated = incident.set_next_status()
+        new_status = incident.next_status[incident.status]
+        if new_status == 'closed':
+            self.incidents.remove_file(incident)
+        status_updated = incident.update_status(new_status)
 
         if incident.status == 'firing' or incident.status == 'resolved':
             await self.app.update(
@@ -25,7 +28,6 @@ class StatusUpdateHandler(BaseHandler):
         if incident.status == 'closed':
             await self.queue.update(uniq_id, incident.status_update_datetime, incident.status)
             await self.queue.delete_by_id(uniq_id, delete_steps=True, delete_status=False)
-            self.incidents.del_by_uniq_id(uniq_id)
 
         if incident.status == 'deleted':
             self.incidents.del_by_uniq_id(uniq_id)
