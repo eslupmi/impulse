@@ -1,11 +1,6 @@
 name: feature
 
 on:
-  push:
-    branches:
-    - 'feature/**'
-    - 'feat/**'
-    - '[0-9]*-**'
   workflow_call:
 
 jobs:

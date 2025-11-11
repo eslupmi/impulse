@@ -404,11 +404,11 @@
 - **description:** path to custom template files for `status_icons`, `header`, and `body` (see [Incident Structure](concepts.md#structure))
 - **type:** dict
 
-> IMPulse uses [jinja2 templates](https://pypi.org/project/Jinja2/) to set messages format. And you can modify it.
+> IMPulse uses [Jinja](https://pypi.org/project/Jinja2/) templates to set messages format. And you can modify it.
 
 > Incident message contains three parts ([picture](concepts.md/#structure)). Default template files for theese parts is [here](https://github.com/DiTsi/impulse/tree/develop/templates). You can copy the default templates, modify them, and specify custom paths.
 
-> Template files supported [special variables](special_variables.md): `incident` (used [here](https://github.com/DiTsi/impulse/blob/develop/templates/slack_status_icons.j2#L1)) and `payload`.
+> Template files use support [special variables](special_variables.md): `incident` (used [here](https://github.com/DiTsi/impulse/blob/develop/templates/slack_status_icons.j2#L1)) and `payload`.
 
 > **Example**
 
@@ -773,7 +773,7 @@
 - **description:** string for HTTP Basic Auth (e.g., user:password)
 - **type:** string
 
-> Supported [special variables](special_variables.md): `env`.
+> Supported [Jinja](https://pypi.org/project/Jinja2/) and [special variables](special_variables.md): `env`.
 
 ### webhooks[].data
 
@@ -781,15 +781,20 @@
 - **limitations**: cannot be used together with `webhooks[].json`
 - **type:** dict
 
-> Supported [special variables](special_variables.md): `env` and `incident`.
+> Supported [Jinja](https://pypi.org/project/Jinja2/) and [special variables](special_variables.md): `env` and `incident`.
 
 > **Example:**
 > ```yaml
 > webhooks:
->   Dmitry_call:
+>   dmitry_call:
 >     url: 'http://internal_system:8080'
 >     data:
 >       channel_id: '{{ incident["channel_id"] }}'
+> 
+>   complex_jinja_example:
+>     url: http://internal_system:8081/
+>     data:
+>       instances: '{{ incident.payload.alerts | map(attribute="labels.instance") | unique | join(", ") }}'
 > ```
 
 ### webhooks[].json
@@ -798,7 +803,7 @@
 - **limitations**: cannot be used together with `webhooks[].data`
 - **type:** dict or str
 
-> Supported [special variables](special_variables.md): `env` and `incident`.
+> Supported [Jinja](https://pypi.org/project/Jinja2/) and [special variables](special_variables.md): `env` and `incident`.
 
 > **Examples:**
 
@@ -826,4 +831,4 @@
 - **description:** URL to which the HTTP POST request will be sent
 - **type:** string
 
-> Supported [special variables](special_variables.md): `env`.
+> Supported [Jinja](https://pypi.org/project/Jinja2/) and [special variables](special_variables.md): `env`.
