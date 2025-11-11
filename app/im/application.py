@@ -83,7 +83,7 @@ class Application(ABC):
                     return
 
             user_details = await self.get_user_details({'id': user_id})
-            assigned_name = user_details.get('full_name') or "-"
+            assigned_name = user_details.get('full_name') or "(empty)"
             incident.assign_fullname(assigned_name)
             if user_details.get('username'):
                 incident.assign_user(user_details.get('username'))
