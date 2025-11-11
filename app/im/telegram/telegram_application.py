@@ -26,8 +26,8 @@ class TelegramApplication(Application):
         self.url += get_config().telegram_bot_token
         self.post_message_url = self.url + '/sendMessage'
         self.headers = {'Content-Type': 'application/json'}
-        self.rate_limit = 1
-        self.rate_window = 3.0
+        self.rate_limit = 20
+        self.rate_window = 60.0
         self.thread_id_key = 'message_id'
 
     async def initialize_async(self):

@@ -26,7 +26,7 @@ class MattermostApplication(Application):
             'Content-Type': 'application/json',
             'Authorization': f'Bearer {get_config().mattermost_access_token}',
         }
-        self.rate_limit = 1
+        self.rate_limit = 10
         self.thread_id_key = 'id'
 
     async def _get_channels(self, team):
