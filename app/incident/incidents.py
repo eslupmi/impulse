@@ -33,10 +33,6 @@ class Incidents:
                 return incident
         return None
 
-    def pop(self, uuid: str) -> Union[Incident, None]:
-        uniq_id = self.active_map.pop(uuid)
-        return self.uniq_ids[uniq_id]
-
     def get_assigned_user_by_id(self, user_id: str) -> Union[str, None]:
         for incident in self.uniq_ids.values():
             if incident.assigned_user_id == user_id and incident.assigned_fullname and incident.assigned_fullname != "-":
