@@ -1,13 +1,10 @@
 import asyncio
 from abc import ABC, abstractmethod
-from typing import Union, Dict
-
-import aiohttp
-from aiohttp import ClientTimeout, ClientSession
-from aiohttp_retry import ExponentialRetry, RetryClient
+from typing import Union, Dict, Optional
 
 from app.config.config import get_config
 from app.config.validation import ApplicationConfig, MattermostUser, SlackUser, TelegramUser, MessengerType
+from app.http_client import RateLimitedClient
 from app.im.chain.chain_factory import ChainFactory
 from app.im.groups import generate_user_groups
 from app.im.template import JinjaTemplate, notification_user, notification_user_group, update_status, \
@@ -18,7 +15,7 @@ from app.logging import logger
 class Application(ABC):
 
     def __init__(self, app_config: ApplicationConfig, channels, default_channel):
-        self.http = None  # Will be initialized async
+        self.http: Optional[RateLimitedClient] = None  # Will be initialized async
         self.type = app_config.type
         self.url = self.get_url(app_config)
         self.public_url = None  # Will be set in async initialization
@@ -31,7 +28,8 @@ class Application(ABC):
         # Application-specific parameters
         self.post_message_url = None
         self.headers = None
-        self.post_delay = None
+        self.rate_limit = None
+        self.rate_window = 1.0
         self.thread_id_key = None
         self._initialize_specific_params()
 
@@ -48,7 +46,7 @@ class Application(ABC):
 
     async def initialize_async(self):
         """Initialize async components after object creation"""
-        self.http = await self._setup_http()
+        self.http = self._setup_http()
         if hasattr(self, '_get_public_url') and callable(getattr(self, '_get_public_url')):
             if asyncio.iscoroutinefunction(self._get_public_url):
                 self.public_url = await self._get_public_url(self._app_config)
@@ -102,6 +100,7 @@ class Application(ABC):
         Args:
             incident_obj: The incident object
             user_id: The user ID that was assigned
+            user_display_name: The display name of the user that was assigned
         """
         config = get_config()
         if not config.incident.notifications.assignment or not user_id:
@@ -134,7 +133,7 @@ class Application(ABC):
             return
 
         try:
-            self.header_template.form_message(incident_obj.payload, incident_obj)
+            header = self.header_template.form_message(incident_obj.payload, incident_obj)
             text = JinjaTemplate(notification_unassignment).form_notification({})
             if self.type.value == MessengerType.TELEGRAM:
                 message = text
@@ -229,10 +228,10 @@ class Application(ABC):
         return await self._send_create_thread(payload)
 
     async def _send_create_thread(self, payload):
-        async with self.http.post(self.post_message_url, headers=self.headers, json=payload) as response:
-            await asyncio.sleep(self.post_delay)
-            response_json = await response.json()
-            return response_json.get(self.thread_id_key)
+        response = await self.http.post(self.post_message_url, headers=self.headers, json=payload)
+        response_json = await response.json()
+        response.close()
+        return response_json.get(self.thread_id_key)
 
     async def update_thread(self, channel_id, id_, status, body, header, status_icons, chain_enabled=True,
                             status_enabled=True):
@@ -242,34 +241,39 @@ class Application(ABC):
 
     async def post_thread(self, channel_id, id_, text):
         payload = self._post_thread_payload(channel_id, id_, text)
-        async with self.http.post(self.post_message_url, headers=self.headers, json=payload) as response:
-            await asyncio.sleep(self.post_delay)
-            return response.status
+        response = await self.http.post(self.post_message_url, headers=self.headers, json=payload)
+        status = response.status
+        response.close()
+        return status
 
-    @staticmethod
-    async def _setup_http():
-        retry_options = ExponentialRetry(
-            attempts=3,
-            statuses=[429, 500, 502, 503, 504],
-            exceptions=[aiohttp.ClientError, aiohttp.ServerTimeoutError],
-            max_timeout=30.0
+    def _setup_http(self) -> RateLimitedClient:
+        """
+        Setup HTTP client with rate limiting.
+        
+        Returns:
+            RateLimitedClient instance
+        """
+        if self.rate_limit:
+            logger.info(
+                f"{self.type.value.capitalize()} rate limiting enabled: "
+                f"{self.rate_limit} requests per {self.rate_window}s window"
+            )
+        else:
+            logger.info(f"{self.type.value.capitalize()} rate limiting disabled")
+        
+        client = RateLimitedClient(
+            rate_limit=self.rate_limit,
+            rate_window=self.rate_window,
+            retry_attempts=3,
+            timeout=30.0,
+            connector_limit=100,
+            connector_limit_per_host=30
         )
-
-        timeout = ClientTimeout(total=30.0)
-        connector = aiohttp.TCPConnector(limit=100, limit_per_host=30)
-
-        session = ClientSession(
-            timeout=timeout,
-            connector=connector,
-            raise_for_status=False
-        )
-
-        retry_client = RetryClient(
-            client_session=session,
-            retry_options=retry_options
-        )
-
-        return retry_client
+        
+        # Initialize the client
+        client._initialize_client()
+        
+        return client
 
     @abstractmethod
     async def buttons_handler(self, payload, incidents, queue_, route):
@@ -325,7 +329,7 @@ class Application(ABC):
         pass
 
     @abstractmethod
-    async def get_user_details(self, user_info: Union[SlackUser, MattermostUser, TelegramUser]):
+    async def get_user_details(self, user_info: Union[SlackUser, MattermostUser, TelegramUser, Dict]):
         """Fetch user-specific details (ID, name, etc.) from the system. Must be implemented by subclasses."""
         pass
 

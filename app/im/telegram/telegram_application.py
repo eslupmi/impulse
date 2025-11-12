@@ -26,7 +26,8 @@ class TelegramApplication(Application):
         self.url += get_config().telegram_bot_token
         self.post_message_url = self.url + '/sendMessage'
         self.headers = {'Content-Type': 'application/json'}
-        self.post_delay = 0.15
+        self.rate_limit = 20
+        self.rate_window = 60.0
         self.thread_id_key = 'message_id'
 
     async def initialize_async(self):
@@ -58,10 +59,10 @@ class TelegramApplication(Application):
             'text': text,
             'parse_mode': 'HTML'
         }
-        async with self.http.post(self.post_message_url, params=params) as response:
-            await asyncio.sleep(self.post_delay)
-            response_json = await response.json()
-            return response_json.get('result', {}).get('message_id')
+        response = await self.http.post(self.post_message_url, params=params)
+        response_json = await response.json()
+        response.close()
+        return response_json.get('result', {}).get('message_id')
 
     async def create_thread(self, channel_id, body, header, status_icons, status):
         topic_id = await self._create_topic(channel_id, header, status_icons)
@@ -71,10 +72,10 @@ class TelegramApplication(Application):
         return f'{topic_id}/{message_id}'
 
     async def _send_create_thread(self, payload):
-        async with self.http.post(self.post_message_url, headers=self.headers, json=payload) as response:
-            await asyncio.sleep(self.post_delay)
-            response_json = await response.json()
-            return response_json.get('result', {}).get(self.thread_id_key)
+        response = await self.http.post(self.post_message_url, headers=self.headers, json=payload)
+        response_json = await response.json()
+        response.close()
+        return response_json.get('result', {}).get(self.thread_id_key)
 
     async def buttons_handler(self, payload, incidents, queue_, route):
         if 'callback_query' not in payload:
@@ -147,13 +148,14 @@ class TelegramApplication(Application):
             'icon_custom_emoji_id': status_icons
         }
         try:
-            async with self.http.post(
+            response = await self.http.post(
                 f'{self.url}/createForumTopic',
                 json=payload,
                 headers=self.headers
-            ) as response:
-                response_json = await response.json()
-                return response_json.get('result', {}).get('message_thread_id')
+            )
+            response_json = await response.json()
+            response.close()
+            return response_json.get('result', {}).get('message_thread_id')
         except aiohttp.ClientError as e:
             logger.error(f'Failed to create topic: {e}')
             raise e
@@ -201,12 +203,12 @@ class TelegramApplication(Application):
             'message_thread_id': topic_id
         }
         try:
-            async with self.http.post(
+            response = await self.http.post(
                 f'{self.url}/editForumTopic',
                 json=payload,
                 headers=self.headers
-            ):
-                pass
+            )
+            response.close()
         except aiohttp.ClientError as e:
             logger.error(f'Failed to update topic: {e}')
 
@@ -230,12 +232,12 @@ class TelegramApplication(Application):
 
     async def _update_thread(self, id_, payload):
         try:
-            async with self.http.post(
+            response = await self.http.post(
                 f'{self.url}/editMessageText',
                 json=payload,
                 headers=self.headers
-            ):
-                await asyncio.sleep(self.post_delay)
+            )
+            response.close()
         except aiohttp.ClientError as e:
             logger.error(f'Failed to update thread: {e}')
 
@@ -244,21 +246,25 @@ class TelegramApplication(Application):
 
     async def get_user_details(self, user_details):
         id_ = user_details.get('id')
-        async with self.http.get(f'{self.url}/getChat?chat_id={id_}', headers=self.headers) as response:
-            if response.status != 200:
-                logger.debug(f'Failed to get user details for {id_}: HTTP {response.status}')
-                return {'id': id_, 'exists': False, 'full_name': None, 'username': None}
+        response = await self.http.get(f'{self.url}/getChat?chat_id={id_}', headers=self.headers)
+        
+        if response.status != 200:
+            logger.debug(f'Failed to get user details for {id_}: HTTP {response.status}')
+            response.close()
+            return {'id': id_, 'exists': False, 'full_name': None, 'username': None}
 
-            data = await response.json()
-            if not data.get('ok'):
-                logger.debug(f'Telegram API error for user {id_}: {data.get("description", "unknown error")}')
-                return {'id': id_, 'exists': False, 'full_name': None, 'username': None}
+        data = await response.json()
+        response.close()
+        
+        if not data.get('ok'):
+            logger.debug(f'Telegram API error for user {id_}: {data.get("description", "unknown error")}')
+            return {'id': id_, 'exists': False, 'full_name': None, 'username': None}
 
-            chat_data = data.get('result', {})
-            first_name = chat_data.get('first_name', '').strip()
-            last_name = chat_data.get('last_name', '').strip()
-            full_name = f"{first_name} {last_name}".strip()
-            return {'id': id_, 'exists': True, 'full_name': full_name, 'username': full_name}
+        chat_data = data.get('result', {})
+        first_name = chat_data.get('first_name', '').strip()
+        last_name = chat_data.get('last_name', '').strip()
+        full_name = f"{first_name} {last_name}".strip()
+        return {'id': id_, 'exists': True, 'full_name': full_name, 'username': full_name}
 
     def create_user(self, name, user_details):
         return User(
@@ -270,12 +276,12 @@ class TelegramApplication(Application):
     async def _setup_webhook(self):
         config = get_config()
         try:
-            async with self.http.post(
+            response = await self.http.post(
                 f'{self.url}/setWebhook',
                 params={'url': f"{config.messenger.impulse_address}/app"},
                 headers=self.headers
-            ):
-                await asyncio.sleep(self.post_delay)
+            )
+            response.close()
         except aiohttp.ClientError as e:
             logger.error(f'Failed to set webhook: {e}')
             raise e

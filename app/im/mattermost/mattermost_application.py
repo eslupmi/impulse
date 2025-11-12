@@ -5,8 +5,8 @@ from fastapi.responses import JSONResponse
 
 from app.im.application import Application
 from app.im.colors import status_colors
-from app.im.mattermost.config import (mattermost_request_delay, mattermost_bold_text,
-                                      mattermost_env, mattermost_admins_template_string)
+from app.im.mattermost.config import (mattermost_bold_text, mattermost_env,
+                                      mattermost_admins_template_string)
 from app.im.mattermost.threads import mattermost_get_create_thread_payload, mattermost_get_update_payload, \
     mattermost_get_button_update_payload
 from app.im.mattermost.user import User
@@ -26,20 +26,20 @@ class MattermostApplication(Application):
             'Content-Type': 'application/json',
             'Authorization': f'Bearer {get_config().mattermost_access_token}',
         }
-        self.post_delay = mattermost_request_delay
+        self.rate_limit = 10
         self.thread_id_key = 'id'
 
     async def _get_channels(self, team):
         try:
-            async with self.http.get(
+            response = await self.http.get(
                 f"{self.url}/api/v4/teams/{team['id']}/channels",
                 params={'per_page': 1000},
                 headers=self.headers
-            ) as response:
-                response.raise_for_status()
-                await asyncio.sleep(self.post_delay)
-                data = await response.json()
-                return {c.get('name'): c for c in data}
+            )
+            response.raise_for_status()
+            data = await response.json()
+            response.close()
+            return {c.get('name'): c for c in data}
         except aiohttp.ClientError as e:
             logger.error(f'Failed to retrieve channel list: {e}')
             return {}
@@ -56,20 +56,24 @@ class MattermostApplication(Application):
 
     async def get_user_details(self, user_details):
         id_ = user_details.get('id')
-        async with self.http.get(f'{self.url}/api/v4/users/{id_}?user_id={id_}', headers=self.headers) as response:
-            if response.status == 404:
-                logger.debug(f'Failed to get user details for ID {id_}: Not Found (HTTP 404)')
-                return {'id': id_, 'username': None, 'exists': False, 'full_name': None}
+        response = await self.http.get(f'{self.url}/api/v4/users/{id_}?user_id={id_}', headers=self.headers)
+        
+        if response.status == 404:
+            logger.debug(f'Failed to get user details for ID {id_}: Not Found (HTTP 404)')
+            response.close()
+            return {'id': id_, 'username': None, 'exists': False, 'full_name': None}
 
-            if response.status != 200:
-                logger.debug(f'Failed to get user details for {id_}: HTTP {response.status}')
-                return {'id': id_, 'username': None, 'exists': False, 'full_name': None}
+        if response.status != 200:
+            logger.debug(f'Failed to get user details for {id_}: HTTP {response.status}')
+            response.close()
+            return {'id': id_, 'username': None, 'exists': False, 'full_name': None}
 
-            data = await response.json()
-            first_name = data.get('first_name', '').strip()
-            last_name = data.get('last_name', '').strip()
-            full_name = f"{first_name} {last_name}".strip()
-            return {'id': id_, 'username': data.get('username'), 'exists': True, 'full_name': full_name}
+        data = await response.json()
+        response.close()
+        first_name = data.get('first_name', '').strip()
+        last_name = data.get('last_name', '').strip()
+        full_name = f"{first_name} {last_name}".strip()
+        return {'id': id_, 'username': data.get('username'), 'exists': True, 'full_name': full_name}
 
     def create_user(self, name, user_details):
         return User(
@@ -102,10 +106,10 @@ class MattermostApplication(Application):
                 ]
             }
         }
-        async with self.http.post(f'{self.url}/api/v4/posts', headers=self.headers, json=payload) as response:
-            await asyncio.sleep(self.post_delay)
-            response_json = await response.json()
-            return response_json.get('ts')
+        response = await self.http.post(self.post_message_url, headers=self.headers, json=payload)
+        response_json = await response.json()
+        response.close()
+        return response_json.get('ts')
 
     async def buttons_handler(self, payload, incidents, queue_, route):
         post_id = payload['post_id']
@@ -167,12 +171,12 @@ class MattermostApplication(Application):
                                              status_enabled)
 
     async def _update_thread(self, id_, payload):
-        async with self.http.put(
+        response = await self.http.put(
             f'{self.url}/api/v4/posts/{id_}',
             headers=self.headers,
             json=payload
-        ):
-            await asyncio.sleep(self.post_delay)
+        )
+        response.close()
 
     def _markdown_links_to_native_format(self, text):
         return text

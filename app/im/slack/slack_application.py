@@ -7,8 +7,7 @@ from fastapi.responses import JSONResponse
 from app.im.application import Application
 from app.im.colors import status_colors
 from app.im.slack import reformat_message
-from app.im.slack.config import slack_request_delay, slack_bold_text, slack_env, \
-    slack_admins_template_string
+from app.im.slack.config import slack_bold_text, slack_env, slack_admins_template_string
 from app.im.slack.threads import slack_get_create_thread_payload, slack_get_update_payload
 from app.im.slack.user import User
 from app.logging import logger
@@ -27,40 +26,42 @@ class SlackApplication(Application):
             'Content-Type': 'application/json',
             'Authorization': f'Bearer {get_config().slack_bot_user_oauth_token}',
         }
-        self.post_delay = slack_request_delay
+        self.rate_limit = 10
         self.thread_id_key = 'ts'
 
     def _get_url(self, app_config: ApplicationConfig):
         return 'https://slack.com'
 
     async def _get_public_url(self, app_config: ApplicationConfig):
-        async with self.http.get(
+        response = await self.http.get(
             'https://slack.com/api/auth.test',
             headers=self.headers
-        ) as response:
-            await asyncio.sleep(slack_request_delay)
-            json_ = await response.json()
-            return json_.get('url')
+        )
+        json_ = await response.json()
+        response.close()
+        return json_.get('url')
 
     def _get_team_name(self, app_config: ApplicationConfig):
         return None
 
     async def get_user_details(self, user_details):
         id_ = user_details.get('id')
-        async with self.http.get(f'{self.url}/api/users.info?user={id_}', headers=self.headers) as response:
-            if response.status != 200:
-                logger.debug(f'Failed to get user details for {id_}: HTTP {response.status}')
-                return {'id': id_, 'exists': False, 'full_name': None, 'username': None}
+        response = await self.http.get(f'{self.url}/api/users.info?user={id_}', headers=self.headers)
+        if response.status != 200:
+            logger.debug(f'Failed to get user details for {id_}: HTTP {response.status}')
+            response.close()
+            return {'id': id_, 'exists': False, 'full_name': None, 'username': None}
 
-            data = await response.json()
-            if not data.get('ok'):
-                logger.debug(f'Slack API error for user {id_}: {data.get("error", "unknown error")}')
-                return {'id': id_, 'exists': False, 'full_name': None, 'username': None}
+        data = await response.json()
+        response.close()
+        if not data.get('ok'):
+            logger.debug(f'Slack API error for user {id_}: {data.get("error", "unknown error")}')
+            return {'id': id_, 'exists': False, 'full_name': None, 'username': None}
 
-            user_data = data.get('user', {})
-            profile = user_data.get('profile', {})
-            full_name = profile.get('real_name_normalized')
-            return {'id': id_, 'exists': True, 'full_name': full_name}
+        user_data = data.get('user', {})
+        profile = user_data.get('profile', {})
+        full_name = profile.get('real_name_normalized')
+        return {'id': id_, 'exists': True, 'full_name': full_name}
 
     def create_user(self, name, user_details):
         return User(
@@ -92,10 +93,10 @@ class SlackApplication(Application):
                 }
             ]
         }
-        async with self.http.post(f'{self.url}/api/chat.postMessage', headers=self.headers, json=payload) as response:
-            await asyncio.sleep(self.post_delay)
-            response_json = await response.json()
-            return response_json.get('ts')
+        response = await self.http.post(self.post_message_url, headers=self.headers, json=payload)
+        response_json = await response.json()
+        response.close()
+        return response_json.get('ts')
 
     async def buttons_handler(self, payload, incidents, queue_, route):
         config = get_config()
@@ -158,12 +159,12 @@ class SlackApplication(Application):
                                         status_enabled)
 
     async def _update_thread(self, id_, payload):
-        async with self.http.post(
+        response = await self.http.post(
             f'{self.url}/api/chat.update',
             headers=self.headers,
             json=payload
-        ):
-            await asyncio.sleep(self.post_delay)
+        )
+        response.close()
 
     def _markdown_links_to_native_format(self, text):
         def replace_link(match):
