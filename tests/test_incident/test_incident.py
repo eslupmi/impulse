@@ -247,19 +247,18 @@ class TestIncident:
         """Test that setting status to 'closed' sets the closed field to current datetime."""
         from datetime import datetime, timezone
         
-        sample_incident.closed = ''  # Ensure closed is empty initially
+        sample_incident.closed = None  # Ensure closed is empty initially
         sample_incident.set_status("closed")
         
         assert sample_incident.status == "closed"
-        assert sample_incident.closed != ''
-        # Verify the format matches datetime_serialize format
-        assert len(sample_incident.closed) > 0
-        # The format should be like '2025_01_15__14_30_45'
-        assert '_' in sample_incident.closed
+        assert sample_incident.closed is not None
+        assert isinstance(sample_incident.closed, datetime)
+        assert sample_incident.closed.tzinfo == timezone.utc
 
     def test_set_status_closed_does_not_overwrite_existing(self, sample_incident):
         """Test that setting status to 'closed' does not overwrite existing closed field."""
-        existing_closed = '2025_01_15__14_30_45'
+        from datetime import datetime, timezone
+        existing_closed = datetime(2025, 1, 15, 14, 30, 45, tzinfo=timezone.utc)
         sample_incident.closed = existing_closed
         sample_incident.set_status("closed")
         
@@ -437,17 +436,19 @@ class TestIncident:
     @patch('yaml.dump')
     def test_dump_closed_incident(self, mock_yaml_dump, mock_file_open, mock_get_config, sample_incident, mock_unified_config):
         """Test dumping closed incident to file with correct filename."""
+        from datetime import datetime, timezone
         mock_get_config.return_value = mock_unified_config
         mock_unified_config.incidents_path = "/test/incidents"
         sample_incident.status = 'closed'
-        sample_incident.closed = '2025_01_15__14_30_45'
+        sample_incident.closed = datetime(2025, 1, 15, 14, 30, 45, tzinfo=timezone.utc)
 
         with patch('app.incident.incident.incident_ws'):
             sample_incident.dump()
 
         mock_file_open.assert_called_once()
         # Check that file is opened with correct path for closed incident
-        assert f'/test/incidents/{sample_incident.uuid}__{sample_incident.closed}.yml' in str(mock_file_open.call_args)
+        closed_str = sample_incident.datetime_serialize(sample_incident.closed)
+        assert f'/test/incidents/{sample_incident.uuid}__{closed_str}.yml' in str(mock_file_open.call_args)
         mock_yaml_dump.assert_called_once()
 
     @patch('app.incident.incident.ChannelManager')

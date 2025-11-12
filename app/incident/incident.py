@@ -46,7 +46,7 @@ class Incident:
     link: str = field(default='')
     task_link: str = field(default='')
     task_creation_in_progress: bool = False
-    closed: str = field(default='')
+    closed: Optional[datetime] = field(default=None)
 
     next_status = {
         'firing': 'unknown',
@@ -193,7 +193,7 @@ class Incident:
             config=incident_config,
             chain=content.get('chain', []),
             chain_enabled=content.get('chain_enabled', False),
-            closed=content.get('closed', ''),
+            closed=content.get('closed', None),
             status_enabled=content.get('status_enabled', False),
             status_update_datetime=content.get('status_update_datetime'),
             updated=content.get('updated'),
@@ -233,7 +233,8 @@ class Incident:
         }
         try:
             if self.status == 'closed' or self.status == 'deleted':
-                incident_filename = f'{config.incidents_path}/{self.uuid}__{self.closed}.yml'
+                closed_str = self.datetime_serialize(self.closed) if self.closed else ''
+                incident_filename = f'{config.incidents_path}/{self.uuid}__{closed_str}.yml'
             else:
                 incident_filename = f'{config.incidents_path}/{self.uuid}.yml'
             with open(incident_filename, 'w') as f:
@@ -345,7 +346,7 @@ class Incident:
         self.status = status
         logger.debug(f'Incident {self.uuid} status set to {status}')
         if status == 'closed' and not self.closed:
-            self.closed = self.datetime_serialize(datetime.now(timezone.utc))
+            self.closed = datetime.now(timezone.utc)
 
     def assign_user_id(self, user_id: str):
         self.assigned_user_id = user_id
@@ -371,5 +372,7 @@ class Incident:
         return [a.get('labels') for a in alert_state['alerts'] if a['status'] == 'firing']
 
     @staticmethod
-    def datetime_serialize(datetime_: datetime) -> str:
+    def datetime_serialize(datetime_: Optional[datetime]) -> str:
+        if datetime_ is None:
+            return ''
         return datetime_.strftime('%Y_%m_%d__%H_%M_%S')
