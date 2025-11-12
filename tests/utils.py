@@ -531,7 +531,10 @@ def create_mock_incidents_collection(
 
     incidents = Mock()
     incidents.by_uuid = by_uuid
+    incidents.uniq_ids = {}
     incidents.del_by_uuid = Mock()
+    incidents.remove_file = Mock()
+    incidents.del_by_uniq_id = Mock()
 
     if include_get_method:
         incidents.get = Mock(return_value=None)
@@ -581,7 +584,7 @@ def create_mock_incident_for_handlers(
         chain_enabled: bool = True,
         status_enabled: bool = True,
         update_state_return: tuple = (True, True),
-        set_next_status_return: bool = True
+        update_status_return: bool = True
 ) -> Mock:
     """
     Create a mock incident for testing handlers.
@@ -596,7 +599,7 @@ def create_mock_incident_for_handlers(
         chain_enabled: Whether chain is enabled
         status_enabled: Whether status updates are enabled
         update_state_return: Return value for update_state method
-        set_next_status_return: Return value for set_next_status method
+        update_status_return: Return value for update_status method
         
     Returns:
         Mock incident object
@@ -616,7 +619,13 @@ def create_mock_incident_for_handlers(
     incident.chain_enabled = chain_enabled
     incident.status_enabled = status_enabled
     incident.status_update_datetime = create_test_datetime()
-    incident.set_next_status = Mock(return_value=set_next_status_return)
+    incident.next_status = {
+        'firing': 'unknown',
+        'unknown': 'closed',
+        'resolved': 'closed',
+        'closed': 'deleted'
+    }
+    incident.update_status = Mock(return_value=update_status_return)
     incident.update_state = Mock(return_value=update_state_return)
     incident.is_new_firing_alerts_added = Mock(return_value=False)
     incident.is_some_firing_alerts_removed = Mock(return_value=False)

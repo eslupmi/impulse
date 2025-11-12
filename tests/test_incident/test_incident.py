@@ -151,7 +151,8 @@ class TestIncident:
         sample_incident.status = "firing"
         with patch.object(sample_incident, 'update_status') as mock_update:
             mock_update.return_value = True
-            result = sample_incident.set_next_status()
+            new_status = sample_incident.next_status[sample_incident.status]
+            result = sample_incident.update_status(new_status)
             mock_update.assert_called_once_with("unknown")
             assert result is True
 
@@ -160,7 +161,8 @@ class TestIncident:
         sample_incident.status = "unknown"
         with patch.object(sample_incident, 'update_status') as mock_update:
             mock_update.return_value = True
-            result = sample_incident.set_next_status()
+            new_status = sample_incident.next_status[sample_incident.status]
+            result = sample_incident.update_status(new_status)
             mock_update.assert_called_once_with("closed")
             assert result is True
 
@@ -169,7 +171,8 @@ class TestIncident:
         sample_incident.status = "resolved"
         with patch.object(sample_incident, 'update_status') as mock_update:
             mock_update.return_value = True
-            result = sample_incident.set_next_status()
+            new_status = sample_incident.next_status[sample_incident.status]
+            result = sample_incident.update_status(new_status)
             mock_update.assert_called_once_with("closed")
             assert result is True
 
