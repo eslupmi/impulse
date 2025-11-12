@@ -57,7 +57,7 @@ class Incidents:
         self.remove_from_active_map(incident.uuid)
         try:
             if incident.status == 'closed' or incident.status == 'deleted':
-                closed_str = Incident.datetime_serialize(incident.closed) if incident.closed else ''
+                closed_str = Incident.datetime_serialize(incident.closed)
                 os.remove(f'{config.incidents_path}/{incident.uuid}__{closed_str}.yml')
             else:
                 os.remove(f'{config.incidents_path}/{incident.uuid}.yml')

@@ -233,7 +233,7 @@ class Incident:
         }
         try:
             if self.status == 'closed' or self.status == 'deleted':
-                closed_str = self.datetime_serialize(self.closed) if self.closed else ''
+                closed_str = self.datetime_serialize(self.closed)
                 incident_filename = f'{config.incidents_path}/{self.uuid}__{closed_str}.yml'
             else:
                 incident_filename = f'{config.incidents_path}/{self.uuid}.yml'
