@@ -12,21 +12,16 @@ class StatusUpdateHandler(BaseHandler):
             self.incidents.remove_file(incident)
         status_updated = incident.update_status(new_status)
 
-        if incident.status == 'firing' or incident.status == 'resolved':
+        if incident.status == 'firing' or incident.status == 'resolved' or incident.status == 'unknown':
             await self.app.update(
                 incident, incident.status, incident.payload,
                 status_updated, incident.chain_enabled, incident.status_enabled, incident.task_link
             )
 
-        if incident.status == 'unknown':
-            await self.app.update(
-                incident, incident.status, incident.payload,
-                status_updated, incident.chain_enabled, incident.status_enabled, incident.task_link
-            )
+        if incident.status == 'unknown' or incident.status == 'closed':
             await self.queue.update(uniq_id, incident.status_update_datetime, incident.status)
 
         if incident.status == 'closed':
-            await self.queue.update(uniq_id, incident.status_update_datetime, incident.status)
             await self.queue.delete_by_id(uniq_id, delete_steps=True, delete_status=False)
 
         if incident.status == 'deleted':
