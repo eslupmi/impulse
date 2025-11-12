@@ -14,13 +14,13 @@ class StatusUpdateHandler(BaseHandler):
 
         if incident.status == 'firing' or incident.status == 'resolved':
             await self.app.update(
-                uniq_id, incident, incident.status, incident.payload,
+                incident, incident.status, incident.payload,
                 status_updated, incident.chain_enabled, incident.status_enabled, incident.task_link
             )
 
         if incident.status == 'unknown':
             await self.app.update(
-                uniq_id, incident, incident.status, incident.payload,
+                incident, incident.status, incident.payload,
                 status_updated, incident.chain_enabled, incident.status_enabled, incident.task_link
             )
             await self.queue.update(uniq_id, incident.status_update_datetime, incident.status)

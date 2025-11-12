@@ -46,7 +46,7 @@ class Application(ABC):
         self._users_config = app_config.users
         self._user_groups_config = app_config.user_groups
         self._admin_users_config = app_config.admin_users
-        
+
         # Track async tasks to prevent premature garbage collection
         self._async_tasks: set = set()
 
@@ -155,7 +155,7 @@ class Application(ABC):
     def _track_async_task(self, task):
         """
         Track an async task to prevent premature garbage collection.
-        
+
         Args:
             task: asyncio.Task object to track
         """
@@ -177,18 +177,18 @@ class Application(ABC):
     async def handle_task_button(self, incident, queue_):
         """
         Handle Task button press for an incident.
-        
+
         Args:
             incident: Incident object
             queue_: Queue manager
-        
+
         Returns:
             Response dict with success status
         """
         if not self.task_management_integration:
             logger.error("Task management integration not initialized")
             return {"success": False, "message": "Task management integration not available"}
-        
+
         return await self.task_management_integration.handle_button_press(incident, queue_)
 
     def get_url(self, app_config: ApplicationConfig):
@@ -243,7 +243,7 @@ class Application(ABC):
         logger.info(f'Incident {incident.uuid} -> chain step {notify_type} \'{identifier}\'')
         return response_code
 
-    async def update(self, uuid_, incident, incident_status, alert_state, updated_status, chain_enabled,
+    async def update(self, incident, incident_status, alert_state, updated_status, chain_enabled,
                      status_enabled, task_link=''):
         body = self.body_template.form_message(alert_state, incident)
         header = self.header_template.form_message(alert_state, incident)
@@ -294,7 +294,7 @@ class Application(ABC):
     def _setup_http(self) -> RateLimitedClient:
         """
         Setup HTTP client with rate limiting.
-        
+
         Returns:
             RateLimitedClient instance
         """
@@ -305,7 +305,7 @@ class Application(ABC):
             )
         else:
             logger.info(f"{self.type.value.capitalize()} rate limiting disabled")
-        
+
         client = RateLimitedClient(
             rate_limit=self.rate_limit,
             rate_window=self.rate_window,
@@ -314,10 +314,10 @@ class Application(ABC):
             connector_limit=100,
             connector_limit_per_host=30
         )
-        
+
         # Initialize the client
         client._initialize_client()
-        
+
         return client
 
     @abstractmethod

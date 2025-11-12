@@ -103,7 +103,7 @@ class NullApplication(Application):
         """No thread updating for null application"""
         pass
 
-    async def update(self, uuid_, incident, incident_status, alert_state, updated_status, chain_enabled, status_enabled, task_link=''):
+    async def update(self, incident, incident_status, alert_state, updated_status, chain_enabled, status_enabled, task_link=''):
         """No message updates for null application"""
         pass
 
