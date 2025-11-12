@@ -271,6 +271,8 @@ class Incident:
             "link": self.link,
             "ts": self.ts,
             "task_link": self.task_link,
+            "uuid": str(self.uuid),
+            "uniq_id": self.uniq_id,
         }
 
     def get_table_data(self, params) -> Dict:
