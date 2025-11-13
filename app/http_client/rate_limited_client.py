@@ -137,11 +137,6 @@ class RateLimitedClient:
             client_session=self._session,
             retry_options=retry_options
         )
-        
-        logger.debug(
-            f"RateLimitedClient initialized with rate_limit={self.rate_limit}, "
-            f"rate_window={self.rate_window}s"
-        )
     
     async def close(self):
         """Close the HTTP client"""
@@ -149,7 +144,6 @@ class RateLimitedClient:
             await self._client.close()
             self._client = None
             self._session = None
-            logger.debug("RateLimitedClient closed")
     
     async def _wait_for_rate_limit(self):
         """
@@ -173,9 +167,6 @@ class RateLimitedClient:
                 if idle_duration >= self.rate_window:
                     self._request_count = 0
                     self._window_start_time = None
-                    logger.debug(
-                        f"Rate limit counter reset after {idle_duration:.2f}s of idle time"
-                    )
             
             # Initialize window if not set
             if self._window_start_time is None:
@@ -198,7 +189,6 @@ class RateLimitedClient:
                 # Start a new window
                 self._window_start_time = time.monotonic()
                 self._request_count = 0
-                logger.debug("Starting new rate limit window")
 
             # Increment request counter
             self._request_count += 1
