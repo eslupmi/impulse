@@ -59,6 +59,7 @@ nav:
     - envs.md
     - impulse.yml: config_file.md
   - Features:
+    - api.md
     - check.md
     - google.md
     - ha.md

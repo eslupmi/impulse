@@ -10,11 +10,7 @@ The first IMPulse instance creates a `.lock` file in the [DATA_PATH](envs.md) di
 
 Check the `/ready` endpoint to get the instance state. It responds with `200` if the instance is ready and `active`, and 503 if the instance is in `standby`.
 
-When running multiple IMPulse instances, you need to proxy requests:
-- / (POST) for sending alerts
-- / (GET) for UI
-- /app (POST, PUT) for messenger callbacks
-- /ws for websocket operation
+When running multiple IMPulse instances, configure your proxy (Nginx or another) to use the `/ready` endpoint for readiness checks, routing traffic only to active instances. See [API](api.md) for endpoint details.
 
 ## Read-only filesystem
 
