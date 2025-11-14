@@ -289,7 +289,6 @@ class Application(ABC):
 
     @abstractmethod
     def _get_public_url(self, app_config: ApplicationConfig):
-        """Get the public URL of the application to share with users."""
         pass
 
     @abstractmethod
@@ -326,10 +325,8 @@ class Application(ABC):
 
     @abstractmethod
     async def get_user_details(self, user_info: Union[SlackUser, MattermostUser, TelegramUser]):
-        """Fetch user-specific details (ID, name, etc.) from the system. Must be implemented by subclasses."""
         pass
 
     @abstractmethod
     def create_user(self, name, user_details):
-        """Create a user object specific to the application (Slack/Mattermost)."""
         pass

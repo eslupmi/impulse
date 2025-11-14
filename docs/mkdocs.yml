@@ -61,7 +61,7 @@ nav:
   - Features:
     - check.md
     - google.md
-    # - ha.md
+    - ha.md
     - special_variables.md
     - ui.md
   - concepts.md

@@ -7,7 +7,8 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, HTTPException, APIRouter
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
+from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -72,35 +73,26 @@ def validate_config_only():
         sys.exit(1)
 
 
-@asynccontextmanager
-async def lifespan(fastapi_app: FastAPI):
-    """Manage application lifecycle"""
-    file_lock = FileLock()
-    is_locked = file_lock.locked()
+async def initialize_primary_server(fastapi_app: FastAPI, file_lock: FileLock):
+    """Initialize primary server components"""
     
-    if is_locked:
-        logger.info("Another IMPulse instance is running, working as backup server")
-        await file_lock.wait_for_unlock()
+    file_lock.lock()
+    logger.info("Starting as primary server")
     
-    if is_locked:
-        logger.info("Lock acquired, starting as primary server")
-    
-    heartbeat_task = asyncio.create_task(file_lock.heartbeat())
-        
-    config = get_config()
-    route_config = config.app.route
-    webhooks_config = config.app.webhooks
+    config_data = get_config()
+    route_config = config_data.app.route
+    webhooks_config = config_data.app.webhooks
 
     route = generate_route(route_config)
 
     channel_manager = ChannelManager()
-    if (config.messenger.type == MessengerType.NONE and
-            (not config.messenger.channels or 'default' not in config.messenger.channels)):
-        config.messenger.channels = {'default': {'id': 'default'}}
-    channels = channel_manager.initialize(route.get_uniq_channels(), config.messenger.channels, route.channel)
+    if (config_data.messenger.type == MessengerType.NONE and
+            (not config_data.messenger.channels or 'default' not in config_data.messenger.channels)):
+        config_data.messenger.channels = {'default': {'id': 'default'}}
+    channels = channel_manager.initialize(route.get_uniq_channels(), config_data.messenger.channels, route.channel)
     default_channel = route.channel
 
-    messenger = get_application(config.messenger, channels, default_channel)
+    messenger = get_application(config_data.messenger, channels, default_channel)
     await messenger.initialize_async()
     webhooks = generate_webhooks(webhooks_config)
     incidents = Incidents.create_or_load(messenger.type, messenger.public_url, messenger.team)
@@ -115,29 +107,60 @@ async def lifespan(fastapi_app: FastAPI):
     fastapi_app.state.webhooks = webhooks
     fastapi_app.state.route = route
     fastapi_app.state.channel_manager = channel_manager
-    fastapi_app.state.config = config
-    fastapi_app.state.file_lock = file_lock
+    fastapi_app.state.config = config_data
 
     queue_manager.start_processing()
+    fastapi_app.state.is_standby = False
+    logger.info('IMPulse started as primary server!')
 
-    logger.info('IMPulse started!')
+
+@asynccontextmanager
+async def lifespan(fastapi_app: FastAPI):
+    """Manage application lifecycle"""
+    file_lock = FileLock()
+    locked = file_lock.is_locked()
+
+    # Store file_lock and standby state early so /ready endpoint can access them
+    fastapi_app.state.file_lock = file_lock
+    fastapi_app.state.is_standby = locked
+    
+    if locked:
+        logger.info("Another IMPulse instance is running, working as standby server")
+        hostname, pid, _ = file_lock.get_lock_info()
+        logger.debug(f"Lock file is used by hostname {hostname}, PID {pid}")
+        logger.info('IMPulse started in standby mode!')
+        
+        # Background task to wait for unlock and become primary
+        async def wait_and_become_primary():
+            await file_lock.wait_for_unlock()
+            logger.info('Lock file is unlocked, transitioning to primary server')
+            await initialize_primary_server(fastapi_app, file_lock)
+        
+        unlock_task = asyncio.create_task(wait_and_become_primary())
+    else:
+        # Start as primary server immediately
+        await initialize_primary_server(fastapi_app, file_lock)
+        unlock_task = None
 
     yield
-
-    heartbeat_task.cancel()
+    
+    # Cleanup
+    if unlock_task:
+        unlock_task.cancel()
+        if fastapi_app.state.is_standby:
+            logger.info('Shutting down standby server')
+            return
 
     if fastapi_app.state.queue_manager:
         await fastapi_app.state.queue_manager.stop_processing()
-
     if hasattr(fastapi_app.state.messenger, 'close'):
         await fastapi_app.state.messenger.close()
-
     if hasattr(fastapi_app.state.messenger, 'chains'):
         for chain in fastapi_app.state.messenger.chains.values():
             if hasattr(chain, 'cleanup'):
                 chain.cleanup()
+    file_lock.unlock()
 
-    file_lock.release_lock()
     logger.info('IMPulse shutdown complete')
 
 
@@ -150,11 +173,79 @@ app = FastAPI(
     redoc_url=None
 )
 
+
+def is_standby_mode(state) -> bool:
+    return getattr(state, 'is_standby', False)
+
+
+def service_unavailable_response(message: str) -> Response:
+    return Response(
+        status_code=503,
+        content=message,
+        media_type="text/plain"
+    )
+
+
+class StandbyMiddleware(BaseHTTPMiddleware):
+    """Middleware to block all requests except /ready when in standby mode"""
+    
+    async def dispatch(self, request: Request, call_next):
+        path = request.url.path
+        if not path.startswith("/"):
+            path = "/" + path
+        
+        # Get http_prefix from config
+        config_data = get_config()
+        http_prefix = config_data.http_prefix or ""
+        
+        # Check if path is /ready (with or without prefix)
+        # Endpoint is registered directly in app with prefix, so check full path
+        if path == f"{http_prefix}/ready":
+            return await call_next(request)
+        
+        # Check if server is in standby mode
+        if is_standby_mode(request.app.state):
+            # Remove prefix from path for static files check
+            if http_prefix and path.startswith(http_prefix):
+                path = path[len(http_prefix):]
+            if not path.startswith("/"):
+                path = "/" + path
+            
+            # Allow static files
+            if path.startswith("/static/"):
+                return await call_next(request)
+            
+            # Block all other requests
+            return service_unavailable_response("Service Unavailable - Standby mode. Only /ready endpoint is available.")
+        
+        return await call_next(request)
+
+
+app.add_middleware(StandbyMiddleware)
+
 config = get_config()
 http_prefix = config.http_prefix
 router = APIRouter(prefix=http_prefix)
 
-# Mount static files with prefix
+async def get_ready(request: Request):
+    """Readiness check endpoint - returns 503 if server is in standby mode, 200 if ready"""
+    if not hasattr(request.app, 'state'):
+        return service_unavailable_response("Service Unavailable - Initializing")
+    
+    if is_standby_mode(request.app.state):
+        return service_unavailable_response("Service Unavailable - Standby mode")
+    
+    if not hasattr(request.app.state, 'queue') or not hasattr(request.app.state, 'queue_manager'):
+        return service_unavailable_response("Service Unavailable - Initializing")
+    
+    return Response(
+        status_code=200,
+        content="OK",
+        media_type="text/plain"
+    )
+
+app.add_api_route(f"{http_prefix}/ready", get_ready, methods=["GET"])
+
 if get_config().ui_config:
     if http_prefix:
         app.mount(f"{http_prefix}/static", StaticFiles(directory="static"), name="static")
@@ -228,6 +319,11 @@ async def get_ui_config():
 @router.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     """Handle WebSocket connections"""
+    # Block WebSocket in standby mode
+    if is_standby_mode(websocket.app.state):
+        await websocket.close(code=1008, reason="Service Unavailable - Standby mode")
+        return
+    
     await incident_ws.connect(websocket)
 
     try:
