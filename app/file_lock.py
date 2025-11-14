@@ -33,7 +33,7 @@ class FileLock:
     def is_locked(self):
         if self.lock_path.exists():
             try:
-                hostname, pid, locktime = self.lock_path.read_text().strip().split(",")
+                _, _, locktime = self.lock_path.read_text().strip().split(",")
                 updated = (time.time() - float(locktime)) < self.STALE_SEC
                 if updated:
                     return True

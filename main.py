@@ -227,7 +227,7 @@ config = get_config()
 http_prefix = config.http_prefix
 router = APIRouter(prefix=http_prefix)
 
-async def get_ready(request: Request):
+def get_ready(request: Request):
     """Readiness check endpoint - returns 503 if server is in standby mode, 200 if ready"""
     if not hasattr(request.app, 'state'):
         return service_unavailable_response("Service Unavailable - Initializing")
