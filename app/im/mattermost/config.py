@@ -27,7 +27,6 @@ buttons = {
         }
     }
 }
-mattermost_request_delay = 0.5  # seconds
 
 
 def mattermost_bold_text(value):

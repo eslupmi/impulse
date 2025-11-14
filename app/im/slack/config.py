@@ -27,7 +27,6 @@ buttons = {
         }
     }
 }
-slack_request_delay = 1.5  # seconds
 
 
 def slack_normal_text(value):

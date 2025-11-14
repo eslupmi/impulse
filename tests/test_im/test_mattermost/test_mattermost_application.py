@@ -51,7 +51,7 @@ class TestMattermostApplication:
         assert app.team == "test-team"
         assert app.post_message_url == "https://mattermost.example.com/api/v4/posts"
         assert app.thread_id_key == "id"
-        assert app.post_delay is not None
+        assert app.rate_limit is not None
         assert app.headers is not None
         assert "Authorization" in app.headers
         assert "Content-Type" in app.headers
@@ -461,10 +461,11 @@ class TestMattermostApplication:
             {"name": "general", "id": "channel1"},
             {"name": "incidents", "id": "channel2"}
         ])
+        mock_response.close = Mock()
 
         # Mock HTTP client
         app.http = Mock()
-        app.http.get = Mock(return_value=MockContextManager(mock_response))
+        app.http.get = AsyncMock(return_value=mock_response)
 
         result = await app._get_channels({"id": "team123"})
 
@@ -501,10 +502,11 @@ class TestMattermostApplication:
             "first_name": "Test",
             "last_name": "User"
         })
+        mock_response.close = Mock()
 
         # Mock HTTP client
         app.http = Mock()
-        app.http.get = Mock(return_value=MockContextManager(mock_response))
+        app.http.get = AsyncMock(return_value=mock_response)
 
         result = await app.get_user_details({"id": "user123"})
 
@@ -522,10 +524,11 @@ class TestMattermostApplication:
 
         mock_response = AsyncMock()
         mock_response.status = 404
+        mock_response.close = Mock()
 
         # Mock HTTP client
         app.http = Mock()
-        app.http.get = Mock(return_value=MockContextManager(mock_response))
+        app.http.get = AsyncMock(return_value=mock_response)
 
         result = await app.get_user_details({"id": "user123"})
 
@@ -543,10 +546,11 @@ class TestMattermostApplication:
 
         mock_response = AsyncMock()
         mock_response.status = 500
+        mock_response.close = Mock()
 
         # Mock HTTP client
         app.http = Mock()
-        app.http.get = Mock(return_value=MockContextManager(mock_response))
+        app.http.get = AsyncMock(return_value=mock_response)
 
         result = await app.get_user_details({"id": "user123"})
 
@@ -564,10 +568,11 @@ class TestMattermostApplication:
 
         mock_response = AsyncMock()
         mock_response.json = AsyncMock(return_value={"ts": "1234567890.123456"})
+        mock_response.close = Mock()
 
         # Mock HTTP client
         app.http = Mock()
-        app.http.post = Mock(return_value=MockContextManager(mock_response))
+        app.http.post = AsyncMock(return_value=mock_response)
 
         result = await app.send_message("channel123", "Test message", "Test attachment")
 
@@ -580,10 +585,11 @@ class TestMattermostApplication:
         app = MattermostApplication(self.app_config, self.channels, self.default_channel)
 
         mock_response = AsyncMock()
+        mock_response.close = Mock()
 
         # Mock HTTP client
         app.http = Mock()
-        app.http.put = Mock(return_value=MockContextManager(mock_response))
+        app.http.put = AsyncMock(return_value=mock_response)
 
         await app._update_thread("post123", {"message": "Updated message"})
 
