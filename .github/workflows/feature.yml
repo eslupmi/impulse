@@ -18,18 +18,18 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       
-      - name: Verify Docker is available
-        run: docker --version
+      - name: Verify Podman is available
+        run: podman --version
       
       - name: Create config from none example
         run: |
           cp examples/impulse.none.yml impulse.yml
       
-      - name: Run tests in Docker container
+      - name: Run tests in Podman container
         timeout-minutes: 10
         run: |
-          docker run --rm \
-            -v "${{ github.workspace }}:/app" \
+          podman run --rm \
+            -v "${{ github.workspace }}:/app:Z" \
             -w /app \
             python:${{ matrix.python-version }}-slim \
             sh -c "
