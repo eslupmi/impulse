@@ -31,27 +31,24 @@ class FileLock:
             os.remove(self.lock_path)
 
     def is_locked(self):
-        if self.lock_path.exists():
-            try:
-                _, _, locktime = self.lock_path.read_text().strip().split(",")
-                updated = (time.time() - float(locktime)) < self.STALE_SEC
-                if updated:
-                    return True
-                else:
-                    return False
-            except (ValueError, FileNotFoundError) as e:
-                logger.debug(f"Error reading lock file: {e}")
-                return True
-        return False
+        try:
+            _, _, locktime = self.lock_path.read_text().strip().split(",")
+            updated = (time.time() - float(locktime)) < self.STALE_SEC
+            return updated
+        except FileNotFoundError:
+            return False
+        except (ValueError, OSError) as e:
+            logger.error(f"Error reading lock file: {e}")
+            return True
 
     def get_lock_info(self):
-        if self.lock_path.exists():
-            try:
-                hostname, pid, locktime = self.lock_path.read_text().strip().split(",")
-                return hostname, pid, locktime
-            except (ValueError, FileNotFoundError):
-                return None, None, None
-        return None, None, None
+        try:
+            hostname, pid, locktime = self.lock_path.read_text().strip().split(",")
+            return hostname, pid, locktime
+        except FileNotFoundError:
+            return None, None, None
+        except (ValueError, OSError):
+            return None, None, None
 
     async def wait_for_unlock(self):
         while self.is_locked():
