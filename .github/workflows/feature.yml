@@ -2,12 +2,6 @@ name: feature
 
 on:
   workflow_call:
-    inputs:
-      runner:
-        description: 'Runner type (self-hosted or ubuntu-24.04)'
-        required: false
-        type: string
-        default: 'self-hosted'
   push:
     branches:
       - 'feature/**'
@@ -15,7 +9,7 @@ on:
 
 jobs:
   tests:
-    runs-on: ${{ inputs.runner }}
+    runs-on: self-hosted
     strategy:
       matrix:
         python-version: ['3.9', '3.10', '3.11', '3.12', '3.13']
