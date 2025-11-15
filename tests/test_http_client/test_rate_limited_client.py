@@ -53,17 +53,18 @@ class TestRateLimitedClient:
     
     async def test_requests_without_rate_limit(self, mock_server):
         """Test that requests work normally without rate limit"""
-        async with RateLimitedClient() as client:
-            url = create_test_server_url(mock_server)
-            start_time = time.monotonic()
-            
-            responses = await make_requests_and_close(client, url, 5)
-            
-            for response in responses:
-                assert response.status == 200
-            
-            elapsed = time.monotonic() - start_time
-            assert elapsed < 0.5
+        with patch('time.monotonic', self.fake_time.monotonic):
+            async with RateLimitedClient() as client:
+                url = create_test_server_url(mock_server)
+                start_time = self.fake_time.monotonic()
+                
+                responses = await make_requests_and_close(client, url, 5)
+                
+                for response in responses:
+                    assert response.status == 200
+                
+                elapsed = self.fake_time.monotonic() - start_time
+                assert elapsed < 0.5
     
     async def test_rate_limiting_enforcement(self, mock_server):
         """Test that rate limiting is enforced correctly"""
@@ -71,19 +72,21 @@ class TestRateLimitedClient:
         rate_window = 1.0
         num_requests = rate_limit + 3
         
-        async with RateLimitedClient(rate_limit=rate_limit, rate_window=rate_window) as client:
-            url = create_test_server_url(mock_server)
-            mock_server.request_times.clear()
-            
-            start_time = time.monotonic()
-            responses = await make_requests_and_close(client, url, num_requests)
-            elapsed = time.monotonic() - start_time
-            
-            for response in responses:
-                assert response.status == 200
-            
-            assert elapsed >= rate_window
-            assert len(mock_server.request_times) == num_requests
+        with patch('time.monotonic', self.fake_time.monotonic), \
+             patch('asyncio.sleep', self.fake_time.sleep):
+            async with RateLimitedClient(rate_limit=rate_limit, rate_window=rate_window) as client:
+                url = create_test_server_url(mock_server)
+                mock_server.request_times.clear()
+                
+                start_time = self.fake_time.monotonic()
+                responses = await make_requests_and_close(client, url, num_requests)
+                elapsed = self.fake_time.monotonic() - start_time
+                
+                for response in responses:
+                    assert response.status == 200
+                
+                assert elapsed >= rate_window
+                assert len(mock_server.request_times) == num_requests
     
     async def test_rate_limit_window_reset(self):
         """Test that rate limit counter resets after idle period"""
@@ -129,21 +132,23 @@ class TestRateLimitedClient:
         rate_window = 0.5
         num_requests = 10
         
-        async with RateLimitedClient(rate_limit=rate_limit, rate_window=rate_window) as client:
-            url = create_test_server_url(mock_server)
-            mock_server.request_times.clear()
-            
-            start_time = time.monotonic()
-            tasks = [asyncio.create_task(client.get(url)) for _ in range(num_requests)]
-            responses = await asyncio.gather(*tasks)
-            elapsed = time.monotonic() - start_time
-            
-            for response in responses:
-                response.close()
-                assert response.status == 200
-            
-            assert elapsed >= rate_window
-            assert len(responses) == num_requests
+        with patch('time.monotonic', self.fake_time.monotonic), \
+             patch('asyncio.sleep', self.fake_time.sleep):
+            async with RateLimitedClient(rate_limit=rate_limit, rate_window=rate_window) as client:
+                url = create_test_server_url(mock_server)
+                mock_server.request_times.clear()
+                
+                start_time = self.fake_time.monotonic()
+                tasks = [asyncio.create_task(client.get(url)) for _ in range(num_requests)]
+                responses = await asyncio.gather(*tasks)
+                elapsed = self.fake_time.monotonic() - start_time
+                
+                for response in responses:
+                    response.close()
+                    assert response.status == 200
+                
+                assert elapsed >= rate_window
+                assert len(responses) == num_requests
     
     async def test_http_methods(self, mock_server):
         """Test that all HTTP methods work correctly"""

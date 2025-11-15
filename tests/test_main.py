@@ -76,9 +76,10 @@ class TestMainApplication:
 
             # Setup mock file lock
             mock_file_lock_instance = Mock()
-            mock_file_lock_instance.locked.return_value = False  # Not locked by default
+            mock_file_lock_instance.is_locked.return_value = False  # Not locked by default
+            mock_file_lock_instance.get_lock_info.return_value = ("test-hostname", "12345", "1000.0")
             mock_file_lock_instance.wait_for_unlock = AsyncMock()
-            mock_file_lock_instance.heartbeat = AsyncMock()
+            mock_file_lock_instance.acquire_lock = Mock()
             mock_file_lock_instance.release_lock = Mock()
             mock_file_lock_class.return_value = mock_file_lock_instance
 
@@ -117,34 +118,29 @@ class TestMainApplication:
         """Test application startup in lifespan context."""
         app_mock = Mock()
         app_mock.state = Mock()
-        
-        # Create a mock task for heartbeat
-        mock_heartbeat_task = Mock()
-        mock_heartbeat_task.cancel = Mock()
 
-        with patch('asyncio.create_task', return_value=mock_heartbeat_task):
-            async with main.lifespan(app_mock):
-                # Verify that all state variables are set
-                assert hasattr(app_mock.state, 'queue')
-                assert hasattr(app_mock.state, 'queue_manager')
-                assert hasattr(app_mock.state, 'incidents')
-                assert hasattr(app_mock.state, 'messenger')
-                assert hasattr(app_mock.state, 'webhooks')
-                assert hasattr(app_mock.state, 'route')
-                assert hasattr(app_mock.state, 'channel_manager')
-                assert hasattr(app_mock.state, 'config')
-                assert hasattr(app_mock.state, 'file_lock')
+        async with main.lifespan(app_mock):
+            # Verify that all state variables are set
+            assert hasattr(app_mock.state, 'queue')
+            assert hasattr(app_mock.state, 'queue_manager')
+            assert hasattr(app_mock.state, 'incidents')
+            assert hasattr(app_mock.state, 'messenger')
+            assert hasattr(app_mock.state, 'webhooks')
+            assert hasattr(app_mock.state, 'route')
+            assert hasattr(app_mock.state, 'channel_manager')
+            assert hasattr(app_mock.state, 'config')
+            assert hasattr(app_mock.state, 'file_lock')
 
-                # Verify queue manager was started
-                mock_app_dependencies['queue_manager'].start_processing.assert_called_once()
-                
-                # Verify file lock was checked
-                mock_app_dependencies['file_lock'].locked.assert_called_once()
+            # Verify queue manager was started
+            mock_app_dependencies['queue_manager'].start_processing.assert_called_once()
             
-            # After exiting context, verify cleanup
-            mock_heartbeat_task.cancel.assert_called_once()
-            mock_app_dependencies['queue_manager'].stop_processing.assert_called_once()
-            mock_app_dependencies['file_lock'].release_lock.assert_called_once()
+            # Verify file lock was checked
+            mock_app_dependencies['file_lock'].is_locked.assert_called_once()
+        
+        # After exiting context, verify cleanup
+        # Note: unlock_task is None when not locked, so cancel is not called
+        mock_app_dependencies['queue_manager'].stop_processing.assert_called_once()
+        mock_app_dependencies['file_lock'].release_lock.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_lifespan_startup_with_locked_file(self, mock_app_dependencies):
@@ -154,25 +150,26 @@ class TestMainApplication:
         
         # Set up file lock to be initially locked
         # First call returns True (locked), subsequent calls return False (unlocked)
-        mock_app_dependencies['file_lock'].locked.side_effect = [True, False]
+        mock_app_dependencies['file_lock'].is_locked.return_value = True
         
-        # Create a mock task for heartbeat
-        mock_heartbeat_task = Mock()
-        mock_heartbeat_task.cancel = Mock()
+        # Create a mock task for unlock
+        mock_unlock_task = Mock()
+        mock_unlock_task.cancel = Mock()
 
-        with patch('asyncio.create_task', return_value=mock_heartbeat_task), \
+        with patch('asyncio.create_task', return_value=mock_unlock_task) as mock_create_task, \
              patch('main.logger') as mock_logger:
             async with main.lifespan(app_mock):
-                # Verify that wait_for_unlock was called
-                mock_app_dependencies['file_lock'].wait_for_unlock.assert_called_once()
+                # Verify that unlock task was created
+                assert mock_create_task.called
                 
                 # Verify log messages
-                mock_logger.info.assert_any_call("Another IMPulse instance is running, working as backup server")
-                mock_logger.info.assert_any_call("Lock acquired, starting as primary server")
+                mock_logger.info.assert_any_call("Another IMPulse instance is running, working as standby server")
+                mock_logger.info.assert_any_call("IMPulse started in standby mode!")
             
-            # Verify cleanup
-            mock_heartbeat_task.cancel.assert_called_once()
-            mock_app_dependencies['file_lock'].release_lock.assert_called_once()
+            # Verify cleanup - unlock_task should be cancelled
+            mock_unlock_task.cancel.assert_called_once()
+            # release_lock is not called when in standby mode
+            mock_app_dependencies['file_lock'].release_lock.assert_not_called()
 
     def test_client_creation(self, mock_app_dependencies):
         """Test that test client can be created."""
