@@ -8,6 +8,10 @@ on:
         required: false
         type: string
         default: 'self-hosted'
+  push:
+    branches:
+      - 'feature/**'
+      - '[0-9]*-*'
 
 jobs:
   tests:
