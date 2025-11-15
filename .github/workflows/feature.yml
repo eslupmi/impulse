@@ -9,7 +9,7 @@ on:
 
 jobs:
   tests:
-    runs-on: SH
+    runs-on: self-hosted
     strategy:
       matrix:
         python-version: ['3.9', '3.10', '3.11', '3.12', '3.13']
