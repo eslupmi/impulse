@@ -208,7 +208,7 @@ class TestFileLockIsLocked:
     def test_is_locked_returns_false_when_file_not_exists(self):
         """Test is_locked returns False when lock file doesn't exist."""
         with patch('app.file_lock.get_config') as mock_get_config, \
-             patch('pathlib.Path.exists', return_value=False):
+             patch('pathlib.Path.read_text', side_effect=FileNotFoundError()):
             
             mock_config = Mock()
             mock_config.data_path = "/test/data"
@@ -220,7 +220,6 @@ class TestFileLockIsLocked:
     def test_is_locked_returns_true_when_file_fresh(self):
         """Test is_locked returns True when lock file is fresh."""
         with patch('app.file_lock.get_config') as mock_get_config, \
-             patch('pathlib.Path.exists', return_value=True), \
              patch('pathlib.Path.read_text', return_value="hostname,12345,1000.0"), \
              patch('app.file_lock.time.time', return_value=1005.0):
             
@@ -234,7 +233,6 @@ class TestFileLockIsLocked:
     def test_is_locked_returns_false_when_file_stale(self):
         """Test is_locked returns False when lock file is stale."""
         with patch('app.file_lock.get_config') as mock_get_config, \
-             patch('pathlib.Path.exists', return_value=True), \
              patch('pathlib.Path.read_text', return_value="hostname,12345,1000.0"), \
              patch('app.file_lock.time.time', return_value=1011.0):
             
@@ -248,7 +246,6 @@ class TestFileLockIsLocked:
     def test_is_locked_handles_value_error(self):
         """Test is_locked handles ValueError when parsing lock file."""
         with patch('app.file_lock.get_config') as mock_get_config, \
-             patch('pathlib.Path.exists', return_value=True), \
              patch('pathlib.Path.read_text', return_value="invalid,format"), \
              patch('app.file_lock.logger') as mock_logger:
             
@@ -260,14 +257,12 @@ class TestFileLockIsLocked:
             result = file_lock.is_locked()
 
             assert result is True  # Returns True on error
-            mock_logger.debug.assert_called()
+            mock_logger.error.assert_called()
 
     def test_is_locked_handles_file_not_found_error(self):
         """Test is_locked handles FileNotFoundError."""
         with patch('app.file_lock.get_config') as mock_get_config, \
-             patch('pathlib.Path.exists', return_value=True), \
-             patch('pathlib.Path.read_text', side_effect=FileNotFoundError()), \
-             patch('app.file_lock.logger') as mock_logger:
+             patch('pathlib.Path.read_text', side_effect=FileNotFoundError()):
             
             mock_config = Mock()
             mock_config.data_path = "/test/data"
@@ -276,13 +271,11 @@ class TestFileLockIsLocked:
             file_lock = FileLock()
             result = file_lock.is_locked()
 
-            assert result is True  # Returns True on error
-            mock_logger.debug.assert_called()
+            assert result is False  # Returns False when file not found
 
     def test_is_locked_boundary_condition_stale(self):
         """Test is_locked with boundary condition (exactly STALE_SEC)."""
         with patch('app.file_lock.get_config') as mock_get_config, \
-             patch('pathlib.Path.exists', return_value=True), \
              patch('pathlib.Path.read_text', return_value="hostname,12345,1000.0"), \
              patch('app.file_lock.time.time', return_value=1010.0):
             
@@ -300,7 +293,7 @@ class TestFileLockGetLockInfo:
     def test_get_lock_info_returns_none_when_file_not_exists(self):
         """Test get_lock_info returns None when lock file doesn't exist."""
         with patch('app.file_lock.get_config') as mock_get_config, \
-             patch('pathlib.Path.exists', return_value=False):
+             patch('pathlib.Path.read_text', side_effect=FileNotFoundError()):
             
             mock_config = Mock()
             mock_config.data_path = "/test/data"
@@ -316,7 +309,6 @@ class TestFileLockGetLockInfo:
     def test_get_lock_info_returns_correct_info(self):
         """Test get_lock_info returns correct information."""
         with patch('app.file_lock.get_config') as mock_get_config, \
-             patch('pathlib.Path.exists', return_value=True), \
              patch('pathlib.Path.read_text', return_value="test-hostname,12345,1000.5"):
             
             mock_config = Mock()
@@ -333,7 +325,6 @@ class TestFileLockGetLockInfo:
     def test_get_lock_info_handles_value_error(self):
         """Test get_lock_info handles ValueError."""
         with patch('app.file_lock.get_config') as mock_get_config, \
-             patch('pathlib.Path.exists', return_value=True), \
              patch('pathlib.Path.read_text', return_value="invalid,format"):
             
             mock_config = Mock()
@@ -350,7 +341,6 @@ class TestFileLockGetLockInfo:
     def test_get_lock_info_handles_file_not_found_error(self):
         """Test get_lock_info handles FileNotFoundError."""
         with patch('app.file_lock.get_config') as mock_get_config, \
-             patch('pathlib.Path.exists', return_value=True), \
              patch('pathlib.Path.read_text', side_effect=FileNotFoundError()):
             
             mock_config = Mock()
