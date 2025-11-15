@@ -17,13 +17,13 @@ class FileLock:
         self._active = False
         self._heartbeat_task = None
 
-    def lock(self):
+    def acquire_lock(self):
         self._active = True
         self._update()
         loop = asyncio.get_running_loop()
         self._heartbeat_task = loop.create_task(self._heartbeat())
 
-    def unlock(self):
+    def release_lock(self):
         self._active = False
         if self._heartbeat_task:
             self._heartbeat_task.cancel()
@@ -64,5 +64,8 @@ class FileLock:
 
     def _update(self):
         hostname = socket.gethostname()
-        with open(self.lock_path, "w") as f:
-            f.write(f"{hostname},{os.getpid()},{time.time()}")
+        try:
+            with open(self.lock_path, "w") as f:
+                f.write(f"{hostname},{os.getpid()},{time.time()}")
+        except (OSError, IOError) as e:
+            logger.debug(f"Error writing lock file: {e}")

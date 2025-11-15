@@ -8,7 +8,6 @@ from datetime import datetime, timezone
 
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, HTTPException, APIRouter
 from fastapi.responses import HTMLResponse, Response
-from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -19,6 +18,7 @@ from app.im.channel_manager import ChannelManager
 from app.im.helpers import get_application
 from app.incident.incidents import Incidents
 from app.logging import logger, configure_uvicorn_logging
+from app.middleware import StandbyMiddleware, is_standby_mode, service_unavailable_response
 from app.queue.manager import AsyncQueueManager
 from app.queue.queue import AsyncQueue
 from app.route import generate_route
@@ -76,7 +76,7 @@ def validate_config_only():
 async def initialize_primary_server(fastapi_app: FastAPI, file_lock: FileLock):
     """Initialize primary server components"""
     
-    file_lock.lock()
+    file_lock.acquire_lock()
     logger.info("Starting as primary server")
     
     config_data = get_config()
@@ -159,7 +159,7 @@ async def lifespan(fastapi_app: FastAPI):
         for chain in fastapi_app.state.messenger.chains.values():
             if hasattr(chain, 'cleanup'):
                 chain.cleanup()
-    file_lock.unlock()
+    file_lock.release_lock()
 
     logger.info('IMPulse shutdown complete')
 
@@ -172,60 +172,11 @@ app = FastAPI(
     docs_url=None,
     redoc_url=None
 )
-
-
-def is_standby_mode(state) -> bool:
-    return getattr(state, 'is_standby', False)
-
-
-def service_unavailable_response(message: str) -> Response:
-    return Response(
-        status_code=503,
-        content=message,
-        media_type="text/plain"
-    )
-
-
-class StandbyMiddleware(BaseHTTPMiddleware):
-    """Middleware to block all requests except /ready when in standby mode"""
-    
-    async def dispatch(self, request: Request, call_next):
-        path = request.url.path
-        if not path.startswith("/"):
-            path = "/" + path
-        
-        # Get http_prefix from config
-        config_data = get_config()
-        http_prefix = config_data.http_prefix or ""
-        
-        # Check if path is /ready (with or without prefix)
-        # Endpoint is registered directly in app with prefix, so check full path
-        if path == f"{http_prefix}/ready":
-            return await call_next(request)
-        
-        # Check if server is in standby mode
-        if is_standby_mode(request.app.state):
-            # Remove prefix from path for static files check
-            if http_prefix and path.startswith(http_prefix):
-                path = path[len(http_prefix):]
-            if not path.startswith("/"):
-                path = "/" + path
-            
-            # Allow static files
-            if path.startswith("/static/"):
-                return await call_next(request)
-            
-            # Block all other requests
-            return service_unavailable_response("Service Unavailable - Standby mode. Only /ready endpoint is available.")
-        
-        return await call_next(request)
-
-
 app.add_middleware(StandbyMiddleware)
-
 config = get_config()
 http_prefix = config.http_prefix
 router = APIRouter(prefix=http_prefix)
+
 
 def get_ready(request: Request):
     """Readiness check endpoint - returns 503 if server is in standby mode, 200 if ready"""
