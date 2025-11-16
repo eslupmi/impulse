@@ -10,9 +10,11 @@ from app.im.groups import generate_user_groups
 from app.im.template import JinjaTemplate, notification_user, notification_user_group, update_status, \
     notification_assignment, notification_unassignment
 from app.logging import logger
+from app.integrations.jira import JiraIntegration
 
 
 class Application(ABC):
+    jira_integration: JiraIntegration = None
 
     def __init__(self, app_config: ApplicationConfig, channels, default_channel):
         self.http: Optional[RateLimitedClient] = None  # Will be initialized async
@@ -145,6 +147,24 @@ class Application(ABC):
 
         except Exception as e:
             logger.error(f'Failed to post unassignment notification for incident {incident_obj.uuid}: {e}')
+
+    async def handle_jira_button(self, incident, queue_):
+        """
+        Handle Jira button press for an incident.
+        
+        Args:
+            incident: Incident object
+            queue_: Queue manager
+        
+        Returns:
+            Response dict with success status
+        """
+        if not Application.jira_integration:
+            logger.error("Jira integration not initialized")
+            return {"success": False, "message": "Jira integration not available"}
+        
+        # Delegate to JiraIntegration
+        return await Application.jira_integration.handle_button_press(incident, queue_)
 
     def get_url(self, app_config: ApplicationConfig):
         return self._get_url(app_config)

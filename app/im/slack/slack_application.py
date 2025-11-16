@@ -136,15 +136,19 @@ class SlackApplication(Application):
                 else:
                     logger.info(f'Incident {incident_.uuid} -> button STATUS pressed (enabled)')
                     incident_.status_enabled = True
+            elif action['name'] == 'jira':
+                logger.info(f'Incident {incident_.uuid} -> button JIRA pressed')
+                asyncio.create_task(self.handle_jira_button(incident_, queue_))
         incident_.dump()
 
         body = self.body_template.form_message(incident_.payload, incident_)
         header = self.header_template.form_message(incident_.payload, incident_)
         status_icons = self.status_icons_template.form_message(incident_.payload, incident_)
         payload = self.update_thread_payload(incident_.channel_id, incident_.ts, body, header, status_icons,
-                                             incident_.status, incident_.chain_enabled, incident_.status_enabled)
+                                             incident_.status, incident_.chain_enabled, incident_.status_enabled, 
+                                             incident_.task_link)
         modified_message = reformat_message(original_message, payload['text'], payload['attachments'], incident_.status,
-                                            incident_.chain_enabled, incident_.status_enabled)
+                                            incident_.chain_enabled, incident_.status_enabled, incident_.task_link)
         return JSONResponse(modified_message, status_code=200)
 
     def _create_thread_payload(self, channel_id, body, header, status_icons, status):
@@ -154,9 +158,9 @@ class SlackApplication(Application):
         return {'channel': channel_id, 'thread_ts': id_, 'text': text, 'unfurl_links': False, 'unfurl_media': False}
 
     def update_thread_payload(self, channel_id, id_, body, header, status_icons, status, chain_enabled,
-                              status_enabled):
+                              status_enabled, task_link=''):
         return slack_get_update_payload(channel_id, id_, body, header, status_icons, status, chain_enabled,
-                                        status_enabled)
+                                        status_enabled, task_link)
 
     async def _update_thread(self, id_, payload):
         response = await self.http.post(

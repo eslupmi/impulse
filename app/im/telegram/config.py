@@ -22,6 +22,16 @@ buttons = {
             'text': '🔴 Status',
             'callback_data': 'start_status'
         }
+    },
+    'jira': {
+        'create': {
+            'text': '📌',
+            'callback_data': 'jira'
+        },
+        'open': {
+            'text': '📌',
+            'callback_data': 'jira'
+        }
     }
 }
 

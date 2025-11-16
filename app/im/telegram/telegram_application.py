@@ -125,13 +125,16 @@ class TelegramApplication(Application):
             else:
                 logger.info(f'Incident {incident_.uuid} -> button STATUS pressed (enabled)')
                 incident_.status_enabled = True
+        elif action == 'jira':
+            logger.info(f'Incident {incident_.uuid} -> button JIRA pressed')
+            asyncio.create_task(self.handle_jira_button(incident_, queue_))
         incident_.dump()
         body = self.body_template.form_message(incident_.payload, incident_)
         header = self.header_template.form_message(incident_.payload, incident_)
         status_icons = self.status_icons_template.form_message(incident_.payload, incident_)
         await self.update_thread(
             incident_.channel_id, incident_.ts, incident_.status, body, header, status_icons,
-            incident_.chain_enabled, incident_.status_enabled
+            incident_.chain_enabled, incident_.status_enabled, incident_.task_link
         )
 
         await self.http.post(
@@ -161,17 +164,24 @@ class TelegramApplication(Application):
             raise e
 
     def _create_thread_payload(self, channel_id, body, header, status_icons, status):
+        from app.config.environment import get_environment_config
+        env_config = get_environment_config()
+        
+        keyboard_row = [
+            buttons['chain']['takeit'],
+            buttons['status']['enabled']
+        ]
+        
+        # Add Jira button if Jira is enabled
+        if env_config.jira_enabled:
+            keyboard_row.append(buttons['jira']['create'])
+        
         return {
             'chat_id': channel_id,
             'text': f'{self._format_tg_icon(status_icons)} {header}\n{body}',
             'parse_mode': 'HTML',
             'reply_markup': {
-                'inline_keyboard': [
-                    [
-                        buttons['chain']['takeit'],
-                        buttons['status']['enabled']
-                    ]
-                ]
+                'inline_keyboard': [keyboard_row]
             }
         }
 
@@ -185,13 +195,13 @@ class TelegramApplication(Application):
         }
 
     async def update_thread(self, channel_id, id_, status, body, header, status_icons, chain_enabled=True,
-                      status_enabled=True):
+                      status_enabled=True, task_link=''):
         if status_enabled or status == 'closed':
             await self._update_topic(channel_id, id_, header, status_icons)
         else:
             await self._update_topic(channel_id, id_, header, "5377316857231450742") # ? mark
         payload = self.update_thread_payload(channel_id, id_, body, header, status_icons, status, chain_enabled,
-                                             status_enabled)
+                                             status_enabled, task_link)
         await self._update_thread(id_, payload)
 
     async def _update_topic(self, channel_id, id_, header, status_icons):
@@ -213,20 +223,35 @@ class TelegramApplication(Application):
             logger.error(f'Failed to update topic: {e}')
 
     def update_thread_payload(self, channel_id, id_, body, header, status_icons, status, chain_enabled,
-                              status_enabled):
+                              status_enabled, task_link=''):
+        from app.config.environment import get_environment_config
+        env_config = get_environment_config()
+        
         _, message_id = id_.split('/')
+        
+        keyboard_row = [
+            buttons['chain']['takeit'] if chain_enabled or status != 'resolved' else buttons['chain']['release'],
+            buttons['status']['enabled'] if status_enabled else buttons['status']['disabled']
+        ]
+        
+        # Add Jira button if Jira is enabled
+        if env_config.jira_enabled:
+            if task_link:
+                # If task exists, button opens the link
+                jira_button = buttons['jira']['open'].copy()
+                jira_button['url'] = task_link
+                keyboard_row.append(jira_button)
+            else:
+                # If no task, button creates one
+                keyboard_row.append(buttons['jira']['create'])
+        
         return {
             'chat_id': channel_id,
             'message_id': message_id,
             'text': f'{self._format_tg_icon(status_icons)} {header}\n{body}',
             'parse_mode': 'HTML',
             'reply_markup': {
-                'inline_keyboard': [
-                    [
-                        buttons['chain']['takeit'] if chain_enabled or status != 'resolved' else buttons['chain']['release'],
-                        buttons['status']['enabled'] if status_enabled else buttons['status']['disabled']
-                    ]
-                ]
+                'inline_keyboard': [keyboard_row]
             }
         }
 

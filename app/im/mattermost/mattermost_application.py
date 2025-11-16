@@ -146,6 +146,9 @@ class MattermostApplication(Application):
             else:
                 logger.info(f'Incident {incident_.uuid} -> button STATUS pressed (enabled)')
                 incident_.status_enabled = True
+        elif action == 'jira':
+            logger.info(f'Incident {incident_.uuid} -> button JIRA pressed')
+            asyncio.create_task(self.handle_jira_button(incident_, queue_))
         incident_.dump()
         status_icons = self.status_icons_template.form_message(incident_.payload, incident_)
         header = self.header_template.form_message(incident_.payload, incident_)
@@ -156,7 +159,8 @@ class MattermostApplication(Application):
             status_icons,
             incident_.status,
             incident_.chain_enabled,
-            incident_.status_enabled)
+            incident_.status_enabled,
+            incident_.task_link)
         return JSONResponse(payload, status_code=200)
 
     def _create_thread_payload(self, channel_id, body, header, status_icons, status):
@@ -166,9 +170,9 @@ class MattermostApplication(Application):
         return {'channel_id': channel_id, 'root_id': id_, 'message': text}
 
     def update_thread_payload(self, channel_id, id_, body, header, status_icons, status, chain_enabled,
-                              status_enabled):
+                              status_enabled, task_link=''):
         return mattermost_get_update_payload(channel_id, id_, body, header, status_icons, status, chain_enabled,
-                                             status_enabled)
+                                             status_enabled, task_link)
 
     async def _update_thread(self, id_, payload):
         response = await self.http.put(

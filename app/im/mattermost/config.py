@@ -25,6 +25,16 @@ buttons = {
             'text': ':red_circle: Status',
             'style': 'default'
         }
+    },
+    'jira': {
+        'create': {
+            'text': '📌',
+            'style': 'default'
+        },
+        'open': {
+            'text': '📌',
+            'style': 'default'
+        }
     }
 }
 

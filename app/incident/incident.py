@@ -42,6 +42,7 @@ class Incident:
     uuid: str = field(init=False)
     ts: str = field(default='')
     link: str = field(default='')
+    task_link: str = field(default='')
 
     next_status = {
         'firing': 'unknown',
@@ -190,6 +191,7 @@ class Incident:
             version=content.get('version', config.INCIDENT_ACTUAL_VERSION)
         )
         incident_.set_thread(content.get('ts'), incident_config.application_url)
+        incident_.task_link = content.get('task_link', '')
         return incident_
 
     def dump(self):
@@ -209,7 +211,8 @@ class Incident:
             "assigned_user": self.assigned_user,
             "assigned_fullname": self.assigned_fullname,
             "messenger_type": self.messenger_type,
-            "version": self.version
+            "version": self.version,
+            "task_link": self.task_link
         }
         try:
             with open(f'{config.incidents_path}/{self.uuid}.yml', 'w') as f:
@@ -244,6 +247,7 @@ class Incident:
             "messenger_type": self.messenger_type,
             "link": self.link,
             "ts": self.ts,
+            "task_link": self.task_link,
         }
 
     def get_table_data(self, params) -> Dict:

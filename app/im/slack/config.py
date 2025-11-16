@@ -25,6 +25,16 @@ buttons = {
             'text': ':red_circle: Status',
             'style': 'normal'
         }
+    },
+    'jira': {
+        'create': {
+            'text': ':pushpin:',
+            'style': 'normal'
+        },
+        'open': {
+            'text': ':pushpin:',
+            'style': 'normal'
+        }
     }
 }
 
