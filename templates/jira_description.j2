@@ -1,0 +1,25 @@
+{%- set status_display = incident.status | capitalize -%}
+Incident Status: {{ status_display }}
+{%- if incident.assigned_fullname %}
+Assigned to: {{ incident.assigned_fullname }}
+{%- endif %}
+Alerts Count: {{ incident.payload.alerts | length if incident.payload.alerts else 0 }}
+{%- if incident.link %}
+IM Thread: {{ incident.link }}
+{%- endif %}
+
+{%- if incident.payload.groupLabels %}
+
+Group Labels:
+{%- for key, value in incident.payload.groupLabels.items() %}
+- {{ key }}: {{ (value | string)[:197] ~ "..." if (value | string) | length > 200 else value }}
+{%- endfor %}
+{%- endif %}
+
+{%- if incident.payload.commonAnnotations %}
+
+Annotations:
+{%- for key, value in incident.payload.commonAnnotations.items() %}
+- {{ key }}: {{ (value | string)[:197] ~ "..." if (value | string) | length > 200 else value }}
+{%- endfor %}
+{%- endif %}
