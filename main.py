@@ -89,17 +89,6 @@ async def lifespan(fastapi_app: FastAPI):
     messenger = get_application(config.messenger, channels, default_channel)
     await messenger.initialize_async()
     
-    # Initialize Jira integration if enabled
-    from app.config.environment import get_environment_config
-    env_config = get_environment_config()
-    jira_client = None
-    if env_config.jira_enabled:
-        from app.integrations.jira import create_jira_client, JiraIntegration
-        logger.info(f"Initializing Jira integration (type: {env_config.jira_type})...")
-        jira_client = create_jira_client(env_config)
-        messenger.jira_integration = JiraIntegration(jira_client, env_config.jira_project_key)
-        logger.info(f"Jira {env_config.jira_type} integration initialized. OAuth authorization required.")
-    
     webhooks = generate_webhooks(webhooks_config)
     incidents = Incidents.create_or_load(messenger.type, messenger.public_url, messenger.team)
 
@@ -114,7 +103,6 @@ async def lifespan(fastapi_app: FastAPI):
     fastapi_app.state.route = route
     fastapi_app.state.channel_manager = channel_manager
     fastapi_app.state.config = config
-    fastapi_app.state.jira_client = jira_client  # Store for OAuth endpoints
 
     queue_manager.start_processing()
 
@@ -251,73 +239,6 @@ async def websocket_endpoint(websocket: WebSocket):
     except Exception as e:
         logger.error(f"WebSocket error: {e}")
         incident_ws.disconnect(websocket)
-
-
-# Jira OAuth endpoints
-@router.get("/jira/auth")
-async def jira_auth(request: Request):
-    """
-    Initiate Jira OAuth flow.
-    Redirects user to Jira authorization page.
-    """
-    jira_client = request.app.state.jira_client
-    
-    if not jira_client:
-        raise HTTPException(status_code=503, detail="Jira integration is not enabled")
-    
-    if jira_client.is_authenticated:
-        return {"status": "already_authenticated", "message": "Jira is already authorized"}
-    
-    # Generate authorization URL
-    auth_url = jira_client.get_authorization_url()
-    
-    # Redirect user to Jira authorization page
-    from fastapi.responses import RedirectResponse
-    return RedirectResponse(url=auth_url)
-
-
-@router.get("/jira/callback")
-async def jira_callback(request: Request, code: str = None, state: str = None):
-    """
-    Handle OAuth callback from Jira.
-    Exchanges authorization code for access token.
-    """
-    jira_client = request.app.state.jira_client
-    
-    if not jira_client:
-        raise HTTPException(status_code=503, detail="Jira integration is not enabled")
-    
-    if not code or not state:
-        raise HTTPException(status_code=400, detail="Missing code or state parameter")
-    
-    # Exchange code for token
-    success = await jira_client.exchange_code_for_token(code, state)
-    
-    if success:
-        logger.info("Jira OAuth authorization completed successfully")
-        return {
-            "status": "success",
-            "message": "Jira authorization completed successfully. You can now create Jira tasks from incidents."
-        }
-    else:
-        logger.error("Jira OAuth authorization failed")
-        raise HTTPException(status_code=400, detail="Failed to exchange authorization code for token")
-
-
-@router.get("/jira/status")
-async def jira_status(request: Request):
-    """
-    Check Jira authentication status.
-    """
-    jira_client = request.app.state.jira_client
-    
-    if not jira_client:
-        return {"enabled": False, "authenticated": False}
-    
-    return {
-        "enabled": True,
-        "authenticated": jira_client.is_authenticated
-    }
 
 
 # Include router in the app

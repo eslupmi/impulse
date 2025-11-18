@@ -159,12 +159,12 @@ class Application(ABC):
         Returns:
             Response dict with success status
         """
-        if not Application.jira_integration:
+        if not self.jira_integration:
             logger.error("Jira integration not initialized")
             return {"success": False, "message": "Jira integration not available"}
         
         # Delegate to JiraIntegration
-        return await Application.jira_integration.handle_button_press(incident, queue_)
+        return await self.jira_integration.handle_button_press(incident, queue_)
 
     def get_url(self, app_config: ApplicationConfig):
         return self._get_url(app_config)
@@ -219,12 +219,12 @@ class Application(ABC):
         return response_code
 
     async def update(self, uuid_, incident, incident_status, alert_state, updated_status, chain_enabled,
-                     status_enabled):
+                     status_enabled, task_link=''):
         body = self.body_template.form_message(alert_state, incident)
         header = self.header_template.form_message(alert_state, incident)
         status_icons = self.status_icons_template.form_message(alert_state, incident)
         await self.update_thread(
-            incident.channel_id, incident.ts, incident_status, body, header, status_icons, chain_enabled, status_enabled
+            incident.channel_id, incident.ts, incident_status, body, header, status_icons, chain_enabled, status_enabled, task_link
         )
         if updated_status:
             logger.info(f'Incident {uuid_} updated with new status \'{incident_status}\'')
@@ -254,9 +254,9 @@ class Application(ABC):
         return response_json.get(self.thread_id_key)
 
     async def update_thread(self, channel_id, id_, status, body, header, status_icons, chain_enabled=True,
-                            status_enabled=True):
+                            status_enabled=True, task_link=''):
         payload = self.update_thread_payload(channel_id, id_, body, header, status_icons, status, chain_enabled,
-                                             status_enabled)
+                                             status_enabled, task_link)
         await self._update_thread(id_, payload)
 
     async def post_thread(self, channel_id, id_, text):
@@ -341,7 +341,7 @@ class Application(ABC):
         pass
 
     @abstractmethod
-    def update_thread_payload(self, channel_id, id_, body, header, status_icons, status, chain_enabled, status_enabled):
+    def update_thread_payload(self, channel_id, id_, body, header, status_icons, status, chain_enabled, status_enabled, task_link=''):
         pass
 
     @abstractmethod

@@ -101,7 +101,7 @@ class AlertHandler(BaseHandler):
         if is_state_updated or is_status_updated:
             await self.app.update(
                 uuid_, incident_, alert_state['status'], alert_state, is_status_updated,
-                incident_.chain_enabled, incident_.status_enabled
+                incident_.chain_enabled, incident_.status_enabled, incident_.task_link
             )
 
         if prev_status == 'firing' and incident_.status == 'firing' and (is_new_firing_alerts_added or is_some_firing_alerts_removed) and incident_.status_enabled:

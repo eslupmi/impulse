@@ -11,7 +11,7 @@ class StatusUpdateHandler(BaseHandler):
 
         await self.app.update(
             uuid_, incident, incident.status, incident.payload,
-            status_updated, incident.chain_enabled, incident.status_enabled
+            status_updated, incident.chain_enabled, incident.status_enabled, incident.task_link
         )
 
         if incident.status == 'closed':

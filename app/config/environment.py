@@ -28,48 +28,22 @@ class EnvironmentConfig(BaseModel):
         description="Telegram Bot Token"
     )
     
-    # Jira integration
-    jira_type: str = Field(
-        default_factory=lambda: os.getenv('JIRA_TYPE', 'cloud'),
-        description="Jira type: 'cloud' or 'server'"
+    # Jira integration (Cloud with Basic Auth)
+    jira_base_url: str = Field(
+        default_factory=lambda: os.getenv('JIRA_BASE_URL', ''),
+        description="Jira base URL (e.g., 'https://your-domain.atlassian.net')"
+    )
+    jira_user_email: str = Field(
+        default_factory=lambda: os.getenv('JIRA_USER_EMAIL', ''),
+        description="Jira user email for Basic Auth"
+    )
+    jira_api_token: str = Field(
+        default_factory=lambda: os.getenv('JIRA_API_TOKEN', ''),
+        description="Jira API token for Basic Auth"
     )
     jira_project_key: str = Field(
         default_factory=lambda: os.getenv('JIRA_PROJECT_KEY', ''),
         description="Jira project key (e.g., 'DTS')"
-    )
-    
-    # Common OAuth fields
-    jira_redirect_uri: str = Field(
-        default_factory=lambda: os.getenv('JIRA_REDIRECT_URI', ''),
-        description="Jira OAuth redirect URI (e.g. https://yourapp.com/jira/callback)"
-    )
-    
-    # Jira Cloud OAuth 2.0 fields
-    jira_client_id: str = Field(
-        default_factory=lambda: os.getenv('JIRA_CLIENT_ID', ''),
-        description="Jira OAuth client ID (Cloud only)"
-    )
-    jira_client_secret: str = Field(
-        default_factory=lambda: os.getenv('JIRA_CLIENT_SECRET', ''),
-        description="Jira OAuth client secret (Cloud only)"
-    )
-    jira_cloud_id: str = Field(
-        default_factory=lambda: os.getenv('JIRA_CLOUD_ID', ''),
-        description="Jira cloud instance ID (Cloud only)"
-    )
-    
-    # Jira Server OAuth 1.0a fields
-    jira_base_url: str = Field(
-        default_factory=lambda: os.getenv('JIRA_BASE_URL', ''),
-        description="Jira base URL (Server/Data Center only, e.g. https://jira.company.com)"
-    )
-    jira_consumer_key: str = Field(
-        default_factory=lambda: os.getenv('JIRA_CONSUMER_KEY', ''),
-        description="Jira OAuth consumer key (Server/Data Center only)"
-    )
-    jira_private_key: str = Field(
-        default_factory=lambda: os.getenv('JIRA_PRIVATE_KEY', ''),
-        description="Jira OAuth RSA private key in PKCS8 format (Server/Data Center only)"
     )
     
     # Paths
@@ -174,25 +148,12 @@ class EnvironmentConfig(BaseModel):
     @property
     def jira_enabled(self) -> bool:
         """Check if Jira integration is enabled (all required fields are set)"""
-        if not self.jira_project_key or not self.jira_redirect_uri:
-            return False
-        
-        if self.jira_type.lower() == 'cloud':
-            # Jira Cloud requires OAuth 2.0 credentials
-            return all([
-                self.jira_client_id,
-                self.jira_client_secret,
-                self.jira_cloud_id
-            ])
-        elif self.jira_type.lower() == 'server':
-            # Jira Server requires OAuth 1.0a credentials
-            return all([
-                self.jira_base_url,
-                self.jira_consumer_key,
-                self.jira_private_key
-            ])
-        else:
-            return False
+        return all([
+            self.jira_base_url,
+            self.jira_user_email,
+            self.jira_api_token,
+            self.jira_project_key
+        ])
 
 
 # Global instance - created once and reused
