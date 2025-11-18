@@ -7,8 +7,9 @@ from app.config.validation import ApplicationConfig, MattermostUser, SlackUser, 
 from app.http_client import RateLimitedClient
 from app.im.chain.chain_factory import ChainFactory
 from app.im.groups import generate_user_groups
-from app.im.template import JinjaTemplate, notification_user, notification_user_group, update_status, \
+from app.im.template import notification_user, notification_user_group, update_status, \
     notification_assignment, notification_unassignment
+from app.jinja_template import JinjaTemplate
 from app.logging import logger
 from app.integrations.jira_integration import JiraIntegration
 

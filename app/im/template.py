@@ -1,7 +1,4 @@
 """Instant messaging templates for notifications and messages."""
-from app.template import JinjaTemplate
-
-
 notification_user = """
 {%- if fields.type == 'slack' -%}
 :loudspeaker: user *{{ fields.name -}}*

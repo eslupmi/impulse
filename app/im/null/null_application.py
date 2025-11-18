@@ -3,6 +3,7 @@ import uuid
 from fastapi.responses import JSONResponse
 
 from app.im.application import Application
+from app.jinja_template import JinjaTemplate
 
 
 class NullApplication(Application):
@@ -16,7 +17,6 @@ class NullApplication(Application):
 
     def generate_template(self):
         """Override template generation to avoid requiring template files"""
-        from app.im.template import JinjaTemplate
         return (
             JinjaTemplate(''),
             JinjaTemplate(''),

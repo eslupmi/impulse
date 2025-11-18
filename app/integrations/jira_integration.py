@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 
 from app.integrations.jira_client import JiraClient
 from app.logging import logger
-from app.template import JinjaTemplate, jira_summary_template, jira_description_template
+from app.jinja_template import JinjaTemplate, jira_summary_template, jira_description_template
 
 
 class JiraIntegration:
