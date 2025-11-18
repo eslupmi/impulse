@@ -23,7 +23,8 @@ def get_application(app_config: ApplicationConfig, channels, default_channel):
     # Initialize Jira integration if enabled
     env_config = get_environment_config()
     if env_config.jira_enabled:
-        from app.integrations.jira import JiraClient, JiraIntegration
+        from app.integrations.jira_client import JiraClient
+        from app.integrations.jira_integration import JiraIntegration
         logger.info("Initializing Jira integration with Basic Auth...")
         jira_client = JiraClient(
             base_url=env_config.jira_base_url,

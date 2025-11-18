@@ -13,6 +13,15 @@ from app.config.validation import ImpulseConfig, SlackApplicationConfig, Matterm
 from app.incident.incident import Incident, IncidentConfig
 
 
+@pytest.fixture(autouse=True)
+def reset_environment_config():
+    """Reset the global environment config singleton before each test."""
+    import app.config.environment
+    app.config.environment._env_config = None
+    yield
+    app.config.environment._env_config = None
+
+
 @pytest.fixture(autouse=True, scope="session")
 def mock_get_config_globally():
     """
@@ -36,6 +45,11 @@ def mock_get_config_globally():
         env_config.provider_service_account_file = "test_service_account.json"
         env_config.cors_allowed_origins = ["*"]
         env_config.http_prefix = ""
+        # Enable Jira for tests
+        env_config.jira_base_url = "https://test.atlassian.net"
+        env_config.jira_user_email = "test@example.com"
+        env_config.jira_api_token = "test_token"
+        env_config.jira_project_key = "TEST"
         
         # Create app config
         app_config = Mock(spec=ImpulseConfig)
@@ -158,6 +172,11 @@ def mock_environment_config():
     env_config.provider_service_account_file = "test_service_account.json"
     env_config.cors_allowed_origins = ["*"]
     env_config.http_prefix = ""
+    # Enable Jira for tests
+    env_config.jira_base_url = "https://test.atlassian.net"
+    env_config.jira_user_email = "test@example.com"
+    env_config.jira_api_token = "test_token"
+    env_config.jira_project_key = "TEST"
     return env_config
 
 

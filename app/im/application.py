@@ -10,7 +10,7 @@ from app.im.groups import generate_user_groups
 from app.im.template import JinjaTemplate, notification_user, notification_user_group, update_status, \
     notification_assignment, notification_unassignment
 from app.logging import logger
-from app.integrations.jira import JiraIntegration
+from app.integrations.jira_integration import JiraIntegration
 
 
 class Application(ABC):

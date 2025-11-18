@@ -232,10 +232,11 @@ class TestTelegramApplication:
         app = self.create_telegram_app(app_config, channels, users)
 
         with patch('app.im.telegram.telegram_application.buttons') as mock_buttons:
-            mock_buttons.__getitem__.return_value = {
-                'takeit': {'text': 'Take It', 'callback_data': 'start_chain'},
-                'enabled': {'text': 'Status', 'callback_data': 'start_status'}
-            }
+            mock_buttons.__getitem__.side_effect = lambda x: {
+                'chain': {'takeit': {'text': 'Take It', 'callback_data': 'start_chain'}},
+                'status': {'enabled': {'text': 'Status', 'callback_data': 'start_status'}},
+                'jira': {'create': {'text': '📌', 'callback_data': 'jira'}, 'open': {'text': '📌', 'callback_data': 'jira'}}
+            }[x]
 
             result = app._create_thread_payload(-1001234567890, "body", "header", "5312241539987020022", "firing")
 
@@ -247,7 +248,8 @@ class TestTelegramApplication:
                     'inline_keyboard': [
                         [
                             {'text': 'Take It', 'callback_data': 'start_chain'},
-                            {'text': 'Status', 'callback_data': 'start_status'}
+                            {'text': 'Status', 'callback_data': 'start_status'},
+                            {'text': '📌', 'callback_data': 'jira'}  # Jira button
                         ]
                     ]
                 }
@@ -273,15 +275,20 @@ class TestTelegramApplication:
         app = self.create_telegram_app(app_config, channels, users)
 
         with patch('app.im.telegram.telegram_application.buttons') as mock_buttons:
-            mock_buttons.__getitem__.return_value = {
-                'takeit': {'text': 'Take It', 'callback_data': 'start_chain'},
-                'release': {'text': 'Release', 'callback_data': 'stop_chain'},
-                'enabled': {'text': 'Status', 'callback_data': 'start_status'},
-                'disabled': {'text': 'Status', 'callback_data': 'stop_status'}
-            }
+            mock_buttons.__getitem__.side_effect = lambda x: {
+                'chain': {
+                    'takeit': {'text': 'Take It', 'callback_data': 'start_chain'},
+                    'release': {'text': 'Release', 'callback_data': 'stop_chain'}
+                },
+                'status': {
+                    'enabled': {'text': 'Status', 'callback_data': 'start_status'},
+                    'disabled': {'text': 'Status', 'callback_data': 'stop_status'}
+                },
+                'jira': {'create': {'text': '📌', 'callback_data': 'jira'}, 'open': {'text': '📌', 'callback_data': 'jira'}}
+            }[x]
 
             result = app.update_thread_payload(-1001234567890, "123456/789012", "body", "header", "5312241539987020022",
-                                               "firing", True, True)
+                                              "firing", True, True)
 
             expected = {
                 'chat_id': -1001234567890,
@@ -292,7 +299,8 @@ class TestTelegramApplication:
                     'inline_keyboard': [
                         [
                             {'text': 'Take It', 'callback_data': 'start_chain'},
-                            {'text': 'Status', 'callback_data': 'start_status'}
+                            {'text': 'Status', 'callback_data': 'start_status'},
+                            {'text': '📌', 'callback_data': 'jira'}  # Jira button
                         ]
                     ]
                 }
