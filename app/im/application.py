@@ -15,7 +15,7 @@ from app.integrations.jira_integration import JiraIntegration
 
 
 class Application(ABC):
-    jira_integration: JiraIntegration = None
+    jira_integration: Optional[JiraIntegration] = None
 
     def __init__(self, app_config: ApplicationConfig, channels, default_channel):
         self.http: Optional[RateLimitedClient] = None  # Will be initialized async
@@ -46,6 +46,9 @@ class Application(ABC):
         self._users_config = app_config.users
         self._user_groups_config = app_config.user_groups
         self._admin_users_config = app_config.admin_users
+        
+        # Track async tasks to prevent premature garbage collection
+        self._async_tasks: set = set()
 
     async def initialize_async(self):
         """Initialize async components after object creation"""
@@ -148,6 +151,18 @@ class Application(ABC):
 
         except Exception as e:
             logger.error(f'Failed to post unassignment notification for incident {incident_obj.uuid}: {e}')
+
+    def _track_async_task(self, task):
+        """
+        Track an async task to prevent premature garbage collection.
+        
+        Args:
+            task: asyncio.Task object to track
+        """
+        if not hasattr(self, '_async_tasks'):
+            self._async_tasks = set()
+        self._async_tasks.add(task)
+        task.add_done_callback(self._async_tasks.discard)
 
     async def handle_jira_button(self, incident, queue_):
         """

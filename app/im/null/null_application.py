@@ -99,7 +99,7 @@ class NullApplication(Application):
         """No thread posting for null application"""
         return 200
 
-    async def update_thread(self, channel_id, id_, status, body, header, status_icons, chain_enabled=True, status_enabled=True):
+    async def update_thread(self, channel_id, id_, status, body, header, status_icons, chain_enabled=True, status_enabled=True, task_link=''):
         """No thread updating for null application"""
         pass
 

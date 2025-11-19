@@ -78,14 +78,49 @@ class TelegramApplication(Application):
         response.close()
         return response_json.get('result', {}).get(self.thread_id_key)
 
+    async def _handle_chain_action(self, action, incident_, user_id, user_display_name, queue_, incidents, payload):
+        """Handle chain-related button actions (start_chain/stop_chain)"""
+        await queue_.delete_by_id(incident_.uuid, delete_steps=True, delete_status=False)
+        if action == 'stop_chain':
+            if incident_.assigned_user_id == user_id:
+                logger.info(f'Incident {incident_.uuid} -> button TAKE IT pressed, but user is already assigned')
+                return JSONResponse(payload, status_code=200)
+            logger.info(f'Incident {incident_.uuid} -> button TAKE IT pressed, assigning to {user_id}')
+            incident_.assign_user_id(user_id)
+            incident_.assign_user(user_display_name)
+            self._track_async_task(asyncio.create_task(self.post_assignment_notification(incident_, user_id, user_display_name)))
+            self._track_async_task(asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id, incidents)))
+            incident_.chain_enabled = False
+        else:
+            logger.info(f'Incident {incident_.uuid} -> button RELEASE pressed')
+            self._track_async_task(asyncio.create_task(self.post_unassignment_notification(incident_)))
+            incident_.release()
+        return None
+
+    async def _handle_status_action(self, action, incident_):
+        """Handle status-related button actions (start_status/stop_status)"""
+        if action == 'stop_status':
+            logger.info(f'Incident {incident_.uuid} -> button STATUS pressed (disabled)')
+            incident_.status_enabled = False
+        else:
+            logger.info(f'Incident {incident_.uuid} -> button STATUS pressed (enabled)')
+            incident_.status_enabled = True
+
+    async def _handle_jira_action(self, incident_, queue_):
+        """Handle Jira button action"""
+        logger.info(f'Incident {incident_.uuid} -> button JIRA pressed')
+        self._track_async_task(asyncio.create_task(self.handle_jira_button(incident_, queue_)))
+
     async def buttons_handler(self, payload, incidents, queue_, route):
         if 'callback_query' not in payload:
             return JSONResponse({}, status_code=200)
+        
         callback = payload['callback_query']
         message_id = callback['message']['message_id']
         post_id = callback['message']['message_thread_id']
         thread_id = f'{post_id}/{message_id}'
         incident_ = incidents.get_by_ts(ts=thread_id)
+        
         if incident_ is None:
             await self.http.post(
                 f'{self.url}/answerCallbackQuery',
@@ -93,42 +128,24 @@ class TelegramApplication(Application):
                 headers=self.headers
             )
             return JSONResponse({}, status_code=200)
+        
         action = callback['data']
-
         user_id = callback['from']['id']
         user_from = callback.get('from', {})
         first_name = user_from.get('first_name', '').strip()
         last_name = user_from.get('last_name', '').strip()
         user_display_name = f"{first_name} {last_name}".strip() or user_from.get('username')
 
+        # Handle different actions
         if action in ['start_chain', 'stop_chain']:
-            await queue_.delete_by_id(incident_.uuid, delete_steps=True, delete_status=False)
-            if action == 'stop_chain':
-                # if user is already assigned, do nothing
-                if incident_.assigned_user_id == user_id:
-                    logger.info(f'Incident {incident_.uuid} -> button TAKE IT pressed, but user is already assigned')
-                    return JSONResponse(payload, status_code=200)
-                else:
-                    logger.info(f'Incident {incident_.uuid} -> button TAKE IT pressed, assigning to {user_id}')
-                    incident_.assign_user_id(user_id)
-                    incident_.assign_user(user_display_name)
-                    asyncio.create_task(self.post_assignment_notification(incident_, user_id, user_display_name))
-                    asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id, incidents))
-                incident_.chain_enabled = False
-            else:
-                logger.info(f'Incident {incident_.uuid} -> button RELEASE pressed')
-                asyncio.create_task(self.post_unassignment_notification(incident_))
-                incident_.release()
+            early_return = await self._handle_chain_action(action, incident_, user_id, user_display_name, queue_, incidents, payload)
+            if early_return is not None:
+                return early_return
         elif action in ['start_status', 'stop_status']:
-            if action == 'stop_status':
-                logger.info(f'Incident {incident_.uuid} -> button STATUS pressed (disabled)')
-                incident_.status_enabled = False
-            else:
-                logger.info(f'Incident {incident_.uuid} -> button STATUS pressed (enabled)')
-                incident_.status_enabled = True
+            await self._handle_status_action(action, incident_)
         elif action == 'jira':
-            logger.info(f'Incident {incident_.uuid} -> button JIRA pressed')
-            asyncio.create_task(self.handle_jira_button(incident_, queue_))
+            await self._handle_jira_action(incident_, queue_)
+        
         incident_.dump()
         body = self.body_template.form_message(incident_.payload, incident_)
         header = self.header_template.form_message(incident_.payload, incident_)

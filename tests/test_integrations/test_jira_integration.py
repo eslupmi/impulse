@@ -1,5 +1,5 @@
 """Unit tests for JiraIntegration"""
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 
@@ -88,7 +88,7 @@ class TestJiraIntegration:
         incident.assigned_fullname = ""
         incident.link = ""
         
-        summary, description = jira_integration.format_incident_for_jira(incident)
+        summary, _ = jira_integration.format_incident_for_jira(incident)
         
         assert "Incident Alert" in summary
     
@@ -103,7 +103,7 @@ class TestJiraIntegration:
         incident.assigned_fullname = ""
         incident.link = ""
         
-        summary, description = jira_integration.format_incident_for_jira(incident)
+        summary, _ = jira_integration.format_incident_for_jira(incident)
         
         assert len(summary) <= 255
         assert summary.endswith("...")
@@ -112,7 +112,7 @@ class TestJiraIntegration:
         """Test that IM thread link is included in description"""
         mock_incident.link = "https://slack.com/archives/C123/p456"
         
-        summary, description = jira_integration.format_incident_for_jira(mock_incident)
+        _, description = jira_integration.format_incident_for_jira(mock_incident)
         
         assert "IM Thread: https://slack.com/archives/C123/p456" in description
     
@@ -127,7 +127,7 @@ class TestJiraIntegration:
         incident.assigned_fullname = ""
         incident.link = ""
         
-        summary, description = jira_integration.format_incident_for_jira(incident)
+        _, description = jira_integration.format_incident_for_jira(incident)
         
         # Check that the description contains truncated value
         assert "..." in description
@@ -212,7 +212,7 @@ class TestJiraIntegration:
         incident.assigned_fullname = ""
         incident.link = ""
         
-        summary, description = jira_integration.format_incident_for_jira(incident)
+        _, description = jira_integration.format_incident_for_jira(incident)
         
         # Should have 3 alerts (base + multiple_alerts + one we added)
         assert "Alerts Count: 3" in description
