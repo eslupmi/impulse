@@ -8,6 +8,7 @@ from app.im.telegram.config import buttons
 from app.im.telegram.user import User
 from app.logging import logger
 from app.config.config import get_config
+from app.config.environment import get_environment_config
 from app.config.validation import ApplicationConfig, TelegramUser
 
 
@@ -164,7 +165,6 @@ class TelegramApplication(Application):
             raise e
 
     def _create_thread_payload(self, channel_id, body, header, status_icons, status):
-        from app.config.environment import get_environment_config
         env_config = get_environment_config()
         
         keyboard_row = [
@@ -224,7 +224,6 @@ class TelegramApplication(Application):
 
     def update_thread_payload(self, channel_id, id_, body, header, status_icons, status, chain_enabled,
                               status_enabled, task_link=''):
-        from app.config.environment import get_environment_config
         env_config = get_environment_config()
         
         _, message_id = id_.split('/')

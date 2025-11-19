@@ -1,6 +1,7 @@
 from app.im.colors import status_colors
 from app.im.mattermost.config import buttons
 from app.config.config import get_config
+from app.config.environment import get_environment_config
 
 
 def chain_attrs(chain_enabled, status):
@@ -17,17 +18,30 @@ def chain_attrs(chain_enabled, status):
     return chain_text, chain_style
 
 
-def mattermost_get_button_update_payload(body, header, status_icons, status, chain_enabled, status_enabled, task_link=''):
-    from app.config.environment import get_environment_config
+def build_mattermost_actions(chain_enabled, status, status_enabled, task_link=''):
+    """
+    Build the action buttons list for Mattermost messages.
+    
+    Args:
+        chain_enabled: Whether the chain button is enabled
+        status: Current incident status
+        status_enabled: Whether the status button is enabled
+        task_link: Optional Jira task link (if task exists)
+        
+    Returns:
+        List of action button configurations
+    """
     config = get_config()
     env_config = get_environment_config()
+    
+    chain_text, chain_style = chain_attrs(chain_enabled, status)
     
     actions = [
         {
             "id": "chain",
             "type": "button",
-            "name": chain_attrs(chain_enabled, status)[0],
-            "style": chain_attrs(chain_enabled, status)[1],
+            "name": chain_text,
+            "style": chain_style,
             "integration": {
                 "url": f"{config.messenger.impulse_address}/app",
                 "context": {
@@ -76,6 +90,12 @@ def mattermost_get_button_update_payload(body, header, status_icons, status, cha
                     }
                 }
             })
+    
+    return actions
+
+
+def mattermost_get_button_update_payload(body, header, status_icons, status, chain_enabled, status_enabled, task_link=''):
+    actions = build_mattermost_actions(chain_enabled, status, status_enabled, task_link)
     
     payload = {
         'update': {
@@ -97,64 +117,7 @@ def mattermost_get_button_update_payload(body, header, status_icons, status, cha
 
 def mattermost_get_update_payload(channel_id, thread_id, body, header, status_icons, status, chain_enabled,
                                   status_enabled, task_link=''):
-    from app.config.environment import get_environment_config
-    config = get_config()
-    env_config = get_environment_config()
-    
-    actions = [
-        {
-            "id": "chain",
-            "type": "button",
-            "name": chain_attrs(chain_enabled, status)[0],
-            "style": chain_attrs(chain_enabled, status)[1],
-            "integration": {
-                "url": f"{config.messenger.impulse_address}/app",
-                "context": {
-                    "action": "chain"
-                }
-            }
-        },
-        {
-            "id": "status",
-            "type": "button",
-            "name": buttons['status']['enabled']['text'] if status_enabled else
-            buttons['status']['disabled']['text'],
-            "style": buttons['status']['enabled']['style'] if status_enabled else
-            buttons['status']['disabled']['style'],
-            "integration": {
-                "url": f"{config.messenger.impulse_address}/app",
-                "context": {
-                    "action": "status"
-                }
-            }
-        }
-    ]
-    
-    # Add Jira button if Jira is enabled
-    if env_config.jira_enabled:
-        if task_link:
-            # If task exists, button opens the link
-            actions.append({
-                "id": "jira",
-                "type": "button",
-                "name": buttons['jira']['open']['text'],
-                "style": buttons['jira']['open']['style'],
-                "url": task_link
-            })
-        else:
-            # If no task, button creates one
-            actions.append({
-                "id": "jira",
-                "type": "button",
-                "name": buttons['jira']['create']['text'],
-                "style": buttons['jira']['create']['style'],
-                "integration": {
-                    "url": f"{config.messenger.impulse_address}/app",
-                    "context": {
-                        "action": "jira"
-                    }
-                }
-            })
+    actions = build_mattermost_actions(chain_enabled, status, status_enabled, task_link)
     
     payload = {
         'channel_id': channel_id,
@@ -175,51 +138,8 @@ def mattermost_get_update_payload(channel_id, thread_id, body, header, status_ic
 
 
 def mattermost_get_create_thread_payload(channel_id, body, header, status_icons, status):
-    from app.config.environment import get_environment_config
-    config = get_config()
-    env_config = get_environment_config()
-    
-    actions = [
-        {
-            "id": "chain",
-            "type": "button",
-            "name": buttons['chain']['takeit']['text'],
-            "style": buttons['chain']['takeit']['style'],
-            "integration": {
-                "url": f"{config.messenger.impulse_address}/app",
-                "context": {
-                    "action": "chain"
-                }
-            }
-        },
-        {
-            "id": "status",
-            "type": "button",
-            "name": buttons['status']['enabled']['text'],
-            "style": buttons['status']['enabled']['style'],
-            "integration": {
-                "url": f"{config.messenger.impulse_address}/app",
-                "context": {
-                    "action": "status"
-                }
-            }
-        }
-    ]
-    
-    # Add Jira button if Jira is enabled
-    if env_config.jira_enabled:
-        actions.append({
-            "id": "jira",
-            "type": "button",
-            "name": buttons['jira']['create']['text'],
-            "style": buttons['jira']['create']['style'],
-            "integration": {
-                "url": f"{config.messenger.impulse_address}/app",
-                "context": {
-                    "action": "jira"
-                }
-            }
-        })
+    # New threads always have chain enabled and status enabled, no task link yet
+    actions = build_mattermost_actions(chain_enabled=True, status=status, status_enabled=True, task_link='')
     
     payload = {
         'channel_id': channel_id,

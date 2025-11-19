@@ -1,8 +1,8 @@
 from app.im.slack.config import buttons
+from app.config.environment import get_environment_config
 
 
 def reformat_message(original_message, text, attachments, status, chain_enabled, status_enabled, task_link=''):
-    from app.config.environment import get_environment_config
     env_config = get_environment_config()
     
     original_message['text'] = text
