@@ -7,7 +7,15 @@ IMPulse provides simple API and WebSocket endpoints for incident management and 
 
 ## Requests
 
-### HTTP `/ready` [GET]
+### HTTP `/livez` [GET]
+
+Server liveness check. Used for Kubernetes liveness probes to determine if the container is alive.
+
+**Responses:**
+
+- `200 OK` - Container is alive (returns 200 in both primary and standby modes)
+
+### HTTP `/readyz` [GET]
 
 Server readiness check. Used for health checks and determining server state (see [High Availability](ha.md)).
 

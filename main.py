@@ -120,7 +120,7 @@ async def lifespan(fastapi_app: FastAPI):
     file_lock = FileLock()
     locked = file_lock.is_locked()
 
-    # Store file_lock and standby state early so /ready endpoint can access them
+    # Store file_lock and standby state early so /readyz endpoint can access them
     fastapi_app.state.file_lock = file_lock
     fastapi_app.state.is_standby = locked
     
@@ -178,6 +178,15 @@ http_prefix = config.http_prefix
 router = APIRouter(prefix=http_prefix)
 
 
+def get_live(request: Request):
+    """Liveness check endpoint - returns 200 if container is alive (in standby or primary mode)"""
+    return Response(
+        status_code=200,
+        content="OK",
+        media_type="text/plain"
+    )
+
+
 def get_ready(request: Request):
     """Readiness check endpoint - returns 503 if server is in standby mode, 200 if ready"""
     if not hasattr(request.app, 'state'):
@@ -195,7 +204,8 @@ def get_ready(request: Request):
         media_type="text/plain"
     )
 
-app.add_api_route(f"{http_prefix}/ready", get_ready, methods=["GET"])
+app.add_api_route(f"{http_prefix}/livez", get_live, methods=["GET"])
+app.add_api_route(f"{http_prefix}/readyz", get_ready, methods=["GET"])
 
 if get_config().ui_config:
     if http_prefix:
