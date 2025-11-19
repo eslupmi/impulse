@@ -15,7 +15,7 @@ from app.integrations.jira_integration import JiraIntegration
 
 
 class Application(ABC):
-    jira_integration: Optional[JiraIntegration] = None
+    task_management_integration: Optional[JiraIntegration] = None
 
     def __init__(self, app_config: ApplicationConfig, channels, default_channel):
         self.http: Optional[RateLimitedClient] = None  # Will be initialized async
@@ -164,9 +164,9 @@ class Application(ABC):
         self._async_tasks.add(task)
         task.add_done_callback(self._async_tasks.discard)
 
-    async def handle_jira_button(self, incident, queue_):
+    async def handle_file_ticket_button(self, incident, queue_):
         """
-        Handle Jira button press for an incident.
+        Handle File ticket button press for an incident.
         
         Args:
             incident: Incident object
@@ -175,12 +175,11 @@ class Application(ABC):
         Returns:
             Response dict with success status
         """
-        if not self.jira_integration:
-            logger.error("Jira integration not initialized")
-            return {"success": False, "message": "Jira integration not available"}
+        if not self.task_management_integration:
+            logger.error("Task management integration not initialized")
+            return {"success": False, "message": "Task management integration not available"}
         
-        # Delegate to JiraIntegration
-        return await self.jira_integration.handle_button_press(incident, queue_)
+        return await self.task_management_integration.handle_button_press(incident, queue_)
 
     def get_url(self, app_config: ApplicationConfig):
         return self._get_url(app_config)

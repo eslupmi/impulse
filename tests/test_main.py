@@ -55,7 +55,7 @@ class TestMainApplication:
             mock_messenger.team = "test-team"
             # Setup chains as an empty dict to avoid iteration issues
             mock_messenger.chains = {}
-            mock_messenger.jira_integration = None  # No Jira integration by default
+            mock_messenger.task_management_integration = None  # No Jira integration by default
             mock_get_application.return_value = mock_messenger
 
             # Setup mock webhooks
@@ -82,7 +82,7 @@ class TestMainApplication:
             mock_get_env_config.return_value = mock_env_config
 
             # Setup mock Application class for Jira integration
-            mock_application.jira_integration = None
+            mock_application.task_management_integration = None
 
             yield {
                 'config': mock_config,

@@ -116,8 +116,8 @@ async def lifespan(fastapi_app: FastAPI):
     if hasattr(fastapi_app.state.messenger, 'close'):
         await fastapi_app.state.messenger.close()
     
-    if messenger.jira_integration:
-        await messenger.jira_integration.jira_client.close()
+    if messenger.task_management_integration:
+        await messenger.task_management_integration.jira_client.close()
 
     if hasattr(fastapi_app.state.messenger, 'chains'):
         for chain in fastapi_app.state.messenger.chains.values():

@@ -106,10 +106,10 @@ class TelegramApplication(Application):
             logger.info(f'Incident {incident_.uuid} -> button STATUS pressed (enabled)')
             incident_.status_enabled = True
 
-    async def _handle_jira_action(self, incident_, queue_):
-        """Handle Jira button action"""
-        logger.info(f'Incident {incident_.uuid} -> button JIRA pressed')
-        self._track_async_task(asyncio.create_task(self.handle_jira_button(incident_, queue_)))
+    async def _handle_file_ticket_action(self, incident_, queue_):
+        """Handle File Ticket button action"""
+        logger.info(f'Incident {incident_.uuid} -> button FILE TICKET pressed')
+        self._track_async_task(asyncio.create_task(self.handle_file_ticket_button(incident_, queue_)))
 
     async def buttons_handler(self, payload, incidents, queue_, route):
         if 'callback_query' not in payload:
@@ -143,8 +143,8 @@ class TelegramApplication(Application):
                 return early_return
         elif action in ['start_status', 'stop_status']:
             await self._handle_status_action(action, incident_)
-        elif action == 'jira':
-            await self._handle_jira_action(incident_, queue_)
+        elif action == 'file_ticket':
+            await self._handle_file_ticket_action(incident_, queue_)
         
         incident_.dump()
         body = self.body_template.form_message(incident_.payload, incident_)
@@ -189,9 +189,8 @@ class TelegramApplication(Application):
             buttons['status']['enabled']
         ]
         
-        # Add Jira button if Jira is enabled
-        if env_config.jira_enabled:
-            keyboard_row.append(buttons['jira']['create'])
+        if env_config.task_management_enabled:
+            keyboard_row.append(buttons['file_ticket']['create'])
         
         return {
             'chat_id': channel_id,
@@ -250,16 +249,15 @@ class TelegramApplication(Application):
             buttons['status']['enabled'] if status_enabled else buttons['status']['disabled']
         ]
         
-        # Add Jira button if Jira is enabled
-        if env_config.jira_enabled:
+        if env_config.task_management_enabled:
             if task_link:
                 # If task exists, button opens the link
-                jira_button = buttons['jira']['open'].copy()
-                jira_button['url'] = task_link
-                keyboard_row.append(jira_button)
+                file_ticket_button = buttons['file_ticket']['open'].copy()
+                file_ticket_button['url'] = task_link
+                keyboard_row.append(file_ticket_button)
             else:
                 # If no task, button creates one
-                keyboard_row.append(buttons['jira']['create'])
+                keyboard_row.append(buttons['file_ticket']['create'])
         
         return {
             'chat_id': channel_id,

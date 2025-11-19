@@ -146,8 +146,8 @@ class EnvironmentConfig(BaseModel):
         return os.path.join(self.config_path, "impulse.yml")
     
     @property
-    def jira_enabled(self) -> bool:
-        """Check if Jira integration is enabled (all required fields are set)"""
+    def task_management_enabled(self) -> bool:
+        """Check if Task management integration is enabled (all required fields are set)"""
         return all([
             self.jira_base_url,
             self.jira_user_email,

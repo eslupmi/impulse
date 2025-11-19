@@ -22,16 +22,15 @@ def get_application(app_config: ApplicationConfig, channels, default_channel):
     else:
         raise ValueError(f'Unknown application type: {app_type}')
     
-    # Initialize Jira integration if enabled
     env_config = get_environment_config()
-    if env_config.jira_enabled:
+    if env_config.task_management_enabled:
         logger.info("Initializing Jira integration with Basic Auth...")
         jira_client = JiraClient(
             base_url=env_config.jira_base_url,
             user_email=env_config.jira_user_email,
             api_token=env_config.jira_api_token
         )
-        messenger.jira_integration = JiraIntegration(jira_client, env_config.jira_project_key)
+        messenger.task_management_integration = JiraIntegration(jira_client, env_config.jira_project_key)
         logger.info("Jira integration initialized and ready.")
     
     return messenger

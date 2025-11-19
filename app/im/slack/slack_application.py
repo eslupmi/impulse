@@ -124,10 +124,10 @@ class SlackApplication(Application):
             logger.info(f'Incident {incident_.uuid} -> button STATUS pressed (enabled)')
             incident_.status_enabled = True
 
-    async def _handle_jira_action(self, incident_, queue_):
-        """Handle Jira button action"""
-        logger.info(f'Incident {incident_.uuid} -> button JIRA pressed')
-        self._track_async_task(asyncio.create_task(self.handle_jira_button(incident_, queue_)))
+    async def _handle_file_ticket_action(self, incident_, queue_):
+        """Handle File Ticket button action"""
+        logger.info(f'Incident {incident_.uuid} -> button FILE TICKET pressed')
+        self._track_async_task(asyncio.create_task(self.handle_file_ticket_button(incident_, queue_)))
 
     async def buttons_handler(self, payload, incidents, queue_, route):
         config = get_config()
@@ -149,8 +149,8 @@ class SlackApplication(Application):
                 await self._handle_chain_action(incident_, user_id, queue_, incidents)
             elif action['name'] == 'status':
                 await self._handle_status_action(incident_)
-            elif action['name'] == 'jira':
-                await self._handle_jira_action(incident_, queue_)
+            elif action['name'] == 'file_ticket':
+                await self._handle_file_ticket_action(incident_, queue_)
         
         incident_.dump()
         body = self.body_template.form_message(incident_.payload, incident_)

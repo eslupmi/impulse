@@ -26,7 +26,7 @@ buttons = {
             'style': 'default'
         }
     },
-    'jira': {
+    'file_ticket': {
         'create': {
             'text': '📌',
             'style': 'default'

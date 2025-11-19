@@ -12,7 +12,7 @@ def build_slack_actions(chain_enabled, status, status_enabled, task_link=''):
         chain_enabled: Whether the chain button is enabled
         status: Current incident status
         status_enabled: Whether the status button is enabled
-        task_link: Optional Jira task link (if task exists)
+        task_link: Optional task link (if task exists)
         
     Returns:
         List of action button configurations
@@ -37,24 +37,23 @@ def build_slack_actions(chain_enabled, status, status_enabled, task_link=''):
         }
     ]
     
-    # Add Jira button if Jira is enabled
-    if env_config.jira_enabled:
+    if env_config.task_management_enabled:
         if task_link:
             # If task exists, button opens the link
             actions.append({
-                "name": "jira",
-                "text": buttons['jira']['open']['text'],
+                "name": "file_ticket",
+                "text": buttons['file_ticket']['open']['text'],
                 "type": "button",
-                "style": buttons['jira']['open']['style'],
+                "style": buttons['file_ticket']['open']['style'],
                 "url": task_link
             })
         else:
             # If no task, button creates one
             actions.append({
-                "name": "jira",
-                "text": buttons['jira']['create']['text'],
+                "name": "file_ticket",
+                "text": buttons['file_ticket']['create']['text'],
                 "type": "button",
-                "style": buttons['jira']['create']['style']
+                "style": buttons['file_ticket']['create']['style']
             })
     
     return actions

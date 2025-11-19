@@ -23,14 +23,14 @@ buttons = {
             'callback_data': 'start_status'
         }
     },
-    'jira': {
+    'file_ticket': {
         'create': {
             'text': '📌',
-            'callback_data': 'jira'
+            'callback_data': 'file_ticket'
         },
         'open': {
             'text': '📌',
-            'callback_data': 'jira'
+            'callback_data': 'file_ticket'
         }
     }
 }

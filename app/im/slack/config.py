@@ -26,7 +26,7 @@ buttons = {
             'style': 'normal'
         }
     },
-    'jira': {
+    'file_ticket': {
         'create': {
             'text': ':pushpin:',
             'style': 'normal'
