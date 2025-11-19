@@ -1,6 +1,6 @@
 # Installation
 
-There are two options to install IMPulse: via **Python** (3.9 - 3.13) or using the **Docker** image.
+There are two options to install IMPulse: via **Python** (3.10 - 3.13) or using the **Docker** image.
 
 Select your preferred method and continue.
 
