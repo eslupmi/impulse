@@ -1,11 +1,16 @@
 name: feature
 
+
 on:
   workflow_call:
+  push:
+    branches:
+      - 'feature/**'
+      - '[0-9]*-*'
 
 jobs:
   tests:
-    runs-on: ubuntu-24.04
+    runs-on: self-hosted
     strategy:
       matrix:
         python-version: ['3.10', '3.11', '3.12', '3.13', '3.14']
@@ -13,21 +18,20 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-      
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install -r requirements.test.txt
-      
       - name: Create config from none example
         run: |
           cp examples/impulse.none.yml impulse.yml
       
-      - name: Run tests
+      - name: Run tests in Podman container
+        timeout-minutes: 10
         run: |
-          python -m pytest tests/ --color=yes -v
+          podman run --rm \
+            -v "${{ github.workspace }}:/app:Z" \
+            -w /app \
+            python:${{ matrix.python-version }}-slim \
+            sh -c "
+              python -m pip install --upgrade pip && \
+              pip install -r requirements.txt && \
+              pip install -r requirements.test.txt && \
+              python -m pytest tests/ --color=yes -v
+            "
