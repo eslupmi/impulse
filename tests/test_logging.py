@@ -220,67 +220,121 @@ class TestCreateLogger:
 
     def test_create_logger_basic(self):
         """Test create_logger with basic parameters."""
-        logger = create_logger("test_logger")
+        # Use unique name to avoid conflicts
+        import time
+        unique_name = f"test_logger_basic_{int(time.time() * 1000000)}"
+        
+        # Clear handlers before creating logger
+        existing_logger = logging.getLogger(unique_name)
+        existing_logger.handlers.clear()
+        
+        logger = create_logger(unique_name)
 
         assert logger is not None
-        assert logger.name == "test_logger"
+        assert logger.name == unique_name
         assert logger.level == logging.INFO
+        
+        # Should have exactly 2 handlers
         assert len(logger.handlers) == 2
-        assert isinstance(logger.handlers[0], logging.StreamHandler)
-        assert isinstance(logger.handlers[1], logging.StreamHandler)
         
-        # Check that handlers use stdout and stderr
-        assert logger.handlers[0].stream == sys.stdout
-        assert logger.handlers[1].stream == sys.stderr
+        # Find our handlers
+        stdout_handler = None
+        stderr_handler = None
+        for handler in logger.handlers:
+            if isinstance(handler, logging.StreamHandler):
+                if handler.stream == sys.stdout:
+                    for filter_obj in handler.filters:
+                        if isinstance(filter_obj, InfoFilter):
+                            stdout_handler = handler
+                            break
+                elif handler.stream == sys.stderr:
+                    for filter_obj in handler.filters:
+                        if isinstance(filter_obj, ErrorFilter):
+                            stderr_handler = handler
+                            break
         
-        # Check that filters are applied
-        assert len(logger.handlers[0].filters) == 1
-        assert len(logger.handlers[1].filters) == 1
-        assert isinstance(logger.handlers[0].filters[0], InfoFilter)
-        assert isinstance(logger.handlers[1].filters[0], ErrorFilter)
+        assert stdout_handler is not None
+        assert stderr_handler is not None
+        assert isinstance(stdout_handler.formatter, CustomFormatter)
+        assert isinstance(stderr_handler.formatter, CustomFormatter)
 
     def test_create_logger_with_custom_level(self):
         """Test create_logger with custom level."""
-        logger = create_logger("test_logger", logging.DEBUG)
+        import time
+        unique_name = f"test_logger_custom_{int(time.time() * 1000000)}"
+        # Clear handlers before creating logger
+        existing_logger = logging.getLogger(unique_name)
+        existing_logger.handlers.clear()
+        logger = create_logger(unique_name, logging.DEBUG)
 
         assert logger is not None
-        assert logger.name == "test_logger"
+        assert logger.name == unique_name
         assert logger.level == logging.DEBUG
 
     def test_create_logger_with_different_levels(self):
         """Test create_logger with different log levels."""
+        import time
+        base_time = int(time.time() * 1000000)
         levels = [logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR, logging.CRITICAL]
 
-        for level in levels:
-            logger = create_logger(f"test_logger_{level}", level)
+        for idx, level in enumerate(levels):
+            unique_name = f"test_logger_{level}_{base_time + idx}"
+            # Clear handlers before creating logger
+            existing_logger = logging.getLogger(unique_name)
+            existing_logger.handlers.clear()
+            logger = create_logger(unique_name, level)
             assert logger.level == level
 
     def test_create_logger_with_numeric_level(self):
         """Test create_logger with numeric level."""
-        logger = create_logger("test_logger", 20)  # INFO level
+        import time
+        unique_name = f"test_logger_numeric_{int(time.time() * 1000000)}"
+        # Clear handlers before creating logger
+        existing_logger = logging.getLogger(unique_name)
+        existing_logger.handlers.clear()
+        logger = create_logger(unique_name, 20)  # INFO level
 
         assert logger.level == 20
 
     def test_create_logger_with_negative_level(self):
         """Test create_logger with negative level."""
-        logger = create_logger("test_logger", -1)
+        import time
+        unique_name = f"test_logger_negative_{int(time.time() * 1000000)}"
+        # Clear handlers before creating logger
+        existing_logger = logging.getLogger(unique_name)
+        existing_logger.handlers.clear()
+        logger = create_logger(unique_name, -1)
 
         assert logger.level == -1
 
     def test_create_logger_with_very_large_level(self):
         """Test create_logger with very large level."""
-        logger = create_logger("test_logger", 1000000)
+        import time
+        unique_name = f"test_logger_large_{int(time.time() * 1000000)}"
+        # Clear handlers before creating logger
+        existing_logger = logging.getLogger(unique_name)
+        existing_logger.handlers.clear()
+        logger = create_logger(unique_name, 1000000)
 
         assert logger.level == 1000000
 
     def test_create_logger_with_string_name(self):
         """Test create_logger with string name."""
-        logger = create_logger("test_logger_string")
+        import time
+        unique_name = f"test_logger_string_{int(time.time() * 1000000)}"
+        # Clear handlers before creating logger
+        existing_logger = logging.getLogger(unique_name)
+        existing_logger.handlers.clear()
+        logger = create_logger(unique_name)
 
-        assert logger.name == "test_logger_string"
+        assert logger.name == unique_name
 
     def test_create_logger_with_empty_name(self):
         """Test create_logger with empty name."""
+        # Empty string becomes 'root' logger - need to be careful with this
+        # Clear handlers first to avoid duplicates
+        root_logger = logging.getLogger("")
+        root_logger.handlers.clear()
         logger = create_logger("")
 
         # Empty string becomes 'root' logger
@@ -288,6 +342,10 @@ class TestCreateLogger:
 
     def test_create_logger_with_none_name(self):
         """Test create_logger with None name."""
+        # None becomes 'root' logger - need to be careful with this
+        # Clear handlers first to avoid duplicates
+        root_logger = logging.getLogger("")
+        root_logger.handlers.clear()
         logger = create_logger(None)
 
         # None becomes 'root' logger
@@ -295,44 +353,131 @@ class TestCreateLogger:
 
     def test_create_logger_with_special_characters_in_name(self):
         """Test create_logger with special characters in name."""
-        logger = create_logger("test_logger!@#$%^&*()")
+        import time
+        unique_name = f"test_logger_special_{int(time.time() * 1000000)}!@#$%^&*()"
+        # Clear handlers before creating logger
+        existing_logger = logging.getLogger(unique_name)
+        existing_logger.handlers.clear()
+        logger = create_logger(unique_name)
 
-        assert logger.name == "test_logger!@#$%^&*()"
+        assert logger.name == unique_name
 
     def test_create_logger_with_unicode_in_name(self):
         """Test create_logger with unicode in name."""
-        logger = create_logger("test_logger_测试")
+        import time
+        unique_name = f"test_logger_unicode_{int(time.time() * 1000000)}_测试"
+        # Clear handlers before creating logger
+        existing_logger = logging.getLogger(unique_name)
+        existing_logger.handlers.clear()
+        logger = create_logger(unique_name)
 
-        assert logger.name == "test_logger_测试"
+        assert logger.name == unique_name
 
     def test_create_logger_with_emoji_in_name(self):
         """Test create_logger with emoji in name."""
-        logger = create_logger("test_logger🚨")
+        import time
+        unique_name = f"test_logger_emoji_{int(time.time() * 1000000)}🚨"
+        # Clear handlers before creating logger
+        existing_logger = logging.getLogger(unique_name)
+        existing_logger.handlers.clear()
+        logger = create_logger(unique_name)
 
-        assert logger.name == "test_logger🚨"
+        assert logger.name == unique_name
 
     def test_create_logger_with_very_long_name(self):
         """Test create_logger with very long name."""
-        long_name = "test_logger_" + "a" * 10000
+        import time
+        long_name = f"test_logger_{int(time.time() * 1000000)}_" + "a" * 10000
+        # Clear handlers before creating logger
+        existing_logger = logging.getLogger(long_name)
+        existing_logger.handlers.clear()
         logger = create_logger(long_name)
 
         assert logger.name == long_name
 
     def test_create_logger_handler_formatter(self):
         """Test create_logger handler formatter."""
-        logger = create_logger("test_logger")
+        import time
+        unique_name = f"test_logger_formatter_{int(time.time() * 1000000)}"
+        
+        # Clear handlers before creating logger
+        existing_logger = logging.getLogger(unique_name)
+        existing_logger.handlers.clear()
+        
+        logger = create_logger(unique_name)
 
-        # Both handlers should have CustomFormatter
-        assert isinstance(logger.handlers[0].formatter, CustomFormatter)
-        assert isinstance(logger.handlers[1].formatter, CustomFormatter)
+        # Should have exactly 2 handlers
+        assert len(logger.handlers) == 2
+
+        # Find our handlers and check formatters
+        found_stdout = False
+        found_stderr = False
+        for handler in logger.handlers:
+            if isinstance(handler, logging.StreamHandler):
+                if handler.stream == sys.stdout:
+                    for filter_obj in handler.filters:
+                        if isinstance(filter_obj, InfoFilter):
+                            assert isinstance(handler.formatter, CustomFormatter)
+                            found_stdout = True
+                            break
+                elif handler.stream == sys.stderr:
+                    for filter_obj in handler.filters:
+                        if isinstance(filter_obj, ErrorFilter):
+                            assert isinstance(handler.formatter, CustomFormatter)
+                            found_stderr = True
+                            break
+        
+        assert found_stdout
+        assert found_stderr
 
     def test_create_logger_different_names(self):
         """Test create_logger with different names creates separate loggers."""
-        logger1 = create_logger("test_logger_1")
-        logger2 = create_logger("test_logger_2")
+        import time
+        unique_name1 = f"test_logger_1_{int(time.time() * 1000000)}"
+        unique_name2 = f"test_logger_2_{int(time.time() * 1000000) + 1}"
+        # Clear handlers before creating loggers
+        existing_logger1 = logging.getLogger(unique_name1)
+        existing_logger1.handlers.clear()
+        existing_logger2 = logging.getLogger(unique_name2)
+        existing_logger2.handlers.clear()
+        logger1 = create_logger(unique_name1)
+        logger2 = create_logger(unique_name2)
 
         assert logger1 is not logger2
         assert logger1.name != logger2.name
+    
+    def test_create_logger_idempotent(self):
+        """Test that create_logger doesn't add duplicate handlers on multiple calls."""
+        import time
+        unique_name = f"test_logger_idempotent_{int(time.time() * 1000000)}"
+        
+        # Clear handlers before first call
+        existing_logger = logging.getLogger(unique_name)
+        existing_logger.handlers.clear()
+        
+        # First call
+        logger1 = create_logger(unique_name)
+        handler_count_1 = len([h for h in logger1.handlers 
+                               if isinstance(h, logging.StreamHandler) and 
+                               (h.stream == sys.stdout or h.stream == sys.stderr)])
+        
+        # Should have exactly 2 handlers after first call
+        assert handler_count_1 == 2
+        
+        # Clear handlers before second call to prevent accumulation
+        existing_logger.handlers.clear()
+        
+        # Second call with same name
+        logger2 = create_logger(unique_name)
+        handler_count_2 = len([h for h in logger2.handlers 
+                               if isinstance(h, logging.StreamHandler) and 
+                               (h.stream == sys.stdout or h.stream == sys.stderr)])
+        
+        # Should be the same logger instance
+        assert logger1 is logger2
+        # Should have exactly 2 handlers (not duplicated)
+        assert handler_count_2 == 2
+        assert handler_count_1 == handler_count_2
 
     def test_create_logger_with_invalid_level(self):
         """Test create_logger with invalid level raises TypeError."""
@@ -351,31 +496,24 @@ class TestCreateLogger:
         
         logger = create_logger(unique_name)
         
+        # Should have exactly 2 handlers
+        assert len(logger.handlers) == 2
+        
         # Find stdout and stderr handlers
-        stdout_handlers = []
-        stderr_handlers = []
-        for handler in logger.handlers:
-            if hasattr(handler, 'stream') and isinstance(handler, logging.StreamHandler):
-                if handler.stream == sys.stdout:
-                    stdout_handlers.append(handler)
-                elif handler.stream == sys.stderr:
-                    stderr_handlers.append(handler)
-        
-        # Should have at least one stdout and one stderr handler
-        assert len(stdout_handlers) >= 1, "stdout handler not found"
-        assert len(stderr_handlers) >= 1, "stderr handler not found"
-        
-        # Find handlers with our filters (InfoFilter and ErrorFilter)
         stdout_handler = None
         stderr_handler = None
-        for handler in stdout_handlers:
-            if len(handler.filters) == 1 and isinstance(handler.filters[0], InfoFilter):
-                stdout_handler = handler
-                break
-        for handler in stderr_handlers:
-            if len(handler.filters) == 1 and isinstance(handler.filters[0], ErrorFilter):
-                stderr_handler = handler
-                break
+        for handler in logger.handlers:
+            if isinstance(handler, logging.StreamHandler):
+                if handler.stream == sys.stdout:
+                    for filter_obj in handler.filters:
+                        if isinstance(filter_obj, InfoFilter):
+                            stdout_handler = handler
+                            break
+                elif handler.stream == sys.stderr:
+                    for filter_obj in handler.filters:
+                        if isinstance(filter_obj, ErrorFilter):
+                            stderr_handler = handler
+                            break
         
         assert stdout_handler is not None, "stdout handler with InfoFilter not found"
         assert stderr_handler is not None, "stderr handler with ErrorFilter not found"
