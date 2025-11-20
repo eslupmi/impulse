@@ -31,6 +31,6 @@ def get_application(app_config: ApplicationConfig, channels, default_channel):
             api_token=env_config.jira_api_token
         )
         messenger.task_management_integration = JiraIntegration(jira_client, env_config.jira_project_key)
-        logger.info("Jira integration initialized and ready.")
+        logger.info("Jira integration initialized and ready")
     
     return messenger
