@@ -1,5 +1,6 @@
 import logging
 import os
+import sys
 
 
 class CustomFormatter(logging.Formatter):
@@ -25,12 +26,34 @@ class CustomFormatter(logging.Formatter):
         return formatter.format(record)
 
 
+class ErrorFilter(logging.Filter):
+    """Filter to allow only ERROR and CRITICAL levels"""
+    def filter(self, record):
+        return record.levelno >= logging.ERROR
+
+
+class InfoFilter(logging.Filter):
+    """Filter to allow only DEBUG, INFO, and WARNING levels"""
+    def filter(self, record):
+        return record.levelno < logging.ERROR
+
+
 def create_logger(name, level=logging.INFO):
     lr = logging.getLogger(name)
-    sh = logging.StreamHandler()
     lr.setLevel(level)
-    sh.setFormatter(CustomFormatter())
-    lr.addHandler(sh)
+    
+    # Handler for stdout (DEBUG, INFO, WARNING)
+    stdout_handler = logging.StreamHandler(sys.stdout)
+    stdout_handler.setFormatter(CustomFormatter())
+    stdout_handler.addFilter(InfoFilter())
+    lr.addHandler(stdout_handler)
+    
+    # Handler for stderr (ERROR, CRITICAL)
+    stderr_handler = logging.StreamHandler(sys.stderr)
+    stderr_handler.setFormatter(CustomFormatter())
+    stderr_handler.addFilter(ErrorFilter())
+    lr.addHandler(stderr_handler)
+    
     return lr
 
 
@@ -45,9 +68,19 @@ def configure_uvicorn_logging():
     for logger_name in ["uvicorn", "uvicorn.access", "uvicorn.error"]:
         logger_obj = logging.getLogger(logger_name)
         logger_obj.handlers.clear()
-        handler = logging.StreamHandler()
-        handler.setFormatter(CustomFormatter())
-        logger_obj.addHandler(handler)
+        
+        # Handler for stdout (DEBUG, INFO, WARNING)
+        stdout_handler = logging.StreamHandler(sys.stdout)
+        stdout_handler.setFormatter(CustomFormatter())
+        stdout_handler.addFilter(InfoFilter())
+        logger_obj.addHandler(stdout_handler)
+        
+        # Handler for stderr (ERROR, CRITICAL)
+        stderr_handler = logging.StreamHandler(sys.stderr)
+        stderr_handler.setFormatter(CustomFormatter())
+        stderr_handler.addFilter(ErrorFilter())
+        logger_obj.addHandler(stderr_handler)
+        
         logger_obj.propagate = False
 
 
