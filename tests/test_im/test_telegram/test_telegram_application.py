@@ -235,7 +235,7 @@ class TestTelegramApplication:
             mock_buttons.__getitem__.side_effect = lambda x: {
                 'chain': {'takeit': {'text': 'Take It', 'callback_data': 'start_chain'}},
                 'status': {'enabled': {'text': 'Status', 'callback_data': 'start_status'}},
-                'file_ticket': {'create': {'text': '📌', 'callback_data': 'file_ticket'}, 'open': {'text': '📌', 'callback_data': 'file_ticket'}}
+                'ticket': {'create': {'text': '📌', 'callback_data': 'ticket'}, 'open': {'text': '📌', 'callback_data': 'ticket'}}
             }[x]
 
             result = app._create_thread_payload(-1001234567890, "body", "header", "5312241539987020022", "firing")
@@ -249,7 +249,7 @@ class TestTelegramApplication:
                         [
                             {'text': 'Take It', 'callback_data': 'start_chain'},
                             {'text': 'Status', 'callback_data': 'start_status'},
-                            {'text': '📌', 'callback_data': 'file_ticket'}  # Jira button
+                            {'text': '📌', 'callback_data': 'ticket'}  # Jira button
                         ]
                     ]
                 }
@@ -284,7 +284,7 @@ class TestTelegramApplication:
                     'enabled': {'text': 'Status', 'callback_data': 'start_status'},
                     'disabled': {'text': 'Status', 'callback_data': 'stop_status'}
                 },
-                'file_ticket': {'create': {'text': '📌', 'callback_data': 'file_ticket'}, 'open': {'text': '📌', 'callback_data': 'file_ticket'}}
+                'ticket': {'create': {'text': '📌', 'callback_data': 'ticket'}, 'open': {'text': '📌', 'callback_data': 'ticket'}}
             }[x]
 
             result = app.update_thread_payload(-1001234567890, "123456/789012", "body", "header", "5312241539987020022",
@@ -300,7 +300,7 @@ class TestTelegramApplication:
                         [
                             {'text': 'Take It', 'callback_data': 'start_chain'},
                             {'text': 'Status', 'callback_data': 'start_status'},
-                            {'text': '📌', 'callback_data': 'file_ticket'}  # Jira button
+                            {'text': '📌', 'callback_data': 'ticket'}  # Jira button
                         ]
                     ]
                 }

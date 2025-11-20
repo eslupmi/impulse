@@ -70,23 +70,23 @@ def build_mattermost_actions(chain_enabled, status, status_enabled, task_link=''
         if task_link:
             # If task exists, button opens the link
             actions.append({
-                "id": "file_ticket",
+                "id": "ticket",
                 "type": "button",
-                "name": buttons['file_ticket']['open']['text'],
-                "style": buttons['file_ticket']['open']['style'],
+                "name": buttons['ticket']['open']['text'],
+                "style": buttons['ticket']['open']['style'],
                 "url": task_link
             })
         else:
             # If no task, button creates one
             actions.append({
-                "id": "file_ticket",
+                "id": "ticket",
                 "type": "button",
-                "name": buttons['file_ticket']['create']['text'],
-                "style": buttons['file_ticket']['create']['style'],
+                "name": buttons['ticket']['create']['text'],
+                "style": buttons['ticket']['create']['style'],
                 "integration": {
                     "url": f"{config.messenger.impulse_address}/app",
                     "context": {
-                        "action": "file_ticket"
+                        "action": "ticket"
                     }
                 }
             })

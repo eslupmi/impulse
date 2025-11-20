@@ -164,9 +164,9 @@ class Application(ABC):
         self._async_tasks.add(task)
         task.add_done_callback(self._async_tasks.discard)
 
-    async def handle_file_ticket_button(self, incident, queue_):
+    async def handle_ticket_button(self, incident, queue_):
         """
-        Handle File ticket button press for an incident.
+        Handle Ticket button press for an incident.
         
         Args:
             incident: Incident object

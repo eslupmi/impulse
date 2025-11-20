@@ -26,7 +26,7 @@ buttons = {
             'style': 'normal'
         }
     },
-    'file_ticket': {
+    'ticket': {
         'create': {
             'text': ':pushpin:',
             'style': 'normal'

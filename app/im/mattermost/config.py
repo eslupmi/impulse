@@ -26,7 +26,7 @@ buttons = {
             'style': 'default'
         }
     },
-    'file_ticket': {
+    'ticket': {
         'create': {
             'text': '📌',
             'style': 'default'

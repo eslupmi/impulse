@@ -41,19 +41,19 @@ def build_slack_actions(chain_enabled, status, status_enabled, task_link=''):
         if task_link:
             # If task exists, button opens the link
             actions.append({
-                "name": "file_ticket",
-                "text": buttons['file_ticket']['open']['text'],
+                "name": "ticket",
+                "text": buttons['ticket']['open']['text'],
                 "type": "button",
-                "style": buttons['file_ticket']['open']['style'],
+                "style": buttons['ticket']['open']['style'],
                 "url": task_link
             })
         else:
             # If no task, button creates one
             actions.append({
-                "name": "file_ticket",
-                "text": buttons['file_ticket']['create']['text'],
+                "name": "ticket",
+                "text": buttons['ticket']['create']['text'],
                 "type": "button",
-                "style": buttons['file_ticket']['create']['style']
+                "style": buttons['ticket']['create']['style']
             })
     
     return actions

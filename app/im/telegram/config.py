@@ -23,14 +23,14 @@ buttons = {
             'callback_data': 'start_status'
         }
     },
-    'file_ticket': {
+    'ticket': {
         'create': {
             'text': '📌',
-            'callback_data': 'file_ticket'
+            'callback_data': 'ticket'
         },
         'open': {
             'text': '📌',
-            'callback_data': 'file_ticket'
+            'callback_data': 'ticket'
         }
     }
 }
