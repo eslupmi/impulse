@@ -134,9 +134,9 @@ class SlackApplication(Application):
             if action['name'] == 'chain':
                 await self._handle_chain_action(incident_, user_id, queue_, incidents)
             elif action['name'] == 'status':
-                await self._handle_status_action(incident_, not incident_.status_enabled)
+                self._handle_status_action(incident_, not incident_.status_enabled)
             elif action['name'] == 'ticket':
-                await self._handle_ticket_action(incident_, queue_)
+                self._handle_ticket_action(incident_, queue_)
         
         incident_.dump()
         body = self.body_template.form_message(incident_.payload, incident_)

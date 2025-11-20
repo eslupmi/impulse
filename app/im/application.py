@@ -164,12 +164,12 @@ class Application(ABC):
         self._async_tasks.add(task)
         task.add_done_callback(self._async_tasks.discard)
 
-    async def _handle_status_action(self, incident_, set_status_to):
+    def _handle_status_action(self, incident_, set_status_to):
         """Handle status-related button actions"""
         logger.info(f'Incident {incident_.uuid} -> button STATUS pressed ({"enabled" if set_status_to else "disabled"})')
         incident_.status_enabled = set_status_to
 
-    async def _handle_ticket_action(self, incident_, queue_):
+    def _handle_ticket_action(self, incident_, queue_):
         """Handle Ticket button action"""
         logger.info(f'Incident {incident_.uuid} -> button TICKET pressed')
         self._track_async_task(asyncio.create_task(self.handle_ticket_button(incident_, queue_)))

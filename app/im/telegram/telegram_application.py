@@ -128,9 +128,9 @@ class TelegramApplication(Application):
             if early_return is not None:
                 return early_return
         elif action in ['start_status', 'stop_status']:
-            await self._handle_status_action(incident_, action == 'start_status')
+            self._handle_status_action(incident_, action == 'start_status')
         elif action == 'ticket':
-            await self._handle_ticket_action(incident_, queue_)
+            self._handle_ticket_action(incident_, queue_)
         
         incident_.dump()
         body = self.body_template.form_message(incident_.payload, incident_)
