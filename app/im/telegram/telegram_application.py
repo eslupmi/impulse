@@ -249,15 +249,8 @@ class TelegramApplication(Application):
             buttons['status']['enabled'] if status_enabled else buttons['status']['disabled']
         ]
         
-        if env_config.task_management_enabled:
-            if task_link:
-                # If task exists, button opens the link
-                ticket_button = buttons['ticket']['open'].copy()
-                ticket_button['url'] = task_link
-                keyboard_row.append(ticket_button)
-            else:
-                # If no task, button creates one
-                keyboard_row.append(buttons['ticket']['create'])
+        if env_config.task_management_enabled and not task_link:
+            keyboard_row.append(buttons['ticket']['create'])
         
         return {
             'chat_id': channel_id,

@@ -30,10 +30,6 @@ buttons = {
         'create': {
             'text': ':pushpin:',
             'style': 'normal'
-        },
-        'open': {
-            'text': ':pushpin:',
-            'style': 'normal'
         }
     }
 }

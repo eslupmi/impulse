@@ -27,10 +27,6 @@ buttons = {
         'create': {
             'text': '📌',
             'callback_data': 'ticket'
-        },
-        'open': {
-            'text': '📌',
-            'callback_data': 'ticket'
         }
     }
 }

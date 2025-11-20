@@ -30,10 +30,6 @@ buttons = {
         'create': {
             'text': '📌',
             'style': 'default'
-        },
-        'open': {
-            'text': '📌',
-            'style': 'default'
         }
     }
 }

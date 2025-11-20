@@ -65,31 +65,19 @@ def build_mattermost_actions(chain_enabled, status, status_enabled, task_link=''
         }
     ]
     
-    # Add Jira button if Jira is enabled
-    if env_config.task_management_enabled:
-        if task_link:
-            # If task exists, button opens the link
-            actions.append({
-                "id": "ticket",
-                "type": "button",
-                "name": buttons['ticket']['open']['text'],
-                "style": buttons['ticket']['open']['style'],
-                "url": task_link
-            })
-        else:
-            # If no task, button creates one
-            actions.append({
-                "id": "ticket",
-                "type": "button",
-                "name": buttons['ticket']['create']['text'],
-                "style": buttons['ticket']['create']['style'],
-                "integration": {
-                    "url": f"{config.messenger.impulse_address}/app",
-                    "context": {
-                        "action": "ticket"
-                    }
+    if env_config.task_management_enabled and not task_link:
+        actions.append({
+            "id": "ticket",
+            "type": "button",
+            "name": buttons['ticket']['create']['text'],
+            "style": buttons['ticket']['create']['style'],
+            "integration": {
+                "url": f"{config.messenger.impulse_address}/app",
+                "context": {
+                    "action": "ticket"
                 }
-            })
+            }
+        })
     
     return actions
 
