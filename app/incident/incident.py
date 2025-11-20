@@ -43,6 +43,7 @@ class Incident:
     ts: str = field(default='')
     link: str = field(default='')
     task_link: str = field(default='')
+    task_creation_in_progress: bool = False
 
     next_status = {
         'firing': 'unknown',

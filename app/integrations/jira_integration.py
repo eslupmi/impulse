@@ -34,10 +34,7 @@ class JiraIntegration:
         Returns:
             Tuple of (summary, description) for Jira issue
         """
-        # Render summary from template
         summary = self.summary_template.render(incident=incident).strip()
-
-        # Render description from template
         description = self.description_template.render(incident=incident).strip()
 
         return summary, description
@@ -53,12 +50,16 @@ class JiraIntegration:
         Returns:
             Response dict with success status
         """
-        # If task already exists, do nothing (button acts as link)
         if incident.task_link:
             logger.debug(f"Incident {incident.uuid} already has Jira task: {incident.task_link}")
             return {"success": True, "message": "Task already exists"}
 
-        # Create Jira task
+        if incident.task_creation_in_progress:
+            logger.debug(f"Incident {incident.uuid} ticket creation already in progress")
+            return {"success": True, "message": "Ticket creation in progress"}
+
+        incident.task_creation_in_progress = True
+
         summary, description = self.format_incident_for_jira(incident)
 
         logger.info(f"Creating Jira task for incident {incident.uuid}")
@@ -69,21 +70,10 @@ class JiraIntegration:
         )
 
         if result:
-            # Update incident with task link
             incident.task_link = result["url"]
             incident.dump()
-
-            # Add update_message queue item to refresh the message without status changes
-            await queue_.put(
-                datetime_=datetime.now(timezone.utc),
-                type_='update_message',
-                incident_uuid=incident.uuid,
-                identifier=None,
-                data=None
-            )
-
             logger.info(f"Created Jira task {result['key']} for incident {incident.uuid}")
-            return {
+            response = {
                 "success": True,
                 "message": f"Created Jira task: {result['key']}",
                 "task_key": result['key'],
@@ -91,7 +81,18 @@ class JiraIntegration:
             }
         else:
             logger.error(f"Failed to create Jira task for incident {incident.uuid}")
-            return {
+            response = {
                 "success": False,
                 "message": "Failed to create Jira task"
             }
+
+        incident.task_creation_in_progress = False
+        await queue_.put(
+            datetime_=datetime.now(timezone.utc),
+            type_='update_message',
+            incident_uuid=incident.uuid,
+            identifier=None,
+            data=None
+        )
+
+        return response

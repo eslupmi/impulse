@@ -42,6 +42,7 @@ class TestMessageUpdateHandler:
         incident.chain_enabled = True
         incident.status_enabled = True
         incident.task_link = "https://jira.com/browse/DTS-123"
+        incident.task_creation_in_progress = False
         return incident
 
     @pytest.mark.asyncio

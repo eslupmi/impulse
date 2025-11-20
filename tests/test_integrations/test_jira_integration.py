@@ -159,11 +159,10 @@ class TestJiraIntegration:
         assert result["task_key"] == "DTS-456"
         assert result["task_url"] == "https://jira.com/browse/DTS-456"
         
-        # Verify incident was updated
         assert mock_incident.task_link == "https://jira.com/browse/DTS-456"
+        assert mock_incident.task_creation_in_progress is False
         mock_incident.dump.assert_called_once()
         
-        # Verify queue.put was called with update_message type
         mock_queue.put.assert_called_once()
         call_args = mock_queue.put.call_args[1]
         assert call_args['type_'] == 'update_message'
@@ -179,11 +178,26 @@ class TestJiraIntegration:
         assert result["success"] is False
         assert result["message"] == "Failed to create Jira task"
         
-        # Verify incident was not updated
+        # Verify incident flags were cleared after failure
         assert mock_incident.task_link == ""
-        mock_incident.dump.assert_not_called()
+        assert mock_incident.task_creation_in_progress is False
+        mock_incident.dump.assert_not_called()  # No dump on failure since no persistent changes
         
-        # Verify queue.put was not called
+        mock_queue.put.assert_called_once()
+        call_args = mock_queue.put.call_args[1]
+        assert call_args['type_'] == 'update_message'
+    
+    @pytest.mark.asyncio
+    async def test_handle_button_press_creation_in_progress(self, jira_integration, mock_incident, mock_queue):
+        """Test button press when ticket creation is already in progress"""
+        mock_incident.task_creation_in_progress = True
+        
+        result = await jira_integration.handle_button_press(mock_incident, mock_queue)
+        
+        assert result["success"] is True
+        assert result["message"] == "Ticket creation in progress"
+        
+        jira_integration.jira_client.create_issue.assert_not_called()
         mock_queue.put.assert_not_called()
     
     @pytest.mark.asyncio

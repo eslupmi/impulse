@@ -614,6 +614,7 @@ def create_mock_incident_for_handlers(
     incident.generate_chain = Mock()
     incident.link = f'https://test.slack.com/archives/{channel_id}/p{ts}'
     incident.task_link = ''
+    incident.task_creation_in_progress = False
 
     return incident
 
