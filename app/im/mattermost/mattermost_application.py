@@ -130,20 +130,6 @@ class MattermostApplication(Application):
             incident_.release()
         return None
 
-    async def _handle_status_action(self, incident_):
-        """Handle status-related button actions"""
-        if incident_.status_enabled:
-            logger.info(f'Incident {incident_.uuid} -> button STATUS pressed (disabled)')
-            incident_.status_enabled = False
-        else:
-            logger.info(f'Incident {incident_.uuid} -> button STATUS pressed (enabled)')
-            incident_.status_enabled = True
-
-    async def _handle_ticket_action(self, incident_, queue_):
-        """Handle Ticket button action"""
-        logger.info(f'Incident {incident_.uuid} -> button TICKET pressed')
-        self._track_async_task(asyncio.create_task(self.handle_ticket_button(incident_, queue_)))
-
     async def buttons_handler(self, payload, incidents, queue_, route):
         post_id = payload['post_id']
         incident_ = incidents.get_by_ts(ts=post_id)
@@ -160,7 +146,7 @@ class MattermostApplication(Application):
             if early_return is not None:
                 return early_return
         elif action == 'status':
-            await self._handle_status_action(incident_)
+            await self._handle_status_action(incident_, not incident_.status_enabled)
         elif action == 'ticket':
             await self._handle_ticket_action(incident_, queue_)
         

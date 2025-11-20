@@ -97,20 +97,6 @@ class TelegramApplication(Application):
             incident_.release()
         return None
 
-    async def _handle_status_action(self, action, incident_):
-        """Handle status-related button actions (start_status/stop_status)"""
-        if action == 'stop_status':
-            logger.info(f'Incident {incident_.uuid} -> button STATUS pressed (disabled)')
-            incident_.status_enabled = False
-        else:
-            logger.info(f'Incident {incident_.uuid} -> button STATUS pressed (enabled)')
-            incident_.status_enabled = True
-
-    async def _handle_ticket_action(self, incident_, queue_):
-        """Handle Ticket button action"""
-        logger.info(f'Incident {incident_.uuid} -> button TICKET pressed')
-        self._track_async_task(asyncio.create_task(self.handle_ticket_button(incident_, queue_)))
-
     async def buttons_handler(self, payload, incidents, queue_, route):
         if 'callback_query' not in payload:
             return JSONResponse({}, status_code=200)
@@ -142,7 +128,7 @@ class TelegramApplication(Application):
             if early_return is not None:
                 return early_return
         elif action in ['start_status', 'stop_status']:
-            await self._handle_status_action(action, incident_)
+            await self._handle_status_action(incident_, action == 'start_status')
         elif action == 'ticket':
             await self._handle_ticket_action(incident_, queue_)
         

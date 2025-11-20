@@ -1542,6 +1542,29 @@ def create_mattermost_buttons_handler_context(app, payload, incidents, queue, ro
 # Telegram Application Test Utilities
 # ============================================================================
 
+def create_telegram_buttons_mock():
+    """
+    Create a standardized mock for Telegram buttons configuration.
+    
+    This helper reduces code duplication in tests that need to mock
+    the buttons configuration for Telegram payload generation.
+    
+    Returns:
+        Dictionary with button configurations for chain, status, and ticket
+    """
+    return {
+        'chain': {
+            'takeit': {'text': 'Take It', 'callback_data': 'start_chain'},
+            'release': {'text': 'Release', 'callback_data': 'stop_chain'}
+        },
+        'status': {
+            'enabled': {'text': 'Status', 'callback_data': 'start_status'},
+            'disabled': {'text': 'Status', 'callback_data': 'stop_status'}
+        },
+        'ticket': {'create': {'text': '📌', 'callback_data': 'ticket'}}
+    }
+
+
 def create_telegram_buttons_handler_context(app, payload, incidents, queue, route, 
                                            expected_log_message: str = None,
                                            additional_patches: dict = None):
