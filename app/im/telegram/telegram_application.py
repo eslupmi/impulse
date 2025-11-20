@@ -108,7 +108,7 @@ class TelegramApplication(Application):
 
     async def _handle_file_ticket_action(self, incident_, queue_):
         """Handle File Ticket button action"""
-        logger.info(f'Incident {incident_.uuid} -> button FILE TICKET pressed')
+        logger.info(f'Incident {incident_.uuid} -> button TASK pressed')
         self._track_async_task(asyncio.create_task(self.handle_file_ticket_button(incident_, queue_)))
 
     async def buttons_handler(self, payload, incidents, queue_, route):

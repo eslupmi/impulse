@@ -11,19 +11,6 @@
 1. In the **Interactivity & Shortcuts** section:
     - enable "Interactivity"
     - set the **Request URL** to `https://<your_domain>/app`
-    - add the shortcuts **Chain** and **Status**:
-        - click **Create New Shortcut**
-        - select **Global**, then click **Next**
-        - set:
-            - **Name** to "Chain"
-            - **Callback ID** to "chain"
-            - **Short Description** to "."
-        - click **Create**
-        - repeat the process for the second shortcut:
-            - **Name**: "Status"
-            - **Callback ID**: "status"
-            - **Short Description**: "."
-        - click **Create**
 
 2. In the **OAuth & Permissions** section:
     - in **Scopes** subsection add these "Bot Token Scopes":
