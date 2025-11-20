@@ -42,17 +42,38 @@ def create_logger(name, level=logging.INFO):
     lr = logging.getLogger(name)
     lr.setLevel(level)
     
-    # Handler for stdout (DEBUG, INFO, WARNING)
-    stdout_handler = logging.StreamHandler(sys.stdout)
-    stdout_handler.setFormatter(CustomFormatter())
-    stdout_handler.addFilter(InfoFilter())
-    lr.addHandler(stdout_handler)
+    # Check if handlers already exist to avoid duplicates
+    has_stdout_handler = False
+    has_stderr_handler = False
     
-    # Handler for stderr (ERROR, CRITICAL)
-    stderr_handler = logging.StreamHandler(sys.stderr)
-    stderr_handler.setFormatter(CustomFormatter())
-    stderr_handler.addFilter(ErrorFilter())
-    lr.addHandler(stderr_handler)
+    for handler in lr.handlers:
+        if isinstance(handler, logging.StreamHandler):
+            if handler.stream == sys.stdout:
+                # Check if it has InfoFilter
+                for filter_obj in handler.filters:
+                    if isinstance(filter_obj, InfoFilter):
+                        has_stdout_handler = True
+                        break
+            elif handler.stream == sys.stderr:
+                # Check if it has ErrorFilter
+                for filter_obj in handler.filters:
+                    if isinstance(filter_obj, ErrorFilter):
+                        has_stderr_handler = True
+                        break
+    
+    # Add stdout handler only if it doesn't exist
+    if not has_stdout_handler:
+        stdout_handler = logging.StreamHandler(sys.stdout)
+        stdout_handler.setFormatter(CustomFormatter())
+        stdout_handler.addFilter(InfoFilter())
+        lr.addHandler(stdout_handler)
+    
+    # Add stderr handler only if it doesn't exist
+    if not has_stderr_handler:
+        stderr_handler = logging.StreamHandler(sys.stderr)
+        stderr_handler.setFormatter(CustomFormatter())
+        stderr_handler.addFilter(ErrorFilter())
+        lr.addHandler(stderr_handler)
     
     return lr
 

@@ -451,7 +451,7 @@ class TestCreateLogger:
         import time
         unique_name = f"test_logger_idempotent_{int(time.time() * 1000000)}"
         
-        # Clear handlers before first call
+        # Clear handlers before first call to ensure clean state
         existing_logger = logging.getLogger(unique_name)
         existing_logger.handlers.clear()
         
@@ -464,10 +464,8 @@ class TestCreateLogger:
         # Should have exactly 2 handlers after first call
         assert handler_count_1 == 2
         
-        # Clear handlers before second call to prevent accumulation
-        existing_logger.handlers.clear()
-        
-        # Second call with same name
+        # Second call with same name - should not add duplicate handlers
+        # (function now checks for existing handlers internally)
         logger2 = create_logger(unique_name)
         handler_count_2 = len([h for h in logger2.handlers 
                                if isinstance(h, logging.StreamHandler) and 
@@ -475,7 +473,7 @@ class TestCreateLogger:
         
         # Should be the same logger instance
         assert logger1 is logger2
-        # Should have exactly 2 handlers (not duplicated)
+        # Should have exactly 2 handlers (not duplicated, function prevents duplicates)
         assert handler_count_2 == 2
         assert handler_count_1 == handler_count_2
 
