@@ -163,10 +163,10 @@ class TestJiraIntegration:
         assert mock_incident.task_link == "https://jira.com/browse/DTS-456"
         mock_incident.dump.assert_called_once()
         
-        # Verify queue.put was called
+        # Verify queue.put was called with update_message type
         mock_queue.put.assert_called_once()
         call_args = mock_queue.put.call_args[1]
-        assert call_args['type_'] == 'update_status'
+        assert call_args['type_'] == 'update_message'
         assert call_args['incident_uuid'] == mock_incident.uuid
     
     @pytest.mark.asyncio

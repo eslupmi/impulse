@@ -73,10 +73,10 @@ class JiraIntegration:
             incident.task_link = result["url"]
             incident.dump()
 
-            # Add update_status queue item to update the thread and show message
+            # Add update_message queue item to refresh the message without status changes
             await queue_.put(
                 datetime_=datetime.now(timezone.utc),
-                type_='update_status',
+                type_='update_message',
                 incident_uuid=incident.uuid,
                 identifier=None,
                 data=None
