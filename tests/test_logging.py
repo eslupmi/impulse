@@ -6,7 +6,14 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from app.logging import CustomFormatter, create_logger, configure_uvicorn_logging
+import sys
+from app.logging import (
+    CustomFormatter,
+    ErrorFilter,
+    InfoFilter,
+    create_logger,
+    configure_uvicorn_logging
+)
 
 
 class TestCustomFormatter:
@@ -218,8 +225,19 @@ class TestCreateLogger:
         assert logger is not None
         assert logger.name == "test_logger"
         assert logger.level == logging.INFO
-        assert len(logger.handlers) == 1
+        assert len(logger.handlers) == 2
         assert isinstance(logger.handlers[0], logging.StreamHandler)
+        assert isinstance(logger.handlers[1], logging.StreamHandler)
+        
+        # Check that handlers use stdout and stderr
+        assert logger.handlers[0].stream == sys.stdout
+        assert logger.handlers[1].stream == sys.stderr
+        
+        # Check that filters are applied
+        assert len(logger.handlers[0].filters) == 1
+        assert len(logger.handlers[1].filters) == 1
+        assert isinstance(logger.handlers[0].filters[0], InfoFilter)
+        assert isinstance(logger.handlers[1].filters[0], ErrorFilter)
 
     def test_create_logger_with_custom_level(self):
         """Test create_logger with custom level."""
@@ -304,8 +322,9 @@ class TestCreateLogger:
         """Test create_logger handler formatter."""
         logger = create_logger("test_logger")
 
-        handler = logger.handlers[0]
-        assert isinstance(handler.formatter, CustomFormatter)
+        # Both handlers should have CustomFormatter
+        assert isinstance(logger.handlers[0].formatter, CustomFormatter)
+        assert isinstance(logger.handlers[1].formatter, CustomFormatter)
 
     def test_create_logger_different_names(self):
         """Test create_logger with different names creates separate loggers."""
@@ -319,6 +338,139 @@ class TestCreateLogger:
         """Test create_logger with invalid level raises TypeError."""
         with pytest.raises(TypeError):
             create_logger("test_logger", 20.5)  # Float level not allowed
+
+    def test_create_logger_stdout_stderr_separation(self):
+        """Test that create_logger creates handlers for both stdout and stderr."""
+        # Use a unique logger name to avoid conflicts with other tests
+        import time
+        unique_name = f"test_logger_separation_{int(time.time() * 1000000)}"
+        
+        # Clear any existing handlers for this logger
+        existing_logger = logging.getLogger(unique_name)
+        existing_logger.handlers.clear()
+        
+        logger = create_logger(unique_name)
+        
+        # Find stdout and stderr handlers
+        stdout_handlers = []
+        stderr_handlers = []
+        for handler in logger.handlers:
+            if hasattr(handler, 'stream') and isinstance(handler, logging.StreamHandler):
+                if handler.stream == sys.stdout:
+                    stdout_handlers.append(handler)
+                elif handler.stream == sys.stderr:
+                    stderr_handlers.append(handler)
+        
+        # Should have at least one stdout and one stderr handler
+        assert len(stdout_handlers) >= 1, "stdout handler not found"
+        assert len(stderr_handlers) >= 1, "stderr handler not found"
+        
+        # Find handlers with our filters (InfoFilter and ErrorFilter)
+        stdout_handler = None
+        stderr_handler = None
+        for handler in stdout_handlers:
+            if len(handler.filters) == 1 and isinstance(handler.filters[0], InfoFilter):
+                stdout_handler = handler
+                break
+        for handler in stderr_handlers:
+            if len(handler.filters) == 1 and isinstance(handler.filters[0], ErrorFilter):
+                stderr_handler = handler
+                break
+        
+        assert stdout_handler is not None, "stdout handler with InfoFilter not found"
+        assert stderr_handler is not None, "stderr handler with ErrorFilter not found"
+        
+        # Verify filters
+        assert isinstance(stdout_handler.filters[0], InfoFilter)
+        assert isinstance(stderr_handler.filters[0], ErrorFilter)
+
+
+class TestErrorFilter:
+    """Test cases for ErrorFilter class."""
+    
+    def test_error_filter_allows_error(self):
+        """Test ErrorFilter allows ERROR level."""
+        error_filter = ErrorFilter()
+        record = Mock()
+        record.levelno = logging.ERROR
+        
+        assert error_filter.filter(record) is True
+    
+    def test_error_filter_allows_critical(self):
+        """Test ErrorFilter allows CRITICAL level."""
+        error_filter = ErrorFilter()
+        record = Mock()
+        record.levelno = logging.CRITICAL
+        
+        assert error_filter.filter(record) is True
+    
+    def test_error_filter_blocks_info(self):
+        """Test ErrorFilter blocks INFO level."""
+        error_filter = ErrorFilter()
+        record = Mock()
+        record.levelno = logging.INFO
+        
+        assert error_filter.filter(record) is False
+    
+    def test_error_filter_blocks_warning(self):
+        """Test ErrorFilter blocks WARNING level."""
+        error_filter = ErrorFilter()
+        record = Mock()
+        record.levelno = logging.WARNING
+        
+        assert error_filter.filter(record) is False
+    
+    def test_error_filter_blocks_debug(self):
+        """Test ErrorFilter blocks DEBUG level."""
+        error_filter = ErrorFilter()
+        record = Mock()
+        record.levelno = logging.DEBUG
+        
+        assert error_filter.filter(record) is False
+
+
+class TestInfoFilter:
+    """Test cases for InfoFilter class."""
+    
+    def test_info_filter_allows_debug(self):
+        """Test InfoFilter allows DEBUG level."""
+        info_filter = InfoFilter()
+        record = Mock()
+        record.levelno = logging.DEBUG
+        
+        assert info_filter.filter(record) is True
+    
+    def test_info_filter_allows_info(self):
+        """Test InfoFilter allows INFO level."""
+        info_filter = InfoFilter()
+        record = Mock()
+        record.levelno = logging.INFO
+        
+        assert info_filter.filter(record) is True
+    
+    def test_info_filter_allows_warning(self):
+        """Test InfoFilter allows WARNING level."""
+        info_filter = InfoFilter()
+        record = Mock()
+        record.levelno = logging.WARNING
+        
+        assert info_filter.filter(record) is True
+    
+    def test_info_filter_blocks_error(self):
+        """Test InfoFilter blocks ERROR level."""
+        info_filter = InfoFilter()
+        record = Mock()
+        record.levelno = logging.ERROR
+        
+        assert info_filter.filter(record) is False
+    
+    def test_info_filter_blocks_critical(self):
+        """Test InfoFilter blocks CRITICAL level."""
+        info_filter = InfoFilter()
+        record = Mock()
+        record.levelno = logging.CRITICAL
+        
+        assert info_filter.filter(record) is False
 
 
 class TestConfigureUvicornLogging:
@@ -366,8 +518,9 @@ class TestConfigureUvicornLogging:
 
             configure_uvicorn_logging()
 
-            # Should add handlers
-            assert mock_logger.addHandler.call_count >= 3
+            # Should add 2 handlers per logger (stdout and stderr)
+            # 3 loggers * 2 handlers = 6 total
+            assert mock_logger.addHandler.call_count == 6
 
     def test_configure_uvicorn_logging_sets_propagate(self):
         """Test configure_uvicorn_logging sets propagate to False."""
@@ -400,8 +553,9 @@ class TestConfigureUvicornLogging:
 
             configure_uvicorn_logging()
 
-            # Should create StreamHandler instances
-            assert mock_stream_handler.call_count >= 3
+            # Should create 2 StreamHandler instances per logger (stdout and stderr)
+            # 3 loggers * 2 handlers = 6 total
+            assert mock_stream_handler.call_count == 6
 
     def test_configure_uvicorn_logging_with_mock_custom_formatter(self):
         """Test configure_uvicorn_logging with mocked CustomFormatter."""
@@ -412,8 +566,9 @@ class TestConfigureUvicornLogging:
 
             configure_uvicorn_logging()
 
-            # Should create CustomFormatter instances
-            assert mock_formatter.call_count >= 3
+            # Should create CustomFormatter instances for each handler
+            # 3 loggers * 2 handlers = 6 total
+            assert mock_formatter.call_count == 6
 
     def test_configure_uvicorn_logging_multiple_calls(self):
         """Test configure_uvicorn_logging with multiple calls."""
