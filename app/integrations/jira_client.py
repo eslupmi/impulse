@@ -71,27 +71,13 @@ class JiraClient:
         Returns:
             Dict with 'key' and 'url' if successful, None otherwise
         """
-        url = f"{self.base_url}/rest/api/3/issue"
+        url = f"{self.base_url}/rest/api/2/issue"
         
         payload = {
             "fields": {
                 "project": {"key": project_key},
                 "summary": summary,
-                "description": {
-                    "type": "doc",
-                    "version": 1,
-                    "content": [
-                        {
-                            "type": "paragraph",
-                            "content": [
-                                {
-                                    "type": "text",
-                                    "text": description
-                                }
-                            ]
-                        }
-                    ]
-                },
+                "description": description,
                 "issuetype": {"name": "Task"}
             }
         }

@@ -1,15 +1,20 @@
 {%- set summary = "" -%}
+{%- if incident.payload.alerts and incident.payload.alerts | length > 0 and incident.payload.alerts[0].labels.alertname -%}
+  {%- set summary = incident.payload.alerts[0].labels.alertname -%}
+{%- endif -%}
 {%- if incident.payload.groupLabels -%}
   {%- set label_parts = [] -%}
   {%- for key, value in incident.payload.groupLabels.items() -%}
-    {%- set _ = label_parts.append(key ~ "=" ~ (value | string)) -%}
+    {%- if key != "alertname" -%}
+      {%- set _ = label_parts.append(key ~ "=" ~ (value | string)) -%}
+    {%- endif -%}
   {%- endfor -%}
-  {%- set summary = "Alert: " ~ label_parts | join(", ") -%}
-{%- endif -%}
-{%- if not summary and incident.payload.alerts and incident.payload.alerts | length > 0 -%}
-  {%- set first_alert = incident.payload.alerts[0] -%}
-  {%- if first_alert.labels.alertname -%}
-    {%- set summary = "Alert: " ~ first_alert.labels.alertname -%}
+  {%- if label_parts | length > 0 -%}
+    {%- if summary -%}
+      {%- set summary = summary ~ " [" ~ (label_parts | join(", ")) ~ "]" -%}
+    {%- else -%}
+      {%- set summary = "[" ~ (label_parts | join(", ")) ~ "]" -%}
+    {%- endif -%}
   {%- endif -%}
 {%- endif -%}
 {%- if not summary -%}
