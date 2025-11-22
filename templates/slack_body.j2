@@ -7,7 +7,7 @@
 {%- if commonAnnotations.summary %}*{{ commonAnnotations.summary }}*  {% endif %}
 {%- if url %}|  <{{ url }}|source>  {% endif %}
 {%- if runbook %}|  <{{ runbook }}|runbook>  {% endif %}
-{%- if incident.task_link %}|  <{{ incident.task_link }}|ticket>  {% endif %}
+{%- if incident.task_link %}|  <{{ incident.task_link }}|task>  {% endif %}
 {%- if incident.assigned_user_id != "" %}(_assigned to <@{{ incident.assigned_user_id }}>_){% endif %}
 {%- if commonAnnotations.description %}
 _{{ commonAnnotations.description }}_{% endif %}

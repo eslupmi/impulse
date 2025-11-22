@@ -6,8 +6,8 @@
 {%- if commonAnnotations.runbook %}{% set runbook = commonAnnotations.runbook %}{% endif -%}
 {%- if commonAnnotations.summary %}**{{ commonAnnotations.summary }}**  {% endif %}
 {%- if url %}|  [source]({{ url }})  {% endif %}
-{%- if runbook %}|  [runbook]({{ runbook }}){% endif %}
-{%- if incident.task_link %}  |  [ticket]({{ incident.task_link }}){% endif %}
+{%- if runbook %}|  [runbook]({{ runbook }})  {% endif %}
+{%- if incident.task_link %}|  [task]({{ incident.task_link }}){% endif %}
 {%- if commonAnnotations.description %}
 _{{ commonAnnotations.description }}_{% endif %}
 {%- if alerts | length > 1 %}

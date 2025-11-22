@@ -1,5 +1,6 @@
 """Jira integration for task creation from incidents"""
 from datetime import datetime, timezone
+from typing import Optional
 
 from app.integrations.jira_client import JiraClient
 from app.jinja_template import JinjaTemplate, load_template_file
@@ -11,18 +12,38 @@ class JiraIntegration:
     High-level Jira integration logic for creating tasks from incidents.
     """
 
-    def __init__(self, jira_client: JiraClient, project_key: str):
+    def __init__(self, jira_client: JiraClient, project_key: str, 
+                 tm_type: str = "jira",
+                 template_files: Optional[dict] = None):
         """
         Initialize Jira integration.
         
         Args:
             jira_client: JiraClient instance
             project_key: Default Jira project key for task creation
+            tm_type: Task management type (e.g., "jira") - used for default template paths
+            template_files: Optional dict with 'summary' and 'description' template paths
         """
         self.jira_client = jira_client
         self.project_key = project_key
-        self.summary_template = JinjaTemplate(load_template_file('jira_summary.j2'))
-        self.description_template = JinjaTemplate(load_template_file('jira_description.j2'))
+        
+        def read_template(file_key: str, default_path: str) -> JinjaTemplate:
+            """Read template file, using config path if provided, otherwise default"""
+            if template_files and template_files.get(file_key):
+                file_path = template_files.get(file_key)
+                # Use default if path is empty string
+                if not file_path:
+                    file_path = default_path
+            else:
+                file_path = default_path
+            return JinjaTemplate(open(file_path).read())
+        
+        # Use tm_type to determine default template paths
+        default_summary = f'./templates/{tm_type}_summary.j2'
+        default_description = f'./templates/{tm_type}_description.j2'
+        
+        self.summary_template = read_template('summary', default_summary)
+        self.description_template = read_template('description', default_description)
 
     def format_incident_for_jira(self, incident) -> tuple[str, str]:
         """
@@ -55,8 +76,8 @@ class JiraIntegration:
             return {"success": True, "message": "Task already exists"}
 
         if incident.task_creation_in_progress:
-            logger.debug(f"Incident {incident.uuid} ticket creation already in progress")
-            return {"success": True, "message": "Ticket creation in progress"}
+            logger.debug(f"Incident {incident.uuid} task creation already in progress")
+            return {"success": True, "message": "Task creation in progress"}
 
         incident.task_creation_in_progress = True
 

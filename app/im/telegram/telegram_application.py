@@ -129,8 +129,8 @@ class TelegramApplication(Application):
                 return early_return
         elif action in ['start_status', 'stop_status']:
             self._handle_status_action(incident_, action == 'start_status')
-        elif action == 'ticket':
-            self._handle_ticket_action(incident_, queue_)
+        elif action == 'task':
+            self._handle_task_action(incident_, queue_)
         
         incident_.dump()
         body = self.body_template.form_message(incident_.payload, incident_)
@@ -176,7 +176,7 @@ class TelegramApplication(Application):
         ]
         
         if env_config.task_management_enabled:
-            keyboard_row.append(buttons['ticket']['create'])
+            keyboard_row.append(buttons['task']['create'])
         
         return {
             'chat_id': channel_id,
@@ -236,7 +236,7 @@ class TelegramApplication(Application):
         ]
         
         if env_config.task_management_enabled and not task_link:
-            keyboard_row.append(buttons['ticket']['create'])
+            keyboard_row.append(buttons['task']['create'])
         
         return {
             'chat_id': channel_id,

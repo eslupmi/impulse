@@ -86,7 +86,8 @@ async def lifespan(fastapi_app: FastAPI):
     channels = channel_manager.initialize(route.get_uniq_channels(), config.messenger.channels, route.channel)
     default_channel = route.channel
 
-    messenger = get_application(config.messenger, channels, default_channel)
+    messenger = get_application(config.messenger, channels, default_channel, 
+                                task_management_config=config.app.task_management)
     await messenger.initialize_async()
     
     webhooks = generate_webhooks(webhooks_config)

@@ -67,14 +67,14 @@ def build_mattermost_actions(chain_enabled, status, status_enabled, task_link=''
     
     if env_config.task_management_enabled and not task_link:
         actions.append({
-            "id": "ticket",
+            "id": "task",
             "type": "button",
-            "name": buttons['ticket']['create']['text'],
-            "style": buttons['ticket']['create']['style'],
+            "name": buttons['task']['create']['text'],
+            "style": buttons['task']['create']['style'],
             "integration": {
                 "url": f"{config.messenger.impulse_address}/app",
                 "context": {
-                    "action": "ticket"
+                    "action": "task"
                 }
             }
         })

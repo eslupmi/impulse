@@ -20,12 +20,12 @@ def reformat_message(original_message, text, attachments, status, chain_enabled,
     
     if env_config.task_management_enabled and len(original_message['attachments'][1]['actions']) > 2:
         if task_link:
-            original_message['attachments'][1]['actions'][2]['text'] = buttons['ticket']['open']['text']
-            original_message['attachments'][1]['actions'][2]['style'] = buttons['ticket']['open']['style']
+            original_message['attachments'][1]['actions'][2]['text'] = buttons['task']['open']['text']
+            original_message['attachments'][1]['actions'][2]['style'] = buttons['task']['open']['style']
             original_message['attachments'][1]['actions'][2]['url'] = task_link
         else:
-            original_message['attachments'][1]['actions'][2]['text'] = buttons['ticket']['create']['text']
-            original_message['attachments'][1]['actions'][2]['style'] = buttons['ticket']['create']['style']
+            original_message['attachments'][1]['actions'][2]['text'] = buttons['task']['create']['text']
+            original_message['attachments'][1]['actions'][2]['style'] = buttons['task']['create']['style']
             # Remove url if it exists
             original_message['attachments'][1]['actions'][2].pop('url', None)
     

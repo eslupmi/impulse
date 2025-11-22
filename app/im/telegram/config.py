@@ -23,10 +23,10 @@ buttons = {
             'callback_data': 'start_status'
         }
     },
-    'ticket': {
+    'task': {
         'create': {
             'text': '📌',
-            'callback_data': 'ticket'
+            'callback_data': 'task'
         }
     }
 }

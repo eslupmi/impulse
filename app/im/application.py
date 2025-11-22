@@ -169,14 +169,14 @@ class Application(ABC):
         logger.info(f'Incident {incident_.uuid} -> button STATUS pressed ({"enabled" if set_status_to else "disabled"})')
         incident_.status_enabled = set_status_to
 
-    def _handle_ticket_action(self, incident_, queue_):
-        """Handle Ticket button action"""
-        logger.info(f'Incident {incident_.uuid} -> button TICKET pressed')
-        self._track_async_task(asyncio.create_task(self.handle_ticket_button(incident_, queue_)))
+    def _handle_task_action(self, incident_, queue_):
+        """Handle Task button action"""
+        logger.info(f'Incident {incident_.uuid} -> button TASK pressed')
+        self._track_async_task(asyncio.create_task(self.handle_task_button(incident_, queue_)))
 
-    async def handle_ticket_button(self, incident, queue_):
+    async def handle_task_button(self, incident, queue_):
         """
-        Handle Ticket button press for an incident.
+        Handle Task button press for an incident.
         
         Args:
             incident: Incident object

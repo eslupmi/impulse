@@ -26,7 +26,7 @@ buttons = {
             'style': 'normal'
         }
     },
-    'ticket': {
+    'task': {
         'create': {
             'text': ':pushpin:',
             'style': 'normal'

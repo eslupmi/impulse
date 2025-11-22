@@ -26,7 +26,7 @@ buttons = {
             'style': 'default'
         }
     },
-    'ticket': {
+    'task': {
         'create': {
             'text': '📌',
             'style': 'default'

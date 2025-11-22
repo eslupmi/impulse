@@ -49,7 +49,6 @@ def mock_get_config_globally():
         env_config.jira_base_url = "https://test.atlassian.net"
         env_config.jira_user_email = "test@example.com"
         env_config.jira_api_token = "test_token"
-        env_config.jira_project_key = "TEST"
         
         # Create app config
         app_config = Mock(spec=ImpulseConfig)
@@ -176,7 +175,6 @@ def mock_environment_config():
     env_config.jira_base_url = "https://test.atlassian.net"
     env_config.jira_user_email = "test@example.com"
     env_config.jira_api_token = "test_token"
-    env_config.jira_project_key = "TEST"
     return env_config
 
 

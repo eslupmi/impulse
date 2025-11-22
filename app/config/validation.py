@@ -180,6 +180,30 @@ class TemplateFiles(BaseModel):
         return getattr(self, key) or default
 
 
+class TaskManagementType(str, Enum):
+    """Supported task management types"""
+    JIRA = "jira"
+
+
+class TaskManagementTemplateFiles(BaseModel):
+    """Task management template files configuration"""
+    summary: Optional[str] = Field(None, description="Summary template path")
+    description: Optional[str] = Field(None, description="Description template path")
+
+    def get(self, key: str, default: str = None) -> str:
+        return getattr(self, key) or default
+
+
+class TaskManagementConfig(BaseModel):
+    """Task management configuration"""
+    type: TaskManagementType = Field(..., description="Task management type")
+    project_key: str = Field(..., description="Project key in the task management system")
+    template_files: Optional[TaskManagementTemplateFiles] = Field(
+        TaskManagementTemplateFiles(summary=None, description=None),
+        description="Template files for task creation"
+    )
+
+
 class BaseApplicationConfig(BaseModel):
     """Base messenger configuration with common fields"""
     type: MessengerType = Field(..., description="Application type")
@@ -453,6 +477,7 @@ class ImpulseConfig(BaseModel):
     route: Optional[RouteConfig] = Field(None, description="Route configuration")
     ui: Optional[UIConfig] = Field(None, description="UI configuration")
     webhooks: Optional[Dict[str, WebhookConfig]] = Field({}, description="Webhook configurations")
+    task_management: Optional[TaskManagementConfig] = Field(None, description="Task management configuration")
 
     @model_validator(mode='after')
     def validate_route_exists(self):

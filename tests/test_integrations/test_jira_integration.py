@@ -189,13 +189,13 @@ class TestJiraIntegration:
     
     @pytest.mark.asyncio
     async def test_handle_button_press_creation_in_progress(self, jira_integration, mock_incident, mock_queue):
-        """Test button press when ticket creation is already in progress"""
+        """Test button press when task creation is already in progress"""
         mock_incident.task_creation_in_progress = True
         
         result = await jira_integration.handle_button_press(mock_incident, mock_queue)
         
         assert result["success"] is True
-        assert result["message"] == "Ticket creation in progress"
+        assert result["message"] == "Task creation in progress"
         
         jira_integration.jira_client.create_issue.assert_not_called()
         mock_queue.put.assert_not_called()

@@ -41,10 +41,6 @@ class EnvironmentConfig(BaseModel):
         default_factory=lambda: os.getenv('JIRA_API_TOKEN', ''),
         description="Jira API token for Basic Auth"
     )
-    jira_project_key: str = Field(
-        default_factory=lambda: os.getenv('JIRA_PROJECT_KEY', ''),
-        description="Jira project key (e.g., 'DTS')"
-    )
     
     # Paths
     data_path: str = Field(
@@ -151,8 +147,7 @@ class EnvironmentConfig(BaseModel):
         return all([
             self.jira_base_url,
             self.jira_user_email,
-            self.jira_api_token,
-            self.jira_project_key
+            self.jira_api_token
         ])
 
 

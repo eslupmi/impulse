@@ -39,10 +39,10 @@ def build_slack_actions(chain_enabled, status, status_enabled, task_link=''):
     
     if env_config.task_management_enabled and not task_link:
         actions.append({
-            "name": "ticket",
-            "text": buttons['ticket']['create']['text'],
+            "name": "task",
+            "text": buttons['task']['create']['text'],
             "type": "button",
-            "style": buttons['ticket']['create']['style']
+            "style": buttons['task']['create']['style']
         })
     
     return actions

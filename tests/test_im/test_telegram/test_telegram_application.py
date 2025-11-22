@@ -248,7 +248,7 @@ class TestTelegramApplication:
                         [
                             {'text': 'Take It', 'callback_data': 'start_chain'},
                             {'text': 'Status', 'callback_data': 'start_status'},
-                            {'text': '📌', 'callback_data': 'ticket'}  # Jira button
+                            {'text': '📌', 'callback_data': 'task'}  # Jira button
                         ]
                     ]
                 }
@@ -292,7 +292,7 @@ class TestTelegramApplication:
                         [
                             {'text': 'Take It', 'callback_data': 'start_chain'},
                             {'text': 'Status', 'callback_data': 'start_status'},
-                            {'text': '📌', 'callback_data': 'ticket'}  # Jira button
+                            {'text': '📌', 'callback_data': 'task'}  # Jira button
                         ]
                     ]
                 }
@@ -313,7 +313,7 @@ class TestTelegramApplication:
             result = app.update_thread_payload(-1001234567890, "123456/789012", "body", "header", "5312241539987020022",
                                               "firing", True, True, task_link="https://jira.com/browse/DTS-123")
 
-            # Button should NOT include ticket button when task_link is provided
+            # Button should NOT include task button when task_link is provided
             expected = {
                 'chat_id': -1001234567890,
                 'message_id': '789012',
@@ -324,7 +324,7 @@ class TestTelegramApplication:
                         [
                             {'text': 'Take It', 'callback_data': 'start_chain'},
                             {'text': 'Status', 'callback_data': 'start_status'}
-                            # No ticket button when task_link exists
+                            # No task button when task_link exists
                         ]
                     ]
                 }

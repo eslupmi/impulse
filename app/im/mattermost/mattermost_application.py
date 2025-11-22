@@ -147,8 +147,8 @@ class MattermostApplication(Application):
                 return early_return
         elif action == 'status':
             self._handle_status_action(incident_, not incident_.status_enabled)
-        elif action == 'ticket':
-            self._handle_ticket_action(incident_, queue_)
+        elif action == 'task':
+            self._handle_task_action(incident_, queue_)
         
         incident_.dump()
         status_icons = self.status_icons_template.form_message(incident_.payload, incident_)
