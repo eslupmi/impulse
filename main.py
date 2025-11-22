@@ -86,8 +86,10 @@ async def lifespan(fastapi_app: FastAPI):
     channels = channel_manager.initialize(route.get_uniq_channels(), config.messenger.channels, route.channel)
     default_channel = route.channel
 
-    messenger = get_application(config.messenger, channels, default_channel)
+    messenger = get_application(config.messenger, channels, default_channel, 
+                                task_management_config=config.app.task_management)
     await messenger.initialize_async()
+    
     webhooks = generate_webhooks(webhooks_config)
     incidents = Incidents.create_or_load(messenger.type, messenger.public_url, messenger.team)
 
@@ -114,6 +116,9 @@ async def lifespan(fastapi_app: FastAPI):
 
     if hasattr(fastapi_app.state.messenger, 'close'):
         await fastapi_app.state.messenger.close()
+    
+    if messenger.task_management_integration:
+        await messenger.task_management_integration.jira_client.close()
 
     if hasattr(fastapi_app.state.messenger, 'chains'):
         for chain in fastapi_app.state.messenger.chains.values():

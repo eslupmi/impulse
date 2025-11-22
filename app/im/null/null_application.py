@@ -3,6 +3,7 @@ import uuid
 from fastapi.responses import JSONResponse
 
 from app.im.application import Application
+from app.jinja_template import JinjaTemplate
 
 
 class NullApplication(Application):
@@ -16,7 +17,6 @@ class NullApplication(Application):
 
     def generate_template(self):
         """Override template generation to avoid requiring template files"""
-        from app.im.template import JinjaTemplate
         return (
             JinjaTemplate(''),
             JinjaTemplate(''),
@@ -71,7 +71,7 @@ class NullApplication(Application):
         """Return empty payload"""
         return {}
 
-    def update_thread_payload(self, channel_id, id_, body, header, status_icons, status, chain_enabled, status_enabled):
+    def update_thread_payload(self, channel_id, id_, body, header, status_icons, status, chain_enabled, status_enabled, task_link=''):
         """Return empty payload"""
         return {}
 
@@ -99,11 +99,11 @@ class NullApplication(Application):
         """No thread posting for null application"""
         return 200
 
-    async def update_thread(self, channel_id, id_, status, body, header, status_icons, chain_enabled=True, status_enabled=True):
+    async def update_thread(self, channel_id, id_, status, body, header, status_icons, chain_enabled=True, status_enabled=True, task_link=''):
         """No thread updating for null application"""
         pass
 
-    async def update(self, uuid_, incident, incident_status, alert_state, updated_status, chain_enabled, status_enabled):
+    async def update(self, uuid_, incident, incident_status, alert_state, updated_status, chain_enabled, status_enabled, task_link=''):
         """No message updates for null application"""
         pass
 

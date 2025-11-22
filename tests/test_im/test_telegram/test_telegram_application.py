@@ -229,13 +229,13 @@ class TestTelegramApplication:
 
     def test_create_thread_payload(self, app_config, channels, users):
         """Test _create_thread_payload method."""
+        from tests.utils import create_telegram_buttons_mock
+        
         app = self.create_telegram_app(app_config, channels, users)
 
         with patch('app.im.telegram.telegram_application.buttons') as mock_buttons:
-            mock_buttons.__getitem__.return_value = {
-                'takeit': {'text': 'Take It', 'callback_data': 'start_chain'},
-                'enabled': {'text': 'Status', 'callback_data': 'start_status'}
-            }
+            buttons_config = create_telegram_buttons_mock()
+            mock_buttons.__getitem__.side_effect = lambda x: buttons_config[x]
 
             result = app._create_thread_payload(-1001234567890, "body", "header", "5312241539987020022", "firing")
 
@@ -247,7 +247,8 @@ class TestTelegramApplication:
                     'inline_keyboard': [
                         [
                             {'text': 'Take It', 'callback_data': 'start_chain'},
-                            {'text': 'Status', 'callback_data': 'start_status'}
+                            {'text': 'Status', 'callback_data': 'start_status'},
+                            {'text': '📌', 'callback_data': 'task'}  # Jira button
                         ]
                     ]
                 }
@@ -270,18 +271,16 @@ class TestTelegramApplication:
 
     def test_update_thread_payload(self, app_config, channels, users):
         """Test update_thread_payload method."""
+        from tests.utils import create_telegram_buttons_mock
+        
         app = self.create_telegram_app(app_config, channels, users)
 
         with patch('app.im.telegram.telegram_application.buttons') as mock_buttons:
-            mock_buttons.__getitem__.return_value = {
-                'takeit': {'text': 'Take It', 'callback_data': 'start_chain'},
-                'release': {'text': 'Release', 'callback_data': 'stop_chain'},
-                'enabled': {'text': 'Status', 'callback_data': 'start_status'},
-                'disabled': {'text': 'Status', 'callback_data': 'stop_status'}
-            }
+            buttons_config = create_telegram_buttons_mock()
+            mock_buttons.__getitem__.side_effect = lambda x: buttons_config[x]
 
             result = app.update_thread_payload(-1001234567890, "123456/789012", "body", "header", "5312241539987020022",
-                                               "firing", True, True)
+                                              "firing", True, True)
 
             expected = {
                 'chat_id': -1001234567890,
@@ -292,7 +291,40 @@ class TestTelegramApplication:
                     'inline_keyboard': [
                         [
                             {'text': 'Take It', 'callback_data': 'start_chain'},
+                            {'text': 'Status', 'callback_data': 'start_status'},
+                            {'text': '📌', 'callback_data': 'task'}  # Jira button
+                        ]
+                    ]
+                }
+            }
+            assert result == expected
+
+    def test_update_thread_payload_with_task_link(self, app_config, channels, users):
+        """Test update_thread_payload method when task link exists - button should be removed."""
+        from tests.utils import create_telegram_buttons_mock
+        
+        app = self.create_telegram_app(app_config, channels, users)
+
+        with patch('app.im.telegram.telegram_application.buttons') as mock_buttons:
+            buttons_config = create_telegram_buttons_mock()
+            mock_buttons.__getitem__.side_effect = lambda x: buttons_config[x]
+
+            # Pass task_link to verify button is NOT included
+            result = app.update_thread_payload(-1001234567890, "123456/789012", "body", "header", "5312241539987020022",
+                                              "firing", True, True, task_link="https://jira.com/browse/DTS-123")
+
+            # Button should NOT include task button when task_link is provided
+            expected = {
+                'chat_id': -1001234567890,
+                'message_id': '789012',
+                'text': '🔥 header\nbody',
+                'parse_mode': 'HTML',
+                'reply_markup': {
+                    'inline_keyboard': [
+                        [
+                            {'text': 'Take It', 'callback_data': 'start_chain'},
                             {'text': 'Status', 'callback_data': 'start_status'}
+                            # No task button when task_link exists
                         ]
                     ]
                 }

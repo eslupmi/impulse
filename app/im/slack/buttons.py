@@ -1,7 +1,12 @@
 from app.im.slack.config import buttons
+from app.config.environment import get_environment_config
+from app.config.config import get_config
 
 
-def reformat_message(original_message, text, attachments, status, chain_enabled, status_enabled):
+def reformat_message(original_message, text, attachments, status, chain_enabled, status_enabled, task_link=''):
+    env_config = get_environment_config()
+    config = get_config()
+    
     original_message['text'] = text
     original_message['attachments'] = attachments
 
@@ -14,6 +19,18 @@ def reformat_message(original_message, text, attachments, status, chain_enabled,
     else:
         original_message['attachments'][1]['actions'][1]['text'] = buttons['status']['disabled']['text']
         original_message['attachments'][1]['actions'][1]['style'] = buttons['status']['disabled']['style']
+    
+    if config.app.task_management and env_config.task_management_enabled and len(original_message['attachments'][1]['actions']) > 2:
+        if task_link:
+            original_message['attachments'][1]['actions'][2]['text'] = buttons['task']['open']['text']
+            original_message['attachments'][1]['actions'][2]['style'] = buttons['task']['open']['style']
+            original_message['attachments'][1]['actions'][2]['url'] = task_link
+        else:
+            original_message['attachments'][1]['actions'][2]['text'] = buttons['task']['create']['text']
+            original_message['attachments'][1]['actions'][2]['style'] = buttons['task']['create']['style']
+            # Remove url if it exists
+            original_message['attachments'][1]['actions'][2].pop('url', None)
+    
     return original_message
 
 

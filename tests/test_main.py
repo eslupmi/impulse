@@ -23,7 +23,9 @@ class TestMainApplication:
                 patch('main.generate_webhooks') as mock_generate_webhooks, \
                 patch('main.Incidents.create_or_load') as mock_incidents, \
                 patch('main.AsyncQueue.recreate_queue') as mock_queue, \
-                patch('main.AsyncQueueManager') as mock_queue_manager:
+                patch('main.AsyncQueueManager') as mock_queue_manager, \
+                patch('app.config.environment.get_environment_config') as mock_get_env_config, \
+                patch('app.im.application.Application') as mock_application:
             # Setup mock config
             mock_config = Mock()
             mock_config.messenger.type = MessengerType.SLACK
@@ -53,6 +55,7 @@ class TestMainApplication:
             mock_messenger.team = "test-team"
             # Setup chains as an empty dict to avoid iteration issues
             mock_messenger.chains = {}
+            mock_messenger.task_management_integration = None  # No Jira integration by default
             mock_get_application.return_value = mock_messenger
 
             # Setup mock webhooks
@@ -73,6 +76,14 @@ class TestMainApplication:
             mock_qm_instance.stop_processing = AsyncMock()
             mock_queue_manager.return_value = mock_qm_instance
 
+            # Setup mock environment config for Jira
+            mock_env_config = Mock()
+            mock_env_config.jira_enabled = False  # Disable Jira in tests
+            mock_get_env_config.return_value = mock_env_config
+
+            # Setup mock Application class for Jira integration
+            mock_application.task_management_integration = None
+
             yield {
                 'config': mock_config,
                 'route': mock_route,
@@ -81,7 +92,9 @@ class TestMainApplication:
                 'webhooks': mock_webhooks,
                 'incidents': mock_incidents_instance,
                 'queue': mock_queue_instance,
-                'queue_manager': mock_qm_instance
+                'queue_manager': mock_qm_instance,
+                'env_config': mock_env_config,
+                'application': mock_application
             }
 
     def test_app_creation(self):

@@ -28,6 +28,20 @@ class EnvironmentConfig(BaseModel):
         description="Telegram Bot Token"
     )
     
+    # Jira integration (Cloud with Basic Auth)
+    jira_base_url: str = Field(
+        default_factory=lambda: os.getenv('JIRA_BASE_URL', ''),
+        description="Jira base URL (e.g., 'https://your-domain.atlassian.net')"
+    )
+    jira_user_email: str = Field(
+        default_factory=lambda: os.getenv('JIRA_USER_EMAIL', ''),
+        description="Jira user email for Basic Auth"
+    )
+    jira_api_token: str = Field(
+        default_factory=lambda: os.getenv('JIRA_API_TOKEN', ''),
+        description="Jira API token for Basic Auth"
+    )
+    
     # Paths
     data_path: str = Field(
         default_factory=lambda: os.getenv('DATA_PATH', './data'),
@@ -126,6 +140,15 @@ class EnvironmentConfig(BaseModel):
     def config_file_path(self) -> str:
         """Computed property for config file path"""
         return os.path.join(self.config_path, "impulse.yml")
+    
+    @property
+    def task_management_enabled(self) -> bool:
+        """Check if Task management integration is enabled (all required fields are set)"""
+        return all([
+            self.jira_base_url,
+            self.jira_user_email,
+            self.jira_api_token
+        ])
 
 
 # Global instance - created once and reused

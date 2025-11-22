@@ -25,6 +25,12 @@ buttons = {
             'text': ':red_circle: Status',
             'style': 'normal'
         }
+    },
+    'task': {
+        'create': {
+            'text': ':pushpin:',
+            'style': 'normal'
+        }
     }
 }
 

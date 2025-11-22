@@ -1,6 +1,7 @@
 from app.im.colors import status_colors
 from app.im.mattermost.config import buttons
 from app.config.config import get_config
+from app.config.environment import get_environment_config
 
 
 def chain_attrs(chain_enabled, status):
@@ -17,8 +18,73 @@ def chain_attrs(chain_enabled, status):
     return chain_text, chain_style
 
 
-def mattermost_get_button_update_payload(body, header, status_icons, status, chain_enabled, status_enabled):
+def build_mattermost_actions(chain_enabled, status, status_enabled, task_link=''):
+    """
+    Build the action buttons list for Mattermost messages.
+    
+    Args:
+        chain_enabled: Whether the chain button is enabled
+        status: Current incident status
+        status_enabled: Whether the status button is enabled
+        task_link: Optional Jira task link (if task exists)
+        
+    Returns:
+        List of action button configurations
+    """
     config = get_config()
+    env_config = get_environment_config()
+    
+    chain_text, chain_style = chain_attrs(chain_enabled, status)
+    
+    actions = [
+        {
+            "id": "chain",
+            "type": "button",
+            "name": chain_text,
+            "style": chain_style,
+            "integration": {
+                "url": f"{config.messenger.impulse_address}/app",
+                "context": {
+                    "action": "chain"
+                }
+            }
+        },
+        {
+            "id": "status",
+            "type": "button",
+            "name": buttons['status']['enabled']['text'] if status_enabled else
+            buttons['status']['disabled']['text'],
+            "style": buttons['status']['enabled']['style'] if status_enabled else
+            buttons['status']['disabled']['style'],
+            "integration": {
+                "url": f"{config.messenger.impulse_address}/app",
+                "context": {
+                    "action": "status"
+                }
+            }
+        }
+    ]
+    
+    if config.app.task_management and env_config.task_management_enabled and not task_link:
+        actions.append({
+            "id": "task",
+            "type": "button",
+            "name": buttons['task']['create']['text'],
+            "style": buttons['task']['create']['style'],
+            "integration": {
+                "url": f"{config.messenger.impulse_address}/app",
+                "context": {
+                    "action": "task"
+                }
+            }
+        })
+    
+    return actions
+
+
+def mattermost_get_button_update_payload(body, header, status_icons, status, chain_enabled, status_enabled, task_link=''):
+    actions = build_mattermost_actions(chain_enabled, status, status_enabled, task_link)
+    
     payload = {
         'update': {
             'message': f'{status_icons} {header}',
@@ -28,34 +94,7 @@ def mattermost_get_button_update_payload(body, header, status_icons, status, cha
                         'fallback': 'test',
                         'text': body,
                         'color': status_colors.get(status),
-                        'actions': [
-                            {
-                                "id": "chain",
-                                "type": "button",
-                                "name": chain_attrs(chain_enabled, status)[0],
-                                "style": chain_attrs(chain_enabled, status)[1],
-                                "integration": {
-                                    "url": f"{config.messenger.impulse_address}/app",
-                                    "context": {
-                                        "action": "chain"
-                                    }
-                                }
-                            },
-                            {
-                                "id": "status",
-                                "type": "button",
-                                "name": buttons['status']['enabled']['text'] if status_enabled else
-                                buttons['status']['disabled']['text'],
-                                "style": buttons['status']['enabled']['style'] if status_enabled else
-                                buttons['status']['disabled']['style'],
-                                "integration": {
-                                    "url": f"{config.messenger.impulse_address}/app",
-                                    "context": {
-                                        "action": "status"
-                                    }
-                                }
-                            }
-                        ]
+                        'actions': actions
                     }
                 ]
             }
@@ -65,8 +104,9 @@ def mattermost_get_button_update_payload(body, header, status_icons, status, cha
 
 
 def mattermost_get_update_payload(channel_id, thread_id, body, header, status_icons, status, chain_enabled,
-                                  status_enabled):
-    config = get_config()
+                                  status_enabled, task_link=''):
+    actions = build_mattermost_actions(chain_enabled, status, status_enabled, task_link)
+    
     payload = {
         'channel_id': channel_id,
         'id': thread_id,
@@ -77,34 +117,7 @@ def mattermost_get_update_payload(channel_id, thread_id, body, header, status_ic
                     'fallback': 'test',
                     'text': body,
                     'color': status_colors.get(status),
-                    'actions': [
-                        {
-                            "id": "chain",
-                            "type": "button",
-                            "name": chain_attrs(chain_enabled, status)[0],
-                            "style": chain_attrs(chain_enabled, status)[1],
-                            "integration": {
-                                "url": f"{config.messenger.impulse_address}/app",
-                                "context": {
-                                    "action": "chain"
-                                }
-                            }
-                        },
-                        {
-                            "id": "status",
-                            "type": "button",
-                            "name": buttons['status']['enabled']['text'] if status_enabled else
-                            buttons['status']['disabled']['text'],
-                            "style": buttons['status']['enabled']['style'] if status_enabled else
-                            buttons['status']['disabled']['style'],
-                            "integration": {
-                                "url": f"{config.messenger.impulse_address}/app",
-                                "context": {
-                                    "action": "status"
-                                }
-                            }
-                        }
-                    ]
+                    'actions': actions
                 }
             ]
         }
@@ -113,7 +126,9 @@ def mattermost_get_update_payload(channel_id, thread_id, body, header, status_ic
 
 
 def mattermost_get_create_thread_payload(channel_id, body, header, status_icons, status):
-    config = get_config()
+    # New threads always have chain enabled and status enabled, no task link yet
+    actions = build_mattermost_actions(chain_enabled=True, status=status, status_enabled=True, task_link='')
+    
     payload = {
         'channel_id': channel_id,
         'message': f'{status_icons} {header}',
@@ -123,32 +138,7 @@ def mattermost_get_create_thread_payload(channel_id, body, header, status_icons,
                     'fallback': 'test',
                     'text': body,
                     'color': status_colors.get(status),
-                    'actions': [
-                        {
-                            "id": "chain",
-                            "type": "button",
-                            "name": buttons['chain']['takeit']['text'],
-                            "style": buttons['chain']['takeit']['style'],
-                            "integration": {
-                                "url": f"{config.messenger.impulse_address}/app",
-                                "context": {
-                                    "action": "chain"
-                                }
-                            }
-                        },
-                        {
-                            "id": "status",
-                            "type": "button",
-                            "name": buttons['status']['enabled']['text'],
-                            "style": buttons['status']['enabled']['style'],
-                            "integration": {
-                                "url": f"{config.messenger.impulse_address}/app",
-                                "context": {
-                                    "action": "status"
-                                }
-                            }
-                        }
-                    ]
+                    'actions': actions
                 }
             ]
         }
