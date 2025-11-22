@@ -77,7 +77,7 @@ class TestJiraIntegration:
         summary, description = jira_integration.format_incident_for_jira(incident)
         
         assert "FallbackAlert" in summary
-        assert len(description) >= 0  # Description may be empty or contain sections
+        assert isinstance(description, str)  # Description should be a string
     
     def test_format_incident_no_alerts(self, jira_integration):
         """Test formatting incident with no alerts"""
@@ -214,8 +214,8 @@ class TestJiraIntegration:
         call_args = jira_integration.jira_client.create_issue.call_args[1]
         assert call_args['project_key'] == "DTS"
     
-    def test_format_incident_alerts_count(self, jira_integration):
-        """Test that alerts count is correctly included"""
+    def test_format_incident_with_multiple_alerts(self, jira_integration):
+        """Test formatting incident with multiple alerts"""
         payload = create_alert_payload(multiple_alerts=True)
         payload['alerts'].append({
             'status': 'firing',
@@ -228,6 +228,7 @@ class TestJiraIntegration:
         
         _, description = jira_integration.format_incident_for_jira(incident)
         
-        # Description should be generated (may not have alerts count in current template)
-        assert len(description) >= 0
+        # Description should be generated and contain at least Links section
+        assert len(description) > 0
+        assert "*Links*" in description
 
