@@ -62,6 +62,10 @@ route:  # incident routing rules based on alert fields (https://docs.impulse.bot
       channel: incidents_services
       chain: developers
 
+task_management:  # task tracking system integration configuration (e.g., Jira) (https://docs.impulse.bot/stable/task_management/)
+  type: jira  # task tracking system type
+  project_key: PROJ  # project key in the task tracking system where tasks will be created
+
 ui:  # user interface configuration (https://docs.impulse.bot/stable/ui/)
   colors:  # Color scheme for different values (https://docs.impulse.bot/stable/config_file/#uicolors)
     severity:
