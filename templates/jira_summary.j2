@@ -1,6 +1,7 @@
 {%- set summary = "" -%}
-{%- if incident.payload.alerts and incident.payload.alerts | length > 0 and incident.payload.alerts[0].labels.alertname -%}
-  {%- set summary = incident.payload.alerts[0].labels.alertname -%}
+{%- set alerts = incident.payload.get("alerts", []) -%}
+{%- if alerts and alerts | length > 0 and alerts[0].labels.alertname -%}
+  {%- set summary = alerts[0].labels.alertname -%}
 {%- endif -%}
 {%- if incident.payload.groupLabels -%}
   {%- set label_parts = [] -%}

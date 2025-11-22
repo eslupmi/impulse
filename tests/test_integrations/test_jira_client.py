@@ -167,7 +167,7 @@ class TestJiraClient:
             call_args = mock_post.call_args
             assert call_args[1]['json']['fields']['project']['key'] == "DTS"
             assert call_args[1]['json']['fields']['summary'] == "Test Summary"
-            assert call_args[1]['json']['fields']['description']['type'] == "doc"
+            assert call_args[1]['json']['fields']['description'] == "Test Description"
             assert call_args[1]['json']['fields']['issuetype']['name'] == "Task"
     
     @pytest.mark.asyncio

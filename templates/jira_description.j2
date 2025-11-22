@@ -35,8 +35,11 @@ _{{ incident.payload.commonAnnotations.description }}_
 {% endif %}
 {% endif %}
 *Links*
-{%- set alerts = incident.payload.get("alerts", {}) -%}
-{%- if alerts[0].generatorURL %}{% set url = alerts[0].generatorURL %}{% endif -%}
+{%- set alerts = incident.payload.get("alerts", []) -%}
+{%- set url = "" -%}
+{%- if alerts and alerts | length > 0 and alerts[0].generatorURL %}
+{%- set url = alerts[0].generatorURL -%}
+{%- endif -%}
 {%- if url %}
 - [Source|{{ url }}]
 {%- endif %}
