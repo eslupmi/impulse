@@ -2,6 +2,7 @@ from app.im.colors import status_colors
 from app.im.slack.buttons import chain_attrs
 from app.im.slack.config import buttons
 from app.config.environment import get_environment_config
+from app.config.config import get_config
 
 
 def build_slack_actions(chain_enabled, status, status_enabled, task_link=''):
@@ -18,6 +19,7 @@ def build_slack_actions(chain_enabled, status, status_enabled, task_link=''):
         List of action button configurations
     """
     env_config = get_environment_config()
+    config = get_config()
     chain_text, chain_style = chain_attrs(chain_enabled, status)
     
     actions = [
@@ -37,7 +39,7 @@ def build_slack_actions(chain_enabled, status, status_enabled, task_link=''):
         }
     ]
     
-    if env_config.task_management_enabled and not task_link:
+    if config.app.task_management and env_config.task_management_enabled and not task_link:
         actions.append({
             "name": "task",
             "text": buttons['task']['create']['text'],

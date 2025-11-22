@@ -589,7 +589,7 @@
 
 ## task_management
 
-- **description:** task tracking system integration configuration (e.g., Jira) (see [details](task_management.md)). The `task_management:` block enables Task Management integration.
+- **description:** task tracking system integration configuration (e.g., Jira) (see [details](task_management.md)). The `task_management:` block enables [**Task**](howto.md#buttons) button.
 - **type:** dict
 
 ### task_management.type *

@@ -65,7 +65,7 @@ def build_mattermost_actions(chain_enabled, status, status_enabled, task_link=''
         }
     ]
     
-    if env_config.task_management_enabled and not task_link:
+    if config.app.task_management and env_config.task_management_enabled and not task_link:
         actions.append({
             "id": "task",
             "type": "button",

@@ -175,7 +175,8 @@ class TelegramApplication(Application):
             buttons['status']['enabled']
         ]
         
-        if env_config.task_management_enabled:
+        config_obj = get_config()
+        if config_obj.app.task_management and env_config.task_management_enabled:
             keyboard_row.append(buttons['task']['create'])
         
         return {
@@ -235,7 +236,8 @@ class TelegramApplication(Application):
             buttons['status']['enabled'] if status_enabled else buttons['status']['disabled']
         ]
         
-        if env_config.task_management_enabled and not task_link:
+        config_obj = get_config()
+        if config_obj.app.task_management and env_config.task_management_enabled and not task_link:
             keyboard_row.append(buttons['task']['create'])
         
         return {
