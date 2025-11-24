@@ -149,13 +149,13 @@ class TestAsyncIncidentWS:
         """Test send_full_table method."""
         ws = AsyncIncidentWS()
         mock_incidents = Mock()
-        mock_incidents.get_table.return_value = [{'id': '123'}, {'id': '456'}]
+        mock_incidents.get_active_table.return_value = [{'id': '123'}, {'id': '456'}]
 
         with patch.object(ws, '_get_values', return_value={'field1': 'value1'}), \
                 patch.object(ws, 'broadcast', new_callable=AsyncMock) as mock_broadcast:
             await ws.send_full_table(mock_incidents)
 
-            mock_incidents.get_table.assert_called_once_with({'field1': 'value1'})
+            mock_incidents.get_active_table.assert_called_once_with({'field1': 'value1'})
             mock_broadcast.assert_called_once_with('update_data', [{'id': '123'}, {'id': '456'}])
 
     @pytest.mark.asyncio
@@ -164,12 +164,12 @@ class TestAsyncIncidentWS:
         ws = AsyncIncidentWS()
         mock_websocket = AsyncMock()
         mock_incidents = Mock()
-        mock_incidents.get_table.return_value = [{'id': '123'}, {'id': '456'}]
+        mock_incidents.get_active_table.return_value = [{'id': '123'}, {'id': '456'}]
 
         with patch.object(ws, '_get_values', return_value={'field1': 'value1'}):
             await ws.handle_request_data(mock_websocket, mock_incidents)
 
-            mock_incidents.get_table.assert_called_once_with({'field1': 'value1'})
+            mock_incidents.get_active_table.assert_called_once_with({'field1': 'value1'})
             expected_message = json.dumps({"event": "update_data", "data": [{'id': '123'}, {'id': '456'}]})
             mock_websocket.send_text.assert_called_once_with(expected_message)
 

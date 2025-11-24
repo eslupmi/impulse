@@ -776,7 +776,7 @@ class TestIncident:
 
         result = sample_incident.get_table_data({})
 
-        assert result['uuid'] == str(sample_incident.uuid)
+        assert result['uniq_id'] == sample_incident.uniq_id
         assert result['indicator'] == sample_incident.status
         assert result['_alerts_count'] == 1
         assert 'group_labels' in result['_responsive_data']

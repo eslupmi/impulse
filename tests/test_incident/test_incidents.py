@@ -304,7 +304,7 @@ class TestIncidents:
     def test_get_table(self, incidents):
         """Test getting table data."""
         params = {}
-        table_data = incidents.get_table(params)
+        table_data = incidents.get_active_table(params)
 
         assert isinstance(table_data, list)
         assert len(table_data) == len(incidents.uniq_ids)
