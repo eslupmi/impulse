@@ -50,7 +50,7 @@ class AsyncQueueManager:
         Handle message update without status changes.
         :param uniq_id: String unique id.
         """
-        await self.message_update_handler.handle(uuid_)
+        await self.message_update_handler.handle(uniq_id)
 
     async def handle_alert(self, alert_state: dict):
         """

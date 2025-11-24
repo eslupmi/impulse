@@ -241,31 +241,16 @@ class TestIncidents:
             assert incident_uuid not in incidents.uniq_ids
             mock_remove.assert_called_once()
 
-    @pytest.mark.xfail(reason="Known bug: code accesses incident.uuid when incident is None in logger.warning f-string")
     def test_del_by_uuid_nonexistent(self, incidents):
         """Test deleting non-existent incident."""
         initial_count = len(incidents.uniq_ids)
 
-        # The code has a bug: it tries to access incident.uuid when incident is None
-        # in the f-string f'Incident with uuid {incident.uuid} not found...'
-        # Since f-strings are evaluated immediately, we can't prevent the AttributeError
-        # by mocking logger. We'll catch the error and verify the expected behavior.
         with patch('os.remove') as mock_remove:
-            try:
-                incidents.del_by_uniq_id("nonexistent_uuid")
-            except AttributeError as e:
-                # Expected error due to code bug: incident.uuid accessed when incident is None
-                if "'NoneType' object has no attribute 'uuid'" in str(e):
-                    # Verify that the incident was not removed (count unchanged)
-                    assert len(incidents.uniq_ids) == initial_count
-                    mock_remove.assert_not_called()
-                    # Re-raise to trigger xfail
-                    raise
-                raise
+            incidents.del_by_uniq_id("nonexistent_uuid")
 
-            # If no error occurred, verify normal behavior
-            assert len(incidents.uniq_ids) == initial_count  # Should not change
-            mock_remove.assert_not_called()
+        # Verify that the incident was not removed (count unchanged)
+        assert len(incidents.uniq_ids) == initial_count
+        mock_remove.assert_not_called()
 
     def test_del_by_uuid_file_not_found(self, incidents):
         """Test deleting incident when file doesn't exist."""
