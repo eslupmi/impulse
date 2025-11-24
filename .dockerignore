@@ -10,8 +10,10 @@ helm
 tests
 venv*
 .gitignore
+.coverage
 .readthedocker.yaml
 Dockerfile
+htmlcov
 key.json
 pytest.ini
 requirements.test.txt
