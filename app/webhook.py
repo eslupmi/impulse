@@ -3,7 +3,8 @@ import os
 from typing import Dict
 
 import aiohttp
-from aiohttp import BasicAuth
+from aiohttp import BasicAuth, ClientTimeout
+from aiohttp_retry import ExponentialRetry, RetryClient
 from jinja2 import Template
 
 from app.config.validation import WebhookConfig
@@ -18,19 +19,23 @@ class Webhook:
         self._json_payload = json_payload
         self._auth = auth
 
-    async def push(self, incident: Incident = None, session: aiohttp.ClientSession = None):
+    async def push(self, incident: Incident = None):
         rendered_data = self._render_data(incident)
         rendered_json = self._render_json(incident)
         auth = self._get_auth() if self._auth else None
 
-        # Use provided session or create a temporary one
-        if session:
-            return await self._make_request(session, rendered_data, rendered_json, auth)
-        else:
-            async with aiohttp.ClientSession() as temp_session:
-                return await self._make_request(temp_session, rendered_data, rendered_json, auth)
+        retry_options = ExponentialRetry(
+            attempts=3,
+            start_timeout=1.0,
+            max_timeout=10.0,
+            statuses={500, 502, 503, 504}
+        )
+        timeout = ClientTimeout(total=30.0)
+        async with aiohttp.ClientSession(timeout=timeout) as temp_session:
+            retry_client = RetryClient(client_session=temp_session, retry_options=retry_options)
+            return await self._make_request(retry_client, rendered_data, rendered_json, auth)
 
-    async def _make_request(self, session: aiohttp.ClientSession, rendered_data, rendered_json, auth):
+    async def _make_request(self, session, rendered_data, rendered_json, auth):
         try:
             timeout = aiohttp.ClientTimeout(total=5.0)
             request_params = {

@@ -79,25 +79,37 @@ def create_mock_session_class_with_response(status_code=200):
     return mock_session_class, mock_session, mock_response
 
 
-def setup_mock_session_class_patch(mock_session_class, status_code=200):
+def setup_mock_session_class_patch(mock_session_class, status_code=200, patch_retry_client=True):
     """
     Setup a mock session class patch with a configured response.
     
     Args:
         mock_session_class: The mock session class from patch
         status_code: HTTP status code for the mock response (default: 200)
+        patch_retry_client: Whether to return retry client mock (default: True)
         
     Returns:
-        tuple: (mock_session, mock_response)
+        mock_retry_client: The mock RetryClient instance (if patch_retry_client=True)
+        tuple: (mock_session, mock_response) if patch_retry_client=False (legacy behavior)
     """
     mock_response = AsyncMock()
     mock_response.status = status_code
 
+    # Mock the base session
     mock_session = AsyncMock()
-    mock_session.post = Mock(return_value=MockContextManager(mock_response))
-    mock_session_class.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+    mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+    mock_session.__aexit__ = AsyncMock(return_value=None)
+    mock_session_class.return_value = mock_session
 
-    return mock_session, mock_response
+    if patch_retry_client:
+        # Mock RetryClient with the response for webhook tests
+        mock_retry_client = AsyncMock()
+        mock_retry_client.post = Mock(return_value=MockContextManager(mock_response))
+        return mock_retry_client
+    else:
+        # Legacy behavior for non-webhook tests
+        mock_session.post = Mock(return_value=MockContextManager(mock_response))
+        return mock_session, mock_response
 
 
 # ============================================================================
@@ -1108,6 +1120,52 @@ class FakeTime:
             seconds: Number of seconds to sleep
         """
         self.advance(seconds)
+
+
+def create_error_context_manager(error):
+    """
+    Create an async context manager that raises an error on entry.
+    
+    Args:
+        error: The error to raise when entering the context
+        
+    Returns:
+        Error context manager class
+    """
+    class ErrorContextManager:
+        async def __aenter__(self):
+            raise error
+        async def __aexit__(self, exc_type, exc_val, exc_tb):
+            pass
+    return ErrorContextManager()
+
+
+def setup_mock_webhook_with_retry_client(mock_session_class, mock_retry_client_class, status_code=200):
+    """
+    Setup mock session and RetryClient for webhook tests.
+    
+    Args:
+        mock_session_class: The mock ClientSession class from patch
+        mock_retry_client_class: The mock RetryClient class from patch
+        status_code: HTTP status code for the mock response (default: 200)
+        
+    Returns:
+        Tuple of (mock_retry_client, mock_response)
+    """
+    mock_response = AsyncMock()
+    mock_response.status = status_code
+    
+    mock_retry_client = AsyncMock()
+    from unittest.mock import Mock
+    mock_retry_client.post = Mock(return_value=MockContextManager(mock_response))
+    mock_retry_client_class.return_value = mock_retry_client
+    
+    mock_session = AsyncMock()
+    mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+    mock_session.__aexit__ = AsyncMock(return_value=None)
+    mock_session_class.return_value = mock_session
+    
+    return mock_retry_client, mock_response
 
 
 def create_test_server_url(server, path: str = '/test') -> str:
