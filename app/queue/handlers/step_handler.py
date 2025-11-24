@@ -30,11 +30,7 @@ class StepHandler(BaseHandler):
             admins = self.app.get_notification_destinations()
 
             if webhook is not None:
-                # Pass the app's HTTP session to the webhook if available
-                if hasattr(self.app, 'http') and self.app.http:
-                    result, r_code = await webhook.push(incident, session=self.app.http)
-                else:
-                    result, r_code = await webhook.push(incident)
+                result, r_code = await webhook.push(incident)
                 fields = {'type': self.app.type, 'name': webhook_name, 'unit': webhook, 'admins': admins,
                           'result': result, 'response': r_code}
                 incident.chain_update(identifier, done=True, result=r_code)

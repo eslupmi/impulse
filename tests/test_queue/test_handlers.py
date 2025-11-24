@@ -391,47 +391,12 @@ class TestStepHandler:
         mock_webhook.push = AsyncMock(return_value=('ok', 200))
         mock_webhooks.get.return_value = mock_webhook
 
-        # Mock application without HTTP session
-        mock_application.http = None
-
         await step_handler.handle(incident_uuid, identifier)
 
         # Should execute webhook and update chain
         mock_webhook.push.assert_called_once_with(mock_incident)
         mock_incident.chain_update.assert_called_once_with(identifier, done=True, result=200)
         mock_application.post_thread.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_handle_webhook_step_with_http_session(self, step_handler, mock_incidents, mock_application,
-                                                         mock_webhooks):
-        """Test handling webhook step with HTTP session."""
-        incident_uuid = 'incident123'
-        identifier = 0
-
-        # Mock incident with webhook step
-        mock_incident = Mock()
-        mock_incident.uuid = incident_uuid
-        mock_incident.channel_id = 'C123456789'
-        mock_incident.ts = '1234567890.123456'
-        mock_incident.payload = {'alertname': 'TestAlert'}
-        mock_incident.chain = [
-            {'type': 'webhook', 'identifier': 'test-webhook', 'done': False}
-        ]
-        mock_incident.chain_update = Mock()
-        mock_incidents.by_uuid[incident_uuid] = mock_incident
-
-        # Mock webhook
-        mock_webhook = Mock()
-        mock_webhook.push = AsyncMock(return_value=('ok', 200))
-        mock_webhooks.get.return_value = mock_webhook
-
-        # Mock application with HTTP session
-        mock_application.http = Mock()
-
-        await step_handler.handle(incident_uuid, identifier)
-
-        # Should execute webhook with session
-        mock_webhook.push.assert_called_once_with(mock_incident, session=mock_application.http)
 
     @pytest.mark.asyncio
     async def test_handle_webhook_step_undefined(self, step_handler, mock_incidents, mock_application, mock_webhooks):
