@@ -10,8 +10,9 @@ venv*
 .env
 .coverage
 /impulse*.yml
-data
+/data
 docker-compose.yml
+/htmlcov
 /key.json*
 
 docs/env

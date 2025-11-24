@@ -24,6 +24,7 @@ class TestMainApplication:
                 patch('main.Incidents.create_or_load') as mock_incidents, \
                 patch('main.AsyncQueue.recreate_queue') as mock_queue, \
                 patch('main.AsyncQueueManager') as mock_queue_manager, \
+                patch('main.FileLock') as mock_file_lock_class, \
                 patch('app.config.environment.get_environment_config') as mock_get_env_config, \
                 patch('app.im.application.Application') as mock_application:
             # Setup mock config
@@ -76,6 +77,15 @@ class TestMainApplication:
             mock_qm_instance.stop_processing = AsyncMock()
             mock_queue_manager.return_value = mock_qm_instance
 
+            # Setup mock file lock
+            mock_file_lock_instance = Mock()
+            mock_file_lock_instance.is_locked.return_value = False  # Not locked by default
+            mock_file_lock_instance.get_lock_info.return_value = ("test-hostname", "12345", "1000.0")
+            mock_file_lock_instance.wait_for_unlock = AsyncMock()
+            mock_file_lock_instance.acquire_lock = Mock()
+            mock_file_lock_instance.release_lock = Mock()
+            mock_file_lock_class.return_value = mock_file_lock_instance
+
             # Setup mock environment config for Jira
             mock_env_config = Mock()
             mock_env_config.jira_enabled = False  # Disable Jira in tests
@@ -93,6 +103,7 @@ class TestMainApplication:
                 'incidents': mock_incidents_instance,
                 'queue': mock_queue_instance,
                 'queue_manager': mock_qm_instance,
+                'file_lock': mock_file_lock_instance,
                 'env_config': mock_env_config,
                 'application': mock_application
             }
@@ -131,9 +142,57 @@ class TestMainApplication:
             assert hasattr(app_mock.state, 'route')
             assert hasattr(app_mock.state, 'channel_manager')
             assert hasattr(app_mock.state, 'config')
+            assert hasattr(app_mock.state, 'file_lock')
+            assert hasattr(app_mock.state, 'is_standby')
+            assert app_mock.state.is_standby is False
 
             # Verify queue manager was started
             mock_app_dependencies['queue_manager'].start_processing.assert_called_once()
+            
+            # Verify file lock was checked
+            mock_app_dependencies['file_lock'].is_locked.assert_called_once()
+            # Verify file lock was acquired
+            mock_app_dependencies['file_lock'].acquire_lock.assert_called_once()
+        
+        # After exiting context, verify cleanup
+        # Note: unlock_task is None when not locked, so cancel is not called
+        mock_app_dependencies['queue_manager'].stop_processing.assert_called_once()
+        mock_app_dependencies['file_lock'].release_lock.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_lifespan_startup_with_locked_file(self, mock_app_dependencies):
+        """Test application startup when file lock is initially held."""
+        app_mock = Mock()
+        app_mock.state = Mock()
+        
+        # Set up file lock to be initially locked
+        # First call returns True (locked), subsequent calls return False (unlocked)
+        mock_app_dependencies['file_lock'].is_locked.return_value = True
+        
+        # Create a mock task for unlock
+        mock_unlock_task = Mock()
+        mock_unlock_task.cancel = Mock()
+
+        with patch('asyncio.create_task', return_value=mock_unlock_task) as mock_create_task, \
+             patch('main.logger') as mock_logger:
+            async with main.lifespan(app_mock):
+                # Verify that unlock task was created
+                assert mock_create_task.called
+                
+                # Verify standby state is set
+                assert hasattr(app_mock.state, 'is_standby')
+                assert app_mock.state.is_standby is True
+                
+                # Verify log messages
+                mock_logger.info.assert_any_call("Another IMPulse instance is running, working as standby server")
+                mock_logger.info.assert_any_call("IMPulse started in standby mode!")
+            
+            # Verify cleanup - unlock_task should be cancelled
+            mock_unlock_task.cancel.assert_called_once()
+            # release_lock is not called when in standby mode
+            mock_app_dependencies['file_lock'].release_lock.assert_not_called()
+            # acquire_lock is not called when starting in standby mode
+            mock_app_dependencies['file_lock'].acquire_lock.assert_not_called()
 
     def test_client_creation(self, mock_app_dependencies):
         """Test that test client can be created."""

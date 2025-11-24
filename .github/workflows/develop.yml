@@ -16,6 +16,8 @@ env:
 jobs:
   tests:
     uses: ./.github/workflows/feature.yml
+    with:
+      runner: 'ubuntu-24.04'
 
   build-and-push-image:
     needs: tests

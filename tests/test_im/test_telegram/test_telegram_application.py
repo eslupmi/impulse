@@ -229,11 +229,24 @@ class TestTelegramApplication:
 
     def test_create_thread_payload(self, app_config, channels, users):
         """Test _create_thread_payload method."""
+        import os
         from tests.utils import create_telegram_buttons_mock
         
         app = self.create_telegram_app(app_config, channels, users)
 
-        with patch('app.im.telegram.telegram_application.buttons') as mock_buttons:
+        with patch('app.im.telegram.telegram_application.buttons') as mock_buttons, \
+             patch('app.im.telegram.telegram_application.get_config') as mock_get_config, \
+             patch.dict(os.environ, {
+                 'JIRA_BASE_URL': 'https://test.atlassian.net',
+                 'JIRA_USER_EMAIL': 'test@example.com',
+                 'JIRA_API_TOKEN': 'test_token'
+             }), \
+             patch('app.config.environment._env_config', None):  # Reset cached config
+            # Mock config with task_management enabled
+            mock_config = Mock()
+            mock_config.app.task_management = True
+            mock_get_config.return_value = mock_config
+            
             buttons_config = create_telegram_buttons_mock()
             mock_buttons.__getitem__.side_effect = lambda x: buttons_config[x]
 
@@ -271,11 +284,24 @@ class TestTelegramApplication:
 
     def test_update_thread_payload(self, app_config, channels, users):
         """Test update_thread_payload method."""
+        import os
         from tests.utils import create_telegram_buttons_mock
         
         app = self.create_telegram_app(app_config, channels, users)
 
-        with patch('app.im.telegram.telegram_application.buttons') as mock_buttons:
+        with patch('app.im.telegram.telegram_application.buttons') as mock_buttons, \
+             patch('app.im.telegram.telegram_application.get_config') as mock_get_config, \
+             patch.dict(os.environ, {
+                 'JIRA_BASE_URL': 'https://test.atlassian.net',
+                 'JIRA_USER_EMAIL': 'test@example.com',
+                 'JIRA_API_TOKEN': 'test_token'
+             }), \
+             patch('app.config.environment._env_config', None):  # Reset cached config
+            # Mock config with task_management enabled
+            mock_config = Mock()
+            mock_config.app.task_management = True
+            mock_get_config.return_value = mock_config
+            
             buttons_config = create_telegram_buttons_mock()
             mock_buttons.__getitem__.side_effect = lambda x: buttons_config[x]
 
