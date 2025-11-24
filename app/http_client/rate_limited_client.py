@@ -180,7 +180,7 @@ class RateLimitedClient:
                 # We've reached the limit, need to wait for window to expire
                 if time_since_window_start < self.rate_window:
                     wait_duration = self.rate_window - time_since_window_start
-                    logger.debug(
+                    logger.warning(
                         f"Rate limit reached ({self._request_count}/{self.rate_limit}), "
                         f"waiting {wait_duration:.2f}s"
                     )
@@ -193,11 +193,6 @@ class RateLimitedClient:
             # Increment request counter
             self._request_count += 1
             self._last_request_time = time.monotonic()
-            
-            logger.debug(
-                f"Request {self._request_count}/{self.rate_limit or 'unlimited'} "
-                "in current window"
-            )
     
     async def request(self, method: str, url: str, **kwargs):
         """
