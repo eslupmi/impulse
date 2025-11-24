@@ -10,28 +10,6 @@ on:
 
 jobs:
   tests:
-    runs-on: self-hosted
-    strategy:
-      matrix:
-        python-version: ['3.10', '3.11', '3.12', '3.13']
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      
-      - name: Create config from none example
-        run: |
-          cp examples/impulse.none.yml impulse.yml
-      
-      - name: Run tests in Podman container
-        timeout-minutes: 10
-        run: |
-          podman run --rm \
-            -v "${{ github.workspace }}:/app:Z" \
-            -w /app \
-            python:${{ matrix.python-version }}-slim \
-            sh -c "
-              python -m pip install --upgrade pip && \
-              pip install -r requirements.txt && \
-              pip install -r requirements.test.txt && \
-              python -m pytest tests/ --color=yes -v
-            "
+    uses: ./.github/workflows/tests.yml
+    with:
+      runs-on: self-hosted
