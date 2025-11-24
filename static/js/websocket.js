@@ -115,18 +115,26 @@ function setupWebSocketEvents() {
             switch(eventType) {
                 case "add_row":
                     preserveScrollDuringOperation(() => {
-                        table.addRow(data);
-                        table.setSort(table.getSorters());
-                        updateZoomIcons();
+                        if (showFullTable || (data.indicator !== 'closed' && data.indicator !== 'deleted')) {
+                            table.addRow(data);
+                            table.setSort(table.getSorters());
+                            updateZoomIcons();
+                        }
                     });
                     break;
                 
                 case "update_row":
                     preserveScrollDuringOperation(() => {
-                        table.updateOrAddData([data]);
-                        table.setSort(table.getSorters());
-                        table.refreshFilter();
-                        updateZoomIcons();
+                        if (showFullTable || (data.indicator !== 'closed' && data.indicator !== 'deleted')) {
+                            table.updateOrAddData([data]);
+                            table.setSort(table.getSorters());
+                            table.refreshFilter();
+                            updateZoomIcons();
+                        } else {
+                            const rows = table.searchRows('uniq_id', '=', data.uniq_id);
+                            rows.forEach(row => row.delete());
+                            updateZoomIcons();
+                        }
                     });
                     break;
                 
@@ -143,7 +151,11 @@ function setupWebSocketEvents() {
                         if (!table.initialDataLoaded) {
                             table.initialDataLoaded = true;
                         }
-                        table.replaceData(data);
+                        let tableData = data;
+                        if (!showFullTable) {
+                            tableData = data.filter(row => row.indicator !== 'closed' && row.indicator !== 'deleted');
+                        }
+                        table.replaceData(tableData);
                         updateZoomIcons();
                     });
                     break;
