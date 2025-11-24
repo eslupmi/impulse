@@ -143,12 +143,16 @@ class TestMainApplication:
             assert hasattr(app_mock.state, 'channel_manager')
             assert hasattr(app_mock.state, 'config')
             assert hasattr(app_mock.state, 'file_lock')
+            assert hasattr(app_mock.state, 'is_standby')
+            assert app_mock.state.is_standby is False
 
             # Verify queue manager was started
             mock_app_dependencies['queue_manager'].start_processing.assert_called_once()
             
             # Verify file lock was checked
             mock_app_dependencies['file_lock'].is_locked.assert_called_once()
+            # Verify file lock was acquired
+            mock_app_dependencies['file_lock'].acquire_lock.assert_called_once()
         
         # After exiting context, verify cleanup
         # Note: unlock_task is None when not locked, so cancel is not called
@@ -175,6 +179,10 @@ class TestMainApplication:
                 # Verify that unlock task was created
                 assert mock_create_task.called
                 
+                # Verify standby state is set
+                assert hasattr(app_mock.state, 'is_standby')
+                assert app_mock.state.is_standby is True
+                
                 # Verify log messages
                 mock_logger.info.assert_any_call("Another IMPulse instance is running, working as standby server")
                 mock_logger.info.assert_any_call("IMPulse started in standby mode!")
@@ -183,6 +191,8 @@ class TestMainApplication:
             mock_unlock_task.cancel.assert_called_once()
             # release_lock is not called when in standby mode
             mock_app_dependencies['file_lock'].release_lock.assert_not_called()
+            # acquire_lock is not called when starting in standby mode
+            mock_app_dependencies['file_lock'].acquire_lock.assert_not_called()
 
     def test_client_creation(self, mock_app_dependencies):
         """Test that test client can be created."""
