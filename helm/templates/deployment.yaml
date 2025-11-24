@@ -6,6 +6,8 @@ metadata:
     {{- include "impulse.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount | default 1 }}
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       {{- include "impulse.selectorLabels" . | nindent 6 }}
@@ -61,15 +63,15 @@ spec:
               protocol: TCP
           livenessProbe:
             httpGet:
-              path: /queue
-              port: http
-            initialDelaySeconds: 30
-            periodSeconds: 10
-          readinessProbe:
-            httpGet:
-              path: /queue
+              path: {{ if .Values.config.env.HTTP_PREFIX }}{{ .Values.config.env.HTTP_PREFIX }}/livez{{ else }}/livez{{ end }}
               port: http
             initialDelaySeconds: 5
+            periodSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: {{ if .Values.config.env.HTTP_PREFIX }}{{ .Values.config.env.HTTP_PREFIX }}/readyz{{ else }}/readyz{{ end }}
+              port: http
+            initialDelaySeconds: 10
             periodSeconds: 5
           env:
             - name: DATA_PATH

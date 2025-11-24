@@ -7,23 +7,6 @@ IMPulse provides simple API and WebSocket endpoints for incident management and 
 
 ## Requests
 
-### HTTP `/livez` [GET]
-
-Server liveness check. Used for Kubernetes liveness probes to determine if the container is alive.
-
-**Responses:**
-
-- `200 OK` - Container is alive (returns 200 in both primary and standby modes)
-
-### HTTP `/readyz` [GET]
-
-Server readiness check. Used for health checks and determining server state (see [High Availability](ha.md)).
-
-**Responses:**
-
-- `200 OK` - Server is ready and running in primary mode
-- `503 Service Unavailable` - Server is in standby mode or initializing
-
 ### HTTP `/` [GET]
 
 Main page of the IMPulse web interface.
@@ -34,7 +17,7 @@ Send a new alert for processing.
 
 **Requirements:**
 
-- Server must be in primary mode
+- Server must be in `primary` mode
 - Request body must contain valid JSON with alert data
 
 **Requirements:**
@@ -50,6 +33,23 @@ Handle button interactions in messengers (Slack, Mattermost, Telegram).
 
 Get list of all incidents.
 
+### HTTP `/livez` [GET]
+
+Server liveness check. Used for Kubernetes liveness probes to determine if the container is alive.
+
+**Responses:**
+
+- `200 OK` - Container is alive (returns 200 in both `primary` and `standby` modes)
+
+### HTTP `/readyz` [GET]
+
+Server readiness check. Used for health checks and determining server state (see [High Availability](ha.md)).
+
+**Responses:**
+
+- `200 OK` - Server is ready and running in `primary` mode
+- `503 Service Unavailable` - Server is in `standby` mode or initializing
+
 ### HTTP `/queue` [GET]
 
 Get current processing queue state.
@@ -60,5 +60,5 @@ WebSocket connection for receiving real-time incident updates.
 
 **Requirements:**
 
-- Server must be in `active` mode (see [High Availability](ha.md))
-- Connection will be closed with code `1008` if server is in standby mode
+- Server must be in `primary` mode (see [High Availability](ha.md))
+- Connection will be closed with code `1008` if server is in `standby` mode

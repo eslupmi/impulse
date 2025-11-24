@@ -15,6 +15,8 @@ impulseConfig:
     admin_users: ["admin_user"]
     users:
       admin_user:
+        id: "admin_user_id_from_mattermost"
+      first_user:
         id: "user_id_from_mattermost"
     channels:
       incidents_default:
@@ -23,10 +25,11 @@ impulseConfig:
       default:
         - user: "admin_user"
           wait: "10m"
+        - user: "first_user"
   
   incident:
     notifications:
-      new_firing: false
+      new_firing: true
       partial_resolved: false
     timeouts:
       firing: "6h"
@@ -89,10 +92,10 @@ service:
 # Resource limits
 resources:
   limits:
-    memory: 256Mi
+    memory: 1024Mi
   requests:
     cpu: 100m
-    memory: 128Mi
+    memory: 512Mi
 
 # Persistence
 persistence:

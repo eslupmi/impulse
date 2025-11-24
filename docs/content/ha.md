@@ -8,11 +8,11 @@ IMPulse allows running multiple instances to ensure high availability.
 
 The first IMPulse instance creates a `.lock.d` directory in the [DATA_PATH](envs.md) directory to lock file operations. Other instances start in `standby` mode and wait until the first instance is shut down or becomes unavailable.
 
-Check the `/readyz` endpoint to get the instance state. It responds with `200` if the instance is ready and `active`, and 503 if the instance is in `standby`.
+Check the `/readyz` endpoint to get the instance state. It responds with `200` if the instance is ready and `primary`, and 503 if the instance is in `standby`.
 
 The `/livez` endpoint is used for liveness checks and always returns `200` if the container is alive, regardless of whether it's in `standby` or `primary` mode. This endpoint is available in both modes and should be used for Kubernetes liveness probes.
 
-When running multiple IMPulse instances, configure your proxy (Nginx or another) to use the `/readyz` endpoint for readiness checks, routing traffic only to active instances. Use `/livez` for liveness checks to ensure containers are restarted if they become unresponsive. See [API](api.md) for endpoint details.
+When running multiple IMPulse instances, configure your proxy (Nginx or another) to use the `/readyz` endpoint for readiness checks, routing traffic only to `primary` instance. Use `/livez` for liveness checks to ensure containers are restarted if they become unresponsive. See [API](api.md) for endpoint details.
 
 ## Read-only filesystem
 
