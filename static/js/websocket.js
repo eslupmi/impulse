@@ -5,6 +5,7 @@ import {getBaseUrl} from "./utils.js";
 let socket;
 let heartbeatInterval;
 let heartbeatTimeout;
+let showFullTable = false;
 const HEARTBEAT_INTERVAL = 10000;
 const HEARTBEAT_TIMEOUT = 5000;
 const RECONNECT_DELAY = 3000;
@@ -102,7 +103,7 @@ function setupWebSocketEvents() {
         startHeartbeat();
         table.initialDataLoaded = false;
         table.redraw();
-        socket.send(JSON.stringify({event: "request_data"}));
+        socket.send(JSON.stringify({event: "request_data", show_full_table: showFullTable}));
     };
 
     socket.onmessage = function(event) {
@@ -131,7 +132,7 @@ function setupWebSocketEvents() {
                 
                 case "remove_row":
                     preserveScrollDuringOperation(() => {
-                        const rows = table.searchRows('uuid', '=', data.uuid);
+                        const rows = table.searchRows('uniq_id', '=', data.uniq_id);
                         rows.forEach(row => row.delete());
                         updateZoomIcons();
                     });
@@ -173,4 +174,32 @@ function setupWebSocketEvents() {
     };
 }
 
-export {setupWebSocketEvents, updateOnlineStatus};
+function toggleHistoryView() {
+    showFullTable = !showFullTable;
+    const button = document.getElementById('history-toggle');
+    if (button) {
+        if (showFullTable) {
+            button.classList.add('active');
+            button.title = 'Show active incidents only';
+        } else {
+            button.classList.remove('active');
+            button.title = 'Show all incidents';
+        }
+    }
+    
+    if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({event: "request_data", show_full_table: showFullTable}));
+    } else {
+        console.warn('WebSocket not connected, cannot reload table');
+    }
+}
+
+function initHistoryToggle() {
+    const button = document.getElementById('history-toggle');
+    if (button) {
+        button.addEventListener('click', toggleHistoryView);
+        button.title = 'Show all incidents';
+    }
+}
+
+export {setupWebSocketEvents, updateOnlineStatus, initHistoryToggle};

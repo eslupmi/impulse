@@ -302,7 +302,8 @@ async def websocket_endpoint(websocket: WebSocket):
                 event_type = message.get("event")
 
                 if event_type == "request_data":
-                    await incident_ws.handle_request_data(websocket, websocket.app.state.incidents)
+                    show_full_table = message.get("show_full_table", False)
+                    await incident_ws.handle_request_data(websocket, websocket.app.state.incidents, show_full_table)
                 elif event_type == "ping":
                     await incident_ws.handle_ping(websocket)
 

@@ -1,5 +1,5 @@
 import {initializeTable, updateRelativeTimeFieldsInTable} from "./table.js";
-import {setupWebSocketEvents, updateOnlineStatus} from "./websocket.js";
+import {setupWebSocketEvents, updateOnlineStatus, initHistoryToggle} from "./websocket.js";
 import {loadFiltersFromURL, setupTableFiltering, updateZoomIcons} from "./filters.js";
 import {setupSortingListener} from "./sorters.js";
 import {updateRelativeTimeSpans, updateRelativeTimeFieldsInResponsiveData} from "./formatters.js";
@@ -15,6 +15,7 @@ loadFiltersFromURL();
 setupTableFiltering();
 setupSortingListener();
 setupWebSocketEvents();
+initHistoryToggle();
 ThemeManager.init();
 
 // Update zoom icons after table initialization and filters are loaded

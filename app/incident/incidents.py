@@ -75,12 +75,15 @@ class Incidents:
                 pass
             logger.info(f'Incident {incident.uuid} deleted')
         else:
-            logger.warning(f'Incident with uuid {incident.uuid} not found in the collection.')
+            logger.warning(f'Incident with uniq_id {uniq_id} not found in the collection.')
 
     def serialize(self) -> Dict[str, Dict]:
         return {str(uuid_): incident.serialize() for uuid_, incident in self.uniq_ids.items()}
 
-    def get_table(self, params):
+    def get_active_table(self, params):
+        return [self.uniq_ids[uniq_id].get_table_data(params) for uniq_id in self.active_map.values()]
+
+    def get_full_table(self, params):
         return [incident.get_table_data(params) for incident in self.uniq_ids.values()]
 
     @classmethod

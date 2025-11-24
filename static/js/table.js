@@ -16,7 +16,7 @@ const tableOptions = {
     pagination: "local",
     paginationSize: Math.floor((document.getElementById("data-table").clientHeight - 30) / 45),
     paginationAddRow: "table",
-    index: "uuid",
+    index: "uniq_id",
     responsiveLayout: "collapse",
     responsiveLayoutCollapseStartOpen: false,
     responsiveLayoutCollapseFormatter: responsiveLayoutCollapseFormatter,

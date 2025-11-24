@@ -83,28 +83,28 @@ class JiraClient:
         }
         
         try:
-            async with self._http_client:
-                response = await self._http_client.post(
-                    url,
-                    json=payload,
-                    headers=self._get_auth_headers()
-                )
+            self._http_client._initialize_client()
+            response = await self._http_client.post(
+                url,
+                json=payload,
+                headers=self._get_auth_headers()
+            )
+            
+            if response.status == 201:
+                data = await response.json()
+                issue_key = data.get("key")
+                # Build browse URL from key
+                issue_url = f"{self.base_url}/browse/{issue_key}"
                 
-                if response.status == 201:
-                    data = await response.json()
-                    issue_key = data.get("key")
-                    # Build browse URL from key
-                    issue_url = f"{self.base_url}/browse/{issue_key}"
-                    
-                    logger.info(f"Successfully created Jira issue: {issue_key}")
-                    return {
-                        "key": issue_key,
-                        "url": issue_url
-                    }
-                else:
-                    error_text = await response.text()
-                    logger.error(f"Failed to create Jira issue: {response.status} - {error_text}")
-                    return None
+                logger.info(f"Successfully created Jira issue: {issue_key}")
+                return {
+                    "key": issue_key,
+                    "url": issue_url
+                }
+            else:
+                error_text = await response.text()
+                logger.error(f"Failed to create Jira issue: {response.status} - {error_text}")
+                return None
         except Exception as e:
             logger.error(f"Error creating Jira issue: {e}")
             return None

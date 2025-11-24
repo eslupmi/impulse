@@ -80,7 +80,7 @@ class TelegramApplication(Application):
 
     async def _handle_chain_action(self, action, incident_, user_id, user_display_name, queue_, incidents, payload):
         """Handle chain-related button actions (start_chain/stop_chain)"""
-        await queue_.delete_by_id(incident_.uuid, delete_steps=True, delete_status=False)
+        await queue_.delete_by_id(incident_.uniq_id, delete_steps=True, delete_status=False)
         if action == 'stop_chain':
             if incident_.assigned_user_id == user_id:
                 logger.info(f'Incident {incident_.uuid} -> button TAKE IT pressed, but user is already assigned')

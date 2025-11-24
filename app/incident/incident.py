@@ -67,10 +67,11 @@ class Incident:
         ))
 
     def __post_init__(self):
-        self.uuid = self.gen_uuid(self.payload.get('groupLabels'))
-        self.uniq_id = self.gen_uniq_id(self.payload.get('groupLabels'), self.created)
         if not self.created:
             self.created = datetime.now(timezone.utc)
+        self.uuid = self.gen_uuid(self.payload.get('groupLabels'))
+        if not self.uniq_id:
+            self.uniq_id = self.gen_uniq_id(self.payload.get('groupLabels'), self.created)
 
     def set_thread(self, thread_id: str, public_url: str):
         self.ts = thread_id
@@ -286,7 +287,7 @@ class Incident:
             common_labels = {}
             common_annotations = {}
         data = {
-            'uuid': str(self.uuid),
+            'uniq_id': self.uniq_id,
             'indicator': self.status,
             '_alerts_count': len(self.payload.get('alerts', [])),
             '_responsive_data': {
