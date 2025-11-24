@@ -553,7 +553,7 @@ class TestFileLockHeartbeat:
 
             # Make sleep stop the loop after first iteration
             call_count = 0
-            async def mock_sleep_side_effect(delay):
+            def mock_sleep_side_effect(delay):
                 nonlocal call_count
                 call_count += 1
                 if call_count >= 1:
@@ -567,17 +567,16 @@ class TestFileLockHeartbeat:
             try:
                 await task
             except asyncio.CancelledError:
-                pass
-
-            # Verify update was called
-            assert mock_update.called
+                # Verify update was called
+                assert mock_update.called
+                raise  # Re-raise CancelledError after cleanup
 
     @pytest.mark.asyncio
     async def test_heartbeat_stops_when_inactive(self):
         """Test _heartbeat stops when _active is False."""
         with patch('app.file_lock.get_config') as mock_get_config, \
              patch.object(FileLock, '_update') as mock_update, \
-             patch('app.file_lock.asyncio.sleep') as mock_sleep:
+             patch('app.file_lock.asyncio.sleep'):
             
             mock_config = Mock()
             mock_config.data_path = "/test/data"
@@ -592,17 +591,16 @@ class TestFileLockHeartbeat:
             try:
                 await task
             except asyncio.CancelledError:
-                pass
-
-            # Update should not be called if _active is False from start
-            # The loop should exit immediately without calling _update
-            assert not mock_update.called
+                # Update should not be called if _active is False from start
+                # The loop should exit immediately without calling _update
+                assert not mock_update.called
+                raise  # Re-raise CancelledError after cleanup
 
     @pytest.mark.asyncio
     async def test_heartbeat_sleeps_correct_interval(self):
         """Test _heartbeat sleeps for HEARTBEAT_SEC seconds."""
         with patch('app.file_lock.get_config') as mock_get_config, \
-             patch.object(FileLock, '_update') as mock_update, \
+             patch.object(FileLock, '_update'), \
              patch('app.file_lock.asyncio.sleep') as mock_sleep:
             
             mock_config = Mock()
@@ -614,7 +612,7 @@ class TestFileLockHeartbeat:
 
             # Make sleep stop the loop after first iteration
             call_count = 0
-            async def mock_sleep_side_effect(delay):
+            def mock_sleep_side_effect(delay):
                 nonlocal call_count
                 call_count += 1
                 # Verify it's called with HEARTBEAT_SEC
@@ -630,10 +628,9 @@ class TestFileLockHeartbeat:
             try:
                 await task
             except asyncio.CancelledError:
-                pass
-
-            # Verify sleep was called
-            assert mock_sleep.called
+                # Verify sleep was called
+                assert mock_sleep.called
+                raise  # Re-raise CancelledError after cleanup  # Re-raise CancelledError after cleanup
 
 
 class TestFileLockConstants:
