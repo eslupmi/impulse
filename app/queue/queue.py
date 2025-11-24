@@ -30,7 +30,7 @@ class AsyncQueue:
             self._insert_item_sorted(new_item)
 
     async def delete_by_id(self, uniq_id: str, delete_steps: bool = True, delete_status: bool = True):
-        """Delete items by incident UUID"""
+        """Delete items by incident uniq_id"""
         async with self._lock:
             self._delete_by_id_internal(uniq_id, delete_steps, delete_status)
 
