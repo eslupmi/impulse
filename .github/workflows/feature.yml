@@ -1,6 +1,5 @@
 name: feature
 
-
 on:
   workflow_call:
   push:
