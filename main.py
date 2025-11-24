@@ -10,6 +10,7 @@ from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, HTTPExcept
 from fastapi.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 
 from app.config.config import get_config, reload_config
 from app.config.validation import MessengerType
@@ -219,6 +220,7 @@ app.add_middleware(StandbyMiddleware)
 config = get_config()
 http_prefix = config.http_prefix
 router = APIRouter(prefix=http_prefix)
+metrics_router = APIRouter()
 
 
 def get_live(request: Request):
@@ -358,6 +360,19 @@ async def websocket_endpoint(websocket: WebSocket):
 
 # Include router in the app
 app.include_router(router)
+
+
+@metrics_router.get("/metrics")
+async def get_metrics():
+    """Prometheus metrics endpoint"""
+    return Response(
+        content=generate_latest(),
+        media_type=CONTENT_TYPE_LATEST
+    )
+
+
+# Include metrics router for monitoring
+app.include_router(metrics_router)
 
 
 def parse_arguments():
