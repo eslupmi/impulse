@@ -613,6 +613,8 @@ def create_mock_incident_for_handlers(
     incident.dump = Mock()
     incident.generate_chain = Mock()
     incident.link = f'https://test.slack.com/archives/{channel_id}/p{ts}'
+    incident.task_link = ''
+    incident.task_creation_in_progress = False
 
     return incident
 
@@ -699,6 +701,25 @@ def create_mock_impulse_config(
     return config
 
 
+def create_mock_jira_credentials(**overrides) -> dict:
+    """
+    Create mock Jira credentials for testing.
+    
+    Args:
+        **overrides: Any credential fields to override
+        
+    Returns:
+        Dictionary of Jira credentials
+    """
+    defaults = {
+        "base_url": "https://test.atlassian.net",
+        "user_email": "test@example.com",
+        "api_token": "test_jira_token_123",
+        "project_key": "TEST"
+    }
+    return {**defaults, **overrides}
+
+
 def create_mock_environment_config(**overrides) -> Mock:
     """
     Create a mock EnvironmentConfig for testing.
@@ -752,7 +773,11 @@ def create_mock_environment_config(**overrides) -> Mock:
         "http_prefix": "",
         "log_level": "INFO",
         "listen_host": "0.0.0.0",
-        "listen_port": 5000
+        "listen_port": 5000,
+        # Enable Jira by default for tests
+        "jira_base_url": "https://test.atlassian.net",
+        "jira_user_email": "test@example.com",
+        "jira_api_token": "test_token"
     }
     
     # Handle parameter name mapping for backwards compatibility
@@ -1516,6 +1541,29 @@ def create_mattermost_buttons_handler_context(app, payload, incidents, queue, ro
 # ============================================================================
 # Telegram Application Test Utilities
 # ============================================================================
+
+def create_telegram_buttons_mock():
+    """
+    Create a standardized mock for Telegram buttons configuration.
+    
+    This helper reduces code duplication in tests that need to mock
+    the buttons configuration for Telegram payload generation.
+    
+    Returns:
+        Dictionary with button configurations for chain, status, and task
+    """
+    return {
+        'chain': {
+            'takeit': {'text': 'Take It', 'callback_data': 'start_chain'},
+            'release': {'text': 'Release', 'callback_data': 'stop_chain'}
+        },
+        'status': {
+            'enabled': {'text': 'Status', 'callback_data': 'start_status'},
+            'disabled': {'text': 'Status', 'callback_data': 'stop_status'}
+        },
+        'task': {'create': {'text': '📌', 'callback_data': 'task'}}
+    }
+
 
 def create_telegram_buttons_handler_context(app, payload, incidents, queue, route, 
                                            expected_log_message: str = None,

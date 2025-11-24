@@ -22,6 +22,12 @@ buttons = {
             'text': '🔴 Status',
             'callback_data': 'start_status'
         }
+    },
+    'task': {
+        'create': {
+            'text': '📌',
+            'callback_data': 'task'
+        }
     }
 }
 

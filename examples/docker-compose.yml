@@ -10,6 +10,10 @@ services:
       SLACK_VERIFICATION_TOKEN: <slack_verification_token>
       MATTERMOST_ACCESS_TOKEN: <mattermost_access_token>
       TELEGRAM_BOT_TOKEN: <telegram_bot_token>
+
+      # JIRA_BASE_URL: <jira_base_url>
+      # JIRA_USER_EMAIL: <jira_user_email>
+      # JIRA_API_TOKEN: <jira_api_token>
     volumes:
     - ./data:/data
     - ./config:/config

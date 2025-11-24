@@ -25,6 +25,12 @@ buttons = {
             'text': ':red_circle: Status',
             'style': 'default'
         }
+    },
+    'task': {
+        'create': {
+            'text': '📌',
+            'style': 'default'
+        }
     }
 }
 

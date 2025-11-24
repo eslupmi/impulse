@@ -98,6 +98,23 @@ class SlackApplication(Application):
         response.close()
         return response_json.get('ts')
 
+    async def _handle_chain_action(self, incident_, user_id, queue_, incidents):
+        """Handle chain-related button actions"""
+        await queue_.delete_by_id(incident_.uuid, delete_steps=True, delete_status=False)
+        if incident_.chain_enabled or incident_.status != 'resolved':
+            if incident_.assigned_user_id == user_id:
+                logger.info(f'Incident {incident_.uuid} -> button TAKE IT pressed, but user is already assigned')
+            else:
+                logger.info(f'Incident {incident_.uuid} -> button TAKE IT pressed, assigning to {user_id}')
+                incident_.assign_user_id(user_id)
+                self._track_async_task(asyncio.create_task(self.post_assignment_notification(incident_, user_id)))
+                self._track_async_task(asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id, incidents)))
+            incident_.chain_enabled = False
+        else:
+            logger.info(f'Incident {incident_.uuid} -> button RELEASE pressed')
+            self._track_async_task(asyncio.create_task(self.post_unassignment_notification(incident_)))
+            incident_.release()
+
     async def buttons_handler(self, payload, incidents, queue_, route):
         config = get_config()
         if payload.get('token') != config.slack_verification_token:
@@ -108,43 +125,28 @@ class SlackApplication(Application):
         original_message = payload.get('original_message')
         if incident_ is None:
             return JSONResponse(original_message, status_code=200)
+        
         actions = payload.get('actions')
-
         user_id = payload.get('user')['id']
 
+        # Handle different actions
         for action in actions:
             if action['name'] == 'chain':
-                await queue_.delete_by_id(incident_.uuid, delete_steps=True, delete_status=False)
-                if incident_.chain_enabled or incident_.status != 'resolved':
-                    # if user is already assigned, do nothing
-                    if incident_.assigned_user_id == user_id:
-                        logger.info(f'Incident {incident_.uuid} -> button TAKE IT pressed, but user is already assigned')
-                    else:
-                        logger.info(f'Incident {incident_.uuid} -> button TAKE IT pressed, assigning to {user_id}')
-                        incident_.assign_user_id(user_id)
-                        asyncio.create_task(self.post_assignment_notification(incident_, user_id))
-                        asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id, incidents))
-                    incident_.chain_enabled = False
-                else:
-                    logger.info(f'Incident {incident_.uuid} -> button RELEASE pressed')
-                    asyncio.create_task(self.post_unassignment_notification(incident_))
-                    incident_.release()
+                await self._handle_chain_action(incident_, user_id, queue_, incidents)
             elif action['name'] == 'status':
-                if incident_.status_enabled:
-                    logger.info(f'Incident {incident_.uuid} -> button STATUS pressed (disabled)')
-                    incident_.status_enabled = False
-                else:
-                    logger.info(f'Incident {incident_.uuid} -> button STATUS pressed (enabled)')
-                    incident_.status_enabled = True
+                self._handle_status_action(incident_, not incident_.status_enabled)
+            elif action['name'] == 'task':
+                self._handle_task_action(incident_, queue_)
+        
         incident_.dump()
-
         body = self.body_template.form_message(incident_.payload, incident_)
         header = self.header_template.form_message(incident_.payload, incident_)
         status_icons = self.status_icons_template.form_message(incident_.payload, incident_)
         payload = self.update_thread_payload(incident_.channel_id, incident_.ts, body, header, status_icons,
-                                             incident_.status, incident_.chain_enabled, incident_.status_enabled)
+                                             incident_.status, incident_.chain_enabled, incident_.status_enabled, 
+                                             incident_.task_link)
         modified_message = reformat_message(original_message, payload['text'], payload['attachments'], incident_.status,
-                                            incident_.chain_enabled, incident_.status_enabled)
+                                            incident_.chain_enabled, incident_.status_enabled, incident_.task_link)
         return JSONResponse(modified_message, status_code=200)
 
     def _create_thread_payload(self, channel_id, body, header, status_icons, status):
@@ -154,9 +156,9 @@ class SlackApplication(Application):
         return {'channel': channel_id, 'thread_ts': id_, 'text': text, 'unfurl_links': False, 'unfurl_media': False}
 
     def update_thread_payload(self, channel_id, id_, body, header, status_icons, status, chain_enabled,
-                              status_enabled):
+                              status_enabled, task_link=''):
         return slack_get_update_payload(channel_id, id_, body, header, status_icons, status, chain_enabled,
-                                        status_enabled)
+                                        status_enabled, task_link)
 
     async def _update_thread(self, id_, payload):
         response = await self.http.post(

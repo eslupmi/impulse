@@ -23,6 +23,57 @@
 
 > Below are all the configuration options supported by IMPulse.
 
+## incident
+
+- **description:** incidents behavior options
+- **type:** dict
+
+### incident.notifications
+
+- **description:** incident notifications settings
+- **type:** dict
+
+#### incident.notifications.assignment
+
+- **description:** enable/disable notifications about incident assignment changes
+- **type:** bool
+- **default value:** True
+
+#### incident.notifications.new_firing
+
+- **description:** notification about new firing instances
+- **type:** bool
+- **default value:** True
+
+#### incident.notifications.partial_resolved
+
+- **description:** nofitication about some resolved instances
+- **type:** bool
+- **default value:** False
+
+### incident.timeouts
+
+- **description:** incident status timeouts (see [lifecycle](concepts.md#lifecycle))
+- **type:** dict
+
+#### incident.timeouts.firing
+
+- **description:** after this time, incident status changes from 'firing' to 'unknown' if no alerts appear
+- **type:** string
+- **default value:** 6h
+
+#### incident.timeouts.unknown
+
+- **description:** after this time, incident status changes from 'unknown' to 'closed' if no alerts appear
+- **type:** string
+- **default value:** 6h
+
+#### incident.timeouts.resolved
+
+- **description:** after this time, incident status changes from 'resolved' to 'closed' if no alerts appear
+- **type:** string
+- **default value:** 12h
+
 ## messenger *
 
 - **description:** messenger configuration
@@ -415,9 +466,9 @@
 > ```yaml
 > messenger:
 >   template_files:
->     status_icons: ./templates/status_icons.yml
->     header: ./templates/header.yml
->     body: ./templates/body.yml
+>     status_icons: templates/status_icons.yml
+>     header: templates/header.yml
+>     body: templates/body.yml
 > ```
 
 #### messenger.template_files.body
@@ -447,57 +498,6 @@
     - `mattermost` - Mattermost messenger
     - `telegram` - Telegram messenger
     - `none` - disable messenger integration
-
-## incident
-
-- **description:** incidents behavior options
-- **type:** dict
-
-### incident.notifications
-
-- **description:** incident notifications settings
-- **type:** dict
-
-#### incident.notifications.assignment
-
-- **description:** enable/disable notifications about incident assignment changes
-- **type:** bool
-- **default value:** True
-
-#### incident.notifications.new_firing
-
-- **description:** notification about new firing instances
-- **type:** bool
-- **default value:** True
-
-#### incident.notifications.partial_resolved
-
-- **description:** nofitication about some resolved instances
-- **type:** bool
-- **default value:** False
-
-### incident.timeouts
-
-- **description:** incident status timeouts (see [lifecycle](concepts.md#lifecycle))
-- **type:** dict
-
-#### incident.timeouts.firing
-
-- **description:** after this time, incident status changes from 'firing' to 'unknown' if no alerts appear
-- **type:** string
-- **default value:** 6h
-
-#### incident.timeouts.unknown
-
-- **description:** after this time, incident status changes from 'unknown' to 'closed' if no alerts appear
-- **type:** string
-- **default value:** 6h
-
-#### incident.timeouts.resolved
-
-- **description:** after this time, incident status changes from 'resolved' to 'closed' if no alerts appear
-- **type:** string
-- **default value:** 12h
 
 ## route *
 
@@ -586,6 +586,65 @@
 
 - **description:** nested routing rules for more detailed incident classification (recursive structure)
 - **type:** list
+
+## task_management
+
+- **description:** task tracking system integration configuration (e.g., Jira) (see [details](task_management.md)). The `task_management:` block enables [**Task**](howto.md#buttons) button.
+- **type:** dict
+
+### task_management.type *
+
+- **description:** task tracking system type
+- **type:** string
+- **options:**
+    - `jira` - Jira integration
+
+### task_management.project_key *
+
+- **description:** project key in the task tracking system where tasks will be created
+- **type:** string
+
+> **Example**
+> ```yaml
+> task_management:
+>   type: jira
+>   project_key: PROJ
+> ```
+
+### task_management.template_files
+
+- **description:** path to custom template files for task creation
+- **type:** dict
+
+> IMPulse uses [Jinja](https://pypi.org/project/Jinja2/) templates to format task summary and description. You can customize these templates to match your requirements.
+
+> Template files support [special variables](special_variables.md): `incident`.
+
+> If `template_files` is not specified, IMPulse will use default template files
+
+> **Example:**
+
+> ```yaml
+> # Custom templates for both summary and description
+> task_management:
+>   type: jira
+>   project_key: PROJ
+>   template_files:
+>     summary: templates/jira_custom_summary.j2
+>     description: templates/jira_custom_description.j2
+> ```
+
+#### task_management.template_files.summary
+
+- **description:** path to the custom template file that defines the format of task summary
+- **type:** string
+- **default value:** ./templates/[&lt;task_management.type&gt;](#task_managementtype)_summary.j2
+
+#### task_management.template_files.description
+
+- **description:** path to the custom template file that defines the format of task description
+- **type:** string
+- **default value:** ./templates/[&lt;task_management.type&gt;](#task_managementtype)_description.j2
 
 ## ui
 

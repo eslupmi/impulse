@@ -7,12 +7,15 @@ from app.config.validation import ApplicationConfig, MattermostUser, SlackUser, 
 from app.http_client import RateLimitedClient
 from app.im.chain.chain_factory import ChainFactory
 from app.im.groups import generate_user_groups
-from app.im.template import JinjaTemplate, notification_user, notification_user_group, update_status, \
+from app.im.template import notification_user, notification_user_group, update_status, \
     notification_assignment, notification_unassignment
+from app.jinja_template import JinjaTemplate
 from app.logging import logger
+from app.integrations.jira_integration import JiraIntegration
 
 
 class Application(ABC):
+    task_management_integration: Optional[JiraIntegration] = None
 
     def __init__(self, app_config: ApplicationConfig, channels, default_channel):
         self.http: Optional[RateLimitedClient] = None  # Will be initialized async
@@ -43,6 +46,9 @@ class Application(ABC):
         self._users_config = app_config.users
         self._user_groups_config = app_config.user_groups
         self._admin_users_config = app_config.admin_users
+        
+        # Track async tasks to prevent premature garbage collection
+        self._async_tasks: set = set()
 
     async def initialize_async(self):
         """Initialize async components after object creation"""
@@ -146,6 +152,45 @@ class Application(ABC):
         except Exception as e:
             logger.error(f'Failed to post unassignment notification for incident {incident_obj.uuid}: {e}')
 
+    def _track_async_task(self, task):
+        """
+        Track an async task to prevent premature garbage collection.
+        
+        Args:
+            task: asyncio.Task object to track
+        """
+        if not hasattr(self, '_async_tasks'):
+            self._async_tasks = set()
+        self._async_tasks.add(task)
+        task.add_done_callback(self._async_tasks.discard)
+
+    def _handle_status_action(self, incident_, set_status_to):
+        """Handle status-related button actions"""
+        logger.info(f'Incident {incident_.uuid} -> button STATUS pressed ({"enabled" if set_status_to else "disabled"})')
+        incident_.status_enabled = set_status_to
+
+    def _handle_task_action(self, incident_, queue_):
+        """Handle Task button action"""
+        logger.info(f'Incident {incident_.uuid} -> button TASK pressed')
+        self._track_async_task(asyncio.create_task(self.handle_task_button(incident_, queue_)))
+
+    async def handle_task_button(self, incident, queue_):
+        """
+        Handle Task button press for an incident.
+        
+        Args:
+            incident: Incident object
+            queue_: Queue manager
+        
+        Returns:
+            Response dict with success status
+        """
+        if not self.task_management_integration:
+            logger.error("Task management integration not initialized")
+            return {"success": False, "message": "Task management integration not available"}
+        
+        return await self.task_management_integration.handle_button_press(incident, queue_)
+
     def get_url(self, app_config: ApplicationConfig):
         return self._get_url(app_config)
 
@@ -199,12 +244,12 @@ class Application(ABC):
         return response_code
 
     async def update(self, uuid_, incident, incident_status, alert_state, updated_status, chain_enabled,
-                     status_enabled):
+                     status_enabled, task_link=''):
         body = self.body_template.form_message(alert_state, incident)
         header = self.header_template.form_message(alert_state, incident)
         status_icons = self.status_icons_template.form_message(alert_state, incident)
         await self.update_thread(
-            incident.channel_id, incident.ts, incident_status, body, header, status_icons, chain_enabled, status_enabled
+            incident.channel_id, incident.ts, incident_status, body, header, status_icons, chain_enabled, status_enabled, task_link
         )
         if updated_status:
             logger.info(f'Incident {uuid_} updated with new status \'{incident_status}\'')
@@ -234,9 +279,9 @@ class Application(ABC):
         return response_json.get(self.thread_id_key)
 
     async def update_thread(self, channel_id, id_, status, body, header, status_icons, chain_enabled=True,
-                            status_enabled=True):
+                            status_enabled=True, task_link=''):
         payload = self.update_thread_payload(channel_id, id_, body, header, status_icons, status, chain_enabled,
-                                             status_enabled)
+                                             status_enabled, task_link)
         await self._update_thread(id_, payload)
 
     async def post_thread(self, channel_id, id_, text):
@@ -320,7 +365,7 @@ class Application(ABC):
         pass
 
     @abstractmethod
-    def update_thread_payload(self, channel_id, id_, body, header, status_icons, status, chain_enabled, status_enabled):
+    def update_thread_payload(self, channel_id, id_, body, header, status_icons, status, chain_enabled, status_enabled, task_link=''):
         pass
 
     @abstractmethod

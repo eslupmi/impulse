@@ -1,0 +1,24 @@
+{%- set summary = "" -%}
+{%- set alerts = incident.payload.get("alerts", []) -%}
+{%- if alerts and alerts | length > 0 and alerts[0].labels.alertname -%}
+  {%- set summary = alerts[0].labels.alertname -%}
+{%- endif -%}
+{%- if incident.payload.groupLabels -%}
+  {%- set label_parts = [] -%}
+  {%- for key, value in incident.payload.groupLabels.items() -%}
+    {%- if key != "alertname" -%}
+      {%- set _ = label_parts.append(key ~ "=" ~ (value | string)) -%}
+    {%- endif -%}
+  {%- endfor -%}
+  {%- if label_parts | length > 0 -%}
+    {%- if summary -%}
+      {%- set summary = summary ~ " [" ~ (label_parts | join(", ")) ~ "]" -%}
+    {%- else -%}
+      {%- set summary = "[" ~ (label_parts | join(", ")) ~ "]" -%}
+    {%- endif -%}
+  {%- endif -%}
+{%- endif -%}
+{%- if not summary -%}
+  {%- set summary = "Incident Alert" -%}
+{%- endif -%}
+{{- summary[:252] ~ "..." if summary | length > 255 else summary -}}

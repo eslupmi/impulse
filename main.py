@@ -92,8 +92,10 @@ async def initialize_primary_server(fastapi_app: FastAPI, file_lock: FileLock):
     channels = channel_manager.initialize(route.get_uniq_channels(), config_data.messenger.channels, route.channel)
     default_channel = route.channel
 
-    messenger = get_application(config_data.messenger, channels, default_channel)
+    messenger = get_application(config.messenger, channels, default_channel, 
+                                task_management_config=config.app.task_management)
     await messenger.initialize_async()
+    
     webhooks = generate_webhooks(webhooks_config)
     incidents = Incidents.create_or_load(messenger.type, messenger.public_url, messenger.team)
 
@@ -155,6 +157,10 @@ async def lifespan(fastapi_app: FastAPI):
         await fastapi_app.state.queue_manager.stop_processing()
     if hasattr(fastapi_app.state.messenger, 'close'):
         await fastapi_app.state.messenger.close()
+    
+    if messenger.task_management_integration:
+        await messenger.task_management_integration.jira_client.close()
+
     if hasattr(fastapi_app.state.messenger, 'chains'):
         for chain in fastapi_app.state.messenger.chains.values():
             if hasattr(chain, 'cleanup'):

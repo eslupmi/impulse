@@ -1,19 +1,96 @@
+from typing import Optional
 from app.im.mattermost.mattermost_application import MattermostApplication
 from app.im.slack.slack_application import SlackApplication
 from app.im.telegram.telegram_application import TelegramApplication
 from app.im.null.null_application import NullApplication
-from app.config.validation import ApplicationConfig
+from app.im.application import Application
+from app.integrations.jira_client import JiraClient
+from app.integrations.jira_integration import JiraIntegration
+from app.config.validation import ApplicationConfig, TaskManagementConfig
+from app.config.environment import EnvironmentConfig, get_environment_config
+from app.logging import logger
 
 
-def get_application(app_config: ApplicationConfig, channels, default_channel):
+def create_jira_integration(
+    task_management_config: TaskManagementConfig,
+    env_config: EnvironmentConfig
+) -> JiraIntegration:
+    """
+    Create and configure JiraIntegration instance.
+    
+    Args:
+        task_management_config: Task management configuration
+        env_config: Environment configuration with Jira credentials
+        
+    Returns:
+        Configured JiraIntegration instance
+    """
+    jira_client = JiraClient(
+        base_url=env_config.jira_base_url,
+        user_email=env_config.jira_user_email,
+        api_token=env_config.jira_api_token
+    )
+    
+    project_key = task_management_config.project_key
+    template_files = None
+    if task_management_config.template_files:
+        template_files = {}
+        if task_management_config.template_files.summary:
+            template_files['summary'] = task_management_config.template_files.summary
+        if task_management_config.template_files.description:
+            template_files['description'] = task_management_config.template_files.description
+        # Only set template_files if it has at least one value
+        if not template_files:
+            template_files = None
+    
+    return JiraIntegration(
+        jira_client, 
+        project_key,
+        tm_type=task_management_config.type.value,
+        template_files=template_files
+    )
+
+
+def initialize_task_management_integration(
+    messenger: Application,
+    task_management_config: TaskManagementConfig
+) -> None:
+    """
+    Initialize task management integration for the messenger.
+    
+    Args:
+        messenger: Application instance to attach integration to
+        task_management_config: Task management configuration
+    """
+    env_config = get_environment_config()
+    if not env_config.task_management_enabled:
+        logger.warning("task_management is configured but Jira environment variables are not set")
+        return
+    
+    if task_management_config.type.value == "jira":
+        logger.info("Initializing Jira integration with Basic Auth...")
+        messenger.task_management_integration = create_jira_integration(
+            task_management_config,
+            env_config
+        )
+        logger.info("Jira integration initialized and ready")
+
+
+def get_application(app_config: ApplicationConfig, channels, default_channel,
+                   task_management_config: Optional[TaskManagementConfig] = None):
     app_type = app_config.type
     if app_type == 'slack':
-        return SlackApplication(app_config, channels, default_channel)
+        messenger = SlackApplication(app_config, channels, default_channel)
     elif app_type == 'mattermost':
-        return MattermostApplication(app_config, channels, default_channel)
+        messenger = MattermostApplication(app_config, channels, default_channel)
     elif app_type == 'telegram':
-        return TelegramApplication(app_config, channels, default_channel)
+        messenger = TelegramApplication(app_config, channels, default_channel)
     elif app_type == 'none':
-        return NullApplication(app_config, channels, default_channel)
+        messenger = NullApplication(app_config, channels, default_channel)
     else:
         raise ValueError(f'Unknown application type: {app_type}')
+    
+    if task_management_config:
+        initialize_task_management_integration(messenger, task_management_config)
+    
+    return messenger

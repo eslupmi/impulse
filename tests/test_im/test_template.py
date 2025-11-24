@@ -5,7 +5,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from app.im.template import JinjaTemplate
+from app.jinja_template import JinjaTemplate
 
 
 class TestJinjaTemplate:

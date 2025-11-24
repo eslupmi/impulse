@@ -8,6 +8,7 @@ from app.im.telegram.config import buttons
 from app.im.telegram.user import User
 from app.logging import logger
 from app.config.config import get_config
+from app.config.environment import get_environment_config
 from app.config.validation import ApplicationConfig, TelegramUser
 
 
@@ -77,14 +78,35 @@ class TelegramApplication(Application):
         response.close()
         return response_json.get('result', {}).get(self.thread_id_key)
 
+    async def _handle_chain_action(self, action, incident_, user_id, user_display_name, queue_, incidents, payload):
+        """Handle chain-related button actions (start_chain/stop_chain)"""
+        await queue_.delete_by_id(incident_.uuid, delete_steps=True, delete_status=False)
+        if action == 'stop_chain':
+            if incident_.assigned_user_id == user_id:
+                logger.info(f'Incident {incident_.uuid} -> button TAKE IT pressed, but user is already assigned')
+                return JSONResponse(payload, status_code=200)
+            logger.info(f'Incident {incident_.uuid} -> button TAKE IT pressed, assigning to {user_id}')
+            incident_.assign_user_id(user_id)
+            incident_.assign_user(user_display_name)
+            self._track_async_task(asyncio.create_task(self.post_assignment_notification(incident_, user_id, user_display_name)))
+            self._track_async_task(asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id, incidents)))
+            incident_.chain_enabled = False
+        else:
+            logger.info(f'Incident {incident_.uuid} -> button RELEASE pressed')
+            self._track_async_task(asyncio.create_task(self.post_unassignment_notification(incident_)))
+            incident_.release()
+        return None
+
     async def buttons_handler(self, payload, incidents, queue_, route):
         if 'callback_query' not in payload:
             return JSONResponse({}, status_code=200)
+        
         callback = payload['callback_query']
         message_id = callback['message']['message_id']
         post_id = callback['message']['message_thread_id']
         thread_id = f'{post_id}/{message_id}'
         incident_ = incidents.get_by_ts(ts=thread_id)
+        
         if incident_ is None:
             await self.http.post(
                 f'{self.url}/answerCallbackQuery',
@@ -92,46 +114,31 @@ class TelegramApplication(Application):
                 headers=self.headers
             )
             return JSONResponse({}, status_code=200)
+        
         action = callback['data']
-
         user_id = callback['from']['id']
         user_from = callback.get('from', {})
         first_name = user_from.get('first_name', '').strip()
         last_name = user_from.get('last_name', '').strip()
         user_display_name = f"{first_name} {last_name}".strip() or user_from.get('username')
 
+        # Handle different actions
         if action in ['start_chain', 'stop_chain']:
-            await queue_.delete_by_id(incident_.uuid, delete_steps=True, delete_status=False)
-            if action == 'stop_chain':
-                # if user is already assigned, do nothing
-                if incident_.assigned_user_id == user_id:
-                    logger.info(f'Incident {incident_.uuid} -> button TAKE IT pressed, but user is already assigned')
-                    return JSONResponse(payload, status_code=200)
-                else:
-                    logger.info(f'Incident {incident_.uuid} -> button TAKE IT pressed, assigning to {user_id}')
-                    incident_.assign_user_id(user_id)
-                    incident_.assign_user(user_display_name)
-                    asyncio.create_task(self.post_assignment_notification(incident_, user_id, user_display_name))
-                    asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id, incidents))
-                incident_.chain_enabled = False
-            else:
-                logger.info(f'Incident {incident_.uuid} -> button RELEASE pressed')
-                asyncio.create_task(self.post_unassignment_notification(incident_))
-                incident_.release()
+            early_return = await self._handle_chain_action(action, incident_, user_id, user_display_name, queue_, incidents, payload)
+            if early_return is not None:
+                return early_return
         elif action in ['start_status', 'stop_status']:
-            if action == 'stop_status':
-                logger.info(f'Incident {incident_.uuid} -> button STATUS pressed (disabled)')
-                incident_.status_enabled = False
-            else:
-                logger.info(f'Incident {incident_.uuid} -> button STATUS pressed (enabled)')
-                incident_.status_enabled = True
+            self._handle_status_action(incident_, action == 'start_status')
+        elif action == 'task':
+            self._handle_task_action(incident_, queue_)
+        
         incident_.dump()
         body = self.body_template.form_message(incident_.payload, incident_)
         header = self.header_template.form_message(incident_.payload, incident_)
         status_icons = self.status_icons_template.form_message(incident_.payload, incident_)
         await self.update_thread(
             incident_.channel_id, incident_.ts, incident_.status, body, header, status_icons,
-            incident_.chain_enabled, incident_.status_enabled
+            incident_.chain_enabled, incident_.status_enabled, incident_.task_link
         )
 
         await self.http.post(
@@ -161,17 +168,23 @@ class TelegramApplication(Application):
             raise e
 
     def _create_thread_payload(self, channel_id, body, header, status_icons, status):
+        env_config = get_environment_config()
+        
+        keyboard_row = [
+            buttons['chain']['takeit'],
+            buttons['status']['enabled']
+        ]
+        
+        config_obj = get_config()
+        if config_obj.app.task_management and env_config.task_management_enabled:
+            keyboard_row.append(buttons['task']['create'])
+        
         return {
             'chat_id': channel_id,
             'text': f'{self._format_tg_icon(status_icons)} {header}\n{body}',
             'parse_mode': 'HTML',
             'reply_markup': {
-                'inline_keyboard': [
-                    [
-                        buttons['chain']['takeit'],
-                        buttons['status']['enabled']
-                    ]
-                ]
+                'inline_keyboard': [keyboard_row]
             }
         }
 
@@ -185,13 +198,13 @@ class TelegramApplication(Application):
         }
 
     async def update_thread(self, channel_id, id_, status, body, header, status_icons, chain_enabled=True,
-                      status_enabled=True):
+                      status_enabled=True, task_link=''):
         if status_enabled or status == 'closed':
             await self._update_topic(channel_id, id_, header, status_icons)
         else:
             await self._update_topic(channel_id, id_, header, "5377316857231450742") # ? mark
         payload = self.update_thread_payload(channel_id, id_, body, header, status_icons, status, chain_enabled,
-                                             status_enabled)
+                                             status_enabled, task_link)
         await self._update_thread(id_, payload)
 
     async def _update_topic(self, channel_id, id_, header, status_icons):
@@ -213,20 +226,27 @@ class TelegramApplication(Application):
             logger.error(f'Failed to update topic: {e}')
 
     def update_thread_payload(self, channel_id, id_, body, header, status_icons, status, chain_enabled,
-                              status_enabled):
+                              status_enabled, task_link=''):
+        env_config = get_environment_config()
+        
         _, message_id = id_.split('/')
+        
+        keyboard_row = [
+            buttons['chain']['takeit'] if chain_enabled or status != 'resolved' else buttons['chain']['release'],
+            buttons['status']['enabled'] if status_enabled else buttons['status']['disabled']
+        ]
+        
+        config_obj = get_config()
+        if config_obj.app.task_management and env_config.task_management_enabled and not task_link:
+            keyboard_row.append(buttons['task']['create'])
+        
         return {
             'chat_id': channel_id,
             'message_id': message_id,
             'text': f'{self._format_tg_icon(status_icons)} {header}\n{body}',
             'parse_mode': 'HTML',
             'reply_markup': {
-                'inline_keyboard': [
-                    [
-                        buttons['chain']['takeit'] if chain_enabled or status != 'resolved' else buttons['chain']['release'],
-                        buttons['status']['enabled'] if status_enabled else buttons['status']['disabled']
-                    ]
-                ]
+                'inline_keyboard': [keyboard_row]
             }
         }
 

@@ -1,0 +1,51 @@
+{%- if incident.payload.commonAnnotations and incident.payload.commonAnnotations.summary %}
+{{ incident.payload.commonAnnotations.summary }}
+
+{% endif %}
+{%- if incident.payload.commonAnnotations and incident.payload.commonAnnotations.description %}
+_{{ incident.payload.commonAnnotations.description }}_
+
+
+{% endif %}
+{%- if incident.payload.commonLabels and incident.payload.commonLabels | length > 0 %}
+*Common Labels*
+{%- set group_label_keys = incident.payload.groupLabels.keys() if incident.payload.groupLabels else [] -%}
+{%- for key, value in incident.payload.commonLabels.items() %}
+{%- if key not in group_label_keys %}
+- {{ key }}: {{ value }}
+{%- endif %}
+{%- endfor %}
+
+
+{% endif %}
+{%- if incident.payload.commonAnnotations and incident.payload.commonAnnotations | length > 0 %}
+{%- set filtered_annotations = {} -%}
+{%- for key, value in incident.payload.commonAnnotations.items() %}
+{%- if key != "summary" and key != "description" and key != "runbook" %}
+{%- set _ = filtered_annotations.update({key: value}) -%}
+{%- endif %}
+{%- endfor %}
+{%- if filtered_annotations | length > 0 %}
+*Annotations*
+{%- for key, value in filtered_annotations.items() %}
+- {{ key }}: {{ (value | string)[:197] ~ "..." if (value | string) | length > 200 else value }}
+{%- endfor %}
+
+
+{% endif %}
+{% endif %}
+*Links*
+{%- set alerts = incident.payload.get("alerts", []) -%}
+{%- set url = "" -%}
+{%- if alerts and alerts | length > 0 and alerts[0].generatorURL %}
+{%- set url = alerts[0].generatorURL -%}
+{%- endif -%}
+{%- if url %}
+- [Source|{{ url }}]
+{%- endif %}
+{%- if incident.link %}
+- [Incident|{{ incident.link }}]
+{%- endif %}
+{%- if incident.payload.commonAnnotations and incident.payload.commonAnnotations.runbook %}
+- [Runbook|{{ incident.payload.commonAnnotations.runbook }}]
+{%- endif %}

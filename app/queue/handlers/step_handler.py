@@ -1,4 +1,5 @@
-from app.im.template import JinjaTemplate, notification_webhook
+from app.im.template import notification_webhook
+from app.jinja_template import JinjaTemplate
 from app.logging import logger
 from app.queue.handlers.base_handler import BaseHandler
 
