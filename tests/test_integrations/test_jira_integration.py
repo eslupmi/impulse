@@ -166,7 +166,7 @@ class TestJiraIntegration:
         mock_queue.put.assert_called_once()
         call_args = mock_queue.put.call_args[1]
         assert call_args['type_'] == 'update_message'
-        assert call_args['incident_uuid'] == mock_incident.uuid
+        assert call_args['uniq_id'] == mock_incident.uniq_id
     
     @pytest.mark.asyncio
     async def test_handle_button_press_failure(self, jira_integration, mock_incident, mock_queue):
