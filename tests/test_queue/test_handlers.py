@@ -338,11 +338,10 @@ class TestStatusUpdateHandler:
 
         # Should update status to 'closed' and update queue
         # remove_file should be called because new_status == 'closed'
-        # After update_status, status becomes 'closed', so app.update() is NOT called
-        # (only queue.update() and queue.delete_by_id() are called for 'closed' status)
+        # app.update() should be called to update messenger with closed status
         mock_incidents.remove_file.assert_called_once_with(mock_incident)
         mock_incident.update_status.assert_called_once_with('closed')
-        mock_application.update.assert_not_called()  # Not called for 'closed' status
+        mock_application.update.assert_called_once()  # Called to update messenger with closed status
         mock_queue.update.assert_called_once()
         mock_queue.delete_by_id.assert_called_once_with(incident_uniq_id, delete_steps=True, delete_status=False)
 
