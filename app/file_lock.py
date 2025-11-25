@@ -21,8 +21,17 @@ class FileLock:
         self._active = False
         self._heartbeat_task = None
 
+    def _cleanup_stale_lock(self):
+        if self.lock_dir.exists() and not self.is_locked():
+            logger.debug("Removing stale lock directory")
+            try:
+                shutil.rmtree(self.lock_dir)
+            except (OSError, IOError) as e:
+                logger.warning(f"Failed to remove stale lock directory: {e}")
+
     def acquire_lock(self):
         try:
+            self._cleanup_stale_lock()
             self.lock_dir.mkdir(parents=True, exist_ok=False)
             hostname = socket.gethostname()
             pid = os.getpid()
