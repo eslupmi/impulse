@@ -1,4 +1,5 @@
 import asyncio
+
 import time
 from typing import Optional
 
@@ -7,6 +8,7 @@ from aiohttp import ClientTimeout, ClientSession, ClientResponse
 from aiohttp_retry import ExponentialRetry, RetryClient
 
 from app.logging import logger
+from app.metrics import api_response_time_seconds, measure_metrics
 
 
 class RetryAfterRetry(ExponentialRetry):
@@ -78,10 +80,12 @@ class RateLimitedClient:
         retry_attempts: int = 3,
         timeout: float = 30.0,
         connector_limit: int = 100,
-        connector_limit_per_host: int = 30
+        connector_limit_per_host: int = 30,
+        messenger_type: Optional[str] = None
     ):
         self.rate_limit = rate_limit
         self.rate_window = rate_window
+        self.messenger_type = messenger_type or 'none'
         
         # Rate limiting state
         self._request_count = 0
@@ -196,7 +200,7 @@ class RateLimitedClient:
     
     async def request(self, method: str, url: str, **kwargs):
         """
-        Make an HTTP request with rate limiting.
+        Make an HTTP request with rate limiting and metrics tracking.
 
         Args:
             method: HTTP method (GET, POST, PUT, DELETE, etc.)
@@ -209,7 +213,26 @@ class RateLimitedClient:
         self._initialize_client()
         await self._wait_for_rate_limit()
         
-        return await self._client.request(method, url, **kwargs)
+        async with measure_metrics(
+            messenger_type=self.messenger_type,
+            histogram=api_response_time_seconds,
+        ) as context:
+            try:
+                response = await self._client.request(method, url, **kwargs)
+                status_code = response.status
+                context['status_class'] = f'{status_code // 100}xx'
+                logger.info(f"Request to {url} completed with status {status_code} ({context['status_class']})")
+                return response
+            
+            except asyncio.TimeoutError as e:
+                context['status_class'] = 'timeout'
+                logger.error(f"Request to {url} timed out: {type(e).__name__}: {e}")
+                raise e
+
+            except Exception as e:
+                context['status_class'] = 'error'
+                logger.error(f"Request to {url} failed: {type(e).__name__}: {e}")
+                raise
     
     async def get(self, url: str, **kwargs):
         """Make a GET request with rate limiting"""

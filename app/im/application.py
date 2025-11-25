@@ -310,7 +310,8 @@ class Application(ABC):
             retry_attempts=3,
             timeout=30.0,
             connector_limit=100,
-            connector_limit_per_host=30
+            connector_limit_per_host=30,
+            messenger_type=self.type.value  # Messenger type for metrics
         )
 
         # Initialize the client
