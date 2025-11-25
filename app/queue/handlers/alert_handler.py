@@ -73,10 +73,10 @@ class AlertHandler(BaseHandler):
 
         self.incidents.add(incident_)
 
-        await self.queue.put(status_update_datetime, 'update_status', incident_.uuid)
+        await self.queue.put(status_update_datetime, 'update_status', incident_.uniq_id)
 
         incident_.generate_chain(self.app.chains, chain_name)
-        await self.queue.recreate(status, incident_.uuid, incident_.chain)
+        await self.queue.recreate(status, incident_.uniq_id, incident_.chain)
 
     async def _handle_update(self, uuid_, incident_, alert_state):
         config = get_config()
@@ -90,7 +90,7 @@ class AlertHandler(BaseHandler):
             _, chain_name = self.route.get_route(alert_state)
             incident_.generate_chain(self.app.chains, chain_name)
             
-        await self.queue.recreate(alert_state.get('status'), uuid_, incident_.get_chain())
+        await self.queue.recreate(alert_state.get('status'), incident_.uniq_id, incident_.get_chain())
 
         # Check new alerts firing or old alerts resolved
         if config.incident.notifications.new_firing:
@@ -101,13 +101,13 @@ class AlertHandler(BaseHandler):
 
         if is_state_updated or is_status_updated:
             await self.app.update(
-                uuid_, incident_, alert_state['status'], alert_state, is_status_updated,
+                incident_, alert_state['status'], alert_state, is_status_updated,
                 incident_.chain_enabled, incident_.status_enabled, incident_.task_link
             )
 
         if prev_status == 'firing' and incident_.status == 'firing' and (is_new_firing_alerts_added or is_some_firing_alerts_removed) and incident_.status_enabled:
             await self._notify_new_fire_alert(incident_, is_new_firing_alerts_added, is_some_firing_alerts_removed, uuid_)
-        await self.queue.update(uuid_, incident_.status_update_datetime, incident_.status)
+        await self.queue.update(incident_.uniq_id, incident_.status_update_datetime, incident_.status)
 
     async def _notify_new_fire_alert(self, incident_, new_alerts_f, new_alerts_r, uuid_):
         """

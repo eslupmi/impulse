@@ -236,7 +236,7 @@ class TestStatusUpdateHandler:
     @pytest.mark.asyncio
     async def test_handle_existing_incident(self, status_update_handler, mock_incidents, mock_application, mock_queue):
         """Test handling status update for existing incident."""
-        incident_uuid = 'incident123'
+        incident_uniq_id = 'incident123'
 
         # Mock existing incident
         mock_incident = Mock()
@@ -245,20 +245,33 @@ class TestStatusUpdateHandler:
         mock_incident.status_enabled = True
         mock_incident.payload = {'alertname': 'TestAlert'}
         mock_incident.status_update_datetime = create_test_datetime()
-        mock_incident.set_next_status.return_value = True
-        mock_incidents.by_uuid[incident_uuid] = mock_incident
+        mock_incident.next_status = {
+            'firing': 'unknown',
+            'unknown': 'closed',
+            'resolved': 'closed',
+            'closed': 'deleted'
+        }
+        
+        # Mock update_status to change status to 'unknown'
+        def update_status_side_effect(new_status):
+            mock_incident.status = new_status
+            return True
+        mock_incident.update_status = Mock(side_effect=update_status_side_effect)
+        
+        mock_incidents.uniq_ids = {incident_uniq_id: mock_incident}
+        mock_incidents.remove_file = Mock()
 
-        await status_update_handler.handle(incident_uuid)
+        await status_update_handler.handle(incident_uniq_id)
 
-        # Should call set_next_status and update
-        mock_incident.set_next_status.assert_called_once()
+        # Should call update_status and update
+        mock_incident.update_status.assert_called_once_with('unknown')
         mock_application.update.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_handle_incident_status_closed(self, status_update_handler, mock_incidents, mock_application,
                                                  mock_queue):
         """Test handling incident with status changed to closed."""
-        incident_uuid = 'incident123'
+        incident_uniq_id = 'incident123'
 
         # Mock incident with status 'closed'
         mock_incident = Mock()
@@ -266,20 +279,37 @@ class TestStatusUpdateHandler:
         mock_incident.chain_enabled = True
         mock_incident.status_enabled = True
         mock_incident.payload = {'alertname': 'TestAlert'}
-        mock_incident.set_next_status.return_value = True
-        mock_incidents.by_uuid[incident_uuid] = mock_incident
+        mock_incident.status_update_datetime = create_test_datetime()
+        mock_incident.next_status = {
+            'firing': 'unknown',
+            'unknown': 'closed',
+            'resolved': 'closed',
+            'closed': 'deleted'
+        }
+        
+        # Mock update_status to change status to 'deleted'
+        def update_status_side_effect(new_status):
+            mock_incident.status = new_status
+            return True
+        mock_incident.update_status = Mock(side_effect=update_status_side_effect)
+        
+        mock_incidents.uniq_ids = {incident_uniq_id: mock_incident}
+        mock_incidents.remove_file = Mock()
+        mock_incidents.del_by_uniq_id = Mock()
 
-        await status_update_handler.handle(incident_uuid)
+        await status_update_handler.handle(incident_uniq_id)
 
-        # Should delete from queue and incidents
-        mock_queue.delete_by_id.assert_called_once_with(incident_uuid)
-        mock_incidents.del_by_uuid.assert_called_once_with(incident_uuid)
+        # Should update status to 'deleted' and delete from incidents
+        # remove_file should NOT be called (only called when new_status == 'closed', not when current status is 'closed')
+        mock_incidents.remove_file.assert_not_called()
+        mock_incident.update_status.assert_called_once_with('deleted')
+        mock_incidents.del_by_uniq_id.assert_called_once_with(incident_uniq_id)
 
     @pytest.mark.asyncio
     async def test_handle_incident_status_unknown(self, status_update_handler, mock_incidents, mock_application,
                                                   mock_queue):
-        """Test handling incident with status changed to unknown."""
-        incident_uuid = 'incident123'
+        """Test handling incident with status changed from unknown to closed."""
+        incident_uniq_id = 'incident123'
 
         # Mock incident with status 'unknown'
         mock_incident = Mock()
@@ -288,19 +318,39 @@ class TestStatusUpdateHandler:
         mock_incident.status_enabled = True
         mock_incident.payload = {'alertname': 'TestAlert'}
         mock_incident.status_update_datetime = create_test_datetime()
-        mock_incident.set_next_status.return_value = True
-        mock_incidents.by_uuid[incident_uuid] = mock_incident
+        mock_incident.next_status = {
+            'firing': 'unknown',
+            'unknown': 'closed',
+            'resolved': 'closed',
+            'closed': 'deleted'
+        }
+        
+        # Mock update_status to change status to 'closed'
+        def update_status_side_effect(new_status):
+            mock_incident.status = new_status
+            return True
+        mock_incident.update_status = Mock(side_effect=update_status_side_effect)
+        
+        mock_incidents.uniq_ids = {incident_uniq_id: mock_incident}
+        mock_incidents.remove_file = Mock()
 
-        await status_update_handler.handle(incident_uuid)
+        await status_update_handler.handle(incident_uniq_id)
 
-        # Should update queue with new datetime
+        # Should update status to 'closed' and update queue
+        # remove_file should be called because new_status == 'closed'
+        # After update_status, status becomes 'closed', so app.update() is NOT called
+        # (only queue.update() and queue.delete_by_id() are called for 'closed' status)
+        mock_incidents.remove_file.assert_called_once_with(mock_incident)
+        mock_incident.update_status.assert_called_once_with('closed')
+        mock_application.update.assert_not_called()  # Not called for 'closed' status
         mock_queue.update.assert_called_once()
+        mock_queue.delete_by_id.assert_called_once_with(incident_uniq_id, delete_steps=True, delete_status=False)
 
     @pytest.mark.asyncio
     async def test_handle_incident_no_status_change(self, status_update_handler, mock_incidents, mock_application,
                                                     mock_queue):
         """Test handling incident with no status change."""
-        incident_uuid = 'incident123'
+        incident_uniq_id = 'incident123'
 
         # Mock incident with no status change
         mock_incident = Mock()
@@ -309,26 +359,38 @@ class TestStatusUpdateHandler:
         mock_incident.status_enabled = True
         mock_incident.payload = {'alertname': 'TestAlert'}
         mock_incident.status_update_datetime = create_test_datetime()
-        mock_incident.set_next_status.return_value = False
-        mock_incidents.by_uuid[incident_uuid] = mock_incident
+        mock_incident.next_status = {
+            'firing': 'unknown',
+            'unknown': 'closed',
+            'resolved': 'closed',
+            'closed': 'deleted'
+        }
+        
+        # Mock update_status to return False (no status change)
+        def update_status_side_effect(new_status):
+            # Status doesn't change if update_status returns False
+            return False
+        mock_incident.update_status = Mock(side_effect=update_status_side_effect)
+        
+        mock_incidents.uniq_ids = {incident_uniq_id: mock_incident}
+        mock_incidents.remove_file = Mock()
 
-        await status_update_handler.handle(incident_uuid)
+        await status_update_handler.handle(incident_uniq_id)
 
-        # Should still call set_next_status and update
-        mock_incident.set_next_status.assert_called_once()
+        # Should still call update_status and update
+        mock_incident.update_status.assert_called_once_with('unknown')
+        # Status is still 'firing', so app.update should be called
         mock_application.update.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_handle_nonexistent_incident(self, status_update_handler, mock_incidents):
         """Test handling status update for non-existent incident."""
-        incident_uuid = 'nonexistent123'
+        incident_uniq_id = 'nonexistent123'
+        mock_incidents.uniq_ids = {}
 
-        # Mock non-existent incident
-        mock_incidents.by_uuid = {}
-
-        # Should raise KeyError (StatusUpdateHandler doesn't catch exceptions)
-        with pytest.raises(KeyError):
-            await status_update_handler.handle(incident_uuid)
+        # Should raise AttributeError when trying to access next_status on None
+        with pytest.raises(AttributeError):
+            await status_update_handler.handle(incident_uniq_id)
 
 
 class TestStepHandler:
@@ -371,12 +433,12 @@ class TestStepHandler:
     @pytest.mark.asyncio
     async def test_handle_webhook_step(self, step_handler, mock_incidents, mock_application, mock_webhooks):
         """Test handling webhook step."""
-        incident_uuid = 'incident123'
+        incident_uniq_id = 'incident123'
         identifier = 0
 
         # Mock incident with webhook step
         mock_incident = Mock()
-        mock_incident.uuid = incident_uuid
+        mock_incident.uuid = 'uuid123'
         mock_incident.channel_id = 'C123456789'
         mock_incident.ts = '1234567890.123456'
         mock_incident.payload = {'alertname': 'TestAlert'}
@@ -384,14 +446,14 @@ class TestStepHandler:
             {'type': 'webhook', 'identifier': 'test-webhook', 'done': False}
         ]
         mock_incident.chain_update = Mock()
-        mock_incidents.by_uuid[incident_uuid] = mock_incident
+        mock_incidents.uniq_ids = {incident_uniq_id: mock_incident}
 
         # Mock webhook
         mock_webhook = Mock()
         mock_webhook.push = AsyncMock(return_value=('ok', 200))
         mock_webhooks.get.return_value = mock_webhook
 
-        await step_handler.handle(incident_uuid, identifier)
+        await step_handler.handle(incident_uniq_id, identifier)
 
         # Should execute webhook and update chain
         mock_webhook.push.assert_called_once_with(mock_incident)
@@ -401,12 +463,12 @@ class TestStepHandler:
     @pytest.mark.asyncio
     async def test_handle_webhook_step_undefined(self, step_handler, mock_incidents, mock_application, mock_webhooks):
         """Test handling undefined webhook step."""
-        incident_uuid = 'incident123'
+        incident_uniq_id = 'incident123'
         identifier = 0
 
         # Mock incident with webhook step
         mock_incident = Mock()
-        mock_incident.uuid = incident_uuid
+        mock_incident.uuid = 'uuid123'
         mock_incident.channel_id = 'C123456789'
         mock_incident.ts = '1234567890.123456'
         mock_incident.payload = {'alertname': 'TestAlert'}
@@ -414,12 +476,12 @@ class TestStepHandler:
             {'type': 'webhook', 'identifier': 'undefined-webhook', 'done': False}
         ]
         mock_incident.chain_update = Mock()
-        mock_incidents.by_uuid[incident_uuid] = mock_incident
+        mock_incidents.uniq_ids = {incident_uniq_id: mock_incident}
 
         # Mock undefined webhook
         mock_webhooks.get.return_value = None
 
-        await step_handler.handle(incident_uuid, identifier)
+        await step_handler.handle(incident_uniq_id, identifier)
 
         # Should handle undefined webhook
         mock_incident.chain_update.assert_called_once_with(identifier, done=True, result=None)
@@ -428,12 +490,12 @@ class TestStepHandler:
     @pytest.mark.asyncio
     async def test_handle_non_webhook_step(self, step_handler, mock_incidents, mock_application):
         """Test handling non-webhook step."""
-        incident_uuid = 'incident123'
+        incident_uniq_id = 'incident123'
         identifier = 0
 
         # Mock incident with non-webhook step
         mock_incident = Mock()
-        mock_incident.uuid = incident_uuid
+        mock_incident.uuid = 'uuid123'
         mock_incident.channel_id = 'C123456789'
         mock_incident.ts = '1234567890.123456'
         mock_incident.payload = {'alertname': 'TestAlert'}
@@ -441,9 +503,9 @@ class TestStepHandler:
             {'type': 'user', 'identifier': 'testuser', 'done': False}
         ]
         mock_incident.chain_update = Mock()
-        mock_incidents.by_uuid[incident_uuid] = mock_incident
+        mock_incidents.uniq_ids = {incident_uniq_id: mock_incident}
 
-        await step_handler.handle(incident_uuid, identifier)
+        await step_handler.handle(incident_uniq_id, identifier)
 
         # Should call app.notify
         mock_application.notify.assert_called_once_with(mock_incident, 'user', 'testuser')
@@ -452,12 +514,12 @@ class TestStepHandler:
     @pytest.mark.asyncio
     async def test_handle_nonexistent_incident(self, step_handler, mock_incidents):
         """Test handling step for non-existent incident."""
-        incident_uuid = 'nonexistent123'
+        incident_uniq_id = 'nonexistent123'
         identifier = 0
 
         # Mock non-existent incident
-        mock_incidents.by_uuid = {}
+        mock_incidents.uniq_ids = {}
 
         # Should raise KeyError (StepHandler doesn't catch exceptions)
         with pytest.raises(KeyError):
-            await step_handler.handle(incident_uuid, identifier)
+            await step_handler.handle(incident_uniq_id, identifier)

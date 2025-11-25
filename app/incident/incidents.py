@@ -2,7 +2,6 @@ import os
 import yaml
 from typing import Dict, Union
 
-from app.incident.helpers import gen_uuid
 from app.incident.incident import Incident, IncidentConfig
 from app.incident.migrator import IncidentMigrator
 from app.logging import logger
@@ -12,44 +11,59 @@ from app.config.config import get_config
 
 class Incidents:
     def __init__(self, incidents_list):
-        self.by_uuid: Dict[str, Incident] = {i.uuid: i for i in incidents_list}
+        self.active_map: Dict[str, str] = {}  # {uuid: uniq_id}
+        self.uniq_ids: Dict[str, Incident] = {}
+        for i in incidents_list:
+            self.uniq_ids[i.uniq_id] = i
+            if i.status != 'closed':
+                self.active_map[i.uuid] = i.uniq_id
 
     def get(self, alert: Dict) -> Union[Incident, None]:
-        uuid_ = gen_uuid(alert.get('groupLabels'))
-        return self.by_uuid.get(uuid_)
+        uuid = Incident.gen_uuid(alert.get('groupLabels'))
+        return self.get_by_uuid(uuid)
+
+    def get_by_uuid(self, uuid: str) -> Union[Incident, None]:
+        uniq_id = self.active_map.get(uuid)
+        return self.uniq_ids.get(uniq_id)
 
     def get_by_ts(self, ts: str) -> Union[Incident, None]:
-        return next((incident for incident in self.by_uuid.values() if incident.ts == ts), None)
-
-    def get_assigned_user_by_id(self, user_id: str) -> Union[str, None]:
-        """
-        Get the assigned_user (full name) from any existing incident with the same user_id.
-        This serves as a cache to avoid redundant API calls for user name lookup.
-        
-        Args:
-            user_id: The user ID to search for
-            
-        Returns:
-            The full name if found in any existing incident, None otherwise
-        """            
-        for incident in self.by_uuid.values():
-            if incident.assigned_user_id == user_id and incident.assigned_fullname and incident.assigned_fullname != "-":
-                return incident.assigned_fullname
-        
+        for uuid_ in self.active_map.values():
+            incident = self.uniq_ids.get(uuid_)
+            if incident and incident.ts == ts:
+                return incident
         return None
 
-    def add(self, incident: Incident):
-        self.by_uuid[incident.uuid] = incident
+    def get_assigned_user_by_id(self, user_id: str) -> Union[str, None]:
+        for incident in self.uniq_ids.values():
+            if incident.assigned_user_id == user_id and incident.assigned_fullname and incident.assigned_fullname != "-":
+                return incident.assigned_fullname
+        return None
 
-    def del_by_uuid(self, uuid_: str):
+    def remove_from_active_map(self, uuid: str):
+        if uuid in self.active_map:
+            del self.active_map[uuid]
+
+    def add(self, incident: Incident):
+        self.uniq_ids[incident.uniq_id] = incident
+        if incident.status != 'closed':
+            self.active_map[incident.uuid] = incident.uniq_id
+
+    def remove_file(self, incident: Incident):
         config = get_config()
-        incident = self.by_uuid.pop(uuid_, None)
+        self.remove_from_active_map(incident.uuid)
+        try:
+            if incident.status == 'closed' or incident.status == 'deleted':
+                closed_str = Incident.datetime_serialize(incident.closed)
+                os.remove(f'{config.incidents_path}/{incident.uuid}__{closed_str}.yml')
+            else:
+                os.remove(f'{config.incidents_path}/{incident.uuid}.yml')
+        except (OSError, PermissionError, FileNotFoundError) as e:
+            logger.error(f'Failed to delete incident file for uuid: {incident.uuid}: {str(e)}')
+
+    def del_by_uniq_id(self, uniq_id: str):
+        incident = self.uniq_ids.pop(uniq_id, None)
         if incident:
-            try:
-                os.remove(f'{config.incidents_path}/{uuid_}.yml')
-                logger.info(f'Incident {uuid_} closed. Link: {incident.link}')
-            except (OSError, PermissionError, FileNotFoundError) as e:
-                logger.error(f'Failed to delete incident file for uuid: {uuid_}: {str(e)}')
+            self.remove_file(incident)
             # Schedule async websocket update
             import asyncio
             try:
@@ -59,14 +73,18 @@ class Incidents:
             except RuntimeError:
                 # No event loop running, skip websocket update
                 pass
+            logger.info(f'Incident {incident.uuid} deleted')
         else:
-            logger.warning(f'Incident with uuid: {uuid_} not found in the collection.')
+            logger.warning(f'Incident with uniq_id {uniq_id} not found in the collection.')
 
     def serialize(self) -> Dict[str, Dict]:
-        return {str(uuid_): incident.serialize() for uuid_, incident in self.by_uuid.items()}
+        return {str(uuid_): incident.serialize() for uuid_, incident in self.uniq_ids.items()}
 
-    def get_table(self, params):
-        return [incident.get_table_data(params) for incident in self.by_uuid.values()]
+    def get_active_table(self, params):
+        return [self.uniq_ids[uniq_id].get_table_data(params) for uniq_id in self.active_map.values()]
+
+    def get_full_table(self, params):
+        return [incident.get_table_data(params) for incident in self.uniq_ids.values()]
 
     @classmethod
     def create_or_load(cls, application_type, application_url, application_team):
@@ -97,7 +115,10 @@ class Incidents:
                     incident_config=incident_config
                 )
                 if incident_.messenger_type == config.messenger.type.value:
-                    incidents.add(incident_)
+                    if incident_.status != 'deleted':
+                        incidents.add(incident_)
+                    else:
+                        os.remove(file_path)
                 else:
                     logger.warning(f'Skipping incident {filename}: messenger_type mismatch')
 

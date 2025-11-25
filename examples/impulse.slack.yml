@@ -43,6 +43,7 @@ incident:  # incidents behavior options
     firing: 6h  # after this time, incident status changes from 'firing' to 'unknown' if no alerts appear
     unknown: 6h  # after this time, incident status changes from 'unknown' to 'closed' if no alerts appear
     resolved: 12h  # after this time, incident status changes from 'resolved' to 'closed' if no alerts appear
+    closed: 90d  # after this time, 'closed' incident will be deleted
 
 route:  # incident routing rules based on alert fields (https://docs.impulse.bot/stable/config_file/#route)
   channel: incidents_default  # default channel where incidents will be created if they don't match any matchers

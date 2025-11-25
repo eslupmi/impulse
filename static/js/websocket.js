@@ -5,6 +5,7 @@ import {getBaseUrl} from "./utils.js";
 let socket;
 let heartbeatInterval;
 let heartbeatTimeout;
+let showFullTable = false;
 const HEARTBEAT_INTERVAL = 10000;
 const HEARTBEAT_TIMEOUT = 5000;
 const RECONNECT_DELAY = 3000;
@@ -102,7 +103,7 @@ function setupWebSocketEvents() {
         startHeartbeat();
         table.initialDataLoaded = false;
         table.redraw();
-        socket.send(JSON.stringify({event: "request_data"}));
+        socket.send(JSON.stringify({event: "request_data", show_full_table: showFullTable}));
     };
 
     socket.onmessage = function(event) {
@@ -114,24 +115,32 @@ function setupWebSocketEvents() {
             switch(eventType) {
                 case "add_row":
                     preserveScrollDuringOperation(() => {
-                        table.addRow(data);
-                        table.setSort(table.getSorters());
-                        updateZoomIcons();
+                        if (showFullTable || (data.indicator !== 'closed' && data.indicator !== 'deleted')) {
+                            table.addRow(data);
+                            table.setSort(table.getSorters());
+                            updateZoomIcons();
+                        }
                     });
                     break;
                 
                 case "update_row":
                     preserveScrollDuringOperation(() => {
-                        table.updateOrAddData([data]);
-                        table.setSort(table.getSorters());
-                        table.refreshFilter();
-                        updateZoomIcons();
+                        if (showFullTable || (data.indicator !== 'closed' && data.indicator !== 'deleted')) {
+                            table.updateOrAddData([data]);
+                            table.setSort(table.getSorters());
+                            table.refreshFilter();
+                            updateZoomIcons();
+                        } else {
+                            const rows = table.searchRows('uniq_id', '=', data.uniq_id);
+                            rows.forEach(row => row.delete());
+                            updateZoomIcons();
+                        }
                     });
                     break;
                 
                 case "remove_row":
                     preserveScrollDuringOperation(() => {
-                        const rows = table.searchRows('uuid', '=', data.uuid);
+                        const rows = table.searchRows('uniq_id', '=', data.uniq_id);
                         rows.forEach(row => row.delete());
                         updateZoomIcons();
                     });
@@ -142,7 +151,11 @@ function setupWebSocketEvents() {
                         if (!table.initialDataLoaded) {
                             table.initialDataLoaded = true;
                         }
-                        table.replaceData(data);
+                        let tableData = data;
+                        if (!showFullTable) {
+                            tableData = data.filter(row => row.indicator !== 'closed' && row.indicator !== 'deleted');
+                        }
+                        table.replaceData(tableData);
                         updateZoomIcons();
                     });
                     break;
@@ -173,4 +186,32 @@ function setupWebSocketEvents() {
     };
 }
 
-export {setupWebSocketEvents, updateOnlineStatus};
+function toggleHistoryView() {
+    showFullTable = !showFullTable;
+    const button = document.getElementById('history-toggle');
+    if (button) {
+        if (showFullTable) {
+            button.classList.add('active');
+            button.title = 'Show active incidents only';
+        } else {
+            button.classList.remove('active');
+            button.title = 'Show all incidents';
+        }
+    }
+    
+    if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({event: "request_data", show_full_table: showFullTable}));
+    } else {
+        console.warn('WebSocket not connected, cannot reload table');
+    }
+}
+
+function initHistoryToggle() {
+    const button = document.getElementById('history-toggle');
+    if (button) {
+        button.addEventListener('click', toggleHistoryView);
+        button.title = 'Show all incidents';
+    }
+}
+
+export {setupWebSocketEvents, updateOnlineStatus, initHistoryToggle};

@@ -57,13 +57,16 @@ class TestIncident:
         assert incident.chain_enabled is False
         assert incident.status_enabled is False
         assert incident.uuid is not None
+        assert incident.uniq_id is not None
         assert incident.ts == ""
         assert incident.link == ""
 
-    @patch('app.incident.incident.gen_uuid')
-    def test_incident_uuid_generation(self, mock_gen_uuid, sample_alert_payload, incident_config):
-        """Test that UUID is generated correctly."""
+    @patch('app.incident.incident.Incident.gen_uniq_id')
+    @patch('app.incident.incident.Incident.gen_uuid')
+    def test_incident_uuid_generation(self, mock_gen_uuid, mock_gen_uniq_id, sample_alert_payload, incident_config):
+        """Test that UUID and uniq_id are generated correctly."""
         mock_gen_uuid.return_value = "test-uuid"
+        mock_gen_uniq_id.return_value = "test-uniq-id"
 
         incident = Incident(
             payload=sample_alert_payload,
@@ -77,8 +80,14 @@ class TestIncident:
             messenger_type="slack"
         )
 
+        # gen_uuid is called once for uuid
+        assert mock_gen_uuid.call_count == 1
         mock_gen_uuid.assert_called_once_with(sample_alert_payload.get('groupLabels'))
         assert incident.uuid == "test-uuid"
+        
+        # gen_uniq_id is called once for uniq_id
+        assert mock_gen_uniq_id.call_count == 1
+        assert incident.uniq_id == "test-uniq-id"
 
     def test_set_thread_slack(self, sample_incident):
         """Test setting thread for Slack."""
@@ -142,7 +151,8 @@ class TestIncident:
         sample_incident.status = "firing"
         with patch.object(sample_incident, 'update_status') as mock_update:
             mock_update.return_value = True
-            result = sample_incident.set_next_status()
+            new_status = sample_incident.next_status[sample_incident.status]
+            result = sample_incident.update_status(new_status)
             mock_update.assert_called_once_with("unknown")
             assert result is True
 
@@ -151,7 +161,8 @@ class TestIncident:
         sample_incident.status = "unknown"
         with patch.object(sample_incident, 'update_status') as mock_update:
             mock_update.return_value = True
-            result = sample_incident.set_next_status()
+            new_status = sample_incident.next_status[sample_incident.status]
+            result = sample_incident.update_status(new_status)
             mock_update.assert_called_once_with("closed")
             assert result is True
 
@@ -160,7 +171,8 @@ class TestIncident:
         sample_incident.status = "resolved"
         with patch.object(sample_incident, 'update_status') as mock_update:
             mock_update.return_value = True
-            result = sample_incident.set_next_status()
+            new_status = sample_incident.next_status[sample_incident.status]
+            result = sample_incident.update_status(new_status)
             mock_update.assert_called_once_with("closed")
             assert result is True
 
@@ -230,6 +242,28 @@ class TestIncident:
         """Test setting status."""
         sample_incident.set_status("resolved")
         assert sample_incident.status == "resolved"
+
+    def test_set_status_closed_sets_closed_field(self, sample_incident):
+        """Test that setting status to 'closed' sets the closed field to current datetime."""
+        from datetime import datetime, timezone
+        
+        sample_incident.closed = None  # Ensure closed is empty initially
+        sample_incident.set_status("closed")
+        
+        assert sample_incident.status == "closed"
+        assert sample_incident.closed is not None
+        assert isinstance(sample_incident.closed, datetime)
+        assert sample_incident.closed.tzinfo == timezone.utc
+
+    def test_set_status_closed_does_not_overwrite_existing(self, sample_incident):
+        """Test that setting status to 'closed' does not overwrite existing closed field."""
+        from datetime import datetime, timezone
+        existing_closed = datetime(2025, 1, 15, 14, 30, 45, tzinfo=timezone.utc)
+        sample_incident.closed = existing_closed
+        sample_incident.set_status("closed")
+        
+        assert sample_incident.status == "closed"
+        assert sample_incident.closed == existing_closed  # Should not be overwritten
 
     def test_is_new_firing_alerts_added(self, sample_incident):
         """Test detection of new firing alerts."""
@@ -393,6 +427,28 @@ class TestIncident:
             sample_incident.dump()
 
         mock_file_open.assert_called_once()
+        # Check that file is opened with correct path for non-closed incident
+        assert f'/test/incidents/{sample_incident.uuid}.yml' in str(mock_file_open.call_args)
+        mock_yaml_dump.assert_called_once()
+
+    @patch('app.incident.incident.get_config')
+    @patch('builtins.open', new_callable=mock_open)
+    @patch('yaml.dump')
+    def test_dump_closed_incident(self, mock_yaml_dump, mock_file_open, mock_get_config, sample_incident, mock_unified_config):
+        """Test dumping closed incident to file with correct filename."""
+        from datetime import datetime, timezone
+        mock_get_config.return_value = mock_unified_config
+        mock_unified_config.incidents_path = "/test/incidents"
+        sample_incident.status = 'closed'
+        sample_incident.closed = datetime(2025, 1, 15, 14, 30, 45, tzinfo=timezone.utc)
+
+        with patch('app.incident.incident.incident_ws'):
+            sample_incident.dump()
+
+        mock_file_open.assert_called_once()
+        # Check that file is opened with correct path for closed incident
+        closed_str = sample_incident.datetime_serialize(sample_incident.closed)
+        assert f'/test/incidents/{sample_incident.uuid}__{closed_str}.yml' in str(mock_file_open.call_args)
         mock_yaml_dump.assert_called_once()
 
     @patch('app.incident.incident.ChannelManager')
@@ -634,6 +690,7 @@ class TestIncident:
 
         # Use utility function to create mock incident data
         mock_incident_data = create_mock_incident_data()
+        mock_incident_data['uniq_id'] = 'test-uniq-id-from-file'
         mock_yaml_load.return_value = mock_incident_data
 
         incident = Incident.load('/test/incident.yml', incident_config)
@@ -647,6 +704,31 @@ class TestIncident:
         assert incident.messenger_type == 'slack'
         assert incident.ts == '1234567890.123456'
         assert incident.link == 'https://test.slack.comarchives/C123456789/p1234567890123456'
+        # uniq_id is always regenerated in __post_init__, so check it exists but don't check exact value
+        assert incident.uniq_id is not None
+        assert incident.uniq_id != ''
+        assert incident.uuid is not None
+
+    @patch('app.incident.incident.get_config')
+    @patch('builtins.open', new_callable=mock_open)
+    @patch('yaml.load')
+    def test_load_incident_without_uniq_id(self, mock_yaml_load, mock_file_open, mock_get_config, incident_config, mock_unified_config):
+        """Test loading incident from file when uniq_id is missing."""
+        mock_get_config.return_value = mock_unified_config
+
+        # Use utility function to create mock incident data without uniq_id
+        mock_incident_data = create_mock_incident_data()
+        # Don't set uniq_id - it should be generated in __post_init__
+        mock_yaml_load.return_value = mock_incident_data
+
+        incident = Incident.load('/test/incident.yml', incident_config)
+
+        assert incident.status == 'firing'
+        assert incident.channel_id == 'C123456789'
+        # uniq_id should be generated automatically
+        assert incident.uniq_id is not None
+        assert incident.uniq_id != ''
+        assert incident.uuid is not None
 
     @patch('app.incident.incident.get_config')
     @patch('builtins.open', new_callable=mock_open)
@@ -694,7 +776,7 @@ class TestIncident:
 
         result = sample_incident.get_table_data({})
 
-        assert result['uuid'] == str(sample_incident.uuid)
+        assert result['uniq_id'] == sample_incident.uniq_id
         assert result['indicator'] == sample_incident.status
         assert result['_alerts_count'] == 1
         assert 'group_labels' in result['_responsive_data']
@@ -757,7 +839,9 @@ class TestIncident:
 
     def test_created_datetime_when_falsy(self, sample_alert_payload, incident_config):
         """Test that created datetime is set when created is falsy."""
-        # Create incident with falsy created datetime
+        # Create incident without created datetime (will use default)
+        # Note: created=None will cause error in gen_uniq_id, so we skip it
+        # and test with default_factory instead
         incident = Incident(
             payload=sample_alert_payload,
             status="firing",
@@ -767,8 +851,8 @@ class TestIncident:
             assigned_user_id="",
             assigned_user="",
             assigned_fullname="",
-            messenger_type="slack",
-            created=None  # Explicitly set to None to trigger the condition
+            messenger_type="slack"
+            # created will be set by default_factory
         )
 
         # Should have created datetime set

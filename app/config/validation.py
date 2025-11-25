@@ -334,6 +334,7 @@ class IncidentTimeouts(BaseModel):
     firing: Optional[str] = Field("6h", description="Firing timeout")
     unknown: Optional[str] = Field("6h", description="Unknown timeout")
     resolved: Optional[str] = Field("12h", description="Resolved timeout")
+    closed: Optional[str] = Field("90d", description="Closed timeout")
 
     def get(self, key: str) -> str:
         return getattr(self, key) or None

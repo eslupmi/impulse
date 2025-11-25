@@ -34,9 +34,12 @@ class TestIncidentMigrator:
             severity="critical"
         )
 
+        from datetime import datetime, timezone
         incident_data = {
             'last_state': alert_payload['alerts'][0]['labels'],  # Extract labels from alert
-            'status': 'firing'
+            'status': 'firing',
+            'groupLabels': alert_payload.get('groupLabels', {}),
+            'created': datetime.now(timezone.utc)  # Add created to avoid None error
         }
 
         with patch('builtins.open', mock_open()) as mock_file, \
@@ -67,10 +70,13 @@ class TestIncidentMigrator:
             severity="critical"
         )
 
+        from datetime import datetime, timezone
         incident_data = {
             'last_state': alert_payload['alerts'][0]['labels'],  # Extract labels from alert
             'status': 'firing',
-            'channel_id': 'C123456789'
+            'channel_id': 'C123456789',
+            'groupLabels': alert_payload.get('groupLabels', {}),
+            'created': datetime.now(timezone.utc)  # Add created to avoid None error
         }
 
         with patch('app.incident.migrator.get_config') as mock_get_config:
@@ -225,9 +231,12 @@ class TestIncidentMigrator:
             alertname="TestAlert"
         )
 
+        from datetime import datetime, timezone
         incident_data = {
             'last_state': alert_payload['alerts'][0]['labels'],  # Extract labels from alert
-            'status': 'firing'
+            'status': 'firing',
+            'groupLabels': alert_payload.get('groupLabels', {}),
+            'created': datetime.now(timezone.utc)  # Add created to avoid None error
         }
 
         with patch('builtins.open', mock_open()), \

@@ -5,17 +5,24 @@ class StatusUpdateHandler(BaseHandler):
     """
     StatusUpdateHandler class is responsible for handling the status update event.
     """
-    async def handle(self, uuid_):
-        incident = self.incidents.by_uuid[uuid_]
-        status_updated = incident.set_next_status()
+    async def handle(self, uniq_id):
+        incident = self.incidents.uniq_ids.get(uniq_id)
+        new_status = incident.next_status[incident.status]
+        if new_status == 'closed':
+            self.incidents.remove_file(incident)
+        status_updated = incident.update_status(new_status)
 
-        await self.app.update(
-            uuid_, incident, incident.status, incident.payload,
-            status_updated, incident.chain_enabled, incident.status_enabled, incident.task_link
-        )
+        if incident.status == 'firing' or incident.status == 'resolved' or incident.status == 'unknown':
+            await self.app.update(
+                incident, incident.status, incident.payload,
+                status_updated, incident.chain_enabled, incident.status_enabled, incident.task_link
+            )
+
+        if incident.status == 'unknown' or incident.status == 'closed':
+            await self.queue.update(uniq_id, incident.status_update_datetime, incident.status)
 
         if incident.status == 'closed':
-            await self.queue.delete_by_id(uuid_)
-            self.incidents.del_by_uuid(uuid_)
-        elif incident.status == 'unknown':
-            await self.queue.update(uuid_, incident.status_update_datetime, incident.status)
+            await self.queue.delete_by_id(uniq_id, delete_steps=True, delete_status=False)
+
+        if incident.status == 'deleted':
+            self.incidents.del_by_uniq_id(uniq_id)

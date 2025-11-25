@@ -54,7 +54,7 @@ class TestUnixSleepToTimedelta:
             ("120s", timedelta(seconds=120)),
             ("90m", timedelta(minutes=90)),
             ("24h", timedelta(hours=24)),
-            ("365d", timedelta(days=365))
+            ("90d", timedelta(days=90))
         ]
 
         for input_val, expected in test_cases:

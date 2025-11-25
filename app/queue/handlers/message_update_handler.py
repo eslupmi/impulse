@@ -7,14 +7,11 @@ class MessageUpdateHandler(BaseHandler):
     MessageUpdateHandler class is responsible for handling simple message updates
     without changing incident status or triggering status-related logic.
     """
-    async def handle(self, uuid_):
-        incident = self.incidents.by_uuid[uuid_]
+    async def handle(self, uniq_id):
+        incident = self.incidents.uniq_ids.get(uniq_id)
         
         await self.app.update(
-            uuid_, incident, incident.status, incident.payload,
-            updated_status=False,
-            chain_enabled=incident.chain_enabled,
-            status_enabled=incident.status_enabled,
-            task_link=incident.task_link
+            incident, incident.status, incident.payload,
+            False, incident.chain_enabled, incident.status_enabled, incident.task_link
         )
 

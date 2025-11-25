@@ -9,7 +9,7 @@ from app.im.telegram.user import User
 from app.logging import logger
 from app.config.config import get_config
 from app.config.environment import get_environment_config
-from app.config.validation import ApplicationConfig, TelegramUser
+from app.config.validation import ApplicationConfig
 
 
 class TelegramApplication(Application):
@@ -80,7 +80,7 @@ class TelegramApplication(Application):
 
     async def _handle_chain_action(self, action, incident_, user_id, user_display_name, queue_, incidents, payload):
         """Handle chain-related button actions (start_chain/stop_chain)"""
-        await queue_.delete_by_id(incident_.uuid, delete_steps=True, delete_status=False)
+        await queue_.delete_by_id(incident_.uniq_id, delete_steps=True, delete_status=False)
         if action == 'stop_chain':
             if incident_.assigned_user_id == user_id:
                 logger.info(f'Incident {incident_.uuid} -> button TAKE IT pressed, but user is already assigned')
@@ -100,13 +100,13 @@ class TelegramApplication(Application):
     async def buttons_handler(self, payload, incidents, queue_, route):
         if 'callback_query' not in payload:
             return JSONResponse({}, status_code=200)
-        
+
         callback = payload['callback_query']
         message_id = callback['message']['message_id']
         post_id = callback['message']['message_thread_id']
         thread_id = f'{post_id}/{message_id}'
         incident_ = incidents.get_by_ts(ts=thread_id)
-        
+
         if incident_ is None:
             await self.http.post(
                 f'{self.url}/answerCallbackQuery',
@@ -114,7 +114,7 @@ class TelegramApplication(Application):
                 headers=self.headers
             )
             return JSONResponse({}, status_code=200)
-        
+
         action = callback['data']
         user_id = callback['from']['id']
         user_from = callback.get('from', {})
@@ -131,7 +131,7 @@ class TelegramApplication(Application):
             self._handle_status_action(incident_, action == 'start_status')
         elif action == 'task':
             self._handle_task_action(incident_, queue_)
-        
+
         incident_.dump()
         body = self.body_template.form_message(incident_.payload, incident_)
         header = self.header_template.form_message(incident_.payload, incident_)
@@ -169,16 +169,16 @@ class TelegramApplication(Application):
 
     def _create_thread_payload(self, channel_id, body, header, status_icons, status):
         env_config = get_environment_config()
-        
+
         keyboard_row = [
             buttons['chain']['takeit'],
             buttons['status']['enabled']
         ]
-        
+
         config_obj = get_config()
         if config_obj.app.task_management and env_config.task_management_enabled:
             keyboard_row.append(buttons['task']['create'])
-        
+
         return {
             'chat_id': channel_id,
             'text': f'{self._format_tg_icon(status_icons)} {header}\n{body}',
@@ -228,18 +228,18 @@ class TelegramApplication(Application):
     def update_thread_payload(self, channel_id, id_, body, header, status_icons, status, chain_enabled,
                               status_enabled, task_link=''):
         env_config = get_environment_config()
-        
+
         _, message_id = id_.split('/')
-        
+
         keyboard_row = [
             buttons['chain']['takeit'] if chain_enabled or status != 'resolved' else buttons['chain']['release'],
             buttons['status']['enabled'] if status_enabled else buttons['status']['disabled']
         ]
-        
+
         config_obj = get_config()
         if config_obj.app.task_management and env_config.task_management_enabled and not task_link:
             keyboard_row.append(buttons['task']['create'])
-        
+
         return {
             'chat_id': channel_id,
             'message_id': message_id,
@@ -267,7 +267,7 @@ class TelegramApplication(Application):
     async def get_user_details(self, user_details):
         id_ = user_details.get('id')
         response = await self.http.get(f'{self.url}/getChat?chat_id={id_}', headers=self.headers)
-        
+
         if response.status != 200:
             logger.debug(f'Failed to get user details for {id_}: HTTP {response.status}')
             response.close()
@@ -275,7 +275,7 @@ class TelegramApplication(Application):
 
         data = await response.json()
         response.close()
-        
+
         if not data.get('ok'):
             logger.debug(f'Telegram API error for user {id_}: {data.get("description", "unknown error")}')
             return {'id': id_, 'exists': False, 'full_name': None, 'username': None}

@@ -20,7 +20,7 @@ class TestQueueItem:
 
         assert item.datetime == dt
         assert item.type == 'test_type'
-        assert item.incident_uuid == 'incident123'
+        assert item.uniq_id == 'incident123'
         assert item.identifier == 'identifier456'
         assert item.data == {'data': 'test'}
 
@@ -31,7 +31,7 @@ class TestQueueItem:
 
         assert item.datetime == dt
         assert item.type == 'test_type'
-        assert item.incident_uuid is None
+        assert item.uniq_id is None
         assert item.identifier is None
         assert item.data is None
 
@@ -56,7 +56,7 @@ class TestAsyncQueue:
         item = queue._items[0]
         assert item.datetime == dt
         assert item.type == 'test_type'
-        assert item.incident_uuid == 'incident123'
+        assert item.uniq_id == 'incident123'
         assert item.identifier == 'identifier456'
         assert item.data == test_data
 
@@ -105,7 +105,7 @@ class TestAsyncQueue:
         await queue.delete_by_id('incident123', delete_steps=True, delete_status=True)
 
         assert len(queue._items) == 1
-        assert queue._items[0].incident_uuid == 'incident456'
+        assert queue._items[0].uniq_id == 'incident456'
 
     @pytest.mark.asyncio
     async def test_delete_by_id_steps_only(self, queue):
@@ -170,9 +170,9 @@ class TestAsyncQueue:
         await queue.recreate('firing', 'incident123', incident_chain)
 
         assert len(queue._items) == 2  # Only non-done items
-        assert queue._items[0].incident_uuid == 'incident123'
+        assert queue._items[0].uniq_id == 'incident123'
         assert queue._items[0].identifier == 0
-        assert queue._items[1].incident_uuid == 'incident123'
+        assert queue._items[1].uniq_id == 'incident123'
         assert queue._items[1].identifier == 2
 
     @pytest.mark.asyncio
@@ -190,7 +190,7 @@ class TestAsyncQueue:
         # Should delete steps but not status, then add new status
         assert len(queue._items) == 1
         assert queue._items[0].type == 'update_status'
-        assert queue._items[0].incident_uuid == 'incident123'
+        assert queue._items[0].uniq_id == 'incident123'
 
     @pytest.mark.asyncio
     async def test_update_non_resolved_status(self, queue):
@@ -208,7 +208,7 @@ class TestAsyncQueue:
         assert len(queue._items) == 2
         assert queue._items[0].type == 'chain_step'  # Step should remain
         assert queue._items[1].type == 'update_status'  # New status
-        assert queue._items[1].incident_uuid == 'incident123'
+        assert queue._items[1].uniq_id == 'incident123'
 
     @pytest.mark.asyncio
     async def test_get_next_ready_item_ready(self, queue):
@@ -217,10 +217,10 @@ class TestAsyncQueue:
 
         await queue.put(past_time, 'test_type', 'incident123', 'identifier456', {'data': 'test'})
 
-        item_type, incident_uuid, identifier, data = await queue.get_next_ready_item()
+        item_type, uniq_id, identifier, data = await queue.get_next_ready_item()
 
         assert item_type == 'test_type'
-        assert incident_uuid == 'incident123'
+        assert uniq_id == 'incident123'
         assert identifier == 'identifier456'
         assert data == {'data': 'test'}
         assert len(queue._items) == 0  # Item should be removed
@@ -232,10 +232,10 @@ class TestAsyncQueue:
 
         await queue.put(future_time, 'test_type', 'incident123', 'identifier456', {'data': 'test'})
 
-        item_type, incident_uuid, identifier, data = await queue.get_next_ready_item()
+        item_type, uniq_id, identifier, data = await queue.get_next_ready_item()
 
         assert item_type is None
-        assert incident_uuid is None
+        assert uniq_id is None
         assert identifier is None
         assert data is None
         assert len(queue._items) == 1  # Item should remain
@@ -243,10 +243,10 @@ class TestAsyncQueue:
     @pytest.mark.asyncio
     async def test_get_next_ready_item_empty_queue(self, queue):
         """Test getting next ready item from empty queue."""
-        item_type, incident_uuid, identifier, data = await queue.get_next_ready_item()
+        item_type, uniq_id, identifier, data = await queue.get_next_ready_item()
 
         assert item_type is None
-        assert incident_uuid is None
+        assert uniq_id is None
         assert identifier is None
         assert data is None
 
@@ -262,10 +262,10 @@ class TestAsyncQueue:
 
         assert len(serialized) == 2
         assert serialized[0]['type'] == 'test_type'
-        assert serialized[0]['incident_uuid'] == 'incident123'
+        assert serialized[0]['uniq_id'] == 'incident123'
         assert serialized[0]['identifier'] == 'identifier456'
         assert serialized[1]['type'] == 'another_type'
-        assert serialized[1]['incident_uuid'] == 'incident456'
+        assert serialized[1]['uniq_id'] == 'incident456'
         assert serialized[1]['identifier'] == 'identifier789'
 
     @pytest.mark.asyncio
@@ -283,9 +283,9 @@ class TestAsyncQueue:
         # Simulate concurrent access
         import asyncio
 
-        async def add_item(delay, item_type, incident_uuid):
+        async def add_item(delay, item_type, uniq_id):
             await asyncio.sleep(delay)
-            await queue.put(dt, item_type, incident_uuid, 'id', None)
+            await queue.put(dt, item_type, uniq_id, 'id', None)
 
         # Add items concurrently
         tasks = [
@@ -372,8 +372,8 @@ class TestAsyncQueue:
     async def test_recreate_queue_class_method(self):
         """Test recreate_queue class method."""
         # Create mock incidents collection
-        mock_incidents = create_mock_incidents_collection()
-
+        mock_incidents = Mock()
+        
         # Create mock incidents with chains
         incident1 = Mock()
         incident1.status = 'firing'
@@ -391,10 +391,11 @@ class TestAsyncQueue:
             {'done': True, 'datetime': create_test_datetime()}
         ]
         incident2.status_update_datetime = create_test_datetime()
-
-        mock_incidents.by_uuid = {
-            'incident1': incident1,
-            'incident2': incident2
+        
+        # Set up uniq_ids as a dictionary
+        mock_incidents.uniq_ids = {
+            'uniq_id1': incident1,
+            'uniq_id2': incident2
         }
 
         with patch('app.queue.queue.logger') as mock_logger:

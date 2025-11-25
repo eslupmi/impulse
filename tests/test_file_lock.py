@@ -139,8 +139,6 @@ class TestFileLockAcquireLock:
             mock_get_config.return_value = mock_config
             
             mock_loop = Mock()
-            mock_task = Mock()
-            mock_loop.create_task.return_value = mock_task
             mock_get_loop.return_value = mock_loop
 
             file_lock = FileLock()

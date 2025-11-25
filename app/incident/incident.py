@@ -1,13 +1,14 @@
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import List, Dict, Optional
+import json
+import uuid
 
 import yaml
 
 from app.config.config import get_config
 from app.config.validation import MessengerType
 from app.im.channel_manager import ChannelManager
-from app.incident.helpers import gen_uuid
 from app.logging import logger
 from app.time import unix_sleep_to_timedelta
 from app.tools import NoAliasDumper
@@ -39,22 +40,38 @@ class Incident:
     updated: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     created: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     version: str = get_config().INCIDENT_ACTUAL_VERSION
+    uniq_id: str = field(default=None)
     uuid: str = field(init=False)
     ts: str = field(default='')
     link: str = field(default='')
     task_link: str = field(default='')
     task_creation_in_progress: bool = False
+    closed: Optional[datetime] = field(default=None)
 
     next_status = {
         'firing': 'unknown',
         'unknown': 'closed',
-        'resolved': 'closed'
+        'resolved': 'closed',
+        'closed': 'deleted'
     }
 
+    @staticmethod
+    def gen_uuid(group_labels: Dict) -> str:
+        return str(uuid.uuid5(uuid.NAMESPACE_OID, json.dumps(group_labels)))
+
+    @staticmethod
+    def gen_uniq_id(group_labels: Dict, datetime_: datetime) -> str:
+        return str(uuid.uuid5(
+            uuid.NAMESPACE_OID,
+            json.dumps({'group_labels': group_labels, 'datetime': datetime_.isoformat()})
+        ))
+
     def __post_init__(self):
-        self.uuid = gen_uuid(self.payload.get('groupLabels'))
         if not self.created:
             self.created = datetime.now(timezone.utc)
+        self.uuid = self.gen_uuid(self.payload.get('groupLabels'))
+        if not self.uniq_id:
+            self.uniq_id = self.gen_uniq_id(self.payload.get('groupLabels'), self.created)
 
     def set_thread(self, thread_id: str, public_url: str):
         self.ts = thread_id
@@ -165,10 +182,6 @@ class Incident:
         self.chain[index]['result'] = result
         self.dump()
 
-    def set_next_status(self):
-        new_status = Incident.next_status[self.status]
-        return self.update_status(new_status)
-
     @classmethod
     def load(cls, dump_file: str, incident_config: IncidentConfig):
         config = get_config()
@@ -181,6 +194,7 @@ class Incident:
             config=incident_config,
             chain=content.get('chain', []),
             chain_enabled=content.get('chain_enabled', False),
+            closed=content.get('closed', None),
             status_enabled=content.get('status_enabled', False),
             status_update_datetime=content.get('status_update_datetime'),
             updated=content.get('updated'),
@@ -189,6 +203,7 @@ class Incident:
             assigned_user=content.get('assigned_user', ''),
             assigned_fullname=content.get('assigned_fullname', ''),
             messenger_type=content.get('messenger_type', ''),
+            uniq_id=content.get('uniq_id', ''),
             version=content.get('version', config.INCIDENT_ACTUAL_VERSION)
         )
         incident_.set_thread(content.get('ts'), incident_config.application_url)
@@ -201,6 +216,7 @@ class Incident:
             "chain_enabled": self.chain_enabled,
             "chain": self.chain,
             "channel_id": self.channel_id,
+            "closed": self.closed,
             "payload": self.payload,
             "status_enabled": self.status_enabled,
             "status_update_datetime": self.status_update_datetime,
@@ -212,11 +228,17 @@ class Incident:
             "assigned_user": self.assigned_user,
             "assigned_fullname": self.assigned_fullname,
             "messenger_type": self.messenger_type,
+            "uniq_id": self.uniq_id,
             "version": self.version,
             "task_link": self.task_link
         }
         try:
-            with open(f'{config.incidents_path}/{self.uuid}.yml', 'w') as f:
+            if self.status == 'closed' or self.status == 'deleted':
+                closed_str = self.datetime_serialize(self.closed)
+                incident_filename = f'{config.incidents_path}/{self.uuid}__{closed_str}.yml'
+            else:
+                incident_filename = f'{config.incidents_path}/{self.uuid}.yml'
+            with open(incident_filename, 'w') as f:
                 yaml.dump(data, f, NoAliasDumper, default_flow_style=False)
         except (OSError, PermissionError, FileNotFoundError) as e:
             logger.error(f'Failed to write incident file for {self.uuid}: {str(e)}')
@@ -236,6 +258,7 @@ class Incident:
             "chain": self.chain,
             "channel_id": self.channel_id,
             "channel_name": ChannelManager().get_channel_name_by_id(self.channel_id),
+            "closed": self.closed,
             "payload": self.payload,
             "status_enabled": self.status_enabled,
             "status_update_datetime": self.status_update_datetime,
@@ -249,6 +272,8 @@ class Incident:
             "link": self.link,
             "ts": self.ts,
             "task_link": self.task_link,
+            "uuid": str(self.uuid),
+            "uniq_id": self.uniq_id,
         }
 
     def get_table_data(self, params) -> Dict:
@@ -262,7 +287,7 @@ class Incident:
             common_labels = {}
             common_annotations = {}
         data = {
-            'uuid': str(self.uuid),
+            'uniq_id': self.uniq_id,
             'indicator': self.status,
             '_alerts_count': len(self.payload.get('alerts', [])),
             '_responsive_data': {
@@ -301,13 +326,12 @@ class Incident:
     def update_status(self, status: str) -> bool:
         now = datetime.now(timezone.utc)
         self.updated = now
-        if status != 'closed':
+        if status != 'deleted':
             config = get_config()
             timeout_value = config.incident.timeouts.get(status)
             self.status_update_datetime = now + unix_sleep_to_timedelta(timeout_value)
         if self.status != status:
             self.set_status(status)
-            logger.debug(f'Incident {self.uuid} status updated to {status}')
             self.dump()
             return True
         self.dump()
@@ -323,6 +347,9 @@ class Incident:
 
     def set_status(self, status: str):
         self.status = status
+        logger.debug(f'Incident {self.uuid} status set to {status}')
+        if status == 'closed' and not self.closed:
+            self.closed = datetime.now(timezone.utc)
 
     def assign_user_id(self, user_id: str):
         self.assigned_user_id = user_id
@@ -346,3 +373,9 @@ class Incident:
     @staticmethod
     def _get_firing_alerts_labels(alert_state):
         return [a.get('labels') for a in alert_state['alerts'] if a['status'] == 'firing']
+
+    @staticmethod
+    def datetime_serialize(datetime_: Optional[datetime]) -> str:
+        if datetime_ is None:
+            return ''
+        return datetime_.strftime('%Y_%m_%d__%H_%M_%S')

@@ -24,7 +24,7 @@ class TestMessageUpdateHandler:
     def mock_incidents(self):
         """Create mock incidents collection"""
         incidents = Mock()
-        incidents.by_uuid = {}
+        incidents.uniq_ids = {}
         return incidents
 
     @pytest.fixture
@@ -37,6 +37,7 @@ class TestMessageUpdateHandler:
         """Create mock incident"""
         incident = Mock()
         incident.uuid = "test-uuid-123"
+        incident.uniq_id = "test-uniq-id-123"
         incident.status = "firing"
         incident.payload = {"test": "data"}
         incident.chain_enabled = True
@@ -48,59 +49,58 @@ class TestMessageUpdateHandler:
     @pytest.mark.asyncio
     async def test_handle_updates_message_without_status_change(self, handler, mock_incident):
         """Test that handler updates message without changing status"""
-        handler.incidents.by_uuid[mock_incident.uuid] = mock_incident
+        handler.incidents.uniq_ids[mock_incident.uniq_id] = mock_incident
 
-        await handler.handle(mock_incident.uuid)
+        await handler.handle(mock_incident.uniq_id)
 
         handler.app.update.assert_called_once_with(
-            mock_incident.uuid,
             mock_incident,
             mock_incident.status,
             mock_incident.payload,
-            updated_status=False,
-            chain_enabled=mock_incident.chain_enabled,
-            status_enabled=mock_incident.status_enabled,
-            task_link=mock_incident.task_link
+            False,
+            mock_incident.chain_enabled,
+            mock_incident.status_enabled,
+            mock_incident.task_link
         )
 
     @pytest.mark.asyncio
     async def test_handle_with_task_link(self, handler, mock_incident):
         """Test handler with task link present"""
         mock_incident.task_link = "https://jira.com/browse/DTS-456"
-        handler.incidents.by_uuid[mock_incident.uuid] = mock_incident
+        handler.incidents.uniq_ids[mock_incident.uniq_id] = mock_incident
 
-        await handler.handle(mock_incident.uuid)
+        await handler.handle(mock_incident.uniq_id)
 
         # Verify task_link is passed through correctly
-        call_kwargs = handler.app.update.call_args[1]
-        assert call_kwargs['task_link'] == "https://jira.com/browse/DTS-456"
+        call_args = handler.app.update.call_args[0]
+        assert call_args[6] == "https://jira.com/browse/DTS-456"
 
     @pytest.mark.asyncio
     async def test_handle_without_task_link(self, handler, mock_incident):
         """Test handler without task link"""
         mock_incident.task_link = ""
-        handler.incidents.by_uuid[mock_incident.uuid] = mock_incident
+        handler.incidents.uniq_ids[mock_incident.uniq_id] = mock_incident
 
-        await handler.handle(mock_incident.uuid)
+        await handler.handle(mock_incident.uniq_id)
 
         # Verify empty task_link is passed through
-        call_kwargs = handler.app.update.call_args[1]
-        assert call_kwargs['task_link'] == ""
+        call_args = handler.app.update.call_args[0]
+        assert call_args[6] == ""
 
     @pytest.mark.asyncio
     async def test_handle_preserves_incident_state(self, handler, mock_incident):
         """Test that handler preserves all incident state"""
-        handler.incidents.by_uuid[mock_incident.uuid] = mock_incident
+        handler.incidents.uniq_ids[mock_incident.uniq_id] = mock_incident
         
         original_status = mock_incident.status
         original_chain_enabled = mock_incident.chain_enabled
         original_status_enabled = mock_incident.status_enabled
 
-        await handler.handle(mock_incident.uuid)
+        await handler.handle(mock_incident.uniq_id)
 
         # Verify incident state is preserved (not modified by handler)
-        call_args = handler.app.update.call_args
-        assert call_args[0][2] == original_status  # status
-        assert call_args[1]['chain_enabled'] == original_chain_enabled
-        assert call_args[1]['status_enabled'] == original_status_enabled
+        call_args = handler.app.update.call_args[0]
+        assert call_args[1] == original_status  # status
+        assert call_args[4] == original_chain_enabled
+        assert call_args[5] == original_status_enabled
 

@@ -111,7 +111,7 @@ class JiraIntegration:
         await queue_.put(
             datetime_=datetime.now(timezone.utc),
             type_='update_message',
-            incident_uuid=incident.uuid,
+            uniq_id=incident.uniq_id,
             identifier=None,
             data=None
         )

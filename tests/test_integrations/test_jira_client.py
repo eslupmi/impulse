@@ -65,6 +65,7 @@ class TestJiraClient:
         # Mock the HTTP client completely
         mock_http_client = AsyncMock()
         mock_http_client.post = AsyncMock(return_value=mock_response)
+        mock_http_client._initialize_client = Mock()  # Regular method, not async
         mock_http_client.__aenter__ = AsyncMock(return_value=mock_http_client)
         mock_http_client.__aexit__ = AsyncMock(return_value=None)
         
@@ -129,6 +130,7 @@ class TestJiraClient:
         # Mock the HTTP client completely
         mock_http_client = AsyncMock()
         mock_http_client.post = AsyncMock(return_value=mock_response)
+        mock_http_client._initialize_client = Mock()  # Regular method, not async
         mock_http_client.__aenter__ = AsyncMock(return_value=mock_http_client)
         mock_http_client.__aexit__ = AsyncMock(return_value=None)
         

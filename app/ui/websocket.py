@@ -60,13 +60,16 @@ class AsyncIncidentWS:
 
     async def send_full_table(self, incidents):
         """Send full table data to all connected clients"""
-        data = incidents.get_table(self._get_values())
+        data = incidents.get_active_table(self._get_values())
         await self.broadcast('update_data', data)
 
-    async def handle_request_data(self, websocket: WebSocket, incidents):
+    async def handle_request_data(self, websocket: WebSocket, incidents, show_full_table: bool = False):
         """Handle request_data event from a specific client"""
         try:
-            data = incidents.get_table(self._get_values())
+            if show_full_table:
+                data = incidents.get_full_table(self._get_values())
+            else:
+                data = incidents.get_active_table(self._get_values())
             message = json.dumps({"event": "update_data", "data": data})
             await websocket.send_text(message)
         except Exception as e:
