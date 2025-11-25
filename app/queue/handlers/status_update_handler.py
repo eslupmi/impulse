@@ -12,7 +12,7 @@ class StatusUpdateHandler(BaseHandler):
             self.incidents.remove_file(incident)
         status_updated = incident.update_status(new_status)
 
-        if incident.status == 'firing' or incident.status == 'resolved' or incident.status == 'unknown':
+        if incident.status != 'deleted':
             await self.app.update(
                 incident, incident.status, incident.payload,
                 status_updated, incident.chain_enabled, incident.status_enabled, incident.task_link
