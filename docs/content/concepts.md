@@ -63,7 +63,7 @@ When an incident becomes **unknown** , IMPulse sends a warning message to `messe
 
 <p align="center"><img src="../media/slack_closed.excalidraw.svg" alt="" width="400"/></p>
 
-The **closed** status means the incident is closed and retained only for history and statistics. The retention period for a closed incident file is configured via `incident.timeouts.closed`.
+The **closed** status means the incident is closed and retained only for history and statistics. The retention period for a closed incident file is configured via `incident.timeouts.closed`. You can see closed incidents in the UI by clicking the [archive button](ui.md#elements).
 
 There are two ways an Incident can be closed:
 - a **resolved** incident remains in that status for the duration of`incident.timeouts.resolved`

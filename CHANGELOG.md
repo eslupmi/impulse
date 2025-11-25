@@ -1,5 +1,15 @@
 # Changelog
 
+## v3.2.0
+Changes:
+- Added Jira task management button ([docs](https://docs.impulse.bot/stable/task_management/))
+- Added historical data support ([docs](https://docs.impulse.bot/stable/config_file/#incidenttimeoutsclosed))
+- Added support for standby IMPulse server ([docs](https://docs.impulse.bot/stable/ha/#two-instances)) 
+- Fixed issue with extra logs in STDERR
+- Fixed message header formatting ([issue](https://github.com/eslupmi/impulse/issues/335))
+- Display "(empty)" instead of "-" in UI for users with empty names 
+- Removed Python 3.9 support
+
 ## v3.1.0
 Changes:
 - Added JSON support for webhooks ([docs](https://docs.impulse.bot/stable/config_file/#webhooksjson))

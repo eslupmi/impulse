@@ -11,4 +11,4 @@ Each incident has 2 mandatory buttons: **Take It/Release** and **Status**. There
 
 - **Status** disables further status update notifications. This is useful when an incident frequently switches between **firing** and **resolved**, helping to suppress noisy updates. The **Status** button includes an indicator: green — status notifications are enabled (default), red — status notifications are disabled.
 
-- **Task** creates a task in your Jira. The task is created in the project specified in the [configuration](config_file.md#task_managementproject_key-). If the task is created, the button disappears.
+- **Task** creates a task in your Jira. The task is created in the project specified in the [configuration](config_file.md#task_managementproject_key). If the task is created, the button disappears.
