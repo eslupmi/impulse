@@ -1,9 +1,8 @@
 # Default values for impulse
 # This is a YAML-formatted file.
 
-# Number of replicas for High Availability
-# For HA deployment, set to 2 or more
-replicaCount: 1
+# Should not be changed until IMPulse supports multiple replicas
+# replicaCount: 1
 
 image:
   repository: ghcr.io/eslupmi/impulse
