@@ -9,13 +9,10 @@ image:
 impulseConfig:
   messenger:
     type: "telegram"
-    impulse_address: "https://impulse.example.com"
     admin_users: ["admin_user"]
     users:
       admin_user:
         id: "telegram_user_id"
-      first_user:
-        id: "telegram_first_user_id"
     channels:
       incidents_default:
         id: "telegram_chat_id"
@@ -23,17 +20,15 @@ impulseConfig:
       default:
         - user: "admin_user"
           wait: "10m"
-        - user: "first_user"
   
   incident:
     notifications:
-      new_firing: true
+      new_firing: false
       partial_resolved: false
     timeouts:
       firing: "6h"
       unknown: "6h"
       resolved: "12h"
-      closed: "90d"
   
   route:
     channel: "incidents_default"
@@ -91,10 +86,10 @@ service:
 # Resource limits
 resources:
   limits:
-    memory: 1024Mi
+    memory: 256Mi
   requests:
     cpu: 100m
-    memory: 512Mi
+    memory: 128Mi
 
 # Persistence
 persistence:

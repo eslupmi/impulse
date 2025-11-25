@@ -272,7 +272,7 @@ class Incident:
             "link": self.link,
             "ts": self.ts,
             "task_link": self.task_link,
-            "uuid": str(self.uuid),
+            "uuid": self.uuid,
             "uniq_id": self.uniq_id,
         }
 

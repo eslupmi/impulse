@@ -490,7 +490,7 @@ strong {
 .history-toggle-wrapper {
     position: fixed;
     bottom: 7px;
-    right: 44px;
+    right: 48px;
     z-index: 1000;
 }
 

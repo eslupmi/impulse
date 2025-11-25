@@ -68,7 +68,7 @@ def initialize_task_management_integration(
         return
     
     if task_management_config.type.value == "jira":
-        logger.info("Initializing Jira integration with Basic Auth...")
+        logger.info("Initializing Jira integration")
         messenger.task_management_integration = create_jira_integration(
             task_management_config,
             env_config
