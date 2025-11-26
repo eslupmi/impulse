@@ -1,6 +1,7 @@
 """
 Integration tests for main.py FastAPI application.
 """
+import asyncio
 from unittest.mock import Mock, patch, AsyncMock
 
 import pytest
@@ -82,8 +83,8 @@ class TestMainApplication:
             mock_file_lock_instance.is_locked.return_value = False  # Not locked by default
             mock_file_lock_instance.get_lock_info.return_value = ("test-hostname", "12345", "1000.0")
             mock_file_lock_instance.wait_for_unlock = AsyncMock()
-            mock_file_lock_instance.acquire_lock = Mock()
-            mock_file_lock_instance.release_lock = Mock()
+            mock_file_lock_instance.acquire_lock = Mock(return_value=True)
+            mock_file_lock_instance.release_lock = AsyncMock()
             mock_file_lock_class.return_value = mock_file_lock_instance
 
             # Setup mock environment config for Jira
@@ -162,37 +163,45 @@ class TestMainApplication:
     @pytest.mark.asyncio
     async def test_lifespan_startup_with_locked_file(self, mock_app_dependencies):
         """Test application startup when file lock is initially held."""
+        from app.file_lock import FileLock
+        
         app_mock = Mock()
         app_mock.state = Mock()
         
-        # Set up file lock to be initially locked
-        # First call returns True (locked), subsequent calls return False (unlocked)
-        mock_app_dependencies['file_lock'].is_locked.return_value = True
+        # Create a real FileLock but mock its methods
+        with patch.object(FileLock, '__init__', lambda self: None):
+            mock_file_lock = FileLock()
+        mock_file_lock.lock_dir = Mock()
+        mock_file_lock._active = False
+        mock_file_lock._heartbeat_task = None
         
-        # Create a mock task for unlock
-        mock_unlock_task = Mock()
-        mock_unlock_task.cancel = Mock()
-
-        with patch('asyncio.create_task', return_value=mock_unlock_task) as mock_create_task, \
+        # Lock is held
+        mock_file_lock.is_locked = Mock(return_value=True)
+        mock_file_lock.get_lock_info = Mock(return_value=("other-host", "999", "1000.0"))
+        mock_file_lock.acquire_lock = Mock(return_value=True)
+        mock_file_lock.release_lock = AsyncMock()
+        
+        # wait_for_unlock blocks until cancelled
+        async def blocking_wait():
+            await asyncio.Event().wait()  # Wait forever
+        mock_file_lock.wait_for_unlock = blocking_wait
+        
+        with patch('main.FileLock', return_value=mock_file_lock), \
              patch('main.logger') as mock_logger:
             async with main.lifespan(app_mock):
-                # Verify that unlock task was created
-                assert mock_create_task.called
+                await asyncio.sleep(0.01)  # Let task start
                 
                 # Verify standby state is set
-                assert hasattr(app_mock.state, 'is_standby')
                 assert app_mock.state.is_standby is True
                 
                 # Verify log messages
                 mock_logger.info.assert_any_call("Another IMPulse instance is running, working as standby server")
                 mock_logger.info.assert_any_call("IMPulse started in standby mode!")
             
-            # Verify cleanup - unlock_task should be cancelled
-            mock_unlock_task.cancel.assert_called_once()
-            # release_lock is not called when in standby mode
-            mock_app_dependencies['file_lock'].release_lock.assert_not_called()
+            # release_lock should not be called when in standby mode (we return early)
+            mock_file_lock.release_lock.assert_not_called()
             # acquire_lock is not called when starting in standby mode
-            mock_app_dependencies['file_lock'].acquire_lock.assert_not_called()
+            mock_file_lock.acquire_lock.assert_not_called()
 
     def test_client_creation(self, mock_app_dependencies):
         """Test that test client can be created."""

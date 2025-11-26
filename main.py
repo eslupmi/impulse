@@ -73,47 +73,59 @@ def validate_config_only():
         sys.exit(1)
 
 
-async def initialize_primary_server(fastapi_app: FastAPI, file_lock: FileLock):
-    """Initialize primary server components"""
+async def initialize_primary_server(fastapi_app: FastAPI, file_lock: FileLock) -> bool:
+    """Initialize primary server components.
     
-    file_lock.acquire_lock()
+    Returns:
+        True if initialization was successful, False otherwise.
+    """
+    if not file_lock.acquire_lock():
+        logger.error("Failed to acquire lock - cannot start as primary server")
+        return False
+    
     logger.info("Starting as primary server")
     
-    config_data = get_config()
-    route_config = config_data.app.route
-    webhooks_config = config_data.app.webhooks
+    try:
+        config_data = get_config()
+        route_config = config_data.app.route
+        webhooks_config = config_data.app.webhooks
 
-    route = generate_route(route_config)
+        route = generate_route(route_config)
 
-    channel_manager = ChannelManager()
-    if (config_data.messenger.type == MessengerType.NONE and
-            (not config_data.messenger.channels or 'default' not in config_data.messenger.channels)):
-        config_data.messenger.channels = {'default': {'id': 'default'}}
-    channels = channel_manager.initialize(route.get_uniq_channels(), config_data.messenger.channels, route.channel)
-    default_channel = route.channel
+        channel_manager = ChannelManager()
+        if (config_data.messenger.type == MessengerType.NONE and
+                (not config_data.messenger.channels or 'default' not in config_data.messenger.channels)):
+            config_data.messenger.channels = {'default': {'id': 'default'}}
+        channels = channel_manager.initialize(route.get_uniq_channels(), config_data.messenger.channels, route.channel)
+        default_channel = route.channel
 
-    messenger = get_application(config_data.messenger, channels, default_channel, 
-                                task_management_config=config_data.app.task_management)
-    await messenger.initialize_async()
-    
-    webhooks = generate_webhooks(webhooks_config)
-    incidents = Incidents.create_or_load(messenger.type, messenger.public_url, messenger.team)
+        messenger = get_application(config_data.messenger, channels, default_channel, 
+                                    task_management_config=config_data.app.task_management)
+        await messenger.initialize_async()
+        
+        webhooks = generate_webhooks(webhooks_config)
+        incidents = Incidents.create_or_load(messenger.type, messenger.public_url, messenger.team)
 
-    queue = await AsyncQueue.recreate_queue(incidents)
-    queue_manager = AsyncQueueManager(queue, messenger, incidents, webhooks, route)
+        queue = await AsyncQueue.recreate_queue(incidents)
+        queue_manager = AsyncQueueManager(queue, messenger, incidents, webhooks, route)
 
-    fastapi_app.state.queue = queue
-    fastapi_app.state.queue_manager = queue_manager
-    fastapi_app.state.incidents = incidents
-    fastapi_app.state.messenger = messenger
-    fastapi_app.state.webhooks = webhooks
-    fastapi_app.state.route = route
-    fastapi_app.state.channel_manager = channel_manager
-    fastapi_app.state.config = config_data
+        fastapi_app.state.queue = queue
+        fastapi_app.state.queue_manager = queue_manager
+        fastapi_app.state.incidents = incidents
+        fastapi_app.state.messenger = messenger
+        fastapi_app.state.webhooks = webhooks
+        fastapi_app.state.route = route
+        fastapi_app.state.channel_manager = channel_manager
+        fastapi_app.state.config = config_data
 
-    queue_manager.start_processing()
-    fastapi_app.state.is_standby = False
-    logger.info('IMPulse started as primary server!')
+        queue_manager.start_processing()
+        fastapi_app.state.is_standby = False
+        logger.info('IMPulse started as primary server!')
+        return True
+    except Exception as e:
+        logger.error(f"Failed to initialize primary server: {e}")
+        await file_lock.release_lock()
+        return False
 
 
 @asynccontextmanager
@@ -121,51 +133,76 @@ async def lifespan(fastapi_app: FastAPI):
     """Manage application lifecycle"""
     file_lock = FileLock()
     locked = file_lock.is_locked()
+    shutdown_event = asyncio.Event()
 
     # Store file_lock and standby state early so /readyz endpoint can access them
     fastapi_app.state.file_lock = file_lock
     fastapi_app.state.is_standby = locked
+    fastapi_app.state.queue_manager = None
+    
+    async def wait_and_become_primary():
+        """Background task to wait for lock and become primary server."""
+        while not shutdown_event.is_set():
+            await file_lock.wait_for_unlock()
+            if shutdown_event.is_set():
+                break
+            logger.info('Lock file is unlocked, transitioning to primary server')
+            success = await initialize_primary_server(fastapi_app, file_lock)
+            if success:
+                break
+            logger.error('Failed to transition to primary server - retrying in 5 seconds')
+            try:
+                await asyncio.wait_for(shutdown_event.wait(), timeout=5.0)
+                break
+            except asyncio.TimeoutError:
+                pass
     
     if locked:
         logger.info("Another IMPulse instance is running, working as standby server")
         hostname, pid, _ = file_lock.get_lock_info()
         logger.debug(f"Lock file is used by hostname {hostname}, PID {pid}")
         logger.info('IMPulse started in standby mode!')
-        
-        # Background task to wait for unlock and become primary
-        async def wait_and_become_primary():
-            await file_lock.wait_for_unlock()
-            logger.info('Lock file is unlocked, transitioning to primary server')
-            await initialize_primary_server(fastapi_app, file_lock)
-        
         unlock_task = asyncio.create_task(wait_and_become_primary())
     else:
-        # Start as primary server immediately
-        await initialize_primary_server(fastapi_app, file_lock)
-        unlock_task = None
+        success = await initialize_primary_server(fastapi_app, file_lock)
+        if not success:
+            logger.error('Failed to start as primary server - entering standby mode')
+            fastapi_app.state.is_standby = True
+            unlock_task = asyncio.create_task(wait_and_become_primary())
+        else:
+            unlock_task = None
 
     yield
     
-    # Cleanup
+    # Signal shutdown to background task
+    shutdown_event.set()
+    
+    # Cancel and await background task
     if unlock_task:
         unlock_task.cancel()
+        try:
+            await unlock_task
+        except asyncio.CancelledError:
+            pass
         if fastapi_app.state.is_standby:
             logger.info('Shutting down standby server')
             return
 
+    # Cleanup primary server resources
     if fastapi_app.state.queue_manager:
         await fastapi_app.state.queue_manager.stop_processing()
     if hasattr(fastapi_app.state, 'messenger') and hasattr(fastapi_app.state.messenger, 'close'):
         await fastapi_app.state.messenger.close()
     
-    if hasattr(fastapi_app.state, 'messenger') and fastapi_app.state.messenger.task_management_integration:
+    if hasattr(fastapi_app.state, 'messenger') and getattr(fastapi_app.state.messenger, 'task_management_integration', None):
         await fastapi_app.state.messenger.task_management_integration.jira_client.close()
 
     if hasattr(fastapi_app.state, 'messenger') and hasattr(fastapi_app.state.messenger, 'chains'):
         for chain in fastapi_app.state.messenger.chains.values():
             if hasattr(chain, 'cleanup'):
                 chain.cleanup()
-    file_lock.release_lock()
+    
+    await file_lock.release_lock()
 
     logger.info('IMPulse shutdown complete')
 

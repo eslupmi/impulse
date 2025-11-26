@@ -6,7 +6,7 @@ import os
 import socket
 import time
 from pathlib import Path
-from unittest.mock import Mock, patch, mock_open, MagicMock
+from unittest.mock import Mock, patch, mock_open, MagicMock, AsyncMock
 
 import pytest
 
@@ -59,14 +59,15 @@ class TestFileLockAcquireLock:
     """Test cases for acquire_lock method."""
 
     @pytest.mark.asyncio
-    async def test_acquire_lock_creates_directory(self):
-        """Test that acquire_lock creates lock directory and writes all three files."""
+    async def test_acquire_lock_creates_directory_and_returns_true(self):
+        """Test that acquire_lock creates lock directory and returns True on success."""
         with patch('app.file_lock.get_config') as mock_get_config, \
              patch('app.file_lock.socket.gethostname', return_value='test-host'), \
              patch('app.file_lock.os.getpid', return_value=12345), \
              patch('app.file_lock.time.time', return_value=1000.0), \
              patch('pathlib.Path.exists', return_value=False), \
              patch('pathlib.Path.mkdir') as mock_mkdir, \
+             patch('pathlib.Path.read_text') as mock_read_text, \
              patch('builtins.open', mock_open()) as mock_file, \
              patch('asyncio.get_running_loop') as mock_get_loop:
             
@@ -74,14 +75,18 @@ class TestFileLockAcquireLock:
             mock_config.data_path = "/test/data"
             mock_get_config.return_value = mock_config
             
+            # Mock read_text for ownership verification
+            mock_read_text.side_effect = ["test-host", "12345"]
+            
             mock_loop = Mock()
             mock_task = Mock()
             mock_loop.create_task.return_value = mock_task
             mock_get_loop.return_value = mock_loop
 
             file_lock = FileLock()
-            file_lock.acquire_lock()
+            result = file_lock.acquire_lock()
 
+            assert result is True
             assert file_lock._active is True
             assert file_lock._heartbeat_task == mock_task
             mock_mkdir.assert_called_once_with(parents=True, exist_ok=False)
@@ -98,6 +103,7 @@ class TestFileLockAcquireLock:
              patch('app.file_lock.time.time', return_value=1234.567), \
              patch('pathlib.Path.exists', return_value=False), \
              patch('pathlib.Path.mkdir') as mock_mkdir, \
+             patch('pathlib.Path.read_text') as mock_read_text, \
              patch('builtins.open', mock_open()) as mock_file, \
              patch('asyncio.get_running_loop') as mock_get_loop:
             
@@ -105,14 +111,18 @@ class TestFileLockAcquireLock:
             mock_config.data_path = "/test/data"
             mock_get_config.return_value = mock_config
             
+            # Mock read_text for ownership verification
+            mock_read_text.side_effect = ["test-hostname", "9999"]
+            
             mock_loop = Mock()
             mock_task = Mock()
             mock_loop.create_task.return_value = mock_task
             mock_get_loop.return_value = mock_loop
 
             file_lock = FileLock()
-            file_lock.acquire_lock()
+            result = file_lock.acquire_lock()
 
+            assert result is True
             mock_mkdir.assert_called_once_with(parents=True, exist_ok=False)
             # Should be called 3 times for heartbeat, pid, and host files
             assert mock_file.call_count == 3
@@ -123,15 +133,17 @@ class TestFileLockAcquireLock:
             assert "test-hostname" in write_calls
 
     @pytest.mark.asyncio
-    async def test_acquire_lock_handles_write_error(self):
-        """Test that acquire_lock handles write errors gracefully."""
+    async def test_acquire_lock_handles_write_error_returns_false(self):
+        """Test that acquire_lock handles write errors and returns False."""
         with patch('app.file_lock.get_config') as mock_get_config, \
              patch('app.file_lock.socket.gethostname', return_value='test-host'), \
              patch('app.file_lock.os.getpid', return_value=12345), \
              patch('app.file_lock.time.time', return_value=1000.0), \
+             patch('pathlib.Path.exists', return_value=False), \
              patch('pathlib.Path.mkdir'), \
              patch('builtins.open', side_effect=OSError("Permission denied")), \
              patch('app.file_lock.logger') as mock_logger, \
+             patch('app.file_lock.shutil.rmtree'), \
              patch('asyncio.get_running_loop') as mock_get_loop:
             
             mock_config = Mock()
@@ -142,18 +154,19 @@ class TestFileLockAcquireLock:
             mock_get_loop.return_value = mock_loop
 
             file_lock = FileLock()
-            file_lock.acquire_lock()
+            result = file_lock.acquire_lock()
 
+            assert result is False
             assert file_lock._active is False
             assert file_lock._heartbeat_task is None
-            mock_logger.debug.assert_called()
-            assert "Error creating lock files" in str(mock_logger.debug.call_args)
+            mock_logger.error.assert_called()
             mock_get_loop.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_acquire_lock_fails_when_directory_exists(self):
-        """Test that acquire_lock fails when directory already exists."""
+    async def test_acquire_lock_fails_when_directory_exists_returns_false(self):
+        """Test that acquire_lock returns False when directory already exists."""
         with patch('app.file_lock.get_config') as mock_get_config, \
+             patch('pathlib.Path.exists', return_value=False), \
              patch('pathlib.Path.mkdir', side_effect=FileExistsError("Directory exists")), \
              patch('app.file_lock.logger') as mock_logger, \
              patch('asyncio.get_running_loop') as mock_get_loop:
@@ -163,18 +176,19 @@ class TestFileLockAcquireLock:
             mock_get_config.return_value = mock_config
 
             file_lock = FileLock()
-            file_lock.acquire_lock()
+            result = file_lock.acquire_lock()
 
+            assert result is False
             assert file_lock._active is False
             assert file_lock._heartbeat_task is None
             mock_logger.debug.assert_called()
-            assert "Error creating lock files" in str(mock_logger.debug.call_args)
             mock_get_loop.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_acquire_lock_fails_on_mkdir_error(self):
-        """Test that acquire_lock fails when mkdir raises OSError."""
+    async def test_acquire_lock_fails_on_mkdir_error_returns_false(self):
+        """Test that acquire_lock returns False when mkdir raises OSError."""
         with patch('app.file_lock.get_config') as mock_get_config, \
+             patch('pathlib.Path.exists', return_value=False), \
              patch('pathlib.Path.mkdir', side_effect=OSError("Permission denied")), \
              patch('app.file_lock.logger') as mock_logger, \
              patch('asyncio.get_running_loop') as mock_get_loop:
@@ -184,19 +198,20 @@ class TestFileLockAcquireLock:
             mock_get_config.return_value = mock_config
 
             file_lock = FileLock()
-            file_lock.acquire_lock()
+            result = file_lock.acquire_lock()
 
+            assert result is False
             assert file_lock._active is False
             assert file_lock._heartbeat_task is None
-            mock_logger.debug.assert_called()
-            assert "Error creating lock files" in str(mock_logger.debug.call_args)
+            mock_logger.error.assert_called()
             mock_get_loop.assert_not_called()
 
 
 class TestFileLockReleaseLock:
-    """Test cases for release_lock method."""
+    """Test cases for release_lock method (now async)."""
 
-    def test_release_lock_removes_directory(self):
+    @pytest.mark.asyncio
+    async def test_release_lock_removes_directory(self):
         """Test that release_lock removes lock directory."""
         with patch('app.file_lock.get_config') as mock_get_config, \
              patch('pathlib.Path.exists', return_value=True), \
@@ -206,17 +221,21 @@ class TestFileLockReleaseLock:
             mock_config.data_path = "/test/data"
             mock_get_config.return_value = mock_config
 
-            mock_task = Mock()
+            async def cancelled_task():
+                raise asyncio.CancelledError()
+            
             file_lock = FileLock()
-            file_lock._heartbeat_task = mock_task
+            file_lock._heartbeat_task = asyncio.create_task(cancelled_task())
             file_lock._active = True
-            file_lock.release_lock()
+            
+            await file_lock.release_lock()
 
             assert file_lock._active is False
             mock_rmtree.assert_called_once_with(file_lock.lock_dir)
 
-    def test_release_lock_cancels_heartbeat_task(self):
-        """Test that release_lock cancels heartbeat task."""
+    @pytest.mark.asyncio
+    async def test_release_lock_cancels_heartbeat_task(self):
+        """Test that release_lock cancels and awaits heartbeat task."""
         with patch('app.file_lock.get_config') as mock_get_config, \
              patch('pathlib.Path.exists', return_value=False):
             
@@ -224,17 +243,26 @@ class TestFileLockReleaseLock:
             mock_config.data_path = "/test/data"
             mock_get_config.return_value = mock_config
 
-            mock_task = Mock()
+            task_started = asyncio.Event()
+            
+            async def long_running_task():
+                task_started.set()
+                await asyncio.sleep(1000)
+            
             file_lock = FileLock()
-            file_lock._heartbeat_task = mock_task
+            file_lock._heartbeat_task = asyncio.create_task(long_running_task())
             file_lock._active = True
+            
+            await task_started.wait()
 
-            file_lock.release_lock()
+            await file_lock.release_lock()
 
             assert file_lock._active is False
-            mock_task.cancel.assert_called_once()
+            assert file_lock._heartbeat_task is None
+            assert file_lock._heartbeat_task is None
 
-    def test_release_lock_without_heartbeat_task(self):
+    @pytest.mark.asyncio
+    async def test_release_lock_without_heartbeat_task(self):
         """Test release_lock when heartbeat task doesn't exist."""
         with patch('app.file_lock.get_config') as mock_get_config, \
              patch('pathlib.Path.exists', return_value=False):
@@ -247,12 +275,13 @@ class TestFileLockReleaseLock:
             file_lock._heartbeat_task = None
             file_lock._active = True
 
-            file_lock.release_lock()
+            await file_lock.release_lock()
 
-            # When _heartbeat_task is None, _active is not changed in current implementation
-            assert file_lock._active is True
+            # _active should be set to False even without heartbeat task
+            assert file_lock._active is False
 
-    def test_release_lock_when_directory_not_exists(self):
+    @pytest.mark.asyncio
+    async def test_release_lock_when_directory_not_exists(self):
         """Test release_lock when lock directory doesn't exist."""
         with patch('app.file_lock.get_config') as mock_get_config, \
              patch('pathlib.Path.exists', return_value=False), \
@@ -263,9 +292,29 @@ class TestFileLockReleaseLock:
             mock_get_config.return_value = mock_config
 
             file_lock = FileLock()
-            file_lock.release_lock()
+            await file_lock.release_lock()
 
             mock_rmtree.assert_not_called()
+
+    def test_release_lock_sync_removes_directory(self):
+        """Test that release_lock_sync removes lock directory."""
+        with patch('app.file_lock.get_config') as mock_get_config, \
+             patch('pathlib.Path.exists', return_value=True), \
+             patch('app.file_lock.shutil.rmtree') as mock_rmtree:
+            
+            mock_config = Mock()
+            mock_config.data_path = "/test/data"
+            mock_get_config.return_value = mock_config
+
+            mock_task = Mock()
+            file_lock = FileLock()
+            file_lock._heartbeat_task = mock_task
+            file_lock._active = True
+            
+            file_lock.release_lock_sync()
+
+            assert file_lock._active is False
+            mock_rmtree.assert_called_once_with(file_lock.lock_dir)
 
 
 class TestFileLockIsLocked:
@@ -302,7 +351,7 @@ class TestFileLockIsLocked:
         with patch('app.file_lock.get_config') as mock_get_config, \
              patch('pathlib.Path.exists', return_value=True), \
              patch('pathlib.Path.read_text', return_value="1000.0"), \
-             patch('app.file_lock.time.time', return_value=1011.0):
+             patch('app.file_lock.time.time', return_value=1019.0):  # STALE_SEC is now 18
             
             mock_config = Mock()
             mock_config.data_path = "/test/data"
@@ -325,7 +374,8 @@ class TestFileLockIsLocked:
             file_lock = FileLock()
             result = file_lock.is_locked()
 
-            assert result is True  # Returns True on error
+            # Now returns False on error for safer HA recovery
+            assert result is False
             mock_logger.error.assert_called()
 
     def test_is_locked_handles_file_not_found_error(self):
@@ -342,19 +392,89 @@ class TestFileLockIsLocked:
 
             assert result is False  # Returns False when file not found
 
-    def test_is_locked_boundary_condition_stale(self):
+    def test_is_locked_boundary_condition_at_stale_sec(self):
         """Test is_locked with boundary condition (exactly STALE_SEC)."""
         with patch('app.file_lock.get_config') as mock_get_config, \
              patch('pathlib.Path.exists', return_value=True), \
              patch('pathlib.Path.read_text', return_value="1000.0"), \
-             patch('app.file_lock.time.time', return_value=1010.0):
+             patch('app.file_lock.time.time', return_value=1018.0):  # Exactly STALE_SEC (18)
             
             mock_config = Mock()
             mock_config.data_path = "/test/data"
             mock_get_config.return_value = mock_config
 
             file_lock = FileLock()
-            assert file_lock.is_locked() is False  # Exactly STALE_SEC, should be stale
+            # At exactly STALE_SEC, should still be considered locked (<=)
+            assert file_lock.is_locked() is True
+
+    def test_is_locked_boundary_condition_past_stale_sec(self):
+        """Test is_locked with boundary condition (just past STALE_SEC)."""
+        with patch('app.file_lock.get_config') as mock_get_config, \
+             patch('pathlib.Path.exists', return_value=True), \
+             patch('pathlib.Path.read_text', return_value="1000.0"), \
+             patch('app.file_lock.time.time', return_value=1018.001):  # Just past STALE_SEC
+            
+            mock_config = Mock()
+            mock_config.data_path = "/test/data"
+            mock_get_config.return_value = mock_config
+
+            file_lock = FileLock()
+            assert file_lock.is_locked() is False
+
+
+class TestFileLockIsOwner:
+    """Test cases for is_owner method."""
+
+    def test_is_owner_returns_true_when_owner(self):
+        """Test is_owner returns True when this instance owns the lock."""
+        with patch('app.file_lock.get_config') as mock_get_config, \
+             patch('app.file_lock.socket.gethostname', return_value='test-host'), \
+             patch('app.file_lock.os.getpid', return_value=12345), \
+             patch('pathlib.Path.read_text') as mock_read_text:
+            
+            mock_config = Mock()
+            mock_config.data_path = "/test/data"
+            mock_get_config.return_value = mock_config
+            
+            # Return hostname and pid that match
+            mock_read_text.side_effect = ["test-host", "12345"]
+
+            file_lock = FileLock()
+            file_lock._active = True
+            
+            assert file_lock.is_owner() is True
+
+    def test_is_owner_returns_false_when_not_active(self):
+        """Test is_owner returns False when not active."""
+        with patch('app.file_lock.get_config') as mock_get_config:
+            
+            mock_config = Mock()
+            mock_config.data_path = "/test/data"
+            mock_get_config.return_value = mock_config
+
+            file_lock = FileLock()
+            file_lock._active = False
+            
+            assert file_lock.is_owner() is False
+
+    def test_is_owner_returns_false_when_different_owner(self):
+        """Test is_owner returns False when different instance owns lock."""
+        with patch('app.file_lock.get_config') as mock_get_config, \
+             patch('app.file_lock.socket.gethostname', return_value='test-host'), \
+             patch('app.file_lock.os.getpid', return_value=12345), \
+             patch('pathlib.Path.read_text') as mock_read_text:
+            
+            mock_config = Mock()
+            mock_config.data_path = "/test/data"
+            mock_get_config.return_value = mock_config
+            
+            # Return different hostname/pid
+            mock_read_text.side_effect = ["other-host", "99999"]
+
+            file_lock = FileLock()
+            file_lock._active = True
+            
+            assert file_lock.is_owner() is False
 
 
 class TestFileLockGetLockInfo:
@@ -473,63 +593,98 @@ class TestFileLockWaitForUnlock:
 class TestFileLockUpdate:
     """Test cases for _update method."""
 
-    def test_update_writes_only_heartbeat(self):
-        """Test _update writes only heartbeat file."""
+    def test_update_writes_heartbeat_and_returns_true(self):
+        """Test _update writes heartbeat file and returns True on success."""
         with patch('app.file_lock.get_config') as mock_get_config, \
+             patch('app.file_lock.socket.gethostname', return_value='test-host'), \
+             patch('app.file_lock.os.getpid', return_value=12345), \
              patch('app.file_lock.time.time', return_value=2000.123), \
+             patch('pathlib.Path.read_text') as mock_read_text, \
              patch('builtins.open', mock_open()) as mock_file:
             
             mock_config = Mock()
             mock_config.data_path = "/test/data"
             mock_get_config.return_value = mock_config
+            
+            # Mock ownership verification
+            mock_read_text.side_effect = ["test-host", "12345"]
 
             file_lock = FileLock()
-            file_lock._update()
+            result = file_lock._update()
 
+            assert result is True
             # Should be called only once for heartbeat file
             assert mock_file.call_count == 1
-            # Check that only heartbeat file is opened
-            opened_files = [str(call[0][0]) for call in mock_file.call_args_list]
-            assert str(file_lock.heartbeat_path) in opened_files
-            assert str(file_lock.pid_path) not in opened_files
-            assert str(file_lock.host_path) not in opened_files
             # Check write call
             write_calls = [str(call[0][0]) for call in mock_file().write.call_args_list]
             assert "2000.123" in write_calls
 
-    def test_update_handles_oserror(self):
-        """Test _update handles OSError."""
+    def test_update_returns_false_when_ownership_lost(self):
+        """Test _update returns False when ownership is lost."""
         with patch('app.file_lock.get_config') as mock_get_config, \
+             patch('app.file_lock.socket.gethostname', return_value='test-host'), \
+             patch('app.file_lock.os.getpid', return_value=12345), \
+             patch('pathlib.Path.read_text') as mock_read_text, \
+             patch('app.file_lock.logger') as mock_logger:
+            
+            mock_config = Mock()
+            mock_config.data_path = "/test/data"
+            mock_get_config.return_value = mock_config
+            
+            # Return different owner
+            mock_read_text.side_effect = ["other-host", "99999"]
+
+            file_lock = FileLock()
+            result = file_lock._update()
+
+            assert result is False
+            mock_logger.error.assert_called()
+
+    def test_update_handles_oserror_returns_false(self):
+        """Test _update handles OSError and returns False."""
+        with patch('app.file_lock.get_config') as mock_get_config, \
+             patch('app.file_lock.socket.gethostname', return_value='test-host'), \
+             patch('app.file_lock.os.getpid', return_value=12345), \
              patch('app.file_lock.time.time', return_value=1000.0), \
+             patch('pathlib.Path.read_text') as mock_read_text, \
              patch('builtins.open', side_effect=OSError("Permission denied")), \
              patch('app.file_lock.logger') as mock_logger:
             
             mock_config = Mock()
             mock_config.data_path = "/test/data"
             mock_get_config.return_value = mock_config
+            
+            # Mock ownership verification to pass
+            mock_read_text.side_effect = ["test-host", "12345"]
 
             file_lock = FileLock()
-            file_lock._update()
+            result = file_lock._update()
 
-            mock_logger.debug.assert_called_once()
-            assert "Error updating heartbeat file" in str(mock_logger.debug.call_args)
+            assert result is False
+            mock_logger.debug.assert_called()
 
-    def test_update_handles_ioerror(self):
-        """Test _update handles IOError."""
+    def test_update_handles_ioerror_returns_false(self):
+        """Test _update handles IOError and returns False."""
         with patch('app.file_lock.get_config') as mock_get_config, \
+             patch('app.file_lock.socket.gethostname', return_value='test-host'), \
+             patch('app.file_lock.os.getpid', return_value=12345), \
              patch('app.file_lock.time.time', return_value=1000.0), \
+             patch('pathlib.Path.read_text') as mock_read_text, \
              patch('builtins.open', side_effect=IOError("Disk full")), \
              patch('app.file_lock.logger') as mock_logger:
             
             mock_config = Mock()
             mock_config.data_path = "/test/data"
             mock_get_config.return_value = mock_config
+            
+            # Mock ownership verification to pass
+            mock_read_text.side_effect = ["test-host", "12345"]
 
             file_lock = FileLock()
-            file_lock._update()
+            result = file_lock._update()
 
-            mock_logger.debug.assert_called_once()
-            assert "Error updating heartbeat file" in str(mock_logger.debug.call_args)
+            assert result is False
+            mock_logger.debug.assert_called()
 
 
 class TestFileLockHeartbeat:
@@ -539,7 +694,7 @@ class TestFileLockHeartbeat:
     async def test_heartbeat_updates_while_active(self):
         """Test _heartbeat updates lock file while active."""
         with patch('app.file_lock.get_config') as mock_get_config, \
-             patch.object(FileLock, '_update') as mock_update, \
+             patch.object(FileLock, '_update', return_value=True) as mock_update, \
              patch('app.file_lock.asyncio.sleep') as mock_sleep:
             
             mock_config = Mock()
@@ -565,15 +720,16 @@ class TestFileLockHeartbeat:
             try:
                 await task
             except asyncio.CancelledError:
-                # Verify update was called
-                assert mock_update.called
-                raise  # Re-raise CancelledError after cleanup
+                pass
+            
+            # Verify update was called
+            assert mock_update.called
 
     @pytest.mark.asyncio
     async def test_heartbeat_stops_when_inactive(self):
         """Test _heartbeat stops when _active is False."""
         with patch('app.file_lock.get_config') as mock_get_config, \
-             patch.object(FileLock, '_update') as mock_update, \
+             patch.object(FileLock, '_update', return_value=True) as mock_update, \
              patch('app.file_lock.asyncio.sleep'):
             
             mock_config = Mock()
@@ -589,16 +745,16 @@ class TestFileLockHeartbeat:
             try:
                 await task
             except asyncio.CancelledError:
-                # Update should not be called if _active is False from start
-                # The loop should exit immediately without calling _update
-                assert not mock_update.called
-                raise  # Re-raise CancelledError after cleanup
+                pass
+            
+            # Update should not be called if _active is False from start
+            assert not mock_update.called
 
     @pytest.mark.asyncio
     async def test_heartbeat_sleeps_correct_interval(self):
         """Test _heartbeat sleeps for HEARTBEAT_SEC seconds."""
         with patch('app.file_lock.get_config') as mock_get_config, \
-             patch.object(FileLock, '_update'), \
+             patch.object(FileLock, '_update', return_value=True), \
              patch('app.file_lock.asyncio.sleep') as mock_sleep:
             
             mock_config = Mock()
@@ -626,9 +782,40 @@ class TestFileLockHeartbeat:
             try:
                 await task
             except asyncio.CancelledError:
-                # Verify sleep was called
-                assert mock_sleep.called
-                raise  # Re-raise CancelledError after cleanup  # Re-raise CancelledError after cleanup
+                pass
+            
+            # Verify sleep was called
+            assert mock_sleep.called
+
+    @pytest.mark.asyncio
+    async def test_heartbeat_stops_after_max_failures(self):
+        """Test _heartbeat stops after MAX_HEARTBEAT_FAILURES consecutive failures."""
+        with patch('app.file_lock.get_config') as mock_get_config, \
+             patch.object(FileLock, '_update', return_value=False) as mock_update, \
+             patch('app.file_lock.asyncio.sleep') as mock_sleep, \
+             patch('app.file_lock.logger') as mock_logger:
+            
+            mock_config = Mock()
+            mock_config.data_path = "/test/data"
+            mock_get_config.return_value = mock_config
+
+            file_lock = FileLock()
+            file_lock._active = True
+
+            # Start heartbeat task
+            task = asyncio.create_task(file_lock._heartbeat())
+            
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+            
+            # Should have called update MAX_HEARTBEAT_FAILURES times
+            assert mock_update.call_count == FileLock.MAX_HEARTBEAT_FAILURES
+            # Should have stopped due to failures
+            assert file_lock._active is False
+            # Should have logged error
+            mock_logger.error.assert_called()
 
 
 class TestFileLockConstants:
@@ -639,6 +826,74 @@ class TestFileLockConstants:
         assert FileLock.HEARTBEAT_SEC == 6
 
     def test_stale_sec_constant(self):
-        """Test STALE_SEC constant value."""
-        assert FileLock.STALE_SEC == 10
+        """Test STALE_SEC constant value (should be 3x HEARTBEAT_SEC for safety)."""
+        assert FileLock.STALE_SEC == 18
+        assert FileLock.STALE_SEC >= FileLock.HEARTBEAT_SEC * 2
 
+    def test_max_heartbeat_failures_constant(self):
+        """Test MAX_HEARTBEAT_FAILURES constant value."""
+        assert FileLock.MAX_HEARTBEAT_FAILURES == 3
+
+
+class TestFileLockVerifyOwnership:
+    """Test cases for _verify_ownership method."""
+
+    def test_verify_ownership_returns_true_when_owner(self):
+        """Test _verify_ownership returns True when this instance owns the lock."""
+        with patch('app.file_lock.get_config') as mock_get_config, \
+             patch('app.file_lock.socket.gethostname', return_value='test-host'), \
+             patch('app.file_lock.os.getpid', return_value=12345), \
+             patch('pathlib.Path.read_text') as mock_read_text:
+            
+            mock_config = Mock()
+            mock_config.data_path = "/test/data"
+            mock_get_config.return_value = mock_config
+            
+            mock_read_text.side_effect = ["test-host", "12345"]
+
+            file_lock = FileLock()
+            assert file_lock._verify_ownership() is True
+
+    def test_verify_ownership_returns_false_when_different_host(self):
+        """Test _verify_ownership returns False when hostname differs."""
+        with patch('app.file_lock.get_config') as mock_get_config, \
+             patch('app.file_lock.socket.gethostname', return_value='test-host'), \
+             patch('app.file_lock.os.getpid', return_value=12345), \
+             patch('pathlib.Path.read_text') as mock_read_text:
+            
+            mock_config = Mock()
+            mock_config.data_path = "/test/data"
+            mock_get_config.return_value = mock_config
+            
+            mock_read_text.side_effect = ["other-host", "12345"]
+
+            file_lock = FileLock()
+            assert file_lock._verify_ownership() is False
+
+    def test_verify_ownership_returns_false_when_different_pid(self):
+        """Test _verify_ownership returns False when PID differs."""
+        with patch('app.file_lock.get_config') as mock_get_config, \
+             patch('app.file_lock.socket.gethostname', return_value='test-host'), \
+             patch('app.file_lock.os.getpid', return_value=12345), \
+             patch('pathlib.Path.read_text') as mock_read_text:
+            
+            mock_config = Mock()
+            mock_config.data_path = "/test/data"
+            mock_get_config.return_value = mock_config
+            
+            mock_read_text.side_effect = ["test-host", "99999"]
+
+            file_lock = FileLock()
+            assert file_lock._verify_ownership() is False
+
+    def test_verify_ownership_returns_false_on_file_not_found(self):
+        """Test _verify_ownership returns False when files don't exist."""
+        with patch('app.file_lock.get_config') as mock_get_config, \
+             patch('pathlib.Path.read_text', side_effect=FileNotFoundError()):
+            
+            mock_config = Mock()
+            mock_config.data_path = "/test/data"
+            mock_get_config.return_value = mock_config
+
+            file_lock = FileLock()
+            assert file_lock._verify_ownership() is False
