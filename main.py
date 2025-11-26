@@ -182,7 +182,7 @@ async def lifespan(fastapi_app: FastAPI):
         unlock_task.cancel()
         try:
             await unlock_task
-        except asyncio.CancelledError:
+        except asyncio.CancelledError:  # nosonar - Intentional: we initiated the cancellation
             pass
         if fastapi_app.state.is_standby:
             logger.info('Shutting down standby server')
