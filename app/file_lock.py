@@ -145,7 +145,7 @@ class FileLock:
             self._heartbeat_task.cancel()
             try:
                 await self._heartbeat_task
-            except asyncio.CancelledError:  # nosonar - Intentional: we initiated the cancellation
+            except asyncio.CancelledError:  # NOSONAR - Intentional: we initiated the cancellation
                 pass
             self._heartbeat_task = None
         

@@ -719,7 +719,7 @@ class TestFileLockHeartbeat:
             
             try:
                 await task
-            except asyncio.CancelledError:  # nosonar - Test cleanup
+            except asyncio.CancelledError:  # NOSONAR - Test cleanup
                 pass
             
             # Verify update was called
@@ -744,7 +744,7 @@ class TestFileLockHeartbeat:
             
             try:
                 await task
-            except asyncio.CancelledError:  # nosonar - Test cleanup
+            except asyncio.CancelledError:  # NOSONAR - Test cleanup
                 pass
             
             # Update should not be called if _active is False from start
@@ -781,7 +781,7 @@ class TestFileLockHeartbeat:
             
             try:
                 await task
-            except asyncio.CancelledError:  # nosonar - Test cleanup
+            except asyncio.CancelledError:  # NOSONAR - Test cleanup
                 pass
             
             # Verify sleep was called
@@ -807,7 +807,7 @@ class TestFileLockHeartbeat:
             
             try:
                 await task
-            except asyncio.CancelledError:  # nosonar - Test cleanup
+            except asyncio.CancelledError:  # NOSONAR - Test cleanup
                 pass
             
             # Should have called update MAX_HEARTBEAT_FAILURES times

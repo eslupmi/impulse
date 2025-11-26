@@ -1121,7 +1121,7 @@ class FakeTime:
         """
         self.current_time += seconds
     
-    async def sleep(self, seconds: float): # nosonar - test mock
+    async def sleep(self, seconds: float): # NOSONAR - test mock
         """
         Simulate asyncio.sleep by advancing time instantly.
         
@@ -1189,9 +1189,9 @@ def create_test_server_url(server, path: str = '/test') -> str:
         Complete HTTP URL for testing
         
     Note:
-        Uses http:// for local test servers (nosonar compliant)
+        Uses http:// for local test servers (NOSONAR compliant)
     """
-    return f'http://{server.host}:{server.port}{path}'  # nosonar - test mock server
+    return f'http://{server.host}:{server.port}{path}'  # NOSONAR - test mock server
 
 
 async def make_requests_and_close(client, url: str, count: int) -> list:
