@@ -2,7 +2,7 @@
 import time
 from contextlib import asynccontextmanager
 
-from prometheus_client import Histogram
+from prometheus_client import Gauge, Histogram
 
 
 @asynccontextmanager
@@ -24,8 +24,13 @@ async def measure_metrics(*, messenger_type: str, histogram: Histogram):
 
 
 api_response_time_seconds = Histogram(
-    'api_response_time_seconds',
+    'impulse_api_response_time_seconds',
     'HTTP response time for messenger API requests',
     ['messenger_type', 'status_class'],
     buckets=[0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, float('inf')]
+)
+
+impulse_status = Gauge(
+    'impulse_status',
+    'IMPulse instance status (1.0=primary, 0.0=standby)'
 )

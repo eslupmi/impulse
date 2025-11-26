@@ -20,7 +20,7 @@ def service_unavailable_response(message: str) -> Response:
 
 
 class StandbyMiddleware(BaseHTTPMiddleware):
-    """Middleware to block all requests except /readyz and /livez when in standby mode"""
+    """Middleware to block all requests except /readyz, /livez and /metrics when in standby mode"""
     
     async def dispatch(self, request: Request, call_next):
         path = request.url.path
@@ -31,9 +31,9 @@ class StandbyMiddleware(BaseHTTPMiddleware):
         config_data = get_config()
         http_prefix = config_data.http_prefix or ""
         
-        # Check if path is /readyz or /livez (with or without prefix)
+        # Check if path is /readyz, /livez or /metrics (with or without prefix)
         # Endpoints are registered directly in app with prefix, so check full path
-        if path == f"{http_prefix}/readyz" or path == f"{http_prefix}/livez":
+        if path == f"{http_prefix}/readyz" or path == f"{http_prefix}/livez" or path == f"{http_prefix}/metrics":
             return await call_next(request)
         
         # Check if server is in standby mode
@@ -49,7 +49,7 @@ class StandbyMiddleware(BaseHTTPMiddleware):
                 return await call_next(request)
             
             # Block all other requests
-            return service_unavailable_response("Service Unavailable - Standby mode. Only /readyz and /livez endpoints are available.")
+            return service_unavailable_response("Service Unavailable - Standby mode. Only /readyz, /livez and /metrics endpoints are available.")
         
         return await call_next(request)
 
