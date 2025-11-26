@@ -34,3 +34,8 @@ impulse_status = Gauge(
     'impulse_status',
     'IMPulse instance status (1.0=primary, 0.0=standby)'
 )
+
+queue_delay_seconds = Gauge(
+    'impulse_queue_delay_seconds',
+    'Delay between scheduled and actual processing time for queue items'
+)
