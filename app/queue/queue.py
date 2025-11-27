@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from typing import Optional, Tuple, Any
 
 from app.logging import logger
-from app.metrics import queue_delay_seconds
+from app.metrics import metrics_queue_latency_seconds
 
 QueueItem = namedtuple('QueueItem', ['datetime', 'type', 'uniq_id', 'identifier', 'data'])
 
@@ -82,7 +82,7 @@ class AsyncQueue:
             if self._items and self._items[0].datetime <= now:
                 item = self._items.pop(0)
                 delay = (now - item.datetime).total_seconds()
-                queue_delay_seconds.set(delay)
+                metrics_queue_latency_seconds.set(delay)
                 # Using _items list as the source of truth for ordering and content
                 return item.type, item.uniq_id, item.identifier, item.data
         return None, None, None, None

@@ -8,7 +8,7 @@ from aiohttp import ClientTimeout, ClientSession, ClientResponse
 from aiohttp_retry import ExponentialRetry, RetryClient
 
 from app.logging import logger
-from app.metrics import api_response_time_seconds, measure_metrics
+from app.metrics import measure_metrics, metrics_messenger_api_request_duration_seconds
 
 
 class RetryAfterRetry(ExponentialRetry):
@@ -81,11 +81,11 @@ class RateLimitedClient:
         timeout: float = 30.0,
         connector_limit: int = 100,
         connector_limit_per_host: int = 30,
-        messenger_type: Optional[str] = None
+        messenger: Optional[str] = None
     ):
         self.rate_limit = rate_limit
         self.rate_window = rate_window
-        self.messenger_type = messenger_type or 'none'
+        self.messenger = messenger or 'none'
         
         # Rate limiting state
         self._request_count = 0
@@ -214,23 +214,28 @@ class RateLimitedClient:
         await self._wait_for_rate_limit()
         
         async with measure_metrics(
-            messenger_type=self.messenger_type,
-            histogram=api_response_time_seconds,
+            messenger=self.messenger,
+            histogram=metrics_messenger_api_request_duration_seconds,
         ) as context:
             try:
                 response = await self._client.request(method, url, **kwargs)
                 status_code = response.status
-                context['status_class'] = f'{status_code // 100}xx'
-                logger.info(f"Request to {url} completed with status {status_code} ({context['status_class']})")
+                context['status'] = f'{status_code // 100}xx'
+                context['error'] = 'none'
+                logger.info(f"Request to {url} completed with status {status_code} ({context['status']})")
                 return response
             
             except asyncio.TimeoutError as e:
-                context['status_class'] = 'timeout'
+                context['error'] = 'timeout'
                 logger.error(f"Request to {url} timed out: {type(e).__name__}: {e}")
                 raise e
 
+            except aiohttp.ClientConnectorError as e:
+                context['error'] = 'connection_failed'
+                logger.error(f"Request to {url} connection failed: {type(e).__name__}: {e}")
+                raise
+
             except Exception as e:
-                context['status_class'] = 'error'
                 logger.error(f"Request to {url} failed: {type(e).__name__}: {e}")
                 raise
     
@@ -281,4 +286,3 @@ class RateLimitedClient:
             'window_start_time': self._window_start_time,
             'last_request_time': self._last_request_time
         }
-
