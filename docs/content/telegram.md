@@ -3,7 +3,7 @@
 In Telegram, although the configuration uses the term `channels`, they are actually implemented as groups with topics.
 
 !!! warning "Limitations"
-    We use the **HTML parser**, so links (`source`, `runbook`) will not be generated if their format does not comply with standards.  
+    We use Telegram [HTML parser](https://core.telegram.org/bots/update56kabdkb12ibuisabdubodbasbdaosd#html-style), so links (`source`, `runbook`) will not be generated if their format does not comply with Telegram standards.  
     For example, a link that only contains a hostname (like `http://localhost:8000`) will be ignored.  
 
     **✅ Workaround:** use a valid domain name or an IP address.

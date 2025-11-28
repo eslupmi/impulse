@@ -56,7 +56,6 @@ Possible causes of **unknown** status:
 - IMPulse did not receive an updated alert status (e.g., IMPulse or Alertmanager was down, or there were network issues)
 - `repeat_interval` + `group_interval` exceeds IMPulse's `incident.timeouts.firing`
 
-
 When an incident becomes **unknown** , IMPulse sends a warning message to `messenger.admin_users`.
 
 #### closed
@@ -72,7 +71,7 @@ There are two ways an Incident can be closed:
 
 ### Lifecycle
 
-IMPulse creates an Incident with  the **firing** status and tracks it until its status becomes **closed**.
+IMPulse creates an Incident with the **firing** status and tracks it until the incident is deleted (after [`incident.timeouts.closed`](#closed)).
 
 Here is a visualization of the full incident lifecycle:
 
