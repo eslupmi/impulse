@@ -67,28 +67,28 @@
 - **description:** after this time, incident status changes from 'firing' to 'unknown' if no alerts appear
 - **type:** string
 - **default value:** 6h
-- **allowed values:** same time format as `wait` in [messenger chains](config_file.md/#messengerchains)
+- **allowed values:** `wait` instruction [format](config_file.md/#messengerchains)
 
 #### incident.timeouts.unknown
 
 - **description:** after this time, incident status changes from 'unknown' to 'closed' if no alerts appear
 - **type:** string
 - **default value:** 6h
-- **allowed values:** same time format as `wait` in [messenger chains](config_file.md/#messengerchains)
+- **allowed values:** `wait` instruction [format](config_file.md/#messengerchains)
 
 #### incident.timeouts.resolved
 
 - **description:** after this time, incident status changes from 'resolved' to 'closed' if no alerts appear
 - **type:** string
 - **default value:** 12h
-- **allowed values:** same time format as `wait` in [messenger chains](config_file.md/#messengerchains)
+- **allowed values:** `wait` instruction [format](config_file.md/#messengerchains)
 
 #### incident.timeouts.closed
 
 - **description:** after this time, 'closed' incident will be deleted
 - **type:** string
 - **default value:** 90d
-- **allowed values:** same time format as `wait` in [messenger chains](config_file.md/#messengerchains)
+- **allowed values:** `wait` instruction [format](config_file.md/#messengerchains)
 
 ## messenger *
 
@@ -246,7 +246,7 @@
 
 ##### messenger.chains[].schedule
 
-- **description:** list of matchers with corresponding steps. IMPulse evaluates matchers from top to bottom. If a `matcher` matches the current time, the corresponding `steps` defined for that `matcher` are selected.
+- **description:** list of matchers with corresponding steps. IMPulse evaluates matchers from top to bottom. If a `matcher` matches the current time, the corresponding `steps` defined for that `matcher` are selected
 - **type:** list
 
 > **Examples:**
@@ -276,34 +276,40 @@
 > Matcher contains theese fields:
 > > **start_day_expr** *
 > >
-> > - **description:** date matching strategy: "dow" (day of week), "dom" (day of month), "date" (exact date). Expressions like "dow % 2" (least positive remainder) are also allowed.
+> > - **description:** date matching strategy
 > > - **type:** string
+> > - **allowed values:**
+> >     - "dow" - day of week
+> >     - "dom" - day of month
+> >     - "date" - exact date
+> >     - "dow % 2" - least positive remainder (works with "dow", "dom")
 > >
 > > **start_day_values** *
 > >
 > > - **description:** values for the expression **start_day_expr**
 > > - **type:** list
-> >
-> > > Available values:
-> >
-> > >   - for `dow`: 0 to 7 (like in [cron](https://en.wikipedia.org/wiki/Cron)) or "Sun", "Mon"...
-> > >   - for `dom`: 1 to 31
-> > >   - for `date`: "2024-12-24" format
+> > - **allowed values:**
+> >     - for `dow`: 0 to 7 (like in [cron](https://en.wikipedia.org/wiki/Cron)) or "Sun", "Mon"...
+> >     - for `dom`: 1 to 31
+> >     - for `date`: "2024-12-24" format
 > > 
 > > **start_time**
 > >
-> > - **description:** local time in "HH:MM" format (24-hour)
+> > - **description:** local time
 > > - **type:** string
-> > 
+> > - **allowed values:** "HH:MM" format (24-hour)
+> >
 > > **duration**
 > >
-> > - **description:** duration of the active window, e.g., "12h" or "2d"
+> > - **description:** duration of the active window
 > > - **type:** string
+> > - **allowed values:** `wait` instruction [format](config_file.md/#messengerchains)
 > 
 > **steps**
 
-> - **description:** list of chain steps (same as in [simple chain](#simple-chain)). It is recommended to use `steps` without `matcher` at the end to handle unmatched datetimes.
+> - **description:** list of chain steps. It is recommended to use `steps` without `matcher` at the end to handle unmatched datetimes.
 > - **type:** list
+> - **allowed values:** simple chain [format](#simple-chain)
 
 #### &lt;cloud chain&gt;
 
@@ -321,14 +327,13 @@
 
 - **description:** chain type
 - **type:** string
-- **allowed values:**
-    - `cloud` only
+- **allowed values:** `cloud` only
 
 ##### messenger.chains[].provider *
 
 - **description:** cloud calendar provider
 - **type:** string
-- **allowed values:**
+- **allowed values:** 
     - `google` only ([setup instruction](integrations/calendars/google.md))
 
 ##### messenger.chains[].calendar_id *
@@ -340,6 +345,7 @@
 
 - **description:** chain steps if there are no calendar events at the moment
 - **type:** list
+- **allowed values:** simple chain [format](#simple-chain)
 
 > To use cloud chains you should generate service account file `key.json` (see [instructions](integrations/calendars/google.md#create-project-and-get-keyjson) for google provider) and [add service account to your calendar](integrations/calendars/google.md#set-up-calendar-access-for-your-service-account).
 
@@ -605,15 +611,15 @@
 
 ## task_management
 
-- **description:** task tracking system integration configuration (e.g., Jira). The `task_management:` block enables [**Task**](buttons.md) button.
+- **description:** task tracking system integration configuration (see [details](task_management.md)). The `task_management:` block enables [**Task**](buttons.md) button.
 - **type:** dict
 
 ### task_management.type *
 
 - **description:** task tracking system type
 - **type:** string
-- **options:**
-    - `jira` - Jira integration (see [details](integrations/task_management/jira.md))
+- **allowed values:** 
+    - `jira` only - Jira integration (see [details](integrations/task_management/jira.md))
 
 ### task_management.project_key *
 

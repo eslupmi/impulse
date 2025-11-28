@@ -2,6 +2,8 @@
 
 !!! warning "Limitations"
     See [Messenger Comparison](../../concepts/messengers.md)
+    We use Telegram [HTML parser](https://core.telegram.org/bots/update56kabdkb12ibuisabdubodbasbdaosd#html-style), so links (`source`, `runbook`) will not be generated if their format does not comply with Telegram standards.  
+    For example, a link that only contains a hostname (like `http://localhost:8000`) will be ignored.  
 
 In Telegram, although the configuration uses the term `channels`, they are actually implemented as groups with topics.
 
