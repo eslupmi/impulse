@@ -23,6 +23,24 @@
 
 > Below are all the configuration options supported by IMPulse.
 
+## general
+
+- **description:** general settings
+- **type:** dict
+
+### general.week_start
+
+- **description:** first day of the week
+- **type:** string
+- **default value:** Mon
+- **allowed values:** 0 to 7 (like in [cron](https://en.wikipedia.org/wiki/Cron)) or "Sun", "Mon"...
+
+### general.workday_start
+
+- **description:** time when workday starts (used for [Freeze](buttons.md) delay)
+- **type:** string ("23:59" format)
+- **default value:** "09:00"
+
 ## incident
 
 - **description:** incidents behavior options
@@ -36,6 +54,12 @@
 #### incident.notifications.assignment
 
 - **description:** enable/disable notifications about incident assignment changes
+- **type:** bool
+- **default value:** True
+
+#### incident.notifications.freeze
+
+- **description:** enable/disable notifications about incident frozen
 - **type:** bool
 - **default value:** True
 
@@ -423,6 +447,12 @@
 
 - **description:** IMPulse address for button callbacks. Telegram supported only HTTPS.
 - **type:** string
+
+### messenger.timezone (Telegram)
+
+- **description:** default timezone (used for [Freeze](buttons.md) delay)
+- **type:** string 
+- **default value:** UTC
 
 ### messenger.users *
 
