@@ -2,6 +2,7 @@ import asyncio
 from app.queue.handlers.alert_handler import AlertHandler
 from app.queue.handlers.status_update_handler import StatusUpdateHandler
 from app.queue.handlers.message_update_handler import MessageUpdateHandler
+from app.queue.handlers.refresh_user_cache_handler import RefreshUserCacheHandler
 from app.queue.handlers.step_handler import StepHandler
 from app.logging import logger
 
@@ -22,10 +23,12 @@ class AsyncQueueManager:
         :param route_: Route object
         """
         self.queue = queue
+        self.route = route_
         self.step_handler = StepHandler(self.queue, application, incidents, webhooks)
         self.status_update_handler = StatusUpdateHandler(self.queue, application, incidents)
         self.message_update_handler = MessageUpdateHandler(self.queue, application, incidents)
-        self.alert_handler = AlertHandler(self.queue, application, incidents, route_)
+        self.alert_handler = AlertHandler(self.queue, application, incidents, self.route)
+        self.refresh_user_cache_handler = RefreshUserCacheHandler(self.queue, application, incidents, self.route)
         self._running = False
         self._task = None
 
@@ -59,6 +62,12 @@ class AsyncQueueManager:
         """
         await self.alert_handler.handle(alert_state)
 
+    async def handle_refresh_user_cache(self):
+        """
+        Handle user cache refresh.
+        """
+        await self.refresh_user_cache_handler.handle()
+
     async def queue_handle_once(self):
         """
         Handle one queue item.
@@ -79,6 +88,8 @@ class AsyncQueueManager:
                 await self.handle_step(uniq_id, identifier)
             elif type_ == 'alert':
                 await self.handle_alert(data)
+            elif type_ == 'refresh_user_cache':
+                await self.handle_refresh_user_cache()
         except Exception as e:
             logger.error(f"Error handling queue item {type_}: {repr(e)}")
         
