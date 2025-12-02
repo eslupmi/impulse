@@ -5,14 +5,13 @@ from fastapi.responses import JSONResponse
 
 from app.im.application import Application
 from app.im.colors import status_colors
-from app.im.mattermost.config import (mattermost_bold_text, mattermost_env,
-                                      mattermost_admins_template_string)
+from app.im.mattermost.config import mattermost_env, mattermost_admins_template_string
 from app.im.mattermost.threads import mattermost_get_create_thread_payload, mattermost_get_update_payload, \
     mattermost_get_button_update_payload
 from app.im.mattermost.user import User
 from app.logging import logger
 from app.config.config import get_config
-from app.config.validation import ApplicationConfig, MattermostUser
+from app.config.validation import ApplicationConfig
 
 
 class MattermostApplication(Application):
@@ -61,19 +60,56 @@ class MattermostApplication(Application):
         if response.status == 404:
             logger.debug(f'Failed to get user details for ID {id_}: Not Found (HTTP 404)')
             response.close()
-            return {'id': id_, 'username': None, 'exists': False, 'full_name': None}
+            return {
+                'id': id_, 'username': '', 'exists': False, 'full_name': '',
+                'email': '', 'first_name': '', 'last_name': '', 'timezone': ''
+            }
 
         if response.status != 200:
             logger.debug(f'Failed to get user details for {id_}: HTTP {response.status}')
             response.close()
-            return {'id': id_, 'username': None, 'exists': False, 'full_name': None}
+            return {
+                'id': id_, 'username': '', 'exists': False, 'full_name': '',
+                'email': '', 'first_name': '', 'last_name': '', 'timezone': ''
+            }
 
         data = await response.json()
         response.close()
         first_name = data.get('first_name', '').strip()
         last_name = data.get('last_name', '').strip()
         full_name = f"{first_name} {last_name}".strip()
-        return {'id': id_, 'username': data.get('username'), 'exists': True, 'full_name': full_name}
+        
+        timezone_data = data.get('timezone')
+        if isinstance(timezone_data, dict):
+            # Mattermost returns timezone as dict with automaticTimezone/manualTimezone
+            # Check useAutomaticTimezone to determine which timezone to use
+            use_automatic = (
+                timezone_data.get('useAutomaticTimezone', '').lower() == 'true'
+            )
+            if use_automatic:
+                # Use automatic timezone if enabled
+                timezone_str = timezone_data.get('automaticTimezone') or ''
+            else:
+                # Use manual timezone if automatic is disabled
+                # However if manual is empty use automatic timezone instead
+                timezone_str = (
+                    timezone_data.get('manualTimezone') or
+                    timezone_data.get('automaticTimezone') or
+                    ''
+                )
+        else:
+            timezone_str = timezone_data or ''
+        
+        return {
+            'id': id_,
+            'username': data.get('username') or '',
+            'exists': True,
+            'full_name': full_name,
+            'email': data.get('email') or '',
+            'first_name': first_name,
+            'last_name': last_name,
+            'timezone': timezone_str
+        }
 
     def create_user(self, name, user_details):
         return User(

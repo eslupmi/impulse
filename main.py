@@ -11,6 +11,8 @@ from fastapi.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+from app.cache.chain_utils import extract_user_ids_from_route
+from app.cache.user_cache import UserCache
 from app.config.config import get_config, reload_config
 from app.config.validation import MessengerType
 from app.file_lock import FileLock
@@ -119,6 +121,30 @@ async def initialize_primary_server(fastapi_app: FastAPI, file_lock: FileLock) -
         fastapi_app.state.config = config_data
 
         queue_manager.start_processing()
+        
+        # Initialize user cache directory
+        try:
+            cache = UserCache()
+            logger.info(f'User cache directory {cache.CACHE_DIR} initialized')
+        except Exception as e:
+            logger.warning(f'Failed to initialize user cache directory: {e}')
+        
+        # Initialize user cache refresh task (first refresh immediately, then every 12 hours)
+        try:
+            user_ids = extract_user_ids_from_route(route, messenger.chains, messenger.users, messenger.user_groups)
+            
+            if user_ids:
+                # Schedule first refresh immediately
+                await queue.put(
+                    datetime_=datetime.now(timezone.utc),
+                    type_='refresh_user_cache',
+                )
+                logger.info(f'Scheduled initial user cache refresh for {len(user_ids)} users from route data')
+            else:
+                logger.info('No users found in route data, skipping initial cache refresh')
+        except Exception as e:
+            logger.warning(f'Failed to initialize user cache refresh: {e}')
+        
         fastapi_app.state.is_standby = False
         logger.info('IMPulse started as primary server!')
         return True

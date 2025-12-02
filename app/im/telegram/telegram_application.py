@@ -271,20 +271,36 @@ class TelegramApplication(Application):
         if response.status != 200:
             logger.debug(f'Failed to get user details for {id_}: HTTP {response.status}')
             response.close()
-            return {'id': id_, 'exists': False, 'full_name': None, 'username': None}
+            return {
+                'id': id_, 'exists': False, 'full_name': '', 'username': '',
+                'email': '', 'first_name': '', 'last_name': '', 'timezone': ''
+            }
 
         data = await response.json()
         response.close()
 
         if not data.get('ok'):
             logger.debug(f'Telegram API error for user {id_}: {data.get("description", "unknown error")}')
-            return {'id': id_, 'exists': False, 'full_name': None, 'username': None}
+            return {
+                'id': id_, 'exists': False, 'full_name': '', 'username': '',
+                'email': '', 'first_name': '', 'last_name': '', 'timezone': ''
+            }
 
         chat_data = data.get('result', {})
         first_name = chat_data.get('first_name', '').strip()
         last_name = chat_data.get('last_name', '').strip()
         full_name = f"{first_name} {last_name}".strip()
-        return {'id': id_, 'exists': True, 'full_name': full_name, 'username': full_name}
+        
+        return {
+            'id': id_,
+            'exists': True,
+            'full_name': full_name,
+            'username': chat_data.get('username') or '',
+            'email': '',  # Telegram doesn't provide email
+            'first_name': first_name,
+            'last_name': last_name,
+            'timezone': ''  # Telegram doesn't provide timezone
+        }
 
     def create_user(self, name, user_details):
         return User(

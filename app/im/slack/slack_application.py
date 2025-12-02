@@ -1,18 +1,17 @@
 import asyncio
 import re
 
-import aiohttp
 from fastapi.responses import JSONResponse
 
 from app.im.application import Application
 from app.im.colors import status_colors
 from app.im.slack import reformat_message
-from app.im.slack.config import slack_bold_text, slack_env, slack_admins_template_string
+from app.im.slack.config import slack_env, slack_admins_template_string
 from app.im.slack.threads import slack_get_create_thread_payload, slack_get_update_payload
 from app.im.slack.user import User
 from app.logging import logger
 from app.config.config import get_config
-from app.config.validation import ApplicationConfig, SlackUser
+from app.config.validation import ApplicationConfig
 
 
 class SlackApplication(Application):
@@ -50,18 +49,38 @@ class SlackApplication(Application):
         if response.status != 200:
             logger.debug(f'Failed to get user details for {id_}: HTTP {response.status}')
             response.close()
-            return {'id': id_, 'exists': False, 'full_name': None, 'username': None}
+            return {
+                'id': id_, 'exists': False, 'full_name': '', 'username': '',
+                'email': '', 'first_name': '', 'last_name': '', 'timezone': ''
+            }
 
         data = await response.json()
         response.close()
         if not data.get('ok'):
             logger.debug(f'Slack API error for user {id_}: {data.get("error", "unknown error")}')
-            return {'id': id_, 'exists': False, 'full_name': None, 'username': None}
+            return {
+                'id': id_, 'exists': False, 'full_name': '', 'username': '',
+                'email': '', 'first_name': '', 'last_name': '', 'timezone': ''
+            }
 
         user_data = data.get('user', {})
         profile = user_data.get('profile', {})
-        full_name = profile.get('real_name_normalized')
-        return {'id': id_, 'exists': True, 'full_name': full_name}
+        full_name = profile.get('real_name_normalized') or ''
+        
+        name_parts = full_name.split(' ', 1) if full_name else ['', '']
+        first_name = name_parts[0] if len(name_parts) > 0 else ''
+        last_name = name_parts[1] if len(name_parts) > 1 else ''
+        
+        return {
+            'id': id_,
+            'exists': True,
+            'full_name': full_name,
+            'username': user_data.get('name') or '',
+            'email': profile.get('email') or '',
+            'first_name': first_name,
+            'last_name': last_name,
+            'timezone': user_data.get('tz') or ''
+        }
 
     def create_user(self, name, user_details):
         return User(

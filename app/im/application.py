@@ -2,6 +2,7 @@ import asyncio
 from abc import ABC, abstractmethod
 from typing import Union, Dict, Optional
 
+from app.cache.user_cache import UserCache
 from app.config.config import get_config
 from app.config.validation import ApplicationConfig, MattermostUser, SlackUser, TelegramUser, MessengerType
 from app.http_client import RateLimitedClient
@@ -67,32 +68,46 @@ class Application(ABC):
         if self.http:
             await self.http.close()
 
-    async def fetch_and_assign_user_name(self, incident, user_id, incidents=None):
+    async def fetch_and_assign_user_name(self, incident, user_id):
         """
         Fetch user details and assign full name to incident.
-        Uses incident cache to avoid redundant API calls when possible.
+        Uses existing cache first, then falls back to API if needed.
 
         Args:
             incident: The incident to assign the user name to
             user_id: The user ID to fetch the name for
-            incidents: Optional incidents collection for caching lookup
-        """
-        try:
-            if incidents:
-                cached_name = incidents.get_assigned_user_by_id(user_id)
-                if cached_name:
-                    incident.assign_fullname(cached_name)
-                    incident.dump()
-                    logger.debug(f'Incident {incident.uuid} assigned cached user name: {cached_name}')
-                    return
 
+        """
+        try:            
+            cache = UserCache()
+            
+            # Try to get from cache first
+            cached_full_name = cache.get_full_name(user_id)
+            if cached_full_name:
+                incident.assign_fullname(cached_full_name)
+                cached_data = cache.get(user_id)
+                if cached_data and cached_data.get('username'):
+                    incident.assign_user(cached_data.get('username'))
+                incident.dump()
+                logger.debug(f'Incident {incident.uuid} assigned cached user name: {cached_full_name}')
+                return
+
+            # Cache miss - fetch from API
             user_details = await self.get_user_details({'id': user_id})
-            assigned_name = user_details.get('full_name') or "(empty)"
-            incident.assign_fullname(assigned_name)
-            if user_details.get('username'):
-                incident.assign_user(user_details.get('username'))
-            incident.dump()
-            logger.debug(f'Incident {incident.uuid} assigned user name from API: {assigned_name}')
+            if user_details.get('exists'):
+                assigned_name = user_details.get('full_name') or "(empty)"
+                incident.assign_fullname(assigned_name)
+                if user_details.get('username'):
+                    incident.assign_user(user_details.get('username'))
+                
+                # Save to cache
+                cache.set(user_id, user_details)
+                incident.dump()
+                logger.debug(f'Incident {incident.uuid} assigned user name from API: {assigned_name}')
+            else:
+                incident.assign_fullname("-")
+                incident.dump()
+                logger.warning(f'User {user_id} not found in {self.type.value.capitalize()}')
 
         except Exception as e:
             logger.error(f'Failed to fetch and assign user name for incident {incident.uuid}: {e}')
@@ -203,9 +218,7 @@ class Application(ABC):
         users = {}
         for name, user_info in users_dict.items():
             if user_info.id is not None:
-                user_details = await self.get_user_details(user_info)
-                if not user_details['exists']:
-                    logger.warning(f'.. user {name} not found in {self.type.value.capitalize()} and will not be notified')
+                user_details = {'id': user_info.id, 'exists': True}
             else:
                 logger.warning(f'.. user {name} has no \'id\' and will not be notified')
                 user_details = {}
