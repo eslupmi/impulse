@@ -953,7 +953,11 @@ class TestTelegramApplication:
                 'id': '123456',
                 'exists': True,
                 'full_name': 'John Doe',
-                'username': 'John Doe'
+                'username': 'johndoe',
+                'email': '',
+                'first_name': 'John',
+                'last_name': 'Doe',
+                'timezone': ''
             }
 
     @pytest.mark.asyncio
@@ -972,8 +976,12 @@ class TestTelegramApplication:
             assert result == {
                 'id': '123456',
                 'exists': False,
-                'full_name': None,
-                'username': None
+                'full_name': '',
+                'username': '',
+                'email': '',
+                'first_name': '',
+                'last_name': '',
+                'timezone': ''
             }
 
     @pytest.mark.asyncio
@@ -996,8 +1004,12 @@ class TestTelegramApplication:
             assert result == {
                 'id': '123456',
                 'exists': False,
-                'full_name': None,
-                'username': None
+                'full_name': '',
+                'username': '',
+                'email': '',
+                'first_name': '',
+                'last_name': '',
+                'timezone': ''
             }
 
     @pytest.mark.asyncio

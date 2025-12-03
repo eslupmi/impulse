@@ -590,8 +590,13 @@ class TestSlackApplication:
 
         assert result == {
             "id": "U123456",
+            "username": "",
             "exists": True,
-            "full_name": "Test User"
+            "first_name": "Test",
+            "last_name": "User",
+            "full_name": "Test User",
+            "email": "",
+            "timezone": ""
         }
 
     @pytest.mark.asyncio
@@ -611,9 +616,13 @@ class TestSlackApplication:
 
         assert result == {
             "id": "U123456",
+            "username": "",
             "exists": False,
-            "full_name": None,
-            "username": None
+            "first_name": "",
+            "last_name": "",
+            "full_name": "",
+            "email": "",
+            "timezone": ""
         }
 
     @pytest.mark.asyncio
@@ -637,9 +646,13 @@ class TestSlackApplication:
 
         assert result == {
             "id": "U123456",
+            "username": "",
             "exists": False,
-            "full_name": None,
-            "username": None
+            "first_name": "",
+            "last_name": "",
+            "full_name": "",
+            "email": "",
+            "timezone": ""
         }
 
     @pytest.mark.asyncio
