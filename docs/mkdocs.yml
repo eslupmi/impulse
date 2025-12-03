@@ -60,14 +60,13 @@ nav:
     - impulse.yml: config_file.md
   - Features:
     - api.md
+    - buttons.md
     - check.md
     - google.md
     - ha.md
     - special_variables.md
     - task_management.md
+    - templates.md
     - ui.md
   - concepts.md
   - versioning.md
-- WORKFLOW:
-  - best.md
-  - howto.md

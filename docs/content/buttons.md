@@ -1,9 +1,4 @@
-# How to Use
-
-When an alert is received, IMPulse creates a new incident.
-If the incident has an associated chain, the chain will start executing.
-
-## Buttons
+# Buttons
 
 Each incident has 2 mandatory buttons: **Take It/Release** and **Status**. There is also an optional **Task** (:pushpin:) button that appears only if the [Task Management](task_management.md) integration is [configured](config_file.md#task_management).
 

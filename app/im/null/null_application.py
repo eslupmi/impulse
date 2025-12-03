@@ -59,10 +59,6 @@ class NullApplication(Application):
         """No admins"""
         return ''
 
-    async def send_message(self, channel_id, text, attachment):
-        """No message sending"""
-        pass
-
     def _create_thread_payload(self, channel_id, body, header, status_icons, status):
         """Return empty payload"""
         return {}

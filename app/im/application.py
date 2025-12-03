@@ -255,8 +255,6 @@ class Application(ABC):
             logger.info(f'Incident {incident.uuid} updated with new status \'{incident_status}\'')
             # post to thread
             if status_enabled and incident_status != 'closed':
-                header = self.header_template.form_message(incident.payload, incident)
-
                 text_template = JinjaTemplate(update_status)
                 admins = self.get_notification_destinations()
                 fields = {'type': self.type.value, 'status': incident_status, 'admins': admins}
@@ -350,10 +348,6 @@ class Application(ABC):
 
     @abstractmethod
     def get_admins_text(self):
-        pass
-
-    @abstractmethod
-    async def send_message(self, channel_id, text, attachment):
         pass
 
     @abstractmethod

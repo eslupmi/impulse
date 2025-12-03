@@ -54,17 +54,6 @@ class TelegramApplication(Application):
     def get_admins_text(self): #!
         return ', '.join([f'@{a.id}' for a in self.admin_users])
 
-    async def send_message(self, channel_id, text, attachment):
-        params = {
-            'chat_id': channel_id,
-            'text': text,
-            'parse_mode': 'HTML'
-        }
-        response = await self.http.post(self.post_message_url, params=params)
-        response_json = await response.json()
-        response.close()
-        return response_json.get('result', {}).get('message_id')
-
     async def create_thread(self, channel_id, body, header, status_icons, status):
         topic_id = await self._create_topic(channel_id, header, status_icons)
         payload = self._create_thread_payload(channel_id, body, header, status_icons, status)

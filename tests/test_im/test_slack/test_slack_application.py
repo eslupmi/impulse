@@ -199,23 +199,6 @@ class TestSlackApplication:
             assert result == "Admins: <@U123456> <@U789012>"
             mock_env.from_string.assert_called_once()
 
-    def test_send_message_method(self, app_config, channels, default_channel):
-        """Test send_message method signature."""
-        app = self.create_slack_app(app_config, channels, default_channel)
-
-        # Test that the method exists and is async
-        assert hasattr(app, 'send_message')
-        assert callable(app.send_message)
-        import inspect
-        assert inspect.iscoroutinefunction(app.send_message)
-
-        # Test method signature
-        sig = inspect.signature(app.send_message)
-        params = list(sig.parameters.keys())
-        assert 'channel_id' in params
-        assert 'text' in params
-        assert 'attachment' in params
-
     def test_create_thread_payload(self, app_config, channels, default_channel):
         """Test _create_thread_payload method."""
         app = self.create_slack_app(app_config, channels, default_channel)
@@ -641,24 +624,6 @@ class TestSlackApplication:
             "full_name": None,
             "username": None
         }
-
-    @pytest.mark.asyncio
-    async def test_send_message_success(self, app_config, channels, default_channel):
-        """Test send_message method with successful HTTP response."""
-        app = self.create_slack_app(app_config, channels, default_channel)
-
-        mock_response = AsyncMock()
-        mock_response.json = AsyncMock(return_value={"ts": "1234567890.123456"})
-        mock_response.close = Mock()
-
-        # Mock HTTP client
-        app.http = Mock()
-        app.http.post = AsyncMock(return_value=mock_response)
-
-        result = await app.send_message("C123456789", "Test message", "Test attachment")
-
-        assert result == "1234567890.123456"
-        app.http.post.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_update_thread_success(self, app_config, channels, default_channel):

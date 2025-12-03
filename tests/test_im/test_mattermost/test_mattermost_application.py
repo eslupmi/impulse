@@ -157,23 +157,6 @@ class TestMattermostApplication:
             assert result == "Admins: @admin1, @admin2"
             mock_env.from_string.assert_called_once()
 
-    def test_send_message_method(self):
-        """Test send_message method signature."""
-        app = MattermostApplication(self.app_config, self.channels, self.default_channel)
-
-        # Test that the method exists and is async
-        assert hasattr(app, 'send_message')
-        assert callable(app.send_message)
-        import inspect
-        assert inspect.iscoroutinefunction(app.send_message)
-
-        # Test method signature
-        sig = inspect.signature(app.send_message)
-        params = list(sig.parameters.keys())
-        assert 'channel_id' in params
-        assert 'text' in params
-        assert 'attachment' in params
-
     def test_create_thread_payload(self):
         """Test _create_thread_payload method."""
         app = MattermostApplication(self.app_config, self.channels, self.default_channel)
@@ -560,24 +543,6 @@ class TestMattermostApplication:
             "exists": False,
             "full_name": None
         }
-
-    @pytest.mark.asyncio
-    async def test_send_message_success(self):
-        """Test send_message method with successful HTTP response."""
-        app = MattermostApplication(self.app_config, self.channels, self.default_channel)
-
-        mock_response = AsyncMock()
-        mock_response.json = AsyncMock(return_value={"ts": "1234567890.123456"})
-        mock_response.close = Mock()
-
-        # Mock HTTP client
-        app.http = Mock()
-        app.http.post = AsyncMock(return_value=mock_response)
-
-        result = await app.send_message("channel123", "Test message", "Test attachment")
-
-        assert result == "1234567890.123456"
-        app.http.post.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_update_thread_success(self):

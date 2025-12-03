@@ -79,25 +79,6 @@ class SlackApplication(Application):
         )
         return admins_text
 
-    async def send_message(self, channel_id, text, attachment):
-        payload = {
-            'channel': channel_id,
-            'text': text,
-            'unfurl_links': False,
-            'unfurl_media': False,
-            'attachments': [
-                {
-                    'color': status_colors['closed'],
-                    'text': attachment,
-                    'mrkdwn_in': ['text'],
-                }
-            ]
-        }
-        response = await self.http.post(self.post_message_url, headers=self.headers, json=payload)
-        response_json = await response.json()
-        response.close()
-        return response_json.get('ts')
-
     async def _handle_chain_action(self, incident_, user_id, queue_, incidents):
         """Handle chain-related button actions"""
         await queue_.delete_by_id(incident_.uniq_id, delete_steps=True, delete_status=False)

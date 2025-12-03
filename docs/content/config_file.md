@@ -462,12 +462,12 @@
 
 ### messenger.template_files
 
-- **description:** path to custom template files for `status_icons`, `header`, and `body` (see [Incident Structure](concepts.md#structure))
+- **description:** path to custom template files for `status_icons`, `header`, and `body` (see [Incident Structure](concepts.md#messages-structure))
 - **type:** dict
 
 > IMPulse uses [jinja2 templates](https://pypi.org/project/Jinja2/) to set messages format. And you can modify it.
 
-> Incident message contains three parts ([picture](concepts.md/#structure)). Default template files for theese parts is [here](https://github.com/DiTsi/impulse/tree/develop/templates). You can copy the default templates, modify them, and specify custom paths.
+> Incident message contains three parts ([picture](concepts.md#messages-structure)). Default template files for theese parts is [here](https://github.com/DiTsi/impulse/tree/develop/templates). You can copy the default templates, modify them, and specify custom paths.
 
 > Template files supported [special variables](special_variables.md): `incident` (used [here](https://github.com/DiTsi/impulse/blob/develop/templates/slack_status_icons.j2#L1)) and `payload`.
 
@@ -599,7 +599,7 @@
 
 ## task_management
 
-- **description:** task tracking system integration configuration (e.g., Jira) (see [details](task_management.md)). The `task_management:` block enables [**Task**](howto.md#buttons) button.
+- **description:** task tracking system integration configuration (e.g., Jira) (see [details](task_management.md)). The `task_management:` block enables [**Task**](buttons.md) button.
 - **type:** dict
 
 ### task_management.type *

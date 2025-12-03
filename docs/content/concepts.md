@@ -17,16 +17,23 @@ Alertmanager sends alerts with one of two statuses: **firing** and **resolved**.
 
 An incident is a messege representation of an alert with its current status.
 
-### Structure
+### Messages Structure
 
 Starting from [`v1.0.0`](https://github.com/DiTsi/impulse/releases/tag/v1.0.0) incident messages have the following structure:
+    
+=== "Slack"
 
-<p align="center"><img src="../media/impulse_message_structure.excalidraw.svg" alt="" width="600"/></p>
+    <p align="center"><img src="../media/impulse_slack_message_structure.excalidraw.svg" alt="" width="600"/></p>
 
-Default templates for `status icons`, `header` and `body` are [here](https://github.com/DiTsi/impulse/tree/develop/templates).
+=== "Mattermost"
 
-You can create your own template files based on defaults and set their path in [messenger.template_files](config_file.md).
+    <p align="center"><img src="../media/impulse_slack_message_structure.excalidraw.svg" alt="" width="600"/></p>
 
+=== "Telegram"
+
+    <p align="center"><img src="../media/impulse_telegram_message_structure.excalidraw.svg" alt="" width="600"/></p>
+
+Templates for `status icons`, `header` and `body` are [here](https://github.com/DiTsi/impulse/tree/develop/templates). See [details](templates.md).
 
 ### Statuses and their colors
 
