@@ -1,3 +1,5 @@
+from typing import Optional
+
 import asyncio
 from app.queue.handlers.alert_handler import AlertHandler
 from app.queue.handlers.status_update_handler import StatusUpdateHandler
@@ -62,11 +64,14 @@ class AsyncQueueManager:
         """
         await self.alert_handler.handle(alert_state)
 
-    async def handle_refresh_user_cache(self):
+    async def handle_refresh_user_cache(self, user_ids: Optional[set]):
         """
         Handle user cache refresh.
+
+        Args:
+            data: Optional set of user IDs to refresh. If None, refreshes all users from route.
         """
-        await self.refresh_user_cache_handler.handle()
+        await self.refresh_user_cache_handler.handle(user_ids)
 
     async def queue_handle_once(self):
         """
@@ -89,7 +94,7 @@ class AsyncQueueManager:
             elif type_ == 'alert':
                 await self.handle_alert(data)
             elif type_ == 'refresh_user_cache':
-                await self.handle_refresh_user_cache()
+                await self.handle_refresh_user_cache(data)
         except Exception as e:
             logger.error(f"Error handling queue item {type_}: {repr(e)}")
         
