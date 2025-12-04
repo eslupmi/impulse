@@ -81,9 +81,6 @@ class MetricsCollector:
                 error = 'connection_failed'
                 raise
 
-            except Exception:
-                raise
-
             finally:
                 duration = time.perf_counter() - start
                 histogram = (
