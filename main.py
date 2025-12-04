@@ -10,7 +10,6 @@ from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, HTTPExcept
 from fastapi.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 
 from app.config.config import get_config, reload_config
 from app.config.validation import MessengerType
@@ -19,7 +18,7 @@ from app.im.channel_manager import ChannelManager
 from app.im.helpers import get_application
 from app.incident.incidents import Incidents
 from app.logging import logger, configure_uvicorn_logging
-from app.metrics import metrics_status
+from app.metrics import metrics_status, metrics_collector
 from app.middleware import StandbyMiddleware, is_standby_mode, service_unavailable_response
 from app.queue.manager import AsyncQueueManager
 from app.queue.queue import AsyncQueue
@@ -366,13 +365,10 @@ app.include_router(router)
 
 
 @metrics_router.get("/metrics")
-async def get_metrics():
+async def get_metrics(request: Request):
     """Prometheus metrics endpoint"""
-    return Response(
-        content=generate_latest(),
-        media_type=CONTENT_TYPE_LATEST
-    )
-
+    queue = getattr(request.app.state, 'queue', None)
+    return await metrics_collector.generate_metrics_response(queue)
 
 # Include metrics router for monitoring
 app.include_router(metrics_router)

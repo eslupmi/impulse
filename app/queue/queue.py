@@ -4,7 +4,6 @@ from datetime import datetime, timezone
 from typing import Optional, Tuple, Any
 
 from app.logging import logger
-from app.metrics import metrics_queue_latency_seconds
 
 QueueItem = namedtuple('QueueItem', ['datetime', 'type', 'uniq_id', 'identifier', 'data'])
 
@@ -81,11 +80,16 @@ class AsyncQueue:
         async with self._lock:
             if self._items and self._items[0].datetime <= now:
                 item = self._items.pop(0)
-                delay = (now - item.datetime).total_seconds()
-                metrics_queue_latency_seconds.set(delay)
                 # Using _items list as the source of truth for ordering and content
                 return item.type, item.uniq_id, item.identifier, item.data
         return None, None, None, None
+
+    async def get_first_item_datetime(self) -> Optional[datetime]:
+        """Get datetime of the next item that's ready to be processed (if any)."""
+        async with self._lock:
+            if self._items:
+                return self._items[0].datetime
+        return None
 
     async def serialize(self) -> list:
         """Serialize queue items for API response"""

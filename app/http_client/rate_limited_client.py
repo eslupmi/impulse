@@ -8,7 +8,7 @@ from aiohttp import ClientTimeout, ClientSession, ClientResponse
 from aiohttp_retry import ExponentialRetry, RetryClient
 
 from app.logging import logger
-from app.metrics import measure_metrics, metrics_messenger_api_request_duration_seconds
+from app.metrics import measure_request
 
 
 class RetryAfterRetry(ExponentialRetry):
@@ -80,12 +80,10 @@ class RateLimitedClient:
         retry_attempts: int = 3,
         timeout: float = 30.0,
         connector_limit: int = 100,
-        connector_limit_per_host: int = 30,
-        messenger: Optional[str] = None
+        connector_limit_per_host: int = 30
     ):
         self.rate_limit = rate_limit
         self.rate_window = rate_window
-        self.messenger = messenger or 'none'
         
         # Rate limiting state
         self._request_count = 0
@@ -198,6 +196,7 @@ class RateLimitedClient:
             self._request_count += 1
             self._last_request_time = time.monotonic()
     
+    @measure_request
     async def request(self, method: str, url: str, **kwargs):
         """
         Make an HTTP request with rate limiting and metrics tracking.
@@ -213,56 +212,53 @@ class RateLimitedClient:
         self._initialize_client()
         await self._wait_for_rate_limit()
         
-        async with measure_metrics(
-            messenger=self.messenger,
-            histogram=metrics_messenger_api_request_duration_seconds,
-        ) as context:
-            try:
-                response = await self._client.request(method, url, **kwargs)
-                status_code = response.status
-                context['status'] = f'{status_code // 100}xx'
-                context['error'] = 'none'
-                logger.info(f"Request to {url} completed with status {status_code} ({context['status']})")
-                return response
-            
-            except asyncio.TimeoutError as e:
-                context['error'] = 'timeout'
-                logger.error(f"Request to {url} timed out: {type(e).__name__}: {e}")
-                raise e
+        try:
+            response = await self._client.request(method, url, **kwargs)
+            return response
 
-            except aiohttp.ClientConnectorError as e:
-                context['error'] = 'connection_failed'
-                logger.error(f"Request to {url} connection failed: {type(e).__name__}: {e}")
-                raise
+        except asyncio.TimeoutError as e:
+            logger.error(
+                f"Request to {url} timed out: {type(e).__name__}: {e}"
+            )
+            raise
 
-            except Exception as e:
-                logger.error(f"Request to {url} failed: {type(e).__name__}: {e}")
-                raise
+        except aiohttp.ClientConnectorError as e:
+            logger.error(
+                f"Request to {url} connection failed: "
+                f"{type(e).__name__}: {e}"
+            )
+            raise
+
+        except Exception as e:
+            logger.error(
+                f"Request to {url} failed: {type(e).__name__}: {e}"
+            )
+            raise
     
     async def get(self, url: str, **kwargs):
         """Make a GET request with rate limiting"""
         return await self.request('GET', url, **kwargs)
-    
+
     async def post(self, url: str, **kwargs):
         """Make a POST request with rate limiting"""
         return await self.request('POST', url, **kwargs)
-    
+
     async def put(self, url: str, **kwargs):
         """Make a PUT request with rate limiting"""
         return await self.request('PUT', url, **kwargs)
-    
+
     async def delete(self, url: str, **kwargs):
         """Make a DELETE request with rate limiting"""
         return await self.request('DELETE', url, **kwargs)
-    
+
     async def patch(self, url: str, **kwargs):
         """Make a PATCH request with rate limiting"""
         return await self.request('PATCH', url, **kwargs)
-    
+
     async def head(self, url: str, **kwargs):
         """Make a HEAD request with rate limiting"""
         return await self.request('HEAD', url, **kwargs)
-    
+
     async def options(self, url: str, **kwargs):
         """Make an OPTIONS request with rate limiting"""
         return await self.request('OPTIONS', url, **kwargs)
