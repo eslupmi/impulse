@@ -1,3 +1,3 @@
 # StatusUnknown
 
-See [unknown](../concepts.md/#unknown) in **Concepts** for information
+See [unknown](../concepts/incident.md#unknown) in **Concepts** for information
