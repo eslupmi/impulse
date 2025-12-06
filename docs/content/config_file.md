@@ -53,7 +53,7 @@
 
 ### incident.timeouts
 
-- **description:** incident status timeouts (see [lifecycle](concepts.md#lifecycle))
+- **description:** incident status timeouts (see [lifecycle](concepts/incident.md#lifecycle))
 - **type:** dict
 
 #### incident.timeouts.firing
@@ -301,7 +301,7 @@
 
 #### &lt;cloud chain&gt;
 
-- **description:** a chain that allows you to define dynamic chains using calendar providers (e.g., Google). Setup instruction [here](google.md).
+- **description:** a chain that allows you to define dynamic chains using calendar providers (e.g., Google).
 - **type:** dict
 
 > Special ENVs (see [details](envs.md)):
@@ -323,7 +323,7 @@
 - **description:** cloud calendar provider
 - **type:** string
 - **allowed values:**
-    - `google` only
+    - `google` only ([setup instruction](integrations/calendars/google.md))
 
 ##### messenger.chains[].calendar_id *
 
@@ -335,7 +335,7 @@
 - **description:** chain steps if there are no calendar events at the moment
 - **type:** list
 
-> To use cloud chains you should generate service account file `key.json` (see [instructions](google.md#create-project-and-get-keyjson) for google provider) and [add service account to your calendar](google.md#set-up-calendar-access-for-your-service-account).
+> To use cloud chains you should generate service account file `key.json` (see [instructions](integrations/calendars/google.md#create-project-and-get-keyjson) for google provider) and [add service account to your calendar](integrations/calendars/google.md#set-up-calendar-access-for-your-service-account).
 
 > Create "Event" in calendar. Put chain steps in "Description" using format:
 
@@ -417,7 +417,7 @@
 - **description:** users declaration. Defines users used in [chains](#messengerchains) for direct notifications.
 - **type:** dict
 
-> See instructions for getting user `id` for Slack ([here](https://www.workast.com/help/article/how-to-find-a-slack-user-id/)), Mattermost ([here](https://docs.mattermost.com/administration-guide/configure/user-management-configuration-settings.html#identify-a-user-s-id)), Telegram ([here](telegram.md#configure-group)).
+> See instructions for getting user `id` for Slack ([here](https://www.workast.com/help/article/how-to-find-a-slack-user-id/)), Mattermost ([here](https://docs.mattermost.com/administration-guide/configure/user-management-configuration-settings.html#identify-a-user-s-id)), Telegram ([here](integrations/messengers/telegram.md#configure-group)).
 
 > **Example**
 
@@ -462,12 +462,12 @@
 
 ### messenger.template_files
 
-- **description:** path to custom template files for `status_icons`, `header`, and `body` (see [Incident Structure](concepts.md#messages-structure))
+- **description:** path to custom template files for `status_icons`, `header`, and `body` (see [Incident Structure](concepts/incident.md#messages-structure))
 - **type:** dict
 
 > IMPulse uses [jinja2 templates](https://pypi.org/project/Jinja2/) to set messages format. And you can modify it.
 
-> Incident message contains three parts ([picture](concepts.md#messages-structure)). Default template files for theese parts is [here](https://github.com/DiTsi/impulse/tree/develop/templates). You can copy the default templates, modify them, and specify custom paths.
+> Incident message contains three parts ([picture](concepts/incident.md#messages-structure)). Default template files for theese parts is [here](https://github.com/DiTsi/impulse/tree/develop/templates). You can copy the default templates, modify them, and specify custom paths.
 
 > Template files supported [special variables](special_variables.md): `incident` (used [here](https://github.com/DiTsi/impulse/blob/develop/templates/slack_status_icons.j2#L1)) and `payload`.
 
@@ -599,7 +599,7 @@
 
 ## task_management
 
-- **description:** task tracking system integration configuration (e.g., Jira) (see [details](task_management.md)). The `task_management:` block enables [**Task**](buttons.md) button.
+- **description:** task tracking system integration configuration (e.g., Jira). The `task_management:` block enables [**Task**](buttons.md) button.
 - **type:** dict
 
 ### task_management.type *
@@ -607,7 +607,7 @@
 - **description:** task tracking system type
 - **type:** string
 - **options:**
-    - `jira` - Jira integration
+    - `jira` - Jira integration (see [details](integrations/task_management/jira.md))
 
 ### task_management.project_key *
 

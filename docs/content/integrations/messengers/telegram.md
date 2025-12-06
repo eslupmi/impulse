@@ -1,16 +1,13 @@
 # Telegram
 
-In Telegram, although the configuration uses the term `channels`, they are actually implemented as groups with topics.
-
 !!! warning "Limitations"
-    We use the **HTML parser**, so links (`source`, `runbook`) will not be generated if their format does not comply with standards.  
-    For example, a link that only contains a hostname (like `http://localhost:8000`) will be ignored.  
+    See [Messenger Comparison](../../concepts/messengers.md)
 
-    **✅ Workaround:** use a valid domain name or an IP address.
+In Telegram, although the configuration uses the term `channels`, they are actually implemented as groups with topics.
 
 ## Create a bot
 
-Follow this [instruction](https://core.telegram.org/bots/features#creating-a-new-bot). Save the bot token as the `TELEGRAM_BOT_TOKEN` environment variable (used in section 2.3 [here](installation.md#3-configure-impulse)).
+Follow this [instruction](https://core.telegram.org/bots/features#creating-a-new-bot). Save the bot token as the `TELEGRAM_BOT_TOKEN` environment variable (used in section 2.3 [here](../../installation.md#3-configure-impulse)).
 
 ## Configure group
 
@@ -34,7 +31,7 @@ Follow this [instruction](https://core.telegram.org/bots/features#creating-a-new
 7. Get the group ID (using the `@myidbot` bot)
     - add `@myidbot` bot to group
     - go to the group's "General" topic and send the command: `/getgroupid@myidbot`
-    - use the returned group ID in the `messenger.channels` [configuration block](config_file.md#messengerchannels)
+    - use the returned group ID in the `messenger.channels` [configuration block](../../config_file.md#messengerchannels)
     - you can remove `@myidbot` afterwards
 
 8. Make sure the IMPulse bot has permission to interact with users. If you see the log warning <b>"user &lt;username&gt; not found in Telegram and will not be notified"</b> - ask the user `<username>` to send a message to the bot. This usually resolves the issue.
