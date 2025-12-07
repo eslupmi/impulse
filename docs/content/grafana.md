@@ -3,7 +3,7 @@
 ## Group and repeat intervals
 
 !!! warning ""
-    Configure group and repeat intervals correctly to ensure IMPulse works properly (the explanation is [here](concepts.md#unknown))
+    Configure group and repeat intervals correctly to ensure IMPulse works properly (the explanation is [here](concepts/incident.md#unknown))
 
 1. Go to menu **Alerting** > **Notification Policies** and modify your notification policy by pressing **More** > **Edit**
 

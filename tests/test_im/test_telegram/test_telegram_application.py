@@ -191,23 +191,6 @@ class TestTelegramApplication:
 
         assert result == "@123456789, @987654321"
 
-    def test_send_message_method(self, app_config, channels, users):
-        """Test send_message method signature."""
-        app = self.create_telegram_app(app_config, channels, users)
-
-        # Test that the method exists and is async
-        assert hasattr(app, 'send_message')
-        assert callable(app.send_message)
-        import inspect
-        assert inspect.iscoroutinefunction(app.send_message)
-
-        # Test method signature
-        sig = inspect.signature(app.send_message)
-        params = list(sig.parameters.keys())
-        assert 'channel_id' in params
-        assert 'text' in params
-        assert 'attachment' in params
-
     def test_create_thread_method(self, app_config, channels, users):
         """Test create_thread method signature."""
         app = self.create_telegram_app(app_config, channels, users)
@@ -741,22 +724,6 @@ class TestTelegramApplication:
             await app.initialize_async()
 
             mock_setup_webhook.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_send_message_http_interaction(self, app_config, channels, users):
-        """Test send_message method with HTTP interaction."""
-        app = self.create_telegram_app(app_config, channels, users)
-
-        # Mock HTTP response
-        mock_response = AsyncMock()
-        mock_response.json = AsyncMock(return_value={'result': {'message_id': 12345}})
-        mock_response.close = Mock()
-
-        with patch.object(app.http, 'post', new=AsyncMock(return_value=mock_response)) as mock_post:
-            result = await app.send_message("test_channel", "test message", None)
-
-            assert result == 12345
-            mock_post.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_create_thread_http_interaction(self, app_config, channels, users):

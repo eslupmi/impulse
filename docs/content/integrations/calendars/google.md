@@ -1,6 +1,6 @@
-# Google Calendar [↰](config_file.md/#cloud-chain)
+# Google Calendar [↰](../../config_file.md#cloud-chain)
 
-Google Calendar can be used as a [cloud chain](config_file.md#cloud-chain). To enable it, you need to create a Google Cloud project and generate a service account key file named `key.json`, which will be used as [`GOOGLE_SERVICE_ACCOUNT_FILE`](envs.md).
+Google Calendar can be used as a [cloud chain](../../config_file.md#cloud-chain). To enable it, you need to create a Google Cloud project and generate a service account key file named `key.json`, which will be used as [`GOOGLE_SERVICE_ACCOUNT_FILE`](../../envs.md).
 
 ## Create project and get key.json
 
@@ -21,6 +21,6 @@ Google Calendar can be used as a [cloud chain](config_file.md#cloud-chain). To e
 
 In the case of a corporate Google Cloud (Google Workspace), the calendar must be created by the service account. This is because you cannot grant **See all event details** permissions to a service account for an existing calendar owned by a regular user. Therefore, the calendar should be created by the service account, and then **owner** permissions should be granted to your user account.
 
-Here is the code that creates such a calendar and grants you **owner** permissions: [link](./code/google_create_calendar.py)
+Here is the code that creates such a calendar and grants you **owner** permissions: [link](../../code/google_create_calendar.py)
 
 Download the script, replace the variables `SERVICE_ACCOUNT_FILE`, `USER_EMAIL_TO_SHARE_WITH`, `NEW_CALENDAR_SUMMARY`, `NEW_CALENDAR_DESCRIPTION`, `NEW_CALENDAR_TIMEZONE` with the appropriate values, and run it.

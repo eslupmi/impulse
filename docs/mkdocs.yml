@@ -40,19 +40,6 @@ extra_css:
 
 nav:
 - index.md
-- INTEGRATIONS:
-  - Alert Sources:
-    - alertmanager.md
-    - grafana.md
-  - Messengers:
-    - mattermost.md
-    - slack.md
-    - telegram.md
-  - External:
-    - integrations/external/instatus.md
-    - integrations/external/telegram.md
-    - integrations/external/twilio.md
-    - integrations/external/zvonok.md
 - IMPULSE SERVER:
   - installation.md
   - Configuration:
@@ -60,14 +47,31 @@ nav:
     - impulse.yml: config_file.md
   - Features:
     - api.md
+    - buttons.md
     - check.md
-    - google.md
     - ha.md
     - special_variables.md
-    - task_management.md
+    - templates.md
     - ui.md
-  - concepts.md
+  - Concepts:
+    - concepts/basics.md
+    - concepts/incident.md
+    - concepts/messengers.md
   - versioning.md
-- WORKFLOW:
-  - best.md
-  - howto.md
+- INTEGRATIONS:
+  - Alert Sources:
+    - alertmanager.md
+    - grafana.md
+  - Messengers:
+    - integrations/messengers/mattermost.md
+    - integrations/messengers/slack.md
+    - integrations/messengers/telegram.md
+  - Scheduling:
+    - integrations/calendars/google.md
+  - Task Management:
+    - integrations/task_management/jira.md
+  - External Notifications:
+    - integrations/external/instatus.md
+    - integrations/external/telegram.md
+    - integrations/external/twilio.md
+    - integrations/external/zvonok.md

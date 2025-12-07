@@ -1,3 +1,4 @@
+from app.config.validation import MessengerType
 from app.im.template import notification_webhook
 from app.jinja_template import JinjaTemplate
 from app.logging import logger
@@ -49,8 +50,11 @@ class StepHandler(BaseHandler):
                 )
 
             text = text_template.form_notification(fields)
-            header = self.app.header_template.form_message(incident.payload, incident)
-            message = header + '\n' + text
+            if self.app.type == MessengerType.TELEGRAM:
+                message = text
+            else:
+                header = self.app.header_template.form_message(incident.payload, incident)
+                message = header + '\n' + text
             await self.app.post_thread(incident.channel_id, incident.ts, message)
         else:
             r_code = await self.app.notify(incident, step['type'], step['identifier'])

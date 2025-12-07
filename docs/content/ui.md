@@ -27,7 +27,7 @@ In the **center** is the main working element, the table.
 
 ### Columns
 
-Each incident is represented as a row of selected fields. On the left there is an indicator of the current [status](concepts.md#statuses-and-their-colors), on the right - a button to expand the incident and an indicator of the number of alerts in it.
+Each incident is represented as a row of selected fields. On the left there is an indicator of the current [status](concepts/incident.md#statuses-and-their-colors), on the right - a button to expand the incident and an indicator of the number of alerts in it.
 
 Columns are selected through [configuration](config_file.md#uicolumns)
 

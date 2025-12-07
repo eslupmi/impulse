@@ -92,25 +92,6 @@ class MattermostApplication(Application):
         )
         return admins_text
 
-    async def send_message(self, channel_id, text, attachment):
-        payload = {
-            'channel_id': channel_id,
-            'message': text,
-            'props': {
-                'attachments': [
-                    {
-                        'fallback': 'test',
-                        'text': attachment,
-                        'color': status_colors['closed']
-                    }
-                ]
-            }
-        }
-        response = await self.http.post(self.post_message_url, headers=self.headers, json=payload)
-        response_json = await response.json()
-        response.close()
-        return response_json.get('ts')
-
     async def _handle_chain_action(self, incident_, user_id, user_name, queue_, incidents, payload):
         """Handle chain-related button actions"""
         await queue_.delete_by_id(incident_.uniq_id, delete_steps=True, delete_status=False)
