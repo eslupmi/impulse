@@ -47,6 +47,7 @@ class Incident:
     task_link: str = field(default='')
     task_creation_in_progress: bool = False
     closed: Optional[datetime] = field(default=None)
+    frozen_until: Optional[datetime] = field(default=None)
 
     next_status = {
         'firing': 'unknown',
@@ -163,6 +164,26 @@ class Incident:
         self.chain_enabled = True
         self.dump()
 
+    def freeze(self, until: datetime, user_id: str, user_fullname: str = ''):
+        """Freeze the incident until the specified datetime (preserves underlying status)
+        Assigns the user who froze the incident"""
+        self.frozen_until = until
+        self.assigned_user_id = user_id
+        if user_fullname:
+            self.assigned_fullname = user_fullname
+        self.dump()
+        logger.info(f'Incident {self.uuid} frozen until {until} by user {user_id} (status: {self.status})')
+
+    def unfreeze(self):
+        """Unfreeze the incident (underlying status is already correct)"""
+        self.frozen_until = None
+        logger.info(f'Incident {self.uuid} unfrozen (status: {self.status})')
+        self.dump()
+
+    def is_frozen(self) -> bool:
+        """Check if the incident is currently frozen"""
+        return self.frozen_until is not None
+
     def get_chain(self) -> List[Dict]:
         if not self.chain_enabled:
             return []
@@ -204,7 +225,8 @@ class Incident:
             assigned_fullname=content.get('assigned_fullname', ''),
             messenger_type=content.get('messenger_type', ''),
             uniq_id=content.get('uniq_id', ''),
-            version=content.get('version', config.INCIDENT_ACTUAL_VERSION)
+            version=content.get('version', config.INCIDENT_ACTUAL_VERSION),
+            frozen_until=content.get('frozen_until', None),
         )
         incident_.set_thread(content.get('ts'), incident_config.application_url)
         incident_.task_link = content.get('task_link', '')
@@ -230,7 +252,8 @@ class Incident:
             "messenger_type": self.messenger_type,
             "uniq_id": self.uniq_id,
             "version": self.version,
-            "task_link": self.task_link
+            "task_link": self.task_link,
+            "frozen_until": self.frozen_until,
         }
         try:
             if self.status == 'closed' or self.status == 'deleted':
@@ -274,6 +297,7 @@ class Incident:
             "task_link": self.task_link,
             "uuid": self.uuid,
             "uniq_id": self.uniq_id,
+            "frozen_until": self.frozen_until,
         }
 
     def get_table_data(self, params) -> Dict:

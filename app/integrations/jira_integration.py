@@ -3,8 +3,9 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from app.integrations.jira_client import JiraClient
-from app.jinja_template import JinjaTemplate, load_template_file
+from app.jinja_template import JinjaTemplate
 from app.logging import logger
+from app.queue.constants import QueueItemType
 
 
 class JiraIntegration:
@@ -110,7 +111,7 @@ class JiraIntegration:
         incident.task_creation_in_progress = False
         await queue_.put(
             datetime_=datetime.now(timezone.utc),
-            type_='update_message',
+            type_=QueueItemType.UPDATE_MESSAGE,
             uniq_id=incident.uniq_id,
             identifier=None,
             data=None

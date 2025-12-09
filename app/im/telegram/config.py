@@ -2,7 +2,6 @@ from jinja2 import Environment
 
 
 buttons = {
-    # styles: normal, danger
     'chain': {
         'takeit': {
             'text': 'Take It',
@@ -13,15 +12,18 @@ buttons = {
             'callback_data': 'start_chain'
         }
     },
-    'status': {
-        'enabled': {
-            'text': '🟢 Status',
-            'callback_data': 'stop_status'
+    'freeze': {
+        'inactive': {
+            'text': 'Freeze',
+            'callback_data': 'freeze_menu'
         },
-        'disabled': {
-            'text': '🔴 Status',
-            'callback_data': 'start_status'
-        }
+        'options': [
+            {'text': 'Tomorrow 9:00', 'callback_data': 'freeze_tomorrow'},
+            {'text': 'Next Monday', 'callback_data': 'freeze_next_monday'},
+            {'text': 'In Month', 'callback_data': 'freeze_month'},
+            {'text': 'In 6 months', 'callback_data': 'freeze_6months'},
+            {'text': '« Back', 'callback_data': 'freeze_back'}
+        ]
     },
     'task': {
         'create': {

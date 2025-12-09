@@ -7,6 +7,7 @@ from app.logging import logger
 from app.queue.handlers.base_handler import BaseHandler
 from app.time import unix_sleep_to_timedelta
 from app.config.config import get_config
+from app.queue.constants import QueueItemType
 
 
 class AlertHandler(BaseHandler):
@@ -73,7 +74,7 @@ class AlertHandler(BaseHandler):
 
         self.incidents.add(incident_)
 
-        await self.queue.put(status_update_datetime, 'update_status', incident_.uniq_id)
+        await self.queue.put(status_update_datetime, QueueItemType.UPDATE_STATUS, incident_.uniq_id)
 
         incident_.generate_chain(self.app.chains, chain_name)
         await self.queue.recreate(status, incident_.uniq_id, incident_.chain)
@@ -102,10 +103,10 @@ class AlertHandler(BaseHandler):
         if is_state_updated or is_status_updated:
             await self.app.update(
                 incident_, alert_state['status'], alert_state, is_status_updated,
-                incident_.chain_enabled, incident_.status_enabled, incident_.task_link
+                incident_.chain_enabled, incident_.frozen_until, incident_.task_link
             )
 
-        if prev_status == 'firing' and incident_.status == 'firing' and (is_new_firing_alerts_added or is_some_firing_alerts_removed) and incident_.status_enabled:
+        if prev_status == 'firing' and incident_.status == 'firing' and (is_new_firing_alerts_added or is_some_firing_alerts_removed) and not incident_.is_frozen():
             await self._notify_new_fire_alert(incident_, is_new_firing_alerts_added, is_some_firing_alerts_removed, uuid_)
         await self.queue.update(incident_.uniq_id, incident_.status_update_datetime, incident_.status)
 
