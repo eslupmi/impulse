@@ -150,6 +150,7 @@ class SlackApplication(Application):
         payload = self.update_thread_payload(incident_.channel_id, incident_.ts, body, header, status_icons,
                                              incident_.status, incident_.chain_enabled, incident_.frozen_until, 
                                              incident_.task_link)
+        self._track_async_task(asyncio.create_task(self._update_thread(incident_.ts, payload)))
         modified_message = reformat_message(original_message, payload['text'], payload['attachments'], incident_.status,
                                             incident_.chain_enabled, incident_.frozen_until, incident_.task_link)
         return JSONResponse(modified_message, status_code=200)
@@ -167,19 +168,20 @@ class SlackApplication(Application):
         
         actions = payload.get('actions')
         user_id = payload.get('user')['id']
+        is_freeze_action = any(action['name'] == 'freeze' for action in actions)
+
+        if incident_.is_frozen() and not is_freeze_action:
+            logger.info(f'Incident {incident_.uuid} is frozen, blocking all button actions')
+            return self._build_button_response(incident_, original_message)
 
         for action in actions:
             if action['name'] == 'freeze':
                 if incident_.is_frozen():
                     await self._handle_unfreeze_action(incident_, queue_)
-                elif 'selected_options' in action and len(action['selected_options']) > 0:
+                elif action.get('type') == 'select' and 'selected_options' in action and len(action['selected_options']) > 0:
                     freeze_option = action['selected_options'][0]['value']
                     await self._handle_freeze_action(incident_, freeze_option, user_id, incidents, queue_)
                 return self._build_button_response(incident_, original_message)
-
-        if incident_.is_frozen():
-            logger.info(f'Incident {incident_.uuid} is frozen, blocking all button actions')
-            return JSONResponse(original_message, status_code=200)
 
         for action in actions:
             if action['name'] == 'chain':

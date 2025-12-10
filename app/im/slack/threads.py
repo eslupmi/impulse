@@ -34,21 +34,25 @@ def build_slack_actions(chain_enabled, status, frozen_until=None, task_link=''):
     
     if frozen_until:
         freeze_text = f"Frozen until {format_freeze_expiration(frozen_until)}"
+        actions.append({
+            "name": 'freeze',
+            "type": 'button',
+            "text": freeze_text,
+            "style": 'primary',
+        })
     else:
         freeze_text = buttons['freeze']['inactive']['text']
-    
-    freeze_options = [
-        {"text": opt['text'], "value": opt['value']}
-        for opt in buttons['freeze']['options']
-    ]
-    
-    actions.append({
-        "name": 'freeze',
-        "type": 'select',
-        "text": freeze_text,
-        "style": buttons['freeze']['inactive']['style'],
-        "options": freeze_options
-    })
+        freeze_options = [
+            {"text": opt['text'], "value": opt['value']}
+            for opt in buttons['freeze']['options']
+        ]
+        actions.append({
+            "name": 'freeze',
+            "type": 'select',
+            "text": freeze_text,
+            "style": buttons['freeze']['inactive']['style'],
+            "options": freeze_options
+        })
     
     if config.app.task_management and env_config.task_management_enabled and not task_link:
         actions.append({

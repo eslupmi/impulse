@@ -14,12 +14,28 @@ def reformat_message(original_message, text, attachments, status, chain_enabled,
     original_message['attachments'][1]['actions'][0]['text'] = chain_attrs(chain_enabled, status)[0]
     original_message['attachments'][1]['actions'][0]['style'] = chain_attrs(chain_enabled, status)[1]
 
-    # Update freeze button text
+    # Update freeze button - change type based on frozen state
     if frozen_until:
         freeze_text = f"Frozen until {format_freeze_expiration(frozen_until)}"
+        original_message['attachments'][1]['actions'][1] = {
+            'name': 'freeze',
+            'type': 'button',
+            'text': freeze_text,
+            'style': 'primary',
+        }
     else:
         freeze_text = buttons['freeze']['inactive']['text']
-    original_message['attachments'][1]['actions'][1]['text'] = freeze_text
+        freeze_options = [
+            {"text": opt['text'], "value": opt['value']}
+            for opt in buttons['freeze']['options']
+        ]
+        original_message['attachments'][1]['actions'][1] = {
+            'name': 'freeze',
+            'type': 'select',
+            'text': freeze_text,
+            'style': buttons['freeze']['inactive']['style'],
+            'options': freeze_options
+        }
     
     if config.app.task_management and env_config.task_management_enabled and len(original_message['attachments'][1]['actions']) > 2:
         if task_link:
