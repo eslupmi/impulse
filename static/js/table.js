@@ -26,6 +26,14 @@ const tableOptions = {
         return table.initialDataLoaded ? "No Incidents" : "Loading incidents...";
     },
     renderVertical: 'basic',
+    rowFormatter: function(row) {
+        const data = row.getData();
+        if (data._is_frozen) {
+            row.getElement().classList.add('frozen-row');
+        } else {
+            row.getElement().classList.remove('frozen-row');
+        }
+    },
 };
 
 const table = new Tabulator("#data-table", tableOptions);

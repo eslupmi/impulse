@@ -310,16 +310,22 @@ class Incident:
             group_labels = {}
             common_labels = {}
             common_annotations = {}
+        
+        display_status = 'frozen' if self.is_frozen() else self.status
+        
         data = {
             'uniq_id': self.uniq_id,
-            'indicator': self.status,
+            'indicator': display_status,
             '_alerts_count': len(self.payload.get('alerts', [])),
+            '_is_frozen': self.is_frozen(),
             '_responsive_data': {
                 'group_labels': group_labels,
                 'common_labels': filter_dict_keys(common_labels, group_labels),
                 'common_annotations': common_annotations,
                 'incident_info': {
                     'status': self.status,
+                    'frozen_until': normalize_param(self.frozen_until) if self.frozen_until else None,
+                    'is_frozen': self.is_frozen(),
                     'created': normalize_param(self.created) if self.created else None,
                     'updated': normalize_param(self.updated) if self.updated else None,
                     'assigned_fullname': self.assigned_fullname if self.assigned_fullname else None,

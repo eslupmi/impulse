@@ -46,6 +46,7 @@
     --status-badge-resolved: #56C15E;
     --status-badge-unknown: #C1A300;
     --status-badge-closed: #969696;
+    --status-badge-frozen: #38ade6;
     
     /* Theme Icon Colors */
     --theme-icon-color: #22688A;
@@ -136,6 +137,7 @@
     --status-badge-resolved: #56C15E;
     --status-badge-unknown: #C1A300;
     --status-badge-closed: #969696;
+    --status-badge-frozen: #38ade6;
 
     /* Online Status Colors */
     --online-status-indicator: #38ADE6;
