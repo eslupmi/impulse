@@ -19,7 +19,7 @@
 {%- else %}
 {%- if alerts[0].labels.instance %}
 
-<b>Instance:</b> {{ alerts[0].labels.instance }}{% if alerts[0].annotations.value %}  |  value=<b>{{ alerts[0].annotations.value }}</b>{% endif %}
+<b>Instance:</b> {{ alerts[0].labels.instance }}{% if alerts[0].annotations.value %}  |  value=<b>{{ alerts[0].annotations.value }}</b>{% endif -%}
 {%- endif %}
 {%- endif %}
 {%- if commonLabels | length > 0 %}

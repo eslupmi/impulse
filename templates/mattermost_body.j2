@@ -19,7 +19,7 @@ _{{ commonAnnotations.description }}_{% endif %}
 {% else -%}
 {%- if alerts[0].labels.instance %}
 
-**Instance:** {{ alerts[0].labels.instance }}{% if alerts[0].annotations.value %}  |  value=**{{ alerts[0].annotations.value }}**{% endif %}
+**Instance:** {{ alerts[0].labels.instance }}{% if alerts[0].annotations.value %}  |  value=**{{ alerts[0].annotations.value }}**{% endif -%}
 {% endif -%}
 {% endif -%}
 {%- if commonLabels | length > 0 %}
