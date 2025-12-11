@@ -4,26 +4,10 @@ import sys
 
 
 class CustomFormatter(logging.Formatter):
-    grey = "\033[2;97m"
-    yellow = "\033[0;33m"
-    white = "\033[0;97m"
-    red = "\033[0;31m"
-    bold_red = "\033[0;1m"
-    reset = "\033[0;97m"
-    format = '{asctime:<27}{levelname:<11}{message}'
+    fmt = '{asctime:<27}{levelname:<11}{message}'
 
-    FORMATS = {
-        logging.DEBUG: grey + format + reset,
-        logging.INFO: white + format + reset,
-        logging.WARNING: yellow + format + reset,
-        logging.ERROR: red + format + reset,
-        logging.CRITICAL: bold_red + format + reset
-    }
-
-    def format(self, record):
-        log_fmt = self.FORMATS.get(record.levelno)
-        formatter = logging.Formatter(log_fmt, style='{')
-        return formatter.format(record)
+    def __init__(self):
+        super().__init__(self.fmt, style='{')
 
 
 class ErrorFilter(logging.Filter):
@@ -39,14 +23,14 @@ class InfoFilter(logging.Filter):
 
 
 def create_logger(name, level=logging.INFO):
-    lr = logging.getLogger(name)
-    lr.setLevel(level)
+    logger = logging.getLogger(name)
+    logger.setLevel(level)
     
     # Check if handlers already exist to avoid duplicates
     has_stdout_handler = False
     has_stderr_handler = False
     
-    for handler in lr.handlers:
+    for handler in logger.handlers:
         if isinstance(handler, logging.StreamHandler):
             if handler.stream == sys.stdout:
                 # Check if it has InfoFilter
@@ -66,16 +50,16 @@ def create_logger(name, level=logging.INFO):
         stdout_handler = logging.StreamHandler(sys.stdout)
         stdout_handler.setFormatter(CustomFormatter())
         stdout_handler.addFilter(InfoFilter())
-        lr.addHandler(stdout_handler)
+        logger.addHandler(stdout_handler)
     
     # Add stderr handler only if it doesn't exist
     if not has_stderr_handler:
         stderr_handler = logging.StreamHandler(sys.stderr)
         stderr_handler.setFormatter(CustomFormatter())
         stderr_handler.addFilter(ErrorFilter())
-        lr.addHandler(stderr_handler)
+        logger.addHandler(stderr_handler)
     
-    return lr
+    return logger
 
 
 def configure_uvicorn_logging():
@@ -111,7 +95,7 @@ try:
     log_level = getattr(logging, env_config.log_level, logging.INFO)
 except ImportError:
     # Fallback for cases where the config system isn't available yet
-    log_level = os.getenv('LOG_LEVEL', default='INFO')
+    log_level = os.getenv('LOG_LEVEL', 'INFO')
     log_level = getattr(logging, log_level.upper(), logging.INFO)
 
 logger = create_logger('main_logger', log_level)

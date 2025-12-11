@@ -38,37 +38,7 @@ class TestCustomFormatter:
         """Test CustomFormatter initialization."""
         formatter = CustomFormatter()
 
-        assert hasattr(formatter, 'grey')
-        assert hasattr(formatter, 'yellow')
-        assert hasattr(formatter, 'white')
-        assert hasattr(formatter, 'red')
-        assert hasattr(formatter, 'bold_red')
-        assert hasattr(formatter, 'reset')
-        assert hasattr(formatter, 'format')
-        assert hasattr(formatter, 'FORMATS')
-
-    def test_custom_formatter_colors(self):
-        """Test CustomFormatter color attributes."""
-        formatter = CustomFormatter()
-
-        # Test that colors are ANSI escape codes
-        assert formatter.grey.startswith('\033')
-        assert formatter.yellow.startswith('\033')
-        assert formatter.white.startswith('\033')
-        assert formatter.red.startswith('\033')
-        assert formatter.bold_red.startswith('\033')
-        assert formatter.reset.startswith('\033')
-
-    def test_custom_formatter_formats_dict(self):
-        """Test CustomFormatter FORMATS dictionary."""
-        formatter = CustomFormatter()
-
-        # Test that FORMATS contains all log levels
-        assert logging.DEBUG in formatter.FORMATS
-        assert logging.INFO in formatter.FORMATS
-        assert logging.WARNING in formatter.FORMATS
-        assert logging.ERROR in formatter.FORMATS
-        assert logging.CRITICAL in formatter.FORMATS
+        assert hasattr(formatter, 'fmt')
 
     def test_custom_formatter_format_debug(self):
         """Test CustomFormatter format method with DEBUG level."""
