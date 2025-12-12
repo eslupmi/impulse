@@ -211,19 +211,8 @@ class RateLimitedClient:
         """
         self._initialize_client()
         await self._wait_for_rate_limit()
-        
-        try:
-            response = await self._client.request(method, url, **kwargs)
-            return response
-
-        except asyncio.TimeoutError as e:
-            raise
-
-        except aiohttp.ClientConnectorError as e:
-            raise
-
-        except Exception as e:
-            raise
+        response = await self._client.request(method, url, **kwargs)
+        return response
     
     async def get(self, url: str, **kwargs):
         """Make a GET request with rate limiting"""
