@@ -18,7 +18,7 @@ from app.im.channel_manager import ChannelManager
 from app.im.helpers import get_application
 from app.incident.incidents import Incidents
 from app.logging import logger, configure_uvicorn_logging
-from app.metrics import metrics_status, metrics_collector
+from app.metrics import MetricsCollector
 from app.middleware import StandbyMiddleware, is_standby_mode, service_unavailable_response
 from app.queue.manager import AsyncQueueManager
 from app.queue.queue import AsyncQueue
@@ -121,7 +121,7 @@ async def initialize_primary_server(fastapi_app: FastAPI, file_lock: FileLock) -
 
         queue_manager.start_processing()
         fastapi_app.state.is_standby = False
-        metrics_status.set(1)
+        fastapi_app.state.metrics.status.set(1)
         logger.info('IMPulse started as primary server!')
         return True
     except Exception as e:
@@ -136,11 +136,14 @@ async def lifespan(fastapi_app: FastAPI):
     file_lock = FileLock()
     locked = file_lock.is_locked()
     shutdown_event = asyncio.Event()
+    metrics_collector = MetricsCollector()
 
     # Store file_lock and standby state early so /readyz endpoint can access them
     fastapi_app.state.file_lock = file_lock
     fastapi_app.state.is_standby = locked
     fastapi_app.state.queue_manager = None
+    fastapi_app.state.queue = AsyncQueue()
+    fastapi_app.state.metrics = metrics_collector
     
     async def wait_and_become_primary():
         """Background task to wait for lock and become primary server."""
@@ -162,7 +165,7 @@ async def lifespan(fastapi_app: FastAPI):
     if locked:
         logger.info("Another IMPulse instance is running, working as standby server")
         hostname, pid, _ = file_lock.get_lock_info()
-        metrics_status.set(0)
+        fastapi_app.state.metrics.status.set(0)
         logger.debug(f"Lock file is used by hostname {hostname}, PID {pid}")
         logger.info('IMPulse started in standby mode!')
         unlock_task = asyncio.create_task(wait_and_become_primary())
@@ -367,7 +370,8 @@ app.include_router(router)
 @metrics_router.get("/metrics")
 async def get_metrics(request: Request):
     """Prometheus metrics endpoint"""
-    queue = getattr(request.app.state, 'queue', None)
+    queue = request.app.state.queue
+    metrics_collector = request.app.state.metrics
     return await metrics_collector.generate_metrics_response(queue)
 
 # Include metrics router for monitoring

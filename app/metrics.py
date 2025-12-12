@@ -15,6 +15,7 @@ from prometheus_client import (
 from fastapi.responses import Response
 
 from app.config.config import get_config
+from app.queue.queue import AsyncQueue
 
 
 class MetricsCollector:
@@ -51,11 +52,12 @@ class MetricsCollector:
             'Last observed delay between scheduled queue task and Prometheus scrape time'
         )
 
-    def measure_request(self, func):
+    @classmethod
+    def measure_request(cls, func):
         """
         Measure HTTP request duration and track status/errors.
         """
-        collector = self
+        collector = cls()
 
         @wraps(func)
         async def wrapper(instance, *args, **kwargs):
@@ -83,9 +85,7 @@ class MetricsCollector:
 
             finally:
                 duration = time.perf_counter() - start
-                histogram = (
-                    collector.messenger_api_request_duration_seconds
-                )
+                histogram = collector.messenger_api_request_duration_seconds
                 histogram.labels(
                     messenger=messenger_type,
                     status=status,
@@ -94,17 +94,13 @@ class MetricsCollector:
 
         return wrapper
 
-    async def update_queue_latency(self, queue):
+    async def update_queue_latency(self, queue: AsyncQueue):
         """
         Update queue latency metric based on first item in queue.
 
         Args:
             queue: AsyncQueue instance to check for latency
         """
-        if queue is None:
-            self.queue_latency_seconds.set(0.0)
-            return
-
         first_item_datetime = await queue.get_first_item_datetime()
 
         if first_item_datetime is None:
@@ -114,37 +110,19 @@ class MetricsCollector:
             delay = max(0, (now - first_item_datetime).total_seconds())
             self.queue_latency_seconds.set(delay)
 
-    async def generate_metrics_response(self, queue=None) -> Response:
+    async def generate_metrics_response(self, queue: AsyncQueue) -> Response:
         """
         Generate Prometheus metrics response.
 
         Args:
-            queue: Optional AsyncQueue instance to update queue latency metric
+            queue: Optional AsyncQueue instance to update queue latency metric.
+                   If None (standby mode), queue latency will be set to 0.0.
 
         Returns:
             FastAPI Response with metrics content
         """
-        if queue is not None:
-            await self.update_queue_latency(queue)
+        await self.update_queue_latency(queue)
         return Response(
             content=generate_latest(),
             media_type=CONTENT_TYPE_LATEST
         )
-
-
-metrics_collector = MetricsCollector()
-
-metrics_messenger_api_request_duration_seconds = (
-    metrics_collector.messenger_api_request_duration_seconds
-)
-metrics_status = metrics_collector.status
-metrics_queue_latency_seconds = metrics_collector.queue_latency_seconds
-
-
-def measure_request(func):
-    """
-    Measure HTTP request duration and track status/errors.
-
-    Decorator function that wraps MetricsCollector.measure_request.
-    """
-    return metrics_collector.measure_request(func)
