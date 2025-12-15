@@ -25,7 +25,7 @@ jobs:
           SLACK_BOT_USER_OAUTH_TOKEN: ${{ secrets.AUTOTESTS_SLACK_BOT_USER_OAUTH_TOKEN }}
           IMPULSE_URL: https://test.impulse.bot
         run: |
-          docker run --rm \
+          docker run --pull always --rm \
             -e SLACK_VERIFICATION_TOKEN="$SLACK_VERIFICATION_TOKEN" \
             -e SLACK_BOT_USER_OAUTH_TOKEN="$SLACK_BOT_USER_OAUTH_TOKEN" \
             -e IMPULSE_URL="$IMPULSE_URL" \
