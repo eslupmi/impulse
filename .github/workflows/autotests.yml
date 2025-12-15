@@ -26,14 +26,7 @@ jobs:
         with:
           repository: eslupmi/tests
           token: ${{ secrets.ESLUPMI_TESTS_REPO_TOKEN_READ }}
-          path: tests-${{ matrix.messenger_type }}
-
-      - name: Log in to the Container registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          path: autotests-${{ matrix.messenger_type }}
 
       - name: Generate impulse.yml configuration
         run: |
@@ -44,9 +37,9 @@ jobs:
           from jinja2 import Environment, FileSystemLoader
           import os
           
-          template_path = "${{ github.workspace }}/tests-${{ matrix.messenger_type }}/templates"
+          template_path = "${{ github.workspace }}/autotests-${{ matrix.messenger_type }}/templates"
           template_file = "impulse.yml.j2"
-          output_file = "${{ github.workspace }}/tests-${{ matrix.messenger_type }}/impulse.yml"
+          output_file = "${{ github.workspace }}/autotests-${{ matrix.messenger_type }}/impulse.yml"
           
           env = Environment(loader=FileSystemLoader(template_path))
           template = env.get_template(template_file)
@@ -63,9 +56,9 @@ jobs:
           SLACK_VERIFICATION_TOKEN: ${{ secrets.AUTOTESTS_SLACK_VERIFICATION_TOKEN }}
           SLACK_BOT_USER_OAUTH_TOKEN: ${{ secrets.AUTOTESTS_SLACK_BOT_USER_OAUTH_TOKEN }}
         run: |
-          docker run -d --rm --name impulse-${{ matrix.messenger_type }} \
+          docker run -d --rm --name impulse-autotests-${{ matrix.messenger_type }} \
             -p ${{ matrix.port }}:5000 \
-            -v "${{ github.workspace }}/tests-${{ matrix.messenger_type }}:/config:ro" \
+            -v "${{ github.workspace }}/autotests-${{ matrix.messenger_type }}:/config:ro" \
             -e SLACK_VERIFICATION_TOKEN="$SLACK_VERIFICATION_TOKEN" \
             -e SLACK_BOT_USER_OAUTH_TOKEN="$SLACK_BOT_USER_OAUTH_TOKEN" \
             -e CONFIG_PATH="/config" \
@@ -86,11 +79,11 @@ jobs:
       - name: Stop impulse container
         if: always()
         run: |
-          docker stop impulse-${{ matrix.messenger_type }} || true
+          docker stop impulse-autotests-${{ matrix.messenger_type }} || true
 
       - name: Cleanup workspace
         if: always()
         run: |
           rm -rf venv-${{ matrix.messenger_type }}
-          rm -rf tests-${{ matrix.messenger_type }}
+          rm -rf autotests-${{ matrix.messenger_type }}
 
