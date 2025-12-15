@@ -8,10 +8,26 @@ on:
 jobs:
   autotests:
     runs-on: self-hosted
+    strategy:
+      matrix:
+        include:
+          - messenger_type: slack
+            port: 15100
+          # - messenger_type: mattermost
+          #   port: 15101
+          # - messenger_type: telegram
+          #   port: 15102
     permissions:
       contents: read
       packages: read
     steps:
+      - name: Checkout tests repository
+        uses: actions/checkout@v4
+        with:
+          repository: eslupmi/tests
+          token: ${{ secrets.GITHUB_TOKEN }}
+          path: tests-${{ matrix.messenger_type }}
+
       - name: Log in to the Container registry
         uses: docker/login-action@v3
         with:
@@ -19,15 +35,53 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Generate impulse.yml configuration
+        run: |
+          python3 -m pip install --quiet jinja2
+          python3 << EOF
+          from jinja2 import Environment, FileSystemLoader
+          import os
+          
+          template_path = "${{ github.workspace }}/tests-${{ matrix.messenger_type }}/templates"
+          template_file = "impulse.yml.j2"
+          output_file = "${{ github.workspace }}/tests-${{ matrix.messenger_type }}/impulse.yml"
+          
+          env = Environment(loader=FileSystemLoader(template_path))
+          template = env.get_template(template_file)
+          
+          output = template.render(messenger_type="${{ matrix.messenger_type }}")
+          
+          with open(output_file, 'w') as f:
+              f.write(output)
+          EOF
+
+      - name: Start impulse container
+        env:
+          SLACK_VERIFICATION_TOKEN: ${{ secrets.AUTOTESTS_SLACK_VERIFICATION_TOKEN }}
+          SLACK_BOT_USER_OAUTH_TOKEN: ${{ secrets.AUTOTESTS_SLACK_BOT_USER_OAUTH_TOKEN }}
+        run: |
+          docker run -d --rm --name impulse-${{ matrix.messenger_type }} \
+            -p ${{ matrix.port }}:5000 \
+            -v "${{ github.workspace }}/tests-${{ matrix.messenger_type }}:/config:ro" \
+            -e SLACK_VERIFICATION_TOKEN="$SLACK_VERIFICATION_TOKEN" \
+            -e SLACK_BOT_USER_OAUTH_TOKEN="$SLACK_BOT_USER_OAUTH_TOKEN" \
+            -e CONFIG_PATH="/config" \
+            ghcr.io/eslupmi/impulse:develop
+
       - name: Run autotests
         env:
           SLACK_VERIFICATION_TOKEN: ${{ secrets.AUTOTESTS_SLACK_VERIFICATION_TOKEN }}
           SLACK_BOT_USER_OAUTH_TOKEN: ${{ secrets.AUTOTESTS_SLACK_BOT_USER_OAUTH_TOKEN }}
-          IMPULSE_URL: https://test.impulse.bot
+          IMPULSE_URL: http://localhost:${{ matrix.port }}
         run: |
-          docker run --pull always --rm \
-            -e SLACK_VERIFICATION_TOKEN="$SLACK_VERIFICATION_TOKEN" \
-            -e SLACK_BOT_USER_OAUTH_TOKEN="$SLACK_BOT_USER_OAUTH_TOKEN" \
-            -e IMPULSE_URL="$IMPULSE_URL" \
-            ghcr.io/eslupmi/tests:feature-tests
+          SLACK_VERIFICATION_TOKEN="$SLACK_VERIFICATION_TOKEN" \
+          SLACK_BOT_USER_OAUTH_TOKEN="$SLACK_BOT_USER_OAUTH_TOKEN" \
+          IMPULSE_URL="$IMPULSE_URL" \
+          MESSENGER_TYPE="${{ matrix.messenger_type }}" \
+          pytest "tests/test_${{ matrix.messenger_type }}.py::Test${{ matrix.messenger_type }}Application" -v -s
+
+      - name: Stop impulse container
+        if: always()
+        run: |
+          docker stop impulse-${{ matrix.messenger_type }} || true
 
