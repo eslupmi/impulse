@@ -1,7 +1,9 @@
 name: autotests
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+    - '[0-9]*-*'
 
 jobs:
   autotests:
