@@ -56,18 +56,19 @@ jobs:
             -e CONFIG_PATH="/config" \
             ghcr.io/eslupmi/impulse:develop
 
-      - name: Run autotests
+      - name: Wait 60 seconds for impulse container to be ready
+        run: |
+          sleep 60
+
+      - name: Run autotests for ${{ matrix.messenger_type }}
         env:
           SLACK_VERIFICATION_TOKEN: ${{ secrets.AUTOTESTS_SLACK_VERIFICATION_TOKEN }}
           SLACK_BOT_USER_OAUTH_TOKEN: ${{ secrets.AUTOTESTS_SLACK_BOT_USER_OAUTH_TOKEN }}
           IMPULSE_URL: http://localhost:${{ matrix.port }}
+          MESSENGER_TYPE: ${{ matrix.messenger_type }}
         run: |
           source venv-${{ matrix.messenger_type }}/bin/activate
           cd autotests-${{ matrix.messenger_type }}
-          SLACK_VERIFICATION_TOKEN="$SLACK_VERIFICATION_TOKEN" \
-          SLACK_BOT_USER_OAUTH_TOKEN="$SLACK_BOT_USER_OAUTH_TOKEN" \
-          IMPULSE_URL="$IMPULSE_URL" \
-          MESSENGER_TYPE="${{ matrix.messenger_type }}" \
           pytest "tests/test_${{ matrix.messenger_type }}_application.py::Test${{ matrix.messenger_class }}Application" -v -s
 
       - name: Stop impulse container
