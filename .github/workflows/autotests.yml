@@ -38,9 +38,6 @@ jobs:
           python3 -m venv venv-${{ matrix.messenger_type }}
           source venv-${{ matrix.messenger_type }}/bin/activate
           pip install -r autotests-${{ matrix.messenger_type }}/requirements.txt
-          INPUT_PATH="$INPUT_PATH"\
-          OUTPUT_PATH="$OUTPUT_PATH"\
-          MESSENGER_TYPE="$MESSENGER_TYPE"\
           python autotests-${{ matrix.messenger_type }}/templates/gen.py
 
       - name: Start impulse container
