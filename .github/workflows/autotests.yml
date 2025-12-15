@@ -1,9 +1,12 @@
 name: autotests
 
 on:
-  push:
-    branches:
-    - '[0-9]*-*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'IMPulse Docker image tag'
+        required: true
+        default: 'develop'
 
 jobs:
   autotests:
@@ -52,7 +55,7 @@ jobs:
             -e SLACK_VERIFICATION_TOKEN="$SLACK_VERIFICATION_TOKEN" \
             -e SLACK_BOT_USER_OAUTH_TOKEN="$SLACK_BOT_USER_OAUTH_TOKEN" \
             -e CONFIG_PATH="/config" \
-            ghcr.io/eslupmi/impulse:develop
+            ghcr.io/eslupmi/impulse:${{ github.event.inputs.tag }}
 
       - name: Wait 60 seconds for impulse container to be ready
         run: |
