@@ -38,10 +38,11 @@ jobs:
           OUTPUT_PATH: ${{ github.workspace }}/autotests-${{ matrix.messenger_type }}/impulse.yml
           MESSENGER_TYPE: ${{ matrix.messenger_type }}
         run: |
-          python3 -m venv venv-${{ matrix.messenger_type }}
-          source venv-${{ matrix.messenger_type }}/bin/activate
-          pip install -r autotests-${{ matrix.messenger_type }}/requirements.txt
-          python autotests-${{ matrix.messenger_type }}/templates/gen.py
+          cd autotests-${{ matrix.messenger_type }}
+          python3 -m venv venv
+          source venv/bin/activate
+          pip install -r requirements.txt
+          python templates/gen.py
 
       - name: Start impulse container
         env:
@@ -67,9 +68,11 @@ jobs:
           IMPULSE_URL: http://localhost:${{ matrix.port }}
           MESSENGER_TYPE: ${{ matrix.messenger_type }}
         run: |
-          source venv-${{ matrix.messenger_type }}/bin/activate
           cd autotests-${{ matrix.messenger_type }}
-          pytest "tests/test_${{ matrix.messenger_type }}_application.py::Test${{ matrix.messenger_class }}Application" -v -s
+          source venv/bin/activate
+          MESSENGER_TYPE="${{ matrix.messenger_type }}"
+          MESSENGER_CLASS="${MESSENGER_TYPE^}"
+          pytest "tests/test_${{ matrix.messenger_type }}_application.py::Test${MESSENGER_CLASS}Application" -v -s
 
       - name: Stop impulse container
         if: always()
@@ -79,6 +82,5 @@ jobs:
       - name: Cleanup workspace
         if: always()
         run: |
-          rm -rf venv-${{ matrix.messenger_type }}
           rm -rf autotests-${{ matrix.messenger_type }}
 
