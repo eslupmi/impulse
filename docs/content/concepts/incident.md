@@ -68,14 +68,14 @@ IMPulse creates an Incident with  the **firing** status and tracks it until its 
 
 Here is a visualization of the full incident lifecycle:
 
-![None](../../media/incident_behavior.excalidraw.svg)
+![None](../media/incident_behavior.excalidraw.svg)
 
 Or individually by status:
 
-![None](../../media/incident_firing.excalidraw.svg)
+![None](../media/incident_firing.excalidraw.svg)
 
-![None](../../media/incident_unknown.excalidraw.svg)
+![None](../media/incident_unknown.excalidraw.svg)
 
-![None](../../media/incident_resolved.excalidraw.svg)
+![None](../media/incident_resolved.excalidraw.svg)
 
-![None](../../media/incident_closed.excalidraw.svg)
+![None](../media/incident_closed.excalidraw.svg)

@@ -51,6 +51,12 @@
 - **type:** bool
 - **default value:** True
 
+#### incident.notifications.status_update
+
+- **description:** notifications about incident status updates
+- **type:** bool
+- **default value:** True
+
 ### incident.timeouts
 
 - **description:** incident status timeouts (see [lifecycle](concepts/incident.md#lifecycle))
