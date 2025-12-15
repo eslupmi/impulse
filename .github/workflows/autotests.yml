@@ -88,3 +88,9 @@ jobs:
         run: |
           docker stop impulse-${{ matrix.messenger_type }} || true
 
+      - name: Cleanup workspace
+        if: always()
+        run: |
+          rm -rf venv-${{ matrix.messenger_type }}
+          rm -rf tests-${{ matrix.messenger_type }}
+
