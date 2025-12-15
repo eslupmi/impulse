@@ -80,4 +80,3 @@ jobs:
         if: always()
         run: |
           rm -rf autotests-${{ matrix.messenger_type }}
-
