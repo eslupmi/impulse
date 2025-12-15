@@ -57,6 +57,7 @@ jobs:
               f.write(output)
           EOF
 
+
       - name: Start impulse container
         env:
           SLACK_VERIFICATION_TOKEN: ${{ secrets.AUTOTESTS_SLACK_VERIFICATION_TOKEN }}
