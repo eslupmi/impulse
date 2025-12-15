@@ -37,8 +37,10 @@ jobs:
 
       - name: Generate impulse.yml configuration
         run: |
-          python3 -m pip install --quiet jinja2
-          python3 << EOF
+          python3 -m venv venv-${{ matrix.messenger_type }}
+          source venv-${{ matrix.messenger_type }}/bin/activate
+          pip install --quiet jinja2
+          python << EOF
           from jinja2 import Environment, FileSystemLoader
           import os
           
