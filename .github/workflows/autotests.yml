@@ -12,10 +12,13 @@ jobs:
       matrix:
         include:
           - messenger_type: slack
+            messenger_class: Slack
             port: 15100
           # - messenger_type: mattermost
+          #   messenger_class: Mattermost
           #   port: 15101
           # - messenger_type: telegram
+          #   messenger_class: Telegram
           #   port: 15102
     permissions:
       contents: read
@@ -65,7 +68,7 @@ jobs:
           SLACK_BOT_USER_OAUTH_TOKEN="$SLACK_BOT_USER_OAUTH_TOKEN" \
           IMPULSE_URL="$IMPULSE_URL" \
           MESSENGER_TYPE="${{ matrix.messenger_type }}" \
-          pytest "tests/test_${{ matrix.messenger_type }}_application.py::Test${{ matrix.messenger_type | capitalize }}Application" -v -s
+          pytest "tests/test_${{ matrix.messenger_type }}_application.py::Test${{ matrix.messenger_class }}Application" -v -s
 
       - name: Stop impulse container
         if: always()
