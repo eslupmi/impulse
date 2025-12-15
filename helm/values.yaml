@@ -142,8 +142,8 @@ impulseConfig:
   # Incident configuration
   incident:
     notifications:
-      new_firing: false
-      partial_resolved: false
+      new_firing: true
+      partial_resolved: true
     timeouts:
       firing: "6h"
       unknown: "6h"

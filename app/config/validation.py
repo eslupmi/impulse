@@ -344,7 +344,7 @@ class IncidentNotifications(BaseModel):
     """Incident notification configuration"""
     assignment: Optional[bool] = Field(True, description="Assigned notification")
     new_firing: Optional[bool] = Field(True, description="New firing notification")
-    partial_resolved: Optional[bool] = Field(False, description="Partial resolved notification")
+    partial_resolved: Optional[bool] = Field(True, description="Partial resolved notification")
 
     def get(self, key: str) -> bool:
         return getattr(self, key) or False
