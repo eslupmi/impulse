@@ -12,13 +12,10 @@ jobs:
       matrix:
         include:
           - messenger_type: slack
-            messenger_class: Slack
             port: 15100
           # - messenger_type: mattermost
-          #   messenger_class: Mattermost
           #   port: 15101
           # - messenger_type: telegram
-          #   messenger_class: Telegram
           #   port: 15102
     permissions:
       contents: read
@@ -49,7 +46,7 @@ jobs:
           SLACK_VERIFICATION_TOKEN: ${{ secrets.AUTOTESTS_SLACK_VERIFICATION_TOKEN }}
           SLACK_BOT_USER_OAUTH_TOKEN: ${{ secrets.AUTOTESTS_SLACK_BOT_USER_OAUTH_TOKEN }}
         run: |
-          docker run -d --rm --name impulse-autotests-${{ matrix.messenger_type }} \
+          docker run --rm --name impulse-autotests-${{ matrix.messenger_type }} \
             -p ${{ matrix.port }}:5000 \
             -v "${{ github.workspace }}/autotests-${{ matrix.messenger_type }}:/config:ro" \
             -e SLACK_VERIFICATION_TOKEN="$SLACK_VERIFICATION_TOKEN" \
