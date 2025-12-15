@@ -49,7 +49,7 @@
 
 - **description:** nofitication about some resolved instances
 - **type:** bool
-- **default value:** False
+- **default value:** True
 
 ### incident.timeouts
 

@@ -994,7 +994,7 @@ def create_incident_config_data(
         notifications = {
             "assignment": True,
             "new_firing": True,
-            "partial_resolved": False
+            "partial_resolved": True
         }
     if timeouts is None:
         timeouts = {
