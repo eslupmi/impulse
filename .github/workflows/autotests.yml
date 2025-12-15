@@ -60,11 +60,12 @@ jobs:
           IMPULSE_URL: http://localhost:${{ matrix.port }}
         run: |
           source venv-${{ matrix.messenger_type }}/bin/activate
+          cd autotests-${{ matrix.messenger_type }}
           SLACK_VERIFICATION_TOKEN="$SLACK_VERIFICATION_TOKEN" \
           SLACK_BOT_USER_OAUTH_TOKEN="$SLACK_BOT_USER_OAUTH_TOKEN" \
           IMPULSE_URL="$IMPULSE_URL" \
           MESSENGER_TYPE="${{ matrix.messenger_type }}" \
-          pytest "tests/test_${{ matrix.messenger_type }}.py::Test${{ matrix.messenger_type }}Application" -v -s
+          pytest "tests/test_${{ matrix.messenger_type }}_application.py::Test${{ matrix.messenger_type | capitalize }}Application" -v -s
 
       - name: Stop impulse container
         if: always()
