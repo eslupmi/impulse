@@ -30,27 +30,18 @@ jobs:
           path: autotests-${{ matrix.messenger_type }}
 
       - name: Generate impulse.yml configuration
+        env:
+          INPUT_PATH: ${{ github.workspace }}/autotests-${{ matrix.messenger_type }}/templates/impulse.yml.j2
+          OUTPUT_PATH: ${{ github.workspace }}/autotests-${{ matrix.messenger_type }}/impulse.yml
+          MESSENGER_TYPE: ${{ matrix.messenger_type }}
         run: |
           python3 -m venv venv-${{ matrix.messenger_type }}
           source venv-${{ matrix.messenger_type }}/bin/activate
-          pip install --quiet jinja2
-          python << EOF
-          from jinja2 import Environment, FileSystemLoader
-          import os
-          
-          template_path = "${{ github.workspace }}/autotests-${{ matrix.messenger_type }}/templates"
-          template_file = "impulse.yml.j2"
-          output_file = "${{ github.workspace }}/autotests-${{ matrix.messenger_type }}/impulse.yml"
-          
-          env = Environment(loader=FileSystemLoader(template_path))
-          template = env.get_template(template_file)
-          
-          output = template.render(messenger_type="${{ matrix.messenger_type }}")
-          
-          with open(output_file, 'w') as f:
-              f.write(output)
-          EOF
-
+          pip install -r autotests-${{ matrix.messenger_type }}/requirements.txt
+          INPUT_PATH="$INPUT_PATH"\
+          OUTPUT_PATH="$OUTPUT_PATH"\
+          MESSENGER_TYPE="$MESSENGER_TYPE"\
+          python autotests-${{ matrix.messenger_type }}/templates/gen.py
 
       - name: Start impulse container
         env:
@@ -71,6 +62,7 @@ jobs:
           SLACK_BOT_USER_OAUTH_TOKEN: ${{ secrets.AUTOTESTS_SLACK_BOT_USER_OAUTH_TOKEN }}
           IMPULSE_URL: http://localhost:${{ matrix.port }}
         run: |
+          source venv-${{ matrix.messenger_type }}/bin/activate
           SLACK_VERIFICATION_TOKEN="$SLACK_VERIFICATION_TOKEN" \
           SLACK_BOT_USER_OAUTH_TOKEN="$SLACK_BOT_USER_OAUTH_TOKEN" \
           IMPULSE_URL="$IMPULSE_URL" \
