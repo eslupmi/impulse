@@ -1,0 +1,85 @@
+name: autotests
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'IMPulse Docker image tag'
+        required: true
+        default: 'develop'
+
+jobs:
+  autotests:
+    runs-on: self-hosted
+    strategy:
+      matrix:
+        include:
+          - messenger_type: slack
+            port: 15100
+          # - messenger_type: mattermost
+          #   port: 15101
+          # - messenger_type: telegram
+          #   port: 15102
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Checkout tests repository
+        uses: actions/checkout@v4
+        with:
+          repository: eslupmi/tests
+          ref: feature/tests
+          token: ${{ secrets.ESLUPMI_TESTS_REPO_TOKEN_READ }}
+          path: autotests-${{ matrix.messenger_type }}
+
+      - name: Generate impulse.yml configuration
+        env:
+          INPUT_PATH: ${{ github.workspace }}/autotests-${{ matrix.messenger_type }}/templates/impulse.yml.j2
+          OUTPUT_PATH: ${{ github.workspace }}/autotests-${{ matrix.messenger_type }}/impulse.yml
+          MESSENGER_TYPE: ${{ matrix.messenger_type }}
+        run: |
+          cd autotests-${{ matrix.messenger_type }}
+          python3 -m venv venv
+          source venv/bin/activate
+          pip install -r requirements.txt
+          python templates/gen.py
+
+      - name: Start impulse container
+        env:
+          SLACK_VERIFICATION_TOKEN: ${{ secrets.AUTOTESTS_SLACK_VERIFICATION_TOKEN }}
+          SLACK_BOT_USER_OAUTH_TOKEN: ${{ secrets.AUTOTESTS_SLACK_BOT_USER_OAUTH_TOKEN }}
+        run: |
+          docker run -d --rm --name impulse-autotests-${{ matrix.messenger_type }} \
+            -p ${{ matrix.port }}:5000 \
+            -v "${{ github.workspace }}/autotests-${{ matrix.messenger_type }}:/config:ro" \
+            -e SLACK_VERIFICATION_TOKEN="$SLACK_VERIFICATION_TOKEN" \
+            -e SLACK_BOT_USER_OAUTH_TOKEN="$SLACK_BOT_USER_OAUTH_TOKEN" \
+            -e CONFIG_PATH="/config" \
+            ghcr.io/eslupmi/impulse:${{ github.event.inputs.tag }}
+
+      - name: Wait 60 seconds for impulse container to be ready
+        run: |
+          sleep 60
+
+      - name: Run autotests for ${{ matrix.messenger_type }}
+        env:
+          SLACK_VERIFICATION_TOKEN: ${{ secrets.AUTOTESTS_SLACK_VERIFICATION_TOKEN }}
+          SLACK_BOT_USER_OAUTH_TOKEN: ${{ secrets.AUTOTESTS_SLACK_BOT_USER_OAUTH_TOKEN }}
+          IMPULSE_URL: http://localhost:${{ matrix.port }}
+          MESSENGER_TYPE: ${{ matrix.messenger_type }}
+        run: |
+          cd autotests-${{ matrix.messenger_type }}
+          source venv/bin/activate
+          MESSENGER_TYPE="${{ matrix.messenger_type }}"
+          MESSENGER_CLASS="${MESSENGER_TYPE^}"
+          pytest "tests/test_${{ matrix.messenger_type }}_application.py::Test${MESSENGER_CLASS}Application" -v -s
+
+      - name: Stop impulse container
+        if: always()
+        run: |
+          docker stop impulse-autotests-${{ matrix.messenger_type }} || true
+
+      - name: Cleanup workspace
+        if: always()
+        run: |
+          rm -rf autotests-${{ matrix.messenger_type }}
