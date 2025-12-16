@@ -68,14 +68,10 @@ class Incidents:
             self.active_map[incident.uuid] = incident.uniq_id
 
     def remove_file(self, incident: Incident):
-        config = get_config()
         self.remove_from_active_map(incident.uuid)
         try:
-            if incident.status == 'closed' or incident.status == 'deleted':
-                closed_str = Incident.datetime_serialize(incident.closed)
-                os.remove(f'{config.incidents_path}/{incident.uuid}__{closed_str}.yml')
-            else:
-                os.remove(f'{config.incidents_path}/{incident.uuid}.yml')
+            incident_filename = incident.get_current_filename()
+            os.remove(incident_filename)
         except (OSError, PermissionError, FileNotFoundError) as e:
             logger.error(f'Failed to delete incident file for uuid: {incident.uuid}: {str(e)}')
 

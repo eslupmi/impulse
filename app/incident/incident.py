@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from typing import List, Dict, Optional
 import json
 import uuid
-
+import os
 import yaml
 
 from app.config.config import get_config
@@ -232,6 +232,24 @@ class Incident:
         incident_.task_link = content.get('task_link', '')
         return incident_
 
+    def get_current_filename(self) -> str:
+        """Get the current filename based on incident state"""
+        config = get_config()
+        if self.status == 'closed' or self.status == 'deleted':
+            closed_str = self.datetime_serialize(self.closed)
+            return f'{config.incidents_path}/{self.uuid}__{closed_str}.yml'
+        else:
+            return f'{config.incidents_path}/{self.uuid}.yml'
+
+    def _remove_old_file(self, old_filename: str):
+        """Remove old incident file"""
+        try:
+            if os.path.exists(old_filename):
+                os.remove(old_filename)
+                logger.debug(f'Removed old incident file: {old_filename}')
+        except (OSError, PermissionError, FileNotFoundError) as e:
+            logger.error(f'Failed to remove old incident file {old_filename}: {str(e)}')
+
     def dump(self):
         config = get_config()
         data = {
@@ -256,11 +274,7 @@ class Incident:
             "frozen_until": self.frozen_until,
         }
         try:
-            if self.status == 'closed' or self.status == 'deleted':
-                closed_str = self.datetime_serialize(self.closed)
-                incident_filename = f'{config.incidents_path}/{self.uuid}__{closed_str}.yml'
-            else:
-                incident_filename = f'{config.incidents_path}/{self.uuid}.yml'
+            incident_filename = self.get_current_filename()
             with open(incident_filename, 'w') as f:
                 yaml.dump(data, f, NoAliasDumper, default_flow_style=False)
         except (OSError, PermissionError, FileNotFoundError) as e:
@@ -361,8 +375,12 @@ class Incident:
             timeout_value = config.incident.timeouts.get(status)
             self.status_update_datetime = now + unix_sleep_to_timedelta(timeout_value)
         if self.status != status:
+            old_filename = self.get_current_filename()
             self.set_status(status)
             self.dump()
+            new_filename = self.get_current_filename()
+            if old_filename != new_filename:
+                self._remove_old_file(old_filename)
             return True
         self.dump()
         return False

@@ -33,8 +33,8 @@ class StatusCheckHandler(BaseHandler):
             self.incidents.del_by_uniq_id(uniq_id)
             return
 
-        # Handle closed status - remove file but keep in memory for potential reopen
+        # Handle closed status - remove from active map only (file cleanup handled by update_status)
         if incident.status == 'closed':
-            logger.info(f'Incident {incident.uuid} has closed status, removing incident file')
-            self.incidents.remove_file(incident)
+            logger.info(f'Incident {incident.uuid} has closed status, removing from active map')
+            self.incidents.remove_from_active_map(incident.uuid)
             return
