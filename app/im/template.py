@@ -166,20 +166,20 @@ notification_unassignment = """update: unassigned"""
 
 notification_freeze = """
 {%- if fields.type == 'slack' -%}
-update: status *frozen* until {{ fields.frozen_until }}
+update: *frozen*
 {%- elif fields.type == 'mattermost' -%}
-update: status **frozen** until {{ fields.frozen_until }}
+update: **frozen**
 {%- elif fields.type == 'telegram' -%}
-update: status <b>frozen</b> until {{ fields.frozen_until }}
+update: <b>frozen</b>
 {%- endif -%}
 """
 
 notification_unfreeze = """
 {%- if fields.type == 'slack' -%}
-update: status *unfrozen*
+update: *unfrozen*
 {%- elif fields.type == 'mattermost' -%}
-update: status **unfrozen**
+update: **unfrozen**
 {%- elif fields.type == 'telegram' -%}
-update: status <b>unfrozen</b>
+update: <b>unfrozen</b>
 {%- endif -%}
 """

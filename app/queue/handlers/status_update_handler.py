@@ -1,15 +1,19 @@
+from datetime import datetime, timezone
+from app.queue.constants import QueueItemType
 from app.queue.handlers.base_handler import BaseHandler
 
 
 class StatusUpdateHandler(BaseHandler):
     """
     StatusUpdateHandler class is responsible for handling the status update event.
+    Does NOT handle deletion or file removal - that's delegated to StatusCheckHandler.
     """
     async def handle(self, uniq_id):
         incident = self.incidents.uniq_ids.get(uniq_id)
+        if incident is None:
+            return
+            
         new_status = incident.next_status[incident.status]
-        if new_status == 'closed':
-            self.incidents.remove_file(incident)
         status_updated = incident.update_status(new_status)
 
         if incident.status != 'deleted':
@@ -23,6 +27,5 @@ class StatusUpdateHandler(BaseHandler):
 
         if incident.status == 'closed':
             await self.queue.delete_by_id(uniq_id, delete_steps=True, delete_status=False)
-
-        if incident.status == 'deleted':
-            self.incidents.del_by_uniq_id(uniq_id)
+        
+        await self.queue.put_first(datetime.now(timezone.utc), QueueItemType.STATUS_CHECK, uniq_id)

@@ -1,16 +1,16 @@
 import asyncio
+from datetime import datetime
 
 import aiohttp
 from fastapi.responses import JSONResponse
 
 from app.im.application import Application
-from app.im.colors import status_colors
 from app.im.mattermost.config import (mattermost_env,
                                       mattermost_admins_template_string)
 from app.im.mattermost.threads import mattermost_get_create_thread_payload, mattermost_get_update_payload, \
     mattermost_get_button_update_payload
 from app.im.mattermost.user import User
-from app.im.template import notification_freeze
+from app.im.template import notification_freeze, notification_unfreeze
 from app.jinja_template import JinjaTemplate
 from app.logging import logger
 from app.config.config import get_config
@@ -19,7 +19,6 @@ from app.time import calculate_freeze_time, format_freeze_expiration
 from app.queue.queue import AsyncQueue
 from app.queue.constants import QueueItemType
 from app.incident.incident import Incident
-from datetime import datetime
 
 
 class MattermostApplication(Application):
@@ -134,14 +133,6 @@ class MattermostApplication(Application):
         await queue_.put(freeze_time, QueueItemType.UNFREEZE, incident_.uniq_id)
         await self._post_freeze_notification(incident_, freeze_time)
 
-    async def _handle_unfreeze_action(self, incident_: Incident, queue_: AsyncQueue):
-        """Handle unfreeze button action"""
-        logger.info(f'Incident {incident_.uuid} -> UNFREEZE pressed')
-        
-        incident_.unfreeze()
-        await queue_.delete_by_id_and_type(incident_.uniq_id, QueueItemType.UNFREEZE)
-        await self._post_unfreeze_notification(incident_)
-
     async def _post_freeze_notification(self, incident_: Incident, freeze_time: datetime):
         """Post freeze notification to thread"""
         header = self.header_template.form_message(incident_.payload, incident_)
@@ -154,7 +145,8 @@ class MattermostApplication(Application):
     async def _post_unfreeze_notification(self, incident_: Incident):
         """Post unfreeze notification to thread"""
         header = self.header_template.form_message(incident_.payload, incident_)
-        text = "update: incident unfrozen"
+        text_template = JinjaTemplate(notification_unfreeze)
+        text = text_template.form_notification({'type': self.type.value})
         message = header + '\n' + text
         await self.post_thread(incident_.channel_id, incident_.ts, message)
 

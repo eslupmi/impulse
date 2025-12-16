@@ -1,4 +1,5 @@
 import asyncio
+from datetime import datetime
 
 import aiohttp
 from fastapi.responses import JSONResponse
@@ -6,7 +7,7 @@ from fastapi.responses import JSONResponse
 from app.im.application import Application
 from app.im.telegram.config import buttons
 from app.im.telegram.user import User
-from app.im.template import notification_freeze
+from app.im.template import notification_freeze, notification_unfreeze
 from app.jinja_template import JinjaTemplate
 from app.logging import logger
 from app.config.config import get_config
@@ -16,7 +17,6 @@ from app.time import calculate_freeze_time, format_freeze_expiration
 from app.queue.queue import AsyncQueue
 from app.queue.constants import QueueItemType
 from app.incident.incident import Incident
-from datetime import datetime
 
 
 class TelegramApplication(Application):
@@ -110,14 +110,6 @@ class TelegramApplication(Application):
         await queue_.put(freeze_time, QueueItemType.UNFREEZE, incident_.uniq_id)
         await self._post_freeze_notification(incident_, freeze_time)
 
-    async def _handle_unfreeze_action(self, incident_: Incident, queue_: AsyncQueue):
-        """Handle unfreeze button action"""
-        logger.info(f'Incident {incident_.uuid} -> UNFREEZE pressed')
-        
-        incident_.unfreeze()
-        await queue_.delete_by_id_and_type(incident_.uniq_id, QueueItemType.UNFREEZE)
-        await self._post_unfreeze_notification(incident_)
-
     async def _post_freeze_notification(self, incident_: Incident, freeze_time: datetime):
         """Post freeze notification to thread"""
         text_template = JinjaTemplate(notification_freeze)
@@ -127,7 +119,8 @@ class TelegramApplication(Application):
 
     async def _post_unfreeze_notification(self, incident_: Incident):
         """Post unfreeze notification to thread"""
-        text = "update: incident unfrozen"
+        text_template = JinjaTemplate(notification_unfreeze)
+        text = text_template.form_notification({'type': self.type.value})
         await self.post_thread(incident_.channel_id, incident_.ts, text)
 
     async def _show_freeze_menu(self, incident_: Incident, callback):
@@ -318,7 +311,7 @@ class TelegramApplication(Application):
             chain_button = buttons['chain']['takeit'] if chain_enabled or status != 'resolved' else buttons['chain']['release']
             
             if frozen_until:
-                freeze_text = f"Frozen until {format_freeze_expiration(frozen_until)}"
+                freeze_text = format_freeze_expiration(frozen_until)
                 freeze_button = {'text': freeze_text, 'callback_data': 'freeze_menu'}
             else:
                 freeze_button = buttons['freeze']['inactive']

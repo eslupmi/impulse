@@ -15,7 +15,7 @@ class Incidents:
         self.uniq_ids: Dict[str, Incident] = {}
         for i in incidents_list:
             self.uniq_ids[i.uniq_id] = i
-            if i.status != 'closed':
+            if (i.status != 'closed' and i.status != 'deleted') or i.is_frozen():
                 self.active_map[i.uuid] = i.uniq_id
 
     def get(self, alert: Dict) -> Union[Incident, None]:
@@ -41,11 +41,30 @@ class Incidents:
 
     def remove_from_active_map(self, uuid: str):
         if uuid in self.active_map:
+            incident = self.uniq_ids.get(self.active_map[uuid])
+            if incident and incident.is_frozen():
+                return
             del self.active_map[uuid]
+    
+    def unfreeze_incident(self, uniq_id: str):
+        """
+        Handle incident unfreeze logic.
+        Just unfreezes the incident - cleanup is delegated to StatusCheckHandler.
+        """
+        incident = self.uniq_ids.get(uniq_id)
+        if not incident:
+            logger.warning(f'Incident with uniq_id {uniq_id} not found for unfreeze')
+            return
+        
+        if not incident.is_frozen():
+            logger.info(f'Incident {incident.uuid} is not frozen, skipping unfreeze')
+            return
+        
+        incident.unfreeze()
 
     def add(self, incident: Incident):
         self.uniq_ids[incident.uniq_id] = incident
-        if incident.status != 'closed':
+        if (incident.status != 'closed' and incident.status != 'deleted') or incident.is_frozen():
             self.active_map[incident.uuid] = incident.uniq_id
 
     def remove_file(self, incident: Incident):

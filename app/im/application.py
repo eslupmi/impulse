@@ -13,6 +13,8 @@ from app.im.template import notification_user, notification_user_group, update_s
 from app.jinja_template import JinjaTemplate
 from app.logging import logger
 from app.integrations.jira_integration import JiraIntegration
+from app.queue.constants import QueueItemType
+from datetime import datetime, timezone
 
 if TYPE_CHECKING:
     from app.incident.incident import Incident
@@ -188,10 +190,11 @@ class Application(ABC):
         """Handle freeze button action"""
         pass
 
-    @abstractmethod
     async def _handle_unfreeze_action(self, incident_: 'Incident', queue_: 'AsyncQueue'):
-        """Handle unfreeze button action"""
-        pass
+        """Handle unfreeze button action - schedule unfreeze via queue"""
+        logger.info(f'Incident {incident_.uuid} -> UNFREEZE pressed')
+        await queue_.delete_by_id_and_type(incident_.uniq_id, QueueItemType.UNFREEZE)
+        await queue_.put_first(datetime.now(timezone.utc), QueueItemType.UNFREEZE, incident_.uniq_id)
 
     @abstractmethod
     async def _post_freeze_notification(self, incident_: 'Incident', freeze_time: datetime):

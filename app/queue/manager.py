@@ -1,8 +1,8 @@
 import asyncio
-from datetime import datetime, timezone
 from app.queue.constants import QueueItemType
 from app.queue.handlers.alert_handler import AlertHandler
 from app.queue.handlers.status_update_handler import StatusUpdateHandler
+from app.queue.handlers.status_check_handler import StatusCheckHandler
 from app.queue.handlers.message_update_handler import MessageUpdateHandler
 from app.queue.handlers.step_handler import StepHandler
 from app.queue.handlers.unfreeze_handler import UnfreezeHandler
@@ -29,6 +29,7 @@ class AsyncQueueManager:
         self.incidents = incidents
         self.step_handler = StepHandler(self.queue, application, incidents, webhooks)
         self.status_update_handler = StatusUpdateHandler(self.queue, application, incidents)
+        self.status_check_handler = StatusCheckHandler(self.queue, application, incidents)
         self.message_update_handler = MessageUpdateHandler(self.queue, application, incidents)
         self.alert_handler = AlertHandler(self.queue, application, incidents, route_)
         self.unfreeze_handler = UnfreezeHandler(self.queue, application, incidents)
@@ -50,6 +51,13 @@ class AsyncQueueManager:
         :param uniq_id: String unique id.
         """
         await self.status_update_handler.handle(uniq_id)
+
+    async def handle_status_check(self, uniq_id: str):
+        """
+        Check incident status and perform appropriate actions (deletion, file removal, etc.)
+        :param uniq_id: String unique id.
+        """
+        await self.status_check_handler.handle(uniq_id)
 
     async def handle_message_update(self, uniq_id: str):
         """
@@ -86,6 +94,8 @@ class AsyncQueueManager:
         try:
             if type_ == QueueItemType.UPDATE_STATUS:
                 await self.handle_status_update(uniq_id)
+            elif type_ == QueueItemType.STATUS_CHECK:
+                await self.handle_status_check(uniq_id)
             elif type_ == QueueItemType.UPDATE_MESSAGE:
                 await self.handle_message_update(uniq_id)
             elif type_ == QueueItemType.CHAIN_STEP:

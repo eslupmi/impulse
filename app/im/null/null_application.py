@@ -22,9 +22,6 @@ class NullApplication(Application):
                                     queue_: 'AsyncQueue', user_display_name: Optional[str] = None):
         pass
 
-    async def _handle_unfreeze_action(self, incident_: 'Incident', queue_: 'AsyncQueue'):
-        pass
-
     async def _post_freeze_notification(self, incident_: 'Incident', freeze_time: datetime):
         pass
 

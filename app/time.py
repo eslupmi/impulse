@@ -1,5 +1,5 @@
 from datetime import timedelta, datetime, timezone
-from dateutil.relativedelta import relativedelta
+import calendar
 
 
 def unix_sleep_to_timedelta(unix_sleep_time):
@@ -7,6 +7,25 @@ def unix_sleep_to_timedelta(unix_sleep_time):
     unit = unix_sleep_time[-1]
     unit_map = {'s': 'seconds', 'm': 'minutes', 'h': 'hours', 'd': 'days'}
     return timedelta(**{unit_map[unit]: value})
+
+
+def _add_months(source_date: datetime, months: int) -> datetime:
+    """
+    Add months to a datetime without external dependencies.
+    Handles edge cases like month-end dates gracefully.
+    
+    Args:
+        source_date: The starting datetime
+        months: Number of months to add
+        
+    Returns:
+        datetime: The resulting datetime
+    """
+    month = source_date.month - 1 + months
+    year = source_date.year + month // 12
+    month = month % 12 + 1
+    day = min(source_date.day, calendar.monthrange(year, month)[1])
+    return source_date.replace(year=year, month=month, day=day)
 
 
 def calculate_freeze_time(option: str, general_config) -> datetime:
@@ -55,13 +74,13 @@ def calculate_freeze_time(option: str, general_config) -> datetime:
         
     elif option == 'month':
         # Same day next month at workday_start
-        freeze_time = now + relativedelta(months=1)
+        freeze_time = _add_months(now, 1)
         freeze_time = freeze_time.replace(hour=workday_hour, minute=workday_minute, second=0, microsecond=0)
         return freeze_time
         
     elif option == '6months':
         # Same day in 6 months at workday_start
-        freeze_time = now + relativedelta(months=6)
+        freeze_time = _add_months(now, 6)
         freeze_time = freeze_time.replace(hour=workday_hour, minute=workday_minute, second=0, microsecond=0)
         return freeze_time
         

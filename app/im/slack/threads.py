@@ -33,7 +33,7 @@ def build_slack_actions(chain_enabled, status, frozen_until=None, task_link=''):
     ]
     
     if frozen_until:
-        freeze_text = f"Frozen until {format_freeze_expiration(frozen_until)}"
+        freeze_text = format_freeze_expiration(frozen_until)
         actions.append({
             "name": 'freeze',
             "type": 'button',

@@ -16,7 +16,7 @@ def reformat_message(original_message, text, attachments, status, chain_enabled,
 
     # Update freeze button - change type based on frozen state
     if frozen_until:
-        freeze_text = f"Frozen until {format_freeze_expiration(frozen_until)}"
+        freeze_text = format_freeze_expiration(frozen_until)
         original_message['attachments'][1]['actions'][1] = {
             'name': 'freeze',
             'type': 'button',
