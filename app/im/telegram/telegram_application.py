@@ -108,7 +108,7 @@ class TelegramApplication(Application):
         
         await queue_.delete_by_id(incident_.uniq_id, delete_steps=True, delete_status=False)
         await queue_.put(freeze_time, QueueItemType.UNFREEZE, incident_.uniq_id)
-        await self._post_freeze_notification(incident_, freeze_time)
+        self._track_async_task(asyncio.create_task(self._post_freeze_notification(incident_, freeze_time)))
 
     async def _post_freeze_notification(self, incident_: Incident, freeze_time: datetime):
         """Post freeze notification to thread"""
