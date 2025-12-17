@@ -80,10 +80,14 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.AUTOTESTS_TELEGRAM_BOT_TOKEN }}
           API_ID: ${{ secrets.AUTOTESTS_API_ID }}
           API_HASH: ${{ secrets.AUTOTESTS_API_HASH }}
+          TELEGRAM_SESSION_BASE64: ${{ secrets.AUTOTESTS_TELEGRAM_SESSION_BASE64 }}
           IMPULSE_URL: http://localhost:${{ matrix.port }}
           MESSENGER_TYPE: ${{ matrix.messenger_type }}
         run: |
           cd autotests-${{ matrix.messenger_type }}
+          if [ "${{ matrix.messenger_type }}" = "telegram" ]; then
+            echo "$TELEGRAM_SESSION_BASE64" | base64 -d > session.session
+          fi
           source venv/bin/activate
           MESSENGER_TYPE="${{ matrix.messenger_type }}"
           MESSENGER_CLASS="${MESSENGER_TYPE^}"
