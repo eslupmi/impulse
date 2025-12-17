@@ -76,6 +76,7 @@ jobs:
           SLACK_VERIFICATION_TOKEN: ${{ secrets.AUTOTESTS_SLACK_VERIFICATION_TOKEN }}
           SLACK_BOT_USER_OAUTH_TOKEN: ${{ secrets.AUTOTESTS_SLACK_BOT_USER_OAUTH_TOKEN }}
           MATTERMOST_ACCESS_TOKEN: ${{ secrets.AUTOTESTS_MATTERMOST_ACCESS_TOKEN }}
+          MATTERMOST_URL: https://mattermost.impulse.bot
           TELEGRAM_BOT_TOKEN: ${{ secrets.AUTOTESTS_TELEGRAM_BOT_TOKEN }}
           API_ID: ${{ secrets.AUTOTESTS_API_ID }}
           API_HASH: ${{ secrets.AUTOTESTS_API_HASH }}
