@@ -1,12 +1,15 @@
 name: autotests
 
 on:
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: 'IMPulse Docker image tag'
-        required: true
-        default: 'develop'
+  push:
+    branches:
+      - 'enable-autotests-for-mm-and-tg'
+  # workflow_dispatch:
+  #   inputs:
+  #     tag:
+  #       description: 'IMPulse Docker image tag'
+  #       required: true
+  #       default: 'develop'
 
 jobs:
   autotests:
@@ -18,8 +21,8 @@ jobs:
             port: 15100
           # - messenger_type: mattermost
           #   port: 15101
-          # - messenger_type: telegram
-          #   port: 15102
+          - messenger_type: telegram
+            port: 15102
     permissions:
       contents: read
       packages: read
@@ -48,12 +51,14 @@ jobs:
         env:
           SLACK_VERIFICATION_TOKEN: ${{ secrets.AUTOTESTS_SLACK_VERIFICATION_TOKEN }}
           SLACK_BOT_USER_OAUTH_TOKEN: ${{ secrets.AUTOTESTS_SLACK_BOT_USER_OAUTH_TOKEN }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.AUTOTESTS_TELEGRAM_BOT_TOKEN }}
         run: |
           docker run -d --rm --name impulse-autotests-${{ matrix.messenger_type }} \
             -p ${{ matrix.port }}:5000 \
             -v "${{ github.workspace }}/autotests-${{ matrix.messenger_type }}:/config:ro" \
             -e SLACK_VERIFICATION_TOKEN="$SLACK_VERIFICATION_TOKEN" \
             -e SLACK_BOT_USER_OAUTH_TOKEN="$SLACK_BOT_USER_OAUTH_TOKEN" \
+            -e TELEGRAM_BOT_TOKEN="$TELEGRAM_BOT_TOKEN" \
             -e CONFIG_PATH="/config" \
             ghcr.io/eslupmi/impulse:${{ github.event.inputs.tag }}
 
@@ -65,6 +70,9 @@ jobs:
         env:
           SLACK_VERIFICATION_TOKEN: ${{ secrets.AUTOTESTS_SLACK_VERIFICATION_TOKEN }}
           SLACK_BOT_USER_OAUTH_TOKEN: ${{ secrets.AUTOTESTS_SLACK_BOT_USER_OAUTH_TOKEN }}
+          API_ID: ${{ secrets.AUTOTESTS_API_ID }}
+          API_HASH: ${{ secrets.AUTOTESTS_API_HASH }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.AUTOTESTS_TELEGRAM_BOT_TOKEN }}
           IMPULSE_URL: http://localhost:${{ matrix.port }}
           MESSENGER_TYPE: ${{ matrix.messenger_type }}
         run: |
