@@ -211,8 +211,7 @@ class RateLimitedClient:
         """
         self._initialize_client()
         await self._wait_for_rate_limit()
-        response = await self._client.request(method, url, **kwargs)
-        return response
+        return await self._client.request(method, url, **kwargs)
     
     async def get(self, url: str, **kwargs):
         """Make a GET request with rate limiting"""
