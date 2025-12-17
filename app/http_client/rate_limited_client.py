@@ -1,4 +1,5 @@
 import asyncio
+
 import time
 from typing import Optional
 
@@ -7,6 +8,7 @@ from aiohttp import ClientTimeout, ClientSession, ClientResponse
 from aiohttp_retry import ExponentialRetry, RetryClient
 
 from app.logging import logger
+from app.metrics import measure_request
 
 
 class RetryAfterRetry(ExponentialRetry):
@@ -193,10 +195,11 @@ class RateLimitedClient:
             # Increment request counter
             self._request_count += 1
             self._last_request_time = time.monotonic()
-    
+
+    @measure_request
     async def request(self, method: str, url: str, **kwargs):
         """
-        Make an HTTP request with rate limiting.
+        Make an HTTP request with rate limiting and metrics tracking.
 
         Args:
             method: HTTP method (GET, POST, PUT, DELETE, etc.)
@@ -208,33 +211,32 @@ class RateLimitedClient:
         """
         self._initialize_client()
         await self._wait_for_rate_limit()
-        
         return await self._client.request(method, url, **kwargs)
     
     async def get(self, url: str, **kwargs):
         """Make a GET request with rate limiting"""
         return await self.request('GET', url, **kwargs)
-    
+
     async def post(self, url: str, **kwargs):
         """Make a POST request with rate limiting"""
         return await self.request('POST', url, **kwargs)
-    
+
     async def put(self, url: str, **kwargs):
         """Make a PUT request with rate limiting"""
         return await self.request('PUT', url, **kwargs)
-    
+
     async def delete(self, url: str, **kwargs):
         """Make a DELETE request with rate limiting"""
         return await self.request('DELETE', url, **kwargs)
-    
+
     async def patch(self, url: str, **kwargs):
         """Make a PATCH request with rate limiting"""
         return await self.request('PATCH', url, **kwargs)
-    
+
     async def head(self, url: str, **kwargs):
         """Make a HEAD request with rate limiting"""
         return await self.request('HEAD', url, **kwargs)
-    
+
     async def options(self, url: str, **kwargs):
         """Make an OPTIONS request with rate limiting"""
         return await self.request('OPTIONS', url, **kwargs)
@@ -258,4 +260,3 @@ class RateLimitedClient:
             'window_start_time': self._window_start_time,
             'last_request_time': self._last_request_time
         }
-

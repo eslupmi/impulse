@@ -10,7 +10,6 @@ from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, HTTPExcept
 from fastapi.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-
 from app.config.config import get_config, reload_config
 from app.config.validation import MessengerType
 from app.file_lock import FileLock
@@ -18,6 +17,7 @@ from app.im.channel_manager import ChannelManager
 from app.im.helpers import get_application
 from app.incident.incidents import Incidents
 from app.logging import logger, configure_uvicorn_logging
+from app.metrics import STATUS, generate_metrics_response
 from app.middleware import StandbyMiddleware, is_standby_mode, service_unavailable_response
 from app.queue.manager import AsyncQueueManager
 from app.queue.queue import AsyncQueue
@@ -120,6 +120,7 @@ async def initialize_primary_server(fastapi_app: FastAPI, file_lock: FileLock) -
 
         queue_manager.start_processing()
         fastapi_app.state.is_standby = False
+        STATUS.set(1)
         logger.info('IMPulse started as primary server!')
         return True
     except Exception as e:
@@ -139,6 +140,7 @@ async def lifespan(fastapi_app: FastAPI):
     fastapi_app.state.file_lock = file_lock
     fastapi_app.state.is_standby = locked
     fastapi_app.state.queue_manager = None
+    fastapi_app.state.queue = AsyncQueue()
     
     async def wait_and_become_primary():
         """Background task to wait for lock and become primary server."""
@@ -160,6 +162,7 @@ async def lifespan(fastapi_app: FastAPI):
     if locked:
         logger.info("Another IMPulse instance is running, working as standby server")
         hostname, pid, _ = file_lock.get_lock_info()
+        STATUS.set(0)
         logger.debug(f"Lock file is used by hostname {hostname}, PID {pid}")
         logger.info('IMPulse started in standby mode!')
         unlock_task = asyncio.create_task(wait_and_become_primary())
@@ -247,8 +250,15 @@ def get_ready(request: Request):
         media_type="text/plain"
     )
 
+@router.get("/metrics")
+async def get_metrics(request: Request):
+    """Prometheus metrics endpoint"""
+    queue = request.app.state.queue
+    return await generate_metrics_response(queue)
+
 app.add_api_route(f"{http_prefix}/livez", get_live, methods=["GET"])
 app.add_api_route(f"{http_prefix}/readyz", get_ready, methods=["GET"])
+app.add_api_route(f"{http_prefix}/metrics", get_metrics, methods=["GET"])
 
 if get_config().ui_config:
     if http_prefix:
@@ -358,7 +368,6 @@ async def websocket_endpoint(websocket: WebSocket):
 
 # Include router in the app
 app.include_router(router)
-
 
 def parse_arguments():
     """Parse command line arguments"""

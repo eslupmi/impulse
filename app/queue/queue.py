@@ -84,6 +84,13 @@ class AsyncQueue:
                 return item.type, item.uniq_id, item.identifier, item.data
         return None, None, None, None
 
+    async def get_first_item_datetime(self) -> Optional[datetime]:
+        """Get datetime of the next item that's ready to be processed (if any)."""
+        async with self._lock:
+            if self._items:
+                return self._items[0].datetime
+        return None
+
     async def serialize(self) -> list:
         """Serialize queue items for API response"""
         async with self._lock:
