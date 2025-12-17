@@ -57,12 +57,6 @@
 - **type:** bool
 - **default value:** True
 
-#### incident.notifications.freeze
-
-- **description:** enable/disable notifications about incident frozen
-- **type:** bool
-- **default value:** True
-
 #### incident.notifications.new_firing
 
 - **description:** notification about new firing instances
@@ -357,8 +351,7 @@
 
 - **description:** cloud calendar provider
 - **type:** string
-- **allowed values:** 
-    - `google` only ([setup instruction](integrations/calendars/google.md))
+- **allowed values:** `google` only ([setup instruction](integrations/calendars/google.md))
 
 ##### messenger.chains[].calendar_id *
 
@@ -641,15 +634,14 @@
 
 ## task_management
 
-- **description:** task tracking system integration configuration (see [details](task_management.md)). The `task_management:` block enables [**Task**](buttons.md) button.
+- **description:** task tracking system integration configuration (e.g., Jira). The `task_management:` block enables [**Task**](buttons.md) button.
 - **type:** dict
 
 ### task_management.type *
 
 - **description:** task tracking system type
 - **type:** string
-- **allowed values:** 
-    - `jira` only - Jira integration (see [details](integrations/task_management/jira.md))
+- **allowed values:** `jira` only - Jira integration (see [details](integrations/task_management/jira.md))
 
 ### task_management.project_key *
 

@@ -58,8 +58,6 @@ nav:
     - concepts/incident.md
     - concepts/messengers.md
   - versioning.md
-- WORKFLOW:
-  - best.md
 - INTEGRATIONS:
   - Alert Sources:
     - alertmanager.md
