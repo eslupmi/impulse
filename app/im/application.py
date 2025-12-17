@@ -186,7 +186,7 @@ class Application(ABC):
         self._track_async_task(asyncio.create_task(self.handle_task_button(incident_, queue_)))
 
     @abstractmethod
-    async def _handle_freeze_action(self, incident_: 'Incident', freeze_option: str, user_id: str, incidents, queue_: 'AsyncQueue', user_display_name: Optional[str] = None):
+    async def _handle_freeze_action(self, incident_: 'Incident', freeze_option: str, user_id: str, incidents, queue_: 'AsyncQueue', user_display_name: Optional[str] = None, user_timezone: Optional[str] = None):
         """Handle freeze button action"""
         pass
 
@@ -197,7 +197,7 @@ class Application(ABC):
         await queue_.put_first(datetime.now(timezone.utc), QueueItemType.UNFREEZE, incident_.uniq_id)
 
     @abstractmethod
-    async def _post_freeze_notification(self, incident_: 'Incident', freeze_time: datetime):
+    async def _post_freeze_notification(self, incident_: 'Incident', freeze_time: datetime, user_timezone: str = "UTC"):
         """Post freeze notification to thread"""
         pass
 

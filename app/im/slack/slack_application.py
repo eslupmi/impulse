@@ -101,26 +101,26 @@ class SlackApplication(Application):
             self._track_async_task(asyncio.create_task(self.post_unassignment_notification(incident_)))
             incident_.release()
 
-    async def _handle_freeze_action(self, incident_: Incident, freeze_option: str, user_id: str, incidents, queue_: AsyncQueue, user_display_name: str = None):
+    async def _handle_freeze_action(self, incident_: Incident, freeze_option: str, user_id: str, incidents, queue_: AsyncQueue, user_display_name: str = None, user_timezone: str = "UTC"):
         """Handle freeze button action"""
         config = get_config()
-        freeze_time = calculate_freeze_time(freeze_option, config.app.general)
+        freeze_time = calculate_freeze_time(freeze_option, config.app.general, user_timezone)
 
         incident_.assign_user_id(user_id)
         await self.fetch_and_assign_user_name(incident_, user_id, incidents, dump=False)
         incident_.freeze(freeze_time, user_id)
         
-        logger.info(f'Incident {incident_.uuid} -> FREEZE with option {freeze_option}, frozen until {freeze_time}')
+        logger.info(f'Incident {incident_.uuid} -> FREEZE with option {freeze_option}, frozen until {freeze_time} (user timezone: {user_timezone})')
         
         await queue_.delete_by_id(incident_.uniq_id, delete_steps=True, delete_status=False)
         await queue_.put(freeze_time, QueueItemType.UNFREEZE, incident_.uniq_id)
-        self._track_async_task(asyncio.create_task(self._post_freeze_notification(incident_, freeze_time)))
+        self._track_async_task(asyncio.create_task(self._post_freeze_notification(incident_, freeze_time, user_timezone)))
 
-    async def _post_freeze_notification(self, incident_: Incident, freeze_time: datetime):
+    async def _post_freeze_notification(self, incident_: Incident, freeze_time: datetime, user_timezone: str = "UTC"):
         """Post freeze notification to thread"""
         header = self.header_template.form_message(incident_.payload, incident_)
         text_template = JinjaTemplate(notification_freeze)
-        fields = {'type': self.type.value, 'frozen_until': format_freeze_expiration(freeze_time)}
+        fields = {'type': self.type.value, 'frozen_until': format_freeze_expiration(freeze_time, user_timezone)}
         text = text_template.form_notification(fields)
         message = header + '\n' + text
         await self.post_thread(incident_.channel_id, incident_.ts, message)
@@ -143,8 +143,10 @@ class SlackApplication(Application):
                                              incident_.status, incident_.chain_enabled, incident_.frozen_until, 
                                              incident_.task_link)
         self._track_async_task(asyncio.create_task(self._update_thread(incident_.ts, payload)))
+        config = get_config()
+        slack_tz = config.messenger.timezone
         modified_message = reformat_message(original_message, payload['text'], payload['attachments'], incident_.status,
-                                            incident_.chain_enabled, incident_.frozen_until, incident_.task_link)
+                                            incident_.chain_enabled, incident_.frozen_until, incident_.task_link, slack_tz)
         return JSONResponse(modified_message, status_code=200)
 
     async def buttons_handler(self, payload, incidents, queue_, route):
@@ -172,7 +174,9 @@ class SlackApplication(Application):
                     await self._handle_unfreeze_action(incident_, queue_)
                 elif action.get('type') == 'select' and 'selected_options' in action and len(action['selected_options']) > 0:
                     freeze_option = action['selected_options'][0]['value']
-                    await self._handle_freeze_action(incident_, freeze_option, user_id, incidents, queue_)
+                    config = get_config()
+                    slack_tz = config.messenger.timezone
+                    await self._handle_freeze_action(incident_, freeze_option, user_id, incidents, queue_, user_timezone=slack_tz)
                 return self._build_button_response(incident_, original_message)
 
         for action in actions:

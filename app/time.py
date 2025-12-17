@@ -1,4 +1,5 @@
 from datetime import timedelta, datetime, timezone
+from zoneinfo import ZoneInfo
 import calendar
 
 
@@ -28,31 +29,31 @@ def _add_months(source_date: datetime, months: int) -> datetime:
     return source_date.replace(year=year, month=month, day=day)
 
 
-def calculate_freeze_time(option: str, general_config) -> datetime:
+def calculate_freeze_time(option: str, general_config, timezone_str: str = "UTC") -> datetime:
     """
     Calculate freeze expiration datetime based on the option selected.
+    Times are calculated in the specified timezone, then returned as UTC-aware datetime.
     
     Args:
         option: One of 'tomorrow', 'next_monday', 'month', '6months'
         general_config: GeneralConfig object with workday_start and week_start
+        timezone_str: Timezone string (e.g., "America/New_York", "Asia/Tashkent")
         
     Returns:
-        datetime: The calculated freeze expiration time
+        datetime: The calculated freeze expiration time in UTC
     """
-    now = datetime.now(timezone.utc)
+    tz = ZoneInfo(timezone_str)
+    now = datetime.now(tz)
     workday_start_parts = general_config.workday_start.split(':')
     workday_hour = int(workday_start_parts[0])
     workday_minute = int(workday_start_parts[1])
     
     if option == 'tomorrow':
-        # Tomorrow at workday_start
         freeze_time = now + timedelta(days=1)
         freeze_time = freeze_time.replace(hour=workday_hour, minute=workday_minute, second=0, microsecond=0)
-        return freeze_time
+        return freeze_time.astimezone(timezone.utc)
         
     elif option == 'next_monday':
-        # Next Monday at workday_start
-        # Convert week_start to weekday number
         week_start_map = {
             'Mon': 0, '1': 0,
             'Tue': 1, '2': 1,
@@ -62,53 +63,52 @@ def calculate_freeze_time(option: str, general_config) -> datetime:
             'Sat': 5, '6': 5,
             'Sun': 6, '0': 6, '7': 6
         }
-        target_weekday = week_start_map.get(general_config.week_start, 0)  # Default to Monday
+        target_weekday = week_start_map.get(general_config.week_start, 0)
         
         days_ahead = target_weekday - now.weekday()
-        if days_ahead <= 0:  # Target day already happened this week
+        if days_ahead <= 0:
             days_ahead += 7
             
         freeze_time = now + timedelta(days=days_ahead)
         freeze_time = freeze_time.replace(hour=workday_hour, minute=workday_minute, second=0, microsecond=0)
-        return freeze_time
+        return freeze_time.astimezone(timezone.utc)
         
     elif option == 'month':
-        # Same day next month at workday_start
         freeze_time = _add_months(now, 1)
         freeze_time = freeze_time.replace(hour=workday_hour, minute=workday_minute, second=0, microsecond=0)
-        return freeze_time
+        return freeze_time.astimezone(timezone.utc)
         
     elif option == '6months':
-        # Same day in 6 months at workday_start
         freeze_time = _add_months(now, 6)
         freeze_time = freeze_time.replace(hour=workday_hour, minute=workday_minute, second=0, microsecond=0)
-        return freeze_time
+        return freeze_time.astimezone(timezone.utc)
         
     else:
         raise ValueError(f"Unknown freeze option: {option}")
 
 
-def format_freeze_expiration(frozen_until: datetime) -> str:
+def format_freeze_expiration(frozen_until: datetime, tz_str: str = "UTC") -> str:
     """
-    Format freeze expiration time for button text.
+    Format freeze expiration time for button text in the configured timezone.
     
     Args:
-        frozen_until: The datetime when freeze expires
+        frozen_until: The datetime when freeze expires (UTC)
+        tz_str: Timezone string for display formatting
         
     Returns:
         str: Formatted string like "Mon 9:00" or "Aug 13"
     """
-    now = datetime.now(timezone.utc)
-    time_diff = frozen_until - now
+    tz = ZoneInfo(tz_str)
+    now = datetime.now(tz)
+    frozen_until_local = frozen_until.astimezone(tz)
+    time_diff = frozen_until_local - now
     
     if time_diff.days < 7:
-        # Less than a week: show day and time like "Mon 9:00"
-        day_name = frozen_until.strftime('%a')
-        time_str = frozen_until.strftime('%H:%M')
+        day_name = frozen_until_local.strftime('%a')
+        time_str = frozen_until_local.strftime('%H:%M')
         return f"{day_name} {time_str}"
     else:
-        # More than a week: show month and day like "Aug 13"
-        return frozen_until.strftime('%b %d')
+        return frozen_until_local.strftime('%b %d')
 
 
 def parse_week_start_to_weekday(week_start: str) -> int:

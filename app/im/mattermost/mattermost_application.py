@@ -117,27 +117,27 @@ class MattermostApplication(Application):
             incident_.release()
         return None
 
-    async def _handle_freeze_action(self, incident_: Incident, freeze_option: str, user_id: str, incidents, queue_: AsyncQueue, user_display_name: str = None):
+    async def _handle_freeze_action(self, incident_: Incident, freeze_option: str, user_id: str, incidents, queue_: AsyncQueue, user_display_name: str = None, user_timezone: str = "UTC"):
         """Handle freeze button action"""
         config = get_config()
-        freeze_time = calculate_freeze_time(freeze_option, config.app.general)
+        freeze_time = calculate_freeze_time(freeze_option, config.app.general, user_timezone)
 
         incident_.assign_user_id(user_id)
         incident_.assign_user(user_display_name)
         await self.fetch_and_assign_user_name(incident_, user_id, incidents, dump=False)
         incident_.freeze(freeze_time, user_id, user_display_name)
         
-        logger.info(f'Incident {incident_.uuid} -> FREEZE with option {freeze_option}, frozen until {freeze_time}')
+        logger.info(f'Incident {incident_.uuid} -> FREEZE with option {freeze_option}, frozen until {freeze_time} (user timezone: {user_timezone})')
 
         await queue_.delete_by_id(incident_.uniq_id, delete_steps=True, delete_status=False)
         await queue_.put(freeze_time, QueueItemType.UNFREEZE, incident_.uniq_id)
-        self._track_async_task(asyncio.create_task(self._post_freeze_notification(incident_, freeze_time)))
+        self._track_async_task(asyncio.create_task(self._post_freeze_notification(incident_, freeze_time, user_timezone)))
 
-    async def _post_freeze_notification(self, incident_: Incident, freeze_time: datetime):
+    async def _post_freeze_notification(self, incident_: Incident, freeze_time: datetime, user_timezone: str = "UTC"):
         """Post freeze notification to thread"""
         header = self.header_template.form_message(incident_.payload, incident_)
         text_template = JinjaTemplate(notification_freeze)
-        fields = {'type': self.type.value, 'frozen_until': format_freeze_expiration(freeze_time)}
+        fields = {'type': self.type.value, 'frozen_until': format_freeze_expiration(freeze_time, user_timezone)}
         text = text_template.form_notification(fields)
         message = header + '\n' + text
         await self.post_thread(incident_.channel_id, incident_.ts, message)
@@ -150,7 +150,7 @@ class MattermostApplication(Application):
         message = header + '\n' + text
         await self.post_thread(incident_.channel_id, incident_.ts, message)
 
-    def _build_button_response(self, incident_):
+    def _build_button_response(self, incident_, user_timezone='UTC'):
         """Build JSON response with updated incident message"""
         incident_.dump()
         status_icons = self.status_icons_template.form_message(incident_.payload, incident_)
@@ -158,7 +158,7 @@ class MattermostApplication(Application):
         message = self.body_template.form_message(incident_.payload, incident_)
         response_payload = mattermost_get_button_update_payload(
             message, header, status_icons, incident_.status,
-            incident_.chain_enabled, incident_.frozen_until, incident_.task_link)
+            incident_.chain_enabled, incident_.frozen_until, incident_.task_link, user_timezone)
         return JSONResponse(response_payload, status_code=200)
 
     async def buttons_handler(self, payload, incidents, queue_, route):
@@ -170,11 +170,14 @@ class MattermostApplication(Application):
         context = payload.get('context', {})
         user_id = payload.get('user_id')
         user_name = payload.get('user_name')
+        
+        config = get_config()
+        mattermost_tz = config.messenger.timezone
 
         selected_option = context.get('selected_option')
         if selected_option and selected_option.startswith('freeze_'):
             freeze_option = selected_option.replace('freeze_', '')
-            await self._handle_freeze_action(incident_, freeze_option, user_id, incidents, queue_, user_name)
+            await self._handle_freeze_action(incident_, freeze_option, user_id, incidents, queue_, user_name, user_timezone=mattermost_tz)
         else:
             action = context.get('action')
             if action == 'unfreeze':
@@ -182,7 +185,7 @@ class MattermostApplication(Application):
 
         if incident_.is_frozen():
             logger.info(f'Incident {incident_.uuid} is frozen, blocking all button actions')
-            return self._build_button_response(incident_)
+            return self._build_button_response(incident_, mattermost_tz)
 
         action = context.get('action')
         if action == 'chain':
@@ -192,7 +195,7 @@ class MattermostApplication(Application):
         elif action == 'task':
             self._handle_task_action(incident_, queue_)
         
-        return self._build_button_response(incident_)
+        return self._build_button_response(incident_, mattermost_tz)
 
     def _create_thread_payload(self, channel_id, body, header, status_icons, status):
         return mattermost_get_create_thread_payload(channel_id, body, header, status_icons, status)

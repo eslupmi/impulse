@@ -94,26 +94,27 @@ class TelegramApplication(Application):
             incident_.release()
         return None
 
-    async def _handle_freeze_action(self, incident_: Incident, freeze_option: str, user_id: str, incidents, queue_: AsyncQueue, user_display_name: str = None):
+    async def _handle_freeze_action(self, incident_: Incident, freeze_option: str, user_id: str, incidents, queue_: AsyncQueue, user_display_name: str = None, user_timezone: str = None):
         """Handle freeze button action"""
         config = get_config()
-        freeze_time = calculate_freeze_time(freeze_option, config.app.general)
+        telegram_tz = user_timezone or config.messenger.timezone
+        freeze_time = calculate_freeze_time(freeze_option, config.app.general, telegram_tz)
 
         incident_.assign_user_id(user_id)
         incident_.assign_user(user_display_name)
         await self.fetch_and_assign_user_name(incident_, user_id, incidents, dump=False)
         incident_.freeze(freeze_time, user_id, user_display_name)
         
-        logger.info(f'Incident {incident_.uuid} -> FREEZE with option {freeze_option}, frozen until {freeze_time}')
+        logger.info(f'Incident {incident_.uuid} -> FREEZE with option {freeze_option}, frozen until {freeze_time} (timezone: {telegram_tz})')
         
         await queue_.delete_by_id(incident_.uniq_id, delete_steps=True, delete_status=False)
         await queue_.put(freeze_time, QueueItemType.UNFREEZE, incident_.uniq_id)
-        self._track_async_task(asyncio.create_task(self._post_freeze_notification(incident_, freeze_time)))
+        self._track_async_task(asyncio.create_task(self._post_freeze_notification(incident_, freeze_time, telegram_tz)))
 
-    async def _post_freeze_notification(self, incident_: Incident, freeze_time: datetime):
+    async def _post_freeze_notification(self, incident_: Incident, freeze_time: datetime, telegram_tz: str = "UTC"):
         """Post freeze notification to thread"""
         text_template = JinjaTemplate(notification_freeze)
-        fields = {'type': self.type.value, 'frozen_until': format_freeze_expiration(freeze_time)}
+        fields = {'type': self.type.value, 'frozen_until': format_freeze_expiration(freeze_time, telegram_tz)}
         text = text_template.form_notification(fields)
         await self.post_thread(incident_.channel_id, incident_.ts, text)
 
@@ -311,7 +312,8 @@ class TelegramApplication(Application):
             chain_button = buttons['chain']['takeit'] if chain_enabled or status != 'resolved' else buttons['chain']['release']
             
             if frozen_until:
-                freeze_text = format_freeze_expiration(frozen_until)
+                telegram_tz = config_obj.messenger.timezone
+                freeze_text = format_freeze_expiration(frozen_until, telegram_tz)
                 freeze_button = {'text': freeze_text, 'callback_data': 'freeze_menu'}
             else:
                 freeze_button = buttons['freeze']['inactive']

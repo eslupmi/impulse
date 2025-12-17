@@ -4,7 +4,7 @@ from app.config.config import get_config
 from app.time import format_freeze_expiration
 
 
-def reformat_message(original_message, text, attachments, status, chain_enabled, frozen_until, task_link=''):
+def reformat_message(original_message, text, attachments, status, chain_enabled, frozen_until, task_link='', user_timezone='UTC'):
     env_config = get_environment_config()
     config = get_config()
     
@@ -16,7 +16,7 @@ def reformat_message(original_message, text, attachments, status, chain_enabled,
 
     # Update freeze button - change type based on frozen state
     if frozen_until:
-        freeze_text = format_freeze_expiration(frozen_until)
+        freeze_text = format_freeze_expiration(frozen_until, user_timezone)
         original_message['attachments'][1]['actions'][1] = {
             'name': 'freeze',
             'type': 'button',

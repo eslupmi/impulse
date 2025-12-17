@@ -6,7 +6,7 @@ from app.config.config import get_config
 from app.time import format_freeze_expiration
 
 
-def build_slack_actions(chain_enabled, status, frozen_until=None, task_link=''):
+def build_slack_actions(chain_enabled, status, frozen_until=None, task_link='', user_timezone='UTC'):
     """
     Build the action buttons list for Slack messages.
     
@@ -33,7 +33,7 @@ def build_slack_actions(chain_enabled, status, frozen_until=None, task_link=''):
     ]
     
     if frozen_until:
-        freeze_text = format_freeze_expiration(frozen_until)
+        freeze_text = format_freeze_expiration(frozen_until, user_timezone)
         actions.append({
             "name": 'freeze',
             "type": 'button',
@@ -66,8 +66,8 @@ def build_slack_actions(chain_enabled, status, frozen_until=None, task_link=''):
 
 
 def slack_get_update_payload(channel_id, ts, body, header, status_icons, status, chain_enabled=True,
-                             frozen_until=None, task_link=''):
-    actions = build_slack_actions(chain_enabled, status, frozen_until, task_link)
+                             frozen_until=None, task_link='', user_timezone='UTC'):
+    actions = build_slack_actions(chain_enabled, status, frozen_until, task_link, user_timezone)
     display_status = 'frozen' if frozen_until else status
     
     payload = {

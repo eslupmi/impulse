@@ -19,10 +19,10 @@ class NullApplication(Application):
     """
 
     async def _handle_freeze_action(self, incident_: 'Incident', freeze_option: str, user_id: str, incidents,
-                                    queue_: 'AsyncQueue', user_display_name: Optional[str] = None):
+                                    queue_: 'AsyncQueue', user_display_name: Optional[str] = None, user_timezone: Optional[str] = None):
         pass
 
-    async def _post_freeze_notification(self, incident_: 'Incident', freeze_time: datetime):
+    async def _post_freeze_notification(self, incident_: 'Incident', freeze_time: datetime, user_timezone: Optional[str] = None):
         pass
 
     async def _post_unfreeze_notification(self, incident_: 'Incident'):
@@ -83,7 +83,7 @@ class NullApplication(Application):
         """Return empty payload"""
         return {}
 
-    def update_thread_payload(self, channel_id, id_, body, header, status_icons, status, chain_enabled, status_enabled,
+    def update_thread_payload(self, channel_id, id_, body, header, status_icons, status, chain_enabled, frozen_until,
                               task_link=''):
         """Return empty payload"""
         return {}

@@ -19,7 +19,7 @@ def chain_attrs(chain_enabled, status):
     return chain_text, chain_style
 
 
-def build_mattermost_actions(chain_enabled, status, frozen_until=None, task_link=''):
+def build_mattermost_actions(chain_enabled, status, frozen_until=None, task_link='', user_timezone='UTC'):
     """
     Build the action buttons list for Mattermost messages.
     
@@ -53,7 +53,7 @@ def build_mattermost_actions(chain_enabled, status, frozen_until=None, task_link
     ]
     
     if frozen_until:
-        freeze_text = format_freeze_expiration(frozen_until)
+        freeze_text = format_freeze_expiration(frozen_until, user_timezone)
         actions.append({
             "id": "freeze",
             "type": "button",
@@ -102,8 +102,8 @@ def build_mattermost_actions(chain_enabled, status, frozen_until=None, task_link
     return actions
 
 
-def mattermost_get_button_update_payload(body, header, status_icons, status, chain_enabled, frozen_until, task_link=''):
-    actions = build_mattermost_actions(chain_enabled, status, frozen_until, task_link)
+def mattermost_get_button_update_payload(body, header, status_icons, status, chain_enabled, frozen_until, task_link='', user_timezone='UTC'):
+    actions = build_mattermost_actions(chain_enabled, status, frozen_until, task_link, user_timezone)
     display_status = 'frozen' if frozen_until else status
     
     payload = {
