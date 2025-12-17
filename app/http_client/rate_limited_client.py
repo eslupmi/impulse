@@ -8,7 +8,7 @@ from aiohttp import ClientTimeout, ClientSession, ClientResponse
 from aiohttp_retry import ExponentialRetry, RetryClient
 
 from app.logging import logger
-from app.metrics import MetricsCollector
+from app.metrics import measure_request
 
 
 class RetryAfterRetry(ExponentialRetry):
@@ -196,7 +196,7 @@ class RateLimitedClient:
             self._request_count += 1
             self._last_request_time = time.monotonic()
 
-    @MetricsCollector.measure_request
+    @measure_request
     async def request(self, method: str, url: str, **kwargs):
         """
         Make an HTTP request with rate limiting and metrics tracking.
