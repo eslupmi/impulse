@@ -254,7 +254,8 @@ class Application(ABC):
         if updated_status:
             logger.info(f'Incident {incident.uuid} updated with new status \'{incident_status}\'')
             # post to thread
-            if status_enabled and incident_status != 'closed':
+            config = get_config()
+            if status_enabled and incident_status != 'closed' and config.incident.notifications.status_update:
                 text_template = JinjaTemplate(update_status)
                 admins = self.get_notification_destinations()
                 fields = {'type': self.type.value, 'status': incident_status, 'admins': admins}

@@ -6,6 +6,7 @@ incident:  # incidents behavior options
   #   assignment: True  # enable/disable notifications about incident assignment changes
   #   new_firing: True  # notification about new firing instances
   #   partial_resolved: True  # nofitication about some resolved instances
+  #   status_update: True  # notification about incident status updates
   timeouts:  # incident status timeouts (https://docs.impulse.bot/stable/concepts/#lifecycle)
     firing: 6h  # after this time, incident status changes from 'firing' to 'unknown' if no alerts appear
     unknown: 6h  # after this time, incident status changes from 'unknown' to 'closed' if no alerts appear

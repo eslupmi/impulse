@@ -144,6 +144,7 @@ impulseConfig:
     notifications:
       new_firing: true
       partial_resolved: true
+      status_update: true
     timeouts:
       firing: "6h"
       unknown: "6h"

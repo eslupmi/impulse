@@ -342,9 +342,10 @@ class IncidentTimeouts(BaseModel):
 
 class IncidentNotifications(BaseModel):
     """Incident notification configuration"""
-    assignment: Optional[bool] = Field(True, description="Assigned notification")
-    new_firing: Optional[bool] = Field(True, description="New firing notification")
-    partial_resolved: Optional[bool] = Field(True, description="Partial resolved notification")
+    assignment: Optional[bool] = Field(True, description="Assigned notifications")
+    new_firing: Optional[bool] = Field(True, description="New firing notifications")
+    partial_resolved: Optional[bool] = Field(True, description="Partial resolved notifications")
+    status_update: Optional[bool] = Field(True, description="Status update notifications")
 
     def get(self, key: str) -> bool:
         return getattr(self, key) or False
