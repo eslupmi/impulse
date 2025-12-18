@@ -9,11 +9,12 @@ from app.http_client import RateLimitedClient
 from app.im.chain.chain_factory import ChainFactory
 from app.im.groups import generate_user_groups
 from app.im.template import notification_user, notification_user_group, update_status, \
-    notification_assignment, notification_unassignment
+    notification_assignment, notification_unassignment, notification_freeze, notification_unfreeze
 from app.jinja_template import JinjaTemplate
 from app.logging import logger
 from app.integrations.jira_integration import JiraIntegration
 from app.queue.constants import QueueItemType
+from app.time import calculate_freeze_time, format_freeze_expiration
 from datetime import datetime, timezone
 
 if TYPE_CHECKING:
@@ -185,10 +186,30 @@ class Application(ABC):
         logger.info(f'Incident {incident_.uuid} -> button TASK pressed')
         self._track_async_task(asyncio.create_task(self.handle_task_button(incident_, queue_)))
 
-    @abstractmethod
+    def _should_include_header_in_notifications(self) -> bool:
+        """
+        Determine if header should be included in freeze/unfreeze notifications.
+        Override in subclass if different behavior is needed (e.g., Telegram returns False).
+        """
+        return True
+
     async def _handle_freeze_action(self, incident_: 'Incident', freeze_option: str, user_id: str, incidents, queue_: 'AsyncQueue', user_display_name: Optional[str] = None, user_timezone: Optional[str] = None):
         """Handle freeze button action"""
-        pass
+        config = get_config()
+        timezone_str = user_timezone or config.messenger.timezone
+        freeze_time = calculate_freeze_time(freeze_option, config.app.general, timezone_str)
+
+        incident_.assign_user_id(user_id)
+        if user_display_name:
+            incident_.assign_user(user_display_name)
+        await self.fetch_and_assign_user_name(incident_, user_id, incidents, dump=False)
+        incident_.freeze(freeze_time, user_id, user_display_name)
+        
+        logger.info(f'Incident {incident_.uuid} -> FREEZE with option {freeze_option}, frozen until {freeze_time} (timezone: {timezone_str})')
+        
+        await queue_.delete_by_id(incident_.uniq_id, delete_steps=True, delete_status=False)
+        await queue_.put(freeze_time, QueueItemType.UNFREEZE, incident_.uniq_id)
+        self._track_async_task(asyncio.create_task(self._post_freeze_notification(incident_, freeze_time, timezone_str)))
 
     async def _handle_unfreeze_action(self, incident_: 'Incident', queue_: 'AsyncQueue'):
         """Handle unfreeze button action - schedule unfreeze via queue"""
@@ -196,15 +217,32 @@ class Application(ABC):
         await queue_.delete_by_id_and_type(incident_.uniq_id, QueueItemType.UNFREEZE)
         await queue_.put_first(datetime.now(timezone.utc), QueueItemType.UNFREEZE, incident_.uniq_id)
 
-    @abstractmethod
     async def _post_freeze_notification(self, incident_: 'Incident', freeze_time: datetime, user_timezone: str = "UTC"):
         """Post freeze notification to thread"""
-        pass
+        text_template = JinjaTemplate(notification_freeze)
+        fields = {'type': self.type.value, 'frozen_until': format_freeze_expiration(freeze_time, user_timezone)}
+        text = text_template.form_notification(fields)
+        
+        if self._should_include_header_in_notifications():
+            header = self.header_template.form_message(incident_.payload, incident_)
+            message = header + '\n' + text
+        else:
+            message = text
+            
+        await self.post_thread(incident_.channel_id, incident_.ts, message)
 
-    @abstractmethod
     async def _post_unfreeze_notification(self, incident_: 'Incident'):
         """Post unfreeze notification to thread"""
-        pass
+        text_template = JinjaTemplate(notification_unfreeze)
+        text = text_template.form_notification({'type': self.type.value})
+        
+        if self._should_include_header_in_notifications():
+            header = self.header_template.form_message(incident_.payload, incident_)
+            message = header + '\n' + text
+        else:
+            message = text
+            
+        await self.post_thread(incident_.channel_id, incident_.ts, message)
 
     async def handle_task_button(self, incident, queue_):
         """

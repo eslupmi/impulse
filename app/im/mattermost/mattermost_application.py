@@ -1,5 +1,4 @@
 import asyncio
-from datetime import datetime
 
 import aiohttp
 from fastapi.responses import JSONResponse
@@ -10,15 +9,9 @@ from app.im.mattermost.config import (mattermost_env,
 from app.im.mattermost.threads import mattermost_get_create_thread_payload, mattermost_get_update_payload, \
     mattermost_get_button_update_payload
 from app.im.mattermost.user import User
-from app.im.template import notification_freeze, notification_unfreeze
-from app.jinja_template import JinjaTemplate
 from app.logging import logger
 from app.config.config import get_config
 from app.config.validation import ApplicationConfig
-from app.time import calculate_freeze_time, format_freeze_expiration
-from app.queue.queue import AsyncQueue
-from app.queue.constants import QueueItemType
-from app.incident.incident import Incident
 
 
 class MattermostApplication(Application):
@@ -116,39 +109,6 @@ class MattermostApplication(Application):
             self._track_async_task(asyncio.create_task(self.post_unassignment_notification(incident_)))
             incident_.release()
         return None
-
-    async def _handle_freeze_action(self, incident_: Incident, freeze_option: str, user_id: str, incidents, queue_: AsyncQueue, user_display_name: str = None, user_timezone: str = "UTC"):
-        """Handle freeze button action"""
-        config = get_config()
-        freeze_time = calculate_freeze_time(freeze_option, config.app.general, user_timezone)
-
-        incident_.assign_user_id(user_id)
-        incident_.assign_user(user_display_name)
-        await self.fetch_and_assign_user_name(incident_, user_id, incidents, dump=False)
-        incident_.freeze(freeze_time, user_id, user_display_name)
-        
-        logger.info(f'Incident {incident_.uuid} -> FREEZE with option {freeze_option}, frozen until {freeze_time} (user timezone: {user_timezone})')
-
-        await queue_.delete_by_id(incident_.uniq_id, delete_steps=True, delete_status=False)
-        await queue_.put(freeze_time, QueueItemType.UNFREEZE, incident_.uniq_id)
-        self._track_async_task(asyncio.create_task(self._post_freeze_notification(incident_, freeze_time, user_timezone)))
-
-    async def _post_freeze_notification(self, incident_: Incident, freeze_time: datetime, user_timezone: str = "UTC"):
-        """Post freeze notification to thread"""
-        header = self.header_template.form_message(incident_.payload, incident_)
-        text_template = JinjaTemplate(notification_freeze)
-        fields = {'type': self.type.value, 'frozen_until': format_freeze_expiration(freeze_time, user_timezone)}
-        text = text_template.form_notification(fields)
-        message = header + '\n' + text
-        await self.post_thread(incident_.channel_id, incident_.ts, message)
-
-    async def _post_unfreeze_notification(self, incident_: Incident):
-        """Post unfreeze notification to thread"""
-        header = self.header_template.form_message(incident_.payload, incident_)
-        text_template = JinjaTemplate(notification_unfreeze)
-        text = text_template.form_notification({'type': self.type.value})
-        message = header + '\n' + text
-        await self.post_thread(incident_.channel_id, incident_.ts, message)
 
     def _build_button_response(self, incident_, user_timezone='UTC'):
         """Build JSON response with updated incident message"""

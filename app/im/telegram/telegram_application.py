@@ -1,22 +1,20 @@
 import asyncio
-from datetime import datetime
+from typing import TYPE_CHECKING
 
 import aiohttp
 from fastapi.responses import JSONResponse
 
 from app.im.application import Application
+
+if TYPE_CHECKING:
+    from app.incident.incident import Incident
 from app.im.telegram.config import buttons
 from app.im.telegram.user import User
-from app.im.template import notification_freeze, notification_unfreeze
-from app.jinja_template import JinjaTemplate
 from app.logging import logger
 from app.config.config import get_config
 from app.config.environment import get_environment_config
 from app.config.validation import ApplicationConfig
-from app.time import calculate_freeze_time, format_freeze_expiration
-from app.queue.queue import AsyncQueue
-from app.queue.constants import QueueItemType
-from app.incident.incident import Incident
+from app.time import format_freeze_expiration
 
 
 class TelegramApplication(Application):
@@ -62,6 +60,10 @@ class TelegramApplication(Application):
     def get_admins_text(self): #!
         return ', '.join([f'@{a.id}' for a in self.admin_users])
 
+    def _should_include_header_in_notifications(self) -> bool:
+        """Telegram doesn't include header in freeze/unfreeze notifications"""
+        return False
+
     async def create_thread(self, channel_id, body, header, status_icons, status):
         topic_id = await self._create_topic(channel_id, header, status_icons)
         payload = self._create_thread_payload(channel_id, body, header, status_icons, status)
@@ -94,37 +96,7 @@ class TelegramApplication(Application):
             incident_.release()
         return None
 
-    async def _handle_freeze_action(self, incident_: Incident, freeze_option: str, user_id: str, incidents, queue_: AsyncQueue, user_display_name: str = None, user_timezone: str = None):
-        """Handle freeze button action"""
-        config = get_config()
-        telegram_tz = user_timezone or config.messenger.timezone
-        freeze_time = calculate_freeze_time(freeze_option, config.app.general, telegram_tz)
-
-        incident_.assign_user_id(user_id)
-        incident_.assign_user(user_display_name)
-        await self.fetch_and_assign_user_name(incident_, user_id, incidents, dump=False)
-        incident_.freeze(freeze_time, user_id, user_display_name)
-        
-        logger.info(f'Incident {incident_.uuid} -> FREEZE with option {freeze_option}, frozen until {freeze_time} (timezone: {telegram_tz})')
-        
-        await queue_.delete_by_id(incident_.uniq_id, delete_steps=True, delete_status=False)
-        await queue_.put(freeze_time, QueueItemType.UNFREEZE, incident_.uniq_id)
-        self._track_async_task(asyncio.create_task(self._post_freeze_notification(incident_, freeze_time, telegram_tz)))
-
-    async def _post_freeze_notification(self, incident_: Incident, freeze_time: datetime, telegram_tz: str = "UTC"):
-        """Post freeze notification to thread"""
-        text_template = JinjaTemplate(notification_freeze)
-        fields = {'type': self.type.value, 'frozen_until': format_freeze_expiration(freeze_time, telegram_tz)}
-        text = text_template.form_notification(fields)
-        await self.post_thread(incident_.channel_id, incident_.ts, text)
-
-    async def _post_unfreeze_notification(self, incident_: Incident):
-        """Post unfreeze notification to thread"""
-        text_template = JinjaTemplate(notification_unfreeze)
-        text = text_template.form_notification({'type': self.type.value})
-        await self.post_thread(incident_.channel_id, incident_.ts, text)
-
-    async def _show_freeze_menu(self, incident_: Incident, callback):
+    async def _show_freeze_menu(self, incident_: 'Incident', callback):
         """Display freeze options menu"""
         body = self.body_template.form_message(incident_.payload, incident_)
         header = self.header_template.form_message(incident_.payload, incident_)

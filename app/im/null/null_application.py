@@ -20,12 +20,15 @@ class NullApplication(Application):
 
     async def _handle_freeze_action(self, incident_: 'Incident', freeze_option: str, user_id: str, incidents,
                                     queue_: 'AsyncQueue', user_display_name: Optional[str] = None, user_timezone: Optional[str] = None):
+        """No-op freeze action for null application"""
         pass
 
-    async def _post_freeze_notification(self, incident_: 'Incident', freeze_time: datetime, user_timezone: Optional[str] = None):
+    async def _post_freeze_notification(self, incident_: 'Incident', freeze_time: datetime, user_timezone: str = "UTC"):
+        """No-op freeze notification for null application"""
         pass
 
     async def _post_unfreeze_notification(self, incident_: 'Incident'):
+        """No-op unfreeze notification for null application"""
         pass
 
     def __init__(self, app_config, channels, default_channel):
