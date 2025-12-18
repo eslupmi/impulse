@@ -44,9 +44,6 @@ jobs:
           pip install -r requirements.txt
           python templates/gen.py
 
-
-#! Replace
-# ghcr.io/eslupmi/impulse:${{ github.event.inputs.tag }} #!
       - name: Start impulse container
         env:
           SLACK_VERIFICATION_TOKEN: ${{ secrets.AUTOTESTS_SLACK_VERIFICATION_TOKEN }}
@@ -62,7 +59,7 @@ jobs:
             -e MATTERMOST_ACCESS_TOKEN="$MATTERMOST_ACCESS_TOKEN" \
             -e TELEGRAM_BOT_TOKEN="$TELEGRAM_BOT_TOKEN" \
             -e CONFIG_PATH="/config" \
-            ghcr.io/eslupmi/impulse:develop
+            ghcr.io/eslupmi/impulse:${{ github.event.inputs.tag }}
 
       - name: Wait 60 seconds for impulse container to be ready
         run: |
