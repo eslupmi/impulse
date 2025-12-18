@@ -3,5 +3,6 @@ status_colors = {
     'unknown': '#c1a300',
     'resolved': '#56c15e',
     'closed': '#969696',
+    'deleted': '#969696',
     'frozen': '#38ade6',
 }

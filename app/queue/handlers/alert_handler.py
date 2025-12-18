@@ -82,6 +82,10 @@ class AlertHandler(BaseHandler):
     async def _handle_update(self, uuid_, incident_, alert_state):
         config = get_config()
 
+        if incident_.is_frozen() and incident_.status in ['closed', 'deleted']:
+            logger.info(f'Ignoring alert for frozen incident {uuid_} in {incident_.status} status')
+            return
+
         is_new_firing_alerts_added = False
         is_some_firing_alerts_removed = False
         prev_status = incident_.status
