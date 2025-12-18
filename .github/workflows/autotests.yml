@@ -1,15 +1,12 @@
 name: autotests
 
 on:
-  push:
-    branches:
-      - 'enable-autotests-for-mm-and-tg'
-  # workflow_dispatch:
-  #   inputs:
-  #     tag:
-  #       description: 'IMPulse Docker image tag'
-  #       required: true
-  #       default: 'develop'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'IMPulse Docker image tag'
+        required: true
+        default: 'develop'
 
 jobs:
   autotests:
