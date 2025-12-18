@@ -2,6 +2,7 @@
 from datetime import datetime, timezone
 from typing import Optional
 
+from app.config.config import get_config
 from app.integrations.jira_client import JiraClient
 from app.jinja_template import JinjaTemplate
 from app.logging import logger
@@ -13,7 +14,7 @@ class JiraIntegration:
     High-level Jira integration logic for creating tasks from incidents.
     """
 
-    def __init__(self, jira_client: JiraClient, project_key: str, 
+    def __init__(self, jira_client: JiraClient, project_key: str = None, 
                  tm_type: str = "jira",
                  template_files: Optional[dict] = None):
         """
@@ -21,30 +22,37 @@ class JiraIntegration:
         
         Args:
             jira_client: JiraClient instance
-            project_key: Default Jira project key for task creation
+            project_key: Default Jira project key for task creation (deprecated, fetched from config)
             tm_type: Task management type (e.g., "jira") - used for default template paths
-            template_files: Optional dict with 'summary' and 'description' template paths
+            template_files: Optional dict with 'summary' and 'description' template paths (deprecated, fetched from config)
         """
         self.jira_client = jira_client
-        self.project_key = project_key
+        self.tm_type = tm_type
+    
+    def _get_project_key(self) -> str:
+        """Get project key from current config"""
+        config = get_config()
+        if config.app.task_management:
+            return config.app.task_management.project_key
+        raise ValueError("Task management not configured")
+    
+    def _read_template(self, file_key: str) -> JinjaTemplate:
+        """Read template file from current config"""
+        config = get_config()
+        default_path = f'./templates/{self.tm_type}_{file_key}.j2'
         
-        def read_template(file_key: str, default_path: str) -> JinjaTemplate:
-            """Read template file, using config path if provided, otherwise default"""
-            if template_files and template_files.get(file_key):
-                file_path = template_files.get(file_key)
-                # Use default if path is empty string
-                if not file_path:
-                    file_path = default_path
+        if config.app.task_management and config.app.task_management.template_files:
+            template_files = config.app.task_management.template_files
+            if file_key == 'summary' and template_files.summary:
+                file_path = template_files.summary or default_path
+            elif file_key == 'description' and template_files.description:
+                file_path = template_files.description or default_path
             else:
                 file_path = default_path
-            return JinjaTemplate(open(file_path).read())
+        else:
+            file_path = default_path
         
-        # Use tm_type to determine default template paths
-        default_summary = f'./templates/{tm_type}_summary.j2'
-        default_description = f'./templates/{tm_type}_description.j2'
-        
-        self.summary_template = read_template('summary', default_summary)
-        self.description_template = read_template('description', default_description)
+        return JinjaTemplate(open(file_path).read())
 
     def format_incident_for_jira(self, incident) -> tuple[str, str]:
         """
@@ -56,8 +64,11 @@ class JiraIntegration:
         Returns:
             Tuple of (summary, description) for Jira issue
         """
-        summary = self.summary_template.render(incident=incident).strip()
-        description = self.description_template.render(incident=incident).strip()
+        summary_template = self._read_template('summary')
+        description_template = self._read_template('description')
+        
+        summary = summary_template.render(incident=incident).strip()
+        description = description_template.render(incident=incident).strip()
 
         return summary, description
 
@@ -85,8 +96,9 @@ class JiraIntegration:
         summary, description = self.format_incident_for_jira(incident)
 
         logger.info(f"Creating Jira task for incident {incident.uuid}")
+        project_key = self._get_project_key()
         result = await self.jira_client.create_issue(
-            project_key=self.project_key,
+            project_key=project_key,
             summary=summary,
             description=description
         )
