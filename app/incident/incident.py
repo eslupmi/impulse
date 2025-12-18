@@ -249,11 +249,10 @@ class Incident:
             if os.path.exists(old_filename):
                 os.remove(old_filename)
                 logger.debug(f'Removed old incident file: {old_filename}')
-        except (OSError, PermissionError, FileNotFoundError) as e:
+        except OSError as e:
             logger.error(f'Failed to remove old incident file {old_filename}: {str(e)}')
 
     def dump(self):
-        config = get_config()
         data = {
             "chain_enabled": self.chain_enabled,
             "chain": self.chain,
@@ -279,7 +278,7 @@ class Incident:
             incident_filename = self.get_current_filename()
             with open(incident_filename, 'w') as f:
                 yaml.dump(data, f, NoAliasDumper, default_flow_style=False)
-        except (OSError, PermissionError, FileNotFoundError) as e:
+        except OSError as e:
             logger.error(f'Failed to write incident file for {self.uuid}: {str(e)}')
         # Schedule async websocket update
         import asyncio

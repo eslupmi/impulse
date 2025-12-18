@@ -212,6 +212,7 @@ class BaseApplicationConfig(BaseModel):
     chains: Optional[Dict[str, Any]] = Field({}, description="Chain definitions")
     template_files: Optional[TemplateFiles] = Field(TemplateFiles(status_icons=None, header=None, body=None),
                                                     description="Template files")
+    timezone: Optional[str] = Field("UTC", description="Default timezone for freeze calculations")
 
     @field_validator('admin_users')
     @classmethod
@@ -283,7 +284,6 @@ class SlackApplicationConfig(BaseApplicationConfig):
     type: Literal[MessengerType.SLACK] = Field(MessengerType.SLACK, description="Application type")
     channels: Dict[str, SlackChannel] = Field(..., description="Channel definitions")
     users: Dict[str, SlackUser] = Field(..., description="User definitions")
-    timezone: Optional[str] = Field("UTC", description="Default timezone for freeze calculations")
 
 
 class MattermostApplicationConfig(BaseApplicationConfig):
@@ -294,7 +294,6 @@ class MattermostApplicationConfig(BaseApplicationConfig):
     address: str = Field(..., description="Mattermost server address")
     team: str = Field(..., description="Mattermost team name")
     impulse_address: str = Field(..., description="Impulse callback address")
-    timezone: Optional[str] = Field("UTC", description="Default timezone for freeze calculations")
 
 
 class TelegramApplicationConfig(BaseApplicationConfig):
@@ -304,7 +303,6 @@ class TelegramApplicationConfig(BaseApplicationConfig):
     users: Dict[str, TelegramUser] = Field(..., description="User definitions")
     impulse_address: str = Field(..., description="Impulse callback address")
     address: Optional[str] = Field(None, description="Telegram API address (optional)")
-    timezone: Optional[str] = Field("UTC", description="Default timezone for freeze calculations")
 
 
 class NullApplicationConfig(BaseApplicationConfig):

@@ -110,6 +110,24 @@ class SlackApplication(Application):
                                             incident_.chain_enabled, incident_.frozen_until, incident_.task_link, slack_tz)
         return JSONResponse(modified_message, status_code=200)
 
+    async def _handle_freeze_button(self, action, incident_, user_id, incidents, queue_):
+        """Handle freeze button action"""
+        if incident_.is_frozen():
+            await self._handle_unfreeze_action(incident_, queue_)
+            return
+        
+        if action.get('type') != 'select':
+            return
+        
+        selected_options = action.get('selected_options', [])
+        if not selected_options:
+            return
+        
+        freeze_option = selected_options[0]['value']
+        config = get_config()
+        slack_tz = config.messenger.timezone
+        await self._handle_freeze_action(incident_, freeze_option, user_id, incidents, queue_, user_timezone=slack_tz)
+
     async def buttons_handler(self, payload, incidents, queue_, route):
         config = get_config()
         if payload.get('token') != config.slack_verification_token:
@@ -131,13 +149,7 @@ class SlackApplication(Application):
 
         for action in actions:
             if action['name'] == 'freeze':
-                if incident_.is_frozen():
-                    await self._handle_unfreeze_action(incident_, queue_)
-                elif action.get('type') == 'select' and 'selected_options' in action and len(action['selected_options']) > 0:
-                    freeze_option = action['selected_options'][0]['value']
-                    config = get_config()
-                    slack_tz = config.messenger.timezone
-                    await self._handle_freeze_action(incident_, freeze_option, user_id, incidents, queue_, user_timezone=slack_tz)
+                await self._handle_freeze_button(action, incident_, user_id, incidents, queue_)
                 return self._build_button_response(incident_, original_message)
 
         for action in actions:

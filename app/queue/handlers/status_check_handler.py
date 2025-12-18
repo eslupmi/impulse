@@ -37,4 +37,3 @@ class StatusCheckHandler(BaseHandler):
         if incident.status == 'closed':
             logger.info(f'Incident {incident.uuid} has closed status, removing from active map')
             self.incidents.remove_from_active_map(incident.uuid)
-            return

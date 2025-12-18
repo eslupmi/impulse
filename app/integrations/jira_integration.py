@@ -44,9 +44,9 @@ class JiraIntegration:
         if config.app.task_management and config.app.task_management.template_files:
             template_files = config.app.task_management.template_files
             if file_key == 'summary' and template_files.summary:
-                file_path = template_files.summary or default_path
+                file_path = template_files.summary
             elif file_key == 'description' and template_files.description:
-                file_path = template_files.description or default_path
+                file_path = template_files.description
             else:
                 file_path = default_path
         else:
