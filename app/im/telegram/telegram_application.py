@@ -309,7 +309,7 @@ class TelegramApplication(Application):
                     keyboard.append([opt])
             keyboard.append([buttons['freeze']['options'][-1]])
         else:
-            chain_button = buttons['chain']['takeit'] if chain_enabled or status != 'resolved' else buttons['chain']['release']
+            chain_button = buttons['chain']['takeit'] if chain_enabled and status != 'resolved' else buttons['chain']['release']
             
             if frozen_until:
                 telegram_tz = config_obj.messenger.timezone

@@ -166,17 +166,19 @@ class Incident:
 
     def freeze(self, until: datetime, user_id: str, user_fullname: str = ''):
         """Freeze the incident until the specified datetime (preserves underlying status)
-        Assigns the user who froze the incident"""
+        Assigns the user who froze the incident and disables chains"""
         self.frozen_until = until
         self.assigned_user_id = user_id
         if user_fullname:
             self.assigned_fullname = user_fullname
+        self.chain_enabled = False
         self.dump()
         logger.info(f'Incident {self.uuid} frozen until {until} by user {user_id} (status: {self.status})')
 
     def unfreeze(self):
-        """Unfreeze the incident (underlying status is already correct)"""
+        """Unfreeze the incident and re-enable chains (underlying status is already correct)"""
         self.frozen_until = None
+        self.chain_enabled = True
         logger.info(f'Incident {self.uuid} unfrozen (status: {self.status})')
         self.dump()
 
