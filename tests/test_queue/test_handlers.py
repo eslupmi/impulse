@@ -299,11 +299,11 @@ class TestStatusUpdateHandler:
 
         await status_update_handler.handle(incident_uniq_id)
 
-        # Should update status to 'deleted' and delete from incidents
-        # remove_file should NOT be called (only called when new_status == 'closed', not when current status is 'closed')
-        mock_incidents.remove_file.assert_not_called()
+        # Should update status to 'deleted'
+        # app.update should NOT be called when status is 'deleted'
         mock_incident.update_status.assert_called_once_with('deleted')
-        mock_incidents.del_by_uniq_id.assert_called_once_with(incident_uniq_id)
+        mock_application.update.assert_not_called()
+        mock_queue.put_first.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_handle_incident_status_unknown(self, status_update_handler, mock_incidents, mock_application,
@@ -337,13 +337,12 @@ class TestStatusUpdateHandler:
         await status_update_handler.handle(incident_uniq_id)
 
         # Should update status to 'closed' and update queue
-        # remove_file should be called because new_status == 'closed'
         # app.update() should be called to update messenger with closed status
-        mock_incidents.remove_file.assert_called_once_with(mock_incident)
         mock_incident.update_status.assert_called_once_with('closed')
         mock_application.update.assert_called_once()  # Called to update messenger with closed status
         mock_queue.update.assert_called_once()
         mock_queue.delete_by_id.assert_called_once_with(incident_uniq_id, delete_steps=True, delete_status=False)
+        mock_queue.put_first.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_handle_incident_no_status_change(self, status_update_handler, mock_incidents, mock_application,
@@ -387,9 +386,8 @@ class TestStatusUpdateHandler:
         incident_uniq_id = 'nonexistent123'
         mock_incidents.uniq_ids = {}
 
-        # Should raise AttributeError when trying to access next_status on None
-        with pytest.raises(AttributeError):
-            await status_update_handler.handle(incident_uniq_id)
+        # The handler returns early for None incident, so it should not raise an error
+        await status_update_handler.handle(incident_uniq_id)
 
 
 class TestStepHandler:
