@@ -30,7 +30,6 @@ class AlertHandler(BaseHandler):
         if incident_ is None:
             await self._handle_create(alert_state)
         else:
-            logger.debug(f'Incident {incident_.uuid} updated')
             await self._handle_update(incident_.uuid, incident_, alert_state)
 
     async def _handle_create(self, alert_state):

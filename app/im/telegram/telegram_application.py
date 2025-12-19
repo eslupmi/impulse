@@ -23,7 +23,7 @@ class TelegramApplication(Application):
         '5379748062124056162': '❗️', # unknown
         '5237699328843200968': '✅', # resolved
         '5408906741125490282': '🏁', # closed
-        '5433614043006903194': '📆', # frozen 
+        '5309958691854754293': '💎', # frozen 
     }
 
     def __init__(self, app_config: ApplicationConfig, channels, users):
