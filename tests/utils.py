@@ -1435,8 +1435,8 @@ def _cleanup_all_patches(patches_context):
 
 
 def create_buttons_handler_context_manager(app, payload, incidents, queue, route,
-                                         expected_log_message: str = None,
-                                         additional_patches: dict = None,
+                                         expected_log_message: Optional[str] = None,
+                                         additional_patches: Optional[dict] = None,
                                          app_specific_setup=None,
                                          app_specific_patches=None):
     """
@@ -1516,8 +1516,8 @@ def create_slack_mock_config(token: str = "valid_token"):
 
 
 def create_slack_buttons_handler_context(app, payload, incidents, queue, route, 
-                                        expected_log_message: str = None,
-                                        additional_patches: dict = None):
+                                        expected_log_message: Optional[str] = None,
+                                        additional_patches: Optional[dict] = None):
     """
     Create a context manager for testing Slack buttons_handler with common setup.
     
@@ -1562,8 +1562,8 @@ def create_slack_buttons_handler_context(app, payload, incidents, queue, route,
 # ============================================================================
 
 def create_mattermost_buttons_handler_context(app, payload, incidents, queue, route, 
-                                             expected_log_message: str = None,
-                                             additional_patches: dict = None,
+                                             expected_log_message: Optional[str] = None,
+                                             additional_patches: Optional[dict] = None,
                                              patch_get_config: bool = True):
     """
     Create a context manager for testing Mattermost buttons_handler with common setup.
