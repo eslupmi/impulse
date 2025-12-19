@@ -140,6 +140,9 @@ class AsyncQueue:
                 await queue.put(incident.frozen_until, QueueItemType.UNFREEZE, uniq_id)
             else:
                 await queue.recreate(incident.status, uniq_id, incident.get_chain())
-            await queue.put(incident.status_update_datetime, QueueItemType.UPDATE_STATUS, uniq_id)
+            if incident.status != 'deleted':
+                await queue.put(incident.status_update_datetime, QueueItemType.UPDATE_STATUS, uniq_id)
+            else:
+                await queue.put_first(datetime.now(timezone.utc), QueueItemType.STATUS_CHECK, uniq_id)
 
         return queue
