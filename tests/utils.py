@@ -1645,8 +1645,8 @@ def create_telegram_buttons_mock():
 
 
 def create_telegram_buttons_handler_context(app, payload, incidents, queue, route, 
-                                           expected_log_message: str = None,
-                                           additional_patches: dict = None):
+                                           expected_log_message: Optional[str] = None,
+                                           additional_patches: Optional[dict] = None):
     """
     Create a context manager for testing Telegram buttons_handler with common setup.
     
