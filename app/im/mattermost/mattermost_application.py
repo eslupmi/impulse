@@ -105,7 +105,7 @@ class MattermostApplication(Application):
             self._track_async_task(asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id, incidents)))
             incident_.chain_enabled = False
         else:
-            logger.info(f'Incident {incident_.uuid} -> button RELEASE pressed')
+            logger.info(f'Incident {incident_.uuid} -> button RELEASE pressed by user {user_id}')
             self._track_async_task(asyncio.create_task(self.post_unassignment_notification(incident_)))
             incident_.release()
         return None

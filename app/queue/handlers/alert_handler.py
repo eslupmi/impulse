@@ -30,8 +30,7 @@ class AlertHandler(BaseHandler):
         if incident_ is None:
             await self._handle_create(alert_state)
         else:
-            logger.debug(f'New alert for incident {incident_.uuid}:')
-            logger.debug(f'{alert_state}')
+            logger.debug(f'Incident {incident_.uuid} updated')
             await self._handle_update(incident_.uuid, incident_, alert_state)
 
     async def _handle_create(self, alert_state):
@@ -83,7 +82,7 @@ class AlertHandler(BaseHandler):
         config = get_config()
 
         if incident_.is_frozen() and incident_.status in ['closed', 'deleted']:
-            logger.info(f'Ignoring alert for frozen incident {uuid_} in {incident_.status} status')
+            logger.debug(f'Ignoring alert for frozen incident {uuid_} in {incident_.status} status')
             return
 
         is_new_firing_alerts_added = False

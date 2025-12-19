@@ -176,14 +176,9 @@ class Application(ABC):
         self._async_tasks.add(task)
         task.add_done_callback(self._async_tasks.discard)
 
-    def _handle_status_action(self, incident_, set_status_to):
-        """Handle status-related button actions"""
-        logger.info(f'Incident {incident_.uuid} -> button STATUS pressed ({"enabled" if set_status_to else "disabled"})')
-        incident_.status_enabled = set_status_to
-
     def _handle_task_action(self, incident_, queue_):
         """Handle Task button action"""
-        logger.info(f'Incident {incident_.uuid} -> button TASK pressed')
+        logger.info(f'Incident {incident_.uuid} -> button TASK pressed by user {user_id}')
         self._track_async_task(asyncio.create_task(self.handle_task_button(incident_, queue_)))
 
     def _should_include_header_in_notifications(self) -> bool:
@@ -195,6 +190,8 @@ class Application(ABC):
 
     async def _handle_freeze_action(self, incident_: 'Incident', freeze_option: str, user_id: str, incidents, queue_: 'AsyncQueue', user_display_name: Optional[str] = None, user_timezone: Optional[str] = None):
         """Handle freeze button action"""
+        logger.info(f'Incident {incident_.uuid} -> button FREEZE pressed by user {user_id}')
+        
         config = get_config()
         timezone_str = user_timezone or config.messenger.timezone
         freeze_time = calculate_freeze_time(freeze_option, config.app.general, timezone_str)
@@ -205,15 +202,13 @@ class Application(ABC):
         await self.fetch_and_assign_user_name(incident_, user_id, incidents, dump=False)
         incident_.freeze(freeze_time, user_id, user_display_name)
         
-        logger.info(f'Incident {incident_.uuid} -> FREEZE with option {freeze_option}, frozen until {freeze_time} (timezone: {timezone_str})')
-        
         await queue_.delete_by_id(incident_.uniq_id, delete_steps=True, delete_status=False)
         await queue_.put(freeze_time, QueueItemType.UNFREEZE, incident_.uniq_id)
         self._track_async_task(asyncio.create_task(self._post_freeze_notification(incident_, freeze_time, timezone_str)))
 
     async def _handle_unfreeze_action(self, incident_: 'Incident', queue_: 'AsyncQueue'):
         """Handle unfreeze button action - schedule unfreeze via queue"""
-        logger.info(f'Incident {incident_.uuid} -> UNFREEZE pressed')
+        logger.info(f'Incident {incident_.uuid} -> button UNFREEZE pressed by user {user_id}')
         await queue_.delete_by_id_and_type(incident_.uniq_id, QueueItemType.UNFREEZE)
         await queue_.put_first(datetime.now(timezone.utc), QueueItemType.UNFREEZE, incident_.uniq_id)
 

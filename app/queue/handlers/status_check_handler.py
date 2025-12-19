@@ -29,11 +29,11 @@ class StatusCheckHandler(BaseHandler):
 
         # Handle deleted status - full deletion
         if incident.status == 'deleted':
-            logger.info(f'Incident {incident.uuid} has deleted status, removing completely')
+            logger.debug(f'Incident {incident.uuid} has deleted status, removing completely')
             self.incidents.del_by_uniq_id(uniq_id)
             return
 
         # Handle closed status - remove from active map only (file cleanup handled by update_status)
         if incident.status == 'closed':
-            logger.info(f'Incident {incident.uuid} has closed status, removing from active map')
+            logger.info(f'Incident {incident.uuid} has closed status')
             self.incidents.remove_from_active_map(incident.uuid)
