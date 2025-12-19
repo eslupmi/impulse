@@ -18,7 +18,7 @@ buttons = {
             'callback_data': 'freeze_menu'
         },
         'options': [
-            {'text': 'Tomorrow 9:00', 'callback_data': 'freeze_tomorrow'},
+            {'text': 'Tomorrow', 'callback_data': 'freeze_tomorrow'},
             {'text': 'Next Monday', 'callback_data': 'freeze_next_monday'},
             {'text': 'In Month', 'callback_data': 'freeze_month'},
             {'text': 'In 6 months', 'callback_data': 'freeze_6months'},

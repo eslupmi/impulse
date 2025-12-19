@@ -22,7 +22,7 @@ buttons = {
             'style': 'normal'
         },
         'options': [
-            {'text': 'Tomorrow 9:00', 'value': 'tomorrow'},
+            {'text': 'Tomorrow', 'value': 'tomorrow'},
             {'text': 'Next Monday', 'value': 'next_monday'},
             {'text': 'In Month', 'value': 'month'},
             {'text': 'In 6 months', 'value': '6months'}
