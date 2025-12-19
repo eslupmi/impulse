@@ -366,7 +366,7 @@ class Application(ABC):
             RateLimitedClient instance
         """
         if self.rate_limit:
-            logger.info(
+            logger.debug(
                 f"{self.type.value.capitalize()} rate limiting enabled: "
                 f"{self.rate_limit} requests per {self.rate_window}s window"
             )
