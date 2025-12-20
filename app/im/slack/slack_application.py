@@ -144,7 +144,7 @@ class SlackApplication(Application):
         is_freeze_action = any(action['name'] == 'freeze' for action in actions)
 
         if incident_.is_frozen() and not is_freeze_action:
-            logger.info(f'Incident {incident_.uuid} is frozen, blocking all button actions')
+            logger.debug(f'Incident {incident_.uuid} is frozen, blocking all button actions')
             return self._build_button_response(incident_, original_message)
 
         for action in actions:

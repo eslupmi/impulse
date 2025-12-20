@@ -144,7 +144,7 @@ class MattermostApplication(Application):
                 await self._handle_unfreeze_action(incident_, queue_)
 
         if incident_.is_frozen():
-            logger.info(f'Incident {incident_.uuid} is frozen, blocking all button actions')
+            logger.debug(f'Incident {incident_.uuid} is frozen, blocking all button actions')
             return self._build_button_response(incident_, mattermost_tz)
 
         action = context.get('action')
