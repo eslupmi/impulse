@@ -178,7 +178,7 @@ class Application(ABC):
 
     def _handle_task_action(self, incident_, queue_):
         """Handle Task button action"""
-        logger.info(f'Incident {incident_.uuid} -> button TASK pressed by user {user_id}')
+        logger.info(f'Incident {incident_.uuid} -> button TASK pressed')
         self._track_async_task(asyncio.create_task(self.handle_task_button(incident_, queue_)))
 
     def _should_include_header_in_notifications(self) -> bool:
@@ -208,7 +208,7 @@ class Application(ABC):
 
     async def _handle_unfreeze_action(self, incident_: 'Incident', queue_: 'AsyncQueue'):
         """Handle unfreeze button action - schedule unfreeze via queue"""
-        logger.info(f'Incident {incident_.uuid} -> button UNFREEZE pressed by user {user_id}')
+        logger.info(f'Incident {incident_.uuid} -> button UNFREEZE pressed')
         await queue_.delete_by_id_and_type(incident_.uniq_id, QueueItemType.UNFREEZE)
         await queue_.put_first(datetime.now(timezone.utc), QueueItemType.UNFREEZE, incident_.uniq_id)
 
