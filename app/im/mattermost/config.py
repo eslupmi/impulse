@@ -16,15 +16,17 @@ buttons = {
             'style': 'primary'
         }
     },
-    'status': {
-        'enabled': {
-            'text': ':large_green_circle: Status',
+    'freeze': {
+        'inactive': {
+            'text': 'Freeze',
             'style': 'default'
         },
-        'disabled': {
-            'text': ':red_circle: Status',
-            'style': 'default'
-        }
+        'options': [
+            {'text': 'Tomorrow', 'value': 'tomorrow'},
+            {'text': 'Next Monday', 'value': 'next_monday'},
+            {'text': 'In Month', 'value': 'month'},
+            {'text': 'In 6 months', 'value': '6months'}
+        ]
     },
     'task': {
         'create': {

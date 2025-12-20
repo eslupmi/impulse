@@ -163,3 +163,23 @@ update: assigned to <a href="tg://user?id={{ fields.id }}">{{ fields.username }}
 """
 
 notification_unassignment = """update: unassigned"""
+
+notification_freeze = """
+{%- if fields.type == 'slack' -%}
+update: *frozen*
+{%- elif fields.type == 'mattermost' -%}
+update: **frozen**
+{%- elif fields.type == 'telegram' -%}
+update: <b>frozen</b>
+{%- endif -%}
+"""
+
+notification_unfreeze = """
+{%- if fields.type == 'slack' -%}
+update: *unfrozen*
+{%- elif fields.type == 'mattermost' -%}
+update: **unfrozen**
+{%- elif fields.type == 'telegram' -%}
+update: <b>unfrozen</b>
+{%- endif -%}
+"""

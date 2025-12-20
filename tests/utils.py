@@ -449,6 +449,7 @@ def create_mock_queue() -> Mock:
     """
     queue = Mock()
     queue.put = AsyncMock()
+    queue.put_first = AsyncMock()
     queue.recreate = AsyncMock()
     queue.update = AsyncMock()
     queue.delete_by_id = AsyncMock()
@@ -583,6 +584,7 @@ def create_mock_incident_for_handlers(
         chain: Optional[List[Dict[str, Any]]] = None,
         chain_enabled: bool = True,
         status_enabled: bool = True,
+        frozen_until: Optional[datetime] = None,
         update_state_return: tuple = (True, True),
         update_status_return: bool = True
 ) -> Mock:
@@ -598,6 +600,7 @@ def create_mock_incident_for_handlers(
         chain: Incident chain
         chain_enabled: Whether chain is enabled
         status_enabled: Whether status updates are enabled
+        frozen_until: Freeze expiration datetime
         update_state_return: Return value for update_state method
         update_status_return: Return value for update_status method
         
@@ -618,6 +621,7 @@ def create_mock_incident_for_handlers(
     incident.chain = chain
     incident.chain_enabled = chain_enabled
     incident.status_enabled = status_enabled
+    incident.frozen_until = frozen_until
     incident.status_update_datetime = create_test_datetime()
     incident.next_status = {
         'firing': 'unknown',
@@ -629,6 +633,7 @@ def create_mock_incident_for_handlers(
     incident.update_state = Mock(return_value=update_state_return)
     incident.is_new_firing_alerts_added = Mock(return_value=False)
     incident.is_some_firing_alerts_removed = Mock(return_value=False)
+    incident.is_frozen = Mock(return_value=False)
     incident.get_chain = Mock(return_value=chain)
     incident.chain_update = Mock()
     incident.dump = Mock()
@@ -1430,8 +1435,8 @@ def _cleanup_all_patches(patches_context):
 
 
 def create_buttons_handler_context_manager(app, payload, incidents, queue, route,
-                                         expected_log_message: str = None,
-                                         additional_patches: dict = None,
+                                         expected_log_message: Optional[str] = None,
+                                         additional_patches: Optional[dict] = None,
                                          app_specific_setup=None,
                                          app_specific_patches=None):
     """
@@ -1511,8 +1516,8 @@ def create_slack_mock_config(token: str = "valid_token"):
 
 
 def create_slack_buttons_handler_context(app, payload, incidents, queue, route, 
-                                        expected_log_message: str = None,
-                                        additional_patches: dict = None):
+                                        expected_log_message: Optional[str] = None,
+                                        additional_patches: Optional[dict] = None):
     """
     Create a context manager for testing Slack buttons_handler with common setup.
     
@@ -1557,8 +1562,8 @@ def create_slack_buttons_handler_context(app, payload, incidents, queue, route,
 # ============================================================================
 
 def create_mattermost_buttons_handler_context(app, payload, incidents, queue, route, 
-                                             expected_log_message: str = None,
-                                             additional_patches: dict = None,
+                                             expected_log_message: Optional[str] = None,
+                                             additional_patches: Optional[dict] = None,
                                              patch_get_config: bool = True):
     """
     Create a context manager for testing Mattermost buttons_handler with common setup.
@@ -1618,7 +1623,7 @@ def create_telegram_buttons_mock():
     the buttons configuration for Telegram payload generation.
     
     Returns:
-        Dictionary with button configurations for chain, status, and task
+        Dictionary with button configurations for chain, status, task, and freeze
     """
     return {
         'chain': {
@@ -1629,13 +1634,19 @@ def create_telegram_buttons_mock():
             'enabled': {'text': 'Status', 'callback_data': 'start_status'},
             'disabled': {'text': 'Status', 'callback_data': 'stop_status'}
         },
-        'task': {'create': {'text': '📌', 'callback_data': 'task'}}
+        'task': {'create': {'text': '📌', 'callback_data': 'task'}},
+        'freeze': {
+            'freeze': {'text': '❄️ Freeze', 'callback_data': 'freeze'},
+            'unfreeze': {'text': '🔥 Unfreeze', 'callback_data': 'unfreeze'},
+            'inactive': {'text': '❄️', 'callback_data': 'freeze'},
+            'active': {'text': '🔥', 'callback_data': 'unfreeze'}
+        }
     }
 
 
 def create_telegram_buttons_handler_context(app, payload, incidents, queue, route, 
-                                           expected_log_message: str = None,
-                                           additional_patches: dict = None):
+                                           expected_log_message: Optional[str] = None,
+                                           additional_patches: Optional[dict] = None):
     """
     Create a context manager for testing Telegram buttons_handler with common setup.
     

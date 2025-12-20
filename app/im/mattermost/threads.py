@@ -2,6 +2,7 @@ from app.im.colors import status_colors
 from app.im.mattermost.config import buttons
 from app.config.config import get_config
 from app.config.environment import get_environment_config
+from app.time import format_freeze_expiration
 
 
 def chain_attrs(chain_enabled, status):
@@ -18,14 +19,14 @@ def chain_attrs(chain_enabled, status):
     return chain_text, chain_style
 
 
-def build_mattermost_actions(chain_enabled, status, status_enabled, task_link=''):
+def build_mattermost_actions(chain_enabled, status, frozen_until=None, task_link='', user_timezone='UTC'):
     """
     Build the action buttons list for Mattermost messages.
     
     Args:
         chain_enabled: Whether the chain button is enabled
         status: Current incident status
-        status_enabled: Whether the status button is enabled
+        frozen_until: Datetime when freeze expires (None if not frozen)
         task_link: Optional Jira task link (if task exists)
         
     Returns:
@@ -48,22 +49,41 @@ def build_mattermost_actions(chain_enabled, status, status_enabled, task_link=''
                     "action": "chain"
                 }
             }
-        },
-        {
-            "id": "status",
+        }
+    ]
+    
+    if frozen_until:
+        freeze_text = format_freeze_expiration(frozen_until, user_timezone)
+        actions.append({
+            "id": "freeze",
             "type": "button",
-            "name": buttons['status']['enabled']['text'] if status_enabled else
-            buttons['status']['disabled']['text'],
-            "style": buttons['status']['enabled']['style'] if status_enabled else
-            buttons['status']['disabled']['style'],
+            "name": freeze_text,
+            "style": buttons['freeze']['inactive']['style'],
             "integration": {
                 "url": f"{config.messenger.impulse_address}/app",
                 "context": {
-                    "action": "status"
+                    "action": "unfreeze"
                 }
             }
-        }
-    ]
+        })
+    else:
+        freeze_text = buttons['freeze']['inactive']['text']
+        freeze_options = [
+            {"text": opt['text'], "value": f"freeze_{opt['value']}"} 
+            for opt in buttons['freeze']['options']
+        ]
+        
+        actions.append({
+            "id": "freeze",
+            "type": "select",
+            "name": freeze_text,
+            "style": buttons['freeze']['inactive']['style'],
+            "integration": {
+                "url": f"{config.messenger.impulse_address}/app",
+                "context": {}
+            },
+            "options": freeze_options
+        })
     
     if config.app.task_management and env_config.task_management_enabled and not task_link:
         actions.append({
@@ -82,8 +102,9 @@ def build_mattermost_actions(chain_enabled, status, status_enabled, task_link=''
     return actions
 
 
-def mattermost_get_button_update_payload(body, header, status_icons, status, chain_enabled, status_enabled, task_link=''):
-    actions = build_mattermost_actions(chain_enabled, status, status_enabled, task_link)
+def mattermost_get_button_update_payload(body, header, status_icons, status, chain_enabled, frozen_until, task_link='', user_timezone='UTC'):
+    actions = build_mattermost_actions(chain_enabled, status, frozen_until, task_link, user_timezone)
+    display_status = 'frozen' if frozen_until else status
     
     payload = {
         'update': {
@@ -93,7 +114,7 @@ def mattermost_get_button_update_payload(body, header, status_icons, status, cha
                     {
                         'fallback': 'test',
                         'text': body,
-                        'color': status_colors.get(status),
+                        'color': status_colors.get(display_status),
                         'actions': actions
                     }
                 ]
@@ -104,8 +125,9 @@ def mattermost_get_button_update_payload(body, header, status_icons, status, cha
 
 
 def mattermost_get_update_payload(channel_id, thread_id, body, header, status_icons, status, chain_enabled,
-                                  status_enabled, task_link=''):
-    actions = build_mattermost_actions(chain_enabled, status, status_enabled, task_link)
+                                  frozen_until, task_link=''):
+    actions = build_mattermost_actions(chain_enabled, status, frozen_until, task_link)
+    display_status = 'frozen' if frozen_until else status
     
     payload = {
         'channel_id': channel_id,
@@ -116,7 +138,7 @@ def mattermost_get_update_payload(channel_id, thread_id, body, header, status_ic
                 {
                     'fallback': 'test',
                     'text': body,
-                    'color': status_colors.get(status),
+                    'color': status_colors.get(display_status),
                     'actions': actions
                 }
             ]
@@ -126,8 +148,7 @@ def mattermost_get_update_payload(channel_id, thread_id, body, header, status_ic
 
 
 def mattermost_get_create_thread_payload(channel_id, body, header, status_icons, status):
-    # New threads always have chain enabled and status enabled, no task link yet
-    actions = build_mattermost_actions(chain_enabled=True, status=status, status_enabled=True, task_link='')
+    actions = build_mattermost_actions(chain_enabled=True, status=status, frozen_until=None, task_link='')
     
     payload = {
         'channel_id': channel_id,

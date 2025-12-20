@@ -1,8 +1,11 @@
 import asyncio
+from app.queue.constants import QueueItemType
 from app.queue.handlers.alert_handler import AlertHandler
 from app.queue.handlers.status_update_handler import StatusUpdateHandler
+from app.queue.handlers.status_check_handler import StatusCheckHandler
 from app.queue.handlers.message_update_handler import MessageUpdateHandler
 from app.queue.handlers.step_handler import StepHandler
+from app.queue.handlers.unfreeze_handler import UnfreezeHandler
 from app.logging import logger
 
 
@@ -22,10 +25,14 @@ class AsyncQueueManager:
         :param route_: Route object
         """
         self.queue = queue
+        self.application = application
+        self.incidents = incidents
         self.step_handler = StepHandler(self.queue, application, incidents, webhooks)
         self.status_update_handler = StatusUpdateHandler(self.queue, application, incidents)
+        self.status_check_handler = StatusCheckHandler(self.queue, application, incidents)
         self.message_update_handler = MessageUpdateHandler(self.queue, application, incidents)
         self.alert_handler = AlertHandler(self.queue, application, incidents, route_)
+        self.unfreeze_handler = UnfreezeHandler(self.queue, application, incidents)
         self._running = False
         self._task = None
 
@@ -45,6 +52,13 @@ class AsyncQueueManager:
         """
         await self.status_update_handler.handle(uniq_id)
 
+    async def handle_status_check(self, uniq_id: str):
+        """
+        Check incident status and perform appropriate actions (deletion, file removal, etc.)
+        :param uniq_id: String unique id.
+        """
+        await self.status_check_handler.handle(uniq_id)
+
     async def handle_message_update(self, uniq_id: str):
         """
         Handle message update without status changes.
@@ -59,6 +73,13 @@ class AsyncQueueManager:
         """
         await self.alert_handler.handle(alert_state)
 
+    async def handle_unfreeze(self, uniq_id: str):
+        """
+        Handle unfreeze.
+        :param uniq_id: String unique id.
+        """
+        await self.unfreeze_handler.handle(uniq_id)
+
     async def queue_handle_once(self):
         """
         Handle one queue item.
@@ -71,14 +92,18 @@ class AsyncQueueManager:
             return
 
         try:
-            if type_ == 'update_status':
+            if type_ == QueueItemType.UPDATE_STATUS:
                 await self.handle_status_update(uniq_id)
-            elif type_ == 'update_message':
+            elif type_ == QueueItemType.STATUS_CHECK:
+                await self.handle_status_check(uniq_id)
+            elif type_ == QueueItemType.UPDATE_MESSAGE:
                 await self.handle_message_update(uniq_id)
-            elif type_ == 'chain_step':
+            elif type_ == QueueItemType.CHAIN_STEP:
                 await self.handle_step(uniq_id, identifier)
-            elif type_ == 'alert':
+            elif type_ == QueueItemType.ALERT:
                 await self.handle_alert(data)
+            elif type_ == QueueItemType.UNFREEZE:
+                await self.handle_unfreeze(uniq_id)
         except Exception as e:
             logger.error(f"Error handling queue item {type_}: {repr(e)}")
         

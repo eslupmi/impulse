@@ -377,6 +377,7 @@ class TestAsyncQueue:
         # Create mock incidents with chains
         incident1 = Mock()
         incident1.status = 'firing'
+        incident1.is_frozen.return_value = False
         incident1.get_chain.return_value = [
             {'done': False, 'datetime': create_test_datetime()},
             {'done': True, 'datetime': create_test_datetime()},
@@ -386,6 +387,7 @@ class TestAsyncQueue:
 
         incident2 = Mock()
         incident2.status = 'resolved'
+        incident2.is_frozen.return_value = False
         incident2.get_chain.return_value = [
             {'done': True, 'datetime': create_test_datetime()},
             {'done': True, 'datetime': create_test_datetime()}

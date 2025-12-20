@@ -31,23 +31,9 @@ def create_jira_integration(
         api_token=env_config.jira_api_token
     )
     
-    project_key = task_management_config.project_key
-    template_files = None
-    if task_management_config.template_files:
-        template_files = {}
-        if task_management_config.template_files.summary:
-            template_files['summary'] = task_management_config.template_files.summary
-        if task_management_config.template_files.description:
-            template_files['description'] = task_management_config.template_files.description
-        # Only set template_files if it has at least one value
-        if not template_files:
-            template_files = None
-    
     return JiraIntegration(
         jira_client, 
-        project_key,
-        tm_type=task_management_config.type.value,
-        template_files=template_files
+        tm_type=task_management_config.type.value
     )
 
 

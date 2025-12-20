@@ -3,16 +3,17 @@ from app.im.slack.buttons import chain_attrs
 from app.im.slack.config import buttons
 from app.config.environment import get_environment_config
 from app.config.config import get_config
+from app.time import format_freeze_expiration
 
 
-def build_slack_actions(chain_enabled, status, status_enabled, task_link=''):
+def build_slack_actions(chain_enabled, status, frozen_until=None, task_link='', user_timezone='UTC'):
     """
     Build the action buttons list for Slack messages.
     
     Args:
         chain_enabled: Whether the chain button is enabled
         status: Current incident status
-        status_enabled: Whether the status button is enabled
+        frozen_until: Datetime when freeze expires (None if not frozen)
         task_link: Optional task link (if task exists)
         
     Returns:
@@ -28,16 +29,30 @@ def build_slack_actions(chain_enabled, status, status_enabled, task_link=''):
             "type": 'button',
             "text": chain_text,
             "style": chain_style,
-        },
-        {
-            "name": 'status',
-            "type": 'button',
-            "text": buttons['status']['enabled']['text'] if status_enabled else
-            buttons['status']['disabled']['text'],
-            "style": buttons['status']['enabled']['style'] if status_enabled else
-            buttons['status']['disabled']['style'],
         }
     ]
+    
+    if frozen_until:
+        freeze_text = format_freeze_expiration(frozen_until, user_timezone)
+        actions.append({
+            "name": 'freeze',
+            "type": 'button',
+            "text": freeze_text,
+            "style": 'primary',
+        })
+    else:
+        freeze_text = buttons['freeze']['inactive']['text']
+        freeze_options = [
+            {"text": opt['text'], "value": opt['value']}
+            for opt in buttons['freeze']['options']
+        ]
+        actions.append({
+            "name": 'freeze',
+            "type": 'select',
+            "text": freeze_text,
+            "style": buttons['freeze']['inactive']['style'],
+            "options": freeze_options
+        })
     
     if config.app.task_management and env_config.task_management_enabled and not task_link:
         actions.append({
@@ -51,20 +66,21 @@ def build_slack_actions(chain_enabled, status, status_enabled, task_link=''):
 
 
 def slack_get_update_payload(channel_id, ts, body, header, status_icons, status, chain_enabled=True,
-                             status_enabled=True, task_link=''):
-    actions = build_slack_actions(chain_enabled, status, status_enabled, task_link)
+                             frozen_until=None, task_link='', user_timezone='UTC'):
+    actions = build_slack_actions(chain_enabled, status, frozen_until, task_link, user_timezone)
+    display_status = 'frozen' if frozen_until else status
     
     payload = {
         'channel': channel_id,
         'text': f'{status_icons} {header}',
         'attachments': [
             {
-                'color': status_colors.get(status),
+                'color': status_colors.get(display_status),
                 'text': body,
                 'mrkdwn_in': ['text'],
             },
             {
-                'color': status_colors.get(status),
+                'color': status_colors.get(display_status),
                 'text': '',
                 "callback_id": "buttons",
                 "actions": actions,
@@ -76,8 +92,7 @@ def slack_get_update_payload(channel_id, ts, body, header, status_icons, status,
 
 
 def slack_get_create_thread_payload(channel_id, body, header, status_icons, status):
-    # New threads always have chain enabled and status enabled, no task link yet
-    actions = build_slack_actions(chain_enabled=True, status=status, status_enabled=True, task_link='')
+    actions = build_slack_actions(chain_enabled=True, status=status, frozen_until=None, task_link='')
     
     payload = {
         'channel': channel_id,

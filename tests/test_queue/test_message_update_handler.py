@@ -42,6 +42,7 @@ class TestMessageUpdateHandler:
         incident.payload = {"test": "data"}
         incident.chain_enabled = True
         incident.status_enabled = True
+        incident.frozen_until = None
         incident.task_link = "https://jira.com/browse/DTS-123"
         incident.task_creation_in_progress = False
         return incident
@@ -59,7 +60,7 @@ class TestMessageUpdateHandler:
             mock_incident.payload,
             False,
             mock_incident.chain_enabled,
-            mock_incident.status_enabled,
+            mock_incident.frozen_until,
             mock_incident.task_link
         )
 
@@ -94,7 +95,7 @@ class TestMessageUpdateHandler:
         
         original_status = mock_incident.status
         original_chain_enabled = mock_incident.chain_enabled
-        original_status_enabled = mock_incident.status_enabled
+        original_frozen_until = mock_incident.frozen_until
 
         await handler.handle(mock_incident.uniq_id)
 
@@ -102,5 +103,5 @@ class TestMessageUpdateHandler:
         call_args = handler.app.update.call_args[0]
         assert call_args[1] == original_status  # status
         assert call_args[4] == original_chain_enabled
-        assert call_args[5] == original_status_enabled
+        assert call_args[5] == original_frozen_until
 

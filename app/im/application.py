@@ -1,6 +1,6 @@
 import asyncio
 from abc import ABC, abstractmethod
-from typing import Union, Dict, Optional
+from typing import Union, Dict, Optional, TYPE_CHECKING
 
 from app.config.config import get_config
 from app.config.validation import ApplicationConfig, MattermostUser, SlackUser, TelegramUser, MessengerType
@@ -8,10 +8,17 @@ from app.http_client import RateLimitedClient
 from app.im.chain.chain_factory import ChainFactory
 from app.im.groups import generate_user_groups
 from app.im.template import notification_user, notification_user_group, update_status, \
-    notification_assignment, notification_unassignment
+    notification_assignment, notification_unassignment, notification_freeze, notification_unfreeze
 from app.jinja_template import JinjaTemplate
 from app.logging import logger
 from app.integrations.jira_integration import JiraIntegration
+from app.queue.constants import QueueItemType
+from app.time import calculate_freeze_time, format_freeze_expiration
+from datetime import datetime, timezone
+
+if TYPE_CHECKING:
+    from app.incident.incident import Incident
+    from app.queue.queue import AsyncQueue
 
 
 class Application(ABC):
@@ -67,7 +74,7 @@ class Application(ABC):
         if self.http:
             await self.http.close()
 
-    async def fetch_and_assign_user_name(self, incident, user_id, incidents=None):
+    async def fetch_and_assign_user_name(self, incident, user_id, incidents=None, dump=True):
         """
         Fetch user details and assign full name to incident.
         Uses incident cache to avoid redundant API calls when possible.
@@ -76,13 +83,15 @@ class Application(ABC):
             incident: The incident to assign the user name to
             user_id: The user ID to fetch the name for
             incidents: Optional incidents collection for caching lookup
+            dump: Whether to dump the incident after assigning the user name
         """
         try:
             if incidents:
                 cached_name = incidents.get_assigned_user_by_id(user_id)
                 if cached_name:
                     incident.assign_fullname(cached_name)
-                    incident.dump()
+                    if dump:
+                        incident.dump()
                     logger.debug(f'Incident {incident.uuid} assigned cached user name: {cached_name}')
                     return
 
@@ -91,13 +100,15 @@ class Application(ABC):
             incident.assign_fullname(assigned_name)
             if user_details.get('username'):
                 incident.assign_user(user_details.get('username'))
-            incident.dump()
+            if dump:
+                incident.dump()
             logger.debug(f'Incident {incident.uuid} assigned user name from API: {assigned_name}')
 
         except Exception as e:
             logger.error(f'Failed to fetch and assign user name for incident {incident.uuid}: {e}')
             incident.assign_fullname("-")
-            incident.dump()
+            if dump:
+                incident.dump()
 
     async def post_assignment_notification(self, incident_obj, user_id, user_display_name=None):
         """
@@ -164,15 +175,69 @@ class Application(ABC):
         self._async_tasks.add(task)
         task.add_done_callback(self._async_tasks.discard)
 
-    def _handle_status_action(self, incident_, set_status_to):
-        """Handle status-related button actions"""
-        logger.info(f'Incident {incident_.uuid} -> button STATUS pressed ({"enabled" if set_status_to else "disabled"})')
-        incident_.status_enabled = set_status_to
-
     def _handle_task_action(self, incident_, queue_):
         """Handle Task button action"""
         logger.info(f'Incident {incident_.uuid} -> button TASK pressed')
         self._track_async_task(asyncio.create_task(self.handle_task_button(incident_, queue_)))
+
+    def _should_include_header_in_notifications(self) -> bool:
+        """
+        Determine if header should be included in freeze/unfreeze notifications.
+        Override in subclass if different behavior is needed (e.g., Telegram returns False).
+        """
+        return True
+
+    async def _handle_freeze_action(self, incident_: 'Incident', freeze_option: str, user_id: str, incidents, queue_: 'AsyncQueue', user_display_name: Optional[str] = None, user_timezone: Optional[str] = None):
+        """Handle freeze button action"""
+        logger.info(f'Incident {incident_.uuid} -> button FREEZE pressed by user {user_id}')
+        
+        config = get_config()
+        timezone_str = user_timezone or config.app.general.timezone
+        freeze_time = calculate_freeze_time(freeze_option, config.app.general, timezone_str)
+
+        incident_.assign_user_id(user_id)
+        if user_display_name:
+            incident_.assign_user(user_display_name)
+        await self.fetch_and_assign_user_name(incident_, user_id, incidents, dump=False)
+        incident_.freeze(freeze_time, user_id, user_display_name)
+        
+        await queue_.delete_by_id(incident_.uniq_id, delete_steps=True, delete_status=False)
+        await queue_.put(freeze_time, QueueItemType.UNFREEZE, incident_.uniq_id)
+        self._track_async_task(asyncio.create_task(self._post_freeze_notification(incident_, freeze_time, timezone_str)))
+
+    @staticmethod
+    async def _handle_unfreeze_action(incident_: 'Incident', queue_: 'AsyncQueue'):
+        """Handle unfreeze button action - schedule unfreeze via queue"""
+        logger.info(f'Incident {incident_.uuid} -> button UNFREEZE pressed')
+        await queue_.delete_by_id_and_type(incident_.uniq_id, QueueItemType.UNFREEZE)
+        await queue_.put_first(datetime.now(timezone.utc), QueueItemType.UNFREEZE, incident_.uniq_id)
+
+    async def _post_freeze_notification(self, incident_: 'Incident', freeze_time: datetime, user_timezone: str = "UTC"):
+        """Post freeze notification to thread"""
+        text_template = JinjaTemplate(notification_freeze)
+        fields = {'type': self.type.value, 'frozen_until': format_freeze_expiration(freeze_time, user_timezone)}
+        text = text_template.form_notification(fields)
+        
+        if self._should_include_header_in_notifications():
+            header = self.header_template.form_message(incident_.payload, incident_)
+            message = header + '\n' + text
+        else:
+            message = text
+            
+        await self.post_thread(incident_.channel_id, incident_.ts, message)
+
+    async def _post_unfreeze_notification(self, incident_: 'Incident'):
+        """Post unfreeze notification to thread"""
+        text_template = JinjaTemplate(notification_unfreeze)
+        text = text_template.form_notification({'type': self.type.value})
+        
+        if self._should_include_header_in_notifications():
+            header = self.header_template.form_message(incident_.payload, incident_)
+            message = header + '\n' + text
+        else:
+            message = text
+            
+        await self.post_thread(incident_.channel_id, incident_.ts, message)
 
     async def handle_task_button(self, incident, queue_):
         """
@@ -244,27 +309,25 @@ class Application(ABC):
         return response_code
 
     async def update(self, incident, incident_status, alert_state, updated_status, chain_enabled,
-                     status_enabled, task_link=''):
-        body = self.body_template.form_message(alert_state, incident)
-        header = self.header_template.form_message(alert_state, incident)
-        status_icons = self.status_icons_template.form_message(alert_state, incident)
-        await self.update_thread(
-            incident.channel_id, incident.ts, incident_status, body, header, status_icons, chain_enabled, status_enabled, task_link
-        )
-        if updated_status:
-            logger.info(f'Incident {incident.uuid} updated with new status \'{incident_status}\'')
-            # post to thread
+                     frozen_until, task_link=''):
+        # Update thread starter message (skip if frozen)
+        if not incident.is_frozen():
+            body = self.body_template.form_message(alert_state, incident)
+            header = self.header_template.form_message(alert_state, incident)
+            status_icons = self.status_icons_template.form_message(alert_state, incident)
+            await self.update_thread(
+                incident.channel_id, incident.ts, incident_status, body, header, status_icons, chain_enabled, frozen_until, task_link
+            )
+
+            # post to thread (skip if frozen)
             config = get_config()
-            if status_enabled and incident_status != 'closed' and config.incident.notifications.status_update:
+            if updated_status and incident_status != 'closed' and config.incident.notifications.status_update:
                 text_template = JinjaTemplate(update_status)
                 admins = self.get_notification_destinations()
                 fields = {'type': self.type.value, 'status': incident_status, 'admins': admins}
                 text = text_template.form_notification(fields)
 
-                if self.type == MessengerType.TELEGRAM:
-                    message = text
-                else:
-                    message = header + '\n' + text
+                message = header + '\n' + text if self.type == MessengerType.TELEGRAM else text
                 await self.post_thread(incident.channel_id, incident.ts, message)
 
     async def create_thread(self, channel_id, body, header, status_icons, status):
@@ -278,9 +341,9 @@ class Application(ABC):
         return response_json.get(self.thread_id_key)
 
     async def update_thread(self, channel_id, id_, status, body, header, status_icons, chain_enabled=True,
-                            status_enabled=True, task_link=''):
+                            frozen_until=None, task_link=''):
         payload = self.update_thread_payload(channel_id, id_, body, header, status_icons, status, chain_enabled,
-                                             status_enabled, task_link)
+                                             frozen_until, task_link)
         await self._update_thread(id_, payload)
 
     async def post_thread(self, channel_id, id_, text):
@@ -298,7 +361,7 @@ class Application(ABC):
             RateLimitedClient instance
         """
         if self.rate_limit:
-            logger.info(
+            logger.debug(
                 f"{self.type.value.capitalize()} rate limiting enabled: "
                 f"{self.rate_limit} requests per {self.rate_window}s window"
             )
@@ -313,10 +376,7 @@ class Application(ABC):
             connector_limit=100,
             connector_limit_per_host=30
         )
-
-        # Initialize the client
-        client._initialize_client()
-
+        client.initialize_client()
         return client
 
     @abstractmethod
@@ -360,7 +420,7 @@ class Application(ABC):
         pass
 
     @abstractmethod
-    def update_thread_payload(self, channel_id, id_, body, header, status_icons, status, chain_enabled, status_enabled, task_link=''):
+    def update_thread_payload(self, channel_id, id_, body, header, status_icons, status, chain_enabled, frozen_until, task_link=''):
         pass
 
     @abstractmethod

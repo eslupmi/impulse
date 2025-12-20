@@ -1,3 +1,7 @@
+{%- if incident.frozen_until -%}
+:snowflake:
+{%- else -%}
 {%- set status = incident.status -%}
 {%- set status_emoji = {"firing": ":fire:", "unknown": ":warning:", "resolved": ":white_check_mark:", "closed": ":heavy_multiplication_x:"}[status] -%}
 {{- status_emoji -}}
+{%- endif -%}

@@ -1,9 +1,15 @@
 import uuid
+from datetime import datetime
+from typing import Optional, TYPE_CHECKING
 
 from fastapi.responses import JSONResponse
 
 from app.im.application import Application
 from app.jinja_template import JinjaTemplate
+
+if TYPE_CHECKING:
+    from app.incident.incident import Incident
+    from app.queue.queue import AsyncQueue
 
 
 class NullApplication(Application):
@@ -11,6 +17,19 @@ class NullApplication(Application):
     Null implementation of Application interface that provides no-op implementations
     for all messenger functionality. Allows running the application with UI only.
     """
+
+    async def _handle_freeze_action(self, incident_: 'Incident', freeze_option: str, user_id: str, incidents,
+                                    queue_: 'AsyncQueue', user_display_name: Optional[str] = None, user_timezone: Optional[str] = None):
+        """No-op freeze action for null application"""
+        pass
+
+    async def _post_freeze_notification(self, incident_: 'Incident', freeze_time: datetime, user_timezone: str = "UTC"):
+        """No-op freeze notification for null application"""
+        pass
+
+    async def _post_unfreeze_notification(self, incident_: 'Incident'):
+        """No-op unfreeze notification for null application"""
+        pass
 
     def __init__(self, app_config, channels, default_channel):
         super().__init__(app_config, channels, default_channel)
@@ -67,7 +86,8 @@ class NullApplication(Application):
         """Return empty payload"""
         return {}
 
-    def update_thread_payload(self, channel_id, id_, body, header, status_icons, status, chain_enabled, status_enabled, task_link=''):
+    def update_thread_payload(self, channel_id, id_, body, header, status_icons, status, chain_enabled, frozen_until,
+                              task_link=''):
         """Return empty payload"""
         return {}
 
@@ -95,11 +115,13 @@ class NullApplication(Application):
         """No thread posting for null application"""
         return 200
 
-    async def update_thread(self, channel_id, id_, status, body, header, status_icons, chain_enabled=True, status_enabled=True, task_link=''):
+    async def update_thread(self, channel_id, id_, status, body, header, status_icons, chain_enabled=True,
+                            status_enabled=True, task_link=''):
         """No thread updating for null application"""
         pass
 
-    async def update(self, incident, incident_status, alert_state, updated_status, chain_enabled, status_enabled, task_link=''):
+    async def update(self, incident, incident_status, alert_state, updated_status, chain_enabled, status_enabled,
+                     task_link=''):
         """No message updates for null application"""
         pass
 

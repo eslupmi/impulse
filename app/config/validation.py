@@ -329,6 +329,30 @@ ApplicationConfig = Union[
     SlackApplicationConfig, MattermostApplicationConfig, TelegramApplicationConfig, NullApplicationConfig]
 
 
+class GeneralConfig(BaseModel):
+    """General configuration"""
+    workday_start: Optional[str] = Field("09:00", description="Time when workday starts")
+    week_start: Optional[str] = Field("Mon", description="First day of the week")
+    timezone: Optional[str] = Field("UTC", description="Default timezone for freeze calculations")
+
+    @field_validator('workday_start')
+    @classmethod
+    def validate_workday_start_format(cls, v):
+        """Validate workday_start format (HH:MM)"""
+        if v and not re.match(r'^([01]\d|2[0-3]):([0-5]\d)$', v):
+            raise ValueError("workday_start must be in HH:MM format (e.g., '09:00')")
+        return v
+
+    @field_validator('week_start')
+    @classmethod
+    def validate_week_start_format(cls, v):
+        """Validate week_start format"""
+        valid_days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', '0', '1', '2', '3', '4', '5', '6', '7']
+        if v and v not in valid_days:
+            raise ValueError(f"week_start must be one of {valid_days}")
+        return v
+
+
 class IncidentTimeouts(BaseModel):
     """Incident timeout configuration"""
     firing: Optional[str] = Field("6h", description="Firing timeout")
@@ -474,6 +498,7 @@ class WebhookConfig(BaseModel):
 
 class ImpulseConfig(BaseModel):
     """Main Impulse configuration"""
+    general: Optional[GeneralConfig] = Field(GeneralConfig(), description="General configuration")
     messenger: ApplicationConfig = Field(..., description="Messenger configuration", discriminator='type')
     incident: Optional[IncidentConfig] = Field(None, description="Incident configuration")
     route: Optional[RouteConfig] = Field(None, description="Route configuration")

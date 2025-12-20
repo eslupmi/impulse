@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from typing import List, Dict, Optional
 import json
 import uuid
-
+import os
 import yaml
 
 from app.config.config import get_config
@@ -47,6 +47,7 @@ class Incident:
     task_link: str = field(default='')
     task_creation_in_progress: bool = False
     closed: Optional[datetime] = field(default=None)
+    frozen_until: Optional[datetime] = field(default=None)
 
     next_status = {
         'firing': 'unknown',
@@ -163,6 +164,28 @@ class Incident:
         self.chain_enabled = True
         self.dump()
 
+    def freeze(self, until: datetime, user_id: str, user_fullname: str = ''):
+        """Freeze the incident until the specified datetime (preserves underlying status)
+        Assigns the user who froze the incident and disables chains"""
+        self.frozen_until = until
+        self.assigned_user_id = user_id
+        if user_fullname:
+            self.assigned_fullname = user_fullname
+        self.chain_enabled = False
+        self.dump()
+        logger.info(f'Incident {self.uuid} frozen until {until} by user {user_id} (status: {self.status})')
+
+    def unfreeze(self):
+        """Unfreeze the incident and re-enable chains (underlying status is already correct)"""
+        self.frozen_until = None
+        self.chain_enabled = True
+        logger.info(f'Incident {self.uuid} unfrozen (status: {self.status})')
+        self.dump()
+
+    def is_frozen(self) -> bool:
+        """Check if the incident is currently frozen"""
+        return self.frozen_until is not None
+
     def get_chain(self) -> List[Dict]:
         if not self.chain_enabled:
             return []
@@ -204,14 +227,32 @@ class Incident:
             assigned_fullname=content.get('assigned_fullname', ''),
             messenger_type=content.get('messenger_type', ''),
             uniq_id=content.get('uniq_id', ''),
-            version=content.get('version', config.INCIDENT_ACTUAL_VERSION)
+            version=content.get('version', config.INCIDENT_ACTUAL_VERSION),
+            frozen_until=content.get('frozen_until', None),
         )
         incident_.set_thread(content.get('ts'), incident_config.application_url)
         incident_.task_link = content.get('task_link', '')
         return incident_
 
-    def dump(self):
+    def get_current_filename(self) -> str:
+        """Get the current filename based on incident state"""
         config = get_config()
+        if self.status == 'closed' or self.status == 'deleted':
+            closed_str = self.datetime_serialize(self.closed)
+            return f'{config.incidents_path}/{self.uuid}__{closed_str}.yml'
+        else:
+            return f'{config.incidents_path}/{self.uuid}.yml'
+
+    def _remove_old_file(self, old_filename: str):
+        """Remove old incident file"""
+        try:
+            if os.path.exists(old_filename):
+                os.remove(old_filename)
+                logger.debug(f'Removed old incident file: {old_filename}')
+        except OSError as e:
+            logger.error(f'Failed to remove old incident file {old_filename}: {str(e)}')
+
+    def dump(self):
         data = {
             "chain_enabled": self.chain_enabled,
             "chain": self.chain,
@@ -230,17 +271,14 @@ class Incident:
             "messenger_type": self.messenger_type,
             "uniq_id": self.uniq_id,
             "version": self.version,
-            "task_link": self.task_link
+            "task_link": self.task_link,
+            "frozen_until": self.frozen_until,
         }
         try:
-            if self.status == 'closed' or self.status == 'deleted':
-                closed_str = self.datetime_serialize(self.closed)
-                incident_filename = f'{config.incidents_path}/{self.uuid}__{closed_str}.yml'
-            else:
-                incident_filename = f'{config.incidents_path}/{self.uuid}.yml'
+            incident_filename = self.get_current_filename()
             with open(incident_filename, 'w') as f:
                 yaml.dump(data, f, NoAliasDumper, default_flow_style=False)
-        except (OSError, PermissionError, FileNotFoundError) as e:
+        except OSError as e:
             logger.error(f'Failed to write incident file for {self.uuid}: {str(e)}')
         # Schedule async websocket update
         import asyncio
@@ -274,6 +312,7 @@ class Incident:
             "task_link": self.task_link,
             "uuid": self.uuid,
             "uniq_id": self.uniq_id,
+            "frozen_until": self.frozen_until,
         }
 
     def get_table_data(self, params) -> Dict:
@@ -286,16 +325,22 @@ class Incident:
             group_labels = {}
             common_labels = {}
             common_annotations = {}
+        
+        display_status = 'frozen' if self.is_frozen() else self.status
+        
         data = {
             'uniq_id': self.uniq_id,
-            'indicator': self.status,
+            'indicator': display_status,
             '_alerts_count': len(self.payload.get('alerts', [])),
+            '_is_frozen': self.is_frozen(),
             '_responsive_data': {
                 'group_labels': group_labels,
                 'common_labels': filter_dict_keys(common_labels, group_labels),
                 'common_annotations': common_annotations,
                 'incident_info': {
                     'status': self.status,
+                    'frozen_until': normalize_param(self.frozen_until) if self.frozen_until else None,
+                    'is_frozen': self.is_frozen(),
                     'created': normalize_param(self.created) if self.created else None,
                     'updated': normalize_param(self.updated) if self.updated else None,
                     'assigned_fullname': self.assigned_fullname if self.assigned_fullname else None,
@@ -331,8 +376,12 @@ class Incident:
             timeout_value = config.incident.timeouts.get(status)
             self.status_update_datetime = now + unix_sleep_to_timedelta(timeout_value)
         if self.status != status:
+            old_filename = self.get_current_filename()
             self.set_status(status)
             self.dump()
+            new_filename = self.get_current_filename()
+            if old_filename != new_filename:
+                self._remove_old_file(old_filename)
             return True
         self.dump()
         return False

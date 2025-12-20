@@ -4,15 +4,14 @@ import aiohttp
 from fastapi.responses import JSONResponse
 
 from app.im.application import Application
-from app.im.colors import status_colors
-from app.im.mattermost.config import (mattermost_bold_text, mattermost_env,
+from app.im.mattermost.config import (mattermost_env,
                                       mattermost_admins_template_string)
 from app.im.mattermost.threads import mattermost_get_create_thread_payload, mattermost_get_update_payload, \
     mattermost_get_button_update_payload
 from app.im.mattermost.user import User
 from app.logging import logger
 from app.config.config import get_config
-from app.config.validation import ApplicationConfig, MattermostUser
+from app.config.validation import ApplicationConfig
 
 
 class MattermostApplication(Application):
@@ -106,10 +105,21 @@ class MattermostApplication(Application):
             self._track_async_task(asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id, incidents)))
             incident_.chain_enabled = False
         else:
-            logger.info(f'Incident {incident_.uuid} -> button RELEASE pressed')
+            logger.info(f'Incident {incident_.uuid} -> button RELEASE pressed by user {user_id}')
             self._track_async_task(asyncio.create_task(self.post_unassignment_notification(incident_)))
             incident_.release()
         return None
+
+    def _build_button_response(self, incident_, user_timezone='UTC'):
+        """Build JSON response with updated incident message"""
+        incident_.dump()
+        status_icons = self.status_icons_template.form_message(incident_.payload, incident_)
+        header = self.header_template.form_message(incident_.payload, incident_)
+        message = self.body_template.form_message(incident_.payload, incident_)
+        response_payload = mattermost_get_button_update_payload(
+            message, header, status_icons, incident_.status,
+            incident_.chain_enabled, incident_.frozen_until, incident_.task_link, user_timezone)
+        return JSONResponse(response_payload, status_code=200)
 
     async def buttons_handler(self, payload, incidents, queue_, route):
         post_id = payload['post_id']
@@ -117,33 +127,35 @@ class MattermostApplication(Application):
         if incident_ is None:
             return JSONResponse(payload, status_code=200)
         
-        action = payload['context']['action']
+        context = payload.get('context', {})
         user_id = payload.get('user_id')
         user_name = payload.get('user_name')
+        
+        config = get_config()
+        mattermost_tz = config.app.general.timezone
 
-        # Handle different actions
+        selected_option = context.get('selected_option')
+        if selected_option and selected_option.startswith('freeze_'):
+            freeze_option = selected_option.replace('freeze_', '')
+            await self._handle_freeze_action(incident_, freeze_option, user_id, incidents, queue_, user_name, user_timezone=mattermost_tz)
+        else:
+            action = context.get('action')
+            if action == 'unfreeze':
+                await self._handle_unfreeze_action(incident_, queue_)
+
+        if incident_.is_frozen():
+            logger.debug(f'Incident {incident_.uuid} is frozen, blocking all button actions')
+            return self._build_button_response(incident_, mattermost_tz)
+
+        action = context.get('action')
         if action == 'chain':
             early_return = await self._handle_chain_action(incident_, user_id, user_name, queue_, incidents, payload)
             if early_return is not None:
                 return early_return
-        elif action == 'status':
-            self._handle_status_action(incident_, not incident_.status_enabled)
         elif action == 'task':
             self._handle_task_action(incident_, queue_)
         
-        incident_.dump()
-        status_icons = self.status_icons_template.form_message(incident_.payload, incident_)
-        header = self.header_template.form_message(incident_.payload, incident_)
-        message = self.body_template.form_message(incident_.payload, incident_)
-        payload = mattermost_get_button_update_payload(
-            message,
-            header,
-            status_icons,
-            incident_.status,
-            incident_.chain_enabled,
-            incident_.status_enabled,
-            incident_.task_link)
-        return JSONResponse(payload, status_code=200)
+        return self._build_button_response(incident_, mattermost_tz)
 
     def _create_thread_payload(self, channel_id, body, header, status_icons, status):
         return mattermost_get_create_thread_payload(channel_id, body, header, status_icons, status)
@@ -152,9 +164,9 @@ class MattermostApplication(Application):
         return {'channel_id': channel_id, 'root_id': id_, 'message': text}
 
     def update_thread_payload(self, channel_id, id_, body, header, status_icons, status, chain_enabled,
-                              status_enabled, task_link=''):
+                              frozen_until, task_link=''):
         return mattermost_get_update_payload(channel_id, id_, body, header, status_icons, status, chain_enabled,
-                                             status_enabled, task_link)
+                                             frozen_until, task_link)
 
     async def _update_thread(self, id_, payload):
         response = await self.http.put(

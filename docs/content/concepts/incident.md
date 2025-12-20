@@ -22,7 +22,13 @@ Templates for `status icons`, `header` and `body` are [here](https://github.com/
 
 ## Statuses and their colors
 
-Unlike Alertmanager alerts, IMPulse Incidents can have four statuses: **firing**, **resolved**, **unknown**, **closed**.
+Unlike Alertmanager alerts, IMPulse Incidents can have four statuses:
+- firing
+- resolved
+- unknown
+- closed
+
+Incidents can also be temporarily frozen. This is a pseudo-status that hides the actual status and pauses further incident handling.
 
 ### firing and resolved
 
@@ -48,7 +54,6 @@ Possible causes of **unknown** status:
 - IMPulse did not receive an updated alert status (e.g., IMPulse or Alertmanager was down, or there were network issues)
 - `repeat_interval` + `group_interval` exceeds IMPulse's `incident.timeouts.firing`
 
-
 When an incident becomes **unknown** , IMPulse sends a warning message to `messenger.admin_users`.
 
 ### closed
@@ -61,10 +66,21 @@ There are two ways an Incident can be closed:
 - a **resolved** incident remains in that status for the duration of`incident.timeouts.resolved`
 - an **unknown** incident remains in that status for the duration of `incident.timeouts.unknown`
 
+#### frozen
+
+<p align="center"><img src="../../media/slack_frozen.excalidraw.svg" alt="" width="400"/></p>
+
+The **frozen** state is a pseudo-status that temporarily pauses incident handling and suppresses status update. When an incident is frozen, its actual status (firing, resolved, unknown, or closed) is hidden but preserved underneath.
+
+An incident can be frozen by clicking the [Freeze](buttons.md) button and selecting a duration.
+
+While frozen, the incident continues to track its underlying status internally, but no status change notifications are sent to the channel. Также пока инцидент frozen, не будет создано такого же нового инцидента. 
+
+This can be useful when an incident needs to be postponed for some time. IMPulse will send a notification when the duration expires.
 
 ## Lifecycle
 
-IMPulse creates an Incident with  the **firing** status and tracks it until its status becomes **closed**.
+IMPulse creates an Incident with the **firing** status and tracks it until the incident is deleted (after [`incident.timeouts.closed`](#closed)).
 
 Here is a visualization of the full incident lifecycle:
 

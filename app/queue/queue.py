@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from typing import Optional, Tuple, Any
 
 from app.logging import logger
+from app.queue.constants import QueueItemType
 
 QueueItem = namedtuple('QueueItem', ['datetime', 'type', 'uniq_id', 'identifier', 'data'])
 
@@ -33,15 +34,27 @@ class AsyncQueue:
         """Delete items by incident uniq_id"""
         async with self._lock:
             self._delete_by_id_internal(uniq_id, delete_steps, delete_status)
+    
+    async def delete_by_id_and_type(self, uniq_id: str, type_: str):
+        """Delete items by incident uniq_id and type"""
+        async with self._lock:
+            self._delete_by_id_and_type_internal(uniq_id, type_)
 
     def _delete_by_id_internal(self, uniq_id: str, delete_steps: bool = True, delete_status: bool = True):
         """Internal delete method that doesn't acquire lock"""
         self._items = [
             item for item in self._items
             if not (item.uniq_id == uniq_id and (
-                (delete_steps and item.type == 'chain_step') or
-                (delete_status and item.type == 'update_status')
+                (delete_steps and item.type == QueueItemType.CHAIN_STEP) or
+                (delete_status and item.type == QueueItemType.UPDATE_STATUS)
             ))
+        ]
+
+    def _delete_by_id_and_type_internal(self, uniq_id: str, type_: str):
+        """Internal delete by id and type method that doesn't acquire lock"""
+        self._items = [
+            item for item in self._items
+            if not (item.uniq_id == uniq_id and item.type == type_)
         ]
 
     async def recreate(self, status: str, uniq_id: str, incident_chain: list):
@@ -50,7 +63,7 @@ class AsyncQueue:
             new_items = []
             for i, s in enumerate(incident_chain):
                 if not s['done']:
-                    new_items.append(QueueItem(s['datetime'], 'chain_step', uniq_id, i, None))
+                    new_items.append(QueueItem(s['datetime'], QueueItemType.CHAIN_STEP, uniq_id, i, None))
 
             async with self._lock:
                 for new_item in new_items:
@@ -71,7 +84,7 @@ class AsyncQueue:
                 self._delete_by_id_internal(uniq_id, delete_steps=True, delete_status=False)
             self._delete_by_id_internal(uniq_id, delete_steps=False, delete_status=True)
             
-            new_item = QueueItem(incident_status_change, 'update_status', uniq_id, None, None)
+            new_item = QueueItem(incident_status_change, QueueItemType.UPDATE_STATUS, uniq_id, None, None)
             self._insert_item_sorted(new_item)
 
     async def get_next_ready_item(self) -> Optional[Tuple[str, str, str, Any]]:
@@ -123,7 +136,13 @@ class AsyncQueue:
         queue = cls()
 
         for uniq_id, incident in incidents.uniq_ids.items():
-            await queue.recreate(incident.status, uniq_id, incident.get_chain())
-            await queue.put(incident.status_update_datetime, 'update_status', uniq_id)
+            if incident.is_frozen():
+                await queue.put(incident.frozen_until, QueueItemType.UNFREEZE, uniq_id)
+            else:
+                await queue.recreate(incident.status, uniq_id, incident.get_chain())
+            if incident.status != 'deleted':
+                await queue.put(incident.status_update_datetime, QueueItemType.UPDATE_STATUS, uniq_id)
+            else:
+                await queue.put_first(datetime.now(timezone.utc), QueueItemType.STATUS_CHECK, uniq_id)
 
         return queue

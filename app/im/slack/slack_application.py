@@ -1,18 +1,16 @@
 import asyncio
 import re
 
-import aiohttp
 from fastapi.responses import JSONResponse
 
 from app.im.application import Application
-from app.im.colors import status_colors
 from app.im.slack import reformat_message
-from app.im.slack.config import slack_bold_text, slack_env, slack_admins_template_string
+from app.im.slack.config import slack_env, slack_admins_template_string
 from app.im.slack.threads import slack_get_create_thread_payload, slack_get_update_payload
 from app.im.slack.user import User
 from app.logging import logger
 from app.config.config import get_config
-from app.config.validation import ApplicationConfig, SlackUser
+from app.config.validation import ApplicationConfig
 
 
 class SlackApplication(Application):
@@ -96,6 +94,40 @@ class SlackApplication(Application):
             self._track_async_task(asyncio.create_task(self.post_unassignment_notification(incident_)))
             incident_.release()
 
+    def _build_button_response(self, incident_, original_message):
+        """Build JSON response with updated incident message"""
+        incident_.dump()
+        body = self.body_template.form_message(incident_.payload, incident_)
+        header = self.header_template.form_message(incident_.payload, incident_)
+        status_icons = self.status_icons_template.form_message(incident_.payload, incident_)
+        payload = self.update_thread_payload(incident_.channel_id, incident_.ts, body, header, status_icons,
+                                             incident_.status, incident_.chain_enabled, incident_.frozen_until, 
+                                             incident_.task_link)
+        self._track_async_task(asyncio.create_task(self._update_thread(incident_.ts, payload)))
+        config = get_config()
+        slack_tz = config.app.general.timezone
+        modified_message = reformat_message(original_message, payload['text'], payload['attachments'], incident_.status,
+                                            incident_.chain_enabled, incident_.frozen_until, incident_.task_link, slack_tz)
+        return JSONResponse(modified_message, status_code=200)
+
+    async def _handle_freeze_button(self, action, incident_, user_id, incidents, queue_):
+        """Handle freeze button action"""
+        if incident_.is_frozen():
+            await self._handle_unfreeze_action(incident_, queue_)
+            return
+        
+        if action.get('type') != 'select':
+            return
+        
+        selected_options = action.get('selected_options', [])
+        if not selected_options:
+            return
+        
+        freeze_option = selected_options[0]['value']
+        config = get_config()
+        slack_tz = config.app.general.timezone
+        await self._handle_freeze_action(incident_, freeze_option, user_id, incidents, queue_, user_timezone=slack_tz)
+
     async def buttons_handler(self, payload, incidents, queue_, route):
         config = get_config()
         if payload.get('token') != config.slack_verification_token:
@@ -109,26 +141,24 @@ class SlackApplication(Application):
         
         actions = payload.get('actions')
         user_id = payload.get('user')['id']
+        is_freeze_action = any(action['name'] == 'freeze' for action in actions)
 
-        # Handle different actions
+        if incident_.is_frozen() and not is_freeze_action:
+            logger.debug(f'Incident {incident_.uuid} is frozen, blocking all button actions')
+            return self._build_button_response(incident_, original_message)
+
+        for action in actions:
+            if action['name'] == 'freeze':
+                await self._handle_freeze_button(action, incident_, user_id, incidents, queue_)
+                return self._build_button_response(incident_, original_message)
+
         for action in actions:
             if action['name'] == 'chain':
                 await self._handle_chain_action(incident_, user_id, queue_, incidents)
-            elif action['name'] == 'status':
-                self._handle_status_action(incident_, not incident_.status_enabled)
             elif action['name'] == 'task':
                 self._handle_task_action(incident_, queue_)
         
-        incident_.dump()
-        body = self.body_template.form_message(incident_.payload, incident_)
-        header = self.header_template.form_message(incident_.payload, incident_)
-        status_icons = self.status_icons_template.form_message(incident_.payload, incident_)
-        payload = self.update_thread_payload(incident_.channel_id, incident_.ts, body, header, status_icons,
-                                             incident_.status, incident_.chain_enabled, incident_.status_enabled, 
-                                             incident_.task_link)
-        modified_message = reformat_message(original_message, payload['text'], payload['attachments'], incident_.status,
-                                            incident_.chain_enabled, incident_.status_enabled, incident_.task_link)
-        return JSONResponse(modified_message, status_code=200)
+        return self._build_button_response(incident_, original_message)
 
     def _create_thread_payload(self, channel_id, body, header, status_icons, status):
         return slack_get_create_thread_payload(channel_id, body, header, status_icons, status)
@@ -137,9 +167,9 @@ class SlackApplication(Application):
         return {'channel': channel_id, 'thread_ts': id_, 'text': text, 'unfurl_links': False, 'unfurl_media': False}
 
     def update_thread_payload(self, channel_id, id_, body, header, status_icons, status, chain_enabled,
-                              status_enabled, task_link=''):
+                              frozen_until, task_link=''):
         return slack_get_update_payload(channel_id, id_, body, header, status_icons, status, chain_enabled,
-                                        status_enabled, task_link)
+                                        frozen_until, task_link)
 
     async def _update_thread(self, id_, payload):
         response = await self.http.post(
