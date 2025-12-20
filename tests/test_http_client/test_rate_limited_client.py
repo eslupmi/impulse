@@ -168,7 +168,7 @@ class TestRateLimitedClient:
         client = RateLimitedClient(rate_limit=10, rate_window=1.0)
         
         async with client:
-            client._initialize_client()
+            client.initialize_client()
             assert client._client is not None
             assert client._session is not None
         
@@ -178,7 +178,7 @@ class TestRateLimitedClient:
     async def test_manual_close(self):
         """Test that manual close works correctly"""
         client = RateLimitedClient(rate_limit=10, rate_window=1.0)
-        client._initialize_client()
+        client.initialize_client()
         
         assert client._client is not None
         assert client._session is not None

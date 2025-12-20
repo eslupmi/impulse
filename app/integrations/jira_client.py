@@ -83,7 +83,7 @@ class JiraClient:
         }
         
         try:
-            self._http_client._initialize_client()
+            self._http_client.initialize_client()
             response = await self._http_client.post(
                 url,
                 json=payload,

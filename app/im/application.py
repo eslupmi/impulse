@@ -1,7 +1,6 @@
 import asyncio
 from abc import ABC, abstractmethod
 from typing import Union, Dict, Optional, TYPE_CHECKING
-from datetime import datetime
 
 from app.config.config import get_config
 from app.config.validation import ApplicationConfig, MattermostUser, SlackUser, TelegramUser, MessengerType
@@ -206,7 +205,8 @@ class Application(ABC):
         await queue_.put(freeze_time, QueueItemType.UNFREEZE, incident_.uniq_id)
         self._track_async_task(asyncio.create_task(self._post_freeze_notification(incident_, freeze_time, timezone_str)))
 
-    async def _handle_unfreeze_action(self, incident_: 'Incident', queue_: 'AsyncQueue'):
+    @staticmethod
+    async def _handle_unfreeze_action(incident_: 'Incident', queue_: 'AsyncQueue'):
         """Handle unfreeze button action - schedule unfreeze via queue"""
         logger.info(f'Incident {incident_.uuid} -> button UNFREEZE pressed')
         await queue_.delete_by_id_and_type(incident_.uniq_id, QueueItemType.UNFREEZE)
@@ -319,20 +319,15 @@ class Application(ABC):
                 incident.channel_id, incident.ts, incident_status, body, header, status_icons, chain_enabled, frozen_until, task_link
             )
 
-        if updated_status:
-            logger.info(f'Incident {incident.uuid} updated with new status \'{incident_status}\'')
             # post to thread (skip if frozen)
             config = get_config()
-            if not incident.is_frozen() and incident_status != 'closed' and config.incident.notifications.status_update:
+            if updated_status and incident_status != 'closed' and config.incident.notifications.status_update:
                 text_template = JinjaTemplate(update_status)
                 admins = self.get_notification_destinations()
                 fields = {'type': self.type.value, 'status': incident_status, 'admins': admins}
                 text = text_template.form_notification(fields)
 
-                if self.type == MessengerType.TELEGRAM:
-                    message = text
-                else:
-                    message = header + '\n' + text
+                message = header + '\n' + text if self.type == MessengerType.TELEGRAM else text
                 await self.post_thread(incident.channel_id, incident.ts, message)
 
     async def create_thread(self, channel_id, body, header, status_icons, status):
@@ -381,10 +376,7 @@ class Application(ABC):
             connector_limit=100,
             connector_limit_per_host=30
         )
-
-        # Initialize the client
-        client._initialize_client()
-
+        client.initialize_client()
         return client
 
     @abstractmethod

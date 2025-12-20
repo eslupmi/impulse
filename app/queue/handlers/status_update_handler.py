@@ -1,4 +1,6 @@
 from datetime import datetime, timezone
+
+from app.logging import logger
 from app.queue.constants import QueueItemType
 from app.queue.handlers.base_handler import BaseHandler
 
@@ -15,6 +17,9 @@ class StatusUpdateHandler(BaseHandler):
             
         new_status = incident.next_status[incident.status]
         status_updated = incident.update_status(new_status)
+
+        if status_updated:
+            logger.info(f'Incident {incident.uuid} updated with new status \'{new_status}\'')
 
         if incident.status != 'deleted':
             await self.app.update(
