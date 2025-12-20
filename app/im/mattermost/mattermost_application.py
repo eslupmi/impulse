@@ -132,7 +132,7 @@ class MattermostApplication(Application):
         user_name = payload.get('user_name')
         
         config = get_config()
-        mattermost_tz = config.messenger.timezone
+        mattermost_tz = config.app.general.timezone
 
         selected_option = context.get('selected_option')
         if selected_option and selected_option.startswith('freeze_'):

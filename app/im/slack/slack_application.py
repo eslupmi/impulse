@@ -105,7 +105,7 @@ class SlackApplication(Application):
                                              incident_.task_link)
         self._track_async_task(asyncio.create_task(self._update_thread(incident_.ts, payload)))
         config = get_config()
-        slack_tz = config.messenger.timezone
+        slack_tz = config.app.general.timezone
         modified_message = reformat_message(original_message, payload['text'], payload['attachments'], incident_.status,
                                             incident_.chain_enabled, incident_.frozen_until, incident_.task_link, slack_tz)
         return JSONResponse(modified_message, status_code=200)
@@ -125,7 +125,7 @@ class SlackApplication(Application):
         
         freeze_option = selected_options[0]['value']
         config = get_config()
-        slack_tz = config.messenger.timezone
+        slack_tz = config.app.general.timezone
         await self._handle_freeze_action(incident_, freeze_option, user_id, incidents, queue_, user_timezone=slack_tz)
 
     async def buttons_handler(self, payload, incidents, queue_, route):

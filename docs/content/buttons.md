@@ -1,5 +1,5 @@
 # Buttons
-Each incident has 2 mandatory buttons: **Take It/Release** and **Freeze**. There is also an optional **Task** (:pushpin:) button that appears only if the [Task Management](task_management.md) integration is [configured](config_file.md#task_management).
+Each incident has 2 mandatory buttons: **Take It/Release** and **Freeze**. There is also an optional **Task** (pin icon) button that appears only if the [Task Management](config_file.md#task_management) integration is configured.
 
 ## Take It
 Stops chain execution and assigns the incident to the user who clicked the button. Another user can click it again to reassign the incident to themselves. If the incident is in the **resolved** status, the button will display as **Release** instead of **Take It**. **Release** unassigns the incident and removes the associated chain. If a new firing alert arrives, a new chain will be created based on the configuration.

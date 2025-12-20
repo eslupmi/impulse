@@ -212,7 +212,6 @@ class BaseApplicationConfig(BaseModel):
     chains: Optional[Dict[str, Any]] = Field({}, description="Chain definitions")
     template_files: Optional[TemplateFiles] = Field(TemplateFiles(status_icons=None, header=None, body=None),
                                                     description="Template files")
-    timezone: Optional[str] = Field("UTC", description="Default timezone for freeze calculations")
 
     @field_validator('admin_users')
     @classmethod
@@ -334,6 +333,7 @@ class GeneralConfig(BaseModel):
     """General configuration"""
     workday_start: Optional[str] = Field("09:00", description="Time when workday starts")
     week_start: Optional[str] = Field("Mon", description="First day of the week")
+    timezone: Optional[str] = Field("UTC", description="Default timezone for freeze calculations")
 
     @field_validator('workday_start')
     @classmethod

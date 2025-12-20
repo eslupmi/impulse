@@ -193,7 +193,7 @@ class Application(ABC):
         logger.info(f'Incident {incident_.uuid} -> button FREEZE pressed by user {user_id}')
         
         config = get_config()
-        timezone_str = user_timezone or config.messenger.timezone
+        timezone_str = user_timezone or config.app.general.timezone
         freeze_time = calculate_freeze_time(freeze_option, config.app.general, timezone_str)
 
         incident_.assign_user_id(user_id)

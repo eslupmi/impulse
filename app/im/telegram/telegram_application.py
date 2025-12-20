@@ -292,7 +292,7 @@ class TelegramApplication(Application):
         chain_button = buttons['chain']['takeit'] if chain_enabled or status != 'resolved' else buttons['chain']['release']
         
         if frozen_until:
-            telegram_tz = config_obj.messenger.timezone
+            telegram_tz = config_obj.app.general.timezone
             freeze_text = format_freeze_expiration(frozen_until, telegram_tz)
             freeze_button = {'text': freeze_text, 'callback_data': 'freeze_menu'}
         else:

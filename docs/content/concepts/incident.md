@@ -68,7 +68,7 @@ There are two ways an Incident can be closed:
 
 #### frozen
 
-<p align="center"><img src="../media/slack_frozen.excalidraw.svg" alt="" width="400"/></p>
+<p align="center"><img src="../../media/slack_frozen.excalidraw.svg" alt="" width="400"/></p>
 
 The **frozen** state is a pseudo-status that temporarily pauses incident handling and suppresses status update. When an incident is frozen, its actual status (firing, resolved, unknown, or closed) is hidden but preserved underneath.
 

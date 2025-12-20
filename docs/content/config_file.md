@@ -28,6 +28,12 @@
 - **description:** general settings
 - **type:** dict
 
+### general.timezone
+
+- **description:** default timezone (used for [Freeze](buttons.md) delay)
+- **type:** string 
+- **default value:** UTC
+
 ### general.week_start
 
 - **description:** first day of the week
@@ -440,12 +446,6 @@
 
 - **description:** IMPulse address for button callbacks. Telegram supported only HTTPS.
 - **type:** string
-
-### messenger.timezone (Telegram)
-
-- **description:** default timezone (used for [Freeze](buttons.md) delay)
-- **type:** string 
-- **default value:** UTC
 
 ### messenger.users *
 
