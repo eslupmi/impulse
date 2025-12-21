@@ -10,7 +10,7 @@ on:
 
 jobs:
   autotests:
-    runs-on: self-hosted
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
         include:
