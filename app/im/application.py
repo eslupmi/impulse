@@ -327,7 +327,7 @@ class Application(ABC):
                 fields = {'type': self.type.value, 'status': incident_status, 'admins': admins}
                 text = text_template.form_notification(fields)
 
-                message = header + '\n' + text if self.type == MessengerType.TELEGRAM else text
+                message = text if self.type == MessengerType.TELEGRAM else header + '\n' + text
                 await self.post_thread(incident.channel_id, incident.ts, message)
 
     async def create_thread(self, channel_id, body, header, status_icons, status):

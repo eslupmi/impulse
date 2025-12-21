@@ -72,7 +72,7 @@ There are two ways an Incident can be closed:
 
 The **frozen** state is a pseudo-status that temporarily pauses incident handling and suppresses status update. When an incident is frozen, its actual status (firing, resolved, unknown, or closed) is hidden but preserved underneath.
 
-An incident can be frozen by clicking the [Freeze](buttons.md) button and selecting a duration.
+An incident can be frozen by clicking the [Freeze](../buttons.md) button and selecting a duration.
 
 While frozen, the incident continues to track its underlying status internally, but no status change notifications are sent to the channel. Также пока инцидент frozen, не будет создано такого же нового инцидента. 
 

@@ -39,12 +39,12 @@ extra_css:
   - css/custom.css
 
 nav:
-- index.md
-- IMPULSE SERVER:
-  - installation.md
-  - Configuration:
-    - envs.md
-    - impulse.yml: config_file.md
+- ABOUT:
+  - index.md
+  - Concepts:
+    - concepts/basics.md
+    - concepts/incident.md
+    - concepts/messengers.md
   - Features:
     - api.md
     - buttons.md
@@ -53,10 +53,11 @@ nav:
     - special_variables.md
     - templates.md
     - ui.md
-  - Concepts:
-    - concepts/basics.md
-    - concepts/incident.md
-    - concepts/messengers.md
+- IMPULSE SERVER:
+  - installation.md
+  - Configuration:
+    - envs.md
+    - impulse.yml: config_file.md
   - versioning.md
 - INTEGRATIONS:
   - Alert Sources:
