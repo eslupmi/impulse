@@ -62,7 +62,8 @@ jobs:
             -e MATTERMOST_ACCESS_TOKEN="$MATTERMOST_ACCESS_TOKEN" \
             -e TELEGRAM_BOT_TOKEN="$TELEGRAM_BOT_TOKEN" \
             -e CONFIG_PATH="/config" \
-            ghcr.io/eslupmi/impulse:${{ github.event.inputs.tag }}
+            ghcr.io/eslupmi/impulse:develop
+            # ghcr.io/eslupmi/impulse:${{ github.event.inputs.tag }}
 
       - name: Wait 60 seconds for impulse container to be ready
         run: |
