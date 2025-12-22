@@ -1,12 +1,15 @@
 name: autotests
 
 on:
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: 'IMPulse Docker image tag'
-        required: true
-        default: 'develop'
+  push:
+    branches:
+    - 'update-*'
+  # workflow_dispatch:
+  #   inputs:
+  #     tag:
+  #       description: 'IMPulse Docker image tag'
+  #       required: true
+  #       default: 'develop'
 
 jobs:
   autotests:
@@ -14,10 +17,10 @@ jobs:
     strategy:
       matrix:
         include:
-          - messenger_type: slack
-            port: 15100
-          - messenger_type: mattermost
-            port: 15101
+          # - messenger_type: slack
+          #   port: 15100
+          # - messenger_type: mattermost
+          #   port: 15101
           - messenger_type: telegram
             port: 15102
     permissions:
@@ -51,7 +54,7 @@ jobs:
           MATTERMOST_ACCESS_TOKEN: ${{ secrets.AUTOTESTS_MATTERMOST_ACCESS_TOKEN }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.AUTOTESTS_TELEGRAM_BOT_TOKEN }}
         run: |
-          docker run -d --rm --name impulse-autotests-${{ matrix.messenger_type }} \
+          docker run -d --pull always --rm --name impulse-autotests-${{ matrix.messenger_type }} \
             -p ${{ matrix.port }}:5000 \
             -v "${{ github.workspace }}/autotests-${{ matrix.messenger_type }}:/config:ro" \
             -e SLACK_VERIFICATION_TOKEN="$SLACK_VERIFICATION_TOKEN" \
