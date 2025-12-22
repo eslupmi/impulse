@@ -1,5 +1,14 @@
 # Changelog
 
+## v3.3.0
+Changes:
+- Implemented [Freeze](https://docs.impulse.bot/stable/buttons/#freeze) mechanism that allows temporarily muting notifications for an incident and prevent creating the same incidents
+- Added Prometheus [metrics](https://docs.impulse.bot/stable/api/#http-metrics-get)
+- Removed log formatting
+- Added [status_update](https://docs.impulse.bot/stable/config_file/#incidentnotificationsstatus_update) option
+- Enabled "[some alerts resolved](https://docs.impulse.bot/stable/config_file/#incidentnotificationspartial_resolved)" notifications by default
+- Removed [header](https://docs.impulse.bot/stable/concepts/incident/#__tabbed_1_3) from all Telegram thread messages
+
 ## v3.2.0
 Changes:
 - Added Jira support ([docs](https://docs.impulse.bot/stable/task_management/))
