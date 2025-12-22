@@ -18,7 +18,7 @@ In the **bottom center**, there is a page switcher.
 
 In the **bottom right**, there are buttons. Currently, there are 2:
 
-- archive - for displaying historical data (incidents in "closed" status)
+- archive - for displaying historical data (incidents in [`closed` status](concepts/incident.md#closed))
 - light / dark theme - theme switcher
 
 In the **center** is the main working element, the table.

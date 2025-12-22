@@ -8,6 +8,7 @@ Stops chain execution and assigns the incident to the user who clicked the butto
 This is a time selector that sets until when the incident will remain in the [frozen](concepts/incident.md#frozen) state. The day and time for unfreezing are determined based on the [general.week_start](config_file.md#generalweek_start) and [general.workday_start](config_file.md#generalworkday_start) parameters. Timezone is individual for each user (except Telegram).
 
 When clicked:
+
 - assigns the incident to the person who clicked the button (like Take It)
 - stops activity on the incident (chain escallation, status updates)
 - prevents creation of similar incidents

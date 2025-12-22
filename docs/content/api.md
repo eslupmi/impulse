@@ -50,6 +50,14 @@ Server readiness check. Used for health checks and determining server state (see
 - `200 OK` - Server is ready and running in `primary` mode
 - `503 Service Unavailable` - Server is in `standby` mode or initializing
 
+### HTTP `/metrics` [GET]
+
+Prometheus metrics endpoint. Returns metrics in Prometheus format for monitoring and observability.
+
+**Responses:**
+
+- `200 OK` - Returns metrics in Prometheus format
+
 ### HTTP `/queue` [GET]
 
 Get current processing queue state.

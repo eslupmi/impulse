@@ -51,7 +51,7 @@ jobs:
           MATTERMOST_ACCESS_TOKEN: ${{ secrets.AUTOTESTS_MATTERMOST_ACCESS_TOKEN }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.AUTOTESTS_TELEGRAM_BOT_TOKEN }}
         run: |
-          docker run -d --rm --name impulse-autotests-${{ matrix.messenger_type }} \
+          docker run -d --pull always --rm --name impulse-autotests-${{ matrix.messenger_type }} \
             -p ${{ matrix.port }}:5000 \
             -v "${{ github.workspace }}/autotests-${{ matrix.messenger_type }}:/config:ro" \
             -e SLACK_VERIFICATION_TOKEN="$SLACK_VERIFICATION_TOKEN" \
