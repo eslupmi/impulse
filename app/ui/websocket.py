@@ -82,6 +82,9 @@ class AsyncIncidentWS:
     def _get_values(self):
         """Get values mapping for table configuration"""
         values_map = {}
+        if self.table_config is None or not self.table_config.columns:
+            return values_map
+        
         for field in self.table_config.columns:
             if field.type == 'link':
                 values_map[field.name] = field.value
