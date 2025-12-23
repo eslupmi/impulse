@@ -11,7 +11,7 @@ When clicked:
 
 - assigns the incident to the person who clicked the button (like [Take It](#take-it))
 - stops activity on the incident (chain escallation, status updates)
-- prevents creation of new incidents with the same identifier
+- prevents creation of new incidents with the same identifier (like [silence](https://prometheus.io/docs/alerting/latest/alertmanager/#silences))
 
 ## Task (optional)
 Creates a task in your Jira. The task is created in the project specified in the [configuration](config_file.md#task_managementproject_key). If the task is created, the button disappears.

@@ -24,6 +24,7 @@ Visit [docs.impulse.bot](https://docs.impulse.bot) for the full documentation.
 
 - Mattermost, Slack, Telegram integrations
 - Jira integration
+- [Freeze](https://docs.impulse.bot/latest/buttons/#freeze) mechanism to pause incident update and silence
 - Powerful [webhooks](https://docs.impulse.bot/stable/config_file/#webhooks) for Twilio, Instatus and other third-party integrations
 - [Incident lifecycle](https://docs.impulse.bot/stable/concepts/#lifecycle) reduces incidents chaos
 - Scheduling using providers like Google Calendar via [cloud chains](https://docs.impulse.bot/stable/config_file/#cloud-chain)
