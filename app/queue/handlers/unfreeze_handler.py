@@ -28,8 +28,6 @@ class UnfreezeHandler(BaseHandler):
             logger.info(f'Incident {incident.uuid} is not frozen, skipping unfreeze')
             return
 
-        logger.info(f'Auto-unfreezing incident {uniq_id}')
-        
         incident_status = incident.status
         self.incidents.unfreeze_incident(uniq_id)
         

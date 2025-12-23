@@ -178,7 +178,7 @@ class Incident:
     def unfreeze(self):
         """Unfreeze the incident and re-enable chains (underlying status is already correct)"""
         self.frozen_until = None
-        self.chain_enabled = True
+        self.chain_enabled = False
         logger.info(f'Incident {self.uuid} unfrozen (status: {self.status})')
         self.dump()
 

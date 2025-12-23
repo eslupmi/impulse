@@ -1,3 +1,8 @@
+# general:  # general settings
+#   week_start: Mon  # first day of the week, used for Freeze delay
+#   workday_start: "09:00"  # time when workday starts, used for Freeze delay
+#   timezone: UTC  # timezone used for Freeze delay
+
 messenger:  # messenger configuration
   # address: https://<your_messenger_domain>  # your messenger server address (Mattermost)
   admin_users: ["Dmitry"]  # IMPulse administrators (from messenger.users) notified of any warnings

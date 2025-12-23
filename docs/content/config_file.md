@@ -36,7 +36,7 @@
 
 ### general.week_start
 
-- **description:** first day of the week
+- **description:** first day of the week (used for [Freeze](buttons.md) delay)
 - **type:** string
 - **default value:** Mon
 - **allowed values:** 0 to 7 (like in [cron](https://en.wikipedia.org/wiki/Cron)) or "Sun", "Mon"...
