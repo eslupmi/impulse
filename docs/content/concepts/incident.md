@@ -66,17 +66,13 @@ There are two ways an Incident can be closed:
 - a **resolved** incident remains in that status for the duration of`incident.timeouts.resolved`
 - an **unknown** incident remains in that status for the duration of `incident.timeouts.unknown`
 
-#### frozen
+### frozen
 
 <p align="center"><img src="../../media/slack_frozen.excalidraw.svg" alt="" width="400"/></p>
 
-The **frozen** state is a pseudo-status that temporarily pauses incident handling and suppresses status update. When an incident is frozen, its actual status (firing, resolved, unknown, or closed) is hidden but preserved underneath.
+The **frozen** state is a **pseudo-status** that temporarily pauses incident handling and suppresses status update. When an incident is frozen, its actual status (firing, resolved, unknown, or closed) is hidden but preserved underneath. Also, while the incident is frozen, no new incident with the same identifier will be created.
 
-An incident can be frozen by clicking the [Freeze](../buttons.md) button and selecting a duration.
-
-While frozen, the incident continues to track its underlying status internally, but no status change notifications are sent to the channel. Также пока инцидент frozen, не будет создано такого же нового инцидента. 
-
-This can be useful when an incident needs to be postponed for some time. IMPulse will send a notification when the duration expires.
+An incident can be frozen by clicking the [Freeze](../buttons.md#freeze) button and selecting a duration.
 
 ## Lifecycle
 
