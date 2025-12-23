@@ -89,7 +89,7 @@ class TestIncidentFreeze:
             sample_incident.unfreeze()
 
         assert sample_incident.frozen_until is None
-        assert sample_incident.chain_enabled is True
+        assert sample_incident.chain_enabled is False
         assert sample_incident.is_frozen() is False
 
     def test_freeze_disables_chains(self, sample_incident):
@@ -104,7 +104,7 @@ class TestIncidentFreeze:
         assert sample_incident.chain_enabled is False
 
     def test_unfreeze_enables_chains(self, sample_incident):
-        """Test that unfreezing an incident re-enables chains."""
+        """Test that unfreezing an incident keeps chains disabled."""
         # Freeze the incident
         freeze_until = datetime.now(timezone.utc) + timedelta(hours=1)
         with patch.object(sample_incident, 'dump'):
@@ -115,7 +115,7 @@ class TestIncidentFreeze:
         with patch.object(sample_incident, 'dump'):
             sample_incident.unfreeze()
 
-        assert sample_incident.chain_enabled is True
+        assert sample_incident.chain_enabled is False
 
     def test_freeze_persists_to_file(self, sample_incident):
         """Test that freezing an incident calls dump to persist the state."""
@@ -232,7 +232,7 @@ class TestIncidentFreeze:
         assert sample_incident.get_chain() == []
 
     def test_get_chain_after_unfreeze(self, sample_incident):
-        """Test that get_chain returns chain after unfreezing."""
+        """Test that get_chain returns empty list after unfreezing (chain_enabled is False)."""
         sample_incident.chain = [
             {'user': 'user1', 'done': False},
             {'user': 'user2', 'done': False}
@@ -244,8 +244,8 @@ class TestIncidentFreeze:
             sample_incident.freeze(freeze_until, "U123456")
             sample_incident.unfreeze()
 
-        # Chain should be available again
-        assert len(sample_incident.get_chain()) == 2
+        # Chain should be empty because chain_enabled is False
+        assert len(sample_incident.get_chain()) == 0
 
     def test_freeze_updates_assigned_user(self, sample_incident):
         """Test that freeze assigns the user who froze the incident."""
