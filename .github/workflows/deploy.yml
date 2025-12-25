@@ -1,4 +1,4 @@
-name: deploy
+name: deploy to test
 
 concurrency:
   group: ${{ github.ref }}
@@ -6,17 +6,49 @@ concurrency:
 on:
   workflow_dispatch:
     inputs:
-      environment:
-        description: 'only "test" is supported'
-        required: true
-        default: 'test'
       messenger:
         description: 'slack, mattermost or telegram'
         required: false
         default: 'slack'
 
 jobs:
+  build:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/eslupmi/impulse
+          tags: |
+            type=raw,value=test
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
   deploy:
+    needs: build
     runs-on: ubuntu-24.04
     steps:
       - name: Recreate IMPulse
@@ -27,14 +59,14 @@ jobs:
           username: ${{ secrets.USER }}
           key: ${{ secrets.SSH_KEY }}
           script: |
-            cd /opt/impulse/${{ github.event.inputs.environment }}
+            cd /opt/impulse/test
 
             docker-compose down
-            rm -rf /opt/impulse/${{ github.event.inputs.environment }}/data/incidents
+            rm -rf /opt/impulse/test/data/incidents
 
-            cd /opt/impulse/${{ github.event.inputs.environment }}/config
+            cd /opt/impulse/test/config
             ln -sf impulse.yml."${{ github.event.inputs.messenger }}" impulse.yml
             
-            cd /opt/impulse/${{ github.event.inputs.environment }}
+            cd /opt/impulse/test
             docker-compose pull
             docker-compose up -d
