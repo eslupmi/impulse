@@ -61,12 +61,12 @@ jobs:
           script: |
             cd /opt/impulse/test
 
-            docker-compose down
+            docker compose down
             rm -rf /opt/impulse/test/data/incidents
 
             cd /opt/impulse/test/config
             ln -sf impulse.yml."${{ github.event.inputs.messenger }}" impulse.yml
             
             cd /opt/impulse/test
-            docker-compose pull
-            docker-compose up -d
+            docker compose pull
+            docker compose up -d
