@@ -3,15 +3,19 @@ import os
 import sys
 import json
 import inspect
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class JSONFormatter(logging.Formatter):
     """Format log records as JSON"""
 
     def format(self, record):
+        # Format timestamp as ISO 8601 with milliseconds and Z suffix (UTC)
+        dt = datetime.fromtimestamp(record.created, tz=timezone.utc)
+        timestamp = dt.strftime('%Y-%m-%dT%H:%M:%S') + f'.{int(record.msecs):03d}Z'
+        
         log_data = {
-            'timestamp': datetime.fromtimestamp(record.created).isoformat(),
+            'time': timestamp,
             'level': record.levelname,
             'module': record.module,
             'message': record.getMessage()
@@ -20,9 +24,12 @@ class JSONFormatter(logging.Formatter):
         # Add exception info if present
         if record.exc_info:
             log_data['exception'] = self.formatException(record.exc_info)
-
-        if hasattr(record, 'extra_fields'):
-            log_data.update(record.extra_fields)
+            
+        # Add extra fields if present in extra.extra_fields
+        if hasattr(record, 'extra') and isinstance(record.extra, dict):
+            extra_fields = record.extra.get('extra_fields')
+            if isinstance(extra_fields, dict):
+                log_data.update(extra_fields)
 
         return json.dumps(log_data, ensure_ascii=False)
 

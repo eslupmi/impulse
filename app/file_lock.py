@@ -105,13 +105,13 @@ class FileLock:
                 loop = asyncio.get_running_loop()
                 self._heartbeat_task = loop.create_task(self._heartbeat())
             except RuntimeError:
-                logger.warning("No running event loop - heartbeat task not started")
+                logger.warning("No running event loop, heartbeat task not started")
             
-            logger.info(f"Lock acquired by {self._hostname} (PID: {self._pid})")
+            logger.info(f"Lock acquired by {self._hostname}, pid: {self._pid}")
             return True
             
         except FileExistsError:
-            logger.debug("Lock directory already exists - lock held by another instance")
+            logger.debug("Lock directory already exists, hold by another instance")
             return False
         except (OSError, IOError) as e:
             logger.error(f"Error acquiring lock: {e}")
@@ -233,7 +233,7 @@ class FileLock:
                     f"Heartbeat update failed ({self._heartbeat_failures}/{self.MAX_HEARTBEAT_FAILURES})"
                 )
                 if self._heartbeat_failures >= self.MAX_HEARTBEAT_FAILURES:
-                    logger.error("Too many heartbeat failures - lock may be compromised")
+                    logger.error("Too many heartbeat failures, lock may be compromised")
                     self._active = False
                     break
             else:
@@ -249,7 +249,7 @@ class FileLock:
             True if update was successful, False otherwise.
         """
         if not self._verify_ownership():
-            logger.error("Lock ownership lost - another instance may have taken over")
+            logger.error("Lock ownership lost, another instance may have taken over")
             return False
         
         locktime = time.time()

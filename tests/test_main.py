@@ -196,7 +196,7 @@ class TestMainApplication:
                 
                 # Verify log messages
                 mock_logger.info.assert_any_call("Another IMPulse instance is running, working as standby server")
-                mock_logger.info.assert_any_call("IMPulse started in standby mode!")
+                mock_logger.info.assert_any_call("IMPulse started in standby mode")
             
             # release_lock should not be called when in standby mode (we return early)
             mock_file_lock.release_lock.assert_not_called()

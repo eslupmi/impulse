@@ -80,7 +80,7 @@ async def initialize_primary_server(fastapi_app: FastAPI, file_lock: FileLock) -
         True if initialization was successful, False otherwise.
     """
     if not file_lock.acquire_lock():
-        logger.error("Failed to acquire lock - cannot start as primary server")
+        logger.error("Failed to acquire lock, cannot start as primary server")
         return False
     
     logger.info("Starting as primary server")
@@ -152,7 +152,7 @@ async def lifespan(fastapi_app: FastAPI):
             success = await initialize_primary_server(fastapi_app, file_lock)
             if success:
                 break
-            logger.error('Failed to transition to primary server - retrying in 5 seconds')
+            logger.error('Failed to transition to primary server, retrying in 5 seconds')
             try:
                 await asyncio.wait_for(shutdown_event.wait(), timeout=5.0)
                 break
@@ -163,13 +163,13 @@ async def lifespan(fastapi_app: FastAPI):
         logger.info("Another IMPulse instance is running, working as standby server")
         hostname, pid, _ = file_lock.get_lock_info()
         STATUS.set(0)
-        logger.debug(f"Lock file is used by hostname {hostname}, PID {pid}")
-        logger.info('IMPulse started in standby mode!')
+        logger.debug(f"Lock file is used by hostname {hostname}, pid: {pid}")
+        logger.info('IMPulse started in standby mode')
         unlock_task = asyncio.create_task(wait_and_become_primary())
     else:
         success = await initialize_primary_server(fastapi_app, file_lock)
         if not success:
-            logger.error('Failed to start as primary server - entering standby mode')
+            logger.error('Failed to start as primary server, entering standby mode')
             fastapi_app.state.is_standby = True
             unlock_task = asyncio.create_task(wait_and_become_primary())
         else:
