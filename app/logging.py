@@ -25,11 +25,10 @@ class JSONFormatter(logging.Formatter):
         if record.exc_info:
             log_data['exception'] = self.formatException(record.exc_info)
             
-        # Add extra fields if present in extra.extra_fields
-        if hasattr(record, 'extra') and isinstance(record.extra, dict):
-            extra_fields = record.extra.get('extra_fields')
-            if isinstance(extra_fields, dict):
-                log_data.update(extra_fields)
+        # Add extra fields if present
+        # In Python logging, extra={'extra_fields': {...}} creates record.extra_fields attribute
+        if hasattr(record, 'extra_fields') and isinstance(record.extra_fields, dict):
+            log_data.update(record.extra_fields)
 
         return json.dumps(log_data, ensure_ascii=False)
 
