@@ -46,14 +46,14 @@ class SlackApplication(Application):
         id_ = user_details.get('id')
         response = await self.http.get(f'{self.url}/api/users.info?user={id_}', headers=self.headers)
         if response.status != 200:
-            logger.debug(f'Failed to get user details for {id_}: HTTP {response.status}')
+            logger.debug("User details fetch failed", extra={'extra_fields': {'user_id': id_, 'status': response.status}})
             response.close()
             return {'id': id_, 'exists': False, 'full_name': None, 'username': None}
 
         data = await response.json()
         response.close()
         if not data.get('ok'):
-            logger.debug(f'Slack API error for user {id_}: {data.get("error", "unknown error")}')
+            logger.debug("Slack API error", extra={'extra_fields': {'user_id': id_, 'error': data.get("error", "unknown error")}})
             return {'id': id_, 'exists': False, 'full_name': None, 'username': None}
 
         user_data = data.get('user', {})
@@ -82,15 +82,15 @@ class SlackApplication(Application):
         await queue_.delete_by_id(incident_.uniq_id, delete_steps=True, delete_status=False)
         if incident_.chain_enabled or incident_.status != 'resolved':
             if incident_.assigned_user_id == user_id:
-                logger.info(f'Incident {incident_.uuid} -> button TAKE IT pressed, but user is already assigned')
+                logger.info(f'Button TAKE IT pressed: user already assigned', extra={'extra_fields': {'incident': incident_.uuid, 'user_id': user_id}})
             else:
-                logger.info(f'Incident {incident_.uuid} -> button TAKE IT pressed, assigning to {user_id}')
+                logger.info(f'Button TAKE IT pressed: assigning to user', extra={'extra_fields': {'incident': incident_.uuid, 'user_id': user_id}})
                 incident_.assign_user_id(user_id)
                 self._track_async_task(asyncio.create_task(self.post_assignment_notification(incident_, user_id)))
                 self._track_async_task(asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id, incidents)))
             incident_.chain_enabled = False
         else:
-            logger.info(f'Incident {incident_.uuid} -> button RELEASE pressed')
+            logger.info(f'Button RELEASE pressed', extra={'extra_fields': {'incident': incident_.uuid}})
             self._track_async_task(asyncio.create_task(self.post_unassignment_notification(incident_)))
             incident_.release()
 
@@ -131,7 +131,7 @@ class SlackApplication(Application):
     async def buttons_handler(self, payload, incidents, queue_, route):
         config = get_config()
         if payload.get('token') != config.slack_verification_token:
-            logger.error('Unauthorized request to \'/slack\'')
+            logger.error('Unauthorized request')
             return JSONResponse({}, status_code=401)
 
         incident_ = incidents.get_by_ts(ts=payload['message_ts'])
@@ -144,7 +144,7 @@ class SlackApplication(Application):
         is_freeze_action = any(action['name'] == 'freeze' for action in actions)
 
         if incident_.is_frozen() and not is_freeze_action:
-            logger.debug(f'Incident {incident_.uuid} is frozen, blocking all button actions')
+            logger.debug('Incident frozen, blocking actions', extra={'extra_fields': {'incident': incident_.uuid}})
             return self._build_button_response(incident_, original_message)
 
         for action in actions:

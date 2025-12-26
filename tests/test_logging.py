@@ -33,8 +33,9 @@ class TestJSONFormatter:
         record.exc_text = None
         record.stack_info = None
         record.getMessage.return_value = message
-        if extra is not None:
-            record.extra = extra
+        # In Python logging, extra={'extra_fields': {...}} creates record.extra_fields attribute
+        if extra is not None and 'extra_fields' in extra:
+            record.extra_fields = extra['extra_fields']
         return record
 
     def test_json_formatter_initialization(self):

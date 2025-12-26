@@ -136,22 +136,18 @@ def load_unified_config(config_path: Optional[str] = None, exit_on_error: bool =
         )
 
     except ConfigValidationError as e:
-        error_msg = (f"{e}\n"
-                     f"Please check your impulse.yml file and fix any validation errors.\n"
-                     f"Documentation: https://docs.impulse.bot/stable/config_file/")
         if exit_on_error:
-            logger.error(error_msg)
+            logger.error("Config validation failed", extra={'extra_fields': {'error': str(e)}})
             raise SystemExit(1)
         else:
-            logger.warning(error_msg)
+            logger.warning("Config validation failed", extra={'extra_fields': {'error': str(e)}})
             raise
     except Exception as e:
-        error_msg = f"Failed to load configuration: {e}"
         if exit_on_error:
-            logger.error(error_msg)
+            logger.error("Config load failed", extra={'extra_fields': {'error': str(e)}})
             raise SystemExit(1)
         else:
-            logger.warning(error_msg)
+            logger.warning("Config load failed", extra={'extra_fields': {'error': str(e)}})
             raise
 
 
@@ -179,11 +175,11 @@ def reload_config(config_path: Optional[str] = None) -> bool:
             return False
 
     except ConfigValidationError as e:
-        logger.warning("Configuration validation failed, keeping current configuration")
+        logger.warning(f"Config validation failed, keeping current config", extra={'extra_fields': {'error': str(e)}})
         _config = current_config
         return False
     except Exception as e:
-        logger.warning(f"Configuration reload failed, keeping current configuration: {e}")
+        logger.warning(f"Config reload failed, keeping current config", extra={'extra_fields': {'error': str(e)}})
         _config = current_config
         return False
 

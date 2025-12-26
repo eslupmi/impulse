@@ -92,12 +92,12 @@ class Incident:
             return
 
         if chain_name not in chains.keys():
-            logger.warning(f'Chain {chain_name} not found. Check impulse.yml')
+            logger.warning("Chain not found", extra={'extra_fields': {'chain': chain_name}})
             return
 
         chain = chains[chain_name]
         if chain is None:
-            logger.warning(f'Chain {chain_name} is None (possibly invalid configuration). Check impulse.yml')
+            logger.warning("Chain is None. Check configuration", extra={'extra_fields': {'chain': chain_name}})
             return
             
         try:
@@ -107,7 +107,7 @@ class Incident:
             return
             
         if not steps:
-            logger.debug(f'Chain {chain_name} has no steps for current time/conditions')
+            logger.debug("Chain has no steps", extra={'extra_fields': {'chain': chain_name}})
             return
 
         steps = self._unchain(chains, steps)
@@ -131,7 +131,7 @@ class Incident:
             if type_ == 'chain':
                 nested_chain = chains.get(value)
                 if nested_chain is None:
-                    logger.warning(f"Chain '{value}' not found. Check impulse.yml")
+                    logger.warning("Chain not found", extra={'extra_fields': {'chain': value}})
                     continue
                 nested_steps = nested_chain.steps
                 extended_steps.extend(self._unchain(chains, nested_steps))
@@ -173,13 +173,13 @@ class Incident:
             self.assigned_fullname = user_fullname
         self.chain_enabled = False
         self.dump()
-        logger.info(f'Incident {self.uuid} frozen until {until} by user {user_id} (status: {self.status})')
+        logger.info("Incident frozen", extra={'extra_fields': {'uuid': self.uuid, 'frozen_until': until}})
 
     def unfreeze(self):
         """Unfreeze the incident and re-enable chains (underlying status is already correct)"""
         self.frozen_until = None
         self.chain_enabled = False
-        logger.info(f'Incident {self.uuid} unfrozen (status: {self.status})')
+        logger.info("Incident unfrozen", extra={'extra_fields': {'uuid': self.uuid}})
         self.dump()
 
     def is_frozen(self) -> bool:
@@ -248,9 +248,9 @@ class Incident:
         try:
             if os.path.exists(old_filename):
                 os.remove(old_filename)
-                logger.debug(f'Removed old incident file: {old_filename}')
+                logger.debug("Removed incident file", extra={'extra_fields': {'filename': old_filename}})
         except OSError as e:
-            logger.error(f'Failed to remove old incident file {old_filename}: {str(e)}')
+            logger.error("Failed to remove incident file", extra={'extra_fields': {'filename': old_filename, 'error': str(e)}})
 
     def dump(self):
         data = {
@@ -279,7 +279,7 @@ class Incident:
             with open(incident_filename, 'w') as f:
                 yaml.dump(data, f, NoAliasDumper, default_flow_style=False)
         except OSError as e:
-            logger.error(f'Failed to write incident file for {self.uuid}: {str(e)}')
+            logger.error("Failed to write incident file", extra={'extra_fields': {'filename': incident_filename, 'error': str(e)}})
         # Schedule async websocket update
         import asyncio
         try:
@@ -396,7 +396,7 @@ class Incident:
 
     def set_status(self, status: str):
         self.status = status
-        logger.debug(f'Incident {self.uuid} status set to {status}')
+        logger.debug("Status updated", extra={'extra_fields': {'uuid': self.uuid, 'status': status}})
         if status == 'closed' and not self.closed:
             self.closed = datetime.now(timezone.utc)
 

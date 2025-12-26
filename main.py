@@ -33,40 +33,30 @@ def setup_sighup_handler():
     def handle_sighup(signum, frame):
         """Handle SIGHUP signal to reload configuration"""
         try:
-            logger.info("Received SIGHUP signal, reloading configuration...")
+            logger.info("Reloading configuration")
             success = reload_config()
             if success:
-                logger.info("Configuration reload completed successfully")
+                logger.info("Configuration reloaded")
         except Exception as e:
-            logger.error(f"Error in SIGHUP signal handler: {e}")
-            logger.warning(
-                "Configuration reload aborted due to unexpected error, continuing with current configuration")
+            logger.error(f"Configuration reload error: {e}")
+            logger.warning("Configuration reload aborted")
 
     if hasattr(signal, 'SIGHUP'):
         signal.signal(signal.SIGHUP, handle_sighup)
-        logger.debug("SIGHUP signal handler registered for configuration reloading (overriding Uvicorn)")
+        logger.debug("SIGHUP handler registered")
     else:
-        logger.warning("SIGHUP signal not available on this platform")
+        logger.warning("SIGHUP not available on this platform")
 
 
 def validate_config_only():
     """Validate configuration and exit"""
     try:
         config = get_config()
-        logger.info("Configuration validation successful!\n"
-                    f"Application type: {config.messenger.type.value}\n"
-                    f"Channels configured: {len(config.messenger.channels)}\n"
-                    f"Users configured: {len(config.messenger.users)}")
-        if config.app.incident:
-            logger.info("Incident config: Success")
-        if config.app.ui:
-            logger.info("UI config: Success")
-        if config.app.route:
-            logger.info("Route config: Success")
+        logger.info("Configuration valid")
         sys.exit(0)
     except SystemExit as e:
         if e.code != 0:
-            logger.error("Configuration validation failed!")
+            logger.error("Configuration validation failed")
             sys.exit(1)
     except Exception as e:
         logger.error(f"Configuration validation failed: {e}")
@@ -80,7 +70,7 @@ async def initialize_primary_server(fastapi_app: FastAPI, file_lock: FileLock) -
         True if initialization was successful, False otherwise.
     """
     if not file_lock.acquire_lock():
-        logger.error("Failed to acquire lock, cannot start as primary server")
+        logger.error("Failed to acquire lock")
         return False
     
     logger.info("Starting as primary server")
@@ -121,10 +111,10 @@ async def initialize_primary_server(fastapi_app: FastAPI, file_lock: FileLock) -
         queue_manager.start_processing()
         fastapi_app.state.is_standby = False
         STATUS.set(1)
-        logger.info('IMPulse started as primary server!')
+        logger.info('Started as primary server')
         return True
     except Exception as e:
-        logger.error(f"Failed to initialize primary server: {e}")
+        logger.error(f"Primary server initialization failed: {e}")
         await file_lock.release_lock()
         return False
 
@@ -148,11 +138,11 @@ async def lifespan(fastapi_app: FastAPI):
             await file_lock.wait_for_unlock()
             if shutdown_event.is_set():
                 break
-            logger.info('Lock file is unlocked, transitioning to primary server')
+            logger.info('Transitioning to primary server')
             success = await initialize_primary_server(fastapi_app, file_lock)
             if success:
                 break
-            logger.error('Failed to transition to primary server, retrying in 5 seconds')
+            logger.error('Transition failed, retrying')
             try:
                 await asyncio.wait_for(shutdown_event.wait(), timeout=5.0)
                 break
@@ -160,16 +150,16 @@ async def lifespan(fastapi_app: FastAPI):
                 pass
     
     if locked:
-        logger.info("Another IMPulse instance is running, working as standby server")
+        logger.info("Working as standby server")
         hostname, pid, _ = file_lock.get_lock_info()
         STATUS.set(0)
-        logger.debug(f"Lock file is used by hostname {hostname}, pid: {pid}")
-        logger.info('IMPulse started in standby mode')
+        logger.debug(f"Lock held by {hostname}, pid: {pid}")
+        logger.info('Started in standby mode')
         unlock_task = asyncio.create_task(wait_and_become_primary())
     else:
         success = await initialize_primary_server(fastapi_app, file_lock)
         if not success:
-            logger.error('Failed to start as primary server, entering standby mode')
+            logger.error('Primary server start failed, entering standby mode')
             fastapi_app.state.is_standby = True
             unlock_task = asyncio.create_task(wait_and_become_primary())
         else:
@@ -207,7 +197,7 @@ async def lifespan(fastapi_app: FastAPI):
     
     await file_lock.release_lock()
 
-    logger.info('IMPulse shutdown complete')
+    logger.info('Shutdown complete')
 
 
 app = FastAPI(
@@ -288,11 +278,11 @@ async def post_alert(request: Request):
     """Handle incoming alerts"""
     try:
         alert_state = await request.json()
-        logger.debug(f"Got alert. Payload: {alert_state}")
+        logger.debug("Alert received", extra={'extra_fields': {'payload': alert_state}})
         await request.app.state.queue.put_first(datetime.now(timezone.utc), 'alert', None, None, alert_state)
         return alert_state
     except Exception as e:
-        logger.error(f"Error processing alert: {e}")
+        logger.error("Alert processing error", extra={'extra_fields': {'error': str(e)}})
         raise HTTPException(status_code=400, detail=str(e))
 
 
@@ -314,7 +304,7 @@ async def handle_app_buttons(request: Request):
             request.app.state.route
         )
     except Exception as e:
-        logger.error(f"Error handling app buttons: {e}")
+        logger.error("App buttons error", extra={'extra_fields': {'error': str(e)}})
         raise HTTPException(status_code=400, detail=str(e))
 
 
@@ -355,14 +345,14 @@ async def websocket_endpoint(websocket: WebSocket):
                     await incident_ws.handle_ping(websocket)
 
             except json.JSONDecodeError:
-                logger.warning(f"Invalid JSON received from WebSocket: {data}")
+                logger.warning("Invalid WebSocket JSON", extra={'extra_fields': {'data': data}})
             except Exception as e:
-                logger.error(f"Error handling WebSocket message: {e}")
+                logger.error("WebSocket message error", extra={'extra_fields': {'error': str(e)}})
 
     except WebSocketDisconnect:
         incident_ws.disconnect(websocket)
     except Exception as e:
-        logger.error(f"WebSocket error: {e}")
+        logger.error("WebSocket error", extra={'extra_fields': {'error': str(e)}})
         incident_ws.disconnect(websocket)
 
 

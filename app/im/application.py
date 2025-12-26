@@ -362,8 +362,8 @@ class Application(ABC):
         """
         if self.rate_limit:
             logger.debug(
-                f"{self.type.value.capitalize()} rate limiting enabled: "
-                f"{self.rate_limit} requests per {self.rate_window}s window"
+                f"Rate limit: "
+                f"{self.rate_limit} requests per {self.rate_window}s", extra={'extra_fields': {'messenger': self.type.value}}
             )
         else:
             logger.info(f"{self.type.value.capitalize()} rate limiting disabled")

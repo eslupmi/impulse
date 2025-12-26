@@ -19,21 +19,21 @@ class StatusCheckHandler(BaseHandler):
         """
         incident = self.incidents.uniq_ids.get(uniq_id)
         if incident is None:
-            logger.warning(f'Incident with uniq_id {uniq_id} not found for status check')
+            logger.warning("Incident not found", extra={'extra_fields': {'uniq_id': uniq_id}})
             return
 
         # Skip any actions if incident is frozen
         if incident.is_frozen():
-            logger.debug(f'Incident {incident.uuid} is frozen, skipping status-based actions')
+            logger.debug("Incident frozen, skipping actions", extra={'extra_fields': {'uuid': incident.uuid}})
             return
 
         # Handle deleted status - full deletion
         if incident.status == 'deleted':
-            logger.debug(f'Incident {incident.uuid} has deleted status, removing completely')
+            logger.debug("Removing incident", extra={'extra_fields': {'uuid': incident.uuid}})
             self.incidents.del_by_uniq_id(uniq_id)
             return
 
         # Handle closed status - remove from active map only (file cleanup handled by update_status)
         if incident.status == 'closed':
-            logger.info(f'Incident {incident.uuid} has closed status')
+            logger.info("Incident closed", extra={'extra_fields': {'uuid': incident.uuid}})
             self.incidents.remove_from_active_map(incident.uuid)
