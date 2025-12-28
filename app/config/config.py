@@ -175,11 +175,11 @@ def reload_config(config_path: Optional[str] = None) -> bool:
             return False
 
     except ConfigValidationError as e:
-        logger.warning(f"Config validation failed, keeping current config", extra={'extra_fields': {'error': str(e)}})
+        logger.warning("Config validation failed, keeping current config", extra={'extra_fields': {'error': str(e)}})
         _config = current_config
         return False
     except Exception as e:
-        logger.warning(f"Config reload failed, keeping current config", extra={'extra_fields': {'error': str(e)}})
+        logger.warning("Config reload failed, keeping current config", extra={'extra_fields': {'error': str(e)}})
         _config = current_config
         return False
 

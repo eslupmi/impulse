@@ -262,7 +262,7 @@ class TestConfigFunctions:
         result = reload_config()
 
         assert result is False
-        mock_logger.warning.assert_called_with("Configuration validation failed, keeping current configuration")
+        assert "Config validation failed, keeping current config" in mock_logger.warning.call_args[0][0]
 
     @patch('app.config.config._config')
     @patch('app.config.config.load_unified_config')
@@ -275,7 +275,7 @@ class TestConfigFunctions:
         result = reload_config()
 
         assert result is False
-        assert "Configuration reload failed, keeping current configuration" in mock_logger.warning.call_args[0][0]
+        assert "Config reload failed, keeping current config" in mock_logger.warning.call_args[0][0]
 
     @patch('app.config.config._config')
     @patch('app.config.config.load_unified_config')

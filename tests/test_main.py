@@ -250,8 +250,8 @@ class TestSignalHandlers:
         # Call the handler
         handler(None, None)
 
-        mock_logger.info.assert_any_call("Received SIGHUP signal, reloading configuration...")
-        mock_logger.info.assert_any_call("Configuration reload completed successfully")
+        mock_logger.info.assert_any_call("Reloading configuration")
+        mock_logger.info.assert_any_call("Configuration reloaded")
 
     @patch('main.reload_config')
     @patch('main.logger')

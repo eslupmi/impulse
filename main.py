@@ -45,7 +45,7 @@ def setup_sighup_handler():
         signal.signal(signal.SIGHUP, handle_sighup)
         logger.debug("SIGHUP handler registered")
     else:
-        logger.warning("SIGHUP not available on this platform")
+        logger.warning("SIGHUP signal not available on this platform")
 
 
 def validate_config_only():
@@ -150,11 +150,11 @@ async def lifespan(fastapi_app: FastAPI):
                 pass
     
     if locked:
-        logger.info("Working as standby server")
+        logger.info("Another IMPulse instance is running, working as standby server")
         hostname, pid, _ = file_lock.get_lock_info()
         STATUS.set(0)
         logger.debug(f"Lock held by {hostname}, pid: {pid}")
-        logger.info('Started in standby mode')
+        logger.info('IMPulse started in standby mode')
         unlock_task = asyncio.create_task(wait_and_become_primary())
     else:
         success = await initialize_primary_server(fastapi_app, file_lock)
