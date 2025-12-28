@@ -21,10 +21,10 @@ jobs:
         run: |
           cp examples/impulse.none.yml impulse.yml
       
-      - name: Run tests in Podman container
+      - name: Run tests
         timeout-minutes: 10
         run: |
-          podman run --rm \
+          docker run --rm \
             -v "${{ github.workspace }}:/app:Z" \
             -w /app \
             python:${{ matrix.python-version }}-slim \
