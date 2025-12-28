@@ -88,9 +88,9 @@ class Incidents:
             except RuntimeError:
                 # No event loop running, skip websocket update
                 pass
-            logger.info(f'Incident {incident.uuid} deleted')
+            logger.info("Incident deleted", extra={'extra_fields': {'uuid': incident.uuid}})
         else:
-            logger.warning(f'Incident with uniq_id {uniq_id} not found in the collection.')
+            logger.warning("Incident not found", extra={'extra_fields': {'uniq_id': uniq_id}})
 
     def serialize(self) -> Dict[str, Dict]:
         return {str(uuid_): incident.serialize() for uuid_, incident in self.uniq_ids.items()}
