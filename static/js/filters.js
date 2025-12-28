@@ -397,14 +397,16 @@ function setupFilterEventListeners() {
             return;
         }
         
-        const isZoomIcon = e.target.classList.contains("zoom-icon") || 
-                           e.target.closest(".zoom-icon") !== null;
-        
-        if (!isZoomIcon) return;
+        const zoomIcon = e.target.closest(".zoom-icon");
+        if (!zoomIcon) return;
 
         const field = cell.getColumn().getField();
         const value = cell.getValue();
-        const newFilter = `${field}="${value}"`;
+        
+        // Determine operator based on which icon was clicked
+        const isZoomOut = zoomIcon.classList.contains("zoom-out");
+        const operator = isZoomOut ? "!=" : "=";
+        const newFilter = `${field}${operator}"${value}"`;
 
         let filters = getCurrentFilters();
 
@@ -414,18 +416,12 @@ function setupFilterEventListeners() {
 
             addFilterUI(newFilter);
             applyFilters();
-        } else {
-            const filterElements = document.querySelectorAll(`.filter-badge span`)
-            const filterElement = Array.from(filterElements).find(el => el.innerText === newFilter);
-            removeFilter(newFilter, filterElement.parentElement);
         }
     });
 }
 
 // Function to update zoom icons based on current filters
 function updateZoomIcons() {
-    const filters = getCurrentFilters();
-    
     // Get all cells in the table
     const cells = table.getRows().flatMap(row => row.getCells());
     
@@ -441,32 +437,19 @@ function updateZoomIcons() {
         
         const value = cell.getValue();
         
-        const zoomIcon = cell.getElement().querySelector(".zoom-icon");
-        if (zoomIcon) {
+        const zoomInIcon = cell.getElement().querySelector(".zoom-icon.zoom-in");
+        const zoomOutIcon = cell.getElement().querySelector(".zoom-icon.zoom-out");
+        
+        if (zoomInIcon && zoomOutIcon) {
             if (!value || value === '' || value === null || value === undefined) {
-                zoomIcon.classList.add("hidden");
+                zoomInIcon.classList.add("hidden");
+                zoomOutIcon.classList.add("hidden");
                 return;
             }
             
-            zoomIcon.classList.remove("hidden");
-            
-            const filterForThisCell = filters.find(f => {
-                const match = f.match(/^(.+?)(=)(.*)$/);
-                if (match) {
-                    const [, fieldName, , filterValue] = match;
-                    const trimmedValue = filterValue.trim().replace(/^(?:["'])|(?:["'])$/g, '');
-                    return fieldName.trim() === field && trimmedValue === value;
-                }
-                return false;
-            });
-            
-            if (filterForThisCell) {
-                zoomIcon.className = "zoom-icon zoom-out";
-                zoomIcon.innerHTML = ZOOM_OUT_ICON;
-            } else {
-                zoomIcon.className = "zoom-icon zoom-in";
-                zoomIcon.innerHTML = ZOOM_IN_ICON;
-            }
+            // Always show both icons
+            zoomInIcon.classList.remove("hidden");
+            zoomOutIcon.classList.remove("hidden");
         }
     });
 }

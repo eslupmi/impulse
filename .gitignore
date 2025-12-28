@@ -3,6 +3,7 @@ __pycache__
 
 .idea
 .vscode
+.zed
 
 env*
 venv*
