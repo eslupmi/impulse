@@ -1,5 +1,4 @@
 import {table} from "./table.js";
-import {ZOOM_IN_ICON, ZOOM_OUT_ICON} from "./constants.js";
 
 const symbolicOperators = new Set(["=", ">", "<", ">=", "<=", "!=", "=~", "!~"]);
 // Mapping of custom filter operators to Tabulator's built-in operators
@@ -163,15 +162,15 @@ function getCurrentFilters() {
 // Update filters in URL
 function updateFiltersInURL(filters) {
     const urlParams = new URLSearchParams(window.location.search);
-    
+
     const cleanFilters = filters.filter(f => f && f.trim());
-    
+
     if (cleanFilters.length === 0) {
         urlParams.delete("filters");
     } else {
         urlParams.set("filters", cleanFilters.join(","));
     }
-    
+
     const queryString = urlParams.toString();
     const newUrl = queryString ? `${window.location.pathname}?${queryString}` : window.location.pathname;
     window.history.replaceState({}, "", newUrl);
@@ -190,9 +189,9 @@ function applyFilters() {
             let {field, operator, value} = parsedFilter;
 
             value = value.replace(/^(?:["'])|(?:["'])$/g, '');
-            
+
             const columnExists = table.getColumns().some(col => col.getField() === field);
-            
+
             if (!columnExists) {
                 if (operator === "=~" || operator === "!~") {
                     if (!isValidRegex(value)) {
@@ -221,7 +220,7 @@ function applyFilters() {
             }
         }
     });
-    
+
     updateZoomIcons();
 }
 
@@ -310,7 +309,7 @@ function setupFilterContainerScroll() {
     const scrollableFilters = document.getElementById("scrollable-filters");
     const leftArrow = document.querySelector(".scroll-arrow.left");
     const rightArrow = document.querySelector(".scroll-arrow.right");
-    
+
     if (!filterContainer || !leftArrow || !rightArrow || !scrollableFilters) {
         console.warn("Required elements for filter scrolling not found");
         return;
@@ -340,10 +339,10 @@ function setupFilterContainerScroll() {
     function updateArrowVisibility() {
         const hasFilters = filterContainer.children.length > 0;
         scrollableFilters.classList.toggle("has-filters", hasFilters);
-        
+
         const leftWrapper = document.querySelector(".arrow-wrapper.left");
         const rightWrapper = document.querySelector(".arrow-wrapper.right");
-        
+
         if (hasFilters) {
             leftWrapper.classList.toggle("visible", filterContainer.scrollLeft > 0);
 
@@ -396,13 +395,13 @@ function setupFilterEventListeners() {
             e.stopPropagation();
             return;
         }
-        
+
         const zoomIcon = e.target.closest(".zoom-icon");
         if (!zoomIcon) return;
 
         const field = cell.getColumn().getField();
         const value = cell.getValue();
-        
+
         // Determine operator based on which icon was clicked
         const isZoomOut = zoomIcon.classList.contains("zoom-out");
         const operator = isZoomOut ? "!=" : "=";
@@ -424,29 +423,29 @@ function setupFilterEventListeners() {
 function updateZoomIcons() {
     // Get all cells in the table
     const cells = table.getRows().flatMap(row => row.getCells());
-    
+
     cells.forEach(cell => {
         const column = cell.getColumn();
         // Skip the responsive collapse column
         if (column.getDefinition().formatter === 'responsiveCollapse') return;
-        
+
         if (cell.getElement().classList.contains("unclickable-cell")) return;
-        
+
         const field = column.getField();
         if (!field) return;
-        
+
         const value = cell.getValue();
-        
+
         const zoomInIcon = cell.getElement().querySelector(".zoom-icon.zoom-in");
         const zoomOutIcon = cell.getElement().querySelector(".zoom-icon.zoom-out");
-        
+
         if (zoomInIcon && zoomOutIcon) {
             if (!value || value === '' || value === null || value === undefined) {
                 zoomInIcon.classList.add("hidden");
                 zoomOutIcon.classList.add("hidden");
                 return;
             }
-            
+
             // Always show both icons
             zoomInIcon.classList.remove("hidden");
             zoomOutIcon.classList.remove("hidden");
