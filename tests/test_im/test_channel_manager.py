@@ -91,7 +91,7 @@ class TestChannelManager:
 
             # Check warning was logged
             mock_logger.warning.assert_called_once_with(
-                'Channel not defined', extra={'extra_fields': {'channel': 'undefined_channel'}}
+                'Channel not defined', extra={'channel': 'undefined_channel'}
             )
 
             # Check result structure
@@ -117,7 +117,7 @@ class TestChannelManager:
             # Check error was logged
             mock_logger.error.assert_called_once_with(
                 'Default channel not found in configuration',
-                extra={'extra_fields': {'channel': 'missing_default'}}
+                extra={'channel': 'missing_default'}
             )
 
             # Check that undefined channel uses default channel name as ID
@@ -139,7 +139,7 @@ class TestChannelManager:
 
             # Check warning was logged
             mock_logger.warning.assert_called_once_with(
-                "Channel has no `id`. Using default channel instead", extra={'extra_fields': {'channel': 'no_id_channel'}}
+                "Channel has no `id`. Using default channel instead", extra={'channel': 'no_id_channel'}
             )
 
             # Check that no_id_channel uses default
@@ -160,12 +160,12 @@ class TestChannelManager:
 
             # Check warning was logged for channel with no id
             mock_logger.warning.assert_any_call(
-                "Channel has no `id`. Using default channel instead", extra={'extra_fields': {'channel': 'no_id_channel'}}
+                "Channel has no `id`. Using default channel instead", extra={'channel': 'no_id_channel'}
             )
             # Check error was logged for missing default channel
             mock_logger.error.assert_called_with(
                 'Default channel not found in configuration',
-                extra={'extra_fields': {'channel': 'missing_default'}}
+                extra={'channel': 'missing_default'}
             )
 
             # Check that no_id_channel uses channel name as ID

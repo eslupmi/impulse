@@ -27,15 +27,29 @@ class TestJSONFormatter:
         record.levelname = levelname
         record.message = message
         record.module = module
+        record.name = "test_logger"
+        record.pathname = "/test/path.py"
+        record.filename = "path.py"
+        record.funcName = "test_function"
+        record.lineno = 1
         record.created = 1672574400.0  # Unix timestamp
         record.msecs = 123  # Milliseconds
+        record.relativeCreated = 0.0
+        record.thread = 1
+        record.threadName = "MainThread"
+        record.processName = "MainProcess"
+        record.process = 1
         record.exc_info = None
         record.exc_text = None
         record.stack_info = None
         record.getMessage.return_value = message
-        # In Python logging, extra={'extra_fields': {...}} creates record.extra_fields attribute
-        if extra is not None and 'extra_fields' in extra:
-            record.extra_fields = extra['extra_fields']
+        record.args = ()
+        record.asctime = None
+        # python-json-logger automatically adds all fields from extra to the record
+        # So we need to set them as attributes on the record
+        if extra is not None:
+            for key, value in extra.items():
+                setattr(record, key, value)
         return record
 
     def test_json_formatter_initialization(self):
@@ -59,9 +73,9 @@ class TestJSONFormatter:
         assert data['time'].endswith('Z')
 
     def test_json_formatter_format_with_extra_fields(self):
-        """Test JSONFormatter format method with extra_fields in extra."""
+        """Test JSONFormatter format method with extra fields."""
         formatter = JSONFormatter()
-        extra = {'extra_fields': {'provider': 'google', 'chain': 'test_chain'}}
+        extra = {'provider': 'google', 'chain': 'test_chain'}
         record = self._create_mock_record(logging.INFO, "INFO", "Test message", extra=extra)
 
         result = formatter.format(record)
@@ -72,21 +86,23 @@ class TestJSONFormatter:
         assert data['message'] == "Test message"
 
     def test_json_formatter_format_without_extra_fields(self):
-        """Test JSONFormatter format method without extra_fields."""
+        """Test JSONFormatter format method without extra fields."""
         formatter = JSONFormatter()
+        # other_field should be included since python-json-logger adds all extra fields
         extra = {'other_field': 'value'}
         record = self._create_mock_record(logging.INFO, "INFO", "Test message", extra=extra)
 
         result = formatter.format(record)
         data = json.loads(result)
 
-        assert 'other_field' not in data
+        # python-json-logger includes all extra fields, so other_field should be present
+        assert data['other_field'] == 'value'
         assert data['message'] == "Test message"
 
     def test_json_formatter_format_with_empty_extra_fields(self):
-        """Test JSONFormatter format method with empty extra_fields."""
+        """Test JSONFormatter format method with empty extra."""
         formatter = JSONFormatter()
-        extra = {'extra_fields': {}}
+        extra = {}
         record = self._create_mock_record(logging.INFO, "INFO", "Test message", extra=extra)
 
         result = formatter.format(record)
@@ -96,16 +112,18 @@ class TestJSONFormatter:
         # Should not have any extra fields
 
     def test_json_formatter_format_with_non_dict_extra_fields(self):
-        """Test JSONFormatter format method with non-dict extra_fields."""
+        """Test JSONFormatter format method with extra fields of different types."""
         formatter = JSONFormatter()
-        extra = {'extra_fields': 'not a dict'}
+        extra = {'string_field': 'value', 'int_field': 42, 'bool_field': True}
         record = self._create_mock_record(logging.INFO, "INFO", "Test message", extra=extra)
 
         result = formatter.format(record)
         data = json.loads(result)
 
         assert data['message'] == "Test message"
-        # Should not have extra_fields since it's not a dict
+        assert data['string_field'] == 'value'
+        assert data['int_field'] == 42
+        assert data['bool_field'] is True
 
     def test_json_formatter_format_with_unicode(self):
         """Test JSONFormatter format method with unicode characters."""
