@@ -25,7 +25,7 @@ jobs:
         timeout-minutes: 10
         run: |
           docker run --rm \
-            -v "${{ github.workspace }}:/app:Z" \
+            -v "${{ github.workspace }}:/app:ro,Z" \
             -w /app \
             python:${{ matrix.python-version }}-slim \
             sh -c "
