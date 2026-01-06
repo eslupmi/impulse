@@ -24,7 +24,7 @@ jobs:
       - name: Run tests
         timeout-minutes: 10
         run: |
-          docker run --rm \
+          podman run --rm \
             -v "${{ github.workspace }}:/app:Z" \
             -w /app \
             python:${{ matrix.python-version }}-slim \
