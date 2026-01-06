@@ -40,7 +40,7 @@ class MattermostApplication(Application):
             response.close()
             return {c.get('name'): c for c in data}
         except aiohttp.ClientError as e:
-            logger.error("Channel list fetch failed", extra={'extra_fields': {'error': str(e)}})
+            logger.error("Channel list fetch failed", extra={'error': str(e)})
             return {}
 
     def _get_url(self, app_config: ApplicationConfig):
@@ -57,12 +57,12 @@ class MattermostApplication(Application):
         response = await self.http.get(f'{self.url}/api/v4/users/{id_}?user_id={id_}', headers=self.headers)
         
         if response.status == 404:
-            logger.debug("User not found", extra={'extra_fields': {'user_id': id_}})
+            logger.debug("User not found", extra={'user_id': id_})
             response.close()
             return {'id': id_, 'username': None, 'exists': False, 'full_name': None}
 
         if response.status != 200:
-            logger.debug("User details fetch failed", extra={'extra_fields': {'user_id': id_, 'status': response.status}})
+            logger.debug("User details fetch failed", extra={'user_id': id_, 'status': response.status})
             response.close()
             return {'id': id_, 'username': None, 'exists': False, 'full_name': None}
 
@@ -95,16 +95,16 @@ class MattermostApplication(Application):
         await queue_.delete_by_id(incident_.uniq_id, delete_steps=True, delete_status=False)
         if incident_.chain_enabled or incident_.status != 'resolved':
             if incident_.assigned_user_id == user_id:
-                logger.info(f'Button TAKE IT pressed: user already assigned', extra={'extra_fields': {'incident': incident_.uuid, 'user_id': user_id}})
+                logger.info(f'Button TAKE IT pressed: user already assigned', extra={'incident': incident_.uuid, 'user_id': user_id})
                 return JSONResponse(payload, status_code=200)
-            logger.info(f'Button TAKE IT pressed: assigning to user', extra={'extra_fields': {'incident': incident_.uuid, 'user_id': user_id}})
+            logger.info(f'Button TAKE IT pressed: assigning to user', extra={'incident': incident_.uuid, 'user_id': user_id})
             incident_.assign_user_id(user_id)
             incident_.assign_user(user_name)
             self._track_async_task(asyncio.create_task(self.post_assignment_notification(incident_, user_id, user_name)))
             self._track_async_task(asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id, incidents)))
             incident_.chain_enabled = False
         else:
-            logger.info(f'Button RELEASE pressed', extra={'extra_fields': {'uuid': incident_.uuid, 'user_id': user_id}})
+            logger.info(f'Button RELEASE pressed', extra={'uuid': incident_.uuid, 'user_id': user_id})
             self._track_async_task(asyncio.create_task(self.post_unassignment_notification(incident_)))
             incident_.release()
         return None
@@ -143,7 +143,7 @@ class MattermostApplication(Application):
                 await self._handle_unfreeze_action(incident_, queue_)
 
         if incident_.is_frozen():
-            logger.debug('Incident frozen, blocking actions', extra={'extra_fields': {'uuid': incident_.uuid}})
+            logger.debug('Incident frozen, blocking actions', extra={'uuid': incident_.uuid})
             return self._build_button_response(incident_, mattermost_tz)
 
         action = context.get('action')

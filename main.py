@@ -278,11 +278,11 @@ async def post_alert(request: Request):
     """Handle incoming alerts"""
     try:
         alert_state = await request.json()
-        logger.debug("Alert received", extra={'extra_fields': {'payload': alert_state}})
+        logger.debug("Alert received", extra={'payload': alert_state})
         await request.app.state.queue.put_first(datetime.now(timezone.utc), 'alert', None, None, alert_state)
         return alert_state
     except Exception as e:
-        logger.error("Alert processing error", extra={'extra_fields': {'error': str(e)}})
+        logger.error("Alert processing error", extra={'error': str(e)})
         raise HTTPException(status_code=400, detail=str(e))
 
 
@@ -304,7 +304,7 @@ async def handle_app_buttons(request: Request):
             request.app.state.route
         )
     except Exception as e:
-        logger.error("App buttons error", extra={'extra_fields': {'error': str(e)}})
+        logger.error("App buttons error", extra={'error': str(e)})
         raise HTTPException(status_code=400, detail=str(e))
 
 
@@ -345,14 +345,14 @@ async def websocket_endpoint(websocket: WebSocket):
                     await incident_ws.handle_ping(websocket)
 
             except json.JSONDecodeError:
-                logger.warning("Invalid WebSocket JSON", extra={'extra_fields': {'data': data}})
+                logger.warning("Invalid WebSocket JSON", extra={'data': data})
             except Exception as e:
-                logger.error("WebSocket message error", extra={'extra_fields': {'error': str(e)}})
+                logger.error("WebSocket message error", extra={'error': str(e)})
 
     except WebSocketDisconnect:
         incident_ws.disconnect(websocket)
     except Exception as e:
-        logger.error("WebSocket error", extra={'extra_fields': {'error': str(e)}})
+        logger.error("WebSocket error", extra={'error': str(e)})
         incident_ws.disconnect(websocket)
 
 

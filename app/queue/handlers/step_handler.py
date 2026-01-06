@@ -36,14 +36,14 @@ class StepHandler(BaseHandler):
                           'result': result, 'response': r_code}
                 incident.chain_update(identifier, done=True, result=r_code)
                 if result == 'ok':
-                    logger.info(f"Webhook sent", extra={'extra_fields': {'uuid': incident.uuid, 'webhook': webhook_name, 'response': r_code}})
+                    logger.info(f"Webhook sent", extra={'uuid': incident.uuid, 'webhook': webhook_name, 'response': r_code})
                 else:
-                    logger.warning("Webhook failed", extra={'extra_fields': {'uuid': incident.uuid, 'webhook': webhook_name, 'response': r_code}})
+                    logger.warning("Webhook failed", extra={'uuid': incident.uuid, 'webhook': webhook_name, 'response': r_code})
             else:
                 fields = {'type': self.app.type, 'name': webhook_name, 'unit': webhook, 'admins': admins}
 
                 incident.chain_update(identifier, done=True, result=None)
-                logger.warning("Webhook undefined", extra={'extra_fields': {'uuid': incident.uuid, 'webhook': webhook_name}})
+                logger.warning("Webhook undefined", extra={'uuid': incident.uuid, 'webhook': webhook_name})
 
             text = text_template.form_notification(fields)
             if self.app.type == MessengerType.TELEGRAM:

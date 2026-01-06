@@ -270,9 +270,9 @@ class Application(ABC):
             if user_info.id is not None:
                 user_details = await self.get_user_details(user_info)
                 if not user_details['exists']:
-                    logger.warning(f'User not found in messenger', extra={'extra_fields': {'user': name}})
+                    logger.warning(f'User not found in messenger', extra={'user': name})
             else:
-                logger.warning(f'User has no `id` in configuration', extra={'extra_fields': {'user': name}})
+                logger.warning(f'User has no `id` in configuration', extra={'user': name})
                 user_details = {}
             users[name] = self.create_user(name, user_details)
 
@@ -363,7 +363,7 @@ class Application(ABC):
         if self.rate_limit:
             logger.debug(
                 f"Rate limit: "
-                f"{self.rate_limit} requests per {self.rate_window}s", extra={'extra_fields': {'messenger': self.type.value}}
+                f"{self.rate_limit} requests per {self.rate_window}s", extra={'messenger': self.type.value}
             )
         else:
             logger.info(f"{self.type.value.capitalize()} rate limiting disabled")

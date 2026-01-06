@@ -29,26 +29,26 @@ class ChannelManager:
         
         for channel in channels_list:
             if channel not in channels_config:
-                logger.warning(f'Channel not defined', extra={'extra_fields': {'channel': channel}})
+                logger.warning(f'Channel not defined', extra={'channel': channel})
                 default_channel_obj = channels_config.get(default_channel)
                 if default_channel_obj:
                     default_id = self._get_channel_id(default_channel_obj)
                     channels_dict[channel] = {'id': default_id}
                 else:
-                    logger.error(f'Default channel not found in configuration', extra={'extra_fields': {'channel': default_channel}})
+                    logger.error(f'Default channel not found in configuration', extra={'channel': default_channel})
                     channels_dict[channel] = {'id': default_channel}
             else:
                 channel_obj = channels_config[channel]
                 channel_id = self._get_channel_id(channel_obj)
                 
                 if channel_id is None:
-                    logger.warning(f'Channel has no `id`. Using default channel instead', extra={'extra_fields': {'channel': channel}})
+                    logger.warning(f'Channel has no `id`. Using default channel instead', extra={'channel': channel})
                     default_channel_obj = channels_config.get(default_channel)
                     if default_channel_obj:
                         default_id = self._get_channel_id(default_channel_obj)
                         channels_dict[channel] = {'id': default_id}
                     else:
-                        logger.error(f'Default channel not found in configuration', extra={'extra_fields': {'channel': default_channel}})
+                        logger.error(f'Default channel not found in configuration', extra={'channel': default_channel})
                         channels_dict[channel] = {'id': channel}
                 else:
                     channel_dict = {'id': channel_id}

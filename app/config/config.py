@@ -137,17 +137,17 @@ def load_unified_config(config_path: Optional[str] = None, exit_on_error: bool =
 
     except ConfigValidationError as e:
         if exit_on_error:
-            logger.error("Config validation failed", extra={'extra_fields': {'error': str(e)}})
+            logger.error("Config validation failed", extra={'error': str(e)})
             raise SystemExit(1)
         else:
-            logger.warning("Config validation failed", extra={'extra_fields': {'error': str(e)}})
+            logger.warning("Config validation failed", extra={'error': str(e)})
             raise
     except Exception as e:
         if exit_on_error:
-            logger.error("Config load failed", extra={'extra_fields': {'error': str(e)}})
+            logger.error("Config load failed", extra={'error': str(e)})
             raise SystemExit(1)
         else:
-            logger.warning("Config load failed", extra={'extra_fields': {'error': str(e)}})
+            logger.warning("Config load failed", extra={'error': str(e)})
             raise
 
 
@@ -175,11 +175,11 @@ def reload_config(config_path: Optional[str] = None) -> bool:
             return False
 
     except ConfigValidationError as e:
-        logger.warning("Config validation failed, keeping current config", extra={'extra_fields': {'error': str(e)}})
+        logger.warning("Config validation failed, keeping current config", extra={'error': str(e)})
         _config = current_config
         return False
     except Exception as e:
-        logger.warning("Config reload failed, keeping current config", extra={'extra_fields': {'error': str(e)}})
+        logger.warning("Config reload failed, keeping current config", extra={'error': str(e)})
         _config = current_config
         return False
 

@@ -67,7 +67,7 @@ class AlertHandler(BaseHandler):
         await self._create_thread(incident_, alert_state)
         incident_.dump()
 
-        logger.info("Incident created", extra={'extra_fields': {'uuid': incident_.uuid, 'link': incident_.link}})
+        logger.info("Incident created", extra={'uuid': incident_.uuid, 'link': incident_.link})
 
         self.incidents.add(incident_)
 
@@ -80,7 +80,7 @@ class AlertHandler(BaseHandler):
         config = get_config()
 
         if incident_.is_frozen() and incident_.status in ['closed', 'deleted']:
-            logger.debug("Ignoring alert for frozen incident", extra={'extra_fields': {'uuid': uuid_}})
+            logger.debug("Ignoring alert for frozen incident", extra={'uuid': uuid_})
             return
 
         is_new_firing_alerts_added = False
@@ -128,9 +128,9 @@ class AlertHandler(BaseHandler):
             message = header + '\n' + text
         await self.app.post_thread(incident_.channel_id, incident_.ts, message)
         if new_alerts_f:
-            logger.info("Incident updated with new alerts firing", extra={'extra_fields': {'uuid': uuid_}})
+            logger.info("Incident updated with new alerts firing", extra={'uuid': uuid_})
         elif new_alerts_r:
-            logger.info("Incident updated with some alerts resolved", extra={'extra_fields': {'uuid': uuid_}})
+            logger.info("Incident updated with some alerts resolved", extra={'uuid': uuid_})
 
     async def _create_thread(self, incident_, alert_state):
         body = self.app.body_template.form_message(alert_state, incident_)

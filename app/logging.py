@@ -1,36 +1,45 @@
 import logging
 import os
 import sys
-import json
-import inspect
 from datetime import datetime, timezone
+from pythonjsonlogger import jsonlogger
 
 
-class JSONFormatter(logging.Formatter):
-    """Format log records as JSON"""
+class JSONFormatter(jsonlogger.JsonFormatter):
+    """Format log records as JSON using python-json-logger"""
 
-    def format(self, record):
+    def __init__(self, *args, **kwargs):
+        # Configure format string to include time, level, module, and message
+        # python-json-logger will automatically add extra fields
+        format_string = '%(time)s %(level)s %(module)s %(message)s'
+        super().__init__(format_string, *args, **kwargs)
+
+    def add_fields(self, log_record, record, message_dict):
+        """Override to customize timestamp format and handle extra_fields"""
+        super().add_fields(log_record, record, message_dict)
+        
         # Format timestamp as ISO 8601 with milliseconds and Z suffix (UTC)
         dt = datetime.fromtimestamp(record.created, tz=timezone.utc)
-        timestamp = dt.strftime('%Y-%m-%dT%H:%M:%S') + f'.{int(record.msecs):03d}Z'
+        log_record['time'] = dt.strftime('%Y-%m-%dT%H:%M:%S') + f'.{int(record.msecs):03d}Z'
         
-        log_data = {
-            'time': timestamp,
-            'level': record.levelname,
-            'module': record.module,
-            'message': record.getMessage()
-        }
-
-        # Add exception info if present
-        if record.exc_info:
-            log_data['exception'] = self.formatException(record.exc_info)
-            
-        # Add extra fields if present
-        # In Python logging, extra={'extra_fields': {...}} creates record.extra_fields attribute
-        if hasattr(record, 'extra_fields') and isinstance(record.extra_fields, dict):
-            log_data.update(record.extra_fields)
-
-        return json.dumps(log_data, ensure_ascii=False)
+        # Ensure level is a string
+        log_record['level'] = record.levelname
+        
+        # Ensure module is included
+        log_record['module'] = record.module
+        
+        # Remove unwanted fields that python-json-logger adds automatically
+        # (like taskName from asyncio tasks)
+        unwanted_fields = ['taskName', 'threadName', 'processName', 'process', 'thread', 
+                          'relativeCreated', 'asctime', 'filename', 'funcName', 'lineno', 
+                          'pathname', 'name', 'args', 'exc_info', 'exc_text', 'stack_info']
+        for field in unwanted_fields:
+            log_record.pop(field, None)
+        
+        # # # Add extra_fields if present
+        # # In Python logging, extra={'extra_fields': {...}} creates record.extra_fields attribute
+        # if hasattr(record, 'extra_fields') and isinstance(record.extra_fields, dict):
+        #     log_record.update(record.extra_fields)
 
 
 class ErrorFilter(logging.Filter):
