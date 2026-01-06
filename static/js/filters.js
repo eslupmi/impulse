@@ -377,7 +377,54 @@ export function setupTableFiltering() {
     }
 }
 
-// Separate the event listener setup into its own function
+// Handle zoom icon click to add or update filter
+function handleZoomIconClick(field, value, isZoomOut) {
+    const operator = isZoomOut ? "!=" : "=";
+    const oppositeOperator = isZoomOut ? "=" : "!=";
+    const newFilter = `${field}${operator}"${value}"`;
+    const existingOppositeFilter = `${field}${oppositeOperator}"${value}"`;
+
+    let filters = getCurrentFilters();
+
+    // If filter already exists, do nothing
+    if (filters.includes(newFilter)) {
+        return;
+    }
+
+    // If opposite filter exists, replace operator in it
+    if (filters.includes(existingOppositeFilter)) {
+        filters = filters.filter(f => f !== existingOppositeFilter);
+        filters.push(newFilter);
+        updateFiltersInURL(filters);
+
+        // Update UI - find and replace text in filter badge
+        const filterElements = document.querySelectorAll(".filter-badge");
+        const filterElement = Array.from(filterElements).find(badge => {
+            return badge.querySelector("span")?.innerText === existingOppositeFilter;
+        });
+        
+        if (filterElement) {
+            const textSpan = filterElement.querySelector("span");
+            if (textSpan) {
+                textSpan.innerText = newFilter;
+            }
+            // Update remove button handler with new filter
+            const removeButton = filterElement.querySelector(".cross");
+            if (removeButton) {
+                removeButton.replaceWith(removeButton.cloneNode(true));
+                filterElement.querySelector(".cross").addEventListener("click", () => removeFilter(newFilter, filterElement));
+            }
+        }
+    } else {
+        // Add new filter
+        filters.push(newFilter);
+        updateFiltersInURL(filters);
+        addFilterUI(newFilter);
+    }
+    
+    applyFilters();
+}
+
 function setupFilterEventListeners() {
     document.getElementById("filter-input").addEventListener("keypress", function (event) {
         if (event.key === "Enter") {
@@ -399,55 +446,9 @@ function setupFilterEventListeners() {
 
         const field = cell.getColumn().getField();
         const value = cell.getValue();
-
-        // Determine operator based on which icon was clicked
         const isZoomOut = zoomIcon.classList.contains("zoom-out");
-        const operator = isZoomOut ? "!=" : "=";
-        const oppositeOperator = isZoomOut ? "=" : "!=";
-        const newFilter = `${field}${operator}"${value}"`;
-        const existingOppositeFilter = `${field}${oppositeOperator}"${value}"`;
-
-        let filters = getCurrentFilters();
-
-        // If filter already exists, do nothing
-        if (filters.includes(newFilter)) {
-            return;
-        }
-
-        // If opposite filter exists, replace operator in it
-        if (filters.includes(existingOppositeFilter)) {
-            // Update filters array
-            filters = filters.filter(f => f !== existingOppositeFilter);
-            filters.push(newFilter);
-            updateFiltersInURL(filters);
-
-            // Update UI - find and replace text in filter badge
-            const filterElements = document.querySelectorAll(".filter-badge");
-            const filterElement = Array.from(filterElements).find(badge => {
-                const textSpan = badge.querySelector("span");
-                return textSpan && textSpan.innerText === existingOppositeFilter;
-            });
-            
-            if (filterElement) {
-                const textSpan = filterElement.querySelector("span");
-                if (textSpan) {
-                    textSpan.innerText = newFilter;
-                }
-                // Update remove button handler with new filter
-                const removeButton = filterElement.querySelector(".cross");
-                if (removeButton) {
-                    removeButton.replaceWith(removeButton.cloneNode(true));
-                    filterElement.querySelector(".cross").addEventListener("click", () => removeFilter(newFilter, filterElement));
-                }
-            }
-        } else {
-            // Add new filter
-            filters.push(newFilter);
-            updateFiltersInURL(filters);
-            addFilterUI(newFilter);
-        }
         
-        applyFilters();
+        handleZoomIconClick(field, value, isZoomOut);
     });
 }
 
