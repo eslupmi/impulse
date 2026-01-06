@@ -11,6 +11,7 @@
     flex-shrink: 0;
     opacity: 0;
     color: var(--text-secondary);
+    margin-left: 5px;
 }
 
 /* Change from row hover to cell hover */

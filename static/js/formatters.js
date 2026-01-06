@@ -224,22 +224,12 @@ function formatterWrapper(formatter) {
                 // Add zoom-in icon (for "=" filter)
                 const zoomInIcon = document.createElement("span");
                 zoomInIcon.className = "zoom-icon zoom-in";
-                zoomInIcon.style.cursor = "pointer";
-                zoomInIcon.style.marginLeft = "5px";
-                zoomInIcon.style.display = "inline-flex";
-                zoomInIcon.style.alignItems = "center";
-                zoomInIcon.style.justifyContent = "center";
                 zoomInIcon.innerHTML = ZOOM_IN_ICON;
                 container.appendChild(zoomInIcon);
                 
                 // Add zoom-out icon (for "!=" filter)
                 const zoomOutIcon = document.createElement("span");
                 zoomOutIcon.className = "zoom-icon zoom-out";
-                zoomOutIcon.style.cursor = "pointer";
-                zoomOutIcon.style.marginLeft = "5px";
-                zoomOutIcon.style.display = "inline-flex";
-                zoomOutIcon.style.alignItems = "center";
-                zoomOutIcon.style.justifyContent = "center";
                 zoomOutIcon.innerHTML = ZOOM_OUT_ICON;
                 container.appendChild(zoomOutIcon);
             }
