@@ -16,7 +16,7 @@ from app.file_lock import FileLock
 from app.im.channel_manager import ChannelManager
 from app.im.helpers import get_application
 from app.incident.incidents import Incidents
-from app.logging import logger, configure_uvicorn_logging
+from app.logging import logger, configure_uvicorn_logging, configure_aiohttp_logging, configure_warnings_logging
 from app.metrics import STATUS, generate_metrics_response
 from app.middleware import StandbyMiddleware, is_standby_mode, service_unavailable_response
 from app.queue.manager import AsyncQueueManager
@@ -381,6 +381,8 @@ if __name__ == "__main__":
         import uvicorn
 
         configure_uvicorn_logging()
+        configure_aiohttp_logging()
+        configure_warnings_logging()
 
         config = get_config()
         

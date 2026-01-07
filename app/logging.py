@@ -1,6 +1,7 @@
 import logging
 import os
 import sys
+import warnings
 from datetime import datetime, timezone
 from pythonjsonlogger import jsonlogger
 
@@ -59,6 +60,25 @@ def configure_uvicorn_logging():
             h.addFilter(filter_class())
             logger_obj.addHandler(h)
         logger_obj.propagate = False
+
+def configure_aiohttp_logging():
+    """Configure aiohttp logger to use JSON formatter"""
+    aiohttp_logger = logging.getLogger('aiohttp')
+    aiohttp_logger.setLevel(logging.WARNING)  # Only warnings and errors
+    aiohttp_logger.handlers.clear()
+    for stream, filter_class in [(sys.stdout, InfoFilter), (sys.stderr, ErrorFilter)]:
+        h = logging.StreamHandler(stream)
+        h.setFormatter(JSONFormatter('%(time)s %(level)s %(module)s %(message)s'))
+        h.addFilter(filter_class())
+        aiohttp_logger.addHandler(h)
+    aiohttp_logger.propagate = False
+
+def configure_warnings_logging():
+    """Redirect Python warnings to logging system"""
+    def warning_to_log(message, category, filename, lineno, file=None, line=None):
+        logger.warning(f"{category.__name__}: {message}", extra={'warning_category': category.__name__})
+    
+    warnings.showwarning = warning_to_log
 
 # Initialize logger
 try:
