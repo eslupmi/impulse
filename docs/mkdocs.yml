@@ -1,4 +1,5 @@
 site_name: Docs | IMPulse
+site_url: https://docs.impulse.bot/stable/
 docs_dir: content
 
 theme:
@@ -20,6 +21,7 @@ theme:
         name: Switch to dark mode
   features:
     - navigation.sections
+    - navigation.instant
     - toc.follow
 extra:
   analytics:
