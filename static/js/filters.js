@@ -377,6 +377,27 @@ export function setupTableFiltering() {
     }
 }
 
+// Update filter badge UI when filter value changes
+function updateFilterBadgeUI(existingFilter, newFilter) {
+    const filterElements = document.querySelectorAll(".filter-badge");
+    const filterElement = Array.from(filterElements).find(badge => {
+        return badge.querySelector("span")?.innerText === existingFilter;
+    });
+    
+    if (filterElement) {
+        const textSpan = filterElement.querySelector("span");
+        if (textSpan) {
+            textSpan.innerText = newFilter;
+        }
+        // Update remove button handler with new filter
+        const removeButton = filterElement.querySelector(".cross");
+        if (removeButton) {
+            removeButton.replaceWith(removeButton.cloneNode(true));
+            filterElement.querySelector(".cross").addEventListener("click", () => removeFilter(newFilter, filterElement));
+        }
+    }
+}
+
 // Handle zoom icon click to add or update filter
 function handleZoomIconClick(field, value, isZoomOut) {
     const operator = isZoomOut ? "!=" : "=";
@@ -396,25 +417,7 @@ function handleZoomIconClick(field, value, isZoomOut) {
         filters = filters.filter(f => f !== existingOppositeFilter);
         filters.push(newFilter);
         updateFiltersInURL(filters);
-
-        // Update UI - find and replace text in filter badge
-        const filterElements = document.querySelectorAll(".filter-badge");
-        const filterElement = Array.from(filterElements).find(badge => {
-            return badge.querySelector("span")?.innerText === existingOppositeFilter;
-        });
-        
-        if (filterElement) {
-            const textSpan = filterElement.querySelector("span");
-            if (textSpan) {
-                textSpan.innerText = newFilter;
-            }
-            // Update remove button handler with new filter
-            const removeButton = filterElement.querySelector(".cross");
-            if (removeButton) {
-                removeButton.replaceWith(removeButton.cloneNode(true));
-                filterElement.querySelector(".cross").addEventListener("click", () => removeFilter(newFilter, filterElement));
-            }
-        }
+        updateFilterBadgeUI(existingOppositeFilter, newFilter);
     } else {
         // Add new filter
         filters.push(newFilter);
