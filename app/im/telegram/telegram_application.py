@@ -169,14 +169,22 @@ class TelegramApplication(Application):
 
         action = callback['data']
         user_id = callback['from']['id']
-        user_display_name = self._extract_user_display_name(callback.get('from', {}))
+        user_from = callback.get('from', {})
+        first_name = user_from.get('first_name', '').strip()
+        last_name = user_from.get('last_name', '').strip()
+        fallback_name = f"{first_name} {last_name}".strip() or user_from.get('username')
+        user_display_name = self.get_configured_user_name(user_id, fallback_name)
+        
+        # Check if this is a freeze action
         is_freeze_action = action.startswith('freeze_')
 
+        # Block non-freeze actions if incident is frozen
         if incident_.is_frozen() and not is_freeze_action:
             logger.debug(f'Incident {incident_.uuid} is frozen, blocking all button actions')
             await self._answer_callback(callback['id'])
             return JSONResponse({}, status_code=200)
 
+        # Handle freeze actions
         if is_freeze_action:
             result = await self._handle_freeze_actions(action, incident_, user_id, user_display_name, incidents, queue_, callback)
             if result is not None:

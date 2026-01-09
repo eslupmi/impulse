@@ -1,8 +1,12 @@
-class User:
-    def __init__(self, id_, name, exists=False):
-        self.name = name
-        self.id = id_
-        self.exists = exists
+from app.im.users import BaseUser
 
-    def __repr__(self):
-        return self.name
+
+class User(BaseUser):
+    """Telegram-specific user implementation."""
+    
+    def __init__(self, name: str, id_: int = None, exists: bool = False):
+        super().__init__(name, id_, exists)
+    
+    def get_notification_identifier(self):
+        """Return user ID for Telegram mentions."""
+        return self.id

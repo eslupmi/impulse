@@ -1,10 +1,13 @@
-class User:
-    def __init__(self, name, id_, username=None, exists=False):
-        self.name = name
-        self.id = id_
-        self.exists = exists
-        self.username = username
-        self.defined = True
+from app.im.users import BaseUser
 
-    def __repr__(self):
-        return self.name
+
+class User(BaseUser):
+    """Mattermost-specific user implementation."""
+    
+    def __init__(self, name: str, id_: str = None, username: str = None, exists: bool = False):
+        super().__init__(name, id_, exists)
+        self.username = username
+    
+    def get_notification_identifier(self):
+        """Return username for Mattermost @ mentions."""
+        return self.username
