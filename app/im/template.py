@@ -6,7 +6,7 @@ notification_user = """
 {#-   #} (<https://docs.impulse.bot/stable/warnings/NotDefined/|NotDefined>)  |  :loudspeaker: admins ({%- for a in fields.admins %}<@{{ a }}>{% if not loop.last %},{% endif %}{% endfor -%})
 {#--#}{%- else -%}
 {#-  -#}{%- if fields.unit.exists -%}
-{#-     #} (<@{{ fields.unit.id }}>)
+{#-     #} (<@{{ fields.unit.get_notification_identifier() }}>)
 {#-  -#}{%- else -%}
 {#      #} (<https://docs.impulse.bot/stable/warnings/NotFound/|NotFound>)  |  :loudspeaker: admins ({%- for a in fields.admins %}<@{{ a }}>{% if not loop.last %},{% endif %}{% endfor -%})
 {#-  -#}{%- endif -%}
@@ -17,7 +17,7 @@ notification_user = """
 {#-   #} ([NotDefined](https://docs.impulse.bot/stable/warnings/NotDefined/))  |  :bell: admins ({%- for a in fields.admins %}@{{ a }}{% if not loop.last %},{% endif %}{% endfor -%})
 {#--#}{%- else -%}
 {#-  -#}{%- if fields.unit.exists -%}
-{#-     #} (@{{ fields.unit.username }})
+{#-     #} (@{{ fields.unit.get_notification_identifier() }})
 {#-  -#}{%- else -%}
 {#      #} ([NotFound](https://docs.impulse.bot/stable/warnings/NotFound/))  |  :bell: admins ({%- for a in fields.admins %}@{{ a }}{% if not loop.last %},{% endif %}{% endfor -%})
 {#-  -#}{%- endif -%}
@@ -28,7 +28,7 @@ notification_user = """
 {#-   #} <b>{{ fields.name }}</b> (<a href="https://docs.impulse.bot/stable/warnings/NotDefined/">NotDefined</a>)  |  🔔 admins ({%- for a in fields.admins %}<a href="tg://user?id={{ a.id }}">{{ a.name }}</a>{% if not loop.last %},{% endif %}{% endfor -%})
 {#--#}{%- else -%}
 {#-  -#}{%- if fields.unit.exists -%}
-{#-     #} <b><a href="tg://user?id={{ fields.unit.id }}">{{ fields.name }}</a></b>
+{#-     #} <b><a href="tg://user?id={{ fields.unit.get_notification_identifier() }}">{{ fields.name }}</a></b>
 {#-  -#}{%- else -%}
 {#      #} <b>{{ fields.name }}</b> (<a href="https://docs.impulse.bot/stable/warnings/NotFound/">NotFound</a>)  |  🔔 admins ({%- for a in fields.admins %}<a href="tg://user?id={{ a.id }}">{{ a.name }}</a>{% if not loop.last %},{% endif %}{% endfor -%})
 {#-  -#}{%- endif -%}
@@ -43,7 +43,7 @@ notification_user_group = """
 {%- for u in fields.unit.users | selectattr('exists', 'equalto', false) %}{% set _ = absent_users.append(u.name) %}{% endfor -%}
 {%- if fields.type == 'slack' -%}
 {%- set existing_users = [] -%}
-{%- for u in fields.unit.users if u.exists %}{% set _ = existing_users.append(u.id) %}{% endfor -%}
+{%- for u in fields.unit.users if u.exists %}{% set _ = existing_users.append(u.get_notification_identifier()) %}{% endfor -%}
 :loudspeaker: user_group *{{ fields.name -}}*
 {#--#}{%- if not fields.unit -%}
 {#-   #} (<https://docs.impulse.bot/stable/warnings/NotDefined/|NotDefined>)  |  :loudspeaker: admins ({%- for a in fields.admins %}<@{{ a }}>{% if not loop.last %},{% endif %}{% endfor -%})
@@ -55,7 +55,7 @@ notification_user_group = """
 {#--#}{%- endif -%}
 {%- elif fields.type == 'mattermost' -%}
 {%- set existing_users = [] -%}
-{%- for u in fields.unit.users if u.exists %}{% set _ = existing_users.append(u.username) %}{% endfor -%}
+{%- for u in fields.unit.users if u.exists %}{% set _ = existing_users.append(u.get_notification_identifier()) %}{% endfor -%}
 :bell: user_group **{{ fields.name -}}**
 {#--#}{%- if not fields.unit -%}
 {#-   #} ([NotDefined](https://docs.impulse.bot/stable/warnings/NotDefined/))  |  :bell: admins ({%- for a in fields.admins %}@{{ a }}{% if not loop.last %},{% endif %}{% endfor -%})
@@ -72,7 +72,7 @@ notification_user_group = """
 {#--#}{%- if not fields.unit -%}
 {#-   #} (<a href="https://docs.impulse.bot/stable/warnings/NotDefined/">NotDefined</a>)  |  🔔 admins ({%- for a in fields.admins %}<a href="tg://user?id={{ a.id }}">{{ a.name }}</a>{% if not loop.last %},{% endif %}{% endfor -%})
 {#--#}{%- else -%}
-{#-   #} ({%- for u in existing_users %}<a href="tg://user?id={{ u.id }}">{{ u.name }}</a>{% if not loop.last %}, {% endif %}{% endfor -%})
+{#-   #} ({%- for u in existing_users %}<a href="tg://user?id={{ u.get_notification_identifier() }}">{{ u.name }}</a>{% if not loop.last %}, {% endif %}{% endfor -%})
 {#-  -#}{% if absent_users | length > 0 %}  |  {% for u in absent_users %}<b>{{ u }}</b> (<a href="https://docs.impulse.bot/stable/warnings/NotFound/">NotFound</a>){% if not loop.last %}, {% endif %}{% endfor %}{% endif %}
 {#-  -#}{% if undefined_users | length > 0 %}  |  {% for u in undefined_users %}<b>{{ u }}</b> (<a href="https://docs.impulse.bot/stable/warnings/NotDefined/">NotDefined</a>){% if not loop.last %}, {% endif %}{% endfor %}{% endif %}
 {#-  -#}{% if absent_users | length > 0 or undefined_users | length > 0 %}  |  🔔 admins ({%- for a in fields.admins %}<a href="tg://user?id={{ a.id }}">{{ a.name }}</a>{% if not loop.last %},{% endif %}{% endfor -%}){% endif -%}

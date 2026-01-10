@@ -58,7 +58,7 @@ class TelegramApplication(Application):
         return f'{self.icon_map.get(icon)}'
 
     def get_admins_text(self): #!
-        return ', '.join([f'@{a.id}' for a in self.admin_users])
+        return ', '.join([f'@{a.get_notification_identifier()}' for a in self.admin_users])
 
     def _should_include_header_in_notifications(self) -> bool:
         """Telegram doesn't include header in freeze/unfreeze notifications"""

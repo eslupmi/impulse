@@ -69,7 +69,7 @@ class SlackApplication(Application):
         )
 
     def get_notification_destinations(self):
-        return [a.id for a in self.admin_users]
+        return [a.get_notification_identifier() for a in self.admin_users]
 
     def get_admins_text(self):
         admins_text = slack_env.from_string(slack_admins_template_string).render(
@@ -163,8 +163,6 @@ class SlackApplication(Application):
         for action in actions:
             if action['name'] == 'chain':
                 await self._handle_chain_action(incident_, user_id, user_name, queue_, incidents)
-            elif action['name'] == 'status':
-                self._handle_status_action(incident_, not incident_.status_enabled)
             elif action['name'] == 'task':
                 self._handle_task_action(incident_, queue_)
         
