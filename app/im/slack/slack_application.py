@@ -8,6 +8,7 @@ from app.im.slack import reformat_message
 from app.im.slack.config import slack_env, slack_admins_template_string
 from app.im.slack.threads import slack_get_create_thread_payload, slack_get_update_payload
 from app.im.slack.user import User
+from app.im.groups import Group
 from app.logging import logger
 from app.config.config import get_config
 from app.config.validation import ApplicationConfig
@@ -66,6 +67,33 @@ class SlackApplication(Application):
             name=name,
             id_=user_details.get('id'),
             exists=user_details.get('exists')
+        )
+
+    async def get_all_groups(self):
+        """Fetch all user groups from Slack API using usergroups.list"""
+        response = await self.http.get(f'{self.url}/api/usergroups.list', headers=self.headers)
+        if response.status != 200:
+            logger.debug(f'Failed to get groups list: HTTP {response.status}')
+            response.close()
+            return None
+        
+        data = await response.json()
+        response.close()
+        if not data.get('ok'):
+            logger.debug(f'Slack API error getting groups list: {data.get("error", "unknown error")}')
+            return None
+        
+        # Return a dict mapping group IDs to True (they exist)
+        usergroups = data.get('usergroups', [])
+        return {ug.get('id'): True for ug in usergroups if ug.get('id')}
+
+    def create_group(self, name, group_details):
+        """Create a Group object from group details"""
+        group_id = group_details.get('id') if group_details.get('exists') else None
+        return Group(
+            name=name,
+            id_=group_id,
+            exists=group_details.get('exists', False)
         )
 
     def get_notification_destinations(self):

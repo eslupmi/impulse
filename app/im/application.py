@@ -3,11 +3,11 @@ from abc import ABC, abstractmethod
 from typing import Union, Dict, Optional, TYPE_CHECKING
 
 from app.config.config import get_config
-from app.config.validation import ApplicationConfig, MattermostUser, SlackUser, TelegramUser, MessengerType
+from app.config.validation import ApplicationConfig, MattermostUser, SlackUser, TelegramUser, MessengerType, SlackGroup, MattermostGroup
 from app.http_client import RateLimitedClient
 from app.im.chain.chain_factory import ChainFactory
 from app.im.groups import generate_user_groups
-from app.im.template import notification_user, notification_user_group, update_status, \
+from app.im.template import notification_user, notification_user_group, notification_group, update_status, \
     notification_assignment, notification_unassignment, notification_freeze, notification_unfreeze
 from app.jinja_template import JinjaTemplate
 from app.logging import logger
@@ -47,11 +47,13 @@ class Application(ABC):
         self.default_channel_id = self.channels[default_channel]['id']
         self.users = None  # Will be initialized async
         self.user_groups = None  # Will be initialized async
+        self.groups = {}  # Groups (Slack/Mattermost only, empty for others)
         self.admin_users = None  # Will be initialized async
 
         # Store config for async initialization
         self._users_config = app_config.users
         self._user_groups_config = app_config.user_groups
+        self._groups_config = app_config.groups
         self._admin_users_config = app_config.admin_users
 
         # Track async tasks to prevent premature garbage collection
@@ -67,6 +69,9 @@ class Application(ABC):
                 self.public_url = self._get_public_url(self._app_config)
         self.users = await self._generate_users(self._users_config)
         self.user_groups = generate_user_groups(self._user_groups_config, self.users)
+        self.groups = await self._generate_groups(self._groups_config)
+        if self.groups:
+            logger.info(f'Initialized {len(self.groups)} groups: {", ".join(self.groups.keys())}')
         self.admin_users = [self.users[admin] for admin in self._admin_users_config]
 
     async def close(self):
@@ -278,6 +283,38 @@ class Application(ABC):
 
         return users
 
+    async def _generate_groups(self, groups_dict: Optional[Dict[str, Union[SlackGroup, MattermostGroup]]]):
+        """Generate groups by polling them from the API, similar to users"""
+        if not groups_dict or self.type not in [MessengerType.SLACK, MessengerType.MATTERMOST]:
+            return {}
+        
+        logger.info('Creating groups')
+        
+        # Get all groups from API once
+        all_groups = await self.get_all_groups()
+        if all_groups is None:
+            logger.warning('Failed to fetch groups list from API')
+            all_groups = {}
+        
+        groups = {}
+        for name, group_info in groups_dict.items():
+            id_ = group_info.id if hasattr(group_info, 'id') else (group_info.get('id') if isinstance(group_info, dict) else None)
+            
+            if id_:
+                # Check if group exists in the fetched list
+                group_exists = id_ in all_groups
+                group_details = {'id': id_, 'exists': group_exists}
+                if not group_exists:
+                    logger.warning(f'.. group {name} not found in {self.type.value.capitalize()} and will be saved without ID')
+                    group_details = {'id': None, 'exists': False}
+            else:
+                logger.warning(f'.. group {name} has no \'id\' and will be saved without ID')
+                group_details = {'id': None, 'exists': False}
+            
+            groups[name] = self.create_group(name, group_details)
+
+        return groups
+
     def generate_template(self):
         def read_template(file_key, default_path):
             file_path = self.templates.get(file_key, default_path)
@@ -294,8 +331,14 @@ class Application(ABC):
         if notify_type == 'user':
             unit = self.users.get(identifier)
             text_template = JinjaTemplate(notification_user)
-        else:
+        elif notify_type == 'user_group':
             unit = self.user_groups.get(identifier)
+            text_template = JinjaTemplate(notification_user_group)
+        elif notify_type == 'group':
+            unit = self.groups.get(identifier)
+            text_template = JinjaTemplate(notification_group)
+        else:
+            unit = None
             text_template = JinjaTemplate(notification_user_group)
         fields = {'type': self.type.value, 'name': identifier, 'unit': unit, 'admins': destinations}
         text = text_template.form_notification(fields)
@@ -434,4 +477,16 @@ class Application(ABC):
 
     @abstractmethod
     def create_user(self, name, user_details):
+        pass
+
+    @abstractmethod
+    async def get_all_groups(self) -> Optional[Dict[str, bool]]:
+        """Fetch all groups from the API and return a dict mapping group IDs to their existence status.
+        Must be implemented by subclasses that support groups.
+        Returns None if API call failed."""
+        pass
+
+    @abstractmethod
+    def create_group(self, name, group_details):
+        """Create a Group object from group details. Must be implemented by subclasses that support groups."""
         pass

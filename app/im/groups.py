@@ -20,3 +20,15 @@ class UserGroup:
     def __init__(self, name, users):
         self.name = name
         self.users = users
+
+
+class Group:
+    """Common Group class for Slack and Mattermost"""
+    def __init__(self, name, id_=None, exists=False):
+        self.name = name
+        self.id = id_
+        self.exists = exists
+        self.defined = True
+
+    def __repr__(self):
+        return self.name

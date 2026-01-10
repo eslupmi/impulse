@@ -73,15 +73,26 @@ class SlackChannel(BaseModel):
     id: str = Field(..., description="Channel ID")
 
 
+class SlackGroup(BaseModel):
+    """Slack group configuration"""
+    id: str = Field(..., description="Group ID")
+
+
 class MattermostChannel(BaseModel):
     """Mattermost channel configuration"""
     id: str = Field(..., description="Channel ID")
+
+
+class MattermostGroup(BaseModel):
+    """Mattermost group configuration"""
+    id: str = Field(..., description="Group ID")
 
 
 class SimpleChainStep(BaseModel):
     """Base chain step"""
     user: Optional[str] = Field(None, description="User to notify")
     user_group: Optional[str] = Field(None, description="User group to notify")
+    group: Optional[str] = Field(None, description="Slack group to notify")
     webhook: Optional[str] = Field(None, description="Webhook to call")
     chain: Optional[str] = Field(None, description="Nested chain to execute")
     wait: Optional[str] = Field(None, description="Wait duration (e.g., '5m', '1h')")
@@ -89,11 +100,11 @@ class SimpleChainStep(BaseModel):
     @model_validator(mode='after')
     def validate_step_type(self):
         """Validate that exactly one step type is specified"""
-        fields = [self.user, self.user_group, self.webhook, self.chain, self.wait]
+        fields = [self.user, self.user_group, self.group, self.webhook, self.chain, self.wait]
         non_none_fields = [f for f in fields if f is not None]
 
         if len(non_none_fields) != 1:
-            raise ValueError("Exactly one of user, user_group, webhook, chain, or wait must be specified")
+            raise ValueError("Exactly one of user, user_group, group, webhook, chain, or wait must be specified")
 
         return self
 
@@ -112,7 +123,7 @@ class SimpleChainStep(BaseModel):
 
     def get_type_and_value(self) -> tuple[str, str]:
         """Get both type and value of this chain step"""
-        for field_name in ['user', 'user_group', 'webhook', 'chain', 'wait']:
+        for field_name in ['user', 'user_group', 'group', 'webhook', 'chain', 'wait']:
             value = getattr(self, field_name)
             if value is not None:
                 return field_name, value
@@ -232,6 +243,7 @@ class BaseApplicationConfig(BaseModel):
 
         users = info.data.get('users', {})
         user_groups = info.data.get('user_groups', {})
+        groups = info.data.get('groups', {})
 
         def validate_chain_steps(steps):
             if not isinstance(steps, list):
@@ -243,6 +255,8 @@ class BaseApplicationConfig(BaseModel):
                     if 'user_group' in step and step['user_group'] and user_groups and step[
                         'user_group'] not in user_groups:
                         raise ValueError(f"User group '{step['user_group']}' in chain not found in user_groups")
+                    if 'group' in step and step['group'] and groups and step['group'] not in groups:
+                        raise ValueError(f"Group '{step['group']}' in chain not found in groups")
                     if 'chain' in step and step['chain'] and step['chain'] not in v:
                         raise ValueError(f"Nested chain '{step['chain']}' not found in chains")
 
@@ -282,6 +296,7 @@ class SlackApplicationConfig(BaseApplicationConfig):
     """Slack messenger configuration"""
     type: Literal[MessengerType.SLACK] = Field(MessengerType.SLACK, description="Application type")
     channels: Dict[str, SlackChannel] = Field(..., description="Channel definitions")
+    groups: Optional[Dict[str, SlackGroup]] = Field({}, description="Slack group definitions")
     users: Dict[str, SlackUser] = Field(..., description="User definitions")
 
 
@@ -289,6 +304,7 @@ class MattermostApplicationConfig(BaseApplicationConfig):
     """Mattermost messenger configuration"""
     type: Literal[MessengerType.MATTERMOST] = Field(MessengerType.MATTERMOST, description="Application type")
     channels: Dict[str, MattermostChannel] = Field(..., description="Channel definitions")
+    groups: Optional[Dict[str, MattermostGroup]] = Field({}, description="Mattermost group definitions")
     users: Dict[str, MattermostUser] = Field(..., description="User definitions")
     address: str = Field(..., description="Mattermost server address")
     team: str = Field(..., description="Mattermost team name")

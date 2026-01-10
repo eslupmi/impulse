@@ -364,6 +364,14 @@ class TelegramApplication(Application):
             exists=user_details.get('exists', False)
         )
 
+    async def get_all_groups(self):
+        """Telegram doesn't support groups, return empty dict"""
+        return {}
+
+    def create_group(self, name, group_details):
+        """Telegram doesn't support groups, return None"""
+        return None
+
     async def _setup_webhook(self):
         config = get_config()
         try:

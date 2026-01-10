@@ -9,6 +9,7 @@ from app.im.mattermost.config import (mattermost_env,
 from app.im.mattermost.threads import mattermost_get_create_thread_payload, mattermost_get_update_payload, \
     mattermost_get_button_update_payload
 from app.im.mattermost.user import User
+from app.im.groups import Group
 from app.logging import logger
 from app.config.config import get_config
 from app.config.validation import ApplicationConfig
@@ -80,6 +81,65 @@ class MattermostApplication(Application):
             id_=user_details.get('id'),
             username=user_details.get('username'),
             exists=user_details.get('exists')
+        )
+
+    async def get_all_groups(self):
+        """Fetch all groups from Mattermost API"""
+        # Get team ID first
+        team_name = self.team
+        if not team_name:
+            logger.warning('Team name not set, cannot fetch groups')
+            return None
+        
+        # Get team by name
+        try:
+            team_response = await self.http.get(
+                f'{self.url}/api/v4/teams/name/{team_name}',
+                headers=self.headers
+            )
+            if team_response.status != 200:
+                logger.debug(f'Failed to get team {team_name}: HTTP {team_response.status}')
+                team_response.close()
+                return None
+            
+            team_data = await team_response.json()
+            team_response.close()
+            team_id = team_data.get('id')
+            if not team_id:
+                logger.warning(f'Team {team_name} not found')
+                return None
+        except Exception as e:
+            logger.error(f'Failed to get team {team_name}: {e}')
+            return None
+        
+        # Get all groups for the team
+        try:
+            response = await self.http.get(
+                f'{self.url}/api/v4/teams/{team_id}/groups',
+                headers=self.headers
+            )
+            
+            if response.status != 200:
+                logger.debug(f'Failed to get groups list: HTTP {response.status}')
+                response.close()
+                return None
+            
+            data = await response.json()
+            response.close()
+            
+            # Return a dict mapping group IDs to True (they exist)
+            return {group.get('id'): True for group in data if group.get('id')}
+        except Exception as e:
+            logger.error(f'Failed to get groups list: {e}')
+            return None
+
+    def create_group(self, name, group_details):
+        """Create a Group object from group details"""
+        group_id = group_details.get('id') if group_details.get('exists') else None
+        return Group(
+            name=name,
+            id_=group_id,
+            exists=group_details.get('exists', False)
         )
 
     def get_notification_destinations(self):
