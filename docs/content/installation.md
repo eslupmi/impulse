@@ -52,7 +52,7 @@ Modify configuration in `impulse.yml`.
 === "docker"
 
     ```bash
-    docker-compose up -d
+    docker compose up -d
     ```
 
 To configure the host and port that IMPulse listens on, use the `LISTEN_HOST` and `LISTEN_PORT` environment variables. See [environment variables](envs.md) for more details.

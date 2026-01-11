@@ -6,7 +6,7 @@ import time
 from pathlib import Path
 from typing import Optional, Tuple
 
-from app.config.config import get_config
+from app.config.environment import get_environment_config
 from app.logging import logger
 
 
@@ -26,8 +26,8 @@ class FileLock:
     MAX_HEARTBEAT_FAILURES = 3
 
     def __init__(self):
-        config = get_config()
-        self.lock_dir = Path(f"{config.data_path}/.lock.d")
+        env_config = get_environment_config()
+        self.lock_dir = Path(f"{env_config.data_path}/.lock.d")
         self.heartbeat_path = self.lock_dir / "heartbeat"
         self.pid_path = self.lock_dir / "pid"
         self.host_path = self.lock_dir / "host"
@@ -51,7 +51,7 @@ class FileLock:
         if self.is_locked():
             return False
             
-        logger.debug("Removing stale lock directory")
+        logger.debug("Removing stale lock")
         try:
             for path in [self.heartbeat_path, self.pid_path, self.host_path]:
                 try:
@@ -66,7 +66,7 @@ class FileLock:
                     shutil.rmtree(self.lock_dir, ignore_errors=True)
             return True
         except (OSError, IOError) as e:
-            logger.warning(f"Failed to remove stale lock directory: {e}")
+            logger.warning(f"Stale lock cleanup failed: {e}")
             return False
 
     def acquire_lock(self) -> bool:
@@ -90,12 +90,12 @@ class FileLock:
                 with open(self.host_path, "w") as f:
                     f.write(self._hostname)
             except (OSError, IOError) as e:
-                logger.error(f"Failed to write lock files: {e}")
+                logger.error(f"Lock file write failed: {e}")
                 self._cleanup_failed_acquisition()
                 return False
             
             if not self._verify_ownership():
-                logger.error("Lock ownership verification failed after acquisition")
+                logger.error("Ownership verification failed")
                 self._cleanup_failed_acquisition()
                 return False
             
@@ -105,16 +105,16 @@ class FileLock:
                 loop = asyncio.get_running_loop()
                 self._heartbeat_task = loop.create_task(self._heartbeat())
             except RuntimeError:
-                logger.warning("No running event loop - heartbeat task not started")
+                logger.warning("Event loop not running")
             
-            logger.info(f"Lock acquired by {self._hostname} (PID: {self._pid})")
+            logger.debug("Lock acquired")
             return True
             
         except FileExistsError:
-            logger.debug("Lock directory already exists - lock held by another instance")
+            logger.debug("Lock held by another instance")
             return False
         except (OSError, IOError) as e:
-            logger.error(f"Error acquiring lock: {e}")
+            logger.error(f"Lock acquisition failed: {e}")
             return False
 
     def _cleanup_failed_acquisition(self):
@@ -156,7 +156,7 @@ class FileLock:
                 shutil.rmtree(self.lock_dir)
                 logger.info("Lock released")
             except (OSError, IOError) as e:
-                logger.warning(f"Failed to remove lock directory during release: {e}")
+                logger.warning(f"Lock release failed: {e}")
 
     def release_lock_sync(self):
         """Synchronous version of release_lock for use outside async context."""
@@ -169,9 +169,9 @@ class FileLock:
         if self.lock_dir.exists():
             try:
                 shutil.rmtree(self.lock_dir)
-                logger.info("Lock released (sync)")
+                logger.info("Lock released")
             except (OSError, IOError) as e:
-                logger.warning(f"Failed to remove lock directory during release: {e}")
+                logger.warning(f"Lock release failed: {e}")
 
     def is_locked(self) -> bool:
         """
@@ -189,7 +189,7 @@ class FileLock:
         except FileNotFoundError:
             return False
         except (ValueError, OSError) as e:
-            logger.error(f"Error reading lock heartbeat file: {e}")
+            logger.error(f"Heartbeat read failed: {e}")
             return False
 
     def is_owner(self) -> bool:
@@ -229,11 +229,9 @@ class FileLock:
             success = self._update()
             if not success:
                 self._heartbeat_failures += 1
-                logger.warning(
-                    f"Heartbeat update failed ({self._heartbeat_failures}/{self.MAX_HEARTBEAT_FAILURES})"
-                )
+                logger.warning(f"Heartbeat failed: {self._heartbeat_failures}/{self.MAX_HEARTBEAT_FAILURES}")
                 if self._heartbeat_failures >= self.MAX_HEARTBEAT_FAILURES:
-                    logger.error("Too many heartbeat failures - lock may be compromised")
+                    logger.error("Too many heartbeat failures")
                     self._active = False
                     break
             else:
@@ -249,7 +247,7 @@ class FileLock:
             True if update was successful, False otherwise.
         """
         if not self._verify_ownership():
-            logger.error("Lock ownership lost - another instance may have taken over")
+            logger.error("Ownership lost")
             return False
         
         locktime = time.time()
@@ -258,5 +256,5 @@ class FileLock:
                 f.write(str(locktime))
             return True
         except (OSError, IOError) as e:
-            logger.debug(f"Error updating heartbeat file: {e}")
+            logger.debug(f"Heartbeat update failed: {e}")
             return False

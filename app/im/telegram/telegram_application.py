@@ -30,7 +30,8 @@ class TelegramApplication(Application):
         super().__init__(app_config, channels, users)
 
     def _initialize_specific_params(self):
-        self.url += get_config().telegram_bot_token
+        env_config = get_environment_config()
+        self.url += env_config.telegram_bot_token
         self.post_message_url = self.url + '/sendMessage'
         self.headers = {'Content-Type': 'application/json'}
         self.rate_limit = 20
@@ -82,16 +83,16 @@ class TelegramApplication(Application):
         await queue_.delete_by_id(incident_.uniq_id, delete_steps=True, delete_status=False)
         if action == 'stop_chain':
             if incident_.assigned_user_id == user_id:
-                logger.info(f'Incident {incident_.uuid} -> button TAKE IT pressed by user {user_id}, but user is already assigned')
+                logger.info('Button TAKE IT: user already assigned', extra={'uuid': incident_.uuid, 'user': user_id})
                 return JSONResponse(payload, status_code=200)
-            logger.info(f'Incident {incident_.uuid} -> button TAKE IT pressed by user {user_id}')
+            logger.info('Button TAKE IT: assigning to user', extra={'uuid': incident_.uuid, 'user': user_id})
             incident_.assign_user_id(user_id)
             incident_.assign_user(user_display_name)
             self._track_async_task(asyncio.create_task(self.post_assignment_notification(incident_, user_id, user_display_name)))
             self._track_async_task(asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id, incidents)))
             incident_.chain_enabled = False
         else:
-            logger.info(f'Incident {incident_.uuid} -> button RELEASE pressed by user {user_id}')
+            logger.info('Button RELEASE pressed', extra={'uuid': incident_.uuid, 'user_id': user_id})
             self._track_async_task(asyncio.create_task(self.post_unassignment_notification(incident_)))
             incident_.release()
         return None
@@ -180,7 +181,7 @@ class TelegramApplication(Application):
 
         # Block non-freeze actions if incident is frozen
         if incident_.is_frozen() and not is_freeze_action:
-            logger.debug(f'Incident {incident_.uuid} is frozen, blocking all button actions')
+            logger.debug('Incident frozen, blocking actions', extra={'incident': incident_.uuid})
             await self._answer_callback(callback['id'])
             return JSONResponse({}, status_code=200)
 
@@ -225,7 +226,7 @@ class TelegramApplication(Application):
             response.close()
             return response_json.get('result', {}).get('message_thread_id')
         except aiohttp.ClientError as e:
-            logger.error(f'Failed to create topic: {e}')
+            logger.error("Topic creation failed", extra={'error': str(e)})
             raise e
 
     def _create_thread_payload(self, channel_id, body, header, status_icons, status):
@@ -281,7 +282,7 @@ class TelegramApplication(Application):
             )
             response.close()
         except aiohttp.ClientError as e:
-            logger.error(f'Failed to update topic: {e}')
+            logger.error("Topic update failed", extra={'error': str(e)})
 
     def _build_freeze_menu_keyboard(self):
         """Build keyboard for freeze menu"""
@@ -338,7 +339,7 @@ class TelegramApplication(Application):
             )
             response.close()
         except aiohttp.ClientError as e:
-            logger.error(f'Failed to update thread: {e}')
+            logger.error("Thread update failed", extra={'error': str(e)})
 
     def _markdown_links_to_native_format(self, text):
         return text
@@ -348,7 +349,7 @@ class TelegramApplication(Application):
         response = await self.http.get(f'{self.url}/getChat?chat_id={id_}', headers=self.headers)
 
         if response.status != 200:
-            logger.debug(f'Failed to get user details for {id_}: HTTP {response.status}')
+            logger.debug("User details fetch failed", extra={'user_id': id_, 'status': response.status})
             response.close()
             return {'id': id_, 'exists': False, 'full_name': None, 'username': None}
 
@@ -356,7 +357,7 @@ class TelegramApplication(Application):
         response.close()
 
         if not data.get('ok'):
-            logger.debug(f'Telegram API error for user {id_}: {data.get("description", "unknown error")}')
+            logger.debug("Telegram API error", extra={'user_id': id_, 'error': data.get("description", "unknown error")})
             return {'id': id_, 'exists': False, 'full_name': None, 'username': None}
 
         chat_data = data.get('result', {})
@@ -382,5 +383,5 @@ class TelegramApplication(Application):
             )
             response.close()
         except aiohttp.ClientError as e:
-            logger.error(f'Failed to set webhook: {e}')
+            logger.error("Webhook setup failed", extra={'error': str(e)})
             raise e

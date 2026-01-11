@@ -114,10 +114,10 @@ class TestTelegramApplication:
 
     def test_initialize_specific_params(self, app_config, channels, users):
         """Test _initialize_specific_params method."""
-        with patch('app.im.telegram.telegram_application.get_config') as mock_get_config:
-            mock_config = Mock()
-            mock_config.telegram_bot_token = "test-token"
-            mock_get_config.return_value = mock_config
+        with patch('app.im.telegram.telegram_application.get_environment_config') as mock_get_env_config:
+            mock_env_config = Mock()
+            mock_env_config.telegram_bot_token = "test-token"
+            mock_get_env_config.return_value = mock_env_config
 
             app = self.create_telegram_app(app_config, channels, users)
             # Manually call the method to test it
@@ -220,6 +220,7 @@ class TestTelegramApplication:
         app = self.create_telegram_app(app_config, channels, users)
 
         with patch('app.im.telegram.telegram_application.buttons') as mock_buttons, \
+             patch('app.im.telegram.telegram_application.get_environment_config') as mock_get_env_config, \
              patch('app.im.telegram.telegram_application.get_config') as mock_get_config, \
              patch.dict(os.environ, {
                  'JIRA_BASE_URL': 'https://test.atlassian.net',
@@ -231,6 +232,11 @@ class TestTelegramApplication:
             mock_config = Mock()
             mock_config.app.task_management = True
             mock_get_config.return_value = mock_config
+            
+            # Mock environment config with task_management_enabled
+            mock_env_config = Mock()
+            mock_env_config.task_management_enabled = True
+            mock_get_env_config.return_value = mock_env_config
             
             buttons_config = create_telegram_buttons_mock()
             mock_buttons.__getitem__.side_effect = lambda x: buttons_config[x]
@@ -275,6 +281,7 @@ class TestTelegramApplication:
         app = self.create_telegram_app(app_config, channels, users)
 
         with patch('app.im.telegram.telegram_application.buttons') as mock_buttons, \
+             patch('app.im.telegram.telegram_application.get_environment_config') as mock_get_env_config, \
              patch('app.im.telegram.telegram_application.get_config') as mock_get_config, \
              patch.dict(os.environ, {
                  'JIRA_BASE_URL': 'https://test.atlassian.net',
@@ -286,6 +293,11 @@ class TestTelegramApplication:
             mock_config = Mock()
             mock_config.app.task_management = True
             mock_get_config.return_value = mock_config
+            
+            # Mock environment config with task_management_enabled
+            mock_env_config = Mock()
+            mock_env_config.task_management_enabled = True
+            mock_get_env_config.return_value = mock_env_config
             
             buttons_config = create_telegram_buttons_mock()
             mock_buttons.__getitem__.side_effect = lambda x: buttons_config[x]

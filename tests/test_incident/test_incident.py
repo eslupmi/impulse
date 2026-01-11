@@ -415,13 +415,15 @@ class TestIncident:
         assert sample_incident.chain[0]['done'] is True
         assert sample_incident.chain[0]['result'] == "test_result"
 
+    @patch('app.incident.incident.get_environment_config')
     @patch('app.incident.incident.get_config')
     @patch('builtins.open', new_callable=mock_open)
     @patch('yaml.dump')
-    def test_dump(self, mock_yaml_dump, mock_file_open, mock_get_config, sample_incident, mock_unified_config):
+    def test_dump(self, mock_yaml_dump, mock_file_open, mock_get_config, mock_get_env_config, sample_incident, mock_unified_config, mock_environment_config):
         """Test dumping incident to file."""
         mock_get_config.return_value = mock_unified_config
-        mock_unified_config.incidents_path = "/test/incidents"
+        mock_get_env_config.return_value = mock_environment_config
+        mock_environment_config.incidents_path = "/test/incidents"
 
         with patch('app.incident.incident.incident_ws'):
             sample_incident.dump()
@@ -431,14 +433,16 @@ class TestIncident:
         assert f'/test/incidents/{sample_incident.uuid}.yml' in str(mock_file_open.call_args)
         mock_yaml_dump.assert_called_once()
 
+    @patch('app.incident.incident.get_environment_config')
     @patch('app.incident.incident.get_config')
     @patch('builtins.open', new_callable=mock_open)
     @patch('yaml.dump')
-    def test_dump_closed_incident(self, mock_yaml_dump, mock_file_open, mock_get_config, sample_incident, mock_unified_config):
+    def test_dump_closed_incident(self, mock_yaml_dump, mock_file_open, mock_get_config, mock_get_env_config, sample_incident, mock_unified_config, mock_environment_config):
         """Test dumping closed incident to file with correct filename."""
         from datetime import datetime, timezone
         mock_get_config.return_value = mock_unified_config
-        mock_unified_config.incidents_path = "/test/incidents"
+        mock_get_env_config.return_value = mock_environment_config
+        mock_environment_config.incidents_path = "/test/incidents"
         sample_incident.status = 'closed'
         sample_incident.closed = datetime(2025, 1, 15, 14, 30, 45, tzinfo=timezone.utc)
 
@@ -730,16 +734,18 @@ class TestIncident:
         assert incident.uniq_id != ''
         assert incident.uuid is not None
 
+    @patch('app.incident.incident.get_environment_config')
     @patch('app.incident.incident.get_config')
     @patch('builtins.open', new_callable=mock_open)
     @patch('yaml.dump')
     @patch('asyncio.get_event_loop')
     @patch('app.incident.incident.incident_ws')
     def test_dump_with_websocket_update(self, mock_incident_ws, mock_get_loop, mock_yaml_dump, mock_file_open,
-                                        mock_get_config, sample_incident, mock_unified_config):
+                                        mock_get_config, mock_get_env_config, sample_incident, mock_unified_config, mock_environment_config):
         """Test dumping incident with websocket update."""
         mock_get_config.return_value = mock_unified_config
-        mock_unified_config.incidents_path = "/test/incidents"
+        mock_get_env_config.return_value = mock_environment_config
+        mock_environment_config.incidents_path = "/test/incidents"
 
         # Use utility function to create mock event loop
         mock_loop = create_mock_event_loop(running=True)
@@ -751,16 +757,18 @@ class TestIncident:
         mock_yaml_dump.assert_called_once()
         mock_incident_ws.update_row.assert_called_once_with(sample_incident)
 
+    @patch('app.incident.incident.get_environment_config')
     @patch('app.incident.incident.get_config')
     @patch('builtins.open', new_callable=mock_open)
     @patch('yaml.dump')
     @patch('asyncio.get_event_loop', side_effect=RuntimeError("No event loop"))
     @patch('app.incident.incident.incident_ws')
     def test_dump_without_websocket_update(self, mock_incident_ws, mock_get_loop, mock_yaml_dump, mock_file_open,
-                                           mock_get_config, sample_incident, mock_unified_config):
+                                           mock_get_config, mock_get_env_config, sample_incident, mock_unified_config, mock_environment_config):
         """Test dumping incident without websocket update (no event loop)."""
         mock_get_config.return_value = mock_unified_config
-        mock_unified_config.incidents_path = "/test/incidents"
+        mock_get_env_config.return_value = mock_environment_config
+        mock_environment_config.incidents_path = "/test/incidents"
 
         sample_incident.dump()
 

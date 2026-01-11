@@ -14,3 +14,4 @@ urllib3~=2.5.0
 PyJWT[crypto]~=2.10.1
 aiofiles~=23.2.1
 httpx~=0.25.2
+python-json-logger~=2.0.7

@@ -1,6 +1,7 @@
 """
 Unit tests for app.logging module.
 """
+import json
 import logging
 from unittest.mock import Mock, patch
 
@@ -8,7 +9,7 @@ import pytest
 
 import sys
 from app.logging import (
-    CustomFormatter,
+    JSONFormatter,
     ErrorFilter,
     InfoFilter,
     create_logger,
@@ -16,173 +17,153 @@ from app.logging import (
 )
 
 
-class TestCustomFormatter:
-    """Test cases for CustomFormatter class."""
+class TestJSONFormatter:
+    """Test cases for JSONFormatter class."""
 
-    def _create_mock_record(self, levelno, levelname, message):
+    def _create_mock_record(self, levelno, levelname, message, module="test_module", extra=None):
         """Helper to create a proper mock record."""
         record = Mock()
         record.levelno = levelno
-        record.asctime = "2023-01-01 12:00:00"
         record.levelname = levelname
         record.message = message
+        record.module = module
+        record.name = "test_logger"
+        record.pathname = "/test/path.py"
+        record.filename = "path.py"
+        record.funcName = "test_function"
+        record.lineno = 1
         record.created = 1672574400.0  # Unix timestamp
-        record.msecs = 0  # Milliseconds
+        record.msecs = 123  # Milliseconds
+        record.relativeCreated = 0.0
+        record.thread = 1
+        record.threadName = "MainThread"
+        record.processName = "MainProcess"
+        record.process = 1
         record.exc_info = None
         record.exc_text = None
         record.stack_info = None
         record.getMessage.return_value = message
+        record.args = ()
+        record.asctime = None
+        # python-json-logger automatically adds all fields from extra to the record
+        # So we need to set them as attributes on the record
+        if extra is not None:
+            for key, value in extra.items():
+                setattr(record, key, value)
         return record
 
-    def test_custom_formatter_initialization(self):
-        """Test CustomFormatter initialization."""
-        formatter = CustomFormatter()
+    def test_json_formatter_initialization(self):
+        """Test JSONFormatter initialization."""
+        formatter = JSONFormatter()
+        assert isinstance(formatter, logging.Formatter)
 
-        assert hasattr(formatter, 'fmt')
-
-    def test_custom_formatter_format_debug(self):
-        """Test CustomFormatter format method with DEBUG level."""
-        formatter = CustomFormatter()
-        record = self._create_mock_record(logging.DEBUG, "DEBUG", "Test debug message")
-
-        result = formatter.format(record)
-
-        assert isinstance(result, str)
-        assert "Test debug message" in result
-
-    def test_custom_formatter_format_info(self):
-        """Test CustomFormatter format method with INFO level."""
-        formatter = CustomFormatter()
+    def test_json_formatter_format_info(self):
+        """Test JSONFormatter format method with INFO level."""
+        formatter = JSONFormatter()
         record = self._create_mock_record(logging.INFO, "INFO", "Test info message")
 
         result = formatter.format(record)
+        data = json.loads(result)
 
         assert isinstance(result, str)
-        assert "Test info message" in result
+        assert data['level'] == "INFO"
+        assert data['message'] == "Test info message"
+        assert data['module'] == "test_module"
+        assert 'time' in data
+        assert data['time'].endswith('Z')
 
-    def test_custom_formatter_format_warning(self):
-        """Test CustomFormatter format method with WARNING level."""
-        formatter = CustomFormatter()
-        record = self._create_mock_record(logging.WARNING, "WARNING", "Test warning message")
+    def test_json_formatter_format_with_extra_fields(self):
+        """Test JSONFormatter format method with extra fields."""
+        formatter = JSONFormatter()
+        extra = {'provider': 'google', 'chain': 'test_chain'}
+        record = self._create_mock_record(logging.INFO, "INFO", "Test message", extra=extra)
 
         result = formatter.format(record)
+        data = json.loads(result)
 
-        assert isinstance(result, str)
-        assert "Test warning message" in result
+        assert data['provider'] == 'google'
+        assert data['chain'] == 'test_chain'
+        assert data['message'] == "Test message"
 
-    def test_custom_formatter_format_error(self):
-        """Test CustomFormatter format method with ERROR level."""
-        formatter = CustomFormatter()
-        record = self._create_mock_record(logging.ERROR, "ERROR", "Test error message")
-
-        result = formatter.format(record)
-
-        assert isinstance(result, str)
-        assert "Test error message" in result
-
-    def test_custom_formatter_format_critical(self):
-        """Test CustomFormatter format method with CRITICAL level."""
-        formatter = CustomFormatter()
-        record = self._create_mock_record(logging.CRITICAL, "CRITICAL", "Test critical message")
+    def test_json_formatter_format_without_extra_fields(self):
+        """Test JSONFormatter format method without extra fields."""
+        formatter = JSONFormatter()
+        # other_field should be included since python-json-logger adds all extra fields
+        extra = {'other_field': 'value'}
+        record = self._create_mock_record(logging.INFO, "INFO", "Test message", extra=extra)
 
         result = formatter.format(record)
+        data = json.loads(result)
 
-        assert isinstance(result, str)
-        assert "Test critical message" in result
+        # python-json-logger includes all extra fields, so other_field should be present
+        assert data['other_field'] == 'value'
+        assert data['message'] == "Test message"
 
-    def test_custom_formatter_format_unknown_level(self):
-        """Test CustomFormatter format method with unknown level."""
-        formatter = CustomFormatter()
-        record = self._create_mock_record(999, "UNKNOWN", "Test unknown message")
-
-        # Should not raise exception
-        result = formatter.format(record)
-
-        assert isinstance(result, str)
-        assert "Test unknown message" in result
-
-    def test_custom_formatter_format_with_special_characters(self):
-        """Test CustomFormatter format method with special characters."""
-        formatter = CustomFormatter()
-        record = self._create_mock_record(logging.INFO, "INFO", "Test message with special chars: !@#$%^&*()")
+    def test_json_formatter_format_with_empty_extra_fields(self):
+        """Test JSONFormatter format method with empty extra."""
+        formatter = JSONFormatter()
+        extra = {}
+        record = self._create_mock_record(logging.INFO, "INFO", "Test message", extra=extra)
 
         result = formatter.format(record)
+        data = json.loads(result)
 
-        assert isinstance(result, str)
-        assert "Test message with special chars: !@#$%^&*()" in result
+        assert data['message'] == "Test message"
+        # Should not have any extra fields
 
-    def test_custom_formatter_format_with_unicode(self):
-        """Test CustomFormatter format method with unicode characters."""
-        formatter = CustomFormatter()
+    def test_json_formatter_format_with_non_dict_extra_fields(self):
+        """Test JSONFormatter format method with extra fields of different types."""
+        formatter = JSONFormatter()
+        extra = {'string_field': 'value', 'int_field': 42, 'bool_field': True}
+        record = self._create_mock_record(logging.INFO, "INFO", "Test message", extra=extra)
+
+        result = formatter.format(record)
+        data = json.loads(result)
+
+        assert data['message'] == "Test message"
+        assert data['string_field'] == 'value'
+        assert data['int_field'] == 42
+        assert data['bool_field'] is True
+
+    def test_json_formatter_format_with_unicode(self):
+        """Test JSONFormatter format method with unicode characters."""
+        formatter = JSONFormatter()
         record = self._create_mock_record(logging.INFO, "INFO", "Test message with unicode: 测试")
 
         result = formatter.format(record)
+        data = json.loads(result)
 
+        assert "测试" in data['message']
+        # JSON should be valid with ensure_ascii=False
         assert isinstance(result, str)
-        assert "Test message with unicode: 测试" in result
 
-    def test_custom_formatter_format_with_emoji(self):
-        """Test CustomFormatter format method with emoji."""
-        formatter = CustomFormatter()
+    def test_json_formatter_format_with_emoji(self):
+        """Test JSONFormatter format method with emoji."""
+        formatter = JSONFormatter()
         record = self._create_mock_record(logging.INFO, "INFO", "Test message with emoji: 🚨")
 
         result = formatter.format(record)
+        data = json.loads(result)
 
-        assert isinstance(result, str)
-        assert "Test message with emoji: 🚨" in result
+        assert "🚨" in data['message']
 
-    def test_custom_formatter_format_with_very_long_message(self):
-        """Test CustomFormatter format method with very long message."""
-        formatter = CustomFormatter()
-        long_message = "Test message: " + "a" * 10000
-        record = self._create_mock_record(logging.INFO, "INFO", long_message)
+    def test_json_formatter_format_all_levels(self):
+        """Test JSONFormatter format method with all log levels."""
+        formatter = JSONFormatter()
+        levels = [
+            (logging.DEBUG, "DEBUG"),
+            (logging.INFO, "INFO"),
+            (logging.WARNING, "WARNING"),
+            (logging.ERROR, "ERROR"),
+            (logging.CRITICAL, "CRITICAL"),
+        ]
 
-        result = formatter.format(record)
-
-        assert isinstance(result, str)
-        assert long_message in result
-
-    def test_custom_formatter_format_with_empty_message(self):
-        """Test CustomFormatter format method with empty message."""
-        formatter = CustomFormatter()
-        record = self._create_mock_record(logging.INFO, "INFO", "")
-
-        result = formatter.format(record)
-
-        assert isinstance(result, str)
-
-    def test_custom_formatter_format_with_none_values(self):
-        """Test CustomFormatter format method with None values."""
-        formatter = CustomFormatter()
-        record = self._create_mock_record(logging.INFO, "INFO", "Test message")
-        record.asctime = None
-        record.levelname = None
-        record.message = None
-
-        # This should raise an exception due to None values in format string
-        with pytest.raises(TypeError):
-            formatter.format(record)
-
-    def test_custom_formatter_format_with_very_long_asctime(self):
-        """Test CustomFormatter format method with very long asctime."""
-        formatter = CustomFormatter()
-        record = self._create_mock_record(logging.INFO, "INFO", "Test message")
-        record.asctime = "2023-01-01 12:00:00" + "a" * 1000
-
-        result = formatter.format(record)
-
-        assert isinstance(result, str)
-        assert "Test message" in result
-
-    def test_custom_formatter_format_with_very_long_levelname(self):
-        """Test CustomFormatter format method with very long levelname."""
-        formatter = CustomFormatter()
-        record = self._create_mock_record(logging.INFO, "INFO" + "a" * 1000, "Test message")
-
-        result = formatter.format(record)
-
-        assert isinstance(result, str)
-        assert "Test message" in result
+        for levelno, levelname in levels:
+            record = self._create_mock_record(levelno, levelname, f"Test {levelname} message")
+            result = formatter.format(record)
+            data = json.loads(result)
+            assert data['level'] == levelname
+            assert data['message'] == f"Test {levelname} message"
 
 
 class TestCreateLogger:
@@ -225,8 +206,8 @@ class TestCreateLogger:
         
         assert stdout_handler is not None
         assert stderr_handler is not None
-        assert isinstance(stdout_handler.formatter, CustomFormatter)
-        assert isinstance(stderr_handler.formatter, CustomFormatter)
+        assert isinstance(stdout_handler.formatter, JSONFormatter)
+        assert isinstance(stderr_handler.formatter, JSONFormatter)
 
     def test_create_logger_with_custom_level(self):
         """Test create_logger with custom level."""
@@ -387,13 +368,13 @@ class TestCreateLogger:
                 if handler.stream == sys.stdout:
                     for filter_obj in handler.filters:
                         if isinstance(filter_obj, InfoFilter):
-                            assert isinstance(handler.formatter, CustomFormatter)
+                            assert isinstance(handler.formatter, JSONFormatter)
                             found_stdout = True
                             break
                 elif handler.stream == sys.stderr:
                     for filter_obj in handler.filters:
                         if isinstance(filter_obj, ErrorFilter):
-                            assert isinstance(handler.formatter, CustomFormatter)
+                            assert isinstance(handler.formatter, JSONFormatter)
                             found_stderr = True
                             break
         
@@ -663,16 +644,16 @@ class TestConfigureUvicornLogging:
             # 3 loggers * 2 handlers = 6 total
             assert mock_stream_handler.call_count == 6
 
-    def test_configure_uvicorn_logging_with_mock_custom_formatter(self):
-        """Test configure_uvicorn_logging with mocked CustomFormatter."""
+    def test_configure_uvicorn_logging_with_mock_json_formatter(self):
+        """Test configure_uvicorn_logging with mocked JSONFormatter."""
         with patch('app.logging.logging.getLogger') as mock_get_logger, \
-                patch('app.logging.CustomFormatter') as mock_formatter:
+                patch('app.logging.JSONFormatter') as mock_formatter:
             mock_logger = Mock()
             mock_get_logger.return_value = mock_logger
 
             configure_uvicorn_logging()
 
-            # Should create CustomFormatter instances for each handler
+            # Should create JSONFormatter instances for each handler
             # 3 loggers * 2 handlers = 6 total
             assert mock_formatter.call_count == 6
 

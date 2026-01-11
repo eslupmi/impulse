@@ -314,9 +314,9 @@ class Application(ABC):
             if user_info.id is not None:
                 user_details = await self.get_user_details(user_info)
                 if not user_details['exists']:
-                    logger.warning(f'.. user {name} not found in {self.type.value.capitalize()} and will not be notified')
+                    logger.warning('User not found in messenger', extra={'user': name})
             else:
-                logger.warning(f'.. user {name} has no \'id\' and will not be notified')
+                logger.warning('User has no `id` in configuration', extra={'user': name})
                 user_details = {}
             user = self.create_user(name, user_details)
             user_manager.add_user(name, user)
@@ -407,8 +407,8 @@ class Application(ABC):
         """
         if self.rate_limit:
             logger.debug(
-                f"{self.type.value.capitalize()} rate limiting enabled: "
-                f"{self.rate_limit} requests per {self.rate_window}s window"
+                f"Rate limit: "
+                f"{self.rate_limit} requests per {self.rate_window}s", extra={'messenger': self.type.value}
             )
         else:
             logger.info(f"{self.type.value.capitalize()} rate limiting disabled")

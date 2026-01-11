@@ -81,7 +81,7 @@ def sample_calendar_events():
 class TestGoogleCalendarChainInit:
     """Test cases for GoogleCalendarChain initialization."""
 
-    @patch('app.im.chain.google_calendar_chain.get_config')
+    @patch('app.im.chain.google_calendar_chain.get_environment_config')
     @patch('builtins.open', new_callable=mock_open)
     @patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data')
     def test_init_success(self, mock_fetch, mock_file, mock_get_config,
@@ -98,7 +98,7 @@ class TestGoogleCalendarChainInit:
         assert chain.default_steps == mock_config.default_steps
         assert chain.credentials == mock_service_account_credentials
 
-    @patch('app.im.chain.google_calendar_chain.get_config')
+    @patch('app.im.chain.google_calendar_chain.get_environment_config')
     @patch('builtins.open', new_callable=mock_open)
     @patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data')
     def test_init_missing_calendar_id(self, mock_fetch, mock_file, mock_get_config,
@@ -113,7 +113,7 @@ class TestGoogleCalendarChainInit:
         with pytest.raises(ValueError, match="calendar_id is required"):
             GoogleCalendarChain(name="test_chain", config=config)
 
-    @patch('app.im.chain.google_calendar_chain.get_config')
+    @patch('app.im.chain.google_calendar_chain.get_environment_config')
     @patch('builtins.open', side_effect=FileNotFoundError)
     @patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data')
     def test_init_missing_credentials_file(self, mock_fetch, mock_file, mock_get_config,
@@ -124,7 +124,7 @@ class TestGoogleCalendarChainInit:
         with pytest.raises(ValueError, match="Service account file .* not found"):
             GoogleCalendarChain(name="test_chain", config=mock_config)
 
-    @patch('app.im.chain.google_calendar_chain.get_config')
+    @patch('app.im.chain.google_calendar_chain.get_environment_config')
     @patch('builtins.open', new_callable=mock_open)
     @patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data')
     def test_init_invalid_credentials_missing_field(self, mock_fetch, mock_file, mock_get_config,
@@ -219,7 +219,7 @@ class TestGoogleCalendarChainConvertEvent:
 
     def test_convert_event_to_matcher_basic(self, sample_calendar_event):
         """Test converting basic calendar event to matcher."""
-        with patch('app.im.chain.google_calendar_chain.get_config'):
+        with patch('app.im.chain.google_calendar_chain.get_environment_config'):
             with patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._load_credentials'):
                 with patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data'):
                     chain = GoogleCalendarChain.__new__(GoogleCalendarChain)
@@ -236,7 +236,7 @@ class TestGoogleCalendarChainConvertEvent:
 
     def test_convert_event_to_matcher_with_steps(self, sample_calendar_event):
         """Test converting event with steps in description."""
-        with patch('app.im.chain.google_calendar_chain.get_config'):
+        with patch('app.im.chain.google_calendar_chain.get_environment_config'):
             with patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._load_credentials'):
                 with patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data'):
                     chain = GoogleCalendarChain.__new__(GoogleCalendarChain)
@@ -259,7 +259,7 @@ class TestGoogleCalendarChainConvertEvent:
             'end': {'dateTime': '2024-01-15T17:00:00+00:00'}
         }
 
-        with patch('app.im.chain.google_calendar_chain.get_config'):
+        with patch('app.im.chain.google_calendar_chain.get_environment_config'):
             with patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._load_credentials'):
                 with patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data'):
                     chain = GoogleCalendarChain.__new__(GoogleCalendarChain)
@@ -280,7 +280,7 @@ class TestGoogleCalendarChainConvertEvent:
             'end': {'date': '2024-01-16'}
         }
 
-        with patch('app.im.chain.google_calendar_chain.get_config'):
+        with patch('app.im.chain.google_calendar_chain.get_environment_config'):
             with patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._load_credentials'):
                 with patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data'):
                     chain = GoogleCalendarChain.__new__(GoogleCalendarChain)
@@ -301,7 +301,7 @@ class TestGoogleCalendarChainConvertEvent:
             'end': {'dateTime': '2024-01-15T17:00:00-05:00'}
         }
 
-        with patch('app.im.chain.google_calendar_chain.get_config'):
+        with patch('app.im.chain.google_calendar_chain.get_environment_config'):
             with patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._load_credentials'):
                 with patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data'):
                     chain = GoogleCalendarChain.__new__(GoogleCalendarChain)
@@ -323,7 +323,7 @@ class TestGoogleCalendarChainConvertEvent:
             'end': {'dateTime': '2024-01-15T09:30:00+00:00'}  # 30 minutes
         }
 
-        with patch('app.im.chain.google_calendar_chain.get_config'):
+        with patch('app.im.chain.google_calendar_chain.get_environment_config'):
             with patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._load_credentials'):
                 with patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data'):
                     chain = GoogleCalendarChain.__new__(GoogleCalendarChain)
@@ -337,7 +337,7 @@ class TestGoogleCalendarChainConvertEvent:
 class TestGoogleCalendarChainUpdateSchedule:
     """Test cases for updating schedule."""
 
-    @patch('app.im.chain.google_calendar_chain.get_config')
+    @patch('app.im.chain.google_calendar_chain.get_environment_config')
     @patch('builtins.open', new_callable=mock_open)
     @patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data')
     def test_update_schedule_empty_events(self, mock_fetch, mock_file, mock_get_config,
@@ -353,7 +353,7 @@ class TestGoogleCalendarChainUpdateSchedule:
         assert chain.schedule == []
         assert chain._last_sync_time is not None
 
-    @patch('app.im.chain.google_calendar_chain.get_config')
+    @patch('app.im.chain.google_calendar_chain.get_environment_config')
     @patch('builtins.open', new_callable=mock_open)
     @patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data')
     def test_update_schedule_with_events(self, mock_fetch, mock_file, mock_get_config,
@@ -370,7 +370,7 @@ class TestGoogleCalendarChainUpdateSchedule:
         assert len(chain.schedule) == 2
         assert all(isinstance(entry, ScheduleEntry) for entry in chain.schedule)
 
-    @patch('app.im.chain.google_calendar_chain.get_config')
+    @patch('app.im.chain.google_calendar_chain.get_environment_config')
     @patch('builtins.open', new_callable=mock_open)
     @patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data')
     def test_update_schedule_with_default_steps(self, mock_fetch, mock_file, mock_get_config,
@@ -396,7 +396,7 @@ class TestGoogleCalendarChainUpdateSchedule:
 class TestGoogleCalendarChainAPIRequests:
     """Test cases for API request methods."""
 
-    @patch('app.im.chain.google_calendar_chain.get_config')
+    @patch('app.im.chain.google_calendar_chain.get_environment_config')
     @patch('builtins.open', new_callable=mock_open)
     @patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data')
     def test_make_api_request_success(self, mock_fetch, mock_file, mock_get_config,
@@ -418,7 +418,7 @@ class TestGoogleCalendarChainAPIRequests:
         assert result == {'success': True}
         chain.session.request.assert_called_once()
 
-    @patch('app.im.chain.google_calendar_chain.get_config')
+    @patch('app.im.chain.google_calendar_chain.get_environment_config')
     @patch('builtins.open', new_callable=mock_open)
     @patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data')
     def test_make_api_request_failure(self, mock_fetch, mock_file, mock_get_config,
@@ -441,7 +441,7 @@ class TestGoogleCalendarChainAPIRequests:
 class TestGoogleCalendarChainAccessToken:
     """Test cases for access token management."""
 
-    @patch('app.im.chain.google_calendar_chain.get_config')
+    @patch('app.im.chain.google_calendar_chain.get_environment_config')
     @patch('builtins.open', new_callable=mock_open)
     @patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data')
     @patch('jwt.encode')
@@ -469,7 +469,7 @@ class TestGoogleCalendarChainAccessToken:
         assert chain._last_token == 'test_access_token'
         assert chain._token_expiry is not None
 
-    @patch('app.im.chain.google_calendar_chain.get_config')
+    @patch('app.im.chain.google_calendar_chain.get_environment_config')
     @patch('builtins.open', new_callable=mock_open)
     @patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data')
     def test_get_access_token_cached(self, mock_fetch, mock_file, mock_get_config,
@@ -490,7 +490,7 @@ class TestGoogleCalendarChainAccessToken:
 
         assert token == 'cached_token'
 
-    @patch('app.im.chain.google_calendar_chain.get_config')
+    @patch('app.im.chain.google_calendar_chain.get_environment_config')
     @patch('builtins.open', new_callable=mock_open)
     @patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data')
     def test_get_access_token_expired(self, mock_fetch, mock_file, mock_get_config,
@@ -524,7 +524,7 @@ class TestGoogleCalendarChainAccessToken:
 class TestGoogleCalendarChainSync:
     """Test cases for sync functionality."""
 
-    @patch('app.im.chain.google_calendar_chain.get_config')
+    @patch('app.im.chain.google_calendar_chain.get_environment_config')
     @patch('builtins.open', new_callable=mock_open)
     @patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data')
     def test_cleanup(self, mock_fetch, mock_file, mock_get_config,
@@ -545,7 +545,7 @@ class TestGoogleCalendarChainSync:
 class TestGoogleCalendarChainTimezone:
     """Test cases for timezone handling."""
 
-    @patch('app.im.chain.google_calendar_chain.get_config')
+    @patch('app.im.chain.google_calendar_chain.get_environment_config')
     @patch('builtins.open', new_callable=mock_open)
     @patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data')
     def test_update_timezone(self, mock_fetch, mock_file, mock_get_config,
@@ -563,7 +563,7 @@ class TestGoogleCalendarChainTimezone:
         assert chain.timezone == "America/New_York"
         assert chain.timezone != initial_tz
 
-    @patch('app.im.chain.google_calendar_chain.get_config')
+    @patch('app.im.chain.google_calendar_chain.get_environment_config')
     @patch('builtins.open', new_callable=mock_open)
     @patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data')
     def test_get_calendar_timezone_success(self, mock_fetch, mock_file, mock_get_config,
@@ -583,7 +583,7 @@ class TestGoogleCalendarChainTimezone:
 
         assert timezone == 'America/Los_Angeles'
 
-    @patch('app.im.chain.google_calendar_chain.get_config')
+    @patch('app.im.chain.google_calendar_chain.get_environment_config')
     @patch('builtins.open', new_callable=mock_open)
     @patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data')
     def test_get_calendar_timezone_failure(self, mock_fetch, mock_file, mock_get_config,
@@ -609,7 +609,7 @@ class TestGoogleCalendarChainTimezone:
 class TestGoogleCalendarChainFetchEvents:
     """Test cases for fetching events."""
 
-    @patch('app.im.chain.google_calendar_chain.get_config')
+    @patch('app.im.chain.google_calendar_chain.get_environment_config')
     @patch('builtins.open', new_callable=mock_open)
     @patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data')
     def test_fetch_events_success(self, mock_fetch, mock_file, mock_get_config,
@@ -632,7 +632,7 @@ class TestGoogleCalendarChainFetchEvents:
         assert events[0]['id'] == 'event1'
         assert events[1]['id'] == 'event2'
 
-    @patch('app.im.chain.google_calendar_chain.get_config')
+    @patch('app.im.chain.google_calendar_chain.get_environment_config')
     @patch('builtins.open', new_callable=mock_open)
     @patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data')
     def test_fetch_events_failure(self, mock_fetch, mock_file, mock_get_config,
@@ -654,7 +654,7 @@ class TestGoogleCalendarChainFetchEvents:
         # Should return empty list on failure
         assert events == []
 
-    @patch('app.im.chain.google_calendar_chain.get_config')
+    @patch('app.im.chain.google_calendar_chain.get_environment_config')
     @patch('builtins.open', new_callable=mock_open)
     @patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data')
     def test_fetch_events_no_items(self, mock_fetch, mock_file, mock_get_config,
@@ -699,7 +699,7 @@ class TestGoogleCalendarChainEdgeCases:
             'end': {'dateTime': '2024-01-15T17:00:00Z'}
         }
 
-        with patch('app.im.chain.google_calendar_chain.get_config'):
+        with patch('app.im.chain.google_calendar_chain.get_environment_config'):
             with patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._load_credentials'):
                 with patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data'):
                     chain = GoogleCalendarChain.__new__(GoogleCalendarChain)
@@ -714,7 +714,7 @@ class TestGoogleCalendarChainEdgeCases:
 class TestGoogleCalendarChainAdditionalCoverage:
     """Test cases for additional coverage."""
 
-    @patch('app.im.chain.google_calendar_chain.get_config')
+    @patch('app.im.chain.google_calendar_chain.get_environment_config')
     @patch('builtins.open', new_callable=mock_open)
     @patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data')
     def test_make_api_request_with_response_text(self, mock_fetch, mock_file, mock_get_config,
@@ -742,7 +742,7 @@ class TestGoogleCalendarChainAdditionalCoverage:
             # Should log both error message and response text
             assert mock_logger.error.call_count == 2
 
-    @patch('app.im.chain.google_calendar_chain.get_config')
+    @patch('app.im.chain.google_calendar_chain.get_environment_config')
     @patch('builtins.open', new_callable=mock_open)
     @patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data')
     def test_update_timezone_same_timezone(self, mock_fetch, mock_file, mock_get_config,
@@ -760,7 +760,7 @@ class TestGoogleCalendarChainAdditionalCoverage:
         # Should not change
         assert chain.timezone == initial_tz
 
-    @patch('app.im.chain.google_calendar_chain.get_config')
+    @patch('app.im.chain.google_calendar_chain.get_environment_config')
     @patch('builtins.open', new_callable=mock_open)
     def test_fetch_initial_data_exception(self, mock_file, mock_get_config,
                                           mock_config, mock_app_config, mock_service_account_credentials):
@@ -781,7 +781,7 @@ class TestGoogleCalendarChainAdditionalCoverage:
             mock_logger.error.assert_called_once()
             assert chain.schedule == []
 
-    @patch('app.im.chain.google_calendar_chain.get_config')
+    @patch('app.im.chain.google_calendar_chain.get_environment_config')
     @patch('builtins.open', new_callable=mock_open)
     @patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data')
     def test_start_sync_no_event_loop(self, mock_fetch, mock_file, mock_get_config,
@@ -805,7 +805,7 @@ class TestGoogleCalendarChainAdditionalCoverage:
                 mock_logger.warning.assert_called_once()
                 assert chain._sync_task is None
 
-    @patch('app.im.chain.google_calendar_chain.get_config')
+    @patch('app.im.chain.google_calendar_chain.get_environment_config')
     @patch('builtins.open', new_callable=mock_open)
     @patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data')
     def test_start_sync_runtime_error(self, mock_fetch, mock_file, mock_get_config,
@@ -825,7 +825,7 @@ class TestGoogleCalendarChainAdditionalCoverage:
                 mock_logger.error.assert_called_once()
                 assert chain._sync_task is None
 
-    @patch('app.im.chain.google_calendar_chain.get_config')
+    @patch('app.im.chain.google_calendar_chain.get_environment_config')
     @patch('builtins.open', new_callable=mock_open)
     @patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data')
     def test_stop_sync_with_task(self, mock_fetch, mock_file, mock_get_config,
@@ -848,7 +848,7 @@ class TestGoogleCalendarChainAdditionalCoverage:
             mock_logger.info.assert_called_once()
             assert chain._sync_task is None
 
-    @patch('app.im.chain.google_calendar_chain.get_config')
+    @patch('app.im.chain.google_calendar_chain.get_environment_config')
     @patch('builtins.open', new_callable=mock_open)
     @patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data')
     def test_get_access_token_jwt_error(self, mock_fetch, mock_file, mock_get_config,
@@ -869,7 +869,7 @@ class TestGoogleCalendarChainAdditionalCoverage:
 
                 mock_logger.error.assert_called_once()
 
-    @patch('app.im.chain.google_calendar_chain.get_config')
+    @patch('app.im.chain.google_calendar_chain.get_environment_config')
     @patch('builtins.open', new_callable=mock_open)
     @patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data')
     def test_get_access_token_request_error_with_response(self, mock_fetch, mock_file, mock_get_config,
@@ -899,7 +899,7 @@ class TestGoogleCalendarChainAdditionalCoverage:
                 # Should log both error message and response text
                 assert mock_logger.error.call_count == 2
 
-    @patch('app.im.chain.google_calendar_chain.get_config')
+    @patch('app.im.chain.google_calendar_chain.get_environment_config')
     @patch('builtins.open', new_callable=mock_open)
     @patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data')
     def test_get_access_token_key_error(self, mock_fetch, mock_file, mock_get_config,
@@ -923,7 +923,7 @@ class TestGoogleCalendarChainAdditionalCoverage:
 
                 mock_logger.error.assert_called_once()
 
-    @patch('app.im.chain.google_calendar_chain.get_config')
+    @patch('app.im.chain.google_calendar_chain.get_environment_config')
     @patch('builtins.open', new_callable=mock_open)
     @patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data')
     def test_sync_calendar_exception_handling(self, mock_fetch, mock_file, mock_get_config,
@@ -955,7 +955,7 @@ class TestGoogleCalendarChainAdditionalCoverage:
                 mock_logger.error.assert_called_once()
                 mock_sleep.assert_called_once()
 
-    @patch('app.im.chain.google_calendar_chain.get_config')
+    @patch('app.im.chain.google_calendar_chain.get_environment_config')
     @patch('builtins.open', new_callable=mock_open)
     @patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data')
     def test_parse_steps_memory_error(self, mock_fetch, mock_file, mock_get_config,
@@ -970,7 +970,7 @@ class TestGoogleCalendarChainAdditionalCoverage:
                 mock_logger.error.assert_called_once()
                 assert isinstance(result, list)
 
-    @patch('app.im.chain.google_calendar_chain.get_config')
+    @patch('app.im.chain.google_calendar_chain.get_environment_config')
     @patch('builtins.open', new_callable=mock_open)
     @patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data')
     def test_parse_steps_general_exception(self, mock_fetch, mock_file, mock_get_config,
