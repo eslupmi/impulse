@@ -6,7 +6,7 @@ import time
 from pathlib import Path
 from typing import Optional, Tuple
 
-from app.config.config import get_config
+from app.config.environment import get_environment_config
 from app.logging import logger
 
 
@@ -26,8 +26,8 @@ class FileLock:
     MAX_HEARTBEAT_FAILURES = 3
 
     def __init__(self):
-        config = get_config()
-        self.lock_dir = Path(f"{config.data_path}/.lock.d")
+        env_config = get_environment_config()
+        self.lock_dir = Path(f"{env_config.data_path}/.lock.d")
         self.heartbeat_path = self.lock_dir / "heartbeat"
         self.pid_path = self.lock_dir / "pid"
         self.host_path = self.lock_dir / "host"

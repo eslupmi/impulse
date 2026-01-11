@@ -34,8 +34,12 @@ class TestMainApplication:
             mock_config.messenger.channels = {'default': {'id': 'C123456789'}}
             mock_config.app.route = Mock()
             mock_config.app.webhooks = Mock()
-            mock_config.http_prefix = ""
             mock_get_config.return_value = mock_config
+            
+            # Setup mock environment config
+            mock_env_config = Mock()
+            mock_env_config.http_prefix = ""
+            mock_get_env_config.return_value = mock_env_config
 
             # Setup mock route
             mock_route = Mock()
@@ -116,16 +120,20 @@ class TestMainApplication:
         assert main.app.description == "Incident Management Platform"
         assert main.app.version == "0.0.0"
 
+    @patch('main.get_environment_config')
     @patch('main.get_config')
-    def test_http_prefix_configuration(self, mock_get_config):
+    def test_http_prefix_configuration(self, mock_get_config, mock_get_env_config):
         """Test HTTP prefix configuration."""
         mock_config = Mock()
-        mock_config.http_prefix = "/api/v1"
         mock_config.ui_config = True
         mock_get_config.return_value = mock_config
+        
+        mock_env_config = Mock()
+        mock_env_config.http_prefix = "/api/v1"
+        mock_get_env_config.return_value = mock_env_config
 
         # This would normally require reloading the module, but we can test the logic
-        assert mock_get_config.return_value.http_prefix == "/api/v1"
+        assert mock_get_env_config.return_value.http_prefix == "/api/v1"
 
     @pytest.mark.asyncio
     async def test_lifespan_startup(self, mock_app_dependencies):

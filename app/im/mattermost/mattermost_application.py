@@ -11,6 +11,7 @@ from app.im.mattermost.threads import mattermost_get_create_thread_payload, matt
 from app.im.mattermost.user import User
 from app.logging import logger
 from app.config.config import get_config
+from app.config.environment import get_environment_config
 from app.config.validation import ApplicationConfig
 
 
@@ -21,9 +22,10 @@ class MattermostApplication(Application):
 
     def _initialize_specific_params(self):
         self.post_message_url = f'{self.url}/api/v4/posts'
+        env_config = get_environment_config()
         self.headers = {
             'Content-Type': 'application/json',
-            'Authorization': f'Bearer {get_config().mattermost_access_token}',
+            'Authorization': f'Bearer {env_config.mattermost_access_token}',
         }
         self.rate_limit = 10
         self.thread_id_key = 'id'

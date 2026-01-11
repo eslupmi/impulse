@@ -10,6 +10,7 @@ from app.im.slack.threads import slack_get_create_thread_payload, slack_get_upda
 from app.im.slack.user import User
 from app.logging import logger
 from app.config.config import get_config
+from app.config.environment import get_environment_config
 from app.config.validation import ApplicationConfig
 
 
@@ -20,9 +21,10 @@ class SlackApplication(Application):
 
     def _initialize_specific_params(self):
         self.post_message_url = f'{self.url}/api/chat.postMessage'
+        env_config = get_environment_config()
         self.headers = {
             'Content-Type': 'application/json',
-            'Authorization': f'Bearer {get_config().slack_bot_user_oauth_token}',
+            'Authorization': f'Bearer {env_config.slack_bot_user_oauth_token}',
         }
         self.rate_limit = 10
         self.thread_id_key = 'ts'
@@ -129,8 +131,8 @@ class SlackApplication(Application):
         await self._handle_freeze_action(incident_, freeze_option, user_id, incidents, queue_, user_timezone=slack_tz)
 
     async def buttons_handler(self, payload, incidents, queue_, route):
-        config = get_config()
-        if payload.get('token') != config.slack_verification_token:
+        env_config = get_environment_config()
+        if payload.get('token') != env_config.slack_verification_token:
             logger.error('Unauthorized request')
             return JSONResponse({}, status_code=401)
 

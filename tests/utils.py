@@ -1502,17 +1502,18 @@ def create_buttons_handler_context_manager(app, payload, incidents, queue, route
 
 def create_slack_mock_config(token: str = "valid_token"):
     """
-    Create a mock config for Slack application tests.
+    Create a mock environment config for Slack application tests.
     
     Args:
         token: The Slack verification token
         
     Returns:
-        Mock config object
+        Mock environment config object
     """
-    mock_config = Mock()
-    mock_config.slack_verification_token = token
-    return mock_config
+    mock_env_config = Mock()
+    mock_env_config.slack_verification_token = token
+    mock_env_config.slack_bot_user_oauth_token = "test-oauth-token"
+    return mock_env_config
 
 
 def create_slack_buttons_handler_context(app, payload, incidents, queue, route, 
@@ -1538,8 +1539,14 @@ def create_slack_buttons_handler_context(app, payload, incidents, queue, route,
     
     @asynccontextmanager
     async def slack_context():
-        with patch('app.im.slack.slack_application.get_config') as mock_get_config:
-            mock_config = create_slack_mock_config()
+        with patch('app.im.slack.slack_application.get_environment_config') as mock_get_env_config, \
+             patch('app.im.slack.slack_application.get_config') as mock_get_config:
+            mock_env_config = create_slack_mock_config()
+            mock_get_env_config.return_value = mock_env_config
+            
+            # Also mock unified config for timezone access
+            mock_config = Mock()
+            mock_config.app.general.timezone = 'UTC'
             mock_get_config.return_value = mock_config
             
             with patch('app.im.slack.slack_application.logger') as mock_logger:

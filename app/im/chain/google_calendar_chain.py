@@ -13,7 +13,7 @@ from app.config.validation import CloudChain, ScheduleEntry, ScheduleMatcherExpr
 from app.im.chain.schedule_chain import ScheduleChain
 from app.logging import logger
 from app.tools import HTMLTextExtractor
-from app.config.config import get_config
+from app.config.environment import get_environment_config
 
 
 class GoogleCalendarChain(ScheduleChain):
@@ -24,7 +24,7 @@ class GoogleCalendarChain(ScheduleChain):
         super().__init__(name)
         
         # Get environment configuration
-        self._app_config = get_config()
+        self._env_config = get_environment_config()
 
         self.calendar_id = config.calendar_id
         if not self.calendar_id:
@@ -131,7 +131,7 @@ class GoogleCalendarChain(ScheduleChain):
     def _load_credentials(self) -> None:
         """Load service account credentials from JSON file."""
         try:
-            with open(self._app_config.provider_service_account_file, 'r') as f:
+            with open(self._env_config.provider_service_account_file, 'r') as f:
                 self.credentials = json.load(f)
             # Validate required fields
             required_fields = ['client_email', 'private_key', 'token_uri']
@@ -139,9 +139,9 @@ class GoogleCalendarChain(ScheduleChain):
                 if field not in self.credentials:
                     raise ValueError(f"Missing required field '{field}' in service account file")
         except FileNotFoundError:
-            raise ValueError(f"Service account file {self._app_config.provider_service_account_file} not found")
+            raise ValueError(f"Service account file {self._env_config.provider_service_account_file} not found")
         except json.JSONDecodeError:
-            raise ValueError(f"Invalid JSON in service account file {self._app_config.provider_service_account_file}")
+            raise ValueError(f"Invalid JSON in service account file {self._env_config.provider_service_account_file}")
 
     def _get_access_token(self) -> str:
         """Get access token using JWT with retry logic."""
@@ -228,12 +228,12 @@ class GoogleCalendarChain(ScheduleChain):
             token = self._get_access_token()
 
             date_from = datetime.datetime.now(datetime.timezone.utc)
-            date_to = date_from + datetime.timedelta(days=self._app_config.provider_days_to_sync)
+            date_to = date_from + datetime.timedelta(days=self._env_config.provider_days_to_sync)
 
             params = {
                 'timeMin': date_from.isoformat().replace(self._UTC_OFFSET, self._Z_TIMEZONE),
                 'timeMax': date_to.isoformat().replace(self._UTC_OFFSET, self._Z_TIMEZONE),
-                'maxResults': self._app_config.provider_max_events,
+                'maxResults': self._env_config.provider_max_events,
                 'singleEvents': 'true',
                 'orderBy': 'startTime'
             }
@@ -316,7 +316,7 @@ class GoogleCalendarChain(ScheduleChain):
 
             except Exception as e:
                 logger.error(f"Calendar sync error: {str(e)}", extra={'provider': 'google'})
-                await asyncio.sleep(min(self._app_config.provider_sync_interval * 2, 300))  # Max 5 minutes
+                await asyncio.sleep(min(self._env_config.provider_sync_interval * 2, 300))  # Max 5 minutes
                 continue
 
-            await asyncio.sleep(self._app_config.provider_sync_interval)
+            await asyncio.sleep(self._env_config.provider_sync_interval)

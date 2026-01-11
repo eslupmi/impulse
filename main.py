@@ -11,6 +11,7 @@ from fastapi.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from app.config.config import get_config, reload_config
+from app.config.environment import get_environment_config
 from app.config.validation import MessengerType
 from app.file_lock import FileLock
 from app.im.channel_manager import ChannelManager
@@ -210,7 +211,8 @@ app = FastAPI(
 )
 app.add_middleware(StandbyMiddleware)
 config = get_config()
-http_prefix = config.http_prefix
+env_config = get_environment_config()
+http_prefix = env_config.http_prefix
 router = APIRouter(prefix=http_prefix)
 
 
@@ -385,11 +387,12 @@ if __name__ == "__main__":
         configure_warnings_logging()
 
         config = get_config()
+        env_config = get_environment_config()
         
         uvicorn.run(
             "main:app",
-            host=config.listen_host,
-            port=config.listen_port,
+            host=env_config.listen_host,
+            port=env_config.listen_port,
             reload=True,
             log_level="warning"
         )

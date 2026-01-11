@@ -2,7 +2,7 @@ from fastapi import Request
 from fastapi.responses import Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from app.config.config import get_config
+from app.config.environment import get_environment_config
 
 
 def is_standby_mode(state) -> bool:
@@ -27,9 +27,9 @@ class StandbyMiddleware(BaseHTTPMiddleware):
         if not path.startswith("/"):
             path = "/" + path
         
-        # Get http_prefix from config
-        config_data = get_config()
-        http_prefix = config_data.http_prefix or ""
+        # Get http_prefix from environment config
+        env_config = get_environment_config()
+        http_prefix = env_config.http_prefix or ""
         
         # Check if path is /readyz, /livez or /metrics (with or without prefix)
         # Endpoints are registered directly in app with prefix, so check full path

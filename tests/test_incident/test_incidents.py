@@ -297,6 +297,7 @@ class TestIncidents:
         for row in table_data:
             assert isinstance(row, dict)
 
+    @patch('app.incident.incidents.get_environment_config')
     @patch('app.incident.incidents.get_config')
     @patch('os.path.exists')
     @patch('os.makedirs')
@@ -305,7 +306,7 @@ class TestIncidents:
     @patch('builtins.open', create=True)
     @patch('yaml.load')
     def test_create_or_load_success(self, mock_yaml_load, mock_open, mock_load, mock_walk, mock_makedirs,
-                                    mock_exists, mock_get_config):
+                                    mock_exists, mock_get_config, mock_get_env_config):
         """Test successful creation or loading of incidents."""
         # Use utility function for mock config
         mock_config = create_mock_config(
@@ -313,6 +314,11 @@ class TestIncidents:
             incidents_path="/test/incidents"
         )
         mock_get_config.return_value = mock_config
+        
+        # Setup env config
+        mock_env_config = Mock()
+        mock_env_config.incidents_path = "/test/incidents"
+        mock_get_env_config.return_value = mock_env_config
 
         mock_exists.return_value = True
         mock_walk.return_value = [
@@ -336,6 +342,7 @@ class TestIncidents:
         assert isinstance(incidents, Incidents)
         mock_makedirs.assert_not_called()  # Directory already exists
 
+    @patch('app.incident.incidents.get_environment_config')
     @patch('app.incident.incidents.get_config')
     @patch('os.path.exists')
     @patch('os.makedirs')
@@ -344,7 +351,7 @@ class TestIncidents:
     @patch('builtins.open', create=True)
     @patch('yaml.load')
     def test_create_or_load_create_directory(self, mock_yaml_load, mock_open, mock_load, mock_walk, mock_makedirs,
-                                             mock_exists, mock_get_config):
+                                             mock_exists, mock_get_config, mock_get_env_config):
         """Test creating incidents directory when it doesn't exist."""
         # Use utility function for mock config
         mock_config = create_mock_config(
@@ -352,6 +359,11 @@ class TestIncidents:
             incidents_path="/test/incidents"
         )
         mock_get_config.return_value = mock_config
+        
+        # Setup env config
+        mock_env_config = Mock()
+        mock_env_config.incidents_path = "/test/incidents"
+        mock_get_env_config.return_value = mock_env_config
 
         mock_exists.return_value = False
         mock_walk.return_value = [('/test/incidents', [], [])]
@@ -373,6 +385,7 @@ class TestIncidents:
         assert isinstance(incidents, Incidents)
         mock_makedirs.assert_called_once_with('/test/incidents')
 
+    @patch('app.incident.incidents.get_environment_config')
     @patch('app.incident.incidents.get_config')
     @patch('os.path.exists')
     @patch('os.makedirs')
@@ -382,7 +395,7 @@ class TestIncidents:
     @patch('yaml.load')
     def test_create_or_load_different_messenger_type(self, mock_yaml_load, mock_open, mock_load, mock_walk,
                                                      mock_makedirs,
-                                                     mock_exists, mock_get_config):
+                                                     mock_exists, mock_get_config, mock_get_env_config):
         """Test loading incidents with different messenger type."""
         # Use utility function for mock config
         mock_config = create_mock_config(
@@ -390,6 +403,11 @@ class TestIncidents:
             incidents_path="/test/incidents"
         )
         mock_get_config.return_value = mock_config
+        
+        # Setup env config
+        mock_env_config = Mock()
+        mock_env_config.incidents_path = "/test/incidents"
+        mock_get_env_config.return_value = mock_env_config
 
         mock_exists.return_value = True
         mock_walk.return_value = [
@@ -413,6 +431,7 @@ class TestIncidents:
         assert isinstance(incidents, Incidents)
         assert len(incidents.uniq_ids) == 0  # Should not include different messenger type
 
+    @patch('app.incident.incidents.get_environment_config')
     @patch('app.incident.incidents.get_config')
     @patch('os.path.exists')
     @patch('os.makedirs')
@@ -423,7 +442,7 @@ class TestIncidents:
     @patch('yaml.load')
     def test_create_or_load_with_migration(self, mock_yaml_load, mock_open, mock_load, mock_migrator_class, mock_walk,
                                            mock_makedirs,
-                                           mock_exists, mock_get_config):
+                                           mock_exists, mock_get_config, mock_get_env_config):
         """Test loading incidents with migration."""
         # Use utility function for mock config
         mock_config = create_mock_config(
@@ -431,6 +450,11 @@ class TestIncidents:
             incidents_path="/test/incidents"
         )
         mock_get_config.return_value = mock_config
+        
+        # Setup env config
+        mock_env_config = Mock()
+        mock_env_config.incidents_path = "/test/incidents"
+        mock_get_env_config.return_value = mock_env_config
 
         mock_exists.return_value = True
         mock_walk.return_value = [

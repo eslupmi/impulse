@@ -7,6 +7,7 @@ import os
 import yaml
 
 from app.config.config import get_config
+from app.config.environment import get_environment_config
 from app.config.validation import MessengerType
 from app.im.channel_manager import ChannelManager
 from app.logging import logger
@@ -236,12 +237,12 @@ class Incident:
 
     def get_current_filename(self) -> str:
         """Get the current filename based on incident state"""
-        config = get_config()
+        env_config = get_environment_config()
         if self.status == 'closed' or self.status == 'deleted':
             closed_str = self.datetime_serialize(self.closed)
-            return f'{config.incidents_path}/{self.uuid}__{closed_str}.yml'
+            return f'{env_config.incidents_path}/{self.uuid}__{closed_str}.yml'
         else:
-            return f'{config.incidents_path}/{self.uuid}.yml'
+            return f'{env_config.incidents_path}/{self.uuid}.yml'
 
     def _remove_old_file(self, old_filename: str):
         """Remove old incident file"""

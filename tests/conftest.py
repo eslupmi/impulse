@@ -201,18 +201,15 @@ def mock_impulse_config():
 
 
 @pytest.fixture
-def mock_unified_config(mock_environment_config, mock_impulse_config):
+def mock_unified_config(mock_impulse_config):
     """Mock UnifiedConfig for testing."""
     config = Mock(spec=UnifiedConfig)
-    config.env = mock_environment_config
     config.app = mock_impulse_config
     config.INCIDENT_ACTUAL_VERSION = "v3.2.0"
     config.check_updates = True
     config.messenger = mock_impulse_config.messenger
     config.incident = mock_impulse_config.incident
     config.ui_config = mock_impulse_config.ui
-    config.incidents_path = mock_environment_config.incidents_path
-    config.http_prefix = mock_environment_config.http_prefix
     return config
 
 

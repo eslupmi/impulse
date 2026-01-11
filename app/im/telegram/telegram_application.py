@@ -30,7 +30,8 @@ class TelegramApplication(Application):
         super().__init__(app_config, channels, users)
 
     def _initialize_specific_params(self):
-        self.url += get_config().telegram_bot_token
+        env_config = get_environment_config()
+        self.url += env_config.telegram_bot_token
         self.post_message_url = self.url + '/sendMessage'
         self.headers = {'Content-Type': 'application/json'}
         self.rate_limit = 20
