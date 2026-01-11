@@ -220,7 +220,6 @@ class TestUserManager:
     def test_user_manager_creation(self):
         """Test creating a UserManager instance."""
         manager = UserManager()
-        assert manager is not None
         assert isinstance(manager, UserManager)
     
     def test_add_and_get_user(self):

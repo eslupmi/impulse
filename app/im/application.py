@@ -87,44 +87,54 @@ class Application(ABC):
             dump: Whether to dump the incident after assigning the user name
         """
         try:
-            # First check user manager for configured users
-            cached_user = self.users.get_user_by_id(user_id)
-            if cached_user and cached_user.exists:
-                incident.assign_fullname(cached_user.name)
-                notification_id = cached_user.get_notification_identifier()
-                if notification_id and notification_id != cached_user.id:
-                    incident.assign_user(notification_id)
-                if dump:
-                    incident.dump()
-                logger.debug(f'Incident {incident.uuid} assigned user from manager: {cached_user.name}')
-                return
-            
-            # Then check incident cache
-            if incidents:
-                if cached_name := incidents.get_assigned_user_by_id(user_id):
-                    incident.assign_fullname(cached_name)
-                    if dump:
-                        incident.dump()
-                    logger.debug(f'Incident {incident.uuid} assigned cached user name: {cached_name}')
-                    return
-            
-            # Finally fetch from API and cache discovered user
-            user_details = await self.get_user_details({'id': user_id})
-            assigned_name = user_details.get('full_name') or "(empty)"
-            incident.assign_fullname(assigned_name)
-            if user_details.get('username'):
-                incident.assign_user(user_details.get('username'))
-            if user_details.get('exists'):
-                self._add_discovered_user(user_id, user_details)
-            if dump:
-                incident.dump()
-            logger.debug(f'Incident {incident.uuid} assigned user name from API: {assigned_name}')
-
+            if self._try_assign_from_user_manager(incident, user_id):
+                logger.debug(f'Incident {incident.uuid} assigned user from manager')
+            elif self._try_assign_from_cache(incident, user_id, incidents):
+                logger.debug(f'Incident {incident.uuid} assigned cached user name')
+            else:
+                await self._assign_from_api(incident, user_id)
+                logger.debug(f'Incident {incident.uuid} assigned user name from API')
         except Exception as e:
             logger.error(f'Failed to fetch user name for incident {incident.uuid}: {e}')
             incident.assign_fullname("-")
+        finally:
             if dump:
                 incident.dump()
+
+    def _try_assign_from_user_manager(self, incident, user_id):
+        """Try to assign user from the user manager. Returns True if successful."""
+        cached_user = self.users.get_user_by_id(user_id)
+        if not (cached_user and cached_user.exists):
+            return False
+        
+        incident.assign_fullname(cached_user.name)
+        notification_id = cached_user.get_notification_identifier()
+        if notification_id and notification_id != cached_user.id:
+            incident.assign_user(notification_id)
+        return True
+
+    def _try_assign_from_cache(self, incident, user_id, incidents):
+        """Try to assign user from incident cache. Returns True if successful."""
+        if not incidents:
+            return False
+        
+        cached_name = incidents.get_assigned_user_by_id(user_id)
+        if not cached_name:
+            return False
+        
+        incident.assign_fullname(cached_name)
+        return True
+
+    async def _assign_from_api(self, incident, user_id):
+        """Fetch user from API and assign to incident."""
+        user_details = await self.get_user_details({'id': user_id})
+        assigned_name = user_details.get('full_name') or "(empty)"
+        incident.assign_fullname(assigned_name)
+        
+        if user_details.get('username'):
+            incident.assign_user(user_details.get('username'))
+        if user_details.get('exists'):
+            self._add_discovered_user(user_id, user_details)
 
     def _add_discovered_user(self, user_id, user_details):
         name_key = f"_discovered_{user_id}"
