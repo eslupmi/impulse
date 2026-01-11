@@ -52,7 +52,7 @@ def setup_sighup_handler():
 def validate_config_only():
     """Validate configuration and exit"""
     try:
-        config = get_config()
+        get_config()
         logger.info("Configuration valid")
         sys.exit(0)
     except SystemExit as e:

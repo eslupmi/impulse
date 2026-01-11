@@ -36,7 +36,7 @@ class StepHandler(BaseHandler):
                           'result': result, 'response': r_code}
                 incident.chain_update(identifier, done=True, result=r_code)
                 if result == 'ok':
-                    logger.info(f"Webhook sent", extra={'uuid': incident.uuid, 'webhook': webhook_name, 'response': r_code})
+                    logger.info("Webhook sent", extra={'uuid': incident.uuid, 'webhook': webhook_name, 'response': r_code})
                 else:
                     logger.warning("Webhook failed", extra={'uuid': incident.uuid, 'webhook': webhook_name, 'response': r_code})
             else:

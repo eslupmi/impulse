@@ -97,16 +97,16 @@ class MattermostApplication(Application):
         await queue_.delete_by_id(incident_.uniq_id, delete_steps=True, delete_status=False)
         if incident_.chain_enabled or incident_.status != 'resolved':
             if incident_.assigned_user_id == user_id:
-                logger.info(f'Button TAKE IT pressed: user already assigned', extra={'incident': incident_.uuid, 'user_id': user_id})
+                logger.info('Button TAKE IT pressed: user already assigned', extra={'incident': incident_.uuid, 'user_id': user_id})
                 return JSONResponse(payload, status_code=200)
-            logger.info(f'Button TAKE IT pressed: assigning to user', extra={'incident': incident_.uuid, 'user_id': user_id})
+            logger.info('Button TAKE IT pressed: assigning to user', extra={'incident': incident_.uuid, 'user_id': user_id})
             incident_.assign_user_id(user_id)
             incident_.assign_user(user_name)
             self._track_async_task(asyncio.create_task(self.post_assignment_notification(incident_, user_id, user_name)))
             self._track_async_task(asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id, incidents)))
             incident_.chain_enabled = False
         else:
-            logger.info(f'Button RELEASE pressed', extra={'uuid': incident_.uuid, 'user_id': user_id})
+            logger.info('Button RELEASE pressed', extra={'uuid': incident_.uuid, 'user_id': user_id})
             self._track_async_task(asyncio.create_task(self.post_unassignment_notification(incident_)))
             incident_.release()
         return None

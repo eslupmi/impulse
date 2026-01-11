@@ -78,5 +78,5 @@ def generate_route(route_config: Optional[RouteConfig]):
     routes = route_config.routes
 
     route_ = MainRoute(main_channel_name, main_chain, routes)
-    logger.info(f"Route created")
+    logger.info("Route created")
     return route_

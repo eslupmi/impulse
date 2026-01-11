@@ -5,6 +5,8 @@ import warnings
 from datetime import datetime, timezone
 from pythonjsonlogger import jsonlogger
 
+DEFAULT_JSON_FORMAT = '%(time)s %(level)s %(module)s %(message)s'
+
 # Simple JSON formatter with custom timestamp and field filtering
 class JSONFormatter(jsonlogger.JsonFormatter):
     def add_fields(self, log_record, record, message_dict):
@@ -37,14 +39,14 @@ def create_logger(name, level=logging.INFO):
                and any(isinstance(f, InfoFilter) for f in h.filters) 
                for h in logger.handlers):
         h = logging.StreamHandler(sys.stdout)
-        h.setFormatter(JSONFormatter('%(time)s %(level)s %(module)s %(message)s'))
+        h.setFormatter(JSONFormatter(DEFAULT_JSON_FORMAT))
         h.addFilter(InfoFilter())
         logger.addHandler(h)
     if not any(isinstance(h, logging.StreamHandler) and h.stream == sys.stderr 
                and any(isinstance(f, ErrorFilter) for f in h.filters) 
                for h in logger.handlers):
         h = logging.StreamHandler(sys.stderr)
-        h.setFormatter(JSONFormatter('%(time)s %(level)s %(module)s %(message)s'))
+        h.setFormatter(JSONFormatter(DEFAULT_JSON_FORMAT))
         h.addFilter(ErrorFilter())
         logger.addHandler(h)
     return logger
@@ -56,7 +58,7 @@ def configure_uvicorn_logging():
         logger_obj.handlers.clear()
         for stream, filter_class in [(sys.stdout, InfoFilter), (sys.stderr, ErrorFilter)]:
             h = logging.StreamHandler(stream)
-            h.setFormatter(JSONFormatter('%(time)s %(level)s %(module)s %(message)s'))
+            h.setFormatter(JSONFormatter(DEFAULT_JSON_FORMAT))
             h.addFilter(filter_class())
             logger_obj.addHandler(h)
         logger_obj.propagate = False
@@ -68,7 +70,7 @@ def configure_aiohttp_logging():
     aiohttp_logger.handlers.clear()
     for stream, filter_class in [(sys.stdout, InfoFilter), (sys.stderr, ErrorFilter)]:
         h = logging.StreamHandler(stream)
-        h.setFormatter(JSONFormatter('%(time)s %(level)s %(module)s %(message)s'))
+        h.setFormatter(JSONFormatter(DEFAULT_JSON_FORMAT))
         h.addFilter(filter_class())
         aiohttp_logger.addHandler(h)
     aiohttp_logger.propagate = False

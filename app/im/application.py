@@ -314,9 +314,9 @@ class Application(ABC):
             if user_info.id is not None:
                 user_details = await self.get_user_details(user_info)
                 if not user_details['exists']:
-                    logger.warning(f'User not found in messenger', extra={'user': name})
+                    logger.warning('User not found in messenger', extra={'user': name})
             else:
-                logger.warning(f'User has no `id` in configuration', extra={'user': name})
+                logger.warning('User has no `id` in configuration', extra={'user': name})
                 user_details = {}
             user = self.create_user(name, user_details)
             user_manager.add_user(name, user)
