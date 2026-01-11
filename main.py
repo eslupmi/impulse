@@ -39,7 +39,7 @@ def setup_sighup_handler():
             if success:
                 logger.info("Configuration reloaded")
         except Exception as e:
-            logger.error(f"Configuration reload error: {e}")
+            logger.error("Configuration reload error", extra={'error': str(e)})
             logger.warning("Configuration reload aborted")
 
     if hasattr(signal, 'SIGHUP'):
@@ -60,7 +60,7 @@ def validate_config_only():
             logger.error("Configuration validation failed")
             sys.exit(1)
     except Exception as e:
-        logger.error(f"Configuration validation failed: {e}")
+        logger.error("Configuration validation failed", extra={'error': str(e)})
         sys.exit(1)
 
 
@@ -115,7 +115,7 @@ async def initialize_primary_server(fastapi_app: FastAPI, file_lock: FileLock) -
         logger.info('Started as primary server')
         return True
     except Exception as e:
-        logger.error(f"Primary server initialization failed: {e}")
+        logger.error("Primary server initialization failed", extra={'error': str(e)})
         await file_lock.release_lock()
         return False
 
@@ -154,7 +154,7 @@ async def lifespan(fastapi_app: FastAPI):
         logger.info("Another IMPulse instance is running, working as standby server")
         hostname, pid, _ = file_lock.get_lock_info()
         STATUS.set(0)
-        logger.debug(f"Lock held by {hostname}, pid: {pid}")
+        logger.debug("Lock held by another instance", extra={'hostname': hostname, 'pid': pid})
         logger.info('IMPulse started in standby mode')
         unlock_task = asyncio.create_task(wait_and_become_primary())
     else:
