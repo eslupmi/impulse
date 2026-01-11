@@ -69,7 +69,7 @@ class SlackApplication(Application):
         )
 
     def get_notification_destinations(self):
-        return [a.id for a in self.admin_users]
+        return [a.get_notification_identifier() for a in self.admin_users]
 
     def get_admins_text(self):
         admins_text = slack_env.from_string(slack_admins_template_string).render(
@@ -77,7 +77,7 @@ class SlackApplication(Application):
         )
         return admins_text
 
-    async def _handle_chain_action(self, incident_, user_id, queue_, incidents):
+    async def _handle_chain_action(self, incident_, user_id, user_name, queue_, incidents):
         """Handle chain-related button actions"""
         await queue_.delete_by_id(incident_.uniq_id, delete_steps=True, delete_status=False)
         if incident_.chain_enabled or incident_.status != 'resolved':
@@ -86,7 +86,9 @@ class SlackApplication(Application):
             else:
                 logger.info(f'Incident {incident_.uuid} -> button TAKE IT pressed, assigning to {user_id}')
                 incident_.assign_user_id(user_id)
-                self._track_async_task(asyncio.create_task(self.post_assignment_notification(incident_, user_id)))
+                if user_name:
+                    incident_.assign_user(user_name)
+                self._track_async_task(asyncio.create_task(self.post_assignment_notification(incident_, user_id, user_name)))
                 self._track_async_task(asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id, incidents)))
             incident_.chain_enabled = False
         else:
@@ -141,20 +143,26 @@ class SlackApplication(Application):
         
         actions = payload.get('actions')
         user_id = payload.get('user')['id']
+        user_name = self.get_configured_user_name(user_id, payload.get('user', {}).get('name'))
+
+        # Check if this is a freeze action
         is_freeze_action = any(action['name'] == 'freeze' for action in actions)
 
+        # Block non-freeze actions if incident is frozen
         if incident_.is_frozen() and not is_freeze_action:
             logger.debug(f'Incident {incident_.uuid} is frozen, blocking all button actions')
             return self._build_button_response(incident_, original_message)
 
+        # Handle freeze actions
         for action in actions:
             if action['name'] == 'freeze':
                 await self._handle_freeze_button(action, incident_, user_id, incidents, queue_)
                 return self._build_button_response(incident_, original_message)
 
+        # Handle other actions
         for action in actions:
             if action['name'] == 'chain':
-                await self._handle_chain_action(incident_, user_id, queue_, incidents)
+                await self._handle_chain_action(incident_, user_id, user_name, queue_, incidents)
             elif action['name'] == 'task':
                 self._handle_task_action(incident_, queue_)
         

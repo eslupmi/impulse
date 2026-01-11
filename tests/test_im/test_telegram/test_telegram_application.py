@@ -183,8 +183,10 @@ class TestTelegramApplication:
         # Mock admin users
         admin1 = Mock()
         admin1.id = 123456789
+        admin1.get_notification_identifier = Mock(return_value=123456789)
         admin2 = Mock()
         admin2.id = 987654321
+        admin2.get_notification_identifier = Mock(return_value=987654321)
         app.admin_users = [admin1, admin2]
 
         result = app.get_admins_text()
