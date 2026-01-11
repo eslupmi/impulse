@@ -6,7 +6,7 @@ notification_user = """
 {#-   #} (<https://docs.impulse.bot/stable/warnings/NotDefined/|NotDefined>)  |  :loudspeaker: admins ({%- for a in fields.admins %}<@{{ a }}>{% if not loop.last %},{% endif %}{% endfor -%})
 {#--#}{%- else -%}
 {#-  -#}{%- if fields.unit.exists -%}
-{#-     #} (<@{{ fields.unit.get_notification_identifier() }}>)
+{#-     #} (<@{{ fields.unit.id }}>)
 {#-  -#}{%- else -%}
 {#      #} (<https://docs.impulse.bot/stable/warnings/NotFound/|NotFound>)  |  :loudspeaker: admins ({%- for a in fields.admins %}<@{{ a }}>{% if not loop.last %},{% endif %}{% endfor -%})
 {#-  -#}{%- endif -%}
@@ -17,7 +17,7 @@ notification_user = """
 {#-   #} ([NotDefined](https://docs.impulse.bot/stable/warnings/NotDefined/))  |  :bell: admins ({%- for a in fields.admins %}@{{ a }}{% if not loop.last %},{% endif %}{% endfor -%})
 {#--#}{%- else -%}
 {#-  -#}{%- if fields.unit.exists -%}
-{#-     #} (@{{ fields.unit.get_notification_identifier() }})
+{#-     #} (@{{ fields.unit.username }})
 {#-  -#}{%- else -%}
 {#      #} ([NotFound](https://docs.impulse.bot/stable/warnings/NotFound/))  |  :bell: admins ({%- for a in fields.admins %}@{{ a }}{% if not loop.last %},{% endif %}{% endfor -%})
 {#-  -#}{%- endif -%}
@@ -28,7 +28,7 @@ notification_user = """
 {#-   #} <b>{{ fields.name }}</b> (<a href="https://docs.impulse.bot/stable/warnings/NotDefined/">NotDefined</a>)  |  🔔 admins ({%- for a in fields.admins %}<a href="tg://user?id={{ a.id }}">{{ a.name }}</a>{% if not loop.last %},{% endif %}{% endfor -%})
 {#--#}{%- else -%}
 {#-  -#}{%- if fields.unit.exists -%}
-{#-     #} <b><a href="tg://user?id={{ fields.unit.get_notification_identifier() }}">{{ fields.name }}</a></b>
+{#-     #} <b><a href="tg://user?id={{ fields.unit.id }}">{{ fields.name }}</a></b>
 {#-  -#}{%- else -%}
 {#      #} <b>{{ fields.name }}</b> (<a href="https://docs.impulse.bot/stable/warnings/NotFound/">NotFound</a>)  |  🔔 admins ({%- for a in fields.admins %}<a href="tg://user?id={{ a.id }}">{{ a.name }}</a>{% if not loop.last %},{% endif %}{% endfor -%})
 {#-  -#}{%- endif -%}
@@ -43,7 +43,7 @@ notification_user_group = """
 {%- for u in fields.unit.users | selectattr('exists', 'equalto', false) %}{% set _ = absent_users.append(u.name) %}{% endfor -%}
 {%- if fields.type == 'slack' -%}
 {%- set existing_users = [] -%}
-{%- for u in fields.unit.users if u.exists %}{% set _ = existing_users.append(u.get_notification_identifier()) %}{% endfor -%}
+{%- for u in fields.unit.users if u.exists %}{% set _ = existing_users.append(u.id) %}{% endfor -%}
 :loudspeaker: user_group *{{ fields.name -}}*
 {#--#}{%- if not fields.unit -%}
 {#-   #} (<https://docs.impulse.bot/stable/warnings/NotDefined/|NotDefined>)  |  :loudspeaker: admins ({%- for a in fields.admins %}<@{{ a }}>{% if not loop.last %},{% endif %}{% endfor -%})
@@ -55,7 +55,7 @@ notification_user_group = """
 {#--#}{%- endif -%}
 {%- elif fields.type == 'mattermost' -%}
 {%- set existing_users = [] -%}
-{%- for u in fields.unit.users if u.exists %}{% set _ = existing_users.append(u.get_notification_identifier()) %}{% endfor -%}
+{%- for u in fields.unit.users if u.exists %}{% set _ = existing_users.append(u.username) %}{% endfor -%}
 :bell: user_group **{{ fields.name -}}**
 {#--#}{%- if not fields.unit -%}
 {#-   #} ([NotDefined](https://docs.impulse.bot/stable/warnings/NotDefined/))  |  :bell: admins ({%- for a in fields.admins %}@{{ a }}{% if not loop.last %},{% endif %}{% endfor -%})
@@ -67,7 +67,7 @@ notification_user_group = """
 {#--#}{%- endif -%}
 {%- elif fields.type == 'telegram' -%}
 {%- set existing_users = [] -%}
-{%- for u in fields.get('unit').users if u.exists %}{% set _ = existing_users.append(u) %}{% endfor -%}
+{%- for u in fields.get('unit').users if u.exists %}{% set _ = existing_users.append(u.id) %}{% endfor -%}
 🔔 user_group <b>{{ fields.name }}</b>
 {#--#}{%- if not fields.unit -%}
 {#-   #} (<a href="https://docs.impulse.bot/stable/warnings/NotDefined/">NotDefined</a>)  |  🔔 admins ({%- for a in fields.admins %}<a href="tg://user?id={{ a.id }}">{{ a.name }}</a>{% if not loop.last %},{% endif %}{% endfor -%})
