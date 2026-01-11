@@ -170,8 +170,10 @@ class TestSlackApplication:
         # Mock admin users
         admin1 = Mock()
         admin1.id = "U123456"
+        admin1.get_notification_identifier = Mock(return_value="U123456")
         admin2 = Mock()
         admin2.id = "U789012"
+        admin2.get_notification_identifier = Mock(return_value="U789012")
         app.admin_users = [admin1, admin2]
 
         destinations = app.get_notification_destinations()

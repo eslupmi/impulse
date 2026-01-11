@@ -84,7 +84,7 @@ class MattermostApplication(Application):
         )
 
     def get_notification_destinations(self):
-        return [a.username for a in self.admin_users]
+        return [a.get_notification_identifier() for a in self.admin_users]
 
     def get_admins_text(self):
         admins_text = mattermost_env.from_string(mattermost_admins_template_string).render(
@@ -130,11 +130,12 @@ class MattermostApplication(Application):
         
         context = payload.get('context', {})
         user_id = payload.get('user_id')
-        user_name = payload.get('user_name')
+        user_name = self.get_configured_user_name(user_id, payload.get('user_name'))
         
         config = get_config()
         mattermost_tz = config.app.general.timezone
 
+        # Handle freeze/unfreeze actions first
         selected_option = context.get('selected_option')
         if selected_option and selected_option.startswith('freeze_'):
             freeze_option = selected_option.replace('freeze_', '')
@@ -144,10 +145,12 @@ class MattermostApplication(Application):
             if action == 'unfreeze':
                 await self._handle_unfreeze_action(incident_, queue_)
 
+        # Block other actions if incident is frozen
         if incident_.is_frozen():
             logger.debug('Incident frozen, blocking actions', extra={'uuid': incident_.uuid})
             return self._build_button_response(incident_, mattermost_tz)
 
+        # Handle other button actions
         action = context.get('action')
         if action == 'chain':
             early_return = await self._handle_chain_action(incident_, user_id, user_name, queue_, incidents, payload)
