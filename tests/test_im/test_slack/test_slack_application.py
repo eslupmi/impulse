@@ -75,10 +75,10 @@ class TestSlackApplication:
 
     def test_initialize_specific_params(self, app_config, channels, default_channel):
         """Test _initialize_specific_params method."""
-        with patch('app.im.slack.slack_application.get_config') as mock_get_config:
-            mock_config = Mock()
-            mock_config.slack_bot_user_oauth_token = "test-token"
-            mock_get_config.return_value = mock_config
+        with patch('app.im.slack.slack_application.get_environment_config') as mock_get_env_config:
+            mock_env_config = Mock()
+            mock_env_config.slack_bot_user_oauth_token = "test-token"
+            mock_get_env_config.return_value = mock_env_config
 
             app = self.create_slack_app(app_config, channels, default_channel)
 
@@ -170,8 +170,10 @@ class TestSlackApplication:
         # Mock admin users
         admin1 = Mock()
         admin1.id = "U123456"
+        admin1.get_notification_identifier = Mock(return_value="U123456")
         admin2 = Mock()
         admin2.id = "U789012"
+        admin2.get_notification_identifier = Mock(return_value="U789012")
         app.admin_users = [admin1, admin2]
 
         destinations = app.get_notification_destinations()
@@ -298,10 +300,10 @@ class TestSlackApplication:
         queue = create_mock_queue()
         route = create_mock_route()
 
-        with patch('app.im.slack.slack_application.get_config') as mock_get_config:
-            mock_config = Mock()
-            mock_config.slack_verification_token = "valid_token"
-            mock_get_config.return_value = mock_config
+        with patch('app.im.slack.slack_application.get_environment_config') as mock_get_env_config:
+            mock_env_config = Mock()
+            mock_env_config.slack_verification_token = "valid_token"
+            mock_get_env_config.return_value = mock_env_config
 
             result = await app.buttons_handler(payload, incidents, queue, route)
 
@@ -324,10 +326,10 @@ class TestSlackApplication:
         queue = create_mock_queue()
         route = create_mock_route()
 
-        with patch('app.im.slack.slack_application.get_config') as mock_get_config:
-            mock_config = Mock()
-            mock_config.slack_verification_token = "valid_token"
-            mock_get_config.return_value = mock_config
+        with patch('app.im.slack.slack_application.get_environment_config') as mock_get_env_config:
+            mock_env_config = Mock()
+            mock_env_config.slack_verification_token = "valid_token"
+            mock_get_env_config.return_value = mock_env_config
 
             result = await app.buttons_handler(payload, incidents, queue, route)
 
@@ -368,7 +370,7 @@ class TestSlackApplication:
 
         async with create_slack_buttons_handler_context(
             app, payload, incidents, queue, route,
-            expected_log_message='Incident test-uuid -> button TAKE IT pressed, but user is already assigned'
+            expected_log_message='Button TAKE IT pressed: user already assigned'
         ) as (result, mock_logger, mock_reformat, _):
             pass  # All assertions are handled by the context manager
 
@@ -406,7 +408,7 @@ class TestSlackApplication:
 
         async with create_slack_buttons_handler_context(
             app, payload, incidents, queue, route,
-            expected_log_message='Incident test-uuid -> button TAKE IT pressed, assigning to U123456',
+            expected_log_message='Button TAKE IT pressed: assigning to user',
             additional_patches={
                 'post_assignment_notification': Mock(),
                 'fetch_and_assign_user_name': Mock()
@@ -448,7 +450,7 @@ class TestSlackApplication:
 
         async with create_slack_buttons_handler_context(
             app, payload, incidents, queue, route,
-            expected_log_message='Incident test-uuid -> button RELEASE pressed',
+            expected_log_message='Button RELEASE pressed',
             additional_patches={
                 'post_unassignment_notification': Mock()
             }

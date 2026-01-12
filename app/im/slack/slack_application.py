@@ -11,6 +11,7 @@ from app.im.slack.user import User
 from app.im.groups import Group
 from app.logging import logger
 from app.config.config import get_config
+from app.config.environment import get_environment_config
 from app.config.validation import ApplicationConfig
 
 
@@ -21,9 +22,10 @@ class SlackApplication(Application):
 
     def _initialize_specific_params(self):
         self.post_message_url = f'{self.url}/api/chat.postMessage'
+        env_config = get_environment_config()
         self.headers = {
             'Content-Type': 'application/json',
-            'Authorization': f'Bearer {get_config().slack_bot_user_oauth_token}',
+            'Authorization': f'Bearer {env_config.slack_bot_user_oauth_token}',
         }
         self.rate_limit = 10
         self.thread_id_key = 'ts'
@@ -47,14 +49,14 @@ class SlackApplication(Application):
         id_ = user_details.get('id')
         response = await self.http.get(f'{self.url}/api/users.info?user={id_}', headers=self.headers)
         if response.status != 200:
-            logger.debug(f'Failed to get user details for {id_}: HTTP {response.status}')
+            logger.debug("User details fetch failed", extra={'user_id': id_, 'status': response.status})
             response.close()
             return {'id': id_, 'exists': False, 'full_name': None, 'username': None}
 
         data = await response.json()
         response.close()
         if not data.get('ok'):
-            logger.debug(f'Slack API error for user {id_}: {data.get("error", "unknown error")}')
+            logger.debug("Slack API error", extra={'user_id': id_, 'error': data.get("error", "unknown error")})
             return {'id': id_, 'exists': False, 'full_name': None, 'username': None}
 
         user_data = data.get('user', {})
@@ -97,7 +99,7 @@ class SlackApplication(Application):
         )
 
     def get_notification_destinations(self):
-        return [a.id for a in self.admin_users]
+        return [a.get_notification_identifier() for a in self.admin_users]
 
     def get_admins_text(self):
         admins_text = slack_env.from_string(slack_admins_template_string).render(
@@ -105,20 +107,22 @@ class SlackApplication(Application):
         )
         return admins_text
 
-    async def _handle_chain_action(self, incident_, user_id, queue_, incidents):
+    async def _handle_chain_action(self, incident_, user_id, user_name, queue_, incidents):
         """Handle chain-related button actions"""
         await queue_.delete_by_id(incident_.uniq_id, delete_steps=True, delete_status=False)
         if incident_.chain_enabled or incident_.status != 'resolved':
             if incident_.assigned_user_id == user_id:
-                logger.info(f'Incident {incident_.uuid} -> button TAKE IT pressed, but user is already assigned')
+                logger.info('Button TAKE IT pressed: user already assigned', extra={'incident': incident_.uuid, 'user_id': user_id})
             else:
-                logger.info(f'Incident {incident_.uuid} -> button TAKE IT pressed, assigning to {user_id}')
+                logger.info('Button TAKE IT pressed: assigning to user', extra={'incident': incident_.uuid, 'user_id': user_id})
                 incident_.assign_user_id(user_id)
-                self._track_async_task(asyncio.create_task(self.post_assignment_notification(incident_, user_id)))
+                if user_name:
+                    incident_.assign_user(user_name)
+                self._track_async_task(asyncio.create_task(self.post_assignment_notification(incident_, user_id, user_name)))
                 self._track_async_task(asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id, incidents)))
             incident_.chain_enabled = False
         else:
-            logger.info(f'Incident {incident_.uuid} -> button RELEASE pressed')
+            logger.info('Button RELEASE pressed', extra={'incident': incident_.uuid})
             self._track_async_task(asyncio.create_task(self.post_unassignment_notification(incident_)))
             incident_.release()
 
@@ -157,9 +161,9 @@ class SlackApplication(Application):
         await self._handle_freeze_action(incident_, freeze_option, user_id, incidents, queue_, user_timezone=slack_tz)
 
     async def buttons_handler(self, payload, incidents, queue_, route):
-        config = get_config()
-        if payload.get('token') != config.slack_verification_token:
-            logger.error('Unauthorized request to \'/slack\'')
+        env_config = get_environment_config()
+        if payload.get('token') != env_config.slack_verification_token:
+            logger.error('Unauthorized request')
             return JSONResponse({}, status_code=401)
 
         incident_ = incidents.get_by_ts(ts=payload['message_ts'])
@@ -169,20 +173,26 @@ class SlackApplication(Application):
         
         actions = payload.get('actions')
         user_id = payload.get('user')['id']
+        user_name = self.get_configured_user_name(user_id, payload.get('user', {}).get('name'))
+
+        # Check if this is a freeze action
         is_freeze_action = any(action['name'] == 'freeze' for action in actions)
 
+        # Block non-freeze actions if incident is frozen
         if incident_.is_frozen() and not is_freeze_action:
-            logger.debug(f'Incident {incident_.uuid} is frozen, blocking all button actions')
+            logger.debug('Incident frozen, blocking actions', extra={'incident': incident_.uuid})
             return self._build_button_response(incident_, original_message)
 
+        # Handle freeze actions
         for action in actions:
             if action['name'] == 'freeze':
                 await self._handle_freeze_button(action, incident_, user_id, incidents, queue_)
                 return self._build_button_response(incident_, original_message)
 
+        # Handle other actions
         for action in actions:
             if action['name'] == 'chain':
-                await self._handle_chain_action(incident_, user_id, queue_, incidents)
+                await self._handle_chain_action(incident_, user_id, user_name, queue_, incidents)
             elif action['name'] == 'task':
                 self._handle_task_action(incident_, queue_)
         

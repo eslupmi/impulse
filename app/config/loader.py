@@ -147,9 +147,12 @@ def validate_config_and_show_errors(config_path: str = None) -> ImpulseConfig:
         validated_config, _ = load_and_validate_config(config_path)
         return validated_config
     except FileNotFoundError as e:
-        logger.error(f"\nConfiguration file not found: {e}")
+        logger.error("Configuration file not found", extra={'error': str(e), 'config_path': config_path})
         raise SystemExit(1)
     except yaml.YAMLError as e:
-        logger.error(f"\nYAML parsing error: {e}")
+        logger.error("YAML parsing error", extra={'error': str(e), 'config_path': config_path})
+        raise SystemExit(1)
+    except ConfigValidationError as e:
+        logger.error("Configuration validation failed", extra={'error': str(e), 'config_path': config_path})
         raise SystemExit(1)
     

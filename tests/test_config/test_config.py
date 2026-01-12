@@ -13,94 +13,28 @@ from app.config.validation import MessengerType
 class TestUnifiedConfig:
     """Test cases for UnifiedConfig class."""
 
-    def test_unified_config_creation(self, mock_environment_config, mock_impulse_config):
+    def test_unified_config_creation(self, mock_impulse_config):
         """Test creation of UnifiedConfig."""
-        config = UnifiedConfig(mock_environment_config, mock_impulse_config)
+        config = UnifiedConfig(mock_impulse_config)
 
-        assert config.env == mock_environment_config
         assert config.app == mock_impulse_config
         assert config.INCIDENT_ACTUAL_VERSION == 'v3.2.0'
         assert config.check_updates is True
 
-    def test_messenger_property(self, mock_environment_config, mock_impulse_config):
+    def test_messenger_property(self, mock_impulse_config):
         """Test messenger property access."""
-        config = UnifiedConfig(mock_environment_config, mock_impulse_config)
+        config = UnifiedConfig(mock_impulse_config)
         assert config.messenger == mock_impulse_config.messenger
 
-    def test_incident_property(self, mock_environment_config, mock_impulse_config):
+    def test_incident_property(self, mock_impulse_config):
         """Test incident property access."""
-        config = UnifiedConfig(mock_environment_config, mock_impulse_config)
+        config = UnifiedConfig(mock_impulse_config)
         assert config.incident == mock_impulse_config.incident
 
-    def test_ui_config_property(self, mock_environment_config, mock_impulse_config):
+    def test_ui_config_property(self, mock_impulse_config):
         """Test ui_config property access."""
-        config = UnifiedConfig(mock_environment_config, mock_impulse_config)
+        config = UnifiedConfig(mock_impulse_config)
         assert config.ui_config == mock_impulse_config.ui
-
-    def test_slack_bot_user_oauth_token_property(self, mock_environment_config, mock_impulse_config):
-        """Test slack_bot_user_oauth_token property access."""
-        config = UnifiedConfig(mock_environment_config, mock_impulse_config)
-        assert config.slack_bot_user_oauth_token == mock_environment_config.slack_bot_user_oauth_token
-
-    def test_slack_verification_token_property(self, mock_environment_config, mock_impulse_config):
-        """Test slack_verification_token property access."""
-        config = UnifiedConfig(mock_environment_config, mock_impulse_config)
-        assert config.slack_verification_token == mock_environment_config.slack_verification_token
-
-    def test_mattermost_access_token_property(self, mock_environment_config, mock_impulse_config):
-        """Test mattermost_access_token property access."""
-        config = UnifiedConfig(mock_environment_config, mock_impulse_config)
-        assert config.mattermost_access_token == mock_environment_config.mattermost_access_token
-
-    def test_telegram_bot_token_property(self, mock_environment_config, mock_impulse_config):
-        """Test telegram_bot_token property access."""
-        config = UnifiedConfig(mock_environment_config, mock_impulse_config)
-        assert config.telegram_bot_token == mock_environment_config.telegram_bot_token
-
-    def test_data_path_property(self, mock_environment_config, mock_impulse_config):
-        """Test data_path property access."""
-        config = UnifiedConfig(mock_environment_config, mock_impulse_config)
-        assert config.data_path == mock_environment_config.data_path
-
-    def test_config_path_property(self, mock_environment_config, mock_impulse_config):
-        """Test config_path property access."""
-        config = UnifiedConfig(mock_environment_config, mock_impulse_config)
-        assert config.config_path == mock_environment_config.config_path
-
-    def test_incidents_path_property(self, mock_environment_config, mock_impulse_config):
-        """Test incidents_path property access."""
-        config = UnifiedConfig(mock_environment_config, mock_impulse_config)
-        assert config.incidents_path == mock_environment_config.incidents_path
-
-    def test_provider_sync_interval_property(self, mock_environment_config, mock_impulse_config):
-        """Test provider_sync_interval property access."""
-        config = UnifiedConfig(mock_environment_config, mock_impulse_config)
-        assert config.provider_sync_interval == mock_environment_config.provider_sync_interval
-
-    def test_provider_max_events_property(self, mock_environment_config, mock_impulse_config):
-        """Test provider_max_events property access."""
-        config = UnifiedConfig(mock_environment_config, mock_impulse_config)
-        assert config.provider_max_events == mock_environment_config.provider_max_events
-
-    def test_provider_days_to_sync_property(self, mock_environment_config, mock_impulse_config):
-        """Test provider_days_to_sync property access."""
-        config = UnifiedConfig(mock_environment_config, mock_impulse_config)
-        assert config.provider_days_to_sync == mock_environment_config.provider_days_to_sync
-
-    def test_provider_service_account_file_property(self, mock_environment_config, mock_impulse_config):
-        """Test provider_service_account_file property access."""
-        config = UnifiedConfig(mock_environment_config, mock_impulse_config)
-        assert config.provider_service_account_file == mock_environment_config.provider_service_account_file
-
-    def test_cors_allowed_origins_property(self, mock_environment_config, mock_impulse_config):
-        """Test cors_allowed_origins property access."""
-        config = UnifiedConfig(mock_environment_config, mock_impulse_config)
-        assert config.cors_allowed_origins == mock_environment_config.cors_allowed_origins
-
-    def test_http_prefix_property(self, mock_environment_config, mock_impulse_config):
-        """Test http_prefix property access."""
-        config = UnifiedConfig(mock_environment_config, mock_impulse_config)
-        assert config.http_prefix == mock_environment_config.http_prefix
 
 
 class TestConfigFunctions:
@@ -141,7 +75,6 @@ class TestConfigFunctions:
         mock_get_env_config.assert_called_once()
         mock_load_and_validate.assert_called_once_with("test_config.yml")
         assert isinstance(result, UnifiedConfig)
-        assert result.env == mock_environment_config
         assert result.app == mock_impulse_config
 
     @patch('app.config.config.get_environment_config')
@@ -262,7 +195,7 @@ class TestConfigFunctions:
         result = reload_config()
 
         assert result is False
-        mock_logger.warning.assert_called_with("Configuration validation failed, keeping current configuration")
+        assert "Config validation failed, keeping current config" in mock_logger.warning.call_args[0][0]
 
     @patch('app.config.config._config')
     @patch('app.config.config.load_unified_config')
@@ -275,7 +208,7 @@ class TestConfigFunctions:
         result = reload_config()
 
         assert result is False
-        assert "Configuration reload failed, keeping current configuration" in mock_logger.warning.call_args[0][0]
+        assert "Config reload failed, keeping current config" in mock_logger.warning.call_args[0][0]
 
     @patch('app.config.config._config')
     @patch('app.config.config.load_unified_config')

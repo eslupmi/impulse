@@ -11,7 +11,7 @@ from app.config.environment import EnvironmentConfig, get_environment_config
 from app.logging import logger
 
 
-def create_jira_integration(
+def create_task_management_integration(
     task_management_config: TaskManagementConfig,
     env_config: EnvironmentConfig
 ) -> JiraIntegration:
@@ -49,17 +49,18 @@ def initialize_task_management_integration(
         task_management_config: Task management configuration
     """
     env_config = get_environment_config()
+    provider = task_management_config.type.value
     if not env_config.task_management_enabled:
-        logger.warning("task_management is configured but Jira environment variables are not set")
+        logger.warning("Task management is configured but ENVs are not set", extra={'provider': provider})
         return
     
     if task_management_config.type.value == "jira":
-        logger.info("Initializing Jira integration")
-        messenger.task_management_integration = create_jira_integration(
+        logger.info("Initializing task management", extra={'provider': provider})
+        messenger.task_management_integration = create_task_management_integration(
             task_management_config,
             env_config
         )
-        logger.info("Jira integration initialized and ready")
+        logger.info("Task management initialized and ready", extra={'provider': provider})
 
 
 def get_application(app_config: ApplicationConfig, channels, default_channel,

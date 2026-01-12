@@ -7,6 +7,7 @@ from app.incident.migrator import IncidentMigrator
 from app.logging import logger
 from app.ui.websocket import incident_ws
 from app.config.config import get_config
+from app.config.environment import get_environment_config
 
 
 class Incidents:
@@ -88,9 +89,9 @@ class Incidents:
             except RuntimeError:
                 # No event loop running, skip websocket update
                 pass
-            logger.info(f'Incident {incident.uuid} deleted')
+            logger.info("Incident deleted", extra={'uuid': incident.uuid})
         else:
-            logger.warning(f'Incident with uniq_id {uniq_id} not found in the collection.')
+            logger.warning("Incident not found", extra={'uniq_id': uniq_id})
 
     def serialize(self) -> Dict[str, Dict]:
         return {str(uuid_): incident.serialize() for uuid_, incident in self.uniq_ids.items()}
@@ -104,16 +105,17 @@ class Incidents:
     @classmethod
     def create_or_load(cls, application_type, application_url, application_team):
         config = get_config()
+        env_config = get_environment_config()
         # Ensure the incidents directory exists or create it
-        if not os.path.exists(config.incidents_path):
+        if not os.path.exists(env_config.incidents_path):
             logger.info('Creating incidents directory')
-            os.makedirs(config.incidents_path)
+            os.makedirs(env_config.incidents_path)
         logger.info('Loading existing incidents')
 
         incidents = cls([])
         migrator = IncidentMigrator()
 
-        for path, _, files in os.walk(config.incidents_path):
+        for path, _, files in os.walk(env_config.incidents_path):
             for filename in files:
                 file_path = os.path.join(path, filename)
 

@@ -51,13 +51,12 @@ class Webhook:
                         'data': rendered_json,
                         'headers': {'Content-Type': 'application/json'}
                     })
-                    logger.debug(f'Sending webhook JSON string to {self._url}: {rendered_json}')
                 else:
                     request_params['json'] = rendered_json
-                    logger.debug(f'Sending webhook JSON dict to {self._url}: {rendered_json}')
             else:
                 request_params['data'] = rendered_data
-                logger.debug(f'Sending webhook form data to {self._url}: {rendered_data}')
+            
+            logger.debug(f'Sending webhook to {self._url}')
             
             async with session.post(**request_params) as response:
                 return 'ok', response.status

@@ -9,6 +9,7 @@ from app.im.chain.chain_factory import ChainFactory
 from app.im.groups import generate_user_groups
 from app.im.template import notification_user, notification_user_group, notification_group, update_status, \
     notification_assignment, notification_unassignment, notification_freeze, notification_unfreeze
+from app.im.users import UserManager
 from app.jinja_template import JinjaTemplate
 from app.logging import logger
 from app.integrations.jira_integration import JiraIntegration
@@ -82,7 +83,7 @@ class Application(ABC):
     async def fetch_and_assign_user_name(self, incident, user_id, incidents=None, dump=True):
         """
         Fetch user details and assign full name to incident.
-        Uses incident cache to avoid redundant API calls when possible.
+        Uses user manager and incident cache to avoid redundant API calls when possible.
 
         Args:
             incident: The incident to assign the user name to
@@ -91,29 +92,61 @@ class Application(ABC):
             dump: Whether to dump the incident after assigning the user name
         """
         try:
-            if incidents:
-                cached_name = incidents.get_assigned_user_by_id(user_id)
-                if cached_name:
-                    incident.assign_fullname(cached_name)
-                    if dump:
-                        incident.dump()
-                    logger.debug(f'Incident {incident.uuid} assigned cached user name: {cached_name}')
-                    return
-
-            user_details = await self.get_user_details({'id': user_id})
-            assigned_name = user_details.get('full_name') or "(empty)"
-            incident.assign_fullname(assigned_name)
-            if user_details.get('username'):
-                incident.assign_user(user_details.get('username'))
-            if dump:
-                incident.dump()
-            logger.debug(f'Incident {incident.uuid} assigned user name from API: {assigned_name}')
-
+            if self._try_assign_from_user_manager(incident, user_id):
+                logger.debug(f'Incident {incident.uuid} assigned user from manager')
+            elif self._try_assign_from_cache(incident, user_id, incidents):
+                logger.debug(f'Incident {incident.uuid} assigned cached user name')
+            else:
+                await self._assign_from_api(incident, user_id)
+                logger.debug(f'Incident {incident.uuid} assigned user name from API')
         except Exception as e:
-            logger.error(f'Failed to fetch and assign user name for incident {incident.uuid}: {e}')
+            logger.error(f'Failed to fetch user name for incident {incident.uuid}: {e}')
             incident.assign_fullname("-")
+        finally:
             if dump:
                 incident.dump()
+
+    def _try_assign_from_user_manager(self, incident, user_id):
+        """Try to assign user from the user manager. Returns True if successful."""
+        cached_user = self.users.get_user_by_id(user_id)
+        if not (cached_user and cached_user.exists):
+            return False
+        
+        incident.assign_fullname(cached_user.name)
+        notification_id = cached_user.get_notification_identifier()
+        if notification_id and notification_id != cached_user.id:
+            incident.assign_user(notification_id)
+        return True
+
+    def _try_assign_from_cache(self, incident, user_id, incidents):
+        """Try to assign user from incident cache. Returns True if successful."""
+        if not incidents:
+            return False
+        
+        cached_name = incidents.get_assigned_user_by_id(user_id)
+        if not cached_name:
+            return False
+        
+        incident.assign_fullname(cached_name)
+        return True
+
+    async def _assign_from_api(self, incident, user_id):
+        """Fetch user from API and assign to incident."""
+        user_details = await self.get_user_details({'id': user_id})
+        assigned_name = user_details.get('full_name') or "(empty)"
+        incident.assign_fullname(assigned_name)
+        
+        if user_details.get('username'):
+            incident.assign_user(user_details.get('username'))
+        if user_details.get('exists'):
+            self._add_discovered_user(user_id, user_details)
+
+    def _add_discovered_user(self, user_id, user_details):
+        name_key = f"_discovered_{user_id}"
+        full_name = user_details.get('full_name') or str(user_id)
+        user = self.create_user(full_name, user_details)
+        if user:
+            self.users.add_user(name_key, user)
 
     async def post_assignment_notification(self, incident_obj, user_id, user_display_name=None):
         """
@@ -244,6 +277,17 @@ class Application(ABC):
             
         await self.post_thread(incident_.channel_id, incident_.ts, message)
 
+    def lookup_user_by_id(self, user_id):
+        """Look up a user by their platform-specific ID"""
+        if self.users is None:
+            return None
+        return self.users.get_user_by_id(user_id)
+
+    def get_configured_user_name(self, user_id, fallback_name):
+        """Get user name from configuration, or use fallback name"""
+        user = self.lookup_user_by_id(user_id)
+        return user.name if user and user.exists else fallback_name
+
     async def handle_task_button(self, incident, queue_):
         """
         Handle Task button press for an incident.
@@ -270,18 +314,19 @@ class Application(ABC):
     async def _generate_users(self, users_dict: Dict[str, Union[SlackUser, MattermostUser, TelegramUser]]):
         logger.info('Creating users')
 
-        users = {}
+        user_manager = UserManager()
         for name, user_info in users_dict.items():
             if user_info.id is not None:
                 user_details = await self.get_user_details(user_info)
                 if not user_details['exists']:
-                    logger.warning(f'.. user {name} not found in {self.type.value.capitalize()} and will not be notified')
+                    logger.warning('User not found in messenger', extra={'user': name})
             else:
-                logger.warning(f'.. user {name} has no \'id\' and will not be notified')
+                logger.warning('User has no `id` in configuration', extra={'user': name})
                 user_details = {}
-            users[name] = self.create_user(name, user_details)
+            user = self.create_user(name, user_details)
+            user_manager.add_user(name, user)
 
-        return users
+        return user_manager
 
     async def _generate_groups(self, groups_dict: Optional[Dict[str, Union[SlackGroup, MattermostGroup]]]):
         """Generate groups by polling them from the API, similar to users"""
@@ -405,8 +450,8 @@ class Application(ABC):
         """
         if self.rate_limit:
             logger.debug(
-                f"{self.type.value.capitalize()} rate limiting enabled: "
-                f"{self.rate_limit} requests per {self.rate_window}s window"
+                f"Rate limit: "
+                f"{self.rate_limit} requests per {self.rate_window}s", extra={'messenger': self.type.value}
             )
         else:
             logger.info(f"{self.type.value.capitalize()} rate limiting disabled")

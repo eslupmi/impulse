@@ -128,8 +128,10 @@ class TestMattermostApplication:
         # Mock admin users
         admin1 = Mock()
         admin1.username = "admin1"
+        admin1.get_notification_identifier = Mock(return_value="admin1")
         admin2 = Mock()
         admin2.username = "admin2"
+        admin2.get_notification_identifier = Mock(return_value="admin2")
         app.admin_users = [admin1, admin2]
 
         destinations = app.get_notification_destinations()

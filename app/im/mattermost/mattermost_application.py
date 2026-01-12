@@ -12,6 +12,7 @@ from app.im.mattermost.user import User
 from app.im.groups import Group
 from app.logging import logger
 from app.config.config import get_config
+from app.config.environment import get_environment_config
 from app.config.validation import ApplicationConfig
 
 
@@ -22,9 +23,10 @@ class MattermostApplication(Application):
 
     def _initialize_specific_params(self):
         self.post_message_url = f'{self.url}/api/v4/posts'
+        env_config = get_environment_config()
         self.headers = {
             'Content-Type': 'application/json',
-            'Authorization': f'Bearer {get_config().mattermost_access_token}',
+            'Authorization': f'Bearer {env_config.mattermost_access_token}',
         }
         self.rate_limit = 10
         self.thread_id_key = 'id'
@@ -41,7 +43,7 @@ class MattermostApplication(Application):
             response.close()
             return {c.get('name'): c for c in data}
         except aiohttp.ClientError as e:
-            logger.error(f'Failed to retrieve channel list: {e}')
+            logger.error("Channel list fetch failed", extra={'error': str(e)})
             return {}
 
     def _get_url(self, app_config: ApplicationConfig):
@@ -51,7 +53,6 @@ class MattermostApplication(Application):
         return app_config.address
 
     def _get_team_name(self, app_config: ApplicationConfig):
-        logger.info(f'Get {self.type.value.capitalize()} team name')
         return app_config.team
 
     async def get_user_details(self, user_details):
@@ -59,12 +60,12 @@ class MattermostApplication(Application):
         response = await self.http.get(f'{self.url}/api/v4/users/{id_}?user_id={id_}', headers=self.headers)
         
         if response.status == 404:
-            logger.debug(f'Failed to get user details for ID {id_}: Not Found (HTTP 404)')
+            logger.debug("User not found", extra={'user_id': id_})
             response.close()
             return {'id': id_, 'username': None, 'exists': False, 'full_name': None}
 
         if response.status != 200:
-            logger.debug(f'Failed to get user details for {id_}: HTTP {response.status}')
+            logger.debug("User details fetch failed", extra={'user_id': id_, 'status': response.status})
             response.close()
             return {'id': id_, 'username': None, 'exists': False, 'full_name': None}
 
@@ -143,7 +144,7 @@ class MattermostApplication(Application):
         )
 
     def get_notification_destinations(self):
-        return [a.username for a in self.admin_users]
+        return [a.get_notification_identifier() for a in self.admin_users]
 
     def get_admins_text(self):
         admins_text = mattermost_env.from_string(mattermost_admins_template_string).render(
@@ -156,16 +157,16 @@ class MattermostApplication(Application):
         await queue_.delete_by_id(incident_.uniq_id, delete_steps=True, delete_status=False)
         if incident_.chain_enabled or incident_.status != 'resolved':
             if incident_.assigned_user_id == user_id:
-                logger.info(f'Incident {incident_.uuid} -> button TAKE IT pressed, but user is already assigned')
+                logger.info('Button TAKE IT pressed: user already assigned', extra={'incident': incident_.uuid, 'user_id': user_id})
                 return JSONResponse(payload, status_code=200)
-            logger.info(f'Incident {incident_.uuid} -> button TAKE IT pressed, assigning to {user_id}')
+            logger.info('Button TAKE IT pressed: assigning to user', extra={'incident': incident_.uuid, 'user_id': user_id})
             incident_.assign_user_id(user_id)
             incident_.assign_user(user_name)
             self._track_async_task(asyncio.create_task(self.post_assignment_notification(incident_, user_id, user_name)))
             self._track_async_task(asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id, incidents)))
             incident_.chain_enabled = False
         else:
-            logger.info(f'Incident {incident_.uuid} -> button RELEASE pressed by user {user_id}')
+            logger.info('Button RELEASE pressed', extra={'uuid': incident_.uuid, 'user_id': user_id})
             self._track_async_task(asyncio.create_task(self.post_unassignment_notification(incident_)))
             incident_.release()
         return None
@@ -189,11 +190,12 @@ class MattermostApplication(Application):
         
         context = payload.get('context', {})
         user_id = payload.get('user_id')
-        user_name = payload.get('user_name')
+        user_name = self.get_configured_user_name(user_id, payload.get('user_name'))
         
         config = get_config()
         mattermost_tz = config.app.general.timezone
 
+        # Handle freeze/unfreeze actions first
         selected_option = context.get('selected_option')
         if selected_option and selected_option.startswith('freeze_'):
             freeze_option = selected_option.replace('freeze_', '')
@@ -203,10 +205,12 @@ class MattermostApplication(Application):
             if action == 'unfreeze':
                 await self._handle_unfreeze_action(incident_, queue_)
 
+        # Block other actions if incident is frozen
         if incident_.is_frozen():
-            logger.debug(f'Incident {incident_.uuid} is frozen, blocking all button actions')
+            logger.debug('Incident frozen, blocking actions', extra={'uuid': incident_.uuid})
             return self._build_button_response(incident_, mattermost_tz)
 
+        # Handle other button actions
         action = context.get('action')
         if action == 'chain':
             early_return = await self._handle_chain_action(incident_, user_id, user_name, queue_, incidents, payload)

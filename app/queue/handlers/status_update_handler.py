@@ -19,7 +19,7 @@ class StatusUpdateHandler(BaseHandler):
         status_updated = incident.update_status(new_status)
 
         if status_updated:
-            logger.info(f'Incident {incident.uuid} updated with new status \'{new_status}\'')
+            logger.info("Status updated", extra={'uuid': incident.uuid, 'status': new_status})
 
         if incident.status != 'deleted':
             await self.app.update(
