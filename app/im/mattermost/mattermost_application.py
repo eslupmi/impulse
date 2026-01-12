@@ -9,7 +9,6 @@ from app.im.mattermost.config import (mattermost_env,
 from app.im.mattermost.threads import mattermost_get_create_thread_payload, mattermost_get_update_payload, \
     mattermost_get_button_update_payload
 from app.im.mattermost.user import User
-from app.im.groups import Group
 from app.logging import logger
 from app.config.config import get_config
 from app.config.environment import get_environment_config
@@ -127,17 +126,6 @@ class MattermostApplication(Application):
 
         return groups
 
-    def create_group(self, config_name, group_details):
-        """Create a Group object from group details"""
-        group_id = group_details.get('id') if group_details.get('exists') else None
-        group_name = group_details.get('name')
-        return Group(
-            config_name=config_name,
-            name=group_name,
-            id_=group_id,
-            exists=group_details.get('exists', False)
-        )
-
     def get_notification_destinations(self):
         return [a.get_notification_identifier() for a in self.admin_users]
 
@@ -232,7 +220,7 @@ class MattermostApplication(Application):
             f'{self.url}/api/v4/posts/{id_}',
             headers=self.headers,
             json=payload
-        ) as response:
+        ):
             pass  # Response is automatically closed by context manager
 
     def _markdown_links_to_native_format(self, text):

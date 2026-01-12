@@ -334,7 +334,7 @@ class TelegramApplication(Application):
                 f'{self.url}/editMessageText',
                 json=payload,
                 headers=self.headers
-            ) as response:
+            ):
                 pass  # Response is automatically closed by context manager
         except aiohttp.ClientError as e:
             logger.error("Thread update failed", extra={'error': str(e)})

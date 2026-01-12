@@ -6,6 +6,7 @@ from app.config.config import get_config
 from app.config.validation import ApplicationConfig, MattermostUser, SlackUser, TelegramUser, MessengerType, SlackGroup, MattermostGroup
 from app.http_client import RateLimitedClient
 from app.im.chain.chain_factory import ChainFactory
+from app.im.groups import Group
 from app.im.user_groups import generate_user_groups
 from app.im.template import notification_user, notification_user_group, notification_group, update_status, \
     notification_assignment, notification_unassignment, notification_freeze, notification_unfreeze
@@ -513,7 +514,13 @@ class Application(ABC):
         Returns None by default. Subclasses can override if needed."""
         return None
 
-    @abstractmethod
-    def create_group(self, name, group_details):
-        """Create a Group object from group details. Must be implemented by subclasses that support groups."""
-        pass
+    def create_group(self, config_name, group_details):
+        """Create a Group object from group details. Default implementation for Slack and Mattermost."""
+        group_id = group_details.get('id') if group_details.get('exists') else None
+        group_name = group_details.get('name')
+        return Group(
+            config_name=config_name,
+            name=group_name,
+            id_=group_id,
+            exists=group_details.get('exists', False)
+        )

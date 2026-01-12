@@ -8,7 +8,6 @@ from app.im.slack import reformat_message
 from app.im.slack.config import slack_env, slack_admins_template_string
 from app.im.slack.threads import slack_get_create_thread_payload, slack_get_update_payload
 from app.im.slack.user import User
-from app.im.groups import Group
 from app.logging import logger
 from app.config.config import get_config
 from app.config.environment import get_environment_config
@@ -116,17 +115,6 @@ class SlackApplication(Application):
             groups[config_name] = self.create_group(config_name, group_details)
 
         return groups
-
-    def create_group(self, config_name, group_details):
-        """Create a Group object from group details"""
-        group_id = group_details.get('id') if group_details.get('exists') else None
-        group_name = group_details.get('name')
-        return Group(
-            config_name=config_name,
-            name=group_name,
-            id_=group_id,
-            exists=group_details.get('exists', False)
-        )
 
     def get_notification_destinations(self):
         return [a.get_notification_identifier() for a in self.admin_users]
@@ -244,7 +232,7 @@ class SlackApplication(Application):
             f'{self.url}/api/chat.update',
             headers=self.headers,
             json=payload
-        ) as response:
+        ):
             pass  # Response is automatically closed by context manager
 
     def _markdown_links_to_native_format(self, text):
