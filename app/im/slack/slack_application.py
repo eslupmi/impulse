@@ -85,15 +85,50 @@ class SlackApplication(Application):
             logger.debug(f'Slack API error getting groups list: {data.get("error", "unknown error")}')
             return None
         
-        # Return a dict mapping group IDs to True (they exist)
+        # Return a dict mapping group IDs to their names
         usergroups = data.get('usergroups', [])
-        return {ug.get('id'): True for ug in usergroups if ug.get('id')}
+        return {ug.get('id'): ug.get('name') for ug in usergroups if ug.get('id')}
 
-    def create_group(self, name, group_details):
+    async def _generate_groups(self, groups_dict):
+        """Generate groups by polling them from the API, similar to users"""
+        if not groups_dict:
+            return {}
+        
+        logger.info('Creating groups')
+        
+        # Get all groups from API once
+        all_groups = await self.get_all_groups()
+        if all_groups is None:
+            logger.warning('Failed to fetch groups list from API')
+            all_groups = {}
+        
+        groups = {}
+        for config_name, group_info in groups_dict.items():
+            id_ = group_info.id if hasattr(group_info, 'id') else (group_info.get('id') if isinstance(group_info, dict) else None)
+            
+            if id_:
+                # Check if group exists in the fetched list
+                group_name = all_groups.get(id_)
+                group_exists = group_name is not None
+                group_details = {'id': id_, 'name': group_name, 'exists': group_exists}
+                if not group_exists:
+                    logger.warning('Group not found in Slack', extra={'group': config_name})
+                    group_details = {'id': None, 'name': None, 'exists': False}
+            else:
+                logger.warning('Group has no \'id\'', extra={'group': config_name})
+                group_details = {'id': None, 'name': None, 'exists': False}
+            
+            groups[config_name] = self.create_group(config_name, group_details)
+
+        return groups
+
+    def create_group(self, config_name, group_details):
         """Create a Group object from group details"""
         group_id = group_details.get('id') if group_details.get('exists') else None
+        group_name = group_details.get('name')
         return Group(
-            name=name,
+            config_name=config_name,
+            name=group_name,
             id_=group_id,
             exists=group_details.get('exists', False)
         )
@@ -112,9 +147,9 @@ class SlackApplication(Application):
         await queue_.delete_by_id(incident_.uniq_id, delete_steps=True, delete_status=False)
         if incident_.chain_enabled or incident_.status != 'resolved':
             if incident_.assigned_user_id == user_id:
-                logger.info('Button TAKE IT pressed: user already assigned', extra={'incident': incident_.uuid, 'user_id': user_id})
+                logger.info('Button pressed: user already assigned', extra={'incident': incident_.uuid, 'button': 'take_it', 'user_id': user_id})
             else:
-                logger.info('Button TAKE IT pressed: assigning to user', extra={'incident': incident_.uuid, 'user_id': user_id})
+                logger.info('Button pressed: assigning to user', extra={'incident': incident_.uuid, 'button': 'take_it', 'user_id': user_id})
                 incident_.assign_user_id(user_id)
                 if user_name:
                     incident_.assign_user(user_name)
@@ -122,7 +157,7 @@ class SlackApplication(Application):
                 self._track_async_task(asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id, incidents)))
             incident_.chain_enabled = False
         else:
-            logger.info('Button RELEASE pressed', extra={'incident': incident_.uuid})
+            logger.info('Button pressed', extra={'incident': incident_.uuid, 'button': 'release'})
             self._track_async_task(asyncio.create_task(self.post_unassignment_notification(incident_)))
             incident_.release()
 

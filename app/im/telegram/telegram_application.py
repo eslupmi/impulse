@@ -92,7 +92,7 @@ class TelegramApplication(Application):
             self._track_async_task(asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id, incidents)))
             incident_.chain_enabled = False
         else:
-            logger.info('Button RELEASE pressed', extra={'uuid': incident_.uuid, 'user_id': user_id})
+            logger.info('Button pressed', extra={'uuid': incident_.uuid, 'button': 'release', 'user_id': user_id})
             self._track_async_task(asyncio.create_task(self.post_unassignment_notification(incident_)))
             incident_.release()
         return None
@@ -377,7 +377,7 @@ class TelegramApplication(Application):
         """Telegram doesn't support groups, return empty dict"""
         return {}
 
-    def create_group(self, name, group_details):
+    def create_group(self, config_name, group_details):
         """Telegram doesn't support groups, return None"""
         return None
 

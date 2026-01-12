@@ -5,7 +5,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from app.im.groups import UserGroup, generate_user_groups
+from app.im.user_groups import generate_user_groups, UserGroup
 from app.im.users import UndefinedUser
 
 

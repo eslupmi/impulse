@@ -97,7 +97,7 @@ notification_group = """
 {#--#}{%- elif not fields.unit.exists -%}
 {#-   #} ([NotFound](https://docs.impulse.bot/stable/warnings/NotFound/))  |  :bell: admins ({%- for a in fields.admins %}@{{ a }}{% if not loop.last %},{% endif %}{% endfor -%})
 {#--#}{%- else -%}
-{#-     #} (<!subteam^{{ fields.unit.id }}>)
+{#-     #} (@{{ fields.unit.name }})
 {#--#}{%- endif -%}
 {%- endif -%}
 """

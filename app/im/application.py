@@ -6,7 +6,7 @@ from app.config.config import get_config
 from app.config.validation import ApplicationConfig, MattermostUser, SlackUser, TelegramUser, MessengerType, SlackGroup, MattermostGroup
 from app.http_client import RateLimitedClient
 from app.im.chain.chain_factory import ChainFactory
-from app.im.groups import generate_user_groups
+from app.im.user_groups import generate_user_groups
 from app.im.template import notification_user, notification_user_group, notification_group, update_status, \
     notification_assignment, notification_unassignment, notification_freeze, notification_unfreeze
 from app.im.users import UserManager
@@ -215,7 +215,7 @@ class Application(ABC):
 
     def _handle_task_action(self, incident_, queue_):
         """Handle Task button action"""
-        logger.info(f'Incident {incident_.uuid} -> button TASK pressed')
+        logger.info(f'Button pressed', extra={'uuid': incident_.uuid, 'button': 'task'})
         self._track_async_task(asyncio.create_task(self.handle_task_button(incident_, queue_)))
 
     def _should_include_header_in_notifications(self) -> bool:
@@ -227,7 +227,7 @@ class Application(ABC):
 
     async def _handle_freeze_action(self, incident_: 'Incident', freeze_option: str, user_id: str, incidents, queue_: 'AsyncQueue', user_display_name: Optional[str] = None, user_timezone: Optional[str] = None):
         """Handle freeze button action"""
-        logger.info(f'Incident {incident_.uuid} -> button FREEZE pressed by user {user_id}')
+        logger.info(f'Button pressed', extra={'uuid': incident_.uuid, 'button': 'freeze', 'user_id': user_id})
         
         config = get_config()
         timezone_str = user_timezone or config.app.general.timezone
@@ -246,7 +246,7 @@ class Application(ABC):
     @staticmethod
     async def _handle_unfreeze_action(incident_: 'Incident', queue_: 'AsyncQueue'):
         """Handle unfreeze button action - schedule unfreeze via queue"""
-        logger.info(f'Incident {incident_.uuid} -> button UNFREEZE pressed')
+        logger.info(f'Button pressed', extra={'uuid': incident_.uuid, 'button': 'unfreeze'})
         await queue_.delete_by_id_and_type(incident_.uniq_id, QueueItemType.UNFREEZE)
         await queue_.put_first(datetime.now(timezone.utc), QueueItemType.UNFREEZE, incident_.uniq_id)
 
@@ -329,34 +329,17 @@ class Application(ABC):
         return user_manager
 
     async def _generate_groups(self, groups_dict: Optional[Dict[str, Union[SlackGroup, MattermostGroup]]]):
-        """Generate groups by polling them from the API, similar to users"""
+        """Generate groups - base implementation for Mattermost and other messengers"""
         if not groups_dict or self.type not in [MessengerType.SLACK, MessengerType.MATTERMOST]:
             return {}
         
         logger.info('Creating groups')
         
-        # Get all groups from API once
-        all_groups = await self.get_all_groups()
-        if all_groups is None:
-            logger.warning('Failed to fetch groups list from API')
-            all_groups = {}
-        
         groups = {}
-        for name, group_info in groups_dict.items():
+        for config_name, group_info in groups_dict.items():
             id_ = group_info.id if hasattr(group_info, 'id') else (group_info.get('id') if isinstance(group_info, dict) else None)
-            
-            if id_:
-                # Check if group exists in the fetched list
-                group_exists = id_ in all_groups
-                group_details = {'id': id_, 'exists': group_exists}
-                if not group_exists:
-                    logger.warning(f'.. group {name} not found in {self.type.value.capitalize()} and will be saved without ID')
-                    group_details = {'id': None, 'exists': False}
-            else:
-                logger.warning(f'.. group {name} has no \'id\' and will be saved without ID')
-                group_details = {'id': None, 'exists': False}
-            
-            groups[name] = self.create_group(name, group_details)
+            group_details = {'id': id_, 'name': None, 'exists': id_ is not None}
+            groups[config_name] = self.create_group(config_name, group_details)
 
         return groups
 
@@ -393,7 +376,7 @@ class Application(ABC):
         else:
             message = header + '\n' + text
         response_code = await self.post_thread(incident.channel_id, incident.ts, message)
-        logger.info(f'Incident {incident.uuid} -> chain step {notify_type} \'{identifier}\'')
+        logger.info(f'Chain step {notify_type} \'{identifier}\'', extra={'uuid': incident.uuid})
         return response_code
 
     async def update(self, incident, incident_status, alert_state, updated_status, chain_enabled,
@@ -524,12 +507,11 @@ class Application(ABC):
     def create_user(self, name, user_details):
         pass
 
-    @abstractmethod
     async def get_all_groups(self) -> Optional[Dict[str, bool]]:
         """Fetch all groups from the API and return a dict mapping group IDs to their existence status.
-        Must be implemented by subclasses that support groups.
-        Returns None if API call failed."""
-        pass
+        Optional method - only needed for messengers that fetch all groups at once (like Slack).
+        Returns None by default. Subclasses can override if needed."""
+        return None
 
     @abstractmethod
     def create_group(self, name, group_details):

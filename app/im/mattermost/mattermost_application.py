@@ -84,61 +84,65 @@ class MattermostApplication(Application):
             exists=user_details.get('exists')
         )
 
-    async def get_all_groups(self):
-        """Fetch all groups from Mattermost API"""
-        # Get team ID first
-        team_name = self.team
-        if not team_name:
-            logger.warning('Team name not set, cannot fetch groups')
-            return None
+    async def get_group_details(self, group_id: str):
+        """Fetch a single group from Mattermost API using /api/v4/groups/<group_id>"""
+        if not group_id:
+            return {'id': None, 'name': None, 'exists': False}
         
-        # Get team by name
-        try:
-            team_response = await self.http.get(
-                f'{self.url}/api/v4/teams/name/{team_name}',
-                headers=self.headers
-            )
-            if team_response.status != 200:
-                logger.debug(f'Failed to get team {team_name}: HTTP {team_response.status}')
-                team_response.close()
-                return None
-            
-            team_data = await team_response.json()
-            team_response.close()
-            team_id = team_data.get('id')
-            if not team_id:
-                logger.warning(f'Team {team_name} not found')
-                return None
-        except Exception as e:
-            logger.error(f'Failed to get team {team_name}: {e}')
-            return None
-        
-        # Get all groups for the team
         try:
             response = await self.http.get(
-                f'{self.url}/api/v4/teams/{team_id}/groups',
+                f'{self.url}/api/v4/groups/{group_id}',
                 headers=self.headers
             )
             
-            if response.status != 200:
-                logger.debug(f'Failed to get groups list: HTTP {response.status}')
+            if response.status == 404:
+                logger.debug("Group not found", extra={'group_id': group_id})
                 response.close()
-                return None
+                return {'id': group_id, 'name': None, 'exists': False}
+            
+            if response.status != 200:
+                logger.debug("Group details fetch failed", extra={'group_id': group_id, 'status': response.status})
+                response.close()
+                return {'id': group_id, 'name': None, 'exists': False}
             
             data = await response.json()
             response.close()
-            
-            # Return a dict mapping group IDs to True (they exist)
-            return {group.get('id'): True for group in data if group.get('id')}
+            group_name = data.get('name')
+            return {'id': group_id, 'name': group_name, 'exists': True}
         except Exception as e:
-            logger.error(f'Failed to get groups list: {e}')
-            return None
+            logger.error("Group details fetch error", extra={'group_id': group_id, 'error': str(e)})
+            return {'id': group_id, 'name': None, 'exists': False}
 
-    def create_group(self, name, group_details):
+    async def _generate_groups(self, groups_dict):
+        """Generate groups by checking each group individually via API"""
+        if not groups_dict:
+            return {}
+        
+        logger.info('Creating groups')
+        
+        groups = {}
+        for config_name, group_info in groups_dict.items():
+            if group_info.id:
+                # Check if group exists by fetching it from API
+                group_details = await self.get_group_details(group_info.id)
+                if not group_details['exists']:
+                    logger.warning('Group not found in Mattermost', extra={'group_id': group_info.id, 'group_name': config_name})
+                    group_details = {'id': None, 'name': None, 'exists': False}
+            else:
+                logger.warning('Group has no \'id\'', extra={'group_name': config_name})
+                group_details = {'id': None, 'name': None, 'exists': False}
+            
+            groups[config_name] = self.create_group(config_name, group_details)
+
+        return groups
+
+    def create_group(self, config_name, group_details):
         """Create a Group object from group details"""
         group_id = group_details.get('id') if group_details.get('exists') else None
+        group_name = group_details.get('name')
         return Group(
-            name=name,
+            config_name=config_name,
+            name=group_name,
             id_=group_id,
             exists=group_details.get('exists', False)
         )
@@ -157,16 +161,16 @@ class MattermostApplication(Application):
         await queue_.delete_by_id(incident_.uniq_id, delete_steps=True, delete_status=False)
         if incident_.chain_enabled or incident_.status != 'resolved':
             if incident_.assigned_user_id == user_id:
-                logger.info('Button TAKE IT pressed: user already assigned', extra={'incident': incident_.uuid, 'user_id': user_id})
+                logger.info('Button pressed. User already assigned', extra={'incident': incident_.uuid, 'button': 'take_it', 'user_id': user_id})
                 return JSONResponse(payload, status_code=200)
-            logger.info('Button TAKE IT pressed: assigning to user', extra={'incident': incident_.uuid, 'user_id': user_id})
+            logger.info('Button pressed: assigning to user', extra={'incident': incident_.uuid, 'button': 'take_it', 'user_id': user_id})
             incident_.assign_user_id(user_id)
             incident_.assign_user(user_name)
             self._track_async_task(asyncio.create_task(self.post_assignment_notification(incident_, user_id, user_name)))
             self._track_async_task(asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id, incidents)))
             incident_.chain_enabled = False
         else:
-            logger.info('Button RELEASE pressed', extra={'uuid': incident_.uuid, 'user_id': user_id})
+            logger.info('Button pressed', extra={'uuid': incident_.uuid, 'button': 'release', 'user_id': user_id})
             self._track_async_task(asyncio.create_task(self.post_unassignment_notification(incident_)))
             incident_.release()
         return None
