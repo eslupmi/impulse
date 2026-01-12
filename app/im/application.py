@@ -54,7 +54,7 @@ class Application(ABC):
         # Store config for async initialization
         self._users_config = app_config.users
         self._user_groups_config = app_config.user_groups
-        self._groups_config = app_config.groups
+        self._groups_config = getattr(app_config, 'groups', {})
         self._admin_users_config = app_config.admin_users
 
         # Track async tasks to prevent premature garbage collection

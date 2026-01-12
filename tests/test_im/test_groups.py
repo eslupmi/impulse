@@ -1,10 +1,11 @@
 """
 Unit tests for app.im.groups module.
 """
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, patch, AsyncMock
 
 import pytest
 
+from app.im.groups import Group
 from app.im.user_groups import generate_user_groups, UserGroup
 from app.im.users import UndefinedUser
 
@@ -68,7 +69,7 @@ class TestGenerateUserGroups:
             "group2": Mock(users=["user1"])
         }
 
-        with patch('app.im.groups.logger') as mock_logger:
+        with patch('app.im.user_groups.logger') as mock_logger:
             result = generate_user_groups(user_groups_dict, users)
 
             # Check that logger was called
@@ -100,7 +101,7 @@ class TestGenerateUserGroups:
             "group1": Mock(users=["existing_user", "undefined_user"])
         }
 
-        with patch('app.im.groups.logger'):
+        with patch('app.im.user_groups.logger'):
             result = generate_user_groups(user_groups_dict, users)
 
             assert len(result) == 1
@@ -125,7 +126,7 @@ class TestGenerateUserGroups:
             "empty_group": Mock(users=[])
         }
 
-        with patch('app.im.groups.logger'):
+        with patch('app.im.user_groups.logger'):
             result = generate_user_groups(user_groups_dict, users)
 
             assert len(result) == 1
@@ -141,7 +142,7 @@ class TestGenerateUserGroups:
             "group1": Mock(users=["user1", "user2"])
         }
 
-        with patch('app.im.groups.logger'):
+        with patch('app.im.user_groups.logger'):
             # Test with empty users dict instead of None
             result = generate_user_groups(user_groups_dict, {})
 
@@ -157,3 +158,68 @@ class TestGenerateUserGroups:
             assert isinstance(group.users[1], UndefinedUser)
             assert group.users[0].name == "user1"
             assert group.users[1].name == "user2"
+
+
+class TestGroup:
+    """Test cases for Group class."""
+
+    def test_group_creation_with_all_fields(self):
+        """Test creating a Group instance with all fields."""
+        group = Group(
+            config_name="test_group",
+            name="Real Group Name",
+            id_="G123456",
+            exists=True
+        )
+
+        assert group.config_name == "test_group"
+        assert group.name == "Real Group Name"
+        assert group.id == "G123456"
+        assert group.exists is True
+        assert group.defined is True
+
+    def test_group_creation_minimal(self):
+        """Test creating a Group instance with minimal fields."""
+        group = Group(config_name="test_group")
+
+        assert group.config_name == "test_group"
+        assert group.name is None
+        assert group.id is None
+        assert group.exists is False
+        assert group.defined is True
+
+    def test_group_repr_with_name(self):
+        """Test __repr__ when group has real name from API."""
+        group = Group(
+            config_name="config_group",
+            name="API Group Name",
+            id_="G123",
+            exists=True
+        )
+
+        assert repr(group) == "API Group Name"
+
+    def test_group_repr_without_name(self):
+        """Test __repr__ when group has no real name (falls back to config_name)."""
+        group = Group(
+            config_name="config_group",
+            id_="G123",
+            exists=False
+        )
+
+        assert repr(group) == "config_group"
+
+    def test_group_with_existing_id_but_no_name(self):
+        """Test group that exists but name wasn't fetched."""
+        group = Group(
+            config_name="test_group",
+            name=None,
+            id_="G123",
+            exists=True
+        )
+
+        assert group.config_name == "test_group"
+        assert group.name is None
+        assert group.id == "G123"
+        assert group.exists is True
+        assert repr(group) == "test_group"  # Falls back to config_name
