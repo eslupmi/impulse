@@ -33,15 +33,14 @@ class MattermostApplication(Application):
 
     async def _get_channels(self, team):
         try:
-            response = await self.http.get(
+            async with self.http.get(
                 f"{self.url}/api/v4/teams/{team['id']}/channels",
                 params={'per_page': 1000},
                 headers=self.headers
-            )
-            response.raise_for_status()
-            data = await response.json()
-            response.close()
-            return {c.get('name'): c for c in data}
+            ) as response:
+                response.raise_for_status()
+                data = await response.json()
+                return {c.get('name'): c for c in data}
         except aiohttp.ClientError as e:
             logger.error("Channel list fetch failed", extra={'error': str(e)})
             return {}
@@ -57,24 +56,20 @@ class MattermostApplication(Application):
 
     async def get_user_details(self, user_details):
         id_ = user_details.get('id')
-        response = await self.http.get(f'{self.url}/api/v4/users/{id_}?user_id={id_}', headers=self.headers)
-        
-        if response.status == 404:
-            logger.debug("User not found", extra={'user_id': id_})
-            response.close()
-            return {'id': id_, 'username': None, 'exists': False, 'full_name': None}
+        async with self.http.get(f'{self.url}/api/v4/users/{id_}?user_id={id_}', headers=self.headers) as response:
+            if response.status == 404:
+                logger.debug("User not found", extra={'user_id': id_})
+                return {'id': id_, 'username': None, 'exists': False, 'full_name': None}
 
-        if response.status != 200:
-            logger.debug("User details fetch failed", extra={'user_id': id_, 'status': response.status})
-            response.close()
-            return {'id': id_, 'username': None, 'exists': False, 'full_name': None}
+            if response.status != 200:
+                logger.debug("User details fetch failed", extra={'user_id': id_, 'status': response.status})
+                return {'id': id_, 'username': None, 'exists': False, 'full_name': None}
 
-        data = await response.json()
-        response.close()
-        first_name = data.get('first_name', '').strip()
-        last_name = data.get('last_name', '').strip()
-        full_name = f"{first_name} {last_name}".strip()
-        return {'id': id_, 'username': data.get('username'), 'exists': True, 'full_name': full_name}
+            data = await response.json()
+            first_name = data.get('first_name', '').strip()
+            last_name = data.get('last_name', '').strip()
+            full_name = f"{first_name} {last_name}".strip()
+            return {'id': id_, 'username': data.get('username'), 'exists': True, 'full_name': full_name}
 
     def create_user(self, name, user_details):
         return User(
@@ -90,25 +85,21 @@ class MattermostApplication(Application):
             return {'id': None, 'name': None, 'exists': False}
         
         try:
-            response = await self.http.get(
+            async with self.http.get(
                 f'{self.url}/api/v4/groups/{group_id}',
                 headers=self.headers
-            )
-            
-            if response.status == 404:
-                logger.debug("Group not found", extra={'group_id': group_id})
-                response.close()
-                return {'id': group_id, 'name': None, 'exists': False}
-            
-            if response.status != 200:
-                logger.debug("Group details fetch failed", extra={'group_id': group_id, 'status': response.status})
-                response.close()
-                return {'id': group_id, 'name': None, 'exists': False}
-            
-            data = await response.json()
-            response.close()
-            group_name = data.get('name')
-            return {'id': group_id, 'name': group_name, 'exists': True}
+            ) as response:
+                if response.status == 404:
+                    logger.debug("Group not found", extra={'group_id': group_id})
+                    return {'id': group_id, 'name': None, 'exists': False}
+                
+                if response.status != 200:
+                    logger.debug("Group details fetch failed", extra={'group_id': group_id, 'status': response.status})
+                    return {'id': group_id, 'name': None, 'exists': False}
+                
+                data = await response.json()
+                group_name = data.get('name')
+                return {'id': group_id, 'name': group_name, 'exists': True}
         except Exception as e:
             logger.error("Group details fetch error", extra={'group_id': group_id, 'error': str(e)})
             return {'id': group_id, 'name': None, 'exists': False}
@@ -237,12 +228,12 @@ class MattermostApplication(Application):
                                              frozen_until, task_link)
 
     async def _update_thread(self, id_, payload):
-        response = await self.http.put(
+        async with self.http.put(
             f'{self.url}/api/v4/posts/{id_}',
             headers=self.headers,
             json=payload
-        )
-        response.close()
+        ) as response:
+            pass  # Response is automatically closed by context manager
 
     def _markdown_links_to_native_format(self, text):
         return text
