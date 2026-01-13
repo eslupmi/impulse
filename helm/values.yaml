@@ -220,3 +220,14 @@ networkPolicy:
   enabled: false
   ingressRules: []
   egressRules: []
+
+serviceMonitor:
+  enabled: false
+  port: http
+  path: "/metrics"
+  interval: "30s"
+  scrapeTimeout: "10s"
+  labels: {}
+  relabelings: []
+  metricRelabelings: []
+  namespaceSelector: {}
