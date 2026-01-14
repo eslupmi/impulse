@@ -16,7 +16,6 @@ from tests.utils import (
     create_mock_incidents_collection,
     create_mock_queue,
     create_mock_route,
-    MockContextManager,
     create_slack_buttons_handler_context
 )
 
@@ -548,9 +547,9 @@ class TestSlackApplication:
         mock_response = AsyncMock()
         mock_response.json = AsyncMock(return_value={"url": "https://test-workspace.slack.com"})
 
-        # Mock HTTP client with async context manager
+        # Mock HTTP client
         app.http = Mock()
-        app.http.get = Mock(return_value=MockContextManager(mock_response))
+        app.http.get = AsyncMock(return_value=mock_response)
 
         result = await app._get_public_url(app_config)
 
@@ -574,9 +573,9 @@ class TestSlackApplication:
             }
         })
 
-        # Mock HTTP client with async context manager
+        # Mock HTTP client
         app.http = Mock()
-        app.http.get = Mock(return_value=MockContextManager(mock_response))
+        app.http.get = AsyncMock(return_value=mock_response)
 
         result = await app.get_user_details({"id": "U123456"})
 
@@ -594,9 +593,9 @@ class TestSlackApplication:
         mock_response = AsyncMock()
         mock_response.status = 500
 
-        # Mock HTTP client with async context manager
+        # Mock HTTP client
         app.http = Mock()
-        app.http.get = Mock(return_value=MockContextManager(mock_response))
+        app.http.get = AsyncMock(return_value=mock_response)
 
         result = await app.get_user_details({"id": "U123456"})
 
@@ -619,9 +618,9 @@ class TestSlackApplication:
             "error": "user_not_found"
         })
 
-        # Mock HTTP client with async context manager
+        # Mock HTTP client
         app.http = Mock()
-        app.http.get = Mock(return_value=MockContextManager(mock_response))
+        app.http.get = AsyncMock(return_value=mock_response)
 
         result = await app.get_user_details({"id": "U123456"})
 
@@ -639,9 +638,9 @@ class TestSlackApplication:
 
         mock_response = AsyncMock()
 
-        # Mock HTTP client with async context manager
+        # Mock HTTP client
         app.http = Mock()
-        app.http.post = Mock(return_value=MockContextManager(mock_response))
+        app.http.post = AsyncMock(return_value=mock_response)
 
         await app._update_thread("1234567890.123456", {"text": "Updated message"})
 
@@ -663,7 +662,7 @@ class TestSlackApplication:
         })
 
         app.http = Mock()
-        app.http.get = Mock(return_value=MockContextManager(mock_response))
+        app.http.get = AsyncMock(return_value=mock_response)
 
         result = await app.get_all_groups()
 
@@ -685,11 +684,11 @@ class TestSlackApplication:
         })
 
         app.http = Mock()
-        app.http.get = Mock(return_value=MockContextManager(mock_response))
+        app.http.get = AsyncMock(return_value=mock_response)
 
         result = await app.get_all_groups()
 
-        assert result is None
+        assert result == {}
 
     @pytest.mark.asyncio
     async def test_get_all_groups_http_error(self, app_config, channels, default_channel):
@@ -700,11 +699,11 @@ class TestSlackApplication:
         mock_response.status = 500
 
         app.http = Mock()
-        app.http.get = Mock(return_value=MockContextManager(mock_response))
+        app.http.get = AsyncMock(return_value=mock_response)
 
         result = await app.get_all_groups()
 
-        assert result is None
+        assert result == {}
 
     @pytest.mark.asyncio
     async def test_generate_groups_success(self, app_config, channels, default_channel):

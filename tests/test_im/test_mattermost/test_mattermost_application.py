@@ -12,7 +12,6 @@ from tests.utils import (
     create_mock_incident_for_handlers,
     create_mock_queue, create_mock_incidents_collection,
     create_mock_route,
-    MockContextManager,
     create_mock_get_config_patch,
     create_mattermost_buttons_handler_context
 )
@@ -461,9 +460,9 @@ class TestMattermostApplication:
             "last_name": "User"
         })
 
-        # Mock HTTP client with async context manager
+        # Mock HTTP client
         app.http = Mock()
-        app.http.get = Mock(return_value=MockContextManager(mock_response))
+        app.http.get = AsyncMock(return_value=mock_response)
 
         result = await app.get_user_details({"id": "user123"})
 
@@ -482,9 +481,9 @@ class TestMattermostApplication:
         mock_response = AsyncMock()
         mock_response.status = 404
 
-        # Mock HTTP client with async context manager
+        # Mock HTTP client
         app.http = Mock()
-        app.http.get = Mock(return_value=MockContextManager(mock_response))
+        app.http.get = AsyncMock(return_value=mock_response)
 
         result = await app.get_user_details({"id": "user123"})
 
@@ -503,9 +502,9 @@ class TestMattermostApplication:
         mock_response = AsyncMock()
         mock_response.status = 500
 
-        # Mock HTTP client with async context manager
+        # Mock HTTP client
         app.http = Mock()
-        app.http.get = Mock(return_value=MockContextManager(mock_response))
+        app.http.get = AsyncMock(return_value=mock_response)
 
         result = await app.get_user_details({"id": "user123"})
 
@@ -523,9 +522,9 @@ class TestMattermostApplication:
 
         mock_response = AsyncMock()
 
-        # Mock HTTP client with async context manager
+        # Mock HTTP client
         app.http = Mock()
-        app.http.put = Mock(return_value=MockContextManager(mock_response))
+        app.http.put = AsyncMock(return_value=mock_response)
 
         await app._update_thread("post123", {"message": "Updated message"})
 
@@ -545,7 +544,7 @@ class TestMattermostApplication:
         })
 
         app.http = Mock()
-        app.http.get = Mock(return_value=MockContextManager(mock_response))
+        app.http.get = AsyncMock(return_value=mock_response)
 
         result = await app.get_group_details("group123")
 
@@ -564,7 +563,7 @@ class TestMattermostApplication:
         mock_response.status = 404
 
         app.http = Mock()
-        app.http.get = Mock(return_value=MockContextManager(mock_response))
+        app.http.get = AsyncMock(return_value=mock_response)
 
         result = await app.get_group_details("group999")
 
@@ -583,7 +582,7 @@ class TestMattermostApplication:
         mock_response.status = 500
 
         app.http = Mock()
-        app.http.get = Mock(return_value=MockContextManager(mock_response))
+        app.http.get = AsyncMock(return_value=mock_response)
 
         result = await app.get_group_details("group123")
 

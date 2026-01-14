@@ -41,22 +41,23 @@ class MattermostApplication(Application):
     async def get_user_details(self, user_details):
         id_ = user_details.get('id')
         response = await self.http.get(f'{self.url}/api/v4/users/{id_}?user_id={id_}', headers=self.headers)
-        try:
-            if response.status == 404:
-                logger.debug("User not found", extra={'user_id': id_})
-                return {'id': id_, 'username': None, 'exists': False, 'full_name': None}
 
-            if response.status != 200:
-                logger.debug("User details fetch failed", extra={'user_id': id_, 'status': response.status})
-                return {'id': id_, 'username': None, 'exists': False, 'full_name': None}
-
-            data = await response.json()
-            first_name = data.get('first_name', '').strip()
-            last_name = data.get('last_name', '').strip()
-            full_name = f"{first_name} {last_name}".strip()
-            return {'id': id_, 'username': data.get('username'), 'exists': True, 'full_name': full_name}
-        finally:
+        if response.status == 404:
+            logger.debug("User not found", extra={'user_id': id_})
             response.close()
+            return {'id': id_, 'username': None, 'exists': False, 'full_name': None}
+
+        if response.status != 200:
+            logger.debug("User details fetch failed", extra={'user_id': id_, 'status': response.status})
+            response.close()
+            return {'id': id_, 'username': None, 'exists': False, 'full_name': None}
+
+        data = await response.json()
+        response.close()
+        first_name = data.get('first_name', '').strip()
+        last_name = data.get('last_name', '').strip()
+        full_name = f"{first_name} {last_name}".strip()
+        return {'id': id_, 'username': data.get('username'), 'exists': True, 'full_name': full_name}
 
     def create_user(self, name, user_details):
         return User(
@@ -68,6 +69,9 @@ class MattermostApplication(Application):
 
     async def get_group_details(self, group_id: str):
         """Fetch a single group from Mattermost API using /api/v4/groups/<group_id>"""
+        if not group_id:
+            return {'id': None, 'name': None, 'exists': False}
+        
         try:
             response = await self.http.get(
                 f'{self.url}/api/v4/groups/{group_id}',
@@ -107,6 +111,10 @@ class MattermostApplication(Application):
             groups[config_name] = self.create_group(config_name, group_details)
 
         return groups
+
+    async def get_all_groups(self):
+        """Unused function for Mattermost"""
+        return {}
 
     def get_notification_destinations(self):
         return [a.get_notification_identifier() for a in self.admin_users]

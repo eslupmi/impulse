@@ -74,11 +74,9 @@ class TelegramApplication(Application):
 
     async def _send_create_thread(self, payload):
         response = await self.http.post(self.post_message_url, headers=self.headers, json=payload)
-        try:
-            response_json = await response.json()
-            return response_json.get('result', {}).get(self.thread_id_key)
-        finally:
-            response.close()
+        response_json = await response.json()
+        response.close()
+        return response_json.get('result', {}).get(self.thread_id_key)
 
     async def _handle_chain_action(self, action, incident_, user_id, user_display_name, queue_, incidents, payload):
         """Handle chain-related button actions (start_chain/stop_chain)"""
@@ -110,22 +108,20 @@ class TelegramApplication(Application):
             incident_.task_link, show_freeze_menu=True
         )
         await self._update_thread(incident_.ts, payload)
-        response = await self.http.post(
+        await self.http.post(
             f'{self.url}/answerCallbackQuery',
             json={'callback_query_id': callback['id']},
             headers=self.headers
         )
-        response.close()
         return JSONResponse({}, status_code=200)
 
     async def _answer_callback(self, callback_id):
         """Answer callback query to Telegram"""
-        response = await self.http.post(
+        await self.http.post(
             f'{self.url}/answerCallbackQuery',
             json={'callback_query_id': callback_id},
             headers=self.headers
         )
-        response.close()
 
     def _extract_user_display_name(self, user_from):
         """Extract user display name from callback user data"""
@@ -226,11 +222,9 @@ class TelegramApplication(Application):
                 json=payload,
                 headers=self.headers
             )
-            try:
-                response_json = await response.json()
-                return response_json.get('result', {}).get('message_thread_id')
-            finally:
-                response.close()
+            response_json = await response.json()
+            response.close()
+            return response_json.get('result', {}).get('message_thread_id')
         except aiohttp.ClientError as e:
             logger.error("Topic creation failed", extra={'error': str(e)})
             raise e
@@ -353,24 +347,24 @@ class TelegramApplication(Application):
     async def get_user_details(self, user_details):
         id_ = user_details.get('id')
         response = await self.http.get(f'{self.url}/getChat?chat_id={id_}', headers=self.headers)
-        try:
-            if response.status != 200:
-                logger.debug("User details fetch failed", extra={'user_id': id_, 'status': response.status})
-                return {'id': id_, 'exists': False, 'full_name': None, 'username': None}
-
-            data = await response.json()
-
-            if not data.get('ok'):
-                logger.debug("Telegram API error", extra={'user_id': id_, 'error': data.get("description", "unknown error")})
-                return {'id': id_, 'exists': False, 'full_name': None, 'username': None}
-
-            chat_data = data.get('result', {})
-            first_name = chat_data.get('first_name', '').strip()
-            last_name = chat_data.get('last_name', '').strip()
-            full_name = f"{first_name} {last_name}".strip()
-            return {'id': id_, 'exists': True, 'full_name': full_name, 'username': full_name}
-        finally:
+        if response.status != 200:
+            logger.debug("User details fetch failed", extra={'user_id': id_, 'status': response.status})
             response.close()
+            return {'id': id_, 'exists': False, 'full_name': None, 'username': None}
+
+        data = await response.json()
+        response.close()
+
+        if not data.get('ok'):
+            logger.debug("Telegram API error",
+                         extra={'user_id': id_, 'error': data.get("description", "unknown error")})
+            return {'id': id_, 'exists': False, 'full_name': None, 'username': None}
+
+        chat_data = data.get('result', {})
+        first_name = chat_data.get('first_name', '').strip()
+        last_name = chat_data.get('last_name', '').strip()
+        full_name = f"{first_name} {last_name}".strip()
+        return {'id': id_, 'exists': True, 'full_name': full_name, 'username': full_name}
 
     def create_user(self, name, user_details):
         return User(
@@ -378,6 +372,10 @@ class TelegramApplication(Application):
             id_=user_details.get('id'),
             exists=user_details.get('exists', False)
         )
+
+    async def _generate_groups(self, groups_dict):
+        """Telegram doesn't support groups, return empty dict"""
+        return {}
 
     async def get_all_groups(self):
         """Telegram doesn't support groups, return empty dict"""

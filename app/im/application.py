@@ -325,9 +325,6 @@ class Application(ABC):
 
         return user_manager
 
-    async def _generate_groups(self, groups_dict: Optional[Dict[str, Union[SlackGroup, MattermostGroup]]]):
-        pass
-
     def generate_template(self):
         def read_template(file_key, default_path):
             file_path = self.templates.get(file_key, default_path)
@@ -440,6 +437,10 @@ class Application(ABC):
         pass
 
     @abstractmethod
+    async def _generate_groups(self, groups_dict: Dict):
+        pass
+
+    @abstractmethod
     def _initialize_specific_params(self):
         pass
 
@@ -492,11 +493,9 @@ class Application(ABC):
     def create_user(self, name, user_details):
         pass
 
-    async def get_all_groups(self) -> Optional[Dict[str, bool]]:
-        """Fetch all groups from the API and return a dict mapping group IDs to their existence status.
-        Optional method - only needed for messengers that fetch all groups at once (like Slack).
-        Returns None by default. Subclasses can override if needed."""
-        return None
+    @abstractmethod
+    async def get_all_groups(self):
+        pass
 
     def create_group(self, config_name, group_details):
         """Create a Group object from group details. Default implementation for Slack and Mattermost."""
