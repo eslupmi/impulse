@@ -9,11 +9,11 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3 import Retry
 
+from app.config.environment import get_environment_config
 from app.config.validation import CloudChain, ScheduleEntry, ScheduleMatcherExpression, SimpleChainStep
 from app.im.chain.schedule_chain import ScheduleChain
 from app.logging import logger
 from app.tools import HTMLTextExtractor
-from app.config.environment import get_environment_config
 
 
 class GoogleCalendarChain(ScheduleChain):

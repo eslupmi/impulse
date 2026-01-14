@@ -16,7 +16,6 @@ from tests.utils import (
     create_mock_incidents_collection,
     create_mock_queue,
     create_mock_route,
-    MockContextManager,
     create_slack_buttons_handler_context
 )
 
@@ -33,7 +32,11 @@ class TestSlackApplication:
     def create_slack_app(self, app_config, channels, default_channel):
         """Helper method to create SlackApplication with proper mocking."""
         with patch('builtins.open', mock_open(read_data="template content")):
-            return SlackApplication(app_config, channels, default_channel)
+            app = SlackApplication(app_config, channels, default_channel)
+            # Initialize groups attribute if not already set
+            if not hasattr(app, 'groups'):
+                app.groups = {}
+            return app
 
     @pytest.fixture
     def app_config(self):
@@ -44,6 +47,7 @@ class TestSlackApplication:
         config.users = {"admin1": {"id": "U123456"}}
         config.admin_users = ["admin1", "admin2"]
         config.user_groups = {}
+        config.groups = {}
         config.chains = {}
         config.template_files = Mock()
         config.template_files.status_icons = None
@@ -542,7 +546,6 @@ class TestSlackApplication:
         # Mock HTTP response
         mock_response = AsyncMock()
         mock_response.json = AsyncMock(return_value={"url": "https://test-workspace.slack.com"})
-        mock_response.close = Mock()
 
         # Mock HTTP client
         app.http = Mock()
@@ -569,7 +572,6 @@ class TestSlackApplication:
                 }
             }
         })
-        mock_response.close = Mock()
 
         # Mock HTTP client
         app.http = Mock()
@@ -590,7 +592,6 @@ class TestSlackApplication:
 
         mock_response = AsyncMock()
         mock_response.status = 500
-        mock_response.close = Mock()
 
         # Mock HTTP client
         app.http = Mock()
@@ -616,7 +617,6 @@ class TestSlackApplication:
             "ok": False,
             "error": "user_not_found"
         })
-        mock_response.close = Mock()
 
         # Mock HTTP client
         app.http = Mock()
@@ -637,7 +637,6 @@ class TestSlackApplication:
         app = self.create_slack_app(app_config, channels, default_channel)
 
         mock_response = AsyncMock()
-        mock_response.close = Mock()
 
         # Mock HTTP client
         app.http = Mock()
@@ -646,3 +645,183 @@ class TestSlackApplication:
         await app._update_thread("1234567890.123456", {"text": "Updated message"})
 
         app.http.post.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_get_all_groups_success(self, app_config, channels, default_channel):
+        """Test get_all_groups method with successful API response."""
+        app = self.create_slack_app(app_config, channels, default_channel)
+
+        mock_response = AsyncMock()
+        mock_response.status = 200
+        mock_response.json = AsyncMock(return_value={
+            "ok": True,
+            "usergroups": [
+                {"id": "S0604QSJC", "name": "Engineering"},
+                {"id": "S0604QSJD", "name": "Operations"}
+            ]
+        })
+
+        app.http = Mock()
+        app.http.get = AsyncMock(return_value=mock_response)
+
+        result = await app.get_all_groups()
+
+        assert result == {
+            "S0604QSJC": "Engineering",
+            "S0604QSJD": "Operations"
+        }
+
+    @pytest.mark.asyncio
+    async def test_get_all_groups_api_error(self, app_config, channels, default_channel):
+        """Test get_all_groups method with API error."""
+        app = self.create_slack_app(app_config, channels, default_channel)
+
+        mock_response = AsyncMock()
+        mock_response.status = 200
+        mock_response.json = AsyncMock(return_value={
+            "ok": False,
+            "error": "invalid_auth"
+        })
+
+        app.http = Mock()
+        app.http.get = AsyncMock(return_value=mock_response)
+
+        result = await app.get_all_groups()
+
+        assert result == {}
+
+    @pytest.mark.asyncio
+    async def test_get_all_groups_http_error(self, app_config, channels, default_channel):
+        """Test get_all_groups method with HTTP error."""
+        app = self.create_slack_app(app_config, channels, default_channel)
+
+        mock_response = AsyncMock()
+        mock_response.status = 500
+
+        app.http = Mock()
+        app.http.get = AsyncMock(return_value=mock_response)
+
+        result = await app.get_all_groups()
+
+        assert result == {}
+
+    @pytest.mark.asyncio
+    async def test_generate_groups_success(self, app_config, channels, default_channel):
+        """Test _generate_groups method with successful group validation."""
+        app = self.create_slack_app(app_config, channels, default_channel)
+
+        # Mock groups config
+        from app.config.validation import SlackGroup
+        groups_dict = {
+            "eng": SlackGroup(id="S0604QSJC"),
+            "ops": SlackGroup(id="S0604QSJD")
+        }
+
+        # Mock get_all_groups to return groups
+        app.get_all_groups = AsyncMock(return_value={
+            "S0604QSJC": "Engineering",
+            "S0604QSJD": "Operations"
+        })
+
+        result = await app._generate_groups(groups_dict)
+
+        assert len(result) == 2
+        assert "eng" in result
+        assert "ops" in result
+        
+        eng_group = result["eng"]
+        assert eng_group.config_name == "eng"
+        assert eng_group.name == "Engineering"
+        assert eng_group.id == "S0604QSJC"
+        assert eng_group.exists is True
+
+        ops_group = result["ops"]
+        assert ops_group.config_name == "ops"
+        assert ops_group.name == "Operations"
+        assert ops_group.id == "S0604QSJD"
+        assert ops_group.exists is True
+
+    @pytest.mark.asyncio
+    async def test_generate_groups_not_found(self, app_config, channels, default_channel):
+        """Test _generate_groups method when group is not found in API."""
+        app = self.create_slack_app(app_config, channels, default_channel)
+
+        from app.config.validation import SlackGroup
+        groups_dict = {
+            "missing": SlackGroup(id="S99999999")
+        }
+
+        app.get_all_groups = AsyncMock(return_value={
+            "S0604QSJC": "Engineering"
+        })
+
+        result = await app._generate_groups(groups_dict)
+
+        assert len(result) == 1
+        assert "missing" in result
+        
+        missing_group = result["missing"]
+        assert missing_group.config_name == "missing"
+        assert missing_group.name is None
+        assert missing_group.id is None
+        assert missing_group.exists is False
+
+    @pytest.mark.asyncio
+    async def test_generate_groups_no_id(self, app_config, channels, default_channel):
+        """Test _generate_groups method when group has no ID."""
+        app = self.create_slack_app(app_config, channels, default_channel)
+
+        from app.config.validation import SlackGroup
+        # Use Mock instead of SlackGroup since id is required in Pydantic model
+        mock_group = Mock(spec=SlackGroup)
+        mock_group.id = None
+        groups_dict = {
+            "no_id": mock_group
+        }
+
+        app.get_all_groups = AsyncMock(return_value={})
+
+        result = await app._generate_groups(groups_dict)
+
+        assert len(result) == 1
+        assert "no_id" in result
+        
+        no_id_group = result["no_id"]
+        assert no_id_group.config_name == "no_id"
+        assert no_id_group.name is None
+        assert no_id_group.id is None
+        assert no_id_group.exists is False
+
+    def test_create_group(self, app_config, channels, default_channel):
+        """Test create_group method."""
+        app = self.create_slack_app(app_config, channels, default_channel)
+
+        group_details = {
+            'id': 'S0604QSJC',
+            'name': 'Engineering',
+            'exists': True
+        }
+
+        group = app.create_group("eng", group_details)
+
+        assert group.config_name == "eng"
+        assert group.name == "Engineering"
+        assert group.id == "S0604QSJC"
+        assert group.exists is True
+
+    def test_create_group_not_exists(self, app_config, channels, default_channel):
+        """Test create_group method when group doesn't exist."""
+        app = self.create_slack_app(app_config, channels, default_channel)
+
+        group_details = {
+            'id': None,
+            'name': None,
+            'exists': False
+        }
+
+        group = app.create_group("missing", group_details)
+
+        assert group.config_name == "missing"
+        assert group.name is None
+        assert group.id is None
+        assert group.exists is False

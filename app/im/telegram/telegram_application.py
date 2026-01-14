@@ -92,7 +92,7 @@ class TelegramApplication(Application):
             self._track_async_task(asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id, incidents)))
             incident_.chain_enabled = False
         else:
-            logger.info('Button RELEASE pressed', extra={'uuid': incident_.uuid, 'user_id': user_id})
+            logger.info('Button pressed', extra={'uuid': incident_.uuid, 'button': 'release', 'user_id': user_id})
             self._track_async_task(asyncio.create_task(self.post_unassignment_notification(incident_)))
             incident_.release()
         return None
@@ -133,7 +133,7 @@ class TelegramApplication(Application):
         """Handle all freeze-related actions"""
         if action == 'freeze_menu':
             if incident_.is_frozen():
-                await self._handle_unfreeze_action(incident_, queue_)
+                await self._handle_unfreeze_action(incident_, user_id, queue_)
             else:
                 return await self._show_freeze_menu(incident_, callback)
             return None
@@ -196,7 +196,7 @@ class TelegramApplication(Application):
             if early_return is not None:
                 return early_return
         elif action == 'task':
-            self._handle_task_action(incident_, queue_)
+            self._handle_task_action(incident_, user_id, queue_)
 
         incident_.dump()
         body = self.body_template.form_message(incident_.payload, incident_)
@@ -347,7 +347,6 @@ class TelegramApplication(Application):
     async def get_user_details(self, user_details):
         id_ = user_details.get('id')
         response = await self.http.get(f'{self.url}/getChat?chat_id={id_}', headers=self.headers)
-
         if response.status != 200:
             logger.debug("User details fetch failed", extra={'user_id': id_, 'status': response.status})
             response.close()
@@ -357,7 +356,8 @@ class TelegramApplication(Application):
         response.close()
 
         if not data.get('ok'):
-            logger.debug("Telegram API error", extra={'user_id': id_, 'error': data.get("description", "unknown error")})
+            logger.debug("Telegram API error",
+                         extra={'user_id': id_, 'error': data.get("description", "unknown error")})
             return {'id': id_, 'exists': False, 'full_name': None, 'username': None}
 
         chat_data = data.get('result', {})
@@ -372,6 +372,18 @@ class TelegramApplication(Application):
             id_=user_details.get('id'),
             exists=user_details.get('exists', False)
         )
+
+    async def _generate_groups(self, groups_dict):
+        """Telegram doesn't support groups, return empty dict"""
+        return {}
+
+    async def get_all_groups(self):
+        """Telegram doesn't support groups, return empty dict"""
+        return {}
+
+    def create_group(self, config_name, group_details):
+        """Telegram doesn't support groups, return None"""
+        return None
 
     async def _setup_webhook(self):
         config = get_config()

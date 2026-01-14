@@ -1,13 +1,13 @@
 from datetime import datetime, timezone
 
+from app.config.config import get_config
 from app.im.template import update_alerts
 from app.incident.incident import IncidentConfig, Incident
 from app.jinja_template import JinjaTemplate
 from app.logging import logger
+from app.queue.constants import QueueItemType
 from app.queue.handlers.base_handler import BaseHandler
 from app.time import unix_sleep_to_timedelta
-from app.config.config import get_config
-from app.queue.constants import QueueItemType
 
 
 class AlertHandler(BaseHandler):

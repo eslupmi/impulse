@@ -1,13 +1,14 @@
 from typing import Optional
+
+from app.config.environment import EnvironmentConfig, get_environment_config
+from app.config.validation import ApplicationConfig, TaskManagementConfig
+from app.im.application import Application
 from app.im.mattermost.mattermost_application import MattermostApplication
+from app.im.null.null_application import NullApplication
 from app.im.slack.slack_application import SlackApplication
 from app.im.telegram.telegram_application import TelegramApplication
-from app.im.null.null_application import NullApplication
-from app.im.application import Application
 from app.integrations.jira_client import JiraClient
 from app.integrations.jira_integration import JiraIntegration
-from app.config.validation import ApplicationConfig, TaskManagementConfig
-from app.config.environment import EnvironmentConfig, get_environment_config
 from app.logging import logger
 
 

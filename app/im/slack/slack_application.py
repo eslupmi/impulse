@@ -3,15 +3,15 @@ import re
 
 from fastapi.responses import JSONResponse
 
+from app.config.config import get_config
+from app.config.environment import get_environment_config
+from app.config.validation import ApplicationConfig
 from app.im.application import Application
 from app.im.slack import reformat_message
 from app.im.slack.config import slack_env, slack_admins_template_string
 from app.im.slack.threads import slack_get_create_thread_payload, slack_get_update_payload
 from app.im.slack.user import User
 from app.logging import logger
-from app.config.config import get_config
-from app.config.environment import get_environment_config
-from app.config.validation import ApplicationConfig
 
 
 class SlackApplication(Application):
@@ -70,6 +70,47 @@ class SlackApplication(Application):
             exists=user_details.get('exists')
         )
 
+    async def get_all_groups(self):
+        """Fetch all user groups from Slack API using usergroups.list"""
+        response = await self.http.get(f'{self.url}/api/usergroups.list', headers=self.headers)
+        try:
+            if response.status != 200:
+                logger.debug(f'Failed to get groups list: HTTP {response.status}')
+                return {}
+            
+            data = await response.json()
+            if not data.get('ok'):
+                logger.debug(f'Slack API error getting groups list: {data.get("error", "unknown error")}')
+                return {}
+            
+            # Return a dict mapping group IDs to their names
+            usergroups = data.get('usergroups', [])
+            return {ug.get('id'): ug.get('name') for ug in usergroups if ug.get('id')}
+        finally:
+            response.close()
+
+    async def _generate_groups(self, groups_dict):
+        """Generate groups by polling them from the API"""
+        if not groups_dict:
+            return {}
+        
+        logger.info('Creating groups')
+        
+        # Get all groups from API once
+        all_groups = await self.get_all_groups()
+
+        groups = {}
+        for config_name, group_info in groups_dict.items():
+            group_name = all_groups.get(group_info.id)
+            group_exists = group_name is not None
+            group_details = {'id': group_info.id, 'name': group_name, 'exists': group_exists}
+            if not group_exists:
+                logger.warning('Group not found in Slack', extra={'group': config_name})
+                group_details = {'id': None, 'name': None, 'exists': False}
+            groups[config_name] = self.create_group(config_name, group_details)
+
+        return groups
+
     def get_notification_destinations(self):
         return [a.get_notification_identifier() for a in self.admin_users]
 
@@ -84,9 +125,9 @@ class SlackApplication(Application):
         await queue_.delete_by_id(incident_.uniq_id, delete_steps=True, delete_status=False)
         if incident_.chain_enabled or incident_.status != 'resolved':
             if incident_.assigned_user_id == user_id:
-                logger.info('Button TAKE IT pressed: user already assigned', extra={'incident': incident_.uuid, 'user_id': user_id})
+                logger.info('Button pressed: user already assigned', extra={'incident': incident_.uuid, 'button': 'take_it', 'user_id': user_id})
             else:
-                logger.info('Button TAKE IT pressed: assigning to user', extra={'incident': incident_.uuid, 'user_id': user_id})
+                logger.info('Button pressed: assigning to user', extra={'incident': incident_.uuid, 'button': 'take_it', 'user_id': user_id})
                 incident_.assign_user_id(user_id)
                 if user_name:
                     incident_.assign_user(user_name)
@@ -94,7 +135,7 @@ class SlackApplication(Application):
                 self._track_async_task(asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id, incidents)))
             incident_.chain_enabled = False
         else:
-            logger.info('Button RELEASE pressed', extra={'incident': incident_.uuid})
+            logger.info('Button pressed', extra={'incident': incident_.uuid, 'button': 'release', 'user_id': user_id})
             self._track_async_task(asyncio.create_task(self.post_unassignment_notification(incident_)))
             incident_.release()
 
@@ -117,7 +158,7 @@ class SlackApplication(Application):
     async def _handle_freeze_button(self, action, incident_, user_id, incidents, queue_):
         """Handle freeze button action"""
         if incident_.is_frozen():
-            await self._handle_unfreeze_action(incident_, queue_)
+            await self._handle_unfreeze_action(incident_, user_id, queue_)
             return
         
         if action.get('type') != 'select':
@@ -166,7 +207,7 @@ class SlackApplication(Application):
             if action['name'] == 'chain':
                 await self._handle_chain_action(incident_, user_id, user_name, queue_, incidents)
             elif action['name'] == 'task':
-                self._handle_task_action(incident_, queue_)
+                self._handle_task_action(incident_, user_id, queue_)
         
         return self._build_button_response(incident_, original_message)
 

@@ -1,7 +1,7 @@
 from typing import Dict, Optional, List, Union
 
-from app.logging import logger
 from app.config.validation import SlackChannel, MattermostChannel, TelegramChannel
+from app.logging import logger
 
 
 class ChannelManager:

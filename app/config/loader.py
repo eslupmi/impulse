@@ -1,10 +1,12 @@
 import os
-import yaml
 from typing import Dict, Any, Tuple
+
+import yaml
 from pydantic import ValidationError
 
 from app.config.validation import ImpulseConfig, validate_config
 from app.logging import logger
+
 
 class ConfigValidationError(Exception):
     """Custom exception for configuration validation errors"""

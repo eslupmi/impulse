@@ -1,6 +1,6 @@
+import calendar
 from datetime import timedelta, datetime, timezone
 from zoneinfo import ZoneInfo
-import calendar
 
 
 def unix_sleep_to_timedelta(unix_sleep_time):

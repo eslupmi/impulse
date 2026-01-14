@@ -1,12 +1,13 @@
 import asyncio
+
+from app.logging import logger
 from app.queue.constants import QueueItemType
 from app.queue.handlers.alert_handler import AlertHandler
-from app.queue.handlers.status_update_handler import StatusUpdateHandler
-from app.queue.handlers.status_check_handler import StatusCheckHandler
 from app.queue.handlers.message_update_handler import MessageUpdateHandler
+from app.queue.handlers.status_check_handler import StatusCheckHandler
+from app.queue.handlers.status_update_handler import StatusUpdateHandler
 from app.queue.handlers.step_handler import StepHandler
 from app.queue.handlers.unfreeze_handler import UnfreezeHandler
-from app.logging import logger
 
 
 class AsyncQueueManager:

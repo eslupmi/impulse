@@ -1,25 +1,28 @@
 import asyncio
 from abc import ABC, abstractmethod
+from datetime import datetime, timezone
 from typing import Union, Dict, Optional, TYPE_CHECKING
 
 from app.config.config import get_config
 from app.config.validation import ApplicationConfig, MattermostUser, SlackUser, TelegramUser, MessengerType
 from app.http_client import RateLimitedClient
 from app.im.chain.chain_factory import ChainFactory
-from app.im.groups import generate_user_groups
-from app.im.template import notification_user, notification_user_group, update_status, \
+from app.im.groups import Group
+from app.im.template import notification_user, notification_user_group, notification_group, update_status, \
     notification_assignment, notification_unassignment, notification_freeze, notification_unfreeze
+from app.im.user_groups import generate_user_groups
 from app.im.users import UserManager
+from app.integrations.jira_integration import JiraIntegration
 from app.jinja_template import JinjaTemplate
 from app.logging import logger
-from app.integrations.jira_integration import JiraIntegration
 from app.queue.constants import QueueItemType
 from app.time import calculate_freeze_time, format_freeze_expiration
-from datetime import datetime, timezone
 
 if TYPE_CHECKING:
     from app.incident.incident import Incident
     from app.queue.queue import AsyncQueue
+
+log_button_pressed = 'Button pressed'
 
 
 class Application(ABC):
@@ -48,11 +51,13 @@ class Application(ABC):
         self.default_channel_id = self.channels[default_channel]['id']
         self.users = None  # Will be initialized async
         self.user_groups = None  # Will be initialized async
+        self.groups = {}  # Groups (Slack/Mattermost only, empty for others)
         self.admin_users = None  # Will be initialized async
 
         # Store config for async initialization
         self._users_config = app_config.users
         self._user_groups_config = app_config.user_groups
+        self._groups_config = getattr(app_config, 'groups', {})
         self._admin_users_config = app_config.admin_users
 
         # Track async tasks to prevent premature garbage collection
@@ -68,6 +73,9 @@ class Application(ABC):
                 self.public_url = self._get_public_url(self._app_config)
         self.users = await self._generate_users(self._users_config)
         self.user_groups = generate_user_groups(self._user_groups_config, self.users)
+        self.groups = await self._generate_groups(self._groups_config)
+        if self.groups:
+            logger.info(f'Initialized {len(self.groups)} groups: {", ".join(self.groups.keys())}')
         self.admin_users = [self.users[admin] for admin in self._admin_users_config]
 
     async def close(self):
@@ -113,7 +121,8 @@ class Application(ABC):
             incident.assign_user(notification_id)
         return True
 
-    def _try_assign_from_cache(self, incident, user_id, incidents):
+    @staticmethod
+    def _try_assign_from_cache(incident, user_id, incidents):
         """Try to assign user from incident cache. Returns True if successful."""
         if not incidents:
             return False
@@ -208,9 +217,9 @@ class Application(ABC):
         self._async_tasks.add(task)
         task.add_done_callback(self._async_tasks.discard)
 
-    def _handle_task_action(self, incident_, queue_):
+    def _handle_task_action(self, incident_, user_id, queue_):
         """Handle Task button action"""
-        logger.info(f'Incident {incident_.uuid} -> button TASK pressed')
+        logger.info(log_button_pressed, extra={'uuid': incident_.uuid, 'button': 'task', 'user_id': user_id})
         self._track_async_task(asyncio.create_task(self.handle_task_button(incident_, queue_)))
 
     def _should_include_header_in_notifications(self) -> bool:
@@ -222,7 +231,7 @@ class Application(ABC):
 
     async def _handle_freeze_action(self, incident_: 'Incident', freeze_option: str, user_id: str, incidents, queue_: 'AsyncQueue', user_display_name: Optional[str] = None, user_timezone: Optional[str] = None):
         """Handle freeze button action"""
-        logger.info(f'Incident {incident_.uuid} -> button FREEZE pressed by user {user_id}')
+        logger.info(log_button_pressed, extra={'uuid': incident_.uuid, 'button': 'freeze', 'user_id': user_id})
         
         config = get_config()
         timezone_str = user_timezone or config.app.general.timezone
@@ -238,10 +247,9 @@ class Application(ABC):
         await queue_.put(freeze_time, QueueItemType.UNFREEZE, incident_.uniq_id)
         self._track_async_task(asyncio.create_task(self._post_freeze_notification(incident_, freeze_time, timezone_str)))
 
-    @staticmethod
-    async def _handle_unfreeze_action(incident_: 'Incident', queue_: 'AsyncQueue'):
+    async def _handle_unfreeze_action(self, incident_: 'Incident', user_id: str, queue_: 'AsyncQueue'):
         """Handle unfreeze button action - schedule unfreeze via queue"""
-        logger.info(f'Incident {incident_.uuid} -> button UNFREEZE pressed')
+        logger.info(log_button_pressed, extra={'uuid': incident_.uuid, 'button': 'unfreeze', 'user_id': user_id})
         await queue_.delete_by_id_and_type(incident_.uniq_id, QueueItemType.UNFREEZE)
         await queue_.put_first(datetime.now(timezone.utc), QueueItemType.UNFREEZE, incident_.uniq_id)
 
@@ -272,15 +280,11 @@ class Application(ABC):
             
         await self.post_thread(incident_.channel_id, incident_.ts, message)
 
-    def lookup_user_by_id(self, user_id):
-        """Look up a user by their platform-specific ID"""
-        if self.users is None:
-            return None
-        return self.users.get_user_by_id(user_id)
-
     def get_configured_user_name(self, user_id, fallback_name):
         """Get user name from configuration, or use fallback name"""
-        user = self.lookup_user_by_id(user_id)
+        if self.users is None:
+            return fallback_name
+        user = self.users.get_user_by_id(user_id)
         return user.name if user and user.exists else fallback_name
 
     async def handle_task_button(self, incident, queue_):
@@ -339,8 +343,14 @@ class Application(ABC):
         if notify_type == 'user':
             unit = self.users.get(identifier)
             text_template = JinjaTemplate(notification_user)
-        else:
+        elif notify_type == 'user_group':
             unit = self.user_groups.get(identifier)
+            text_template = JinjaTemplate(notification_user_group)
+        elif notify_type == 'group':
+            unit = self.groups.get(identifier)
+            text_template = JinjaTemplate(notification_group)
+        else:
+            unit = None
             text_template = JinjaTemplate(notification_user_group)
         fields = {'type': self.type.value, 'name': identifier, 'unit': unit, 'admins': destinations}
         text = text_template.form_notification(fields)
@@ -350,7 +360,7 @@ class Application(ABC):
         else:
             message = header + '\n' + text
         response_code = await self.post_thread(incident.channel_id, incident.ts, message)
-        logger.info(f'Incident {incident.uuid} -> chain step {notify_type} \'{identifier}\'')
+        logger.info(f'Chain step {notify_type} \'{identifier}\'', extra={'uuid': incident.uuid})
         return response_code
 
     async def update(self, incident, incident_status, alert_state, updated_status, chain_enabled,
@@ -429,6 +439,10 @@ class Application(ABC):
         pass
 
     @abstractmethod
+    async def _generate_groups(self, groups_dict: Dict):
+        pass
+
+    @abstractmethod
     def _initialize_specific_params(self):
         pass
 
@@ -480,3 +494,18 @@ class Application(ABC):
     @abstractmethod
     def create_user(self, name, user_details):
         pass
+
+    @abstractmethod
+    async def get_all_groups(self):
+        pass
+
+    def create_group(self, config_name, group_details):
+        """Create a Group object from group details. Default implementation for Slack and Mattermost."""
+        group_id = group_details.get('id') if group_details.get('exists') else None
+        group_name = group_details.get('name')
+        return Group(
+            config_name=config_name,
+            name=group_name,
+            id_=group_id,
+            exists=group_details.get('exists', False)
+        )

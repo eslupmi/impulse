@@ -1,6 +1,6 @@
 import re
 from datetime import datetime, timedelta, timezone
-from typing import List, Dict, Tuple, Optional
+from typing import List, Tuple, Optional
 from zoneinfo import ZoneInfo
 
 from app.config.validation import ScheduleEntry, ScheduleMatcherExpression, SimpleChainStep
