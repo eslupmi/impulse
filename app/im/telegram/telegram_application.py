@@ -73,9 +73,12 @@ class TelegramApplication(Application):
         return f'{topic_id}/{message_id}'
 
     async def _send_create_thread(self, payload):
-        async with self.http.post(self.post_message_url, headers=self.headers, json=payload) as response:
+        response = await self.http.post(self.post_message_url, headers=self.headers, json=payload)
+        try:
             response_json = await response.json()
             return response_json.get('result', {}).get(self.thread_id_key)
+        finally:
+            response.close()
 
     async def _handle_chain_action(self, action, incident_, user_id, user_display_name, queue_, incidents, payload):
         """Handle chain-related button actions (start_chain/stop_chain)"""
@@ -107,20 +110,22 @@ class TelegramApplication(Application):
             incident_.task_link, show_freeze_menu=True
         )
         await self._update_thread(incident_.ts, payload)
-        await self.http.post(
+        response = await self.http.post(
             f'{self.url}/answerCallbackQuery',
             json={'callback_query_id': callback['id']},
             headers=self.headers
         )
+        response.close()
         return JSONResponse({}, status_code=200)
 
     async def _answer_callback(self, callback_id):
         """Answer callback query to Telegram"""
-        await self.http.post(
+        response = await self.http.post(
             f'{self.url}/answerCallbackQuery',
             json={'callback_query_id': callback_id},
             headers=self.headers
         )
+        response.close()
 
     def _extract_user_display_name(self, user_from):
         """Extract user display name from callback user data"""
@@ -216,13 +221,16 @@ class TelegramApplication(Application):
             'icon_custom_emoji_id': status_icons
         }
         try:
-            async with self.http.post(
+            response = await self.http.post(
                 f'{self.url}/createForumTopic',
                 json=payload,
                 headers=self.headers
-            ) as response:
+            )
+            try:
                 response_json = await response.json()
                 return response_json.get('result', {}).get('message_thread_id')
+            finally:
+                response.close()
         except aiohttp.ClientError as e:
             logger.error("Topic creation failed", extra={'error': str(e)})
             raise e
@@ -273,12 +281,12 @@ class TelegramApplication(Application):
             'message_thread_id': topic_id
         }
         try:
-            async with self.http.post(
+            response = await self.http.post(
                 f'{self.url}/editForumTopic',
                 json=payload,
                 headers=self.headers
-            ) as response:
-                pass  # Response is automatically closed by context manager
+            )
+            response.close()
         except aiohttp.ClientError as e:
             logger.error("Topic update failed", extra={'error': str(e)})
 
@@ -330,12 +338,12 @@ class TelegramApplication(Application):
 
     async def _update_thread(self, id_, payload):
         try:
-            async with self.http.post(
+            response = await self.http.post(
                 f'{self.url}/editMessageText',
                 json=payload,
                 headers=self.headers
-            ):
-                pass  # Response is automatically closed by context manager
+            )
+            response.close()
         except aiohttp.ClientError as e:
             logger.error("Thread update failed", extra={'error': str(e)})
 
@@ -344,7 +352,8 @@ class TelegramApplication(Application):
 
     async def get_user_details(self, user_details):
         id_ = user_details.get('id')
-        async with self.http.get(f'{self.url}/getChat?chat_id={id_}', headers=self.headers) as response:
+        response = await self.http.get(f'{self.url}/getChat?chat_id={id_}', headers=self.headers)
+        try:
             if response.status != 200:
                 logger.debug("User details fetch failed", extra={'user_id': id_, 'status': response.status})
                 return {'id': id_, 'exists': False, 'full_name': None, 'username': None}
@@ -360,6 +369,8 @@ class TelegramApplication(Application):
             last_name = chat_data.get('last_name', '').strip()
             full_name = f"{first_name} {last_name}".strip()
             return {'id': id_, 'exists': True, 'full_name': full_name, 'username': full_name}
+        finally:
+            response.close()
 
     def create_user(self, name, user_details):
         return User(
@@ -379,12 +390,12 @@ class TelegramApplication(Application):
     async def _setup_webhook(self):
         config = get_config()
         try:
-            async with self.http.post(
+            response = await self.http.post(
                 f'{self.url}/setWebhook',
                 params={'url': f"{config.messenger.impulse_address}/app"},
                 headers=self.headers
-            ) as response:
-                pass  # Response is automatically closed by context manager
+            )
+            response.close()
         except aiohttp.ClientError as e:
             logger.error("Webhook setup failed", extra={'error': str(e)})
             raise e

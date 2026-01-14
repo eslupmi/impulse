@@ -33,19 +33,23 @@ class SlackApplication(Application):
         return 'https://slack.com'
 
     async def _get_public_url(self, app_config: ApplicationConfig):
-        async with self.http.get(
+        response = await self.http.get(
             'https://slack.com/api/auth.test',
             headers=self.headers
-        ) as response:
+        )
+        try:
             json_ = await response.json()
             return json_.get('url')
+        finally:
+            response.close()
 
     def _get_team_name(self, app_config: ApplicationConfig):
         return None
 
     async def get_user_details(self, user_details):
         id_ = user_details.get('id')
-        async with self.http.get(f'{self.url}/api/users.info?user={id_}', headers=self.headers) as response:
+        response = await self.http.get(f'{self.url}/api/users.info?user={id_}', headers=self.headers)
+        try:
             if response.status != 200:
                 logger.debug("User details fetch failed", extra={'user_id': id_, 'status': response.status})
                 return {'id': id_, 'exists': False, 'full_name': None, 'username': None}
@@ -59,6 +63,8 @@ class SlackApplication(Application):
             profile = user_data.get('profile', {})
             full_name = profile.get('real_name_normalized')
             return {'id': id_, 'exists': True, 'full_name': full_name}
+        finally:
+            response.close()
 
     def create_user(self, name, user_details):
         return User(
@@ -69,7 +75,8 @@ class SlackApplication(Application):
 
     async def get_all_groups(self):
         """Fetch all user groups from Slack API using usergroups.list"""
-        async with self.http.get(f'{self.url}/api/usergroups.list', headers=self.headers) as response:
+        response = await self.http.get(f'{self.url}/api/usergroups.list', headers=self.headers)
+        try:
             if response.status != 200:
                 logger.debug(f'Failed to get groups list: HTTP {response.status}')
                 return None
@@ -82,6 +89,8 @@ class SlackApplication(Application):
             # Return a dict mapping group IDs to their names
             usergroups = data.get('usergroups', [])
             return {ug.get('id'): ug.get('name') for ug in usergroups if ug.get('id')}
+        finally:
+            response.close()
 
     async def _generate_groups(self, groups_dict):
         """Generate groups by polling them from the API, similar to users"""
@@ -98,20 +107,13 @@ class SlackApplication(Application):
         
         groups = {}
         for config_name, group_info in groups_dict.items():
-            id_ = group_info.id if hasattr(group_info, 'id') else (group_info.get('id') if isinstance(group_info, dict) else None)
-            
-            if id_:
-                # Check if group exists in the fetched list
-                group_name = all_groups.get(id_)
-                group_exists = group_name is not None
-                group_details = {'id': id_, 'name': group_name, 'exists': group_exists}
-                if not group_exists:
-                    logger.warning('Group not found in Slack', extra={'group': config_name})
-                    group_details = {'id': None, 'name': None, 'exists': False}
-            else:
-                logger.warning('Group has no \'id\'', extra={'group': config_name})
+            # Check if group exists in the fetched list
+            group_name = all_groups.get(group_info.id)
+            group_exists = group_name is not None
+            group_details = {'id': group_info.id, 'name': group_name, 'exists': group_exists}
+            if not group_exists:
+                logger.warning('Group not found in Slack', extra={'group': config_name})
                 group_details = {'id': None, 'name': None, 'exists': False}
-            
             groups[config_name] = self.create_group(config_name, group_details)
 
         return groups
@@ -228,12 +230,12 @@ class SlackApplication(Application):
                                         frozen_until, task_link)
 
     async def _update_thread(self, id_, payload):
-        async with self.http.post(
+        response = await self.http.post(
             f'{self.url}/api/chat.update',
             headers=self.headers,
             json=payload
-        ):
-            pass  # Response is automatically closed by context manager
+        )
+        response.close()
 
     def _markdown_links_to_native_format(self, text):
         def replace_link(match):

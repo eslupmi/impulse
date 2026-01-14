@@ -245,8 +245,7 @@ class Application(ABC):
         await queue_.put(freeze_time, QueueItemType.UNFREEZE, incident_.uniq_id)
         self._track_async_task(asyncio.create_task(self._post_freeze_notification(incident_, freeze_time, timezone_str)))
 
-    @staticmethod
-    async def _handle_unfreeze_action(incident_: 'Incident', user_id: str, queue_: 'AsyncQueue'):
+    async def _handle_unfreeze_action(self, incident_: 'Incident', user_id: str, queue_: 'AsyncQueue'):
         """Handle unfreeze button action - schedule unfreeze via queue"""
         logger.info('Button pressed', extra={'uuid': incident_.uuid, 'button': 'unfreeze', 'user_id': user_id})
         await queue_.delete_by_id_and_type(incident_.uniq_id, QueueItemType.UNFREEZE)
@@ -281,6 +280,8 @@ class Application(ABC):
 
     def get_configured_user_name(self, user_id, fallback_name):
         """Get user name from configuration, or use fallback name"""
+        if self.users is None:
+            return fallback_name
         user = self.users.get_user_by_id(user_id)
         return user.name if user and user.exists else fallback_name
 
@@ -333,8 +334,7 @@ class Application(ABC):
         
         groups = {}
         for config_name, group_info in groups_dict.items():
-            id_ = group_info.id if hasattr(group_info, 'id') else (group_info.get('id') if isinstance(group_info, dict) else None)
-            group_details = {'id': id_, 'name': None, 'exists': id_ is not None}
+            group_details = {'id': group_info.id, 'name': None, 'exists': group_info.id is not None}
             groups[config_name] = self.create_group(config_name, group_details)
 
         return groups

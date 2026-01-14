@@ -40,7 +40,8 @@ class MattermostApplication(Application):
 
     async def get_user_details(self, user_details):
         id_ = user_details.get('id')
-        async with self.http.get(f'{self.url}/api/v4/users/{id_}?user_id={id_}', headers=self.headers) as response:
+        response = await self.http.get(f'{self.url}/api/v4/users/{id_}?user_id={id_}', headers=self.headers)
+        try:
             if response.status == 404:
                 logger.debug("User not found", extra={'user_id': id_})
                 return {'id': id_, 'username': None, 'exists': False, 'full_name': None}
@@ -54,6 +55,8 @@ class MattermostApplication(Application):
             last_name = data.get('last_name', '').strip()
             full_name = f"{first_name} {last_name}".strip()
             return {'id': id_, 'username': data.get('username'), 'exists': True, 'full_name': full_name}
+        finally:
+            response.close()
 
     def create_user(self, name, user_details):
         return User(
@@ -69,10 +72,11 @@ class MattermostApplication(Application):
             return {'id': None, 'name': None, 'exists': False}
         
         try:
-            async with self.http.get(
+            response = await self.http.get(
                 f'{self.url}/api/v4/groups/{group_id}',
                 headers=self.headers
-            ) as response:
+            )
+            try:
                 if response.status == 404:
                     logger.debug("Group not found", extra={'group_id': group_id})
                     return {'id': group_id, 'name': None, 'exists': False}
@@ -84,6 +88,8 @@ class MattermostApplication(Application):
                 data = await response.json()
                 group_name = data.get('name')
                 return {'id': group_id, 'name': group_name, 'exists': True}
+            finally:
+                response.close()
         except Exception as e:
             logger.error("Group details fetch error", extra={'group_id': group_id, 'error': str(e)})
             return {'id': group_id, 'name': None, 'exists': False}
@@ -201,12 +207,12 @@ class MattermostApplication(Application):
                                              frozen_until, task_link)
 
     async def _update_thread(self, id_, payload):
-        async with self.http.put(
+        response = await self.http.put(
             f'{self.url}/api/v4/posts/{id_}',
             headers=self.headers,
             json=payload
-        ):
-            pass  # Response is automatically closed by context manager
+        )
+        response.close()
 
     def _markdown_links_to_native_format(self, text):
         return text
