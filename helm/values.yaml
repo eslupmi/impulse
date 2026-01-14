@@ -223,7 +223,7 @@ networkPolicy:
 
 serviceMonitor:
   enabled: false
-  port: http
+  port: 5000
   path: "/metrics"
   interval: "30s"
   scrapeTimeout: "10s"
