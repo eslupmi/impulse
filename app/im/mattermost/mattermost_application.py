@@ -68,9 +68,6 @@ class MattermostApplication(Application):
 
     async def get_group_details(self, group_id: str):
         """Fetch a single group from Mattermost API using /api/v4/groups/<group_id>"""
-        if not group_id:
-            return {'id': None, 'name': None, 'exists': False}
-        
         try:
             response = await self.http.get(
                 f'{self.url}/api/v4/groups/{group_id}',
@@ -103,16 +100,10 @@ class MattermostApplication(Application):
         
         groups = {}
         for config_name, group_info in groups_dict.items():
-            if group_info.id:
-                # Check if group exists by fetching it from API
-                group_details = await self.get_group_details(group_info.id)
-                if not group_details['exists']:
-                    logger.warning('Group not found in Mattermost', extra={'group_id': group_info.id, 'group_name': config_name})
-                    group_details = {'id': None, 'name': None, 'exists': False}
-            else:
-                logger.warning('Group has no \'id\'', extra={'group_name': config_name})
+            group_details = await self.get_group_details(group_info.id)
+            if not group_details['exists']:
+                logger.warning('Group not found in Mattermost', extra={'group_id': group_info.id, 'group_name': config_name})
                 group_details = {'id': None, 'name': None, 'exists': False}
-            
             groups[config_name] = self.create_group(config_name, group_details)
 
         return groups

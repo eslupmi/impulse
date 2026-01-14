@@ -79,12 +79,12 @@ class SlackApplication(Application):
         try:
             if response.status != 200:
                 logger.debug(f'Failed to get groups list: HTTP {response.status}')
-                return None
+                return {}
             
             data = await response.json()
             if not data.get('ok'):
                 logger.debug(f'Slack API error getting groups list: {data.get("error", "unknown error")}')
-                return None
+                return {}
             
             # Return a dict mapping group IDs to their names
             usergroups = data.get('usergroups', [])
@@ -93,7 +93,7 @@ class SlackApplication(Application):
             response.close()
 
     async def _generate_groups(self, groups_dict):
-        """Generate groups by polling them from the API, similar to users"""
+        """Generate groups by polling them from the API"""
         if not groups_dict:
             return {}
         
@@ -101,13 +101,9 @@ class SlackApplication(Application):
         
         # Get all groups from API once
         all_groups = await self.get_all_groups()
-        if all_groups is None:
-            logger.warning('Failed to fetch groups list from API')
-            all_groups = {}
-        
+
         groups = {}
         for config_name, group_info in groups_dict.items():
-            # Check if group exists in the fetched list
             group_name = all_groups.get(group_info.id)
             group_exists = group_name is not None
             group_details = {'id': group_info.id, 'name': group_name, 'exists': group_exists}

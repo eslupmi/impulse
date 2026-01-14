@@ -326,18 +326,7 @@ class Application(ABC):
         return user_manager
 
     async def _generate_groups(self, groups_dict: Optional[Dict[str, Union[SlackGroup, MattermostGroup]]]):
-        """Generate groups - base implementation for Mattermost and other messengers"""
-        if not groups_dict or self.type not in [MessengerType.SLACK, MessengerType.MATTERMOST]:
-            return {}
-        
-        logger.info('Creating groups')
-        
-        groups = {}
-        for config_name, group_info in groups_dict.items():
-            group_details = {'id': group_info.id, 'name': None, 'exists': group_info.id is not None}
-            groups[config_name] = self.create_group(config_name, group_details)
-
-        return groups
+        pass
 
     def generate_template(self):
         def read_template(file_key, default_path):
