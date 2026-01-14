@@ -448,45 +448,6 @@ class TestMattermostApplication:
         assert result.status_code == 200
 
     @pytest.mark.asyncio
-    async def test_get_channels_success(self):
-        """Test _get_channels method with successful HTTP response."""
-        app = self._create_mattermost_app()
-
-        # Mock HTTP response
-        mock_response = AsyncMock()
-        mock_response.raise_for_status = Mock()
-        mock_response.json = AsyncMock(return_value=[
-            {"name": "general", "id": "channel1"},
-            {"name": "incidents", "id": "channel2"}
-        ])
-
-        # Mock HTTP client with async context manager
-        app.http = Mock()
-        app.http.get = Mock(return_value=MockContextManager(mock_response))
-
-        result = await app._get_channels({"id": "team123"})
-
-        assert result == {
-            "general": {"name": "general", "id": "channel1"},
-            "incidents": {"name": "incidents", "id": "channel2"}
-        }
-        app.http.get.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_get_channels_http_error(self):
-        """Test _get_channels method with HTTP error."""
-        app = self._create_mattermost_app()
-
-        # Mock HTTP client to raise aiohttp.ClientError
-        import aiohttp
-        app.http = Mock()
-        app.http.get = Mock(side_effect=aiohttp.ClientError("Connection error"))
-
-        result = await app._get_channels({"id": "team123"})
-
-        assert result == {}
-
-    @pytest.mark.asyncio
     async def test_get_user_details_success(self):
         """Test get_user_details method with successful response."""
         app = self._create_mattermost_app()

@@ -1,6 +1,5 @@
 import asyncio
 
-import aiohttp
 from fastapi.responses import JSONResponse
 
 from app.im.application import Application
@@ -29,20 +28,6 @@ class MattermostApplication(Application):
         }
         self.rate_limit = 10
         self.thread_id_key = 'id'
-
-    async def _get_channels(self, team):
-        try:
-            async with self.http.get(
-                f"{self.url}/api/v4/teams/{team['id']}/channels",
-                params={'per_page': 1000},
-                headers=self.headers
-            ) as response:
-                response.raise_for_status()
-                data = await response.json()
-                return {c.get('name'): c for c in data}
-        except aiohttp.ClientError as e:
-            logger.error("Channel list fetch failed", extra={'error': str(e)})
-            return {}
 
     def _get_url(self, app_config: ApplicationConfig):
         return app_config.address
@@ -186,7 +171,7 @@ class MattermostApplication(Application):
         else:
             action = context.get('action')
             if action == 'unfreeze':
-                await self._handle_unfreeze_action(incident_, queue_)
+                await self._handle_unfreeze_action(incident_, user_id, queue_)
 
         # Block other actions if incident is frozen
         if incident_.is_frozen():
@@ -200,7 +185,7 @@ class MattermostApplication(Application):
             if early_return is not None:
                 return early_return
         elif action == 'task':
-            self._handle_task_action(incident_, queue_)
+            self._handle_task_action(incident_, user_id, queue_)
         
         return self._build_button_response(incident_, mattermost_tz)
 

@@ -132,7 +132,7 @@ class TelegramApplication(Application):
         """Handle all freeze-related actions"""
         if action == 'freeze_menu':
             if incident_.is_frozen():
-                await self._handle_unfreeze_action(incident_, queue_)
+                await self._handle_unfreeze_action(incident_, user_id, queue_)
             else:
                 return await self._show_freeze_menu(incident_, callback)
             return None
@@ -195,7 +195,7 @@ class TelegramApplication(Application):
             if early_return is not None:
                 return early_return
         elif action == 'task':
-            self._handle_task_action(incident_, queue_)
+            self._handle_task_action(incident_, user_id, queue_)
 
         incident_.dump()
         body = self.body_template.form_message(incident_.payload, incident_)

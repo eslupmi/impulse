@@ -140,7 +140,7 @@ class SlackApplication(Application):
                 self._track_async_task(asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id, incidents)))
             incident_.chain_enabled = False
         else:
-            logger.info('Button pressed', extra={'incident': incident_.uuid, 'button': 'release'})
+            logger.info('Button pressed', extra={'incident': incident_.uuid, 'button': 'release', 'user_id': user_id})
             self._track_async_task(asyncio.create_task(self.post_unassignment_notification(incident_)))
             incident_.release()
 
@@ -163,7 +163,7 @@ class SlackApplication(Application):
     async def _handle_freeze_button(self, action, incident_, user_id, incidents, queue_):
         """Handle freeze button action"""
         if incident_.is_frozen():
-            await self._handle_unfreeze_action(incident_, queue_)
+            await self._handle_unfreeze_action(incident_, user_id, queue_)
             return
         
         if action.get('type') != 'select':
@@ -212,7 +212,7 @@ class SlackApplication(Application):
             if action['name'] == 'chain':
                 await self._handle_chain_action(incident_, user_id, user_name, queue_, incidents)
             elif action['name'] == 'task':
-                self._handle_task_action(incident_, queue_)
+                self._handle_task_action(incident_, user_id, queue_)
         
         return self._build_button_response(incident_, original_message)
 

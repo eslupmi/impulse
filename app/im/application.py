@@ -119,7 +119,8 @@ class Application(ABC):
             incident.assign_user(notification_id)
         return True
 
-    def _try_assign_from_cache(self, incident, user_id, incidents):
+    @staticmethod
+    def _try_assign_from_cache(incident, user_id, incidents):
         """Try to assign user from incident cache. Returns True if successful."""
         if not incidents:
             return False
@@ -214,9 +215,9 @@ class Application(ABC):
         self._async_tasks.add(task)
         task.add_done_callback(self._async_tasks.discard)
 
-    def _handle_task_action(self, incident_, queue_):
+    def _handle_task_action(self, incident_, user_id, queue_):
         """Handle Task button action"""
-        logger.info(f'Button pressed', extra={'uuid': incident_.uuid, 'button': 'task'})
+        logger.info('Button pressed', extra={'uuid': incident_.uuid, 'button': 'task', 'user_id': user_id})
         self._track_async_task(asyncio.create_task(self.handle_task_button(incident_, queue_)))
 
     def _should_include_header_in_notifications(self) -> bool:
@@ -228,7 +229,7 @@ class Application(ABC):
 
     async def _handle_freeze_action(self, incident_: 'Incident', freeze_option: str, user_id: str, incidents, queue_: 'AsyncQueue', user_display_name: Optional[str] = None, user_timezone: Optional[str] = None):
         """Handle freeze button action"""
-        logger.info(f'Button pressed', extra={'uuid': incident_.uuid, 'button': 'freeze', 'user_id': user_id})
+        logger.info('Button pressed', extra={'uuid': incident_.uuid, 'button': 'freeze', 'user_id': user_id})
         
         config = get_config()
         timezone_str = user_timezone or config.app.general.timezone
@@ -245,9 +246,9 @@ class Application(ABC):
         self._track_async_task(asyncio.create_task(self._post_freeze_notification(incident_, freeze_time, timezone_str)))
 
     @staticmethod
-    async def _handle_unfreeze_action(incident_: 'Incident', queue_: 'AsyncQueue'):
+    async def _handle_unfreeze_action(incident_: 'Incident', user_id: str, queue_: 'AsyncQueue'):
         """Handle unfreeze button action - schedule unfreeze via queue"""
-        logger.info(f'Button pressed', extra={'uuid': incident_.uuid, 'button': 'unfreeze'})
+        logger.info('Button pressed', extra={'uuid': incident_.uuid, 'button': 'unfreeze', 'user_id': user_id})
         await queue_.delete_by_id_and_type(incident_.uniq_id, QueueItemType.UNFREEZE)
         await queue_.put_first(datetime.now(timezone.utc), QueueItemType.UNFREEZE, incident_.uniq_id)
 
@@ -278,15 +279,9 @@ class Application(ABC):
             
         await self.post_thread(incident_.channel_id, incident_.ts, message)
 
-    def lookup_user_by_id(self, user_id):
-        """Look up a user by their platform-specific ID"""
-        if self.users is None:
-            return None
-        return self.users.get_user_by_id(user_id)
-
     def get_configured_user_name(self, user_id, fallback_name):
         """Get user name from configuration, or use fallback name"""
-        user = self.lookup_user_by_id(user_id)
+        user = self.users.get_user_by_id(user_id)
         return user.name if user and user.exists else fallback_name
 
     async def handle_task_button(self, incident, queue_):
