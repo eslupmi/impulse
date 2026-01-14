@@ -1,11 +1,13 @@
 import os
-import yaml
-from typing import Dict, List
 from datetime import datetime, timezone
-from app.logging import logger
-from app.tools import NoAliasDumper
+from typing import Dict, List
+
+import yaml
+
 from app.config.config import get_config
 from app.incident.incident import Incident
+from app.logging import logger
+from app.tools import NoAliasDumper
 
 
 class IncidentMigrator:

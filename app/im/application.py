@@ -1,26 +1,28 @@
 import asyncio
 from abc import ABC, abstractmethod
+from datetime import datetime, timezone
 from typing import Union, Dict, Optional, TYPE_CHECKING
 
 from app.config.config import get_config
-from app.config.validation import ApplicationConfig, MattermostUser, SlackUser, TelegramUser, MessengerType, SlackGroup, MattermostGroup
+from app.config.validation import ApplicationConfig, MattermostUser, SlackUser, TelegramUser, MessengerType
 from app.http_client import RateLimitedClient
 from app.im.chain.chain_factory import ChainFactory
 from app.im.groups import Group
-from app.im.user_groups import generate_user_groups
 from app.im.template import notification_user, notification_user_group, notification_group, update_status, \
     notification_assignment, notification_unassignment, notification_freeze, notification_unfreeze
+from app.im.user_groups import generate_user_groups
 from app.im.users import UserManager
+from app.integrations.jira_integration import JiraIntegration
 from app.jinja_template import JinjaTemplate
 from app.logging import logger
-from app.integrations.jira_integration import JiraIntegration
 from app.queue.constants import QueueItemType
 from app.time import calculate_freeze_time, format_freeze_expiration
-from datetime import datetime, timezone
 
 if TYPE_CHECKING:
     from app.incident.incident import Incident
     from app.queue.queue import AsyncQueue
+
+log_button_pressed = 'Button pressed'
 
 
 class Application(ABC):
@@ -217,7 +219,7 @@ class Application(ABC):
 
     def _handle_task_action(self, incident_, user_id, queue_):
         """Handle Task button action"""
-        logger.info('Button pressed', extra={'uuid': incident_.uuid, 'button': 'task', 'user_id': user_id})
+        logger.info(log_button_pressed, extra={'uuid': incident_.uuid, 'button': 'task', 'user_id': user_id})
         self._track_async_task(asyncio.create_task(self.handle_task_button(incident_, queue_)))
 
     def _should_include_header_in_notifications(self) -> bool:
@@ -229,7 +231,7 @@ class Application(ABC):
 
     async def _handle_freeze_action(self, incident_: 'Incident', freeze_option: str, user_id: str, incidents, queue_: 'AsyncQueue', user_display_name: Optional[str] = None, user_timezone: Optional[str] = None):
         """Handle freeze button action"""
-        logger.info('Button pressed', extra={'uuid': incident_.uuid, 'button': 'freeze', 'user_id': user_id})
+        logger.info(log_button_pressed, extra={'uuid': incident_.uuid, 'button': 'freeze', 'user_id': user_id})
         
         config = get_config()
         timezone_str = user_timezone or config.app.general.timezone
@@ -247,7 +249,7 @@ class Application(ABC):
 
     async def _handle_unfreeze_action(self, incident_: 'Incident', user_id: str, queue_: 'AsyncQueue'):
         """Handle unfreeze button action - schedule unfreeze via queue"""
-        logger.info('Button pressed', extra={'uuid': incident_.uuid, 'button': 'unfreeze', 'user_id': user_id})
+        logger.info(log_button_pressed, extra={'uuid': incident_.uuid, 'button': 'unfreeze', 'user_id': user_id})
         await queue_.delete_by_id_and_type(incident_.uniq_id, QueueItemType.UNFREEZE)
         await queue_.put_first(datetime.now(timezone.utc), QueueItemType.UNFREEZE, incident_.uniq_id)
 

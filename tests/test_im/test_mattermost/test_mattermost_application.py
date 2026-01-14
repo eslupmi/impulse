@@ -617,7 +617,7 @@ class TestMattermostApplication:
         }
 
         # Mock get_group_details
-        async def mock_get_group_details(group_id):
+        def mock_get_group_details(group_id):
             if group_id == "group123":
                 return {"id": "group123", "name": "Engineering", "exists": True}
             elif group_id == "group456":

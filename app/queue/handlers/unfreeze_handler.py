@@ -1,9 +1,10 @@
+from datetime import datetime, timezone
+
 from app.im.template import notification_unfreeze
 from app.jinja_template import JinjaTemplate
 from app.logging import logger
 from app.queue.constants import QueueItemType
 from app.queue.handlers.base_handler import BaseHandler
-from datetime import datetime, timezone
 
 
 class UnfreezeHandler(BaseHandler):

@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from functools import wraps
 
 import aiohttp
+from fastapi.responses import Response
 from prometheus_client import (
     CollectorRegistry,
     CONTENT_TYPE_LATEST,
@@ -12,7 +13,6 @@ from prometheus_client import (
     Histogram,
     generate_latest
 )
-from fastapi.responses import Response
 
 from app.queue.queue import AsyncQueue
 

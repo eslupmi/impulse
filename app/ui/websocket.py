@@ -1,9 +1,10 @@
-import asyncio
 import json
 from typing import Set
+
 from fastapi import WebSocket
-from app.logging import logger
+
 from app.config.config import get_config
+from app.logging import logger
 
 
 class AsyncIncidentWS:

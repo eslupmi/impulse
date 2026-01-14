@@ -3,6 +3,7 @@ import os
 import sys
 import warnings
 from datetime import datetime, timezone
+
 from pythonjsonlogger import jsonlogger
 
 DEFAULT_JSON_FORMAT = '%(time)s %(level)s %(module)s %(message)s'

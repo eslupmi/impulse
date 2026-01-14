@@ -3,15 +3,15 @@ import re
 
 from fastapi.responses import JSONResponse
 
+from app.config.config import get_config
+from app.config.environment import get_environment_config
+from app.config.validation import ApplicationConfig
 from app.im.application import Application
 from app.im.slack import reformat_message
 from app.im.slack.config import slack_env, slack_admins_template_string
 from app.im.slack.threads import slack_get_create_thread_payload, slack_get_update_payload
 from app.im.slack.user import User
 from app.logging import logger
-from app.config.config import get_config
-from app.config.environment import get_environment_config
-from app.config.validation import ApplicationConfig
 
 
 class SlackApplication(Application):

@@ -2,6 +2,9 @@ import asyncio
 
 from fastapi.responses import JSONResponse
 
+from app.config.config import get_config
+from app.config.environment import get_environment_config
+from app.config.validation import ApplicationConfig
 from app.im.application import Application
 from app.im.mattermost.config import (mattermost_env,
                                       mattermost_admins_template_string)
@@ -9,9 +12,6 @@ from app.im.mattermost.threads import mattermost_get_create_thread_payload, matt
     mattermost_get_button_update_payload
 from app.im.mattermost.user import User
 from app.logging import logger
-from app.config.config import get_config
-from app.config.environment import get_environment_config
-from app.config.validation import ApplicationConfig
 
 
 class MattermostApplication(Application):
