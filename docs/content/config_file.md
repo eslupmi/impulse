@@ -172,7 +172,7 @@ Below are all the configuration options supported by IMPulse.
         Each chain contains a list of **steps**. There are 6 step types:
 
         - `chain`
-        - [`group`](#messengergroups-mattermost-slack)
+        - [`group`](#messengergroups)
         - [`user`](#messengerusers)
         - [`user_group`](#messengeruser_groups)
         - `wait`
@@ -453,6 +453,10 @@ Below are all the configuration options supported by IMPulse.
 - **impact:** `mattermost`, `slack` only
 - **description:** Messenger groups
 - **type:** dict
+- **details:**
+    
+    !!! note ""
+        Instructions how to get groups `id`: [Slack](integrations/messengers/slack.md#get-group-id), [Mattermost](integrations/messengers/mattermost.md#get-group-ids)
 - **examples:**
 
     === "Slack"
@@ -482,7 +486,7 @@ Below are all the configuration options supported by IMPulse.
 - **details:**
     
     !!! note ""
-        Instructions how to find users `id`: [Slack](https://www.workast.com/help/article/how-to-find-a-slack-user-id/), [Mattermost](https://docs.mattermost.com/administration-guide/configure/user-management-configuration-settings.html#identify-a-user-s-id), [Telegram](integrations/messengers/telegram.md#configure-group)
+        Instructions how to find users `id`: [Slack](https://www.workast.com/help/article/how-to-find-a-slack-user-id/), [Mattermost](https://docs.mattermost.com/administration-guide/configure/user-management-configuration-settings.html#identify-a-user-s-id), [Telegram](integrations/messengers/telegram.md#configure-groups)
 
 - **examples:**
 
@@ -807,8 +811,8 @@ Below are all the configuration options supported by IMPulse.
 - **default value:** `string`
 - **allowed values:**
     - `string` - plain text
-    - `datetime` - date/time values with [formatting options](#uicolumnsformat)
-    - `link` - clickable links (requires [url](#uicolumnsurl) field)
+    - `datetime` - date/time values with [formatting options](#columnformat)
+    - `link` - clickable links (requires [url](#columnurl) field)
 
 #### &lt;column&gt;.visible
 

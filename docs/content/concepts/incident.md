@@ -23,6 +23,7 @@ Templates for `status icons`, `header` and `body` are [here](https://github.com/
 ## Statuses and their colors
 
 Unlike Alertmanager alerts, IMPulse Incidents can have four statuses:
+
 - firing
 - resolved
 - unknown

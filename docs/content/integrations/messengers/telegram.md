@@ -7,9 +7,9 @@ In Telegram, although the configuration uses the term `channels`, they are actua
 
 ## Create a bot
 
-Follow this [instruction](https://core.telegram.org/bots/features#creating-a-new-bot). Save the bot token as the `TELEGRAM_BOT_TOKEN` environment variable (used in section 2.3 [here](../../installation.md#3-configure-impulse)).
+Follow this [instruction](https://core.telegram.org/bots/features#creating-a-new-bot). Save the bot token as the `TELEGRAM_BOT_TOKEN` environment variable (used in section 2.3 [here](../../installation.md#4-configure-impulse)).
 
-## Configure group
+## Configure groups
 
 1. Open your group, go to the menu, and click "Manage group":
     - enable "Topics"

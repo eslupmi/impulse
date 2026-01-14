@@ -1,18 +1,49 @@
 # Installation
 
-There are two options to install IMPulse: via **Python** (3.10 - 3.13) or using the **Docker** image.
+## 1. Configure Messenger
 
-Select your preferred method and continue.
+=== "Slack"
 
-## 1. Messenger
+    - [Create](integrations/messengers/slack.md/#create-a-bot) an IMPulse bot
+    - [Configure](integrations/messengers/slack.md/#configure-the-bot) the bot
+    - [Configure](integrations/messengers/slack.md/#configure-channels) channels you use for incidents
 
-See **INTEGRATIONS / Messengers** menu to create bot and configure your messenger.
+=== "Mattermost"
 
-We support integrations with [Mattermost](integrations/messengers/mattermost.md), [Slack](integrations/messengers/slack.md) and [Telegram](integrations/messengers/telegram.md). Visit their pages to learn how to create and configure a bot.
+    - [Create](integrations/messengers/mattermost.md/#create-a-bot) an IMPulse bot
+    - [Configure](integrations/messengers/mattermost.md/#configure-the-bot) the bot
+    - [Configure](integrations/messengers/mattermost.md/#configure-channels) channels you use for incidents
 
-## 2. Get IMPulse
+=== "Telegram"
+    
+    - [Create](integrations/messengers/telegram.md#create-a-bot) an IMPulse bot
+    - [Configure](integrations/messengers/telegram.md#configure-groups) groups you use for incidents
 
-=== "python"
+## 2. Configure source of alerts
+
+=== "Alertmanager"
+
+    - Set properly [Group and repeat intervals](alertmanager.md/#group-and-repeat-intervals)
+    - Configure IMPulse as [receiver](alertmanager.md/#receiver)
+    - Move [route](alertmanager.md/#routing) from alertmanager to [impulse.yml](config_file.md/#route) 
+
+=== "Grafana"
+
+    - Set properly [Group and repeat intervals](grafana.md/#group-and-repeat-intervals)
+    - [Configure](grafana.md/#contact-point) IMPulse contact point
+
+## 3. Get IMPulse
+
+=== "Docker"
+
+    ```bash
+    mkdir impulse impulse/config impulse/data
+    cd impulse
+    wget -O docker-compose.yml https://raw.githubusercontent.com/DiTsi/impulse/develop/examples/docker-compose.yml
+    wget -O config/impulse.yml https://raw.githubusercontent.com/DiTsi/impulse/develop/examples/impulse.slack.yml
+    ```
+
+=== "Python"
 
     Use the last `<release_tag>` from [here](https://github.com/DiTsi/impulse/releases) and run:
 
@@ -23,44 +54,38 @@ We support integrations with [Mattermost](integrations/messengers/mattermost.md)
     cp examples/env.slack .env
     ```
 
+    !!! warning ""
 
-=== "docker"
+        Don't forget to replace `<release_tag>` in `docker-compose.yml` to one of the [release tags](https://github.com/DiTsi/impulse/releases).
 
-    ```bash
-    mkdir impulse impulse/config impulse/data
-    cd impulse
-    wget -O docker-compose.yml https://raw.githubusercontent.com/DiTsi/impulse/develop/examples/docker-compose.yml
-    wget -O config/impulse.yml https://raw.githubusercontent.com/DiTsi/impulse/develop/examples/impulse.slack.yml
-    ```
+## 4. Configure IMPulse
 
-    don't forget to replace `<release_tag>` in `docker-compose.yml` to one of the [release tags](https://github.com/DiTsi/impulse/releases).
+=== "Docker"
 
-## 3. Configure IMPulse
+    - Modify [environment](envs.md) in `docker-compose.yml`
+    - Modify [configuration](config_file.md)
 
-Modify environment in `.env` (python) or `docker-compose.yml` (docker).
+=== "Python"
 
-Modify configuration in `impulse.yml`.
+    - Modify [environment](envs.md) in `.env`
+    - Modify [configuration](config_file.md)
 
-## 4. Run IMPulse
+## 5. Run IMPulse
 
-=== "python"
-
-    ```bash
-    python -m main
-    ```
-
-=== "docker"
+=== "Docker"
 
     ```bash
     docker-compose up -d
     ```
 
-To configure the host and port that IMPulse listens on, use the `LISTEN_HOST` and `LISTEN_PORT` environment variables. See [environment variables](envs.md) for more details.
+=== "Python"
 
-## 5. Configure source of alerts
+    ```bash
+    python -m main
+    ```
 
-See instructions in the **INTEGRATIONS** > **Alert Sources** section of the menu.
+To configure the host and port that IMPulse listens on, use the `LISTEN_HOST` and `LISTEN_PORT` [environment variables](envs.md).
 
 ## 6. Reverse proxy
 
-If you are using reverse proxy and need an HTTP prefix, use the **HTTP_PREFIX** environment variable ([env](envs.md)). Don't forget to update your `impulse_address` in the configuration to include the prefix.
+If you are using reverse proxy and need an HTTP prefix (e.g. `/impulse`), use the **HTTP_PREFIX** [environment variable](envs.md). Don't forget to update [impulse_address](config_file.md#messengerimpulse_address) to include the prefix.
