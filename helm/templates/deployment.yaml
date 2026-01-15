@@ -6,6 +6,14 @@ metadata:
     {{- include "impulse.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount | default 1 }}
+  {{- with .Values.strategy }}
+  strategy:
+    type: {{ .type }}
+    {{- if and (eq .type "RollingUpdate") .rollingUpdate }}
+    rollingUpdate:
+      {{- toYaml .rollingUpdate | nindent 6 }}
+    {{- end }}
+  {{- end }}
   selector:
     matchLabels:
       {{- include "impulse.selectorLabels" . | nindent 6 }}
