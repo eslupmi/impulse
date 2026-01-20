@@ -11,6 +11,7 @@ from app.im.groups import Group
 from app.im.template import notification_user, notification_user_group, notification_group, update_status, \
     notification_assignment, notification_unassignment, notification_freeze, notification_unfreeze
 from app.im.user_groups import generate_user_groups
+from app.im.user_store import get_user_store
 from app.im.users import UserManager
 from app.integrations.jira_integration import JiraIntegration
 from app.jinja_template import JinjaTemplate
@@ -77,6 +78,13 @@ class Application(ABC):
         if self.groups:
             logger.info(f'Initialized {len(self.groups)} groups: {", ".join(self.groups.keys())}')
         self.admin_users = [self.users[admin] for admin in self._admin_users_config]
+
+    @staticmethod
+    def _build_full_name(stored_data: dict) -> str:
+        first_name = stored_data.get('first_name') or ''
+        last_name = stored_data.get('last_name') or ''
+        full_name = f"{first_name} {last_name}".strip()
+        return full_name or stored_data.get('username') or 'Unknown'
 
     async def close(self):
         """Close the aiohttp session"""
@@ -146,11 +154,17 @@ class Application(ABC):
             self._add_discovered_user(user_id, user_details)
 
     def _add_discovered_user(self, user_id, user_details):
+        """Add discovered user to UserManager and UserStore, schedule update."""
+        user_store = get_user_store()
+        user_id_str = str(user_id)        
+        user_store.save(user_id_str, self.type.value, user_details)
+        
         name_key = f"_discovered_{user_id}"
-        full_name = user_details.get('full_name') or str(user_id)
+        full_name = user_details.get('full_name') or user_id_str
         user = self.create_user(full_name, user_details)
         if user:
             self.users.add_user(name_key, user)
+            self.users.schedule_user_update(user_id_str)
 
     async def post_assignment_notification(self, incident_obj, user_id, user_display_name=None):
         """
@@ -311,21 +325,66 @@ class Application(ABC):
         return self._get_team_name(app_config)
 
     async def _generate_users(self, users_dict: Dict[str, Union[SlackUser, MattermostUser, TelegramUser]]):
+        """Load users from UserStore, then fetch missing configured users from API."""
         logger.info('Creating users')
+        user_store = get_user_store()
+        messenger_type = self.type.value
 
         user_manager = UserManager()
+        stored_user_ids = self._load_stored_users(user_manager, user_store, messenger_type)
+        
         for name, user_info in users_dict.items():
-            if user_info.id is not None:
-                user_details = await self.get_user_details(user_info)
-                if not user_details['exists']:
-                    logger.warning('User not found in messenger', extra={'user': name})
-            else:
+            if user_info.id is None:
                 logger.warning('User has no `id` in configuration', extra={'user': name})
-                user_details = {}
+                user = self.create_user(name, {})
+                user_manager.add_user(name, user)
+                continue
+            
+            user_id = str(user_info.id)
+            if user_id in stored_user_ids:
+                stored_data = user_store.get(user_id)
+                user_details = self._stored_data_to_user_details(user_id, stored_data)
+                user = self.create_user(name, user_details)
+                user_manager.add_user(name, user)
+                continue
+            
+            user_details = await self.get_user_details(user_info)
+            if not user_details['exists']:
+                logger.warning('User not found in messenger', extra={'user': name})
+            else:
+                user_store.save(user_id, messenger_type, user_details)
             user = self.create_user(name, user_details)
             user_manager.add_user(name, user)
 
         return user_manager
+
+    def _load_stored_users(self, user_manager: UserManager, user_store, messenger_type: str) -> set:
+        """Load ALL stored users for this messenger type into UserManager. Returns set of loaded user IDs."""
+        stored_users = user_store.get_all_users_by_type(messenger_type)
+        loaded_ids = set()
+        
+        for user_id, stored_data in stored_users.items():
+            user_details = self._stored_data_to_user_details(user_id, stored_data)
+            full_name = user_details.get('full_name', 'Unknown')
+            user = self.create_user(full_name, user_details)
+            if user:
+                user_manager.add_user(f"_stored_{user_id}", user)
+                loaded_ids.add(user_id)
+        
+        if loaded_ids:
+            logger.info(f'Loaded {len(loaded_ids)} users from storage')
+        
+        return loaded_ids
+
+    def _stored_data_to_user_details(self, user_id: str, stored_data: dict) -> dict:
+        """Convert stored data to user_details format."""
+        full_name = self._build_full_name(stored_data)
+        return {
+            'id': user_id,
+            'exists': True,
+            'full_name': full_name,
+            'username': stored_data.get('username'),
+        }
 
     def generate_template(self):
         def read_template(file_key, default_path):

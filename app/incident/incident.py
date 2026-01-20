@@ -250,9 +250,9 @@ class Incident:
         try:
             if os.path.exists(old_filename):
                 os.remove(old_filename)
-                logger.debug("Removed incident file", extra={'filename': old_filename})
+                logger.debug("Removed incident file", extra={'file': old_filename})
         except OSError as e:
-            logger.error("Failed to remove incident file", extra={'filename': old_filename, 'error': str(e)})
+            logger.error("Failed to remove incident file", extra={'file': old_filename, 'error': str(e)})
 
     def dump(self):
         data = {
@@ -281,7 +281,7 @@ class Incident:
             with open(incident_filename, 'w') as f:
                 yaml.dump(data, f, NoAliasDumper, default_flow_style=False)
         except OSError as e:
-            logger.error("Failed to write incident file", extra={'filename': incident_filename, 'error': str(e)})
+            logger.error("Failed to write incident file", extra={'file': incident_filename, 'error': str(e)})
         # Schedule async websocket update
         import asyncio
         try:

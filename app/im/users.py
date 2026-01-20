@@ -1,5 +1,13 @@
+import asyncio
 from abc import ABC, abstractmethod
-from typing import Union, Optional, Dict
+from datetime import datetime, timezone, timedelta
+from typing import Union, Optional, Dict, TYPE_CHECKING
+
+from app.logging import logger
+from app.queue.constants import QueueItemType, USER_UPDATE_GAP_SECONDS
+
+if TYPE_CHECKING:
+    from app.queue.queue import AsyncQueue
 
 
 class BaseUser(ABC):
@@ -30,11 +38,36 @@ class UndefinedUser(BaseUser):
 
 
 class UserManager:
+    """User registry with queue integration for update scheduling."""
+    
     def __init__(self):
         self._users: Dict[str, BaseUser] = {}
+        self._queue: Optional['AsyncQueue'] = None
+        self._messenger_type: Optional[str] = None
+    
+    def configure_queue(self, queue: 'AsyncQueue', messenger_type: str) -> None:
+        """Configure queue for user update scheduling."""
+        self._queue = queue
+        self._messenger_type = messenger_type
     
     def add_user(self, name: str, user: BaseUser) -> None:
         self._users[name] = user
+    
+    def schedule_user_update(self, user_id: str) -> None:
+        """Schedule a user update with proper gap from last UPDATE_USER item."""
+        if self._queue is None:
+            return
+        
+        async def schedule():
+            gap_seconds = USER_UPDATE_GAP_SECONDS.get(self._messenger_type, 1.0)
+            latest = await self._queue.get_latest_item_by_type(QueueItemType.UPDATE_USER)
+            now = datetime.now(timezone.utc)
+            base_time = latest if latest and latest > now else now
+            schedule_time = base_time + timedelta(seconds=gap_seconds)
+            await self._queue.put(schedule_time, QueueItemType.UPDATE_USER, identifier=user_id)
+            logger.debug(f'Scheduled user update for {user_id}')
+        
+        asyncio.create_task(schedule())
     
     def get_user(self, name: str) -> BaseUser:
         return self._users.get(name, UndefinedUser(name))

@@ -45,19 +45,30 @@ class MattermostApplication(Application):
         if response.status == 404:
             logger.debug("User not found", extra={'user_id': id_})
             response.close()
-            return {'id': id_, 'username': None, 'exists': False, 'full_name': None}
+            return {'id': id_, 'username': None, 'exists': False, 'full_name': None,
+                    'first_name': None, 'last_name': None, 'email': None, 'timezone': None}
 
         if response.status != 200:
             logger.debug("User details fetch failed", extra={'user_id': id_, 'status': response.status})
             response.close()
-            return {'id': id_, 'username': None, 'exists': False, 'full_name': None}
+            return {'id': id_, 'username': None, 'exists': False, 'full_name': None,
+                    'first_name': None, 'last_name': None, 'email': None, 'timezone': None}
 
         data = await response.json()
         response.close()
         first_name = data.get('first_name', '').strip()
         last_name = data.get('last_name', '').strip()
         full_name = f"{first_name} {last_name}".strip()
-        return {'id': id_, 'username': data.get('username'), 'exists': True, 'full_name': full_name}
+        return {
+            'id': id_,
+            'username': data.get('username'),
+            'exists': True,
+            'full_name': full_name,
+            'first_name': first_name or None,
+            'last_name': last_name or None,
+            'email': data.get('email') or None,
+            'timezone': data.get('timezone') or None,
+        }
 
     def create_user(self, name, user_details):
         return User(

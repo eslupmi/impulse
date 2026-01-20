@@ -50,18 +50,31 @@ class SlackApplication(Application):
         if response.status != 200:
             logger.debug("User details fetch failed", extra={'user_id': id_, 'status': response.status})
             response.close()
-            return {'id': id_, 'exists': False, 'full_name': None, 'username': None}
+            return {'id': id_, 'exists': False, 'full_name': None, 'username': None,
+                    'first_name': None, 'last_name': None, 'email': None, 'timezone': None}
 
         data = await response.json()
         response.close()
         if not data.get('ok'):
             logger.debug("Slack API error", extra={'user_id': id_, 'error': data.get("error", "unknown error")})
-            return {'id': id_, 'exists': False, 'full_name': None, 'username': None}
+            return {'id': id_, 'exists': False, 'full_name': None, 'username': None,
+                    'first_name': None, 'last_name': None, 'email': None, 'timezone': None}
 
         user_data = data.get('user', {})
         profile = user_data.get('profile', {})
         full_name = profile.get('real_name_normalized')
-        return {'id': id_, 'exists': True, 'full_name': full_name}
+        first_name = profile.get('first_name', '').strip()
+        last_name = profile.get('last_name', '').strip()
+        return {
+            'id': id_,
+            'exists': True,
+            'full_name': full_name,
+            'username': user_data.get('name'),
+            'first_name': first_name or None,
+            'last_name': last_name or None,
+            'email': profile.get('email') or None,
+            'timezone': user_data.get('tz') or None,
+        }
 
     def create_user(self, name, user_details):
         return User(

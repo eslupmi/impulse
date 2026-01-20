@@ -350,7 +350,8 @@ class TelegramApplication(Application):
         if response.status != 200:
             logger.debug("User details fetch failed", extra={'user_id': id_, 'status': response.status})
             response.close()
-            return {'id': id_, 'exists': False, 'full_name': None, 'username': None}
+            return {'id': id_, 'exists': False, 'full_name': None, 'username': None,
+                    'first_name': None, 'last_name': None, 'email': None, 'timezone': None}
 
         data = await response.json()
         response.close()
@@ -358,13 +359,23 @@ class TelegramApplication(Application):
         if not data.get('ok'):
             logger.debug("Telegram API error",
                          extra={'user_id': id_, 'error': data.get("description", "unknown error")})
-            return {'id': id_, 'exists': False, 'full_name': None, 'username': None}
+            return {'id': id_, 'exists': False, 'full_name': None, 'username': None,
+                    'first_name': None, 'last_name': None, 'email': None, 'timezone': None}
 
         chat_data = data.get('result', {})
         first_name = chat_data.get('first_name', '').strip()
         last_name = chat_data.get('last_name', '').strip()
         full_name = f"{first_name} {last_name}".strip()
-        return {'id': id_, 'exists': True, 'full_name': full_name, 'username': full_name}
+        return {
+            'id': id_,
+            'exists': True,
+            'full_name': full_name,
+            'username': chat_data.get('username') or full_name,
+            'first_name': first_name or None,
+            'last_name': last_name or None,
+            'email': None,
+            'timezone': None,
+        }
 
     def create_user(self, name, user_details):
         return User(
