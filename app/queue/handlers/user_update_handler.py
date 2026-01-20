@@ -23,16 +23,16 @@ class UserUpdateHandler(BaseHandler):
             user_details = await self.app.get_user_details({'id': user_id})
             
             if not user_details.get('exists'):
-                logger.debug(f'User {user_id} not found in messenger, skipping storage')
+                logger.debug('User not found in messenger, skipping storage', extra={'user_id': user_id})
                 await self._schedule_next_refresh(user_id)
                 return
             
             user_store.save(user_id, messenger_type, user_details)
             self._update_user_manager(user_id, user_details)
-            logger.info(f'User data refreshed', extra={'user_id': user_id})
+            logger.info('User data refreshed', extra={'user_id': user_id})
             
         except Exception as e:
-            logger.error(f'Failed to update user {user_id}: {e}')
+            logger.error('Failed to update user', extra={'user_id': user_id, 'error': str(e)})
         
         await self._schedule_next_refresh(user_id)
 

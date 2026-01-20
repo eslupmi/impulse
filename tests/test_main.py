@@ -28,7 +28,7 @@ class TestMainApplication:
                 patch('main.FileLock') as mock_file_lock_class, \
                 patch('app.config.environment.get_environment_config') as mock_get_env_config, \
                 patch('app.im.application.Application') as mock_application, \
-                patch('main.schedule_user_refreshes', new=AsyncMock()) as mock_schedule_user_refreshes:
+                patch('main.schedule_user_refreshes', new=AsyncMock()):
             # Setup mock config
             mock_config = Mock()
             mock_config.messenger.type = MessengerType.SLACK

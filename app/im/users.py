@@ -66,7 +66,7 @@ class UserManager:
             base_time = latest if latest and latest > now else now
             schedule_time = base_time + timedelta(seconds=gap_seconds)
             await self._queue.put(schedule_time, QueueItemType.UPDATE_USER, identifier=user_id)
-            logger.debug(f'Scheduled user update for {user_id}')
+            logger.debug('Scheduled user update', extra={'user_id': user_id})
         
         self._track_async_task(asyncio.create_task(schedule()))
     

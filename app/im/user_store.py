@@ -35,7 +35,7 @@ class UserStore:
             with open(file_path, 'r') as f:
                 return yaml.load(f, Loader=yaml.CLoader)
         except (yaml.YAMLError, IOError) as e:
-            logger.warning(f'Failed to read user file {user_id}: {e}')
+            logger.warning('Failed to read user file', extra={'user_id': user_id, 'error': str(e)})
             return None
     
     def save(self, user_id: str, messenger_type: str, user_data: Dict[str, Any]) -> None:
@@ -52,9 +52,9 @@ class UserStore:
         try:
             with open(file_path, 'w') as f:
                 yaml.dump(data, f, default_flow_style=False, allow_unicode=True)
-            logger.debug(f'Saved user data for {user_id}')
+            logger.debug('Saved user data', extra={'user_id': user_id})
         except IOError as e:
-            logger.error(f'Failed to save user file {user_id}: {e}')
+            logger.error('Failed to save user file', extra={'user_id': user_id, 'error': str(e)})
     
     def is_expired(self, user_id: str) -> bool:
         user_data = self.get(user_id)
@@ -156,4 +156,4 @@ async def schedule_user_refreshes(queue, messenger) -> None:
         
         await queue.put(schedule_time, QueueItemType.UPDATE_USER, identifier=user_id)
     
-    logger.info(f'Scheduled {len(stored_users)} user refresh tasks')
+    logger.info('Scheduled user refresh tasks', extra={'count': len(stored_users)})
