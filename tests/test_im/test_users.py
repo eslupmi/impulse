@@ -1,6 +1,9 @@
 """
 Unit tests for app.im.users module.
 """
+from unittest.mock import Mock, AsyncMock, patch
+import asyncio
+
 import pytest
 
 from app.im.users import BaseUser, UndefinedUser, UserManager
@@ -346,4 +349,104 @@ class TestUserManager:
         
         found = manager.get_user_by_id("nonexistent")
         assert found is None
+    
+    def test_configure_queue(self):
+        """Test configure_queue sets queue and messenger type."""
+        manager = UserManager()
+        mock_queue = Mock()
+        
+        manager.configure_queue(mock_queue, "slack")
+        
+        assert manager._queue is mock_queue
+        assert manager._messenger_type == "slack"
+    
+    def test_configure_queue_different_messenger_types(self):
+        """Test configure_queue with different messenger types."""
+        for messenger_type in ["slack", "telegram", "mattermost"]:
+            manager = UserManager()
+            mock_queue = Mock()
+            
+            manager.configure_queue(mock_queue, messenger_type)
+            
+            assert manager._messenger_type == messenger_type
+    
+    @pytest.mark.asyncio
+    async def test_schedule_user_update_without_queue(self):
+        """Test schedule_user_update does nothing when queue not configured."""
+        manager = UserManager()
+        
+        # Should not raise, just return early
+        manager.schedule_user_update("user123")
+        
+        # No way to verify except it doesn't crash
+        assert manager._queue is None
+    
+    @pytest.mark.asyncio
+    async def test_schedule_user_update_with_queue(self):
+        """Test schedule_user_update creates task and schedules update."""
+        manager = UserManager()
+        mock_queue = AsyncMock()
+        mock_queue.get_latest_item_by_type = AsyncMock(return_value=None)
+        mock_queue.put = AsyncMock()
+        
+        manager.configure_queue(mock_queue, "slack")
+        manager.schedule_user_update("user123")
+        
+        # Give time for async task to complete
+        await asyncio.sleep(0.1)
+        
+        # Should have called queue.put
+        mock_queue.put.assert_called_once()
+        call_args = mock_queue.put.call_args
+        assert call_args[1]['identifier'] == "user123"
+    
+    @pytest.mark.asyncio
+    async def test_schedule_user_update_tracks_task(self):
+        """Test schedule_user_update tracks task to prevent GC."""
+        manager = UserManager()
+        mock_queue = AsyncMock()
+        mock_queue.get_latest_item_by_type = AsyncMock(return_value=None)
+        mock_queue.put = AsyncMock()
+        
+        manager.configure_queue(mock_queue, "slack")
+        
+        initial_tasks = len(manager._async_tasks)
+        manager.schedule_user_update("user123")
+        
+        # Task should be tracked
+        assert len(manager._async_tasks) >= initial_tasks
+        
+        # Wait for task to complete
+        await asyncio.sleep(0.1)
+        
+        # Task should be removed after completion
+        assert len(manager._async_tasks) == 0
+    
+    @pytest.mark.asyncio
+    async def test_schedule_user_update_respects_gap(self):
+        """Test schedule_user_update respects gap from latest item."""
+        from datetime import datetime, timezone, timedelta
+        from app.queue.constants import USER_UPDATE_GAP_SECONDS
+        
+        manager = UserManager()
+        mock_queue = AsyncMock()
+        
+        # Simulate existing item in queue
+        future_time = datetime.now(timezone.utc) + timedelta(minutes=5)
+        mock_queue.get_latest_item_by_type = AsyncMock(return_value=future_time)
+        mock_queue.put = AsyncMock()
+        
+        manager.configure_queue(mock_queue, "slack")
+        manager.schedule_user_update("user123")
+        
+        await asyncio.sleep(0.1)
+        
+        mock_queue.put.assert_called_once()
+        call_args = mock_queue.put.call_args
+        schedule_time = call_args[0][0]
+        
+        expected_gap = USER_UPDATE_GAP_SECONDS.get("slack", 1.0)
+        expected_min = future_time + timedelta(seconds=expected_gap - 0.1)
+        
+        assert schedule_time >= expected_min
     

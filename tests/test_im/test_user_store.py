@@ -1,0 +1,312 @@
+"""
+Unit tests for app.im.user_store module.
+"""
+import os
+import tempfile
+from datetime import datetime, timezone, timedelta
+from unittest.mock import Mock, AsyncMock, patch, MagicMock
+
+import pytest
+import yaml
+
+from app.im.user_store import UserStore, get_user_store, schedule_user_refreshes, USER_REFRESH_HOURS
+
+
+class TestUserStore:
+    """Test cases for UserStore class."""
+
+    @pytest.fixture
+    def temp_dir(self):
+        """Create a temporary directory for testing."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            yield tmpdir
+
+    @pytest.fixture
+    def user_store(self, temp_dir):
+        """Create a UserStore instance with a temporary directory."""
+        with patch('app.im.user_store.get_environment_config') as mock_env:
+            mock_env.return_value.data_path = temp_dir
+            store = UserStore()
+            yield store
+
+    def test_user_store_initialization(self, user_store, temp_dir):
+        """Test UserStore initialization creates users directory."""
+        users_path = os.path.join(temp_dir, 'users')
+        assert os.path.exists(users_path)
+
+    def test_save_and_get_user(self, user_store):
+        """Test saving and retrieving user data."""
+        user_id = "U123456"
+        messenger_type = "slack"
+        user_data = {
+            'username': 'testuser',
+            'email': 'test@example.com',
+            'first_name': 'Test',
+            'last_name': 'User',
+            'timezone': 'UTC'
+        }
+
+        user_store.save(user_id, messenger_type, user_data)
+        retrieved = user_store.get(user_id)
+
+        assert retrieved is not None
+        assert retrieved['messenger_type'] == messenger_type
+        assert retrieved['username'] == 'testuser'
+        assert retrieved['email'] == 'test@example.com'
+        assert retrieved['first_name'] == 'Test'
+        assert retrieved['last_name'] == 'User'
+        assert retrieved['timezone'] == 'UTC'
+        assert 'updated_at' in retrieved
+
+    def test_get_nonexistent_user(self, user_store):
+        """Test getting a user that doesn't exist returns None."""
+        result = user_store.get("nonexistent_user")
+        assert result is None
+
+    def test_save_sanitizes_user_id(self, user_store):
+        """Test that user IDs with special characters are sanitized."""
+        user_id = "user/with\\slashes"
+        user_store.save(user_id, "slack", {'username': 'test'})
+        
+        # File should exist with sanitized name
+        result = user_store.get(user_id)
+        assert result is not None
+        assert result['username'] == 'test'
+
+    def test_is_expired_for_fresh_data(self, user_store):
+        """Test is_expired returns False for fresh data."""
+        user_id = "U123456"
+        user_store.save(user_id, "slack", {'username': 'test'})
+        
+        assert user_store.is_expired(user_id) is False
+
+    def test_is_expired_for_old_data(self, user_store, temp_dir):
+        """Test is_expired returns True for old data."""
+        user_id = "U123456"
+        
+        # Create file with old updated_at
+        old_time = datetime.now(timezone.utc) - timedelta(hours=USER_REFRESH_HOURS + 1)
+        data = {
+            'updated_at': old_time,
+            'messenger_type': 'slack',
+            'username': 'test'
+        }
+        
+        file_path = os.path.join(temp_dir, 'users', f'{user_id}.yml')
+        with open(file_path, 'w') as f:
+            yaml.dump(data, f)
+        
+        assert user_store.is_expired(user_id) is True
+
+    def test_is_expired_for_nonexistent_user(self, user_store):
+        """Test is_expired returns True for nonexistent user."""
+        assert user_store.is_expired("nonexistent") is True
+
+    def test_is_data_expired_with_missing_updated_at(self, user_store):
+        """Test _is_data_expired returns True when updated_at is missing."""
+        data = {'username': 'test'}
+        assert user_store._is_data_expired(data) is True
+
+    def test_is_data_expired_with_invalid_updated_at(self, user_store):
+        """Test _is_data_expired returns True for invalid updated_at."""
+        data = {'updated_at': 'invalid-date'}
+        assert user_store._is_data_expired(data) is True
+
+    def test_get_next_refresh_time(self, user_store):
+        """Test get_next_refresh_time calculates correctly."""
+        user_id = "U123456"
+        user_store.save(user_id, "slack", {'username': 'test'})
+        
+        refresh_time = user_store.get_next_refresh_time(user_id)
+        expected_min = datetime.now(timezone.utc) + timedelta(hours=USER_REFRESH_HOURS - 0.1)
+        expected_max = datetime.now(timezone.utc) + timedelta(hours=USER_REFRESH_HOURS + 0.1)
+        
+        assert expected_min < refresh_time < expected_max
+
+    def test_get_next_refresh_time_nonexistent_user(self, user_store):
+        """Test get_next_refresh_time returns now for nonexistent user."""
+        now = datetime.now(timezone.utc)
+        refresh_time = user_store.get_next_refresh_time("nonexistent")
+        
+        # Should be approximately now
+        assert abs((refresh_time - now).total_seconds()) < 2
+
+    def test_get_refresh_time_from_data_with_string_date(self, user_store):
+        """Test _get_refresh_time_from_data handles string dates."""
+        now = datetime.now(timezone.utc)
+        data = {'updated_at': now.isoformat()}
+        
+        refresh_time = user_store._get_refresh_time_from_data(data)
+        expected = now + timedelta(hours=USER_REFRESH_HOURS)
+        
+        assert abs((refresh_time - expected).total_seconds()) < 2
+
+    def test_get_all_users_by_type(self, user_store):
+        """Test get_all_users_by_type filters by messenger type."""
+        user_store.save("slack_user1", "slack", {'username': 'slack1'})
+        user_store.save("slack_user2", "slack", {'username': 'slack2'})
+        user_store.save("telegram_user1", "telegram", {'username': 'tg1'})
+        
+        slack_users = user_store.get_all_users_by_type("slack")
+        telegram_users = user_store.get_all_users_by_type("telegram")
+        
+        assert len(slack_users) == 2
+        assert len(telegram_users) == 1
+        assert "slack_user1" in slack_users
+        assert "slack_user2" in slack_users
+        assert "telegram_user1" in telegram_users
+
+    def test_get_all_users_by_type_empty_directory(self, user_store):
+        """Test get_all_users_by_type returns empty dict for no users."""
+        users = user_store.get_all_users_by_type("slack")
+        assert users == {}
+
+    def test_get_all_stored_user_ids(self, user_store):
+        """Test get_all_stored_user_ids returns all user IDs."""
+        user_store.save("user1", "slack", {'username': 'u1'})
+        user_store.save("user2", "telegram", {'username': 'u2'})
+        user_store.save("user3", "mattermost", {'username': 'u3'})
+        
+        user_ids = user_store.get_all_stored_user_ids()
+        
+        assert len(user_ids) == 3
+        assert "user1" in user_ids
+        assert "user2" in user_ids
+        assert "user3" in user_ids
+
+    def test_get_all_stored_user_ids_empty(self, user_store):
+        """Test get_all_stored_user_ids returns empty list when no users."""
+        user_ids = user_store.get_all_stored_user_ids()
+        assert user_ids == []
+
+    def test_save_with_none_values(self, user_store):
+        """Test save handles None values in user_data."""
+        user_store.save("U123", "slack", {
+            'username': None,
+            'email': None,
+            'first_name': None,
+            'last_name': None,
+            'timezone': None
+        })
+        
+        retrieved = user_store.get("U123")
+        assert retrieved['username'] is None
+        assert retrieved['email'] is None
+
+
+class TestGetUserStore:
+    """Test cases for get_user_store singleton function."""
+
+    def test_get_user_store_returns_singleton(self):
+        """Test that get_user_store returns the same instance."""
+        with patch('app.im.user_store._user_store', None):
+            with patch('app.im.user_store.UserStore') as mock_store_class:
+                mock_instance = Mock()
+                mock_store_class.return_value = mock_instance
+                
+                # First call creates instance
+                store1 = get_user_store()
+                # Second call returns same instance
+                store2 = get_user_store()
+                
+                assert store1 is store2
+                mock_store_class.assert_called_once()
+
+
+class TestScheduleUserRefreshes:
+    """Test cases for schedule_user_refreshes function."""
+
+    @pytest.fixture
+    def mock_queue(self):
+        """Create a mock queue."""
+        queue = AsyncMock()
+        queue.put = AsyncMock()
+        return queue
+
+    @pytest.fixture
+    def mock_messenger(self):
+        """Create a mock messenger."""
+        messenger = Mock()
+        messenger.type = Mock()
+        messenger.type.value = "slack"
+        return messenger
+
+    @pytest.mark.asyncio
+    async def test_schedule_user_refreshes_no_users(self, mock_queue, mock_messenger):
+        """Test schedule_user_refreshes with no stored users."""
+        mock_user_store = Mock()
+        mock_user_store.get_all_users_by_type.return_value = {}
+        
+        with patch('app.im.user_store.get_user_store', return_value=mock_user_store):
+            await schedule_user_refreshes(mock_queue, mock_messenger)
+        
+        mock_queue.put.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_schedule_user_refreshes_expired_users(self, mock_queue, mock_messenger):
+        """Test schedule_user_refreshes schedules expired users with gaps."""
+        old_time = datetime.now(timezone.utc) - timedelta(hours=USER_REFRESH_HOURS + 1)
+        
+        mock_user_store = Mock()
+        mock_user_store.get_all_users_by_type.return_value = {
+            'user1': {'updated_at': old_time, 'username': 'u1'},
+            'user2': {'updated_at': old_time, 'username': 'u2'}
+        }
+        mock_user_store._is_data_expired.return_value = True
+        
+        with patch('app.im.user_store.get_user_store', return_value=mock_user_store):
+            await schedule_user_refreshes(mock_queue, mock_messenger)
+        
+        assert mock_queue.put.call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_schedule_user_refreshes_fresh_users(self, mock_queue, mock_messenger):
+        """Test schedule_user_refreshes schedules fresh users at refresh time."""
+        fresh_time = datetime.now(timezone.utc)
+        
+        mock_user_store = Mock()
+        mock_user_store.get_all_users_by_type.return_value = {
+            'user1': {'updated_at': fresh_time, 'username': 'u1'}
+        }
+        mock_user_store._is_data_expired.return_value = False
+        mock_user_store._get_refresh_time_from_data.return_value = fresh_time + timedelta(hours=USER_REFRESH_HOURS)
+        
+        with patch('app.im.user_store.get_user_store', return_value=mock_user_store):
+            await schedule_user_refreshes(mock_queue, mock_messenger)
+        
+        mock_queue.put.assert_called_once()
+        call_args = mock_queue.put.call_args
+        schedule_time = call_args[0][0]
+        
+        # Should be scheduled at refresh time (12h from now)
+        expected_min = datetime.now(timezone.utc) + timedelta(hours=USER_REFRESH_HOURS - 0.1)
+        assert schedule_time > expected_min
+
+    @pytest.mark.asyncio
+    async def test_schedule_user_refreshes_uses_messenger_gap(self, mock_queue):
+        """Test schedule_user_refreshes uses correct gap for messenger type."""
+        from app.queue.constants import USER_UPDATE_GAP_SECONDS
+        
+        for messenger_type, expected_gap in USER_UPDATE_GAP_SECONDS.items():
+            mock_messenger = Mock()
+            mock_messenger.type.value = messenger_type
+            
+            old_time = datetime.now(timezone.utc) - timedelta(hours=USER_REFRESH_HOURS + 1)
+            mock_user_store = Mock()
+            mock_user_store.get_all_users_by_type.return_value = {
+                'user1': {'updated_at': old_time},
+                'user2': {'updated_at': old_time}
+            }
+            mock_user_store._is_data_expired.return_value = True
+            
+            mock_queue.reset_mock()
+            
+            with patch('app.im.user_store.get_user_store', return_value=mock_user_store):
+                await schedule_user_refreshes(mock_queue, mock_messenger)
+            
+            # Verify two calls were made with gap between them
+            assert mock_queue.put.call_count == 2
+            call1_time = mock_queue.put.call_args_list[0][0][0]
+            call2_time = mock_queue.put.call_args_list[1][0][0]
+            gap = (call2_time - call1_time).total_seconds()
+            assert abs(gap - expected_gap) < 0.1
