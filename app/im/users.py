@@ -44,6 +44,7 @@ class UserManager:
         self._users: Dict[str, BaseUser] = {}
         self._queue: Optional['AsyncQueue'] = None
         self._messenger_type: Optional[str] = None
+        self._async_tasks: set = set()
     
     def configure_queue(self, queue: 'AsyncQueue', messenger_type: str) -> None:
         """Configure queue for user update scheduling."""
@@ -67,7 +68,12 @@ class UserManager:
             await self._queue.put(schedule_time, QueueItemType.UPDATE_USER, identifier=user_id)
             logger.debug(f'Scheduled user update for {user_id}')
         
-        asyncio.create_task(schedule())
+        self._track_async_task(asyncio.create_task(schedule()))
+    
+    def _track_async_task(self, task: asyncio.Task) -> None:
+        """Track async task to prevent garbage collection."""
+        self._async_tasks.add(task)
+        task.add_done_callback(self._async_tasks.discard)
     
     def get_user(self, name: str) -> BaseUser:
         return self._users.get(name, UndefinedUser(name))
