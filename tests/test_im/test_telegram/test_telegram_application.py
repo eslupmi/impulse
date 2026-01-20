@@ -956,7 +956,11 @@ class TestTelegramApplication:
                 'id': '123456',
                 'exists': True,
                 'full_name': 'John Doe',
-                'username': 'John Doe'
+                'username': 'johndoe',
+                'email': None,
+                'first_name': 'John',
+                'last_name': 'Doe',
+                'timezone': None
             }
 
     @pytest.mark.asyncio
@@ -974,7 +978,11 @@ class TestTelegramApplication:
                 'id': '123456',
                 'exists': False,
                 'full_name': None,
-                'username': None
+                'username': None,
+                'email': None,
+                'first_name': None,
+                'last_name': None,
+                'timezone': None
             }
 
     @pytest.mark.asyncio
@@ -996,7 +1004,11 @@ class TestTelegramApplication:
                 'id': '123456',
                 'exists': False,
                 'full_name': None,
-                'username': None
+                'username': None,
+                'email': None,
+                'first_name': None,
+                'last_name': None,
+                'timezone': None
             }
 
     @pytest.mark.asyncio
