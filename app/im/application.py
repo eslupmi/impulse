@@ -11,7 +11,7 @@ from app.im.groups import Group
 from app.im.template import notification_user, notification_user_group, notification_group, update_status, \
     notification_assignment, notification_unassignment, notification_freeze, notification_unfreeze
 from app.im.user_groups import generate_user_groups
-from app.im.user_store import get_user_store
+from app.im.user_store import get_user_store, UserUpdateScheduler
 from app.im.users import UserManager
 from app.integrations.jira_integration import JiraIntegration
 from app.jinja_template import JinjaTemplate
@@ -63,6 +63,13 @@ class Application(ABC):
 
         # Track async tasks to prevent premature garbage collection
         self._async_tasks: set = set()
+        
+        # User update scheduler (set via configure_scheduler)
+        self._user_scheduler: Optional[UserUpdateScheduler] = None
+
+    def configure_scheduler(self, scheduler: UserUpdateScheduler) -> None:
+        """Configure user update scheduler."""
+        self._user_scheduler = scheduler
 
     async def initialize_async(self):
         """Initialize async components after object creation"""
@@ -160,11 +167,12 @@ class Application(ABC):
         user_store.save(user_id_str, self.type.value, user_details)
         
         name_key = f"_discovered_{user_id}"
-        full_name = user_details.get('full_name') or user_id_str
+        full_name = user_details.get('full_name') or user_details.get('username') or 'Unknown'
         user = self.create_user(full_name, user_details)
         if user:
             self.users.add_user(name_key, user)
-            self.users.schedule_user_update(user_id_str)
+            if self._user_scheduler:
+                self._user_scheduler.schedule_update(user_id_str)
 
     async def post_assignment_notification(self, incident_obj, user_id, user_display_name=None):
         """

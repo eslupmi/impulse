@@ -1,11 +1,16 @@
+import asyncio
 import os
 from datetime import datetime, timezone, timedelta
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, TYPE_CHECKING
 
 import yaml
 
 from app.config.environment import get_environment_config
 from app.logging import logger
+from app.queue.constants import QueueItemType, USER_UPDATE_GAP_SECONDS
+
+if TYPE_CHECKING:
+    from app.queue.queue import AsyncQueue
 
 USER_REFRESH_HOURS = 12
 
@@ -128,32 +133,50 @@ def get_user_store() -> UserStore:
     return _user_store
 
 
-async def schedule_user_refreshes(queue, messenger) -> None:
-    """Schedule user refresh queue items at startup for all stored users.
+class UserUpdateScheduler:
+    """Handles scheduling of user data refresh tasks."""
     
-    - Expired users: schedule with gaps between UPDATE_USER items
-    - Non-expired users: schedule at updated_at + 12h
-    """
-    from app.queue.constants import QueueItemType, USER_UPDATE_GAP_SECONDS
+    def __init__(self, queue: 'AsyncQueue', messenger_type: str):
+        self._queue = queue
+        self._messenger_type = messenger_type
+        self._gap_seconds = USER_UPDATE_GAP_SECONDS.get(messenger_type, 1.0)
+        self._async_tasks: set = set()
     
-    user_store = get_user_store()
-    messenger_type = messenger.type.value
-    gap_seconds = USER_UPDATE_GAP_SECONDS.get(messenger_type, 1.0)
-    
-    stored_users = user_store.get_all_users_by_type(messenger_type)
-    if not stored_users:
-        return
-    
-    now = datetime.now(timezone.utc)
-    last_immediate_schedule = now
-    
-    for user_id, user_data in stored_users.items():
-        if user_store._is_data_expired(user_data):
-            schedule_time = last_immediate_schedule + timedelta(seconds=gap_seconds)
-            last_immediate_schedule = schedule_time
-        else:
-            schedule_time = user_store._get_refresh_time_from_data(user_data)
+    def schedule_update(self, user_id: str) -> None:
+        """Schedule a user update with proper gap from last UPDATE_USER item."""
+        async def schedule():
+            latest = await self._queue.get_latest_item_by_type(QueueItemType.UPDATE_USER)
+            now = datetime.now(timezone.utc)
+            base_time = latest if latest and latest > now else now
+            schedule_time = base_time + timedelta(seconds=self._gap_seconds)
+            await self._queue.put(schedule_time, QueueItemType.UPDATE_USER, identifier=user_id)
+            logger.debug('Scheduled user update', extra={'user_id': user_id})
         
-        await queue.put(schedule_time, QueueItemType.UPDATE_USER, identifier=user_id)
+        task = asyncio.create_task(schedule())
+        self._async_tasks.add(task)
+        task.add_done_callback(self._async_tasks.discard)
     
-    logger.info('Scheduled user refresh tasks', extra={'count': len(stored_users)})
+    async def schedule_all_stored(self) -> None:
+        """Schedule updates for all stored users at startup.
+        
+        - Expired users: schedule with gaps between UPDATE_USER items
+        - Non-expired users: schedule at updated_at + 12h
+        """
+        user_store = get_user_store()
+        stored_users = user_store.get_all_users_by_type(self._messenger_type)
+        if not stored_users:
+            return
+        
+        now = datetime.now(timezone.utc)
+        last_immediate_schedule = now
+        
+        for user_id, user_data in stored_users.items():
+            if user_store._is_data_expired(user_data):
+                schedule_time = last_immediate_schedule + timedelta(seconds=self._gap_seconds)
+                last_immediate_schedule = schedule_time
+            else:
+                schedule_time = user_store._get_refresh_time_from_data(user_data)
+            
+            await self._queue.put(schedule_time, QueueItemType.UPDATE_USER, identifier=user_id)
+        
+        logger.info('Scheduled user refresh tasks', extra={'count': len(stored_users)})

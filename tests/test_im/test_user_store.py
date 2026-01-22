@@ -9,7 +9,7 @@ from unittest.mock import Mock, AsyncMock, patch, MagicMock
 import pytest
 import yaml
 
-from app.im.user_store import UserStore, get_user_store, schedule_user_refreshes, USER_REFRESH_HOURS
+from app.im.user_store import UserStore, get_user_store, UserUpdateScheduler, USER_REFRESH_HOURS
 
 
 class TestUserStore:
@@ -213,38 +213,41 @@ class TestGetUserStore:
                 mock_store_class.assert_called_once()
 
 
-class TestScheduleUserRefreshes:
-    """Test cases for schedule_user_refreshes function."""
+class TestUserUpdateScheduler:
+    """Test cases for UserUpdateScheduler class."""
 
     @pytest.fixture
     def mock_queue(self):
         """Create a mock queue."""
         queue = AsyncMock()
         queue.put = AsyncMock()
+        queue.get_latest_item_by_type = AsyncMock(return_value=None)
         return queue
 
-    @pytest.fixture
-    def mock_messenger(self):
-        """Create a mock messenger."""
-        messenger = Mock()
-        messenger.type = Mock()
-        messenger.type.value = "slack"
-        return messenger
+    def test_scheduler_initialization(self, mock_queue):
+        """Test UserUpdateScheduler initialization."""
+        scheduler = UserUpdateScheduler(mock_queue, "slack")
+        
+        assert scheduler._queue is mock_queue
+        assert scheduler._messenger_type == "slack"
+        assert scheduler._gap_seconds == 1.0  # Slack gap
 
     @pytest.mark.asyncio
-    async def test_schedule_user_refreshes_no_users(self, mock_queue, mock_messenger):
-        """Test schedule_user_refreshes with no stored users."""
+    async def test_schedule_all_stored_no_users(self, mock_queue):
+        """Test schedule_all_stored with no stored users."""
         mock_user_store = Mock()
         mock_user_store.get_all_users_by_type.return_value = {}
         
+        scheduler = UserUpdateScheduler(mock_queue, "slack")
+        
         with patch('app.im.user_store.get_user_store', return_value=mock_user_store):
-            await schedule_user_refreshes(mock_queue, mock_messenger)
+            await scheduler.schedule_all_stored()
         
         mock_queue.put.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_schedule_user_refreshes_expired_users(self, mock_queue, mock_messenger):
-        """Test schedule_user_refreshes schedules expired users with gaps."""
+    async def test_schedule_all_stored_expired_users(self, mock_queue):
+        """Test schedule_all_stored schedules expired users with gaps."""
         old_time = datetime.now(timezone.utc) - timedelta(hours=USER_REFRESH_HOURS + 1)
         
         mock_user_store = Mock()
@@ -254,14 +257,16 @@ class TestScheduleUserRefreshes:
         }
         mock_user_store._is_data_expired.return_value = True
         
+        scheduler = UserUpdateScheduler(mock_queue, "slack")
+        
         with patch('app.im.user_store.get_user_store', return_value=mock_user_store):
-            await schedule_user_refreshes(mock_queue, mock_messenger)
+            await scheduler.schedule_all_stored()
         
         assert mock_queue.put.call_count == 2
 
     @pytest.mark.asyncio
-    async def test_schedule_user_refreshes_fresh_users(self, mock_queue, mock_messenger):
-        """Test schedule_user_refreshes schedules fresh users at refresh time."""
+    async def test_schedule_all_stored_fresh_users(self, mock_queue):
+        """Test schedule_all_stored schedules fresh users at refresh time."""
         fresh_time = datetime.now(timezone.utc)
         
         mock_user_store = Mock()
@@ -271,26 +276,24 @@ class TestScheduleUserRefreshes:
         mock_user_store._is_data_expired.return_value = False
         mock_user_store._get_refresh_time_from_data.return_value = fresh_time + timedelta(hours=USER_REFRESH_HOURS)
         
+        scheduler = UserUpdateScheduler(mock_queue, "slack")
+        
         with patch('app.im.user_store.get_user_store', return_value=mock_user_store):
-            await schedule_user_refreshes(mock_queue, mock_messenger)
+            await scheduler.schedule_all_stored()
         
         mock_queue.put.assert_called_once()
         call_args = mock_queue.put.call_args
         schedule_time = call_args[0][0]
         
-        # Should be scheduled at refresh time (12h from now)
         expected_min = datetime.now(timezone.utc) + timedelta(hours=USER_REFRESH_HOURS - 0.1)
         assert schedule_time > expected_min
 
     @pytest.mark.asyncio
-    async def test_schedule_user_refreshes_uses_messenger_gap(self, mock_queue):
-        """Test schedule_user_refreshes uses correct gap for messenger type."""
+    async def test_schedule_all_stored_uses_messenger_gap(self, mock_queue):
+        """Test schedule_all_stored uses correct gap for messenger type."""
         from app.queue.constants import USER_UPDATE_GAP_SECONDS
         
         for messenger_type, expected_gap in USER_UPDATE_GAP_SECONDS.items():
-            mock_messenger = Mock()
-            mock_messenger.type.value = messenger_type
-            
             old_time = datetime.now(timezone.utc) - timedelta(hours=USER_REFRESH_HOURS + 1)
             mock_user_store = Mock()
             mock_user_store.get_all_users_by_type.return_value = {
@@ -300,13 +303,65 @@ class TestScheduleUserRefreshes:
             mock_user_store._is_data_expired.return_value = True
             
             mock_queue.reset_mock()
+            scheduler = UserUpdateScheduler(mock_queue, messenger_type)
             
             with patch('app.im.user_store.get_user_store', return_value=mock_user_store):
-                await schedule_user_refreshes(mock_queue, mock_messenger)
+                await scheduler.schedule_all_stored()
             
-            # Verify two calls were made with gap between them
             assert mock_queue.put.call_count == 2
             call1_time = mock_queue.put.call_args_list[0][0][0]
             call2_time = mock_queue.put.call_args_list[1][0][0]
             gap = (call2_time - call1_time).total_seconds()
             assert abs(gap - expected_gap) < 0.1
+
+    @pytest.mark.asyncio
+    async def test_schedule_update_single_user(self, mock_queue):
+        """Test schedule_update schedules a single user update."""
+        import asyncio
+        
+        scheduler = UserUpdateScheduler(mock_queue, "slack")
+        scheduler.schedule_update("user123")
+        
+        await asyncio.sleep(0.1)
+        
+        mock_queue.put.assert_called_once()
+        call_args = mock_queue.put.call_args
+        assert call_args[1]['identifier'] == "user123"
+
+    @pytest.mark.asyncio
+    async def test_schedule_update_respects_gap(self, mock_queue):
+        """Test schedule_update respects gap from latest queue item."""
+        import asyncio
+        from app.queue.constants import USER_UPDATE_GAP_SECONDS
+        
+        future_time = datetime.now(timezone.utc) + timedelta(minutes=5)
+        mock_queue.get_latest_item_by_type = AsyncMock(return_value=future_time)
+        
+        scheduler = UserUpdateScheduler(mock_queue, "slack")
+        scheduler.schedule_update("user123")
+        
+        await asyncio.sleep(0.1)
+        
+        mock_queue.put.assert_called_once()
+        call_args = mock_queue.put.call_args
+        schedule_time = call_args[0][0]
+        
+        expected_gap = USER_UPDATE_GAP_SECONDS.get("slack", 1.0)
+        expected_min = future_time + timedelta(seconds=expected_gap - 0.1)
+        assert schedule_time >= expected_min
+
+    @pytest.mark.asyncio
+    async def test_schedule_update_tracks_tasks(self, mock_queue):
+        """Test schedule_update tracks tasks to prevent GC."""
+        import asyncio
+        
+        scheduler = UserUpdateScheduler(mock_queue, "slack")
+        
+        initial_tasks = len(scheduler._async_tasks)
+        scheduler.schedule_update("user123")
+        
+        assert len(scheduler._async_tasks) >= initial_tasks
+        
+        await asyncio.sleep(0.1)
+        
+        assert len(scheduler._async_tasks) == 0
