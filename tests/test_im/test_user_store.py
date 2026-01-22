@@ -230,7 +230,7 @@ class TestUserUpdateScheduler:
         
         assert scheduler._queue is mock_queue
         assert scheduler._messenger_type == "slack"
-        assert scheduler._gap_seconds == 1.0  # Slack gap
+        assert abs(scheduler._gap_seconds - 1.0) < 0.01  # Slack gap
 
     @pytest.mark.asyncio
     async def test_schedule_all_stored_no_users(self, mock_queue):
