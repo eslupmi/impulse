@@ -98,22 +98,19 @@ class Application(ABC):
         if self.http:
             await self.http.close()
 
-    async def fetch_and_assign_user_name(self, incident, user_id, incidents=None, dump=True):
+    async def fetch_and_assign_user_name(self, incident, user_id, dump=True):
         """
         Fetch user details and assign full name to incident.
-        Uses user manager and incident cache to avoid redundant API calls when possible.
+        Uses user manager to avoid redundant API calls when possible.
 
         Args:
             incident: The incident to assign the user name to
             user_id: The user ID to fetch the name for
-            incidents: Optional incidents collection for caching lookup
             dump: Whether to dump the incident after assigning the user name
         """
         try:
             if self._try_assign_from_user_manager(incident, user_id):
                 logger.debug(f'Incident {incident.uuid} assigned user from manager')
-            elif self._try_assign_from_cache(incident, user_id, incidents):
-                logger.debug(f'Incident {incident.uuid} assigned cached user name')
             else:
                 await self._assign_from_api(incident, user_id)
                 logger.debug(f'Incident {incident.uuid} assigned user name from API')
@@ -136,41 +133,50 @@ class Application(ABC):
             incident.assign_user(notification_id)
         return True
 
-    @staticmethod
-    def _try_assign_from_cache(incident, user_id, incidents):
-        """Try to assign user from incident cache. Returns True if successful."""
-        if not incidents:
-            return False
-        
-        cached_name = incidents.get_assigned_user_by_id(user_id)
-        if not cached_name:
-            return False
-        
-        incident.assign_fullname(cached_name)
-        return True
-
     async def _assign_from_api(self, incident, user_id):
         """Fetch user from API and assign to incident."""
         user_details = await self.get_user_details({'id': user_id})
-        assigned_name = user_details.get('full_name') or "(empty)"
+        assigned_name = self._format_display_name(user_details)
         incident.assign_fullname(assigned_name)
         
         if user_details.get('username'):
             incident.assign_user(user_details.get('username'))
         if user_details.get('exists'):
             self._add_discovered_user(user_id, user_details)
+    
+    @staticmethod
+    def _format_display_name(user_details: dict) -> str:
+        """Format user display name: Full Name → @username → (empty)."""
+        full_name = user_details.get('full_name')
+        if full_name:
+            return full_name
+        username = user_details.get('username')
+        if username:
+            return f"@{username}"
+        return "(empty)"
 
     def _add_discovered_user(self, user_id, user_details):
-        """Add discovered user to UserManager and UserStore, schedule update."""
+        """Add discovered user to UserStore if not already a configured user.
+        
+        Configured users are already in UserManager and don't need new files.
+        Only truly new users (not in config) get stored and scheduled.
+        """
+        user_id_str = str(user_id)
+        
+        # Check if this is already a configured user
+        existing_user = self.users.get_user_by_id(user_id)
+        if existing_user and existing_user.defined:
+            # User is already configured, no need to create file
+            return
+        
+        # Not a configured user - store and schedule updates
         user_store = get_user_store()
-        user_id_str = str(user_id)        
         user_store.save(user_id_str, self.type.value, user_details)
         
-        name_key = f"_discovered_{user_id}"
-        full_name = user_details.get('full_name') or user_details.get('username') or 'Unknown'
-        user = self.create_user(full_name, user_details)
+        display_name = self._format_display_name(user_details)
+        user = self.create_user(display_name, user_details)
         if user:
-            self.users.add_user(name_key, user)
+            self.users.add_user(user_id_str, user)
             if self._user_scheduler:
                 self._user_scheduler.schedule_update(user_id_str)
 
@@ -262,7 +268,7 @@ class Application(ABC):
         incident_.assign_user_id(user_id)
         if user_display_name:
             incident_.assign_user(user_display_name)
-        await self.fetch_and_assign_user_name(incident_, user_id, incidents, dump=False)
+        await self.fetch_and_assign_user_name(incident_, user_id, dump=False)
         incident_.freeze(freeze_time, user_id, user_display_name)
         
         await queue_.delete_by_id(incident_.uniq_id, delete_steps=True, delete_status=False)
@@ -341,19 +347,10 @@ class Application(ABC):
         user_manager = UserManager()
         stored_user_ids = self._load_stored_users(user_manager, user_store, messenger_type)
         
-        for name, user_info in users_dict.items():
-            if user_info.id is None:
-                logger.warning('User has no `id` in configuration', extra={'user': name})
-                user = self.create_user(name, {})
-                user_manager.add_user(name, user)
-                continue
-            
+        for name, user_info in users_dict.items():            
             user_id = str(user_info.id)
             if user_id in stored_user_ids:
-                stored_data = user_store.get(user_id)
-                user_details = self._stored_data_to_user_details(user_id, stored_data)
-                user = self.create_user(name, user_details)
-                user_manager.add_user(name, user)
+                user_manager.add_config_name(name, user_id)
                 continue
             
             user_details = await self.get_user_details(user_info)
@@ -362,7 +359,7 @@ class Application(ABC):
             else:
                 user_store.save(user_id, messenger_type, user_details)
             user = self.create_user(name, user_details)
-            user_manager.add_user(name, user)
+            user_manager.add_user(user_id, user, config_name=name)
 
         return user_manager
 
@@ -373,10 +370,10 @@ class Application(ABC):
         
         for user_id, stored_data in stored_users.items():
             user_details = self._stored_data_to_user_details(user_id, stored_data)
-            full_name = user_details.get('full_name', 'Unknown')
-            user = self.create_user(full_name, user_details)
+            display_name = self._format_display_name(user_details)
+            user = self.create_user(display_name, user_details)
             if user:
-                user_manager.add_user(f"_stored_{user_id}", user)
+                user_manager.add_user(user_id, user)
                 loaded_ids.add(user_id)
         
         if loaded_ids:

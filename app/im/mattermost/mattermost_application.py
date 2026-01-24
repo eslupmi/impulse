@@ -136,7 +136,7 @@ class MattermostApplication(Application):
         )
         return admins_text
 
-    async def _handle_chain_action(self, incident_, user_id, user_name, queue_, incidents, payload):
+    async def _handle_chain_action(self, incident_, user_id, user_name, queue_, payload):
         """Handle chain-related button actions"""
         await queue_.delete_by_id(incident_.uniq_id, delete_steps=True, delete_status=False)
         if incident_.chain_enabled or incident_.status != 'resolved':
@@ -147,7 +147,7 @@ class MattermostApplication(Application):
             incident_.assign_user_id(user_id)
             incident_.assign_user(user_name)
             self._track_async_task(asyncio.create_task(self.post_assignment_notification(incident_, user_id, user_name)))
-            self._track_async_task(asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id, incidents)))
+            self._track_async_task(asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id)))
             incident_.chain_enabled = False
         else:
             logger.info('Button pressed', extra={'uuid': incident_.uuid, 'button': 'release', 'user_id': user_id})
@@ -197,7 +197,7 @@ class MattermostApplication(Application):
         # Handle other button actions
         action = context.get('action')
         if action == 'chain':
-            early_return = await self._handle_chain_action(incident_, user_id, user_name, queue_, incidents, payload)
+            early_return = await self._handle_chain_action(incident_, user_id, user_name, queue_, payload)
             if early_return is not None:
                 return early_return
         elif action == 'task':

@@ -133,7 +133,7 @@ class SlackApplication(Application):
         )
         return admins_text
 
-    async def _handle_chain_action(self, incident_, user_id, user_name, queue_, incidents):
+    async def _handle_chain_action(self, incident_, user_id, user_name, queue_):
         """Handle chain-related button actions"""
         await queue_.delete_by_id(incident_.uniq_id, delete_steps=True, delete_status=False)
         if incident_.chain_enabled or incident_.status != 'resolved':
@@ -145,7 +145,7 @@ class SlackApplication(Application):
                 if user_name:
                     incident_.assign_user(user_name)
                 self._track_async_task(asyncio.create_task(self.post_assignment_notification(incident_, user_id, user_name)))
-                self._track_async_task(asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id, incidents)))
+                self._track_async_task(asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id)))
             incident_.chain_enabled = False
         else:
             logger.info('Button pressed', extra={'incident': incident_.uuid, 'button': 'release', 'user_id': user_id})
@@ -218,7 +218,7 @@ class SlackApplication(Application):
         # Handle other actions
         for action in actions:
             if action['name'] == 'chain':
-                await self._handle_chain_action(incident_, user_id, user_name, queue_, incidents)
+                await self._handle_chain_action(incident_, user_id, user_name, queue_)
             elif action['name'] == 'task':
                 self._handle_task_action(incident_, user_id, queue_)
         

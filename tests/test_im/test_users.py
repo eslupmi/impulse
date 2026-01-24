@@ -225,14 +225,29 @@ class TestUserManager:
         assert isinstance(manager, UserManager)
     
     def test_add_and_get_user(self):
-        """Test adding and retrieving a user."""
+        """Test adding and retrieving a user by user_id."""
         manager = UserManager()
         user = TelegramUser("John Doe", id_=12345)
-        manager.add_user("john", user)
+        manager.add_user("12345", user)
         
+        retrieved = manager.get_user("12345")
+        assert retrieved == user
+        assert retrieved.name == "John Doe"
+    
+    def test_add_and_get_user_by_config_name(self):
+        """Test adding a user with config_name and retrieving by config name."""
+        manager = UserManager()
+        user = TelegramUser("John Doe", id_=12345)
+        manager.add_user("12345", user, config_name="john")
+        
+        # Should find by config name
         retrieved = manager.get_user("john")
         assert retrieved == user
         assert retrieved.name == "John Doe"
+        
+        # Should also find by user_id
+        retrieved = manager.get_user("12345")
+        assert retrieved == user
     
     def test_get_nonexistent_user_returns_undefined(self):
         """Test that getting a nonexistent user returns UndefinedUser."""
@@ -244,30 +259,35 @@ class TestUserManager:
         assert user.defined is False
     
     def test_get_all_users(self):
-        """Test getting all users."""
+        """Test getting all users (keyed by user_id)."""
         manager = UserManager()
         user1 = TelegramUser("John Doe", id_=12345)
         user2 = SlackUser("Jane Smith", id_="U12345")
         
-        manager.add_user("john", user1)
-        manager.add_user("jane", user2)
+        manager.add_user("12345", user1, config_name="john")
+        manager.add_user("U12345", user2, config_name="jane")
         
         all_users = manager.get_all_users()
         assert len(all_users) == 2
-        assert "john" in all_users
-        assert "jane" in all_users
-        assert all_users["john"] == user1
-        assert all_users["jane"] == user2
+        assert "12345" in all_users
+        assert "U12345" in all_users
+        assert all_users["12345"] == user1
+        assert all_users["U12345"] == user2
     
     def test_dict_style_access(self):
         """Test dictionary-style access with []."""
         manager = UserManager()
         user = MattermostUser("Bob Johnson", id_="abc123", username="bjohnson")
-        manager.add_user("bob", user)
+        manager.add_user("abc123", user, config_name="bob")
         
+        # Access by config name
         retrieved = manager["bob"]
         assert retrieved == user
         assert retrieved.name == "Bob Johnson"
+        
+        # Access by user_id
+        retrieved = manager["abc123"]
+        assert retrieved == user
     
     def test_dict_style_access_nonexistent(self):
         """Test dictionary-style access for nonexistent user."""
@@ -278,22 +298,27 @@ class TestUserManager:
         assert user.name == "nonexistent"
     
     def test_contains_operator(self):
-        """Test 'in' operator support."""
+        """Test 'in' operator support for both config names and user_ids."""
         manager = UserManager()
         user = TelegramUser("John Doe", id_=12345)
-        manager.add_user("john", user)
+        manager.add_user("12345", user, config_name="john")
         
-        assert "john" in manager
+        assert "john" in manager  # config name
+        assert "12345" in manager  # user_id
         assert "nonexistent" not in manager
     
     def test_get_method_with_default(self):
         """Test get() method with default value."""
         manager = UserManager()
         user = SlackUser("Jane Smith", id_="U12345")
-        manager.add_user("jane", user)
+        manager.add_user("U12345", user, config_name="jane")
         
-        # Existing user
+        # Existing user by config name
         retrieved = manager.get("jane", None)
+        assert retrieved == user
+        
+        # Existing user by user_id
+        retrieved = manager.get("U12345", None)
         assert retrieved == user
         
         # Nonexistent user with default
@@ -308,9 +333,9 @@ class TestUserManager:
         slack_user = SlackUser("Jane", id_="U12345")
         mattermost_user = MattermostUser("Bob", id_="abc123", username="bob")
         
-        manager.add_user("john", telegram_user)
-        manager.add_user("jane", slack_user)
-        manager.add_user("bob", mattermost_user)
+        manager.add_user("12345", telegram_user, config_name="john")
+        manager.add_user("U12345", slack_user, config_name="jane")
+        manager.add_user("abc123", mattermost_user, config_name="bob")
         
         assert len(manager.get_all_users()) == 3
         assert isinstance(manager["john"], TelegramUser)
@@ -323,8 +348,8 @@ class TestUserManager:
         telegram_user = TelegramUser("John Doe", id_=12345, exists=True)
         slack_user = SlackUser("Jane Smith", id_="U12345", exists=True)
         
-        manager.add_user("john", telegram_user)
-        manager.add_user("jane", slack_user)
+        manager.add_user("12345", telegram_user, config_name="john")
+        manager.add_user("U12345", slack_user, config_name="jane")
         
         # Find by integer ID (Telegram)
         found = manager.get_user_by_id(12345)
@@ -341,11 +366,27 @@ class TestUserManager:
     def test_get_user_by_id_not_found(self):
         """Test get_user_by_id returns None when user not found."""
         manager = UserManager()
-        manager.add_user("john", TelegramUser("John", id_=12345))
+        manager.add_user("12345", TelegramUser("John", id_=12345))
         
         found = manager.get_user_by_id(99999)
         assert found is None
         
         found = manager.get_user_by_id("nonexistent")
         assert found is None
+    
+    def test_add_config_name(self):
+        """Test adding config name mapping for existing user."""
+        manager = UserManager()
+        user = TelegramUser("John Doe", id_=12345)
+        manager.add_user("12345", user)
+        
+        # Initially can't find by config name
+        assert manager.get("john") is None
+        
+        # Add config name mapping
+        manager.add_config_name("john", "12345")
+        
+        # Now can find by config name
+        retrieved = manager.get_user("john")
+        assert retrieved == user
     

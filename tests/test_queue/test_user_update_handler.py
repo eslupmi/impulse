@@ -32,6 +32,16 @@ class TestUserUpdateHandler:
         app.create_user = Mock()
         app.users = Mock()
         app.users.add_user = Mock()
+        # Mock _format_display_name to behave like the real implementation
+        def format_display_name(user_details):
+            full_name = user_details.get('full_name')
+            if full_name:
+                return full_name
+            username = user_details.get('username')
+            if username:
+                return f"@{username}"
+            return "(empty)"
+        app._format_display_name = Mock(side_effect=format_display_name)
         return app
 
     @pytest.fixture
@@ -91,7 +101,7 @@ class TestUserUpdateHandler:
         
         # Should update user manager
         mock_application.create_user.assert_called_once_with('Test User', user_details)
-        mock_application.users.add_user.assert_called_once_with(f"_stored_{user_id}", mock_user)
+        mock_application.users.add_user.assert_called_once_with(user_id, mock_user)
         
         # Should schedule next refresh
         mock_queue.put.assert_called_once()
@@ -199,11 +209,11 @@ class TestUserUpdateHandler:
         handler._update_user_manager(user_id, user_details)
         
         mock_application.create_user.assert_called_once_with('Test User', user_details)
-        mock_application.users.add_user.assert_called_once_with(f"_stored_{user_id}", mock_user)
+        mock_application.users.add_user.assert_called_once_with(user_id, mock_user)
 
     @pytest.mark.asyncio
     async def test_update_user_manager_no_full_name(self, handler, mock_application):
-        """Test _update_user_manager uses user_id when no full_name."""
+        """Test _update_user_manager uses @username when no full_name."""
         user_id = "U123456"
         user_details = {'username': 'testuser'}
         mock_user = Mock()
@@ -211,7 +221,8 @@ class TestUserUpdateHandler:
         
         handler._update_user_manager(user_id, user_details)
         
-        mock_application.create_user.assert_called_once_with(user_id, user_details)
+        # Should use @username format when no full_name
+        mock_application.create_user.assert_called_once_with('@testuser', user_details)
 
     @pytest.mark.asyncio
     async def test_update_user_manager_create_user_returns_none(self, handler, mock_application):

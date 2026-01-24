@@ -78,7 +78,7 @@ class TelegramApplication(Application):
         response.close()
         return response_json.get('result', {}).get(self.thread_id_key)
 
-    async def _handle_chain_action(self, action, incident_, user_id, user_display_name, queue_, incidents, payload):
+    async def _handle_chain_action(self, action, incident_, user_id, user_display_name, queue_, payload):
         """Handle chain-related button actions (start_chain/stop_chain)"""
         await queue_.delete_by_id(incident_.uniq_id, delete_steps=True, delete_status=False)
         if action == 'stop_chain':
@@ -89,7 +89,7 @@ class TelegramApplication(Application):
             incident_.assign_user_id(user_id)
             incident_.assign_user(user_display_name)
             self._track_async_task(asyncio.create_task(self.post_assignment_notification(incident_, user_id, user_display_name)))
-            self._track_async_task(asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id, incidents)))
+            self._track_async_task(asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id)))
             incident_.chain_enabled = False
         else:
             logger.info('Button pressed', extra={'uuid': incident_.uuid, 'button': 'release', 'user_id': user_id})
@@ -192,7 +192,7 @@ class TelegramApplication(Application):
                 return result
 
         if action in ['start_chain', 'stop_chain']:
-            early_return = await self._handle_chain_action(action, incident_, user_id, user_display_name, queue_, incidents, payload)
+            early_return = await self._handle_chain_action(action, incident_, user_id, user_display_name, queue_, payload)
             if early_return is not None:
                 return early_return
         elif action == 'task':

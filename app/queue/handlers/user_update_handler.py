@@ -38,11 +38,10 @@ class UserUpdateHandler(BaseHandler):
 
     def _update_user_manager(self, user_id: str, user_details: dict):
         """Update the user in UserManager with fresh data."""
-        name_key = f"_stored_{user_id}"
-        full_name = user_details.get('full_name') or str(user_id)
-        user = self.app.create_user(full_name, user_details)
+        display_name = self.app._format_display_name(user_details)
+        user = self.app.create_user(display_name, user_details)
         if user:
-            self.app.users.add_user(name_key, user)
+            self.app.users.add_user(user_id, user)
 
     async def _schedule_next_refresh(self, user_id: str):
         """Schedule next refresh with proper gap from latest UPDATE_USER item."""
