@@ -38,6 +38,14 @@ class MattermostApplication(Application):
     def _get_team_name(self, app_config: ApplicationConfig):
         return app_config.team
 
+    def _extract_timezone(self, timezone_data):
+        if not timezone_data or not isinstance(timezone_data, dict):
+            return None
+        use_automatic = timezone_data.get('useAutomaticTimezone')
+        if use_automatic == 'true':
+            return timezone_data.get('automaticTimezone') or None
+        return timezone_data.get('manualTimezone') or None
+
     async def get_user_details(self, user_details):
         id_ = user_details.get('id')
         response = await self.http.get(f'{self.url}/api/v4/users/{id_}?user_id={id_}', headers=self.headers)
@@ -67,7 +75,7 @@ class MattermostApplication(Application):
             'first_name': first_name or None,
             'last_name': last_name or None,
             'email': data.get('email') or None,
-            'timezone': data.get('timezone') or None,
+            'timezone': self._extract_timezone(data.get('timezone')),
         }
 
     def create_user(self, name, user_details):
