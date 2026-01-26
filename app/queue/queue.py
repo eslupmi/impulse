@@ -129,6 +129,16 @@ class AsyncQueue:
         async with self._lock:
             return len(self._items)
 
+    async def get_latest_item_by_type(self, type_: str) -> Optional[datetime]:
+        """Get the datetime of the latest scheduled item of a specific type."""
+        async with self._lock:
+            latest = None
+            for item in self._items:
+                if item.type == type_:
+                    if latest is None or item.datetime > latest:
+                        latest = item.datetime
+            return latest
+
     @classmethod
     async def recreate_queue(cls, incidents):
         """Recreate queue from existing incidents"""

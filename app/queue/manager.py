@@ -8,6 +8,7 @@ from app.queue.handlers.status_check_handler import StatusCheckHandler
 from app.queue.handlers.status_update_handler import StatusUpdateHandler
 from app.queue.handlers.step_handler import StepHandler
 from app.queue.handlers.unfreeze_handler import UnfreezeHandler
+from app.queue.handlers.user_update_handler import UserUpdateHandler
 
 
 class AsyncQueueManager:
@@ -34,6 +35,7 @@ class AsyncQueueManager:
         self.message_update_handler = MessageUpdateHandler(self.queue, application, incidents)
         self.alert_handler = AlertHandler(self.queue, application, incidents, route_)
         self.unfreeze_handler = UnfreezeHandler(self.queue, application, incidents)
+        self.user_update_handler = UserUpdateHandler(self.queue, application, incidents)
         self._running = False
         self._task = None
 
@@ -81,6 +83,13 @@ class AsyncQueueManager:
         """
         await self.unfreeze_handler.handle(uniq_id)
 
+    async def handle_user_update(self, user_id: str):
+        """
+        Handle user data refresh.
+        :param user_id: User ID to refresh.
+        """
+        await self.user_update_handler.handle(user_id)
+
     async def queue_handle_once(self):
         """
         Handle one queue item.
@@ -105,6 +114,8 @@ class AsyncQueueManager:
                 await self.handle_alert(data)
             elif type_ == QueueItemType.UNFREEZE:
                 await self.handle_unfreeze(uniq_id)
+            elif type_ == QueueItemType.UPDATE_USER:
+                await self.handle_user_update(identifier)
         except Exception as e:
             logger.error(f"Error handling queue item {type_}: {repr(e)}")
         

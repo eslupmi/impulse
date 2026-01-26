@@ -45,19 +45,30 @@ class MattermostApplication(Application):
         if response.status == 404:
             logger.debug("User not found", extra={'user_id': id_})
             response.close()
-            return {'id': id_, 'username': None, 'exists': False, 'full_name': None}
+            return {'id': id_, 'username': None, 'exists': False, 'full_name': None,
+                    'first_name': None, 'last_name': None, 'email': None, 'timezone': None}
 
         if response.status != 200:
             logger.debug("User details fetch failed", extra={'user_id': id_, 'status': response.status})
             response.close()
-            return {'id': id_, 'username': None, 'exists': False, 'full_name': None}
+            return {'id': id_, 'username': None, 'exists': False, 'full_name': None,
+                    'first_name': None, 'last_name': None, 'email': None, 'timezone': None}
 
         data = await response.json()
         response.close()
         first_name = data.get('first_name', '').strip()
         last_name = data.get('last_name', '').strip()
         full_name = f"{first_name} {last_name}".strip()
-        return {'id': id_, 'username': data.get('username'), 'exists': True, 'full_name': full_name}
+        return {
+            'id': id_,
+            'username': data.get('username'),
+            'exists': True,
+            'full_name': full_name,
+            'first_name': first_name or None,
+            'last_name': last_name or None,
+            'email': data.get('email') or None,
+            'timezone': data.get('timezone') or None,
+        }
 
     def create_user(self, name, user_details):
         return User(
@@ -125,7 +136,7 @@ class MattermostApplication(Application):
         )
         return admins_text
 
-    async def _handle_chain_action(self, incident_, user_id, user_name, queue_, incidents, payload):
+    async def _handle_chain_action(self, incident_, user_id, user_name, queue_, payload):
         """Handle chain-related button actions"""
         await queue_.delete_by_id(incident_.uniq_id, delete_steps=True, delete_status=False)
         if incident_.chain_enabled or incident_.status != 'resolved':
@@ -136,7 +147,7 @@ class MattermostApplication(Application):
             incident_.assign_user_id(user_id)
             incident_.assign_user(user_name)
             self._track_async_task(asyncio.create_task(self.post_assignment_notification(incident_, user_id, user_name)))
-            self._track_async_task(asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id, incidents)))
+            self._track_async_task(asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id)))
             incident_.chain_enabled = False
         else:
             logger.info('Button pressed', extra={'uuid': incident_.uuid, 'button': 'release', 'user_id': user_id})
@@ -186,7 +197,7 @@ class MattermostApplication(Application):
         # Handle other button actions
         action = context.get('action')
         if action == 'chain':
-            early_return = await self._handle_chain_action(incident_, user_id, user_name, queue_, incidents, payload)
+            early_return = await self._handle_chain_action(incident_, user_id, user_name, queue_, payload)
             if early_return is not None:
                 return early_return
         elif action == 'task':

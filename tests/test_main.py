@@ -27,7 +27,13 @@ class TestMainApplication:
                 patch('main.AsyncQueueManager') as mock_queue_manager, \
                 patch('main.FileLock') as mock_file_lock_class, \
                 patch('app.config.environment.get_environment_config') as mock_get_env_config, \
-                patch('app.im.application.Application') as mock_application:
+                patch('app.im.application.Application') as mock_application, \
+                patch('main.UserUpdateScheduler') as mock_scheduler_class:
+            # Setup mock scheduler
+            mock_scheduler = Mock()
+            mock_scheduler.schedule_all_stored = AsyncMock()
+            mock_scheduler_class.return_value = mock_scheduler
+            
             # Setup mock config
             mock_config = Mock()
             mock_config.messenger.type = MessengerType.SLACK
@@ -56,9 +62,10 @@ class TestMainApplication:
             mock_messenger = Mock()
             mock_messenger.initialize_async = AsyncMock()
             mock_messenger.close = AsyncMock()  # Make close async
-            mock_messenger.type = "slack"
+            mock_messenger.type = MessengerType.SLACK
             mock_messenger.public_url = "https://test.slack.com"
             mock_messenger.team = "test-team"
+            mock_messenger.configure_scheduler = Mock()
             # Setup chains as an empty dict to avoid iteration issues
             mock_messenger.chains = {}
             mock_messenger.task_management_integration = None  # No Jira integration by default

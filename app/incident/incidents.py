@@ -35,12 +35,6 @@ class Incidents:
                 return incident
         return None
 
-    def get_assigned_user_by_id(self, user_id: str) -> Union[str, None]:
-        for incident in self.uniq_ids.values():
-            if incident.assigned_user_id == user_id and incident.assigned_fullname and incident.assigned_fullname != "-":
-                return incident.assigned_fullname
-        return None
-
     def remove_from_active_map(self, uuid: str):
         if uuid in self.active_map:
             incident = self.uniq_ids.get(self.active_map[uuid])

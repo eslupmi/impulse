@@ -30,17 +30,42 @@ class UndefinedUser(BaseUser):
 
 
 class UserManager:
-    def __init__(self):
-        self._users: Dict[str, BaseUser] = {}
+    """User registry for BaseUser objects.
     
-    def add_user(self, name: str, user: BaseUser) -> None:
-        self._users[name] = user
+    Users are stored by user_id as the primary key.
+    Config names are mapped to user_ids for lookup compatibility.
+    """
+    
+    def __init__(self):
+        self._users: Dict[str, BaseUser] = {}  # user_id -> BaseUser
+        self._config_names: Dict[str, str] = {}  # config_name -> user_id
+    
+    def add_user(self, user_id: str, user: BaseUser, config_name: str = None) -> None:
+        """Add a user by user_id, optionally with a config name mapping."""
+        self._users[user_id] = user
+        if config_name:
+            self._config_names[config_name] = user_id
+    
+    def add_config_name(self, config_name: str, user_id: str) -> None:
+        """Add a config name mapping for an existing user."""
+        self._config_names[config_name] = user_id
     
     def get_user(self, name: str) -> BaseUser:
-        return self._users.get(name, UndefinedUser(name))
+        """Get user by config name or user_id. Returns UndefinedUser if not found."""
+        user = self._resolve_user(name)
+        return user if user else UndefinedUser(name)
     
     def get(self, name: str, default=None) -> Optional[BaseUser]:
-        return self._users.get(name, default)
+        """Get user by config name or user_id. Returns default if not found."""
+        user = self._resolve_user(name)
+        return user if user else default
+    
+    def _resolve_user(self, name: str) -> Optional[BaseUser]:
+        """Resolve a name to a user, checking config names first, then user_ids."""
+        if name in self._config_names:
+            user_id = self._config_names[name]
+            return self._users.get(user_id)
+        return self._users.get(name)
     
     def get_all_users(self) -> Dict[str, BaseUser]:
         return self._users.copy()
@@ -49,10 +74,11 @@ class UserManager:
         return self.get_user(name)
     
     def __contains__(self, name: str) -> bool:
-        return name in self._users
+        return name in self._config_names or name in self._users
     
     def get_user_by_id(self, user_id: Union[int, str]) -> Optional[BaseUser]:
-        for user in self._users.values():
-            if user.id == user_id:
-                return user
+        """Get user by their messenger ID."""
+        str_id = str(user_id)
+        if str_id in self._users:
+            return self._users[str_id]
         return None

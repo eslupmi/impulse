@@ -9,4 +9,11 @@ class QueueItemType:
     CHAIN_STEP = 'chain_step'
     ALERT = 'alert'
     UNFREEZE = 'unfreeze'
+    UPDATE_USER = 'update_user'
 
+
+USER_UPDATE_GAP_SECONDS = {
+    'slack': 1.0,
+    'mattermost': 2.0,
+    'telegram': 60.0,
+}

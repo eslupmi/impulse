@@ -78,7 +78,7 @@ class TelegramApplication(Application):
         response.close()
         return response_json.get('result', {}).get(self.thread_id_key)
 
-    async def _handle_chain_action(self, action, incident_, user_id, user_display_name, queue_, incidents, payload):
+    async def _handle_chain_action(self, action, incident_, user_id, user_display_name, queue_, payload):
         """Handle chain-related button actions (start_chain/stop_chain)"""
         await queue_.delete_by_id(incident_.uniq_id, delete_steps=True, delete_status=False)
         if action == 'stop_chain':
@@ -89,7 +89,7 @@ class TelegramApplication(Application):
             incident_.assign_user_id(user_id)
             incident_.assign_user(user_display_name)
             self._track_async_task(asyncio.create_task(self.post_assignment_notification(incident_, user_id, user_display_name)))
-            self._track_async_task(asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id, incidents)))
+            self._track_async_task(asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id)))
             incident_.chain_enabled = False
         else:
             logger.info('Button pressed', extra={'uuid': incident_.uuid, 'button': 'release', 'user_id': user_id})
@@ -192,7 +192,7 @@ class TelegramApplication(Application):
                 return result
 
         if action in ['start_chain', 'stop_chain']:
-            early_return = await self._handle_chain_action(action, incident_, user_id, user_display_name, queue_, incidents, payload)
+            early_return = await self._handle_chain_action(action, incident_, user_id, user_display_name, queue_, payload)
             if early_return is not None:
                 return early_return
         elif action == 'task':
@@ -350,7 +350,8 @@ class TelegramApplication(Application):
         if response.status != 200:
             logger.debug("User details fetch failed", extra={'user_id': id_, 'status': response.status})
             response.close()
-            return {'id': id_, 'exists': False, 'full_name': None, 'username': None}
+            return {'id': id_, 'exists': False, 'full_name': None, 'username': None,
+                    'first_name': None, 'last_name': None, 'email': None, 'timezone': None}
 
         data = await response.json()
         response.close()
@@ -358,13 +359,23 @@ class TelegramApplication(Application):
         if not data.get('ok'):
             logger.debug("Telegram API error",
                          extra={'user_id': id_, 'error': data.get("description", "unknown error")})
-            return {'id': id_, 'exists': False, 'full_name': None, 'username': None}
+            return {'id': id_, 'exists': False, 'full_name': None, 'username': None,
+                    'first_name': None, 'last_name': None, 'email': None, 'timezone': None}
 
         chat_data = data.get('result', {})
         first_name = chat_data.get('first_name', '').strip()
         last_name = chat_data.get('last_name', '').strip()
         full_name = f"{first_name} {last_name}".strip()
-        return {'id': id_, 'exists': True, 'full_name': full_name, 'username': full_name}
+        return {
+            'id': id_,
+            'exists': True,
+            'full_name': full_name,
+            'username': chat_data.get('username') or full_name,
+            'first_name': first_name or None,
+            'last_name': last_name or None,
+            'email': None,
+            'timezone': None,
+        }
 
     def create_user(self, name, user_details):
         return User(

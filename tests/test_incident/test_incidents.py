@@ -132,62 +132,6 @@ class TestIncidents:
 
         assert found_incident is None
 
-    def test_get_assigned_user_by_id_existing(self, incidents):
-        """Test getting assigned user by ID when user exists."""
-        # Find an incident with assigned user
-        incident_with_user = None
-        for incident in incidents.uniq_ids.values():
-            if incident.assigned_user_id and incident.assigned_fullname:
-                incident_with_user = incident
-                break
-
-        if incident_with_user:
-            user_id = incident_with_user.assigned_user_id
-            fullname = incidents.get_assigned_user_by_id(user_id)
-
-            assert fullname == incident_with_user.assigned_fullname
-
-    def test_get_assigned_user_by_id_nonexistent(self, incidents):
-        """Test getting assigned user by ID when user doesn't exist."""
-        fullname = incidents.get_assigned_user_by_id("nonexistent_user_id")
-
-        assert fullname is None
-
-    def test_get_assigned_user_by_id_empty_name(self, incidents):
-        """Test getting assigned user by ID when name is empty."""
-        # Create incident with empty fullname
-        config = IncidentConfig(
-            application_type="slack",
-            application_url="https://test.slack.com",
-            application_team="test-team"
-        )
-
-        # Use utility function for alert payload
-        alert_payload = create_alert_payload(
-            status="firing",
-            alertname="TestAlert",
-            severity="critical"
-        )
-        alert_payload["groupLabels"] = {"alertname": "TestAlert", "severity": "critical"}
-
-        incident = Incident(
-            payload=alert_payload,
-            status="firing",
-            channel_id="C123456789",
-            config=config,
-            status_update_datetime=create_test_datetime(),
-            assigned_user_id="U999999",  # Different user ID
-            assigned_user="testuser",
-            assigned_fullname="",  # Empty fullname
-            messenger_type="slack"
-        )
-
-        incidents.add(incident)
-
-        fullname = incidents.get_assigned_user_by_id("U999999")
-
-        assert fullname is None
-
     def test_add_incident(self, incidents):
         """Test adding incident to collection."""
         config = IncidentConfig(

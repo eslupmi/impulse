@@ -470,7 +470,11 @@ class TestMattermostApplication:
             "id": "user123",
             "username": "testuser",
             "exists": True,
-            "full_name": "Test User"
+            "full_name": "Test User",
+            "email": None,
+            "first_name": "Test",
+            "last_name": "User",
+            "timezone": None
         }
 
     @pytest.mark.asyncio
@@ -491,7 +495,11 @@ class TestMattermostApplication:
             "id": "user123",
             "username": None,
             "exists": False,
-            "full_name": None
+            "full_name": None,
+            "email": None,
+            "first_name": None,
+            "last_name": None,
+            "timezone": None
         }
 
     @pytest.mark.asyncio
@@ -512,7 +520,11 @@ class TestMattermostApplication:
             "id": "user123",
             "username": None,
             "exists": False,
-            "full_name": None
+            "full_name": None,
+            "email": None,
+            "first_name": None,
+            "last_name": None,
+            "timezone": None
         }
 
     @pytest.mark.asyncio

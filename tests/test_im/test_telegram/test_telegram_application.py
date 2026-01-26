@@ -761,8 +761,17 @@ class TestTelegramApplication:
 
         # Mock _setup_webhook as async function
         mock_setup_webhook = AsyncMock(return_value=None)
+        
+        # Mock UserStore to avoid filesystem access
+        mock_user_store = Mock()
+        mock_user_store.get_all_users_by_type.return_value = {}
+        mock_user_store.get.return_value = None
+        mock_user_store.is_expired.return_value = True
+        mock_user_store.save = Mock()
+        
         with patch.object(app, '_setup_http', return_value=mock_http), \
-             patch.object(app, '_setup_webhook', mock_setup_webhook):
+             patch.object(app, '_setup_webhook', mock_setup_webhook), \
+             patch('app.im.application.get_user_store', return_value=mock_user_store):
             await app.initialize_async()
 
             mock_setup_webhook.assert_called_once()
@@ -956,7 +965,11 @@ class TestTelegramApplication:
                 'id': '123456',
                 'exists': True,
                 'full_name': 'John Doe',
-                'username': 'John Doe'
+                'username': 'johndoe',
+                'email': None,
+                'first_name': 'John',
+                'last_name': 'Doe',
+                'timezone': None
             }
 
     @pytest.mark.asyncio
@@ -974,7 +987,11 @@ class TestTelegramApplication:
                 'id': '123456',
                 'exists': False,
                 'full_name': None,
-                'username': None
+                'username': None,
+                'email': None,
+                'first_name': None,
+                'last_name': None,
+                'timezone': None
             }
 
     @pytest.mark.asyncio
@@ -996,7 +1013,11 @@ class TestTelegramApplication:
                 'id': '123456',
                 'exists': False,
                 'full_name': None,
-                'username': None
+                'username': None,
+                'email': None,
+                'first_name': None,
+                'last_name': None,
+                'timezone': None
             }
 
     @pytest.mark.asyncio
