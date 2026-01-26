@@ -500,6 +500,13 @@ function createSimpleCommonBlock(responsiveData) {
         infoStack.appendChild(linkSpan);
     }
     
+    if (info.task_link) {
+        const taskLinkSpan = document.createElement('span');
+        taskLinkSpan.className = 'info-item';
+        taskLinkSpan.innerHTML = `<strong>task:</strong> <a href="${info.task_link}" target="_blank" class="incident-link">${LINK_ICON}</a>`;
+        infoStack.appendChild(taskLinkSpan);
+    }
+    
     commonBlock.appendChild(infoStack);
 
     // Common labels section

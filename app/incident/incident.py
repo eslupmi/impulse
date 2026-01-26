@@ -348,6 +348,7 @@ class Incident:
                     'assigned_fullname': self.assigned_fullname if self.assigned_fullname else None,
                     'channel_name': ChannelManager().get_channel_name_by_id(self.channel_id),
                     'link': self.link,
+                    'task_link': self.task_link,
                     'chain_enabled': self.chain_enabled,
                     'has_chain': len(self.chain) > 0 if self.chain else False
                 },
