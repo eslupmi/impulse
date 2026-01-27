@@ -16,7 +16,7 @@
 
 IMPulse uses a single configuration file `impulse.yml`. You can customize its location using the [CONFIG_PATH](envs.md) environment variable.
 
-The configuration can be [reloaded](check.md) while IMPulse is running without requiring a restart.
+The configuration can be [reloaded](concepts/check.md) while IMPulse is running without requiring a restart.
     
 !!! info "Required fields"
 
@@ -31,20 +31,20 @@ Below are all the configuration options supported by IMPulse.
 
 ### general.timezone
 
-- **description:** default timezone (used for [Freeze](buttons.md) delay)
+- **description:** default timezone (used for [Freeze](concepts/buttons.md) delay)
 - **type:** string 
 - **default value:** UTC
 
 ### general.week_start
 
-- **description:** first day of the week (used for [Freeze](buttons.md) delay)
+- **description:** first day of the week (used for [Freeze](concepts/buttons.md) delay)
 - **type:** string
 - **default value:** Mon
 - **allowed values:** 0 to 7 (like in [cron](https://en.wikipedia.org/wiki/Cron)) or "Sun", "Mon"...
 
 ### general.workday_start
 
-- **description:** time when workday starts (used for [Freeze](buttons.md) delay)
+- **description:** time when workday starts (used for [Freeze](concepts/buttons.md) delay)
 - **type:** string ("23:59" format)
 - **default value:** "09:00"
 
@@ -281,7 +281,7 @@ Below are all the configuration options supported by IMPulse.
 
 ##### &lt;schedule chain&gt;.timezone
 
-- **description:** time zone in "TZ identifier" format (details [here](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#Time_zone_abbreviations))
+- **description:** time zone in "TZ identifier" [format](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#Time_zone_abbreviations)
 - **type:** string
 - **default value:** UTC
 
@@ -534,7 +534,7 @@ Below are all the configuration options supported by IMPulse.
 
 - **description:** path to custom template files for `status_icons`, `header`, and `body` (see [Incident Structure](concepts/incident.md#messages-structure))
 - **type:** dict
-- **[special variables](special_variables.md):** `incident` and `payload` supported
+- **[special variables](concepts/special_variables.md):** `incident` and `payload` supported
 - **details:**
     
     !!! note ""
@@ -582,7 +582,7 @@ Below are all the configuration options supported by IMPulse.
 
 ## route *
 
-- **description:** incident routing rules based on alert fields. See [details](#route)
+- **description:** incident routing rules based on alert fields
 - **type:** dict
 - **details:**
 
@@ -672,14 +672,14 @@ Below are all the configuration options supported by IMPulse.
 
 ## task_management
 
-- **description:** task tracking system integration configuration (e.g., Jira). The `task_management:` block enables [**Task**](buttons.md) button.
+- **description:** task tracking system integration configuration (e.g., Jira). The `task_management:` block enables [**Task**](concepts/buttons.md) button.
 - **type:** dict
 
 ### task_management.type *
 
 - **description:** task tracking system type
 - **type:** string
-- **allowed values:** `jira` only - Jira integration (see [details](integrations/task_management/jira.md))
+- **allowed values:** `jira` only - Jira integration (see [integration](integrations/task_management/jira.md))
 
 ### task_management.project_key *
 
@@ -697,7 +697,7 @@ Below are all the configuration options supported by IMPulse.
 
 - **description:** path to custom template files for task creation
 - **type:** dict
-- **[special variables](special_variables.md):** `incident` supported
+- **[special variables](concepts/special_variables.md):** `incident` supported
 - **details:**
     
     !!! note ""
@@ -729,7 +729,7 @@ Below are all the configuration options supported by IMPulse.
 
 ## ui
 
-- **description:** user interface configuration (see [details](ui.md)). The `ui:` block enables the web interface
+- **description:** user interface configuration (see [concepts](concepts/ui.md)). The `ui:` block enables the web interface
 - **type:** dict
 - **examples:**
 
@@ -803,7 +803,7 @@ Below are all the configuration options supported by IMPulse.
 
 - **description:** data source variable (e.g., `incident.status`, `payload.commonLabels.alertname`)
 - **type:** string
-- **[special variables](special_variables.md):** `incident` and `payload` supported
+- **[special variables](concepts/special_variables.md):** `incident` and `payload` supported
 
 #### &lt;column&gt;.type
 
@@ -826,7 +826,7 @@ Below are all the configuration options supported by IMPulse.
 
 - **description:** variable containing the required link (e.g., `incident.link`) (used with `type: link`)
 - **type:** string
-- **[special variables](special_variables.md):** `env` and `incident` supported
+- **[special variables](concepts/special_variables.md):** `env` and `incident` supported
 
 #### &lt;column&gt;.format
 
@@ -909,13 +909,13 @@ Below are all the configuration options supported by IMPulse.
 
 - **description:** string for HTTP Basic Auth (e.g., user:password)
 - **type:** string
-- **[special variables](special_variables.md):** `env` supported
+- **[special variables](concepts/special_variables.md):** `env` supported
 
 ### &lt;webhook&gt;.data
 
 - **description:** data to be sent in the POST request body
 - **type:** dict
-- **[special variables](special_variables.md):** `env` and `incident` supported
+- **[special variables](concepts/special_variables.md):** `env` and `incident` supported
 - **details:** cannot be used together with `<webhook>.json`
 - **examples:**
 
@@ -936,7 +936,7 @@ Below are all the configuration options supported by IMPulse.
 
 - **description:** JSON data to be sent in the POST request body
 - **type:** dict or str
-- **[special variables](special_variables.md):** `env` and `incident` supported
+- **[special variables](concepts/special_variables.md):** `env` and `incident` supported
 - **details:** cannot be used together with `<webhook>.data`
 - **examples:**
 
@@ -963,4 +963,4 @@ Below are all the configuration options supported by IMPulse.
 
 - **description:** URL to which the HTTP POST request will be sent
 - **type:** string
-- **[special variables](special_variables.md):** `env` supported
+- **[special variables](concepts/special_variables.md):** `env` supported

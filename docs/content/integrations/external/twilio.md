@@ -1,7 +1,7 @@
 # twilio.com
 
 !!! info ""
-    Integration work using [webhooks](../../config_file.md/#webhooks)
+    Integration work using [webhooks](../../config_file.md#webhooks)
 
 ## Call example
 

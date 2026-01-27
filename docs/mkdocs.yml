@@ -44,17 +44,16 @@ nav:
 - ABOUT:
   - index.md
   - Concepts:
+    - concepts/api.md
     - concepts/basics.md
+    - concepts/buttons.md
+    - concepts/check.md
+    - concepts/ha.md
     - concepts/incident.md
+    - concepts/ui.md
     - concepts/messengers.md
-  - Features:
-    - api.md
-    - buttons.md
-    - check.md
-    - ha.md
-    - special_variables.md
-    - templates.md
-    - ui.md
+    - concepts/special_variables.md
+    - concepts/templates.md
 - IMPULSE SERVER:
   - installation.md
   - Configuration:

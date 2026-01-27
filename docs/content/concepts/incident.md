@@ -18,7 +18,7 @@ Starting from [`v1.0.0`](https://github.com/DiTsi/impulse/releases/tag/v1.0.0) i
 
     <p align="center"><img src="../../media/impulse_telegram_message_structure.excalidraw.svg" alt="" width="600"/></p>
 
-Templates for `status icons`, `header` and `body` are [here](https://github.com/DiTsi/impulse/tree/develop/templates). See [details](../templates.md).
+Templates for `status icons`, `header` and `body` are [here](https://github.com/DiTsi/impulse/tree/develop/templates). See [details](templates.md).
 
 ## Statuses and their colors
 
@@ -61,7 +61,7 @@ When an incident becomes **unknown** , IMPulse sends a warning message to `messe
 
 <p align="center"><img src="../../media/slack_closed.excalidraw.svg" alt="" width="400"/></p>
 
-The **closed** status means the incident is closed and retained only for history and statistics. The retention period for a closed incident file is configured via `incident.timeouts.closed`. You can see closed incidents in the UI by clicking the [archive button](../ui.md#elements).
+The **closed** status means the incident is closed and retained only for history and statistics. The retention period for a closed incident file is configured via `incident.timeouts.closed`. You can see closed incidents in the UI by clicking the [archive button](ui.md#elements).
 
 There are two ways an Incident can be closed:
 - a **resolved** incident remains in that status for the duration of`incident.timeouts.resolved`
@@ -73,7 +73,7 @@ There are two ways an Incident can be closed:
 
 The **frozen** state is a **pseudo-status** that temporarily pauses incident handling and suppresses status update. When an incident is frozen, its actual status (firing, resolved, unknown, or closed) is hidden but preserved underneath. Also, while the incident is frozen, no new incident with the same identifier will be created.
 
-An incident can be frozen by clicking the [Freeze](../buttons.md#freeze) button and selecting a duration.
+An incident can be frozen by clicking the [Freeze](buttons.md#freeze) button and selecting a duration.
 
 ## Lifecycle
 

@@ -22,6 +22,7 @@
         - im:read
         - im:write
         - mpim:read
+        - usergroups:read
         - users:read
     - we highly recommend to add the IP address of your IMPulse server in white list in **Restrict API Token Usage** subsection
     - in **OAuth Tokens** click the button **Install to &lt;your_workspace&gt;**, then **Allow**
