@@ -92,7 +92,7 @@ class TestMainApplication:
             # Setup mock file lock
             mock_file_lock_instance = Mock()
             mock_file_lock_instance.is_locked.return_value = False  # Not locked by default
-            mock_file_lock_instance.get_lock_info.return_value = ("test-hostname", "12345", "1000.0")
+            mock_file_lock_instance.get_lock_info.return_value = ("test-hostname", "12345", "1000.0", "test-boot-id")
             mock_file_lock_instance.wait_for_unlock = AsyncMock()
             mock_file_lock_instance.acquire_lock = Mock(return_value=True)
             mock_file_lock_instance.release_lock = AsyncMock()
@@ -192,7 +192,7 @@ class TestMainApplication:
         
         # Lock is held
         mock_file_lock.is_locked = Mock(return_value=True)
-        mock_file_lock.get_lock_info = Mock(return_value=("other-host", "999", "1000.0"))
+        mock_file_lock.get_lock_info = Mock(return_value=("other-host", "999", "1000.0", "other-boot-id"))
         mock_file_lock.acquire_lock = Mock(return_value=True)
         mock_file_lock.release_lock = AsyncMock()
         

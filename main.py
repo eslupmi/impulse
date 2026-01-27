@@ -156,7 +156,7 @@ async def lifespan(fastapi_app: FastAPI):
     
     if locked:
         logger.info("Another IMPulse instance is running, working as standby server")
-        hostname, pid, _ = file_lock.get_lock_info()
+        hostname, pid, _, _ = file_lock.get_lock_info()
         STATUS.set(0)
         logger.debug("Lock held by another instance", extra={'hostname': hostname, 'pid': pid})
         logger.info('IMPulse started in standby mode')
