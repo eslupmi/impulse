@@ -184,14 +184,13 @@ class MattermostApplication(Application):
         user_id = payload.get('user_id')
         user_name = self.get_configured_user_name(user_id, payload.get('user_name'))
         
-        config = get_config()
-        mattermost_tz = config.app.general.timezone
+        user_tz = self._get_user_timezone(user_id)
 
         # Handle freeze/unfreeze actions first
         selected_option = context.get('selected_option')
         if selected_option and selected_option.startswith('freeze_'):
             freeze_option = selected_option.replace('freeze_', '')
-            await self._handle_freeze_action(incident_, freeze_option, user_id, incidents, queue_, user_name, user_timezone=mattermost_tz)
+            await self._handle_freeze_action(incident_, freeze_option, user_id, incidents, queue_, user_name, user_timezone=user_tz)
         else:
             action = context.get('action')
             if action == 'unfreeze':
@@ -200,7 +199,7 @@ class MattermostApplication(Application):
         # Block other actions if incident is frozen
         if incident_.is_frozen():
             logger.debug('Incident frozen, blocking actions', extra={'uuid': incident_.uuid})
-            return self._build_button_response(incident_, mattermost_tz)
+            return self._build_button_response(incident_, user_tz)
 
         # Handle other button actions
         action = context.get('action')
@@ -211,7 +210,7 @@ class MattermostApplication(Application):
         elif action == 'task':
             self._handle_task_action(incident_, user_id, queue_)
         
-        return self._build_button_response(incident_, mattermost_tz)
+        return self._build_button_response(incident_, user_tz)
 
     def _create_thread_payload(self, channel_id, body, header, status_icons, status):
         return mattermost_get_create_thread_payload(channel_id, body, header, status_icons, status)

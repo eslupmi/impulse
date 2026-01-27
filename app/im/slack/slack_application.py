@@ -152,7 +152,7 @@ class SlackApplication(Application):
             self._track_async_task(asyncio.create_task(self.post_unassignment_notification(incident_)))
             incident_.release()
 
-    def _build_button_response(self, incident_, original_message):
+    def _build_button_response(self, incident_, original_message, user_id: str = None):
         """Build JSON response with updated incident message"""
         incident_.dump()
         body = self.body_template.form_message(incident_.payload, incident_)
@@ -162,10 +162,9 @@ class SlackApplication(Application):
                                              incident_.status, incident_.chain_enabled, incident_.frozen_until, 
                                              incident_.task_link)
         self._track_async_task(asyncio.create_task(self._update_thread(incident_.ts, payload)))
-        config = get_config()
-        slack_tz = config.app.general.timezone
+        user_tz = self._get_user_timezone(user_id)
         modified_message = reformat_message(original_message, payload['text'], payload['attachments'], incident_.status,
-                                            incident_.chain_enabled, incident_.frozen_until, incident_.task_link, slack_tz)
+                                            incident_.chain_enabled, incident_.frozen_until, incident_.task_link, user_tz)
         return JSONResponse(modified_message, status_code=200)
 
     async def _handle_freeze_button(self, action, incident_, user_id, incidents, queue_):
@@ -182,9 +181,8 @@ class SlackApplication(Application):
             return
         
         freeze_option = selected_options[0]['value']
-        config = get_config()
-        slack_tz = config.app.general.timezone
-        await self._handle_freeze_action(incident_, freeze_option, user_id, incidents, queue_, user_timezone=slack_tz)
+        user_tz = self._get_user_timezone(user_id)
+        await self._handle_freeze_action(incident_, freeze_option, user_id, incidents, queue_, user_timezone=user_tz)
 
     async def buttons_handler(self, payload, incidents, queue_, route):
         env_config = get_environment_config()
@@ -207,13 +205,13 @@ class SlackApplication(Application):
         # Block non-freeze actions if incident is frozen
         if incident_.is_frozen() and not is_freeze_action:
             logger.debug('Incident frozen, blocking actions', extra={'incident': incident_.uuid})
-            return self._build_button_response(incident_, original_message)
+            return self._build_button_response(incident_, original_message, user_id)
 
         # Handle freeze actions
         for action in actions:
             if action['name'] == 'freeze':
                 await self._handle_freeze_button(action, incident_, user_id, incidents, queue_)
-                return self._build_button_response(incident_, original_message)
+                return self._build_button_response(incident_, original_message, user_id)
 
         # Handle other actions
         for action in actions:
@@ -222,7 +220,7 @@ class SlackApplication(Application):
             elif action['name'] == 'task':
                 self._handle_task_action(incident_, user_id, queue_)
         
-        return self._build_button_response(incident_, original_message)
+        return self._build_button_response(incident_, original_message, user_id)
 
     def _create_thread_payload(self, channel_id, body, header, status_icons, status):
         return slack_get_create_thread_payload(channel_id, body, header, status_icons, status)

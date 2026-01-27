@@ -315,6 +315,15 @@ class Application(ABC):
         user = self.users.get_user_by_id(user_id)
         return user.name if user and user.exists else fallback_name
 
+    def _get_user_timezone(self, user_id: Optional[str] = None) -> str:
+        if user_id:
+            user_store = get_user_store()
+            user_tz = user_store.get_user_timezone(user_id)
+            if user_tz:
+                return user_tz
+        config = get_config()
+        return config.app.general.timezone
+
     async def handle_task_button(self, incident, queue_):
         """
         Handle Task button press for an incident.
