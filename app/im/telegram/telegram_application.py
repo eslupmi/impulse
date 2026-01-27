@@ -381,7 +381,8 @@ class TelegramApplication(Application):
         return User(
             name=name,
             id_=user_details.get('id'),
-            exists=user_details.get('exists', False)
+            exists=user_details.get('exists', False),
+            timezone=user_details.get('timezone')
         )
 
     async def _generate_groups(self, groups_dict):

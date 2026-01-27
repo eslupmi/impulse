@@ -43,15 +43,6 @@ class UserStore:
             logger.warning('Failed to read user file', extra={'user_id': user_id, 'error': str(e)})
             return None
 
-    def get_user_timezone(self, user_id: str) -> Optional[str]:
-        user_data = self.get(user_id)
-        if user_data is None:
-            return None
-        timezone = user_data.get('timezone')
-        if isinstance(timezone, str) and timezone:
-            return timezone
-        return None
-    
     def save(self, user_id: str, messenger_type: str, user_data: Dict[str, Any]) -> None:
         file_path = self._get_user_file_path(user_id)
         data = {

@@ -80,7 +80,8 @@ class SlackApplication(Application):
         return User(
             name=name,
             id_=user_details.get('id'),
-            exists=user_details.get('exists')
+            exists=user_details.get('exists'),
+            timezone=user_details.get('timezone')
         )
 
     async def get_all_groups(self):

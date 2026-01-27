@@ -316,9 +316,8 @@ class Application(ABC):
         return user.name if user and user.exists else fallback_name
 
     def _get_user_timezone(self, user_id: Optional[str] = None) -> str:
-        if user_id:
-            user_store = get_user_store()
-            user_tz = user_store.get_user_timezone(user_id)
+        if user_id and self.users:
+            user_tz = self.users.get_user_timezone(user_id)
             if user_tz:
                 return user_tz
         config = get_config()
@@ -398,6 +397,7 @@ class Application(ABC):
             'exists': True,
             'full_name': full_name,
             'username': stored_data.get('username'),
+            'timezone': stored_data.get('timezone'),
         }
 
     def generate_template(self):
