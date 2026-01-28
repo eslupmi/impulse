@@ -47,11 +47,7 @@ class FileLock:
             return "None"
 
     def _is_process_running(self, pid: int) -> bool:
-        try:
-            os.kill(pid, 0)
-            return True
-        except (OSError, ProcessLookupError):
-            return False
+        return Path(f"/proc/{pid}").exists()
 
     def _can_take_over_lock(self) -> bool:
         """
