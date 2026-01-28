@@ -866,3 +866,119 @@ class TestIncident:
         # Should have created datetime set
         assert incident.created is not None
         assert isinstance(incident.created, datetime)
+
+
+class TestIncidentInhibitionFields:
+    """Test cases for inhibition-related fields in Incident class."""
+
+    @patch('app.incident.incident.ChannelManager')
+    def test_serialize_includes_inhibition_fields(self, mock_channel_manager, sample_incident):
+        """Test that serialize includes inhibition-related fields."""
+        mock_channel_manager.return_value.get_channel_name_by_id.return_value = "test-channel"
+        
+        sample_incident.frozen_by_inhibition = True
+        sample_incident.childs = ["child-1", "child-2"]
+        sample_incident.parents = ["parent-1"]
+
+        result = sample_incident.serialize()
+
+        assert 'frozen_by_inhibition' in result
+        assert result['frozen_by_inhibition'] is True
+        assert 'childs' in result
+        assert result['childs'] == ["child-1", "child-2"]
+        assert 'parents' in result
+        assert result['parents'] == ["parent-1"]
+
+    @patch('app.incident.incident.get_environment_config')
+    @patch('app.incident.incident.get_config')
+    @patch('builtins.open', new_callable=mock_open)
+    @patch('yaml.dump')
+    def test_dump_includes_inhibition_fields(
+        self, mock_yaml_dump, mock_file_open, mock_get_config, mock_get_env_config, 
+        sample_incident, mock_unified_config, mock_environment_config
+    ):
+        """Test that dump includes inhibition-related fields in YAML."""
+        mock_get_config.return_value = mock_unified_config
+        mock_get_env_config.return_value = mock_environment_config
+        mock_environment_config.incidents_path = "/test/incidents"
+        
+        sample_incident.frozen_by_inhibition = True
+        sample_incident.childs = ["child-1"]
+        sample_incident.parents = ["parent-1", "parent-2"]
+
+        with patch('app.incident.incident.incident_ws'):
+            sample_incident.dump()
+
+        # Check that yaml.dump was called with data containing inhibition fields
+        call_args = mock_yaml_dump.call_args
+        dumped_data = call_args[0][0]
+        
+        assert 'frozen_by_inhibition' in dumped_data
+        assert dumped_data['frozen_by_inhibition'] is True
+        assert 'childs' in dumped_data
+        assert dumped_data['childs'] == ["child-1"]
+        assert 'parents' in dumped_data
+        assert dumped_data['parents'] == ["parent-1", "parent-2"]
+
+    @patch('app.incident.incident.get_config')
+    @patch('builtins.open', new_callable=mock_open)
+    @patch('yaml.load')
+    def test_load_includes_inhibition_fields(
+        self, mock_yaml_load, mock_file_open, mock_get_config, 
+        incident_config, mock_unified_config
+    ):
+        """Test that load properly reads inhibition-related fields."""
+        mock_get_config.return_value = mock_unified_config
+
+        mock_incident_data = create_mock_incident_data()
+        mock_incident_data['frozen_by_inhibition'] = True
+        mock_incident_data['childs'] = ["child-1", "child-2"]
+        mock_incident_data['parents'] = ["parent-1"]
+        mock_yaml_load.return_value = mock_incident_data
+
+        incident = Incident.load('/test/incident.yml', incident_config)
+
+        assert incident.frozen_by_inhibition is True
+        assert incident.childs == ["child-1", "child-2"]
+        assert incident.parents == ["parent-1"]
+
+    @patch('app.incident.incident.get_config')
+    @patch('builtins.open', new_callable=mock_open)
+    @patch('yaml.load')
+    def test_load_without_inhibition_fields_uses_defaults(
+        self, mock_yaml_load, mock_file_open, mock_get_config, 
+        incident_config, mock_unified_config
+    ):
+        """Test that load uses defaults when inhibition fields are missing."""
+        mock_get_config.return_value = mock_unified_config
+
+        # Old incident data without inhibition fields
+        mock_incident_data = create_mock_incident_data()
+        # Don't include frozen_by_inhibition, childs, or parents
+        mock_yaml_load.return_value = mock_incident_data
+
+        incident = Incident.load('/test/incident.yml', incident_config)
+
+        # Should use defaults
+        assert incident.frozen_by_inhibition is False
+        assert incident.childs == []
+        assert incident.parents == []
+
+    def test_default_inhibition_field_values(self, sample_incident):
+        """Test that inhibition fields have correct default values."""
+        assert sample_incident.frozen_by_inhibition is False
+        assert sample_incident.childs == []
+        assert sample_incident.parents == []
+        # Ensure they are mutable lists, not shared references
+        assert sample_incident.childs is not sample_incident.parents
+
+    def test_childs_and_parents_are_independent_lists(self, sample_incident):
+        """Test that childs and parents are independent mutable lists."""
+        # Modify one, ensure the other is unaffected
+        sample_incident.childs.append("child-1")
+        sample_incident.parents.append("parent-1")
+        
+        assert "child-1" in sample_incident.childs
+        assert "parent-1" in sample_incident.parents
+        assert "child-1" not in sample_incident.parents
+        assert "parent-1" not in sample_incident.childs

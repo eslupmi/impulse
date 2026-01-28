@@ -418,3 +418,97 @@ class TestUnfreezeHandler:
         assert mock_incidents.unfreeze_incident.call_count == 2
         assert mock_application.post_thread.call_count == 2
         assert mock_application.update_thread.call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_inhibition_unfreeze_skips_notification(self, unfreeze_handler, mock_incidents, 
+                                                          mock_application, mock_queue):
+        """Test that inhibition-based unfreeze skips posting notification."""
+        incident_uniq_id = 'incident123'
+
+        # Create incident frozen by inhibition (not time-based)
+        mock_incident = create_mock_incident_for_handlers(
+            uuid="test-uuid",
+            status="firing",
+            frozen_until=None,  # No time-based freeze
+            frozen_by_inhibition=True  # Frozen by inhibition
+        )
+        mock_incident.is_frozen = Mock(return_value=True)
+        mock_incident.channel_id = "C123456789"
+        mock_incident.ts = "1234567890.123456"
+        mock_incident.status_update_datetime = datetime.now(timezone.utc)
+
+        mock_incidents.uniq_ids = {incident_uniq_id: mock_incident}
+
+        await unfreeze_handler.handle(incident_uniq_id)
+
+        # Should call unfreeze_incident
+        mock_incidents.unfreeze_incident.assert_called_once_with(incident_uniq_id)
+
+        # Should NOT post notification for inhibition unfreeze
+        mock_application.post_thread.assert_not_called()
+
+        # Should still update thread and recreate queue
+        mock_queue.put_first.assert_called_once()
+        mock_queue.recreate.assert_called_once()
+        mock_queue.put.assert_called_once()
+        mock_application.update_thread.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_time_based_unfreeze_posts_notification(self, unfreeze_handler, mock_incidents, 
+                                                          mock_application, mock_queue):
+        """Test that time-based unfreeze posts notification."""
+        incident_uniq_id = 'incident123'
+
+        frozen_until = datetime.now(timezone.utc) + timedelta(hours=1)
+        mock_incident = create_mock_incident_for_handlers(
+            uuid="test-uuid",
+            status="firing",
+            frozen_until=frozen_until,
+            frozen_by_inhibition=False  # Not inhibition-based
+        )
+        mock_incident.is_frozen = Mock(return_value=True)
+        mock_incident.channel_id = "C123456789"
+        mock_incident.ts = "1234567890.123456"
+        mock_incident.status_update_datetime = datetime.now(timezone.utc)
+
+        mock_incidents.uniq_ids = {incident_uniq_id: mock_incident}
+
+        await unfreeze_handler.handle(incident_uniq_id)
+
+        # Should call unfreeze_incident
+        mock_incidents.unfreeze_incident.assert_called_once()
+
+        # Should post notification for time-based unfreeze
+        mock_application.post_thread.assert_called_once()
+
+        # Should update thread and recreate queue
+        mock_application.update_thread.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_both_freeze_types_inhibition_takes_precedence(self, unfreeze_handler, mock_incidents, 
+                                                                  mock_application, mock_queue):
+        """Test that when both freeze types are active, inhibition behavior takes precedence."""
+        incident_uniq_id = 'incident123'
+
+        frozen_until = datetime.now(timezone.utc) + timedelta(hours=1)
+        mock_incident = create_mock_incident_for_handlers(
+            uuid="test-uuid",
+            status="firing",
+            frozen_until=frozen_until,  # Has time-based freeze
+            frozen_by_inhibition=True   # Also has inhibition freeze
+        )
+        mock_incident.is_frozen = Mock(return_value=True)
+        mock_incident.channel_id = "C123456789"
+        mock_incident.ts = "1234567890.123456"
+        mock_incident.status_update_datetime = datetime.now(timezone.utc)
+
+        mock_incidents.uniq_ids = {incident_uniq_id: mock_incident}
+
+        await unfreeze_handler.handle(incident_uniq_id)
+
+        # Should NOT post notification (inhibition takes precedence)
+        mock_application.post_thread.assert_not_called()
+
+        # Should still unfreeze and update
+        mock_incidents.unfreeze_incident.assert_called_once()
+        mock_application.update_thread.assert_called_once()
