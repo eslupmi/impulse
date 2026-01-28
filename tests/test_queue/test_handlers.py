@@ -57,13 +57,22 @@ class TestAlertHandler:
         return create_mock_route()
 
     @pytest.fixture
-    def alert_handler(self, mock_queue, mock_application, mock_incidents, mock_route):
-        """Create AlertHandler instance for testing."""
-        return AlertHandler(mock_queue, mock_application, mock_incidents, mock_route)
+    def mock_inhibition_manager(self):
+        """Create mock inhibition manager."""
+        manager = Mock()
+        manager.process_incident = AsyncMock()
+        manager.handle_resolved = AsyncMock()
+        manager.handle_closed = AsyncMock()
+        return manager
 
-    def test_alert_handler_initialization(self, mock_queue, mock_application, mock_incidents, mock_route):
+    @pytest.fixture
+    def alert_handler(self, mock_queue, mock_application, mock_incidents, mock_route, mock_inhibition_manager):
+        """Create AlertHandler instance for testing."""
+        return AlertHandler(mock_queue, mock_application, mock_incidents, mock_route, mock_inhibition_manager)
+
+    def test_alert_handler_initialization(self, mock_queue, mock_application, mock_incidents, mock_route, mock_inhibition_manager):
         """Test AlertHandler initialization."""
-        handler = AlertHandler(mock_queue, mock_application, mock_incidents, mock_route)
+        handler = AlertHandler(mock_queue, mock_application, mock_incidents, mock_route, mock_inhibition_manager)
 
         assert handler.queue == mock_queue
         assert handler.app == mock_application
@@ -221,13 +230,22 @@ class TestStatusUpdateHandler:
         return create_mock_incidents_collection(include_get_method=False)
 
     @pytest.fixture
-    def status_update_handler(self, mock_queue, mock_application, mock_incidents):
-        """Create StatusUpdateHandler instance for testing."""
-        return StatusUpdateHandler(mock_queue, mock_application, mock_incidents)
+    def mock_inhibition_manager(self):
+        """Create mock inhibition manager."""
+        manager = Mock()
+        manager.process_incident = AsyncMock()
+        manager.handle_resolved = AsyncMock()
+        manager.handle_closed = AsyncMock()
+        return manager
 
-    def test_status_update_handler_initialization(self, mock_queue, mock_application, mock_incidents):
+    @pytest.fixture
+    def status_update_handler(self, mock_queue, mock_application, mock_incidents, mock_inhibition_manager):
+        """Create StatusUpdateHandler instance for testing."""
+        return StatusUpdateHandler(mock_queue, mock_application, mock_incidents, mock_inhibition_manager)
+
+    def test_status_update_handler_initialization(self, mock_queue, mock_application, mock_incidents, mock_inhibition_manager):
         """Test StatusUpdateHandler initialization."""
-        handler = StatusUpdateHandler(mock_queue, mock_application, mock_incidents)
+        handler = StatusUpdateHandler(mock_queue, mock_application, mock_incidents, mock_inhibition_manager)
 
         assert handler.queue == mock_queue
         assert handler.app == mock_application

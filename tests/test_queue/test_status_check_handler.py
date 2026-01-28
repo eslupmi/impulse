@@ -5,7 +5,7 @@ This module tests the StatusCheckHandler which checks incident status and perfor
 appropriate cleanup actions based on the incident's current state.
 """
 from datetime import datetime, timezone, timedelta
-from unittest.mock import Mock
+from unittest.mock import Mock, AsyncMock
 
 import pytest
 
@@ -37,14 +37,23 @@ class TestStatusCheckHandler:
         return create_mock_incidents_collection()
 
     @pytest.fixture
-    def status_check_handler(self, mock_queue, mock_application, mock_incidents):
+    def mock_inhibition_manager(self):
+        """Create mock inhibition manager."""
+        manager = Mock()
+        manager.process_incident = AsyncMock()
+        manager.handle_resolved = AsyncMock()
+        manager.handle_closed = AsyncMock()
+        return manager
+
+    @pytest.fixture
+    def status_check_handler(self, mock_queue, mock_application, mock_incidents, mock_inhibition_manager):
         """Create StatusCheckHandler instance for testing."""
-        return StatusCheckHandler(mock_queue, mock_application, mock_incidents)
+        return StatusCheckHandler(mock_queue, mock_application, mock_incidents, mock_inhibition_manager)
 
     @pytest.mark.asyncio
-    async def test_handler_initialization(self, mock_queue, mock_application, mock_incidents):
+    async def test_handler_initialization(self, mock_queue, mock_application, mock_incidents, mock_inhibition_manager):
         """Test StatusCheckHandler initialization."""
-        handler = StatusCheckHandler(mock_queue, mock_application, mock_incidents)
+        handler = StatusCheckHandler(mock_queue, mock_application, mock_incidents, mock_inhibition_manager)
 
         assert handler.queue == mock_queue
         assert handler.app == mock_application

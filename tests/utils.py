@@ -585,6 +585,7 @@ def create_mock_incident_for_handlers(
         chain_enabled: bool = True,
         status_enabled: bool = True,
         frozen_until: Optional[datetime] = None,
+        frozen_by_inhibition: bool = False,
         update_state_return: tuple = (True, True),
         update_status_return: bool = True
 ) -> Mock:
@@ -601,6 +602,7 @@ def create_mock_incident_for_handlers(
         chain_enabled: Whether chain is enabled
         status_enabled: Whether status updates are enabled
         frozen_until: Freeze expiration datetime
+        frozen_by_inhibition: Whether frozen by inhibition rule
         update_state_return: Return value for update_state method
         update_status_return: Return value for update_status method
         
@@ -622,6 +624,7 @@ def create_mock_incident_for_handlers(
     incident.chain_enabled = chain_enabled
     incident.status_enabled = status_enabled
     incident.frozen_until = frozen_until
+    incident.frozen_by_inhibition = frozen_by_inhibition
     incident.status_update_datetime = create_test_datetime()
     incident.next_status = {
         'firing': 'unknown',
