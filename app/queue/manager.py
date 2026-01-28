@@ -16,7 +16,7 @@ class AsyncQueueManager:
     AsyncQueueManager class is responsible for handling the queue items asynchronously.
     """
     
-    def __init__(self, queue, application, incidents, webhooks, route_):
+    def __init__(self, queue, application, incidents, webhooks, route_, inhibition_manager):
         """
         Initialize AsyncQueueManager object.
 
@@ -25,15 +25,17 @@ class AsyncQueueManager:
         :param incidents: Incidents object.
         :param webhooks: Webhooks object.
         :param route_: Route object
+        :param inhibition_manager: InhibitionManager object for inhibition rule handling
         """
         self.queue = queue
         self.application = application
         self.incidents = incidents
+        self.inhibition_manager = inhibition_manager
         self.step_handler = StepHandler(self.queue, application, incidents, webhooks)
-        self.status_update_handler = StatusUpdateHandler(self.queue, application, incidents)
-        self.status_check_handler = StatusCheckHandler(self.queue, application, incidents)
+        self.status_update_handler = StatusUpdateHandler(self.queue, application, incidents, inhibition_manager)
+        self.status_check_handler = StatusCheckHandler(self.queue, application, incidents, inhibition_manager)
         self.message_update_handler = MessageUpdateHandler(self.queue, application, incidents)
-        self.alert_handler = AlertHandler(self.queue, application, incidents, route_)
+        self.alert_handler = AlertHandler(self.queue, application, incidents, route_, inhibition_manager)
         self.unfreeze_handler = UnfreezeHandler(self.queue, application, incidents)
         self.user_update_handler = UserUpdateHandler(self.queue, application, incidents)
         self._running = False

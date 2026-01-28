@@ -18,6 +18,7 @@ from app.im.channel_manager import ChannelManager
 from app.im.helpers import get_application
 from app.im.user_store import UserUpdateScheduler
 from app.incident.incidents import Incidents
+from app.inhibition.manager import InhibitionManager
 from app.logging import logger, configure_uvicorn_logging, configure_aiohttp_logging, configure_warnings_logging
 from app.metrics import STATUS, generate_metrics_response
 from app.middleware import StandbyMiddleware, is_standby_mode, service_unavailable_response
@@ -29,8 +30,12 @@ from app.ui.websocket import incident_ws
 from app.webhook import generate_webhooks
 
 
-def setup_sighup_handler():
-    """Setup only SIGHUP signal handler for configuration reloading, preserving other Uvicorn handlers"""
+def setup_sighup_handler(fastapi_app=None):
+    """Setup only SIGHUP signal handler for configuration reloading, preserving other Uvicorn handlers
+    
+    Args:
+        fastapi_app: Optional FastAPI app instance for reloading component configurations
+    """
 
     def handle_sighup(signum, frame):
         """Handle SIGHUP signal to reload configuration"""
@@ -39,6 +44,10 @@ def setup_sighup_handler():
             success = reload_config()
             if success:
                 logger.info("Configuration reloaded")
+                
+                if fastapi_app and fastapi_app.state.inhibition_manager:
+                    config_data = get_config()
+                    fastapi_app.state.inhibition_manager.reload_rules(config_data.app.inhibit_rules or [])
         except Exception as e:
             logger.error("Configuration reload error", extra={'error': str(e)})
             logger.warning("Configuration reload aborted")
@@ -99,10 +108,19 @@ async def initialize_primary_server(fastapi_app: FastAPI, file_lock: FileLock) -
         incidents = Incidents.create_or_load(messenger.type, messenger.public_url, messenger.team)
 
         queue = await AsyncQueue.recreate_queue(incidents)
+        
+        inhibition_manager = InhibitionManager(
+            rules=config_data.app.inhibit_rules or [],
+            incidents=incidents,
+            application=messenger,
+            queue=queue
+        )
+        inhibition_manager.restore_from_incidents()
+
         user_scheduler = UserUpdateScheduler(queue, messenger.type.value)
         messenger.configure_scheduler(user_scheduler)
         await user_scheduler.schedule_all_stored()
-        queue_manager = AsyncQueueManager(queue, messenger, incidents, webhooks, route)
+        queue_manager = AsyncQueueManager(queue, messenger, incidents, webhooks, route, inhibition_manager)
 
         fastapi_app.state.queue = queue
         fastapi_app.state.queue_manager = queue_manager
@@ -112,6 +130,7 @@ async def initialize_primary_server(fastapi_app: FastAPI, file_lock: FileLock) -
         fastapi_app.state.route = route
         fastapi_app.state.channel_manager = channel_manager
         fastapi_app.state.config = config_data
+        fastapi_app.state.inhibition_manager = inhibition_manager
 
         queue_manager.start_processing()
         fastapi_app.state.is_standby = False
@@ -136,6 +155,7 @@ async def lifespan(fastapi_app: FastAPI):
     fastapi_app.state.is_standby = locked
     fastapi_app.state.queue_manager = None
     fastapi_app.state.queue = AsyncQueue()
+    fastapi_app.state.inhibition_manager = None
     
     async def wait_and_become_primary():
         """Background task to wait for lock and become primary server."""
@@ -382,7 +402,7 @@ if __name__ == "__main__":
     if args.check:
         validate_config_only()
     else:
-        setup_sighup_handler()
+        setup_sighup_handler(app)
 
         import uvicorn
 

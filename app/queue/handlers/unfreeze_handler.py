@@ -29,18 +29,20 @@ class UnfreezeHandler(BaseHandler):
             logger.info(f'Incident {incident.uuid} is not frozen, skipping unfreeze')
             return
 
+        is_inhibition_unfreeze = incident.frozen_by_inhibition
         incident_status = incident.status
         self.incidents.unfreeze_incident(uniq_id)
         
-        header = self.app.header_template.form_message(incident.payload, incident)
-        text_template = JinjaTemplate(notification_unfreeze)
-        fields = {'type': self.app.type.value}
-        text = text_template.form_notification(fields)
-        if self.app.type.value == 'telegram':
-            message = text
-        else:
-            message = header + '\n' + text
-        await self.app.post_thread(incident.channel_id, incident.ts, message)
+        if not is_inhibition_unfreeze:
+            header = self.app.header_template.form_message(incident.payload, incident)
+            text_template = JinjaTemplate(notification_unfreeze)
+            fields = {'type': self.app.type.value}
+            text = text_template.form_notification(fields)
+            if self.app.type.value == 'telegram':
+                message = text
+            else:
+                message = header + '\n' + text
+            await self.app.post_thread(incident.channel_id, incident.ts, message)
         
         await self.queue.put_first(datetime.now(timezone.utc), QueueItemType.STATUS_CHECK, uniq_id)
         

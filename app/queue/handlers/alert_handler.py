@@ -18,12 +18,14 @@ class AlertHandler(BaseHandler):
     :param application: Application instance
     :param incidents: Incidents instance
     :param route: Route instance
+    :param inhibition_manager: InhibitionManager instance for inhibition rule handling
     """
-    __slots__ = ['queue', 'application', 'incidents', 'route']
+    __slots__ = ['queue', 'application', 'incidents', 'route', 'inhibition_manager']
 
-    def __init__(self, queue, application, incidents, route):
+    def __init__(self, queue, application, incidents, route, inhibition_manager):
         super().__init__(queue, application, incidents)
         self.route = route
+        self.inhibition_manager = inhibition_manager
 
     async def handle(self, alert_state):
         incident_ = self.incidents.get(alert=alert_state)
@@ -70,7 +72,7 @@ class AlertHandler(BaseHandler):
         logger.info("Incident created", extra={'uuid': incident_.uuid, 'link': incident_.link})
 
         self.incidents.add(incident_)
-
+        await self.inhibition_manager.process_incident(incident_)
         await self.queue.put(status_update_datetime, QueueItemType.UPDATE_STATUS, incident_.uniq_id)
 
         incident_.generate_chain(self.app.chains, chain_name)
@@ -100,6 +102,11 @@ class AlertHandler(BaseHandler):
         if config.incident.notifications.partial_resolved:
             is_some_firing_alerts_removed = incident_.is_some_firing_alerts_removed(alert_state)
         is_status_updated, is_state_updated = incident_.update_state(alert_state)
+
+        if incident_.status == 'resolved':
+            await self.inhibition_manager.handle_resolved(incident_)
+        elif incident_.status == 'firing' and prev_status != 'firing':
+            await self.inhibition_manager.process_incident(incident_)
 
         if is_state_updated or is_status_updated:
             await self.app.update(

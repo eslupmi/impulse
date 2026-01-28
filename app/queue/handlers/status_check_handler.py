@@ -10,6 +10,10 @@ class StatusCheckHandler(BaseHandler):
     - Removes from active map when appropriate
     """
 
+    def __init__(self, queue, application, incidents, inhibition_manager):
+        super().__init__(queue, application, incidents)
+        self.inhibition_manager = inhibition_manager
+
     async def handle(self, uniq_id: str):
         """
         Check incident status and perform appropriate actions
@@ -27,8 +31,8 @@ class StatusCheckHandler(BaseHandler):
             logger.debug("Incident frozen, skipping actions", extra={'uuid': incident.uuid})
             return
 
-        # Handle deleted status - full deletion
         if incident.status == 'deleted':
+            await self.inhibition_manager.handle_closed(incident)
             logger.debug("Removing incident", extra={'uuid': incident.uuid})
             self.incidents.del_by_uniq_id(uniq_id)
             return

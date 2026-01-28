@@ -50,6 +50,9 @@ class Incident:
     task_creation_in_progress: bool = False
     closed: Optional[datetime] = field(default=None)
     frozen_until: Optional[datetime] = field(default=None)
+    frozen_by_inhibition: bool = False
+    childs: List[str] = field(default_factory=list)  # Target incident uniq_ids that this incident inhibits
+    parents: List[str] = field(default_factory=list)  # Source incident uniq_ids that inhibit this incident
 
     next_status = {
         'firing': 'unknown',
@@ -178,15 +181,23 @@ class Incident:
         logger.info("Incident frozen", extra={'uuid': self.uuid, 'frozen_until': until})
 
     def unfreeze(self):
-        """Unfreeze the incident and re-enable chains (underlying status is already correct)"""
+        """Unfreeze the incident from all freeze types (time-based and inhibition)"""
         self.frozen_until = None
+        self.frozen_by_inhibition = False
         self.chain_enabled = False
         logger.info("Incident unfrozen", extra={'uuid': self.uuid})
         self.dump()
 
+    def freeze_by_inhibition(self):
+        """Freeze the incident due to inhibition (no assignee, no expiration time)"""
+        self.frozen_by_inhibition = True
+        self.chain_enabled = False
+        self.dump()
+        logger.info("Incident frozen by inhibition", extra={'uuid': self.uuid})
+
     def is_frozen(self) -> bool:
-        """Check if the incident is currently frozen"""
-        return self.frozen_until is not None
+        """Check if the incident is currently frozen (by time-based freeze or inhibition)"""
+        return self.frozen_by_inhibition or self.frozen_until is not None
 
     def get_chain(self) -> List[Dict]:
         if not self.chain_enabled:
@@ -231,6 +242,9 @@ class Incident:
             uniq_id=content.get('uniq_id', ''),
             version=content.get('version', config.INCIDENT_ACTUAL_VERSION),
             frozen_until=content.get('frozen_until', None),
+            frozen_by_inhibition=content.get('frozen_by_inhibition', False),
+            childs=content.get('childs', []),
+            parents=content.get('parents', []),
         )
         incident_.set_thread(content.get('ts'), incident_config.application_url)
         incident_.task_link = content.get('task_link', '')
@@ -275,6 +289,9 @@ class Incident:
             "version": self.version,
             "task_link": self.task_link,
             "frozen_until": self.frozen_until,
+            "frozen_by_inhibition": self.frozen_by_inhibition,
+            "childs": self.childs,
+            "parents": self.parents,
         }
         try:
             incident_filename = self.get_current_filename()
@@ -315,6 +332,9 @@ class Incident:
             "uuid": self.uuid,
             "uniq_id": self.uniq_id,
             "frozen_until": self.frozen_until,
+            "frozen_by_inhibition": self.frozen_by_inhibition,
+            "childs": self.childs,
+            "parents": self.parents,
         }
 
     def get_table_data(self, params) -> Dict:
