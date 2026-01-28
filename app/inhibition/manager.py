@@ -161,7 +161,7 @@ class InhibitionManager:
             incident_is_target: If True, incident is target and candidates are sources;
                                if False, incident is source and candidates are targets
         """
-        for candidate_uniq_id in list(candidates):
+        for candidate_uniq_id in candidates:
             if candidate_uniq_id == incident.uniq_id:
                 continue
             
