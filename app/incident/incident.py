@@ -182,16 +182,17 @@ class Incident:
 
     def unfreeze(self):
         """Unfreeze the incident from all freeze types (time-based and inhibition)"""
+        is_inhibition_unfreeze = self.frozen_by_inhibition
         self.frozen_until = None
         self.frozen_by_inhibition = False
-        self.chain_enabled = False
+        if not is_inhibition_unfreeze:
+            self.chain_enabled = False
         logger.info("Incident unfrozen", extra={'uuid': self.uuid})
         self.dump()
 
     def freeze_by_inhibition(self):
         """Freeze the incident due to inhibition (no assignee, no expiration time)"""
         self.frozen_by_inhibition = True
-        self.chain_enabled = False
         self.dump()
         logger.info("Incident frozen by inhibition", extra={'uuid': self.uuid})
 
