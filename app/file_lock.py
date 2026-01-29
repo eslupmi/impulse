@@ -24,7 +24,7 @@ class FileLock:
     HEARTBEAT_SEC = 6
     STALE_SEC = 18
     MAX_HEARTBEAT_FAILURES = 3
-    BOOT_ID_PATH = Path("/proc/sys/kernel/random/boot_id")
+    BOOT_ID_FILE_PATH = Path("/proc/sys/kernel/random/boot_id")
 
     def __init__(self):
         env_config = get_environment_config()
@@ -42,7 +42,7 @@ class FileLock:
 
     def _get_boot_id(self) -> str:
         try:
-            return self.BOOT_ID_PATH.read_text().strip()
+            return self.BOOT_ID_FILE_PATH.read_text().strip()
         except (FileNotFoundError, OSError, IOError):
             return "None"
 

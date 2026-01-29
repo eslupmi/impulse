@@ -903,45 +903,47 @@ class TestFileLockIsProcessRunning:
     def test_is_process_running_returns_true_for_running_process(self):
         """Test _is_process_running returns True for running process."""
         with patch('app.file_lock.get_environment_config') as mock_get_env_config, \
-             patch('app.file_lock.os.kill') as mock_kill:
+             patch('app.file_lock.Path') as mock_path:
             
             mock_config = Mock()
             mock_config.data_path = "/test/data"
             mock_get_env_config.return_value = mock_config
+            mock_path.return_value.exists.return_value = True
 
             file_lock = FileLock()
             result = file_lock._is_process_running(12345)
 
             assert result is True
-            mock_kill.assert_called_once_with(12345, 0)
+            mock_path.assert_called_with("/proc/12345")
 
     def test_is_process_running_returns_false_for_dead_process(self):
         """Test _is_process_running returns False for dead process."""
         with patch('app.file_lock.get_environment_config') as mock_get_env_config, \
-             patch('app.file_lock.os.kill', side_effect=ProcessLookupError()):
+             patch('app.file_lock.Path') as mock_path:
             
             mock_config = Mock()
             mock_config.data_path = "/test/data"
             mock_get_env_config.return_value = mock_config
+            mock_path.return_value.exists.return_value = False
 
             file_lock = FileLock()
             result = file_lock._is_process_running(99999)
 
             assert result is False
 
-    def test_is_process_running_returns_false_on_permission_error(self):
-        """Test _is_process_running returns False on OSError."""
+    def test_is_process_running_raises_on_permission_error(self):
+        """Test _is_process_running raises OSError on permission error."""
         with patch('app.file_lock.get_environment_config') as mock_get_env_config, \
-             patch('app.file_lock.os.kill', side_effect=OSError("No such process")):
+             patch('app.file_lock.Path') as mock_path:
             
             mock_config = Mock()
             mock_config.data_path = "/test/data"
             mock_get_env_config.return_value = mock_config
+            mock_path.return_value.exists.side_effect = OSError("Permission denied")
 
             file_lock = FileLock()
-            result = file_lock._is_process_running(99999)
-
-            assert result is False
+            with pytest.raises(OSError):
+                file_lock._is_process_running(99999)
 
 
 class TestFileLockGetBootId:
