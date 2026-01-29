@@ -43,7 +43,7 @@ class FileLock:
     def _get_boot_id(self) -> str:
         try:
             return self.BOOT_ID_FILE_PATH.read_text().strip()
-        except (FileNotFoundError, OSError, IOError):
+        except (OSError, IOError):
             return "None"
 
     def _is_process_running(self, pid: int) -> bool:
@@ -71,7 +71,7 @@ class FileLock:
             
             logger.debug(f"Previous master (PID {stored_pid}) on same host/boot is dead, taking over")
             return True
-        except (FileNotFoundError, ValueError, OSError, IOError):
+        except (ValueError, OSError, IOError):
             return False
 
     def _cleanup_stale_lock(self):
