@@ -4,6 +4,15 @@
 # Should not be changed until IMPulse supports multiple replicas
 # replicaCount: 1
 
+# Deployment strategy
+# Use "Recreate" to kill all existing pods before creating new ones
+# Use "RollingUpdate" for zero-downtime deployments (default)
+strategy:
+  type: RollingUpdate
+  # rollingUpdate:
+  #   maxSurge: 1
+  #   maxUnavailable: 0
+
 image:
   repository: ghcr.io/eslupmi/impulse
   pullPolicy: IfNotPresent
