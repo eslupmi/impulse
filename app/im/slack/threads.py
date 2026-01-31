@@ -6,7 +6,8 @@ from app.im.slack.config import buttons
 from app.time import format_freeze_expiration
 
 
-def build_slack_actions(chain_enabled, status, frozen_until=None, task_link='', user_timezone='UTC'):
+def build_slack_actions(chain_enabled, status, frozen_until=None, task_link='', user_timezone='UTC',
+                        frozen_by_inhibition=False):
     """
     Build the action buttons list for Slack messages.
     
@@ -15,6 +16,8 @@ def build_slack_actions(chain_enabled, status, frozen_until=None, task_link='', 
         status: Current incident status
         frozen_until: Datetime when freeze expires (None if not frozen)
         task_link: Optional task link (if task exists)
+        user_timezone: User's timezone for formatting
+        frozen_by_inhibition: Whether incident is frozen by inhibition rule
         
     Returns:
         List of action button configurations
@@ -32,7 +35,15 @@ def build_slack_actions(chain_enabled, status, frozen_until=None, task_link='', 
         }
     ]
     
-    if frozen_until:
+    if frozen_by_inhibition:
+        # Frozen by inhibition - show static button (no unfreeze option)
+        actions.append({
+            "name": 'freeze',
+            "type": 'button',
+            "text": buttons['freeze']['inhibited']['text'],
+            "style": buttons['freeze']['inhibited']['style'],
+        })
+    elif frozen_until:
         freeze_text = format_freeze_expiration(frozen_until, user_timezone)
         actions.append({
             "name": 'freeze',
@@ -66,9 +77,9 @@ def build_slack_actions(chain_enabled, status, frozen_until=None, task_link='', 
 
 
 def slack_get_update_payload(channel_id, ts, body, header, status_icons, status, chain_enabled=True,
-                             frozen_until=None, task_link='', user_timezone='UTC'):
-    actions = build_slack_actions(chain_enabled, status, frozen_until, task_link, user_timezone)
-    display_status = 'frozen' if frozen_until else status
+                             frozen_until=None, task_link='', user_timezone='UTC', frozen_by_inhibition=False):
+    actions = build_slack_actions(chain_enabled, status, frozen_until, task_link, user_timezone, frozen_by_inhibition)
+    display_status = 'frozen' if (frozen_until or frozen_by_inhibition) else status
     
     payload = {
         'channel': channel_id,

@@ -66,13 +66,22 @@ class AlertHandler(BaseHandler):
             messenger_type=self.app.type.value,
             version=config.INCIDENT_ACTUAL_VERSION
         )
-        await self._create_thread(incident_, alert_state)
-        incident_.dump()
 
-        logger.info("Incident created", extra={'uuid': incident_.uuid, 'link': incident_.link})
-
+        # Check inhibition before creating thread in messenger
         self.incidents.add(incident_)
-        await self.inhibition_manager.process_incident(incident_)
+        will_be_inhibited = self.inhibition_manager.would_be_inhibited(incident_)
+
+        if will_be_inhibited:
+            # Process inhibition first (this will freeze the incident)
+            await self.inhibition_manager.process_incident(incident_)
+            incident_.dump()
+            logger.info("Incident created (inhibited, not posted to messenger)", extra={'uuid': incident_.uuid})
+        else:
+            await self._create_thread(incident_, alert_state)
+            await self.inhibition_manager.process_incident(incident_)
+            incident_.dump()
+            logger.info("Incident created", extra={'uuid': incident_.uuid, 'link': incident_.link})
+
         await self.queue.put(status_update_datetime, QueueItemType.UPDATE_STATUS, incident_.uniq_id)
 
         incident_.generate_chain(self.app.chains, chain_name)
@@ -107,6 +116,12 @@ class AlertHandler(BaseHandler):
             await self.inhibition_manager.handle_resolved(incident_)
         elif incident_.status == 'firing' and prev_status != 'firing':
             await self.inhibition_manager.process_incident(incident_)
+
+        # Create thread if incident was previously inhibited (no thread) and is now not frozen
+        if not incident_.ts and not incident_.is_frozen():
+            await self._create_thread(incident_, alert_state)
+            incident_.dump()
+            logger.info("Thread created for previously inhibited incident", extra={'uuid': incident_.uuid, 'link': incident_.link})
 
         if is_state_updated or is_status_updated:
             await self.app.update(

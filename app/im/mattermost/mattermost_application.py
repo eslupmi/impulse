@@ -220,9 +220,9 @@ class MattermostApplication(Application):
         return {'channel_id': channel_id, 'root_id': id_, 'message': text}
 
     def update_thread_payload(self, channel_id, id_, body, header, status_icons, status, chain_enabled,
-                              frozen_until, task_link=''):
+                              frozen_until, task_link='', frozen_by_inhibition=False):
         return mattermost_get_update_payload(channel_id, id_, body, header, status_icons, status, chain_enabled,
-                                             frozen_until, task_link)
+                                             frozen_until, task_link, frozen_by_inhibition)
 
     async def _update_thread(self, id_, payload):
         response = await self.http.put(

@@ -17,6 +17,10 @@ buttons = {
             'text': 'Freeze',
             'callback_data': 'freeze_menu'
         },
+        'inhibited': {
+            'text': '❄️ Inhibited',
+            'callback_data': 'noop'
+        },
         'options': [
             {'text': 'Tomorrow', 'callback_data': 'freeze_tomorrow'},
             {'text': 'Next Monday', 'callback_data': 'freeze_next_monday'},

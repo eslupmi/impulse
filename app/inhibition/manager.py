@@ -102,6 +102,36 @@ class InhibitionManager:
                    extra={'sources_count': sum(len(s) for s in self.sources.values()),
                          'targets_count': sum(len(t) for t in self.targets.values())})
     
+    def would_be_inhibited(self, incident: 'Incident') -> bool:
+        """Check if an incident would be inhibited by existing sources.
+        
+        This method checks if there are any active source incidents that would
+        cause this incident to be frozen. Used to determine if a thread should
+        be created in the messenger.
+        
+        Args:
+            incident: The incident to check
+            
+        Returns:
+            True if the incident would be inhibited, False otherwise
+        """
+        if not self.rules:
+            return False
+        
+        for rule_idx, rule in enumerate(self.rules):
+            if not rule.is_target(incident):
+                continue
+            
+            for source_uniq_id in self.sources[rule_idx]:
+                source = self.incidents.uniq_ids.get(source_uniq_id)
+                if not source:
+                    continue
+                
+                if rule.equal_labels_match(source, incident):
+                    return True
+        
+        return False
+
     async def process_incident(self, incident: 'Incident'):
         """Process a new or updated incident against all rules.
         
@@ -307,8 +337,10 @@ class InhibitionManager:
                 status_icons,
                 target.chain_enabled,
                 target.frozen_until,
-                target.task_link
+                target.task_link,
+                frozen_by_inhibition=True
             )
+            logger.info("Updated target thread to show inhibition", extra={'uuid': target.uuid})
         except Exception as e:
             logger.error("Failed to update target thread",
                         extra={'uuid': target.uuid, 'error': str(e)})

@@ -21,6 +21,10 @@ buttons = {
             'text': 'Freeze',
             'style': 'normal'
         },
+        'inhibited': {
+            'text': ':snowflake: Inhibited',
+            'style': 'normal'
+        },
         'options': [
             {'text': 'Tomorrow', 'value': 'tomorrow'},
             {'text': 'Next Monday', 'value': 'next_monday'},

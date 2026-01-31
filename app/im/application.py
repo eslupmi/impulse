@@ -460,9 +460,9 @@ class Application(ABC):
         return response_json.get(self.thread_id_key)
 
     async def update_thread(self, channel_id, id_, status, body, header, status_icons, chain_enabled=True,
-                            frozen_until=None, task_link=''):
+                            frozen_until=None, task_link='', frozen_by_inhibition=False):
         payload = self.update_thread_payload(channel_id, id_, body, header, status_icons, status, chain_enabled,
-                                             frozen_until, task_link)
+                                             frozen_until, task_link, frozen_by_inhibition)
         await self._update_thread(id_, payload)
 
     async def post_thread(self, channel_id, id_, text):
@@ -543,7 +543,7 @@ class Application(ABC):
         pass
 
     @abstractmethod
-    def update_thread_payload(self, channel_id, id_, body, header, status_icons, status, chain_enabled, frozen_until, task_link=''):
+    def update_thread_payload(self, channel_id, id_, body, header, status_icons, status, chain_enabled, frozen_until, task_link='', frozen_by_inhibition=False):
         pass
 
     @abstractmethod

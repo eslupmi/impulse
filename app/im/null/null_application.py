@@ -87,7 +87,7 @@ class NullApplication(Application):
         return {}
 
     def update_thread_payload(self, channel_id, id_, body, header, status_icons, status, chain_enabled, frozen_until,
-                              task_link=''):
+                              task_link='', frozen_by_inhibition=False):
         """Return empty payload"""
         return {}
 

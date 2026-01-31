@@ -30,8 +30,16 @@ class UnfreezeHandler(BaseHandler):
             return
 
         is_inhibition_unfreeze = incident.frozen_by_inhibition
+        has_thread = bool(incident.ts)
         incident_status = incident.status
         self.incidents.unfreeze_incident(uniq_id)
+        
+        if not has_thread:
+            logger.debug("Incident has no thread, skipping all messenger operations", extra={'uuid': incident.uuid})
+            await self.queue.put_first(datetime.now(timezone.utc), QueueItemType.STATUS_CHECK, uniq_id)
+            if incident_status != 'deleted':
+                await self.queue.put(incident.status_update_datetime, QueueItemType.UPDATE_STATUS, uniq_id)
+            return
         
         if not is_inhibition_unfreeze:
             header = self.app.header_template.form_message(incident.payload, incident)

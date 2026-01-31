@@ -231,9 +231,9 @@ class SlackApplication(Application):
         return {'channel': channel_id, 'thread_ts': id_, 'text': text, 'unfurl_links': False, 'unfurl_media': False}
 
     def update_thread_payload(self, channel_id, id_, body, header, status_icons, status, chain_enabled,
-                              frozen_until, task_link=''):
+                              frozen_until, task_link='', frozen_by_inhibition=False):
         return slack_get_update_payload(channel_id, id_, body, header, status_icons, status, chain_enabled,
-                                        frozen_until, task_link)
+                                        frozen_until, task_link, frozen_by_inhibition)
 
     async def _update_thread(self, id_, payload):
         response = await self.http.post(

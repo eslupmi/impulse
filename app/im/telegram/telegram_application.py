@@ -260,10 +260,10 @@ class TelegramApplication(Application):
         }
 
     async def update_thread(self, channel_id, id_, status, body, header, status_icons, chain_enabled=True,
-                      frozen_until=None, task_link=''):
+                      frozen_until=None, task_link='', frozen_by_inhibition=False):
         await self._update_topic(channel_id, id_, header, status_icons)
         payload = self.update_thread_payload(channel_id, id_, body, header, status_icons, status, chain_enabled,
-                                             frozen_until, task_link)
+                                             frozen_until, task_link, frozen_by_inhibition=frozen_by_inhibition)
         await self._update_thread(id_, payload)
 
     async def _update_topic(self, channel_id, id_, header, status_icons):
@@ -293,14 +293,16 @@ class TelegramApplication(Application):
         keyboard.append([buttons['freeze']['options'][-1]])
         return keyboard
 
-    def _build_main_keyboard(self, status, chain_enabled, frozen_until, task_link):
+    def _build_main_keyboard(self, status, chain_enabled, frozen_until, task_link, frozen_by_inhibition=False):
         """Build main keyboard with chain, freeze, and task buttons"""
         config_obj = get_config()
         env_config = get_environment_config()
         
         chain_button = buttons['chain']['takeit'] if chain_enabled or status != 'resolved' else buttons['chain']['release']
         
-        if frozen_until:
+        if frozen_by_inhibition:
+            freeze_button = buttons['freeze']['inhibited']
+        elif frozen_until:
             telegram_tz = config_obj.app.general.timezone
             freeze_text = format_freeze_expiration(frozen_until, telegram_tz)
             freeze_button = {'text': freeze_text, 'callback_data': 'freeze_menu'}
@@ -315,10 +317,10 @@ class TelegramApplication(Application):
         return [keyboard_row]
 
     def update_thread_payload(self, channel_id, id_, body, header, status_icons, status, chain_enabled,
-                              frozen_until, task_link='', show_freeze_menu=False):
+                              frozen_until, task_link='', show_freeze_menu=False, frozen_by_inhibition=False):
         _, message_id = id_.split('/')
 
-        keyboard = self._build_freeze_menu_keyboard() if show_freeze_menu else self._build_main_keyboard(status, chain_enabled, frozen_until, task_link)
+        keyboard = self._build_freeze_menu_keyboard() if show_freeze_menu else self._build_main_keyboard(status, chain_enabled, frozen_until, task_link, frozen_by_inhibition)
 
         return {
             'chat_id': channel_id,

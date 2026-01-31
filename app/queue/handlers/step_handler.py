@@ -22,6 +22,15 @@ class StepHandler(BaseHandler):
 
     async def handle(self, uniq_id, identifier):
         incident = self.incidents.uniq_ids[uniq_id]
+
+        if incident.is_frozen():
+            logger.debug("Incident frozen, skipping chain step", extra={'uuid': incident.uuid})
+            return
+
+        if not incident.ts:
+            logger.debug("Incident has no thread, skipping chain step", extra={'uuid': incident.uuid})
+            return
+
         step = incident.chain[identifier]
         if step['type'] == 'webhook':
             webhook_name = step['identifier']
