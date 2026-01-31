@@ -116,7 +116,7 @@ class NullApplication(Application):
         return 200
 
     async def update_thread(self, channel_id, id_, status, body, header, status_icons, chain_enabled=True,
-                            status_enabled=True, task_link=''):
+                            frozen_until=None, task_link='', frozen_by_inhibition=False):
         """No thread updating for null application"""
         pass
 

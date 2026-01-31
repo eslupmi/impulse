@@ -94,34 +94,15 @@ class AlertHandler(BaseHandler):
             logger.debug("Ignoring alert for frozen incident", extra={'uuid': uuid_})
             return
 
-        is_new_firing_alerts_added = False
-        is_some_firing_alerts_removed = False
         prev_status = incident_.status
-
-        # Generate chain from scratch if incident chain is empty
-        if prev_status == 'resolved' and incident_.chain_enabled and incident_.chain == []:
-            _, chain_name = self.route.get_route(alert_state)
-            incident_.generate_chain(self.app.chains, chain_name)
-            
+        self._regenerate_chain_if_needed(incident_, alert_state, prev_status)
         await self.queue.recreate(alert_state.get('status'), incident_.uniq_id, incident_.get_chain())
 
-        # Check new alerts firing or old alerts resolved
-        if config.incident.notifications.new_firing:
-            is_new_firing_alerts_added = incident_.is_new_firing_alerts_added(alert_state)
-        if config.incident.notifications.partial_resolved:
-            is_some_firing_alerts_removed = incident_.is_some_firing_alerts_removed(alert_state)
+        is_new_firing_alerts_added, is_some_firing_alerts_removed = self._check_alert_changes(config, incident_, alert_state)
         is_status_updated, is_state_updated = incident_.update_state(alert_state)
 
-        if incident_.status == 'resolved':
-            await self.inhibition_manager.handle_resolved(incident_)
-        elif incident_.status == 'firing' and prev_status != 'firing':
-            await self.inhibition_manager.process_incident(incident_)
-
-        # Create thread if incident was previously inhibited (no thread) and is now not frozen
-        if not incident_.ts and not incident_.is_frozen():
-            await self._create_thread(incident_, alert_state)
-            incident_.dump()
-            logger.info("Thread created for previously inhibited incident", extra={'uuid': incident_.uuid, 'link': incident_.link})
+        await self._handle_inhibition_state_change(incident_, prev_status)
+        await self._create_thread_if_needed(incident_, alert_state)
 
         if is_state_updated or is_status_updated:
             await self.app.update(
@@ -129,9 +110,36 @@ class AlertHandler(BaseHandler):
                 incident_.chain_enabled, incident_.frozen_until, incident_.task_link
             )
 
-        if prev_status == 'firing' and incident_.status == 'firing' and (is_new_firing_alerts_added or is_some_firing_alerts_removed) and not incident_.is_frozen():
+        should_notify = prev_status == 'firing' and incident_.status == 'firing' and not incident_.is_frozen()
+        if should_notify and (is_new_firing_alerts_added or is_some_firing_alerts_removed):
             await self._notify_new_fire_alert(incident_, is_new_firing_alerts_added, is_some_firing_alerts_removed, uuid_)
         await self.queue.update(incident_.uniq_id, incident_.status_update_datetime, incident_.status)
+
+    def _regenerate_chain_if_needed(self, incident_, alert_state, prev_status):
+        """Generate chain from scratch if incident chain is empty and was resolved."""
+        if prev_status == 'resolved' and incident_.chain_enabled and incident_.chain == []:
+            _, chain_name = self.route.get_route(alert_state)
+            incident_.generate_chain(self.app.chains, chain_name)
+
+    def _check_alert_changes(self, config, incident_, alert_state):
+        """Check if new alerts are firing or some alerts resolved."""
+        is_new_firing = config.incident.notifications.new_firing and incident_.is_new_firing_alerts_added(alert_state)
+        is_some_resolved = config.incident.notifications.partial_resolved and incident_.is_some_firing_alerts_removed(alert_state)
+        return is_new_firing, is_some_resolved
+
+    async def _handle_inhibition_state_change(self, incident_, prev_status):
+        """Handle inhibition manager updates based on status change."""
+        if incident_.status == 'resolved':
+            await self.inhibition_manager.handle_resolved(incident_)
+        elif incident_.status == 'firing' and prev_status != 'firing':
+            await self.inhibition_manager.process_incident(incident_)
+
+    async def _create_thread_if_needed(self, incident_, alert_state):
+        """Create thread if incident was previously inhibited (no thread) and is now not frozen."""
+        if not incident_.ts and not incident_.is_frozen():
+            await self._create_thread(incident_, alert_state)
+            incident_.dump()
+            logger.info("Thread created for previously inhibited incident", extra={'uuid': incident_.uuid, 'link': incident_.link})
 
     async def _notify_new_fire_alert(self, incident_, new_alerts_f, new_alerts_r, uuid_):
         """
