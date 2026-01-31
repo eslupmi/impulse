@@ -461,6 +461,7 @@ class TestStepHandler:
             {'type': 'webhook', 'identifier': 'test-webhook', 'done': False}
         ]
         mock_incident.chain_update = Mock()
+        mock_incident.is_frozen.return_value = False
         mock_incidents.uniq_ids = {incident_uniq_id: mock_incident}
 
         # Mock webhook
@@ -491,6 +492,7 @@ class TestStepHandler:
             {'type': 'webhook', 'identifier': 'undefined-webhook', 'done': False}
         ]
         mock_incident.chain_update = Mock()
+        mock_incident.is_frozen.return_value = False
         mock_incidents.uniq_ids = {incident_uniq_id: mock_incident}
 
         # Mock undefined webhook
@@ -518,6 +520,7 @@ class TestStepHandler:
             {'type': 'user', 'identifier': 'testuser', 'done': False}
         ]
         mock_incident.chain_update = Mock()
+        mock_incident.is_frozen.return_value = False
         mock_incidents.uniq_ids = {incident_uniq_id: mock_incident}
 
         await step_handler.handle(incident_uniq_id, identifier)

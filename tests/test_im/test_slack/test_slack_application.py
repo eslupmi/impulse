@@ -240,11 +240,11 @@ class TestSlackApplication:
             mock_payload.return_value = {"test": "update_payload"}
 
             result = app.update_thread_payload("C123456789", "1234567890.123456", "body", "header", "icons", "firing",
-                                               True, None, "")
+                                               True, None, "", False)
 
             assert result == {"test": "update_payload"}
             mock_payload.assert_called_once_with("C123456789", "1234567890.123456", "body", "header", "icons", "firing",
-                                                 True, None, "")
+                                                 True, None, "", False)
 
     def test_update_thread_method(self, app_config, channels, default_channel):
         """Test _update_thread method signature."""

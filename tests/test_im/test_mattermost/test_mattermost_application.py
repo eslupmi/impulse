@@ -199,11 +199,11 @@ class TestMattermostApplication:
         with patch('app.im.mattermost.mattermost_application.mattermost_get_update_payload') as mock_payload:
             mock_payload.return_value = {"test": "update_payload"}
 
-            result = app.update_thread_payload("channel123", "post123", "body", "header", "icons", "firing", True, True, "")
+            result = app.update_thread_payload("channel123", "post123", "body", "header", "icons", "firing", True, True, "", False)
 
             assert result == {"test": "update_payload"}
             mock_payload.assert_called_once_with("channel123", "post123", "body", "header", "icons", "firing", True,
-                                                 True, "")
+                                                 True, "", False)
 
     def test_update_thread_method(self):
         """Test _update_thread method signature."""
