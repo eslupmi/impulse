@@ -14,7 +14,7 @@ spec:
       {{- include "impulse.selectorLabels" . | nindent 6 }}
   endpoints:
     - port: {{ .Values.service.port }}
-      path: {{ .Values.service.path }}
+      path: /metrics
       interval: {{ .Values.service.interval }}
       scrapeTimeout: {{ .Values.service.scrapeTimeout }}
       {{- with .Values.service.relabelings }}
