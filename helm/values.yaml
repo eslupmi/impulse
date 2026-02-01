@@ -46,7 +46,6 @@ service:
   port: 5000
   # ServiceMonitor (Prometheus Operator)
   enabled: false
-  path: "/metrics"
   interval: "30s"
   scrapeTimeout: "10s"
   labels: {}
