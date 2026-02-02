@@ -224,8 +224,8 @@ class SlackApplication(Application):
         
         return self._build_button_response(incident_, original_message)
 
-    def _create_thread_payload(self, channel_id, body, header, status_icons, status):
-        return slack_get_create_thread_payload(channel_id, body, header, status_icons, status)
+    def _create_thread_payload(self, channel_id, body, header, status_icons, status, frozen_by_inhibition=False):
+        return slack_get_create_thread_payload(channel_id, body, header, status_icons, status, frozen_by_inhibition)
 
     def _post_thread_payload(self, channel_id, id_, text):
         return {'channel': channel_id, 'thread_ts': id_, 'text': text, 'unfurl_links': False, 'unfurl_media': False}
@@ -233,7 +233,7 @@ class SlackApplication(Application):
     def update_thread_payload(self, channel_id, id_, body, header, status_icons, status, chain_enabled,
                               frozen_until, task_link='', frozen_by_inhibition=False):
         return slack_get_update_payload(channel_id, id_, body, header, status_icons, status, chain_enabled,
-                                        frozen_until, task_link, frozen_by_inhibition)
+                                        frozen_until, task_link, frozen_by_inhibition=frozen_by_inhibition)
 
     async def _update_thread(self, id_, payload):
         response = await self.http.post(

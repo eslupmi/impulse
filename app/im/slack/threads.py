@@ -102,20 +102,22 @@ def slack_get_update_payload(channel_id, ts, body, header, status_icons, status,
     return payload
 
 
-def slack_get_create_thread_payload(channel_id, body, header, status_icons, status):
-    actions = build_slack_actions(chain_enabled=True, status=status, frozen_until=None, task_link='')
+def slack_get_create_thread_payload(channel_id, body, header, status_icons, status, frozen_by_inhibition=False):
+    actions = build_slack_actions(chain_enabled=True, status=status, frozen_until=None, task_link='',
+                                  frozen_by_inhibition=frozen_by_inhibition)
+    display_status = 'frozen' if frozen_by_inhibition else status
     
     payload = {
         'channel': channel_id,
         'text': f'{status_icons} {header}',
         'attachments': [
             {
-                'color': status_colors.get(status),
+                'color': status_colors.get(display_status),
                 'text': body,
                 'mrkdwn_in': ['text'],
             },
             {
-                'color': status_colors.get(status),
+                'color': status_colors.get(display_status),
                 'text': '',
                 'callback_id': 'buttons',
                 'actions': actions

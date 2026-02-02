@@ -72,20 +72,24 @@ class AlertHandler(BaseHandler):
         will_be_inhibited = self.inhibition_manager.would_be_inhibited(incident_)
 
         if will_be_inhibited:
-            # Process inhibition first (this will freeze the incident)
             await self.inhibition_manager.process_incident(incident_)
-            incident_.dump()
-            logger.info("Incident created (inhibited, not posted to messenger)", extra={'uuid': incident_.uuid})
+
+        # Always create thread, but with frozen state if inhibited
+        await self._create_thread(incident_, alert_state, frozen_by_inhibition=will_be_inhibited)
+        incident_.dump()
+
+        if will_be_inhibited:
+            logger.info("Incident created (inhibited)", extra={'uuid': incident_.uuid, 'link': incident_.link})
         else:
-            await self._create_thread(incident_, alert_state)
             await self.inhibition_manager.process_incident(incident_)
-            incident_.dump()
             logger.info("Incident created", extra={'uuid': incident_.uuid, 'link': incident_.link})
 
         await self.queue.put(status_update_datetime, QueueItemType.UPDATE_STATUS, incident_.uniq_id)
 
         incident_.generate_chain(self.app.chains, chain_name)
-        await self.queue.recreate(status, incident_.uniq_id, incident_.chain)
+        # Don't schedule chain steps if incident is inhibited
+        if not will_be_inhibited:
+            await self.queue.recreate(status, incident_.uniq_id, incident_.chain)
 
     async def _handle_update(self, uuid_, incident_, alert_state):
         config = get_config()
@@ -135,11 +139,11 @@ class AlertHandler(BaseHandler):
             await self.inhibition_manager.process_incident(incident_)
 
     async def _create_thread_if_needed(self, incident_, alert_state):
-        """Create thread if incident was previously inhibited (no thread) and is now not frozen."""
+        """Create thread for legacy incidents that don't have one (backward compatibility)."""
         if not incident_.ts and not incident_.is_frozen():
             await self._create_thread(incident_, alert_state)
             incident_.dump()
-            logger.info("Thread created for previously inhibited incident", extra={'uuid': incident_.uuid, 'link': incident_.link})
+            logger.info("Thread created for legacy incident without thread", extra={'uuid': incident_.uuid, 'link': incident_.link})
 
     async def _notify_new_fire_alert(self, incident_, new_alerts_f, new_alerts_r, uuid_):
         """
@@ -162,12 +166,13 @@ class AlertHandler(BaseHandler):
         elif new_alerts_r:
             logger.info("Incident updated with some alerts resolved", extra={'uuid': uuid_})
 
-    async def _create_thread(self, incident_, alert_state):
+    async def _create_thread(self, incident_, alert_state, frozen_by_inhibition=False):
         body = self.app.body_template.form_message(alert_state, incident_)
         header = self.app.header_template.form_message(alert_state, incident_)
         status_icons = self.app.status_icons_template.form_message(alert_state, incident_)
         thread_id = await self.app.create_thread(
-            incident_.channel_id, body, header, status_icons, status=alert_state['status']
+            incident_.channel_id, body, header, status_icons, status=alert_state['status'],
+            frozen_by_inhibition=frozen_by_inhibition
         )
         incident_.set_thread(thread_id, self.app.public_url)
         return thread_id

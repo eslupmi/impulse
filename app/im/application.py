@@ -449,8 +449,8 @@ class Application(ABC):
                 message = text if self.type == MessengerType.TELEGRAM else header + '\n' + text
                 await self.post_thread(incident.channel_id, incident.ts, message)
 
-    async def create_thread(self, channel_id, body, header, status_icons, status):
-        payload = self._create_thread_payload(channel_id, body, header, status_icons, status)
+    async def create_thread(self, channel_id, body, header, status_icons, status, frozen_by_inhibition=False):
+        payload = self._create_thread_payload(channel_id, body, header, status_icons, status, frozen_by_inhibition)
         return await self._send_create_thread(payload)
 
     async def _send_create_thread(self, payload):
@@ -535,7 +535,7 @@ class Application(ABC):
         pass
 
     @abstractmethod
-    def _create_thread_payload(self, channel_id, body, header, status_icons, status):
+    def _create_thread_payload(self, channel_id, body, header, status_icons, status, frozen_by_inhibition=False):
         pass
 
     @abstractmethod

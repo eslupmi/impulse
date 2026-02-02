@@ -65,9 +65,9 @@ class TelegramApplication(Application):
         """Telegram doesn't include header in freeze/unfreeze notifications"""
         return False
 
-    async def create_thread(self, channel_id, body, header, status_icons, status):
+    async def create_thread(self, channel_id, body, header, status_icons, status, frozen_by_inhibition=False):
         topic_id = await self._create_topic(channel_id, header, status_icons)
-        payload = self._create_thread_payload(channel_id, body, header, status_icons, status)
+        payload = self._create_thread_payload(channel_id, body, header, status_icons, status, frozen_by_inhibition)
         payload['message_thread_id'] = topic_id
         message_id = await self._send_create_thread(payload)
         return f'{topic_id}/{message_id}'
@@ -229,13 +229,14 @@ class TelegramApplication(Application):
             logger.error("Topic creation failed", extra={'error': str(e)})
             raise e
 
-    def _create_thread_payload(self, channel_id, body, header, status_icons, status):
+    def _create_thread_payload(self, channel_id, body, header, status_icons, status, frozen_by_inhibition=False):
         env_config = get_environment_config()
         config_obj = get_config()
 
+        freeze_button = buttons['freeze']['inhibited'] if frozen_by_inhibition else buttons['freeze']['inactive']
         keyboard_row = [
             buttons['chain']['takeit'],
-            buttons['freeze']['inactive']
+            freeze_button
         ]
 
         if config_obj.app.task_management and env_config.task_management_enabled:

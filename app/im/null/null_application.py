@@ -78,7 +78,7 @@ class NullApplication(Application):
         """No admins"""
         return ''
 
-    def _create_thread_payload(self, channel_id, body, header, status_icons, status):
+    def _create_thread_payload(self, channel_id, body, header, status_icons, status, frozen_by_inhibition=False):
         """Return empty payload"""
         return {}
 

@@ -165,8 +165,10 @@ def mattermost_get_update_payload(channel_id, thread_id, body, header, status_ic
     return payload
 
 
-def mattermost_get_create_thread_payload(channel_id, body, header, status_icons, status):
-    actions = build_mattermost_actions(chain_enabled=True, status=status, frozen_until=None, task_link='')
+def mattermost_get_create_thread_payload(channel_id, body, header, status_icons, status, frozen_by_inhibition=False):
+    actions = build_mattermost_actions(chain_enabled=True, status=status, frozen_until=None, task_link='',
+                                       frozen_by_inhibition=frozen_by_inhibition)
+    display_status = 'frozen' if frozen_by_inhibition else status
     
     payload = {
         'channel_id': channel_id,
@@ -176,7 +178,7 @@ def mattermost_get_create_thread_payload(channel_id, body, header, status_icons,
                 {
                     'fallback': 'test',
                     'text': body,
-                    'color': status_colors.get(status),
+                    'color': status_colors.get(display_status),
                     'actions': actions
                 }
             ]

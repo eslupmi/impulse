@@ -213,8 +213,8 @@ class MattermostApplication(Application):
         
         return self._build_button_response(incident_, mattermost_tz)
 
-    def _create_thread_payload(self, channel_id, body, header, status_icons, status):
-        return mattermost_get_create_thread_payload(channel_id, body, header, status_icons, status)
+    def _create_thread_payload(self, channel_id, body, header, status_icons, status, frozen_by_inhibition=False):
+        return mattermost_get_create_thread_payload(channel_id, body, header, status_icons, status, frozen_by_inhibition)
 
     def _post_thread_payload(self, channel_id, id_, text):
         return {'channel_id': channel_id, 'root_id': id_, 'message': text}
