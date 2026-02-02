@@ -63,6 +63,7 @@ class TestAlertHandler:
         manager.process_incident = AsyncMock()
         manager.handle_resolved = AsyncMock()
         manager.handle_closed = AsyncMock()
+        manager.would_be_inhibited = Mock(return_value=False)
         return manager
 
     @pytest.fixture

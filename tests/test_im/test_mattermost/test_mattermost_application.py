@@ -174,10 +174,10 @@ class TestMattermostApplication:
         with patch('app.im.mattermost.mattermost_application.mattermost_get_create_thread_payload') as mock_payload:
             mock_payload.return_value = {"test": "payload"}
 
-            result = app._create_thread_payload("channel123", "body", "header", "icons", "firing")
+            result = app._create_thread_payload("channel123", "body", "header", "icons", "firing", False)
 
             assert result == {"test": "payload"}
-            mock_payload.assert_called_once_with("channel123", "body", "header", "icons", "firing")
+            mock_payload.assert_called_once_with("channel123", "body", "header", "icons", "firing", False)
 
     def test_post_thread_payload(self):
         """Test _post_thread_payload method."""

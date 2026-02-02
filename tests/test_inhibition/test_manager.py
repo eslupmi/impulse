@@ -49,8 +49,8 @@ class TestInhibitionManager:
     def sample_inhibit_rule(self):
         """Create a sample InhibitRule config object."""
         rule = Mock(spec=InhibitRule)
-        rule.source = ['severity = "critical"']
-        rule.target = ['severity = "warning"']
+        rule.source_matchers = ['severity = "critical"']
+        rule.target_matchers = ['severity = "warning"']
         rule.equal = ['service']
         return rule
 
@@ -117,13 +117,13 @@ class TestInhibitionManager:
     def test_initialization_multiple_rules(self, mock_queue, mock_application, mock_incidents):
         """Test InhibitionManager initialization with multiple rules."""
         rule1 = Mock(spec=InhibitRule)
-        rule1.source = ['severity = "critical"']
-        rule1.target = ['severity = "warning"']
+        rule1.source_matchers = ['severity = "critical"']
+        rule1.target_matchers = ['severity = "warning"']
         rule1.equal = ['service']
         
         rule2 = Mock(spec=InhibitRule)
-        rule2.source = ['alertname = "HighPriority"']
-        rule2.target = ['alertname = "LowPriority"']
+        rule2.source_matchers = ['alertname = "HighPriority"']
+        rule2.target_matchers = ['alertname = "LowPriority"']
         rule2.equal = []
         
         manager = InhibitionManager(
@@ -233,8 +233,8 @@ class TestInhibitionManager:
         """Test that an incident cannot be both source and target for same rule."""
         # Create incident that matches both source and target
         rule = Mock(spec=InhibitRule)
-        rule.source = ['service = "api"']
-        rule.target = ['service = "api"']
+        rule.source_matchers = ['service = "api"']
+        rule.target_matchers = ['service = "api"']
         rule.equal = []
         
         manager = InhibitionManager(
@@ -524,8 +524,8 @@ class TestInhibitionManager:
         
         # Create new rule
         new_rule = Mock(spec=InhibitRule)
-        new_rule.source = ['alertname = "NewAlert"']
-        new_rule.target = ['alertname = "OldAlert"']
+        new_rule.source_matchers = ['alertname = "NewAlert"']
+        new_rule.target_matchers = ['alertname = "OldAlert"']
         new_rule.equal = []
         
         # Set up incident for restoration

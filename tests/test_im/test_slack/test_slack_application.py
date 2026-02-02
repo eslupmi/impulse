@@ -212,10 +212,10 @@ class TestSlackApplication:
         with patch('app.im.slack.slack_application.slack_get_create_thread_payload') as mock_payload:
             mock_payload.return_value = {"test": "create_payload"}
 
-            result = app._create_thread_payload("C123456789", "body", "header", "icons", "firing")
+            result = app._create_thread_payload("C123456789", "body", "header", "icons", "firing", False)
 
             assert result == {"test": "create_payload"}
-            mock_payload.assert_called_once_with("C123456789", "body", "header", "icons", "firing")
+            mock_payload.assert_called_once_with("C123456789", "body", "header", "icons", "firing", False)
 
     def test_post_thread_payload(self, app_config, channels, default_channel):
         """Test _post_thread_payload method."""
@@ -244,7 +244,7 @@ class TestSlackApplication:
 
             assert result == {"test": "update_payload"}
             mock_payload.assert_called_once_with("C123456789", "1234567890.123456", "body", "header", "icons", "firing",
-                                                 True, None, "", False)
+                                                 True, None, "", frozen_by_inhibition=False)
 
     def test_update_thread_method(self, app_config, channels, default_channel):
         """Test _update_thread method signature."""
