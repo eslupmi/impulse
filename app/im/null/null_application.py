@@ -103,7 +103,7 @@ class NullApplication(Application):
         """No user creation"""
         return None
 
-    async def create_thread(self, channel_id, body, header, status_icons, status):
+    async def create_thread(self, channel_id, body, header, status_icons, status, frozen_by_inhibition=False):
         """Generate a synthetic thread ID but don't create actual thread"""
         return str(uuid.uuid4())
 
