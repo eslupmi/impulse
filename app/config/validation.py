@@ -514,8 +514,8 @@ class WebhookConfig(BaseModel):
 
 class InhibitRule(BaseModel):
     """Single inhibition rule configuration for AlertManager-style inhibition"""
-    source: List[str] = Field(..., description="Source matchers (e.g., 'severity =~ \"critical\"')")
-    target: List[str] = Field(..., description="Target matchers (e.g., 'severity =~ \"warning\"')")
+    source_matchers: List[str] = Field(..., description="Source matchers (e.g., 'severity =~ \"critical\"')")
+    target_matchers: List[str] = Field(..., description="Target matchers (e.g., 'severity =~ \"warning\"')")
     equal: Optional[List[str]] = Field([], description="Labels that must be equal between source and target")
 
 
