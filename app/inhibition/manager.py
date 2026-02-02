@@ -45,8 +45,8 @@ class InhibitionManager:
         """
         self.rules: List[InhibitionRule] = [
             InhibitionRule(
-                source_matchers=rule.source,
-                target_matchers=rule.target,
+                source_matchers=rule.source_matchers,
+                target_matchers=rule.target_matchers,
                 equal_labels=rule.equal or []
             )
             for rule in rules
