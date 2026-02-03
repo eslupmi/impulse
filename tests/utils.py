@@ -38,6 +38,26 @@ class MockContextManager:
         pass
 
 
+def create_mock_http_response(status_code=200):
+    """
+    Create a mock aiohttp HTTP response.
+    
+    This helper ensures consistent mock response setup, particularly
+    that close() is a regular Mock (not AsyncMock) since aiohttp's
+    ClientResponse.close() is not async.
+    
+    Args:
+        status_code: HTTP status code for the mock response (default: 200)
+        
+    Returns:
+        AsyncMock: Configured mock response object
+    """
+    mock_response = AsyncMock()
+    mock_response.status = status_code
+    mock_response.close = Mock()  # close() is not async in aiohttp
+    return mock_response
+
+
 def create_mock_session_with_response(status_code=200):
     """
     Create a mock aiohttp session with a configured response.
@@ -48,8 +68,7 @@ def create_mock_session_with_response(status_code=200):
     Returns:
         tuple: (mock_session, mock_response)
     """
-    mock_response = AsyncMock()
-    mock_response.status = status_code
+    mock_response = create_mock_http_response(status_code)
 
     mock_session = AsyncMock()
     mock_session.post = Mock(return_value=MockContextManager(mock_response))
@@ -67,8 +86,7 @@ def create_mock_session_class_with_response(status_code=200):
     Returns:
         tuple: (mock_session_class, mock_session, mock_response)
     """
-    mock_response = AsyncMock()
-    mock_response.status = status_code
+    mock_response = create_mock_http_response(status_code)
 
     mock_session = AsyncMock()
     mock_session.post = Mock(return_value=MockContextManager(mock_response))
@@ -92,8 +110,7 @@ def setup_mock_session_class_patch(mock_session_class, status_code=200, patch_re
         mock_retry_client: The mock RetryClient instance (if patch_retry_client=True)
         tuple: (mock_session, mock_response) if patch_retry_client=False (legacy behavior)
     """
-    mock_response = AsyncMock()
-    mock_response.status = status_code
+    mock_response = create_mock_http_response(status_code)
 
     # Mock the base session
     mock_session = AsyncMock()
@@ -1170,11 +1187,9 @@ def setup_mock_webhook_with_retry_client(mock_session_class, mock_retry_client_c
     Returns:
         Tuple of (mock_retry_client, mock_response)
     """
-    mock_response = AsyncMock()
-    mock_response.status = status_code
+    mock_response = create_mock_http_response(status_code)
     
     mock_retry_client = AsyncMock()
-    from unittest.mock import Mock
     mock_retry_client.post = Mock(return_value=MockContextManager(mock_response))
     mock_retry_client_class.return_value = mock_retry_client
     

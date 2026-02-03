@@ -13,7 +13,8 @@ from tests.utils import (
     create_mock_queue, create_mock_incidents_collection,
     create_mock_route,
     create_mock_get_config_patch,
-    create_mattermost_buttons_handler_context
+    create_mattermost_buttons_handler_context,
+    create_mock_http_response
 )
 
 
@@ -451,8 +452,7 @@ class TestMattermostApplication:
         """Test get_user_details method with successful response."""
         app = self._create_mattermost_app()
 
-        mock_response = AsyncMock()
-        mock_response.status = 200
+        mock_response = create_mock_http_response(200)
         mock_response.json = AsyncMock(return_value={
             "id": "user123",
             "username": "testuser",
@@ -482,8 +482,7 @@ class TestMattermostApplication:
         """Test get_user_details method with 404 response."""
         app = self._create_mattermost_app()
 
-        mock_response = AsyncMock()
-        mock_response.status = 404
+        mock_response = create_mock_http_response(404)
 
         # Mock HTTP client
         app.http = Mock()
@@ -507,8 +506,7 @@ class TestMattermostApplication:
         """Test get_user_details method with HTTP error status."""
         app = self._create_mattermost_app()
 
-        mock_response = AsyncMock()
-        mock_response.status = 500
+        mock_response = create_mock_http_response(500)
 
         # Mock HTTP client
         app.http = Mock()
@@ -532,7 +530,7 @@ class TestMattermostApplication:
         """Test _update_thread method with successful HTTP response."""
         app = self._create_mattermost_app()
 
-        mock_response = AsyncMock()
+        mock_response = create_mock_http_response()
 
         # Mock HTTP client
         app.http = Mock()
@@ -547,8 +545,7 @@ class TestMattermostApplication:
         """Test get_group_details method with successful API response."""
         app = self._create_mattermost_app()
 
-        mock_response = AsyncMock()
-        mock_response.status = 200
+        mock_response = create_mock_http_response(200)
         mock_response.json = AsyncMock(return_value={
             "id": "group123",
             "name": "Engineering Team",
@@ -571,8 +568,7 @@ class TestMattermostApplication:
         """Test get_group_details method when group is not found."""
         app = self._create_mattermost_app()
 
-        mock_response = AsyncMock()
-        mock_response.status = 404
+        mock_response = create_mock_http_response(404)
 
         app.http = Mock()
         app.http.get = AsyncMock(return_value=mock_response)
@@ -590,8 +586,7 @@ class TestMattermostApplication:
         """Test get_group_details method with HTTP error."""
         app = self._create_mattermost_app()
 
-        mock_response = AsyncMock()
-        mock_response.status = 500
+        mock_response = create_mock_http_response(500)
 
         app.http = Mock()
         app.http.get = AsyncMock(return_value=mock_response)

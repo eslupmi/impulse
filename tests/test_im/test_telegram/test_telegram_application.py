@@ -17,7 +17,8 @@ from tests.utils import (
     create_mock_incidents_collection,
     create_mock_queue,
     create_mock_route,
-    create_telegram_buttons_handler_context
+    create_telegram_buttons_handler_context,
+    create_mock_http_response
 )
 
 
@@ -804,7 +805,7 @@ class TestTelegramApplication:
         app = self.create_telegram_app(app_config, channels, users)
 
         # Mock HTTP response
-        mock_response = AsyncMock()
+        mock_response = create_mock_http_response()
         mock_response.json = AsyncMock(return_value={'result': {'message_id': 12345}})
         with patch.object(app.http, 'post', new=AsyncMock(return_value=mock_response)) as mock_post:
             result = await app._send_create_thread({'test': 'payload'})
@@ -818,7 +819,7 @@ class TestTelegramApplication:
         app = self.create_telegram_app(app_config, channels, users)
 
         # Mock successful HTTP response
-        mock_response = AsyncMock()
+        mock_response = create_mock_http_response()
         mock_response.json = AsyncMock(return_value={'result': {'message_thread_id': 67890}})
         with patch.object(app.http, 'post', new=AsyncMock(return_value=mock_response)) as mock_post:
             result = await app._create_topic("test_channel", "test_header", "test_icon")
@@ -902,7 +903,7 @@ class TestTelegramApplication:
         app = self.create_telegram_app(app_config, channels, users)
 
         # Mock successful HTTP response
-        mock_response = AsyncMock()
+        mock_response = create_mock_http_response()
         with patch.object(app.http, 'post', new=AsyncMock(return_value=mock_response)) as mock_post:
             await app._update_topic("test_channel", "123/456", "test_header", "test_icon")
 
@@ -925,7 +926,7 @@ class TestTelegramApplication:
         app = self.create_telegram_app(app_config, channels, users)
 
         # Mock successful HTTP response
-        mock_response = AsyncMock()
+        mock_response = create_mock_http_response()
         with patch.object(app.http, 'post', new=AsyncMock(return_value=mock_response)) as mock_post:
             await app._update_thread("123/456", {'test': 'payload'})
 
@@ -948,8 +949,7 @@ class TestTelegramApplication:
         app = self.create_telegram_app(app_config, channels, users)
 
         # Mock successful HTTP response
-        mock_response = AsyncMock()
-        mock_response.status = 200
+        mock_response = create_mock_http_response(200)
         mock_response.json = AsyncMock(return_value={
             'ok': True,
             'result': {
@@ -978,8 +978,7 @@ class TestTelegramApplication:
         app = self.create_telegram_app(app_config, channels, users)
 
         # Mock HTTP error response
-        mock_response = AsyncMock()
-        mock_response.status = 404
+        mock_response = create_mock_http_response(404)
         with patch.object(app.http, 'get', new=AsyncMock(return_value=mock_response)):
             result = await app.get_user_details({'id': '123456'})
 
@@ -1000,8 +999,7 @@ class TestTelegramApplication:
         app = self.create_telegram_app(app_config, channels, users)
 
         # Mock API error response
-        mock_response = AsyncMock()
-        mock_response.status = 200
+        mock_response = create_mock_http_response(200)
         mock_response.json = AsyncMock(return_value={
             'ok': False,
             'description': 'User not found'
@@ -1026,7 +1024,7 @@ class TestTelegramApplication:
         app = self.create_telegram_app(app_config, channels, users)
 
         # Mock successful HTTP response
-        mock_response = AsyncMock()
+        mock_response = create_mock_http_response()
         with patch.object(app.http, 'post', new=AsyncMock(return_value=mock_response)) as mock_post, \
                 patch('app.im.telegram.telegram_application.get_config') as mock_get_config:
             mock_config = Mock()

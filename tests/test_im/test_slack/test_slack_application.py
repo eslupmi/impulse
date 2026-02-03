@@ -16,7 +16,8 @@ from tests.utils import (
     create_mock_incidents_collection,
     create_mock_queue,
     create_mock_route,
-    create_slack_buttons_handler_context
+    create_slack_buttons_handler_context,
+    create_mock_http_response
 )
 
 
@@ -544,7 +545,7 @@ class TestSlackApplication:
         app = self.create_slack_app(app_config, channels, default_channel)
 
         # Mock HTTP response
-        mock_response = AsyncMock()
+        mock_response = create_mock_http_response()
         mock_response.json = AsyncMock(return_value={"url": "https://test-workspace.slack.com"})
 
         # Mock HTTP client
@@ -561,8 +562,7 @@ class TestSlackApplication:
         """Test get_user_details method with successful response."""
         app = self.create_slack_app(app_config, channels, default_channel)
 
-        mock_response = AsyncMock()
-        mock_response.status = 200
+        mock_response = create_mock_http_response(200)
         mock_response.json = AsyncMock(return_value={
             "ok": True,
             "user": {
@@ -595,8 +595,7 @@ class TestSlackApplication:
         """Test get_user_details method with HTTP error status."""
         app = self.create_slack_app(app_config, channels, default_channel)
 
-        mock_response = AsyncMock()
-        mock_response.status = 500
+        mock_response = create_mock_http_response(500)
 
         # Mock HTTP client
         app.http = Mock()
@@ -620,8 +619,7 @@ class TestSlackApplication:
         """Test get_user_details method with Slack API error."""
         app = self.create_slack_app(app_config, channels, default_channel)
 
-        mock_response = AsyncMock()
-        mock_response.status = 200
+        mock_response = create_mock_http_response(200)
         mock_response.json = AsyncMock(return_value={
             "ok": False,
             "error": "user_not_found"
@@ -649,7 +647,7 @@ class TestSlackApplication:
         """Test _update_thread method with successful HTTP response."""
         app = self.create_slack_app(app_config, channels, default_channel)
 
-        mock_response = AsyncMock()
+        mock_response = create_mock_http_response()
 
         # Mock HTTP client
         app.http = Mock()
@@ -664,8 +662,7 @@ class TestSlackApplication:
         """Test get_all_groups method with successful API response."""
         app = self.create_slack_app(app_config, channels, default_channel)
 
-        mock_response = AsyncMock()
-        mock_response.status = 200
+        mock_response = create_mock_http_response(200)
         mock_response.json = AsyncMock(return_value={
             "ok": True,
             "usergroups": [
@@ -689,8 +686,7 @@ class TestSlackApplication:
         """Test get_all_groups method with API error."""
         app = self.create_slack_app(app_config, channels, default_channel)
 
-        mock_response = AsyncMock()
-        mock_response.status = 200
+        mock_response = create_mock_http_response(200)
         mock_response.json = AsyncMock(return_value={
             "ok": False,
             "error": "invalid_auth"
@@ -708,8 +704,7 @@ class TestSlackApplication:
         """Test get_all_groups method with HTTP error."""
         app = self.create_slack_app(app_config, channels, default_channel)
 
-        mock_response = AsyncMock()
-        mock_response.status = 500
+        mock_response = create_mock_http_response(500)
 
         app.http = Mock()
         app.http.get = AsyncMock(return_value=mock_response)
