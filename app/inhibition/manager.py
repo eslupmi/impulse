@@ -295,6 +295,7 @@ class InhibitionManager:
         
         was_frozen = target.is_frozen()
         target.freeze_by_inhibition()
+        await self.queue.delete_by_id(target.uniq_id, delete_steps=True, delete_status=False)
         
         logger.info("Target frozen by inhibition",
                    extra={'source_uuid': source.uuid, 'target_uuid': target.uuid})
