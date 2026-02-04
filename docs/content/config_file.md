@@ -213,7 +213,7 @@ Below are all the configuration options supported by IMPulse.
 - **details:**
     
     !!! note ""
-        There are 3 chain types: [simple](#simple-chain), [schedule](#schedule-chain), [cloud](#cloud-chain). See their description below.
+        There are 3 chain types: [simple](#simple-chains), [schedule](#schedule-chains), [cloud](#cloud-chains). See their description below.
 
         **Steps**
 
@@ -245,7 +245,7 @@ Below are all the configuration options supported by IMPulse.
           - user: Dmitry_s_boss
     ```
 
-#### &lt;simple chain&gt;
+#### &lt;simple chains&gt;
 
 - **description:** a basic escalation chain. It starts executing when an incident is created.
 - **type:** list
@@ -269,7 +269,7 @@ Below are all the configuration options supported by IMPulse.
           - user: CTO
     ```
 
-#### &lt;schedule chain&gt;
+#### &lt;schedule chains&gt;
 
 - **description:** a chain that allows you to define notification logic based on a calendar schedule.
 - **type:** dict
@@ -321,19 +321,19 @@ Below are all the configuration options supported by IMPulse.
             - {steps: [{user: Oleg }]} # full Sunday and 00:00 to 12:00 every day
     ```
 
-##### &lt;schedule chain&gt;.type *
+##### &lt;chain&gt;.type *
 
 - **description:** chain type
 - **type:** string
 - **allowed values:** `schedule` for schedule chain
 
-##### &lt;schedule chain&gt;.timezone
+##### &lt;chain&gt;.timezone
 
 - **description:** time zone in "TZ identifier" [format](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#Time_zone_abbreviations)
 - **type:** string
 - **default value:** UTC
 
-##### &lt;schedule chain&gt;.schedule
+##### &lt;chain&gt;.schedule
 
 - **description:** list of matchers with corresponding steps
 - **type:** list
@@ -383,7 +383,7 @@ Below are all the configuration options supported by IMPulse.
 
         - **description:** list of chain steps
         - **type:** list
-        - **allowed values:** simple chain [format](#simple-chain)
+        - **allowed values:** simple chain [format](#simple-chains)
 
 - **examples:**
 
@@ -405,7 +405,7 @@ Below are all the configuration options supported by IMPulse.
                 - user: Administrator
     ```
 
-#### &lt;cloud chain&gt;
+#### &lt;cloud chains&gt;
 
 - **description:** a chain that allows you to define dynamic chains using calendar providers (e.g., Google).
 - **type:** dict
@@ -473,28 +473,28 @@ Below are all the configuration options supported by IMPulse.
             - {steps: [{user: Dmitry}, {wait: 5m}, {user: Maria}]}
     ```
 
-##### &lt;cloud chain&gt;.type *
+##### &lt;chain&gt;.type *
 
 - **description:** chain type
 - **type:** string
 - **allowed values:** `cloud` for cloud chain
 
-##### &lt;cloud chain&gt;.provider *
+##### &lt;chain&gt;.provider *
 
 - **description:** cloud calendar provider
 - **type:** string
 - **allowed values:** `google` only ([setup instruction](integrations/calendars/google.md))
 
-##### &lt;cloud chain&gt;.calendar_id *
+##### &lt;chain&gt;.calendar_id *
 
 - **description:** calendar ID. Get it on calendar settings page
 - **type:** string
 
-##### &lt;cloud chain&gt;.default_steps
+##### &lt;chain&gt;.default_steps
 
 - **description:** chain steps if there are no calendar events at the moment
 - **type:** list
-- **allowed values:** simple chain [format](#simple-chain)
+- **allowed values:** simple chain [format](#simple-chains)
 
 ### messenger.groups
 
@@ -702,6 +702,7 @@ Below are all the configuration options supported by IMPulse.
 
 - **description:** conditions to match alert fields using Python regex patterns
 - **type:** list
+- **allowed values:** same as Alertmanager's [matcher](https://prometheus.io/docs/alerting/latest/configuration/#matcher)
 
 #### &lt;route&gt;.channel
 

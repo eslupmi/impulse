@@ -26,7 +26,7 @@ This is a time selector for choosing until when the incident will be [frozen](in
 
 **Freeze** behaviour:
 
-- assigns the incident to the person who clicked the button (like [Take It](#take-it))
+- assigns the incident to the person who clicked the button (like [Take It](#take-it-release))
 - stops activity on the incident (chain escalation, status updates)
 - prevents creation of new incidents with the same identifier (like [silence](https://prometheus.io/docs/alerting/latest/alertmanager/#silences))
 - displays the unfreeze datetime on the button instead of "Freeze"
