@@ -56,7 +56,7 @@ Possible causes of **unknown** status:
     - the alert was silenced
     - inhibited rules configured in Alertmanager were triggered ([fix it](../alertmanager.md#inhibition))
     - IMPulse or Alertmanager was down
-    - or there were network issues
+    - network issues
 - `repeat_interval` + `group_interval` exceeds IMPulse's `incident.timeouts.firing`
 
 When an incident becomes **unknown** , IMPulse sends a warning message to `messenger.admin_users`.
