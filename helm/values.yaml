@@ -44,7 +44,8 @@ securityContext: {}
 service:
   type: ClusterIP
   port: 5000
-  # ServiceMonitor (Prometheus Operator)
+
+serviceMonitor:
   enabled: false
   interval: "30s"
   scrapeTimeout: "10s"
