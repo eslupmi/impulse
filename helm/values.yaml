@@ -229,4 +229,3 @@ networkPolicy:
   enabled: false
   ingressRules: []
   egressRules: []
-
