@@ -3,6 +3,7 @@ import pytest
 from types import SimpleNamespace
 from unittest.mock import Mock
 
+from app.incident.incident import Incident
 from app.jinja_template import load_template_file, JinjaTemplate
 
 
@@ -43,16 +44,16 @@ class TestJinjaTemplate:
         """Test rendering with incident object."""
         template_str = "Status: {{ incident.status }}"
         template = JinjaTemplate(template_str)
-        
-        # Create a mock incident object
-        class MockIncident:
-            status = "firing"
 
-            @staticmethod
-            def serialize():
-                return {"status": "firing"}
-        
-        result = template.render(incident=MockIncident())
+        class MockIncident(Mock):
+            def __init__(self, *args, **kwargs):
+                kwargs.setdefault("spec", Incident)
+                super().__init__(*args, **kwargs)
+
+        mock_incident = MockIncident()
+        mock_incident.serialize.return_value = {"status": "firing"}
+
+        result = template.render(incident=mock_incident)
         assert result == "Status: firing"
 
     def test_render_raises_for_non_serializable_incident(self):
@@ -71,13 +72,10 @@ class TestJinjaTemplate:
         )
         template = JinjaTemplate(template_str)
 
-        class MockIncident:
-            parents = ["parent-1"]
-            childs = ["child-1"]
-
-            @staticmethod
-            def serialize():
-                return {"parents": ["parent-1"], "childs": ["child-1"]}
+        class MockIncident(Mock):
+            def __init__(self, *args, **kwargs):
+                kwargs.setdefault("spec", Incident)
+                super().__init__(*args, **kwargs)
 
         incidents = SimpleNamespace(
             uniq_ids={
@@ -88,7 +86,11 @@ class TestJinjaTemplate:
 
         JinjaTemplate.set_incidents(incidents)
         try:
-            result = template.form_message({"status": "firing"}, MockIncident())
+            mock_incident = MockIncident()
+            mock_incident.parents = ["parent-1"]
+            mock_incident.childs = ["child-1"]
+            mock_incident.serialize.return_value = {"parents": ["parent-1"], "childs": ["child-1"]}
+            result = template.form_message({"status": "firing"}, mock_incident)
         finally:
             JinjaTemplate.set_incidents(None)
 
@@ -102,13 +104,10 @@ class TestJinjaTemplate:
         )
         template = JinjaTemplate(template_str)
 
-        class MockIncident:
-            parents = ["parent-1"]
-            childs = ["child-1"]
-
-            @staticmethod
-            def serialize():
-                return {"parents": ["parent-1"], "childs": ["child-1"]}
+        class MockIncident(Mock):
+            def __init__(self, *args, **kwargs):
+                kwargs.setdefault("spec", Incident)
+                super().__init__(*args, **kwargs)
 
         incidents = SimpleNamespace(
             uniq_ids={
@@ -119,7 +118,11 @@ class TestJinjaTemplate:
 
         JinjaTemplate.set_incidents(incidents)
         try:
-            result = template.render(incident=MockIncident())
+            mock_incident = MockIncident()
+            mock_incident.parents = ["parent-1"]
+            mock_incident.childs = ["child-1"]
+            mock_incident.serialize.return_value = {"parents": ["parent-1"], "childs": ["child-1"]}
+            result = template.render(incident=mock_incident)
         finally:
             JinjaTemplate.set_incidents(None)
 
