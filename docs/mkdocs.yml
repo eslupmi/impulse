@@ -50,6 +50,7 @@ nav:
     - concepts/check.md
     - concepts/ha.md
     - concepts/incident.md
+    - concepts/inhibition.md
     - concepts/ui.md
     - concepts/messengers.md
     - concepts/special_variables.md

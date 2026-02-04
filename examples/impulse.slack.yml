@@ -39,6 +39,21 @@ messenger:  # messenger configuration
     body: templates/mattermost_body.j2
   type: slack  # messenger type (mattermost, none, slack, telegram)
 
+inhibit_rules:
+  - source_matchers:
+      - severity = "critical"
+    target_matchers:
+      - severity = "warning"
+    equal:
+      - service
+  - source_matchers:
+      - severity = "warning"
+    target_matchers:
+      - severity = "info"
+    equal:
+      - service
+      - instance
+
 incident:  # incidents behavior options
   # notifications:  # incident notifications settings
   #   assignment: True  # enable/disable notifications about incident assignment changes

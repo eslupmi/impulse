@@ -115,6 +115,54 @@ Below are all the configuration options supported by IMPulse.
 - **default value:** 90d
 - **allowed values:** `wait` instruction [format](config_file.md/#messengerchains)
 
+## inhibit_rules
+
+- **description:** inhibition rules to suppress (freeze) target incidents when source incidents are active (see [concepts](concepts/inhibition.md))
+- **type:** list
+- **examples:**
+    ```yaml
+    inhibit_rules:
+      # freeze 'warning' incidents when 'critical' incidents are in firing status
+      # only applies to incidents with the same 'service' label
+      - source_matchers:
+          - severity = "critical"
+        target_matchers:
+          - severity = "warning"
+        equal:
+          - service
+      # freeze 'info' incidents when 'warning' incidents are in firing status
+      # only applies to incidents with the same 'service' label
+      - source_matchers:
+          - severity = "warning"
+        target_matchers:
+          - severity = "info"
+        equal:
+          - service
+    ```
+
+### &lt;rule&gt;.source_matchers
+
+- **description:** list of matchers that identify source incidents (parent)
+- **type:** list
+- **allowed values:** route [matcher](#routematchers) syntax
+
+### &lt;rule&gt;.target_matchers
+
+- **description:** list of matchers that identify target incidents (childs)
+- **type:** list
+- **allowed values:** route [matcher](#routematchers) syntax
+
+### &lt;rule&gt;.equal
+
+- **description:** list of label names that must have equal values in both source and target incidents for inhibition to apply
+- **type:** list
+- **examples:**
+    ```yaml
+    equal:
+      - service
+    ```
+
+
 ## messenger *
 
 - **description:** messenger configuration
