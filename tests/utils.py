@@ -659,8 +659,26 @@ def create_mock_incident_for_handlers(
     incident.dump = Mock()
     incident.generate_chain = Mock()
     incident.link = f'https://test.slack.com/archives/{channel_id}/p{ts}'
+    incident.assigned_user_id = ''
+    incident.assigned_user = ''
     incident.task_link = ''
     incident.task_creation_in_progress = False
+    incident.parents = []
+    incident.childs = []
+
+    def _serialize():
+        return {
+            'status': incident.status,
+            'payload': incident.payload,
+            'assigned_user_id': incident.assigned_user_id,
+            'assigned_user': incident.assigned_user,
+            'task_link': incident.task_link,
+            'link': incident.link,
+            'parents': incident.parents,
+            'childs': incident.childs,
+        }
+
+    incident.serialize = Mock(side_effect=_serialize)
 
     return incident
 

@@ -1,6 +1,7 @@
 """Tests for Jinja template utilities."""
 import pytest
-from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import Mock
 
 from app.jinja_template import load_template_file, JinjaTemplate
 
@@ -46,7 +47,80 @@ class TestJinjaTemplate:
         # Create a mock incident object
         class MockIncident:
             status = "firing"
+
+            @staticmethod
+            def serialize():
+                return {"status": "firing"}
         
         result = template.render(incident=MockIncident())
         assert result == "Status: firing"
 
+    def test_render_raises_for_non_serializable_incident(self):
+        """Test strict behavior: incident must provide dict-like serialize() output."""
+        template = JinjaTemplate("Status: {{ incident.status }}")
+        mock_incident = Mock()
+        mock_incident.status = "firing"
+        with pytest.raises(TypeError):
+            template.render(incident=mock_incident)
+
+    def test_form_message_resolves_parent_and_child_incidents(self):
+        """Test parents/childs are available as uniq_id -> incident object maps."""
+        template_str = (
+            "Parent: {{ incident.parents['parent-1'].status }}, "
+            "Child: {{ incident.childs['child-1'].status }}"
+        )
+        template = JinjaTemplate(template_str)
+
+        class MockIncident:
+            parents = ["parent-1"]
+            childs = ["child-1"]
+
+            @staticmethod
+            def serialize():
+                return {"parents": ["parent-1"], "childs": ["child-1"]}
+
+        incidents = SimpleNamespace(
+            uniq_ids={
+                "parent-1": SimpleNamespace(status="firing"),
+                "child-1": SimpleNamespace(status="resolved"),
+            }
+        )
+
+        JinjaTemplate.set_incidents(incidents)
+        try:
+            result = template.form_message({"status": "firing"}, MockIncident())
+        finally:
+            JinjaTemplate.set_incidents(None)
+
+        assert result == "Parent: firing, Child: resolved"
+
+    def test_render_resolves_parent_and_child_incidents(self):
+        """Test generic render also resolves parents/childs incident object maps."""
+        template_str = (
+            "Parent: {{ incident.parents['parent-1'].status }}, "
+            "Child: {{ incident.childs['child-1'].status }}"
+        )
+        template = JinjaTemplate(template_str)
+
+        class MockIncident:
+            parents = ["parent-1"]
+            childs = ["child-1"]
+
+            @staticmethod
+            def serialize():
+                return {"parents": ["parent-1"], "childs": ["child-1"]}
+
+        incidents = SimpleNamespace(
+            uniq_ids={
+                "parent-1": SimpleNamespace(status="firing"),
+                "child-1": SimpleNamespace(status="resolved"),
+            }
+        )
+
+        JinjaTemplate.set_incidents(incidents)
+        try:
+            result = template.render(incident=MockIncident())
+        finally:
+            JinjaTemplate.set_incidents(None)
+
+        assert result == "Parent: firing, Child: resolved"

@@ -19,6 +19,7 @@ from app.im.helpers import get_application
 from app.im.user_store import UserUpdateScheduler
 from app.incident.incidents import Incidents
 from app.inhibition.manager import InhibitionManager
+from app.jinja_template import JinjaTemplate
 from app.logging import logger, configure_uvicorn_logging, configure_aiohttp_logging, configure_warnings_logging
 from app.metrics import STATUS, generate_metrics_response
 from app.middleware import StandbyMiddleware, is_standby_mode, service_unavailable_response
@@ -106,6 +107,7 @@ async def initialize_primary_server(fastapi_app: FastAPI, file_lock: FileLock) -
         
         webhooks = generate_webhooks(webhooks_config)
         incidents = Incidents.create_or_load(messenger.type, messenger.public_url, messenger.team)
+        JinjaTemplate.set_incidents(incidents)
 
         queue = await AsyncQueue.recreate_queue(incidents)
         
