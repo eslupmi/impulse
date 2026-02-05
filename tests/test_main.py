@@ -192,6 +192,7 @@ class TestMainApplication:
         
         # Lock is held
         mock_file_lock.is_locked = Mock(return_value=True)
+        mock_file_lock.can_take_over_lock = Mock(return_value=False)
         mock_file_lock.get_lock_info = Mock(return_value=("other-host", "999", "1000.0", "other-boot-id"))
         mock_file_lock.acquire_lock = Mock(return_value=True)
         mock_file_lock.release_lock = AsyncMock()

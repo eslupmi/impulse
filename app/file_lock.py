@@ -40,16 +40,20 @@ class FileLock:
         self._pid = os.getpid()
         self._boot_id = self._get_boot_id()
 
-    def _get_boot_id(self) -> str:
+    def _get_boot_id(self) -> Optional[str]:
         try:
             return self.BOOT_ID_FILE_PATH.read_text().strip()
         except (OSError, IOError):
-            return "None"
+            return None
 
     def _is_process_running(self, pid: int) -> bool:
-        return Path(f"/proc/{pid}").exists()
+        try:
+            os.kill(pid, 0)
+            return True
+        except (ProcessLookupError, PermissionError):
+            return False
 
-    def _can_take_over_lock(self) -> bool:
+    def can_take_over_lock(self) -> bool:
         """
         Check if we can immediately take over the lock from a dead process.
         
@@ -62,7 +66,7 @@ class FileLock:
                 return False
             
             stored_boot_id = self.boot_id_path.read_text().strip()
-            if stored_boot_id != self._boot_id:
+            if stored_boot_id != (self._boot_id or ""):
                 return False
             
             stored_pid = int(self.pid_path.read_text().strip())
@@ -79,7 +83,7 @@ class FileLock:
         if not self.lock_dir.exists():
             return
         
-        can_take_over = self._can_take_over_lock()
+        can_take_over = self.can_take_over_lock()
         
         if not can_take_over and self.is_locked():
             return
@@ -108,7 +112,7 @@ class FileLock:
                 with open(self.host_path, "w") as f:
                     f.write(self._hostname)
                 with open(self.boot_id_path, "w") as f:
-                    f.write(self._boot_id)
+                    f.write(self._boot_id or "")
             except (OSError, IOError) as e:
                 logger.error(f"Lock file write failed: {e}")
                 self._cleanup_failed_acquisition()
@@ -186,8 +190,6 @@ class FileLock:
             True if lock exists and heartbeat is fresh, False otherwise.
         """
         if not self.lock_dir.exists():
-            return False
-        if self._can_take_over_lock():
             return False
         try:
             locktime = float(self.heartbeat_path.read_text().strip())

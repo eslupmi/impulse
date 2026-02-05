@@ -814,10 +814,10 @@ class TestFileLockVerifyOwnership:
 
 
 class TestFileLockCanTakeOverLock:
-    """Test cases for _can_take_over_lock method."""
+    """Test cases for can_take_over_lock method."""
 
-    def test_can_take_over_lock_returns_true_when_same_host_boot_dead_process(self):
-        """Test _can_take_over_lock returns True when conditions are met."""
+    def testcan_take_over_lock_returns_true_when_same_host_boot_dead_process(self):
+        """Test can_take_over_lock returns True when conditions are met."""
         with patch('app.file_lock.get_environment_config') as mock_get_env_config, \
              patch('app.file_lock.socket.gethostname', return_value='test-host'), \
              patch('app.file_lock.os.getpid', return_value=12345), \
@@ -831,10 +831,10 @@ class TestFileLockCanTakeOverLock:
             mock_read_text.side_effect = ["test-boot-id", "test-host", "test-boot-id", "99999"]
 
             file_lock = FileLock()
-            assert file_lock._can_take_over_lock() is True
+            assert file_lock.can_take_over_lock() is True
 
-    def test_can_take_over_lock_returns_false_when_different_host(self):
-        """Test _can_take_over_lock returns False when hostname differs."""
+    def testcan_take_over_lock_returns_false_when_different_host(self):
+        """Test can_take_over_lock returns False when hostname differs."""
         with patch('app.file_lock.get_environment_config') as mock_get_env_config, \
              patch('app.file_lock.socket.gethostname', return_value='test-host'), \
              patch('app.file_lock.os.getpid', return_value=12345), \
@@ -847,10 +847,10 @@ class TestFileLockCanTakeOverLock:
             mock_read_text.side_effect = ["test-boot-id", "other-host"]
 
             file_lock = FileLock()
-            assert file_lock._can_take_over_lock() is False
+            assert file_lock.can_take_over_lock() is False
 
-    def test_can_take_over_lock_returns_false_when_different_boot_id(self):
-        """Test _can_take_over_lock returns False when boot_id differs."""
+    def testcan_take_over_lock_returns_false_when_different_boot_id(self):
+        """Test can_take_over_lock returns False when boot_id differs."""
         with patch('app.file_lock.get_environment_config') as mock_get_env_config, \
              patch('app.file_lock.socket.gethostname', return_value='test-host'), \
              patch('app.file_lock.os.getpid', return_value=12345), \
@@ -863,10 +863,10 @@ class TestFileLockCanTakeOverLock:
             mock_read_text.side_effect = ["test-boot-id", "test-host", "other-boot-id"]
 
             file_lock = FileLock()
-            assert file_lock._can_take_over_lock() is False
+            assert file_lock.can_take_over_lock() is False
 
-    def test_can_take_over_lock_returns_false_when_process_running(self):
-        """Test _can_take_over_lock returns False when process is still running."""
+    def testcan_take_over_lock_returns_false_when_process_running(self):
+        """Test can_take_over_lock returns False when process is still running."""
         with patch('app.file_lock.get_environment_config') as mock_get_env_config, \
              patch('app.file_lock.socket.gethostname', return_value='test-host'), \
              patch('app.file_lock.os.getpid', return_value=12345), \
@@ -880,10 +880,10 @@ class TestFileLockCanTakeOverLock:
             mock_read_text.side_effect = ["test-boot-id", "test-host", "test-boot-id", "99999"]
 
             file_lock = FileLock()
-            assert file_lock._can_take_over_lock() is False
+            assert file_lock.can_take_over_lock() is False
 
-    def test_can_take_over_lock_returns_false_on_file_not_found(self):
-        """Test _can_take_over_lock returns False when files don't exist."""
+    def testcan_take_over_lock_returns_false_on_file_not_found(self):
+        """Test can_take_over_lock returns False when files don't exist."""
         with patch('app.file_lock.get_environment_config') as mock_get_env_config, \
              patch('pathlib.Path.read_text') as mock_read_text:
             
@@ -894,7 +894,7 @@ class TestFileLockCanTakeOverLock:
             file_lock = FileLock()
             
             mock_read_text.side_effect = FileNotFoundError()
-            assert file_lock._can_take_over_lock() is False
+            assert file_lock.can_take_over_lock() is False
 
 
 class TestFileLockIsProcessRunning:
@@ -903,28 +903,27 @@ class TestFileLockIsProcessRunning:
     def test_is_process_running_returns_true_for_running_process(self):
         """Test _is_process_running returns True for running process."""
         with patch('app.file_lock.get_environment_config') as mock_get_env_config, \
-             patch('app.file_lock.Path') as mock_path:
+             patch('app.file_lock.os.kill') as mock_kill:
             
             mock_config = Mock()
             mock_config.data_path = "/test/data"
             mock_get_env_config.return_value = mock_config
-            mock_path.return_value.exists.return_value = True
+            mock_kill.return_value = None
 
             file_lock = FileLock()
             result = file_lock._is_process_running(12345)
 
             assert result is True
-            mock_path.assert_called_with("/proc/12345")
+            mock_kill.assert_called_once_with(12345, 0)
 
     def test_is_process_running_returns_false_for_dead_process(self):
         """Test _is_process_running returns False for dead process."""
         with patch('app.file_lock.get_environment_config') as mock_get_env_config, \
-             patch('app.file_lock.Path') as mock_path:
+             patch('app.file_lock.os.kill', side_effect=ProcessLookupError()):
             
             mock_config = Mock()
             mock_config.data_path = "/test/data"
             mock_get_env_config.return_value = mock_config
-            mock_path.return_value.exists.return_value = False
 
             file_lock = FileLock()
             result = file_lock._is_process_running(99999)
@@ -932,18 +931,18 @@ class TestFileLockIsProcessRunning:
             assert result is False
 
     def test_is_process_running_raises_on_permission_error(self):
-        """Test _is_process_running raises OSError on permission error."""
+        """Test _is_process_running returns False on permission error."""
         with patch('app.file_lock.get_environment_config') as mock_get_env_config, \
-             patch('app.file_lock.Path') as mock_path:
+             patch('app.file_lock.os.kill', side_effect=PermissionError()):
             
             mock_config = Mock()
             mock_config.data_path = "/test/data"
             mock_get_env_config.return_value = mock_config
-            mock_path.return_value.exists.side_effect = OSError("Permission denied")
 
             file_lock = FileLock()
-            with pytest.raises(OSError):
-                file_lock._is_process_running(99999)
+            result = file_lock._is_process_running(99999)
+
+            assert result is False
 
 
 class TestFileLockGetBootId:
@@ -964,7 +963,7 @@ class TestFileLockGetBootId:
             assert file_lock._boot_id == "test-boot-id-12345"
 
     def test_get_boot_id_returns_none_string_on_file_not_found(self):
-        """Test _boot_id is 'None' string when boot_id file doesn't exist."""
+        """Test _boot_id is None when boot_id file doesn't exist."""
         with patch('app.file_lock.get_environment_config') as mock_get_env_config, \
              patch('pathlib.Path.read_text', side_effect=FileNotFoundError()):
             
@@ -973,4 +972,4 @@ class TestFileLockGetBootId:
             mock_get_env_config.return_value = mock_config
 
             file_lock = FileLock()
-            assert file_lock._boot_id == "None"
+            assert file_lock._boot_id is None
