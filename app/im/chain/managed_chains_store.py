@@ -1,0 +1,222 @@
+import os
+from datetime import datetime, timezone
+from typing import Dict, List, Optional, Any
+from pathlib import Path
+
+from icalendar import Calendar, Event
+from dateutil.rrule import rrulestr
+
+from app.logging import logger
+
+
+class ManagedChainsStore:
+    MANAGED_CHAINS_DIR = "data/managed_chains"
+    CALENDAR_FILENAME = "managed_chains.ics"
+
+    def __init__(self):
+        self._ensure_directory_exists()
+
+    def _ensure_directory_exists(self) -> None:
+        if not os.path.exists(self.MANAGED_CHAINS_DIR):
+            os.makedirs(self.MANAGED_CHAINS_DIR)
+            logger.info("Created managed_chains directory", extra={"path": self.MANAGED_CHAINS_DIR})
+
+    @property
+    def _calendar_path(self) -> str:
+        return os.path.join(self.MANAGED_CHAINS_DIR, self.CALENDAR_FILENAME)
+
+    def load_chains(self) -> List[Dict[str, Any]]:
+        if not os.path.exists(self._calendar_path):
+            return []
+
+        try:
+            with open(self._calendar_path, "rb") as f:
+                cal = Calendar.from_ical(f.read())
+
+            chains = []
+            for component in cal.walk():
+                if component.name == "VEVENT":
+                    chain = self._ical_event_to_chain(component)
+                    if chain:
+                        chains.append(chain)
+
+            logger.debug("Loaded managed chains", extra={"count": len(chains)})
+            return chains
+        except Exception as e:
+            logger.error("Failed to load managed chains", extra={"error": str(e)})
+            return []
+
+    def save_chains(self, chains: List[Dict[str, Any]]) -> bool:
+        try:
+            cal = Calendar()
+            cal.add("prodid", "-//IMPulse Managed Chains//impulse.calendar//EN")
+            cal.add("version", "2.0")
+            cal.add("calscale", "GREGORIAN")
+            cal.add("method", "PUBLISH")
+
+            for chain in chains:
+                event = self._chain_to_ical_event(chain)
+                if event:
+                    cal.add_component(event)
+
+            with open(self._calendar_path, "wb") as f:
+                f.write(cal.to_ical())
+
+            logger.debug("Saved managed chains", extra={"count": len(chains)})
+            return True
+        except Exception as e:
+            logger.error("Failed to save managed chains", extra={"error": str(e)})
+            return False
+
+    def _chain_to_ical_event(self, chain: Dict[str, Any]) -> Optional[Event]:
+        try:
+            event = Event()
+
+            event.add("uid", chain.get("id", ""))
+            event.add("summary", chain.get("title", "Managed Chain"))
+
+            start = chain.get("start")
+            if start:
+                start_dt = self._parse_datetime(start)
+                if start_dt:
+                    event.add("dtstart", start_dt)
+
+            end = chain.get("end")
+            if end:
+                end_dt = self._parse_datetime(end)
+                if end_dt:
+                    event.add("dtend", end_dt)
+
+            event.add("dtstamp", datetime.now(timezone.utc))
+
+            repeat = chain.get("repeat")
+            if repeat:
+                rrule = self._repeat_to_rrule(repeat)
+                if rrule:
+                    event.add("rrule", rrule)
+
+            steps = chain.get("steps")
+            if steps:
+                import json
+                event.add("description", json.dumps(steps))
+
+            return event
+        except Exception as e:
+            logger.error("Failed to convert chain to iCal event", extra={"error": str(e), "chain_id": chain.get("id")})
+            return None
+
+    def _ical_event_to_chain(self, event: Event) -> Optional[Dict[str, Any]]:
+        try:
+            chain = {}
+
+            uid = event.get("uid")
+            if uid:
+                chain["id"] = str(uid)
+
+            summary = event.get("summary")
+            if summary:
+                chain["title"] = str(summary)
+            else:
+                chain["title"] = ""
+
+            dtstart = event.get("dtstart")
+            if dtstart:
+                dt = dtstart.dt if hasattr(dtstart, "dt") else dtstart
+                if hasattr(dt, 'isoformat'):
+                    iso_str = dt.isoformat()
+                    if not iso_str.endswith('Z') and '+' not in iso_str and '-' not in iso_str[-6:]:
+                        iso_str += 'Z'
+                    chain["start"] = iso_str
+                else:
+                    chain["start"] = str(dt)
+
+            dtend = event.get("dtend")
+            if dtend:
+                dt = dtend.dt if hasattr(dtend, "dt") else dtend
+                if hasattr(dt, 'isoformat'):
+                    iso_str = dt.isoformat()
+                    if not iso_str.endswith('Z') and '+' not in iso_str and '-' not in iso_str[-6:]:
+                        iso_str += 'Z'
+                    chain["end"] = iso_str
+                else:
+                    chain["end"] = str(dt)
+            else:
+                chain["end"] = None
+
+            rrule = event.get("rrule")
+            if rrule:
+                chain["repeat"] = self._rrule_to_repeat(rrule)
+            else:
+                chain["repeat"] = None
+
+            description = event.get("description")
+            if description:
+                import json
+                try:
+                    chain["steps"] = json.loads(str(description))
+                except json.JSONDecodeError:
+                    chain["steps"] = None
+            else:
+                chain["steps"] = None
+
+            return chain
+        except Exception as e:
+            logger.error("Failed to convert iCal event to chain", extra={"error": str(e)})
+            return None
+
+    def _parse_datetime(self, dt_str: str) -> Optional[datetime]:
+        if isinstance(dt_str, datetime):
+            return dt_str
+
+        try:
+            if dt_str.endswith("Z"):
+                dt_str = dt_str[:-1] + "+00:00"
+            return datetime.fromisoformat(dt_str)
+        except Exception:
+            try:
+                return datetime.strptime(dt_str, "%Y-%m-%dT%H:%M:%S.%f%z")
+            except Exception:
+                return None
+
+    def _repeat_to_rrule(self, repeat: str) -> Optional[Dict]:
+        repeat_map = {
+            "daily": {"FREQ": "DAILY"},
+            "weekly": {"FREQ": "WEEKLY"},
+            "monthly": {"FREQ": "MONTHLY"},
+            "yearly": {"FREQ": "YEARLY"},
+        }
+        return repeat_map.get(repeat.lower()) if repeat else None
+
+    def _rrule_to_repeat(self, rrule) -> Optional[str]:
+        if not rrule:
+            return None
+
+        freq = None
+        if hasattr(rrule, "get"):
+            freq_list = rrule.get("FREQ")
+            if freq_list:
+                freq = freq_list[0] if isinstance(freq_list, list) else freq_list
+        elif hasattr(rrule, "to_ical"):
+            rrule_str = rrule.to_ical().decode("utf-8")
+            if "FREQ=DAILY" in rrule_str:
+                return "daily"
+            elif "FREQ=WEEKLY" in rrule_str:
+                return "weekly"
+            elif "FREQ=MONTHLY" in rrule_str:
+                return "monthly"
+            elif "FREQ=YEARLY" in rrule_str:
+                return "yearly"
+
+        if freq:
+            freq_map = {
+                "DAILY": "daily",
+                "WEEKLY": "weekly",
+                "MONTHLY": "monthly",
+                "YEARLY": "yearly",
+            }
+            return freq_map.get(str(freq).upper())
+
+        return None
+
+
+managed_chains_store = ManagedChainsStore()

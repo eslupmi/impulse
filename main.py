@@ -27,6 +27,7 @@ from app.route import generate_route
 from app.ui.table_config import get_all_ui_config
 from app.ui.websocket import incident_ws
 from app.webhook import generate_webhooks
+from app.im.chain.managed_chains_store import managed_chains_store
 
 
 def setup_sighup_handler():
@@ -272,7 +273,6 @@ if get_config().ui_config:
             "http_prefix": http_prefix
         })
 
-
 @router.get("/queue")
 async def get_queue(request: Request):
     """Get current queue state"""
@@ -324,6 +324,53 @@ async def get_incidents(request: Request):
 async def get_ui_config():
     """Get complete UI configuration"""
     return get_all_ui_config()
+
+
+@router.get("/chains_config")
+async def get_chains_config(request: Request):
+    """Get configuration data for chains (users, user_groups, groups, chains, webhooks)"""
+    if not hasattr(request.app.state, 'config'):
+        return {"users": [], "user_groups": [], "groups": [], "chains": [], "webhooks": [], "week_start": "Mon"}
+    
+    config = request.app.state.config
+    messenger_config = config.app.messenger if hasattr(config, 'app') and hasattr(config.app, 'messenger') else None
+    
+    users = list(messenger_config.users.keys()) if messenger_config and hasattr(messenger_config, 'users') and messenger_config.users else []
+    user_groups = list(messenger_config.user_groups.keys()) if messenger_config and hasattr(messenger_config, 'user_groups') and messenger_config.user_groups else []
+    groups = list(messenger_config.groups.keys()) if messenger_config and hasattr(messenger_config, 'groups') and messenger_config.groups else []
+    chains = list(messenger_config.chains.keys()) if messenger_config and hasattr(messenger_config, 'chains') and messenger_config.chains else []
+    webhooks = list(config.app.webhooks.keys()) if hasattr(config, 'app') and hasattr(config.app, 'webhooks') and config.app.webhooks else []
+    week_start = config.app.general.week_start if hasattr(config, 'app') and hasattr(config.app, 'general') else "Mon"
+    
+    return {
+        "users": users,
+        "user_groups": user_groups,
+        "groups": groups,
+        "chains": chains,
+        "webhooks": webhooks,
+        "week_start": week_start
+    }
+
+
+@router.get("/managed_chains")
+async def get_managed_chains():
+    """Get managed chains from iCalendar storage"""
+    return managed_chains_store.load_chains()
+
+
+@router.post("/managed_chains")
+async def save_managed_chains(request: Request):
+    """Save managed chains to iCalendar storage"""
+    try:
+        chains = await request.json()
+        success = managed_chains_store.save_chains(chains)
+        if success:
+            return {"status": "ok", "count": len(chains)}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to save managed chains")
+    except Exception as e:
+        logger.error("Failed to save managed chains", extra={"error": str(e)})
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.websocket("/ws")

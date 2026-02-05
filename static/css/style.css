@@ -177,6 +177,12 @@ strong {
     padding-right: 24px;
 }
 
+.fc table {
+    border-collapse: collapse;
+    /* border-spacing: 0px; */
+    font-size: 1em;
+}
+
 /* Scrollable Filters Area */
 #scrollable-filters {
     position: relative;
@@ -491,11 +497,41 @@ strong {
     color: var(--offline-status-indicator);
 }
 
-.history-toggle-wrapper {
+.bottom-controls {
     position: fixed;
     bottom: 7px;
-    right: 48px;
+    right: 20px;
     z-index: 1000;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.control-btn {
+    cursor: pointer;
+    width: 16px;
+    height: 16px;
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    padding: 0;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    color: var(--theme-icon-color);
+    text-decoration: none;
+}
+
+.control-btn:hover {
+    transform: scale(1.2);
+}
+
+.control-btn svg {
+    width: 16px;
+    height: 16px;
+    stroke: currentColor;
 }
 
 .history-toggle-btn {
@@ -542,13 +578,6 @@ strong {
     height: 14px;
     color: var(--theme-icon-color);
     transition: all 0.3s ease;
-}
-
-.theme-toggle-wrapper {
-    position: fixed;
-    bottom: 7px;
-    right: 20px;
-    z-index: 1000;
 }
 
 .theme-toggle-btn {
@@ -780,3 +809,4 @@ strong {
 .frozen-row {
     opacity: 0.7;
 }
+
