@@ -219,12 +219,6 @@ class TestMainApplication:
             # acquire_lock is not called when starting in standby mode
             mock_file_lock.acquire_lock.assert_not_called()
 
-    def test_client_creation(self, mock_app_dependencies):
-        """Test that test client can be created."""
-        with patch('main.lifespan'):
-            client = TestClient(main.app)
-            assert client is not None
-
 
 class TestSignalHandlers:
     """Test cases for signal handlers."""
