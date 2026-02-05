@@ -71,8 +71,7 @@ class AlertHandler(BaseHandler):
         self.incidents.add(incident_)
         will_be_inhibited = self.inhibition_manager.would_be_inhibited(incident_)
 
-        if will_be_inhibited:
-            await self.inhibition_manager.process_incident(incident_)
+        await self.inhibition_manager.process_incident(incident_)
 
         # Always create thread, but with frozen state if inhibited
         await self._create_thread(incident_, alert_state, frozen_by_inhibition=will_be_inhibited)
@@ -81,7 +80,6 @@ class AlertHandler(BaseHandler):
         if will_be_inhibited:
             logger.info("Incident created (inhibited)", extra={'uuid': incident_.uuid, 'link': incident_.link})
         else:
-            await self.inhibition_manager.process_incident(incident_)
             logger.info("Incident created", extra={'uuid': incident_.uuid, 'link': incident_.link})
 
         await self.queue.put(status_update_datetime, QueueItemType.UPDATE_STATUS, incident_.uniq_id)
