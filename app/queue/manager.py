@@ -119,7 +119,7 @@ class AsyncQueueManager:
             elif type_ == QueueItemType.UPDATE_USER:
                 await self.handle_user_update(identifier)
         except Exception as e:
-            logger.error(f"Error handling queue item {type_}: {repr(e)}")
+            logger.error(f"Error handling queue item {type_}", extra={'error': repr(e)})
         
         # Always yield control after processing an item
         await asyncio.sleep(0)

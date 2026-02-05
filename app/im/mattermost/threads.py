@@ -39,6 +39,8 @@ def build_mattermost_actions(chain_enabled, status, frozen_until=None, task_link
     env_config = get_environment_config()
     
     chain_text, chain_style = chain_attrs(chain_enabled, status)
+    if frozen_by_inhibition:
+        chain_style = 'default'
     
     actions = [
         {
