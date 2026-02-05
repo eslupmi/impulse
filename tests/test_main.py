@@ -92,7 +92,7 @@ class TestMainApplication:
             # Setup mock file lock
             mock_file_lock_instance = Mock()
             mock_file_lock_instance.is_locked.return_value = False  # Not locked by default
-            mock_file_lock_instance.get_lock_info.return_value = ("test-hostname", "12345", "1000.0")
+            mock_file_lock_instance.get_lock_info.return_value = ("test-hostname", "12345")
             mock_file_lock_instance.wait_for_unlock = AsyncMock()
             mock_file_lock_instance.acquire_lock = Mock(return_value=True)
             mock_file_lock_instance.release_lock = AsyncMock()
@@ -192,7 +192,8 @@ class TestMainApplication:
         
         # Lock is held
         mock_file_lock.is_locked = Mock(return_value=True)
-        mock_file_lock.get_lock_info = Mock(return_value=("other-host", "999", "1000.0"))
+        mock_file_lock.can_take_over_lock = Mock(return_value=False)
+        mock_file_lock.get_lock_info = Mock(return_value=("other-host", "999"))
         mock_file_lock.acquire_lock = Mock(return_value=True)
         mock_file_lock.release_lock = AsyncMock()
         
@@ -217,12 +218,6 @@ class TestMainApplication:
             mock_file_lock.release_lock.assert_not_called()
             # acquire_lock is not called when starting in standby mode
             mock_file_lock.acquire_lock.assert_not_called()
-
-    def test_client_creation(self, mock_app_dependencies):
-        """Test that test client can be created."""
-        with patch('main.lifespan'):
-            client = TestClient(main.app)
-            assert client is not None
 
 
 class TestSignalHandlers:

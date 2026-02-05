@@ -128,12 +128,13 @@ async def initialize_primary_server(fastapi_app: FastAPI, file_lock: FileLock) -
 async def lifespan(fastapi_app: FastAPI):
     """Manage application lifecycle"""
     file_lock = FileLock()
-    locked = file_lock.is_locked()
     shutdown_event = asyncio.Event()
 
-    # Store file_lock and standby state early so /readyz endpoint can access them
+    can_take_over = file_lock.can_take_over_lock()
+    is_standby = file_lock.is_locked() and not can_take_over
+
     fastapi_app.state.file_lock = file_lock
-    fastapi_app.state.is_standby = locked
+    fastapi_app.state.is_standby = is_standby
     fastapi_app.state.queue_manager = None
     fastapi_app.state.queue = AsyncQueue()
     
@@ -154,14 +155,17 @@ async def lifespan(fastapi_app: FastAPI):
             except asyncio.TimeoutError:
                 pass
     
-    if locked:
+    if is_standby:
         logger.info("Another IMPulse instance is running, working as standby server")
-        hostname, pid, _ = file_lock.get_lock_info()
+        hostname, pid = file_lock.get_lock_info()
         STATUS.set(0)
         logger.debug("Lock held by another instance", extra={'hostname': hostname, 'pid': pid})
         logger.info('IMPulse started in standby mode')
         unlock_task = asyncio.create_task(wait_and_become_primary())
     else:
+        if can_take_over:
+            hostname, pid = file_lock.get_lock_info()
+            logger.info("Taking over from dead process", extra={'hostname': hostname, 'pid': pid})
         success = await initialize_primary_server(fastapi_app, file_lock)
         if not success:
             logger.error('Primary server start failed, entering standby mode')
