@@ -30,3 +30,10 @@ _{{ commonAnnotations.description }}_{% endif %}
     {{ k }}=`{{ v }}`
 {%- endfor -%}
 {% endif -%}
+{%- if incident.childs | length > 0 %}
+
+*Inhibited incidents:*
+{%- for uniq_id, child in incident.childs.items() %}
+    <{{ child.link }}|{{ child.payload.commonLabels.alertname }}>
+{%- endfor -%}
+{% endif -%}
