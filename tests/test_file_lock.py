@@ -410,12 +410,10 @@ class TestFileLockGetLockInfo:
             mock_get_env_config.return_value = mock_config
 
             file_lock = FileLock()
-            hostname, pid, locktime, boot_id = file_lock.get_lock_info()
+            hostname, pid = file_lock.get_lock_info()
 
             assert hostname is None
             assert pid is None
-            assert locktime is None
-            assert boot_id is None
 
     def test_get_lock_info_returns_correct_info(self):
         """Test get_lock_info returns correct information."""
@@ -427,15 +425,13 @@ class TestFileLockGetLockInfo:
             file_lock = FileLock()
             
             with patch('pathlib.Path.read_text') as mock_read_text:
-                mock_read_text.side_effect = ["test-hostname", "12345", "1000.5", "test-boot-id"]
+                mock_read_text.side_effect = ["test-hostname", "12345"]
                 
-                hostname, pid, locktime, boot_id = file_lock.get_lock_info()
+                hostname, pid = file_lock.get_lock_info()
 
                 assert hostname == "test-hostname"
                 assert pid == "12345"
-                assert locktime == "1000.5"
-                assert boot_id == "test-boot-id"
-                assert mock_read_text.call_count == 4
+                assert mock_read_text.call_count == 2
 
     def test_get_lock_info_handles_value_error(self):
         """Test get_lock_info handles ValueError."""
@@ -449,12 +445,10 @@ class TestFileLockGetLockInfo:
             file_lock = FileLock()
             
             mock_read_text.side_effect = ValueError("Invalid format")
-            hostname, pid, locktime, boot_id = file_lock.get_lock_info()
+            hostname, pid = file_lock.get_lock_info()
 
             assert hostname is None
             assert pid is None
-            assert locktime is None
-            assert boot_id is None
 
     def test_get_lock_info_handles_file_not_found_error(self):
         """Test get_lock_info handles FileNotFoundError."""
@@ -466,12 +460,10 @@ class TestFileLockGetLockInfo:
             mock_get_env_config.return_value = mock_config
 
             file_lock = FileLock()
-            hostname, pid, locktime, boot_id = file_lock.get_lock_info()
+            hostname, pid = file_lock.get_lock_info()
 
             assert hostname is None
             assert pid is None
-            assert locktime is None
-            assert boot_id is None
 
 
 class TestFileLockWaitForUnlock:

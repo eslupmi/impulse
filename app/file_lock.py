@@ -201,23 +201,21 @@ class FileLock:
             logger.error(f"Heartbeat read failed: {e}")
             return False
 
-    def get_lock_info(self) -> Tuple[Optional[str], Optional[str], Optional[str], Optional[str]]:
+    def get_lock_info(self) -> Tuple[Optional[str], Optional[str]]:
         """
         Get information about the current lock holder.
         
         Returns:
-            Tuple of (hostname, pid, locktime, boot_id) or (None, None, None, None) if not available.
+            Tuple of (hostname, pid) or (None, None) if not available.
         """
         try:
             hostname = self.host_path.read_text().strip()
             pid = self.pid_path.read_text().strip()
-            locktime = self.heartbeat_path.read_text().strip()
-            boot_id = self.boot_id_path.read_text().strip()
-            return hostname, pid, locktime, boot_id
+            return hostname, pid
         except FileNotFoundError:
-            return None, None, None, None
+            return None, None
         except (ValueError, OSError):
-            return None, None, None, None
+            return None, None
 
     async def wait_for_unlock(self):
         """Wait until the lock becomes available."""

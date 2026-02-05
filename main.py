@@ -157,14 +157,14 @@ async def lifespan(fastapi_app: FastAPI):
     
     if is_standby:
         logger.info("Another IMPulse instance is running, working as standby server")
-        hostname, pid, _, _ = file_lock.get_lock_info()
+        hostname, pid = file_lock.get_lock_info()
         STATUS.set(0)
         logger.debug("Lock held by another instance", extra={'hostname': hostname, 'pid': pid})
         logger.info('IMPulse started in standby mode')
         unlock_task = asyncio.create_task(wait_and_become_primary())
     else:
         if can_take_over:
-            hostname, pid, _, _ = file_lock.get_lock_info()
+            hostname, pid = file_lock.get_lock_info()
             logger.info("Taking over from dead process", extra={'hostname': hostname, 'pid': pid})
         success = await initialize_primary_server(fastapi_app, file_lock)
         if not success:
