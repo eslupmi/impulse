@@ -73,11 +73,43 @@ function expandRecurringEvents(chains, rangeStart, rangeEnd) {
     return expandedEvents;
 }
 
-function getExpandedChains(chains) {
+function prepareEventsForCalendar(chains) {
     const now = new Date();
     const rangeStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const rangeEnd = new Date(now.getFullYear(), now.getMonth() + 3, 0);
-    return expandRecurringEvents(chains, rangeStart, rangeEnd);
+    const expanded = expandRecurringEvents(chains, rangeStart, rangeEnd);
+    
+    return expanded.map((chain, index) => {
+        const stepsText = formatStepsText(chain.steps);
+        const priority = chain.priority !== undefined ? chain.priority : index;
+        
+        return {
+            ...chain,
+            title: stepsText || chain.title || '',
+            extendedProps: {
+                ...chain.extendedProps,
+                steps: chain.steps,
+                repeat: chain.repeat,
+                priority: priority,
+                originalId: chain.originalId,
+                isOccurrence: chain.isOccurrence,
+                isOriginal: chain.isOriginal
+            },
+            display: 'block',
+            backgroundColor: chain.backgroundColor || '#3b82f6',
+            borderColor: chain.borderColor || '#2563eb'
+        };
+    }).sort((a, b) => {
+        const timeDiff = new Date(a.start) - new Date(b.start);
+        if (Math.abs(timeDiff) < 1000) {
+            return (a.extendedProps.priority || 0) - (b.extendedProps.priority || 0);
+        }
+        return timeDiff;
+    });
+}
+
+function getExpandedChains(chains) {
+    return prepareEventsForCalendar(chains);
 }
 
 async function loadChains() {
@@ -222,6 +254,85 @@ function getSteps() {
     return steps;
 }
 
+function formatStepsText(steps) {
+    if (!steps || !Array.isArray(steps) || steps.length === 0) {
+        return '';
+    }
+    
+    const stepTexts = steps.map(step => {
+        const type = Object.keys(step)[0];
+        const value = step[type];
+        switch (type) {
+            case 'user':
+                return `user: ${value}`;
+            case 'user_group':
+                return `user_group: ${value}`;
+            case 'group':
+                return `group: ${value}`;
+            case 'wait':
+                return `wait: ${value}`;
+            case 'chain':
+                return `chain: ${value}`;
+            default:
+                return `${type}: ${value}`;
+        }
+    });
+    
+    return stepTexts.join('<br>');
+}
+
+async function updateEventPriority(droppedEvent) {
+    const droppedStart = droppedEvent.start;
+    const droppedEnd = droppedEvent.end;
+    
+    const allEvents = calendar.getEvents();
+    const overlappingEvents = allEvents.filter(evt => {
+        if (evt.id === droppedEvent.id || evt.extendedProps?.isOccurrence) {
+            return false;
+        }
+        const evtStart = evt.start;
+        const evtEnd = evt.end;
+        const timeOverlap = droppedStart < evtEnd && droppedEnd > evtStart;
+        if (!timeOverlap) {
+            return false;
+        }
+        const sameDay = droppedStart.toDateString() === evtStart.toDateString();
+        return sameDay;
+    });
+    
+    if (overlappingEvents.length === 0) {
+        droppedEvent.setExtendedProp('priority', 0);
+        return;
+    }
+    
+    await new Promise(resolve => setTimeout(resolve, 50));
+    
+    const droppedRect = droppedEvent.el?.getBoundingClientRect();
+    if (!droppedRect) {
+        return;
+    }
+    
+    const eventsWithRects = overlappingEvents.map(evt => ({
+        event: evt,
+        rect: evt.el?.getBoundingClientRect(),
+        priority: evt.extendedProps?.priority || 0
+    })).filter(item => item.rect);
+    
+    eventsWithRects.sort((a, b) => a.rect.top - b.rect.top);
+    
+    let newPriority = 0;
+    for (let i = 0; i < eventsWithRects.length; i++) {
+        const otherRect = eventsWithRects[i].rect;
+        if (droppedRect.top < otherRect.top + otherRect.height / 2) {
+            newPriority = eventsWithRects[i].priority;
+            break;
+        }
+        newPriority = eventsWithRects[i].priority + 1;
+    }
+    
+    droppedEvent.setExtendedProp('priority', newPriority);
+}
+
 function formatDateTime(date) {
     const d = new Date(date);
     const pad = (n) => n.toString().padStart(2, '0');
@@ -295,17 +406,20 @@ async function saveChain() {
                 start,
                 end: end || null,
                 repeat: repeat || null,
-                steps: steps.length > 0 ? steps : null
+                steps: steps.length > 0 ? steps : null,
+                priority: chains[index].priority !== undefined ? chains[index].priority : index
             };
         }
     } else {
+        const maxPriority = chains.length > 0 ? Math.max(...chains.map(c => c.priority !== undefined ? c.priority : 0)) : -1;
         chains.push({
             id: generateId(),
             title: '',
             start,
             end: end || null,
             repeat: repeat || null,
-            steps: steps.length > 0 ? steps : null
+            steps: steps.length > 0 ? steps : null,
+            priority: maxPriority + 1
         });
     }
 
@@ -409,6 +523,32 @@ async function initializeCalendars() {
             selectable: true,
             selectMirror: true,
             dayMaxEvents: true,
+            eventOrder: function(event1, event2) {
+                const time1 = new Date(event1.start).getTime();
+                const time2 = new Date(event2.start).getTime();
+                if (Math.abs(time1 - time2) < 1000) {
+                    const priority1 = event1.extendedProps?.priority || 0;
+                    const priority2 = event2.extendedProps?.priority || 0;
+                    return priority1 - priority2;
+                }
+                return time1 - time2;
+            },
+            eventContent: function(arg) {
+                const steps = arg.event.extendedProps?.steps;
+                const stepsText = formatStepsText(steps);
+                if (stepsText) {
+                    return {
+                        html: `<div class="fc-event-title" style="line-height: 1.4; white-space: normal;">${stepsText}</div>`
+                    };
+                }
+                return { html: '' };
+            },
+            eventTimeFormat: {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false
+            },
+            displayEventTime: false,
             events: expandedChains,
 
             select: function(info) {
@@ -449,11 +589,15 @@ async function initializeCalendars() {
                     info.revert();
                     return;
                 }
+                
+                await updateEventPriority(info.event);
+                
                 const chains = await loadChains();
                 const index = chains.findIndex(c => c.id === info.event.id);
                 if (index !== -1) {
                     chains[index].start = info.event.start.toISOString();
                     chains[index].end = info.event.end ? info.event.end.toISOString() : null;
+                    chains[index].priority = info.event.extendedProps?.priority || 0;
                     await saveChains(chains);
                     const expandedChains = getExpandedChains(chains);
                     calendar.removeAllEvents();
@@ -468,11 +612,13 @@ async function initializeCalendars() {
                     info.revert();
                     return;
                 }
+                await updateEventPriority(info.event);
                 const chains = await loadChains();
                 const index = chains.findIndex(c => c.id === info.event.id);
                 if (index !== -1) {
                     chains[index].start = info.event.start.toISOString();
                     chains[index].end = info.event.end ? info.event.end.toISOString() : null;
+                    chains[index].priority = info.event.extendedProps?.priority || 0;
                     await saveChains(chains);
                     const expandedChains = getExpandedChains(chains);
                     calendar.removeAllEvents();

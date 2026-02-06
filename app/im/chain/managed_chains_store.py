@@ -100,6 +100,10 @@ class ManagedChainsStore:
                 import json
                 event.add("description", json.dumps(steps))
 
+            priority = chain.get("priority")
+            if priority is not None:
+                event.add("x-priority", str(priority))
+
             return event
         except Exception as e:
             logger.error("Failed to convert chain to iCal event", extra={"error": str(e), "chain_id": chain.get("id")})
@@ -158,6 +162,15 @@ class ManagedChainsStore:
                     chain["steps"] = None
             else:
                 chain["steps"] = None
+
+            x_priority = event.get("x-priority")
+            if x_priority:
+                try:
+                    chain["priority"] = int(str(x_priority))
+                except (ValueError, TypeError):
+                    chain["priority"] = None
+            else:
+                chain["priority"] = None
 
             return chain
         except Exception as e:
