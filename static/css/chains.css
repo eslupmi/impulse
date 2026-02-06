@@ -202,8 +202,15 @@
 }
 
 #month-calendar .fc-event {
-    font-size: 8px;
-    padding: 1px 2px;
+    display: none !important;
+}
+
+#month-calendar .fc-daygrid-event-dot {
+    display: none !important;
+}
+
+#month-calendar .fc-daygrid-more-link {
+    display: none !important;
 }
 
 #month-calendar .fc-daygrid-day-frame {
@@ -376,6 +383,54 @@
     padding: 2px 6px;
     cursor: pointer;
     transition: all 0.2s ease;
+    width: 90% !important;
+    overflow: hidden;
+}
+
+.fc .fc-timegrid-event {
+    width: 90% !important;
+    overflow: hidden;
+}
+
+.fc-event-priority-2 {
+    background: transparent !important;
+    border: 2px solid var(--brand-secondary) !important;
+}
+
+.fc-event-priority-1 {
+    background: var(--brand-secondary) !important;
+    border: none !important;
+}
+
+.fc-event-priority-toggle {
+    display: none;
+    position: absolute;
+    right: 4px;
+    top: 4px;
+    background: rgba(0, 0, 0, 0.7);
+    border: none;
+    color: white;
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    z-index: 1000;
+    padding: 0;
+    line-height: 1;
+    user-select: none;
+    pointer-events: auto;
+    transition: all 0.2s ease;
+}
+
+.fc-event-priority-toggle:hover {
+    background: rgba(0, 0, 0, 0.9);
+    transform: scale(1.1);
+}
+
+.fc-event-priority-toggle:active {
+    transform: scale(0.95);
 }
 
 .fc .fc-event:hover {
@@ -384,6 +439,9 @@
 
 .fc .fc-event-title {
     font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .fc .fc-daygrid-event-dot {
@@ -624,4 +682,32 @@
 
 .hidden {
     display: none !important;
+}
+
+.overlap-notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #ef4444;
+    color: white;
+    padding: 16px 24px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 3000;
+    opacity: 0;
+    transform: translateX(100%);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    max-width: 400px;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.overlap-notification.show {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.overlap-notification.hide {
+    opacity: 0;
+    transform: translateX(100%);
 }
