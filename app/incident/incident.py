@@ -51,6 +51,7 @@ class Incident:
     closed: Optional[datetime] = field(default=None)
     frozen_until: Optional[datetime] = field(default=None)
     frozen_by_inhibition: bool = False
+    chain_active_seconds: float = 0.0
     childs: List[str] = field(default_factory=list)  # Target incident uniq_ids that this incident inhibits
     parents: List[str] = field(default_factory=list)  # Source incident uniq_ids that inhibit this incident
 
@@ -117,13 +118,14 @@ class Incident:
 
         steps = self._unchain(chains, steps)
 
-        dt = datetime.now(timezone.utc)
+        cumulative_delay = 0.0
         for index, step in enumerate(steps):
             type_, value = self._get_step_type_and_value(step)
             if type_ == 'wait':
-                dt += unix_sleep_to_timedelta(value)
+                cumulative_delay += unix_sleep_to_timedelta(value).total_seconds()
             else:
-                self.chain_put(index=index, datetime_=dt, type_=type_, identifier=value)
+                self.chain_put(index=index, delay=cumulative_delay, type_=type_, identifier=value)
+        self.chain_active_seconds = 0.0
         self.dump()
 
     def _unchain(self, chains, steps):
@@ -163,6 +165,7 @@ class Incident:
 
     def release(self):
         self.chain = []
+        self.chain_active_seconds = 0.0
         self.assign_user_id("")
         self.assign_user("")
         self.assign_fullname("")
@@ -172,6 +175,7 @@ class Incident:
     def freeze(self, until: datetime, user_id: str, user_fullname: str = ''):
         """Freeze the incident until the specified datetime (preserves underlying status)
         Assigns the user who froze the incident and disables chains"""
+        self.accumulate_chain_time()
         self.frozen_until = until
         self.assigned_user_id = user_id
         if user_fullname:
@@ -200,14 +204,29 @@ class Incident:
         """Check if the incident is currently frozen (by time-based freeze or inhibition)"""
         return self.frozen_by_inhibition or self.frozen_until is not None
 
+    def is_chain_active(self) -> bool:
+        """Check if the chain is currently active.
+        Chain is active when status is firing/unknown, chain is enabled, and incident is not frozen."""
+        return self.status in ('firing', 'unknown') and self.chain_enabled and not self.is_frozen()
+
+    def accumulate_chain_time(self):
+        """Accumulate chain active time from self.updated until now. Updates self.updated.
+        Must be called before any state change that affects chain activity."""
+        now = datetime.now(timezone.utc)
+        if self.is_chain_active():
+            delta = (now - self.updated).total_seconds()
+            if delta > 0:
+                self.chain_active_seconds += delta
+        self.updated = now
+
     def get_chain(self) -> List[Dict]:
         if not self.chain_enabled:
             return []
         return self.chain
 
-    def chain_put(self, index: int, datetime_: datetime, type_: str, identifier: str):
+    def chain_put(self, index: int, delay: float, type_: str, identifier: str):
         self.chain.insert(index, {
-            'datetime': datetime_,
+            'delay': delay,
             'type': type_,
             'identifier': identifier,
             'done': False,
@@ -244,6 +263,7 @@ class Incident:
             version=content.get('version', config.INCIDENT_ACTUAL_VERSION),
             frozen_until=content.get('frozen_until', None),
             frozen_by_inhibition=content.get('frozen_by_inhibition', False),
+            chain_active_seconds=content.get('chain_active_seconds', 0.0),
             childs=content.get('childs', []),
             parents=content.get('parents', []),
         )
@@ -291,6 +311,7 @@ class Incident:
             "task_link": self.task_link,
             "frozen_until": self.frozen_until,
             "frozen_by_inhibition": self.frozen_by_inhibition,
+            "chain_active_seconds": self.chain_active_seconds,
             "childs": self.childs,
             "parents": self.parents,
         }
@@ -334,6 +355,7 @@ class Incident:
             "uniq_id": self.uniq_id,
             "frozen_until": self.frozen_until,
             "frozen_by_inhibition": self.frozen_by_inhibition,
+            "chain_active_seconds": self.chain_active_seconds,
             "childs": self.childs,
             "parents": self.parents,
         }
@@ -393,8 +415,8 @@ class Incident:
         return data
 
     def update_status(self, status: str) -> bool:
-        now = datetime.now(timezone.utc)
-        self.updated = now
+        self.accumulate_chain_time()
+        now = self.updated
         if status != 'deleted':
             config = get_config()
             timeout_value = config.incident.timeouts.get(status)

@@ -336,7 +336,7 @@ def create_mock_config(
 
     mock_config = Mock()
     mock_config.incidents_path = incidents_path
-    mock_config.INCIDENT_ACTUAL_VERSION = "v3.2.0"
+    mock_config.INCIDENT_ACTUAL_VERSION = "v3.4.0"
 
     # Mock incident config
     mock_incident_config = Mock()
@@ -419,12 +419,13 @@ def create_mock_incident_data(
     test_datetime = create_test_datetime()
 
     return {
-        'version': 'v3.2.0',
+        'version': 'v3.4.0',
         'status': status,
         'channel_id': channel_id,
         'payload': {'alertname': 'TestAlert', 'severity': 'critical'},
         'chain': [],
         'chain_enabled': False,
+        'chain_active_seconds': 0.0,
         'status_enabled': False,
         'status_update_datetime': test_datetime,
         'updated': test_datetime,

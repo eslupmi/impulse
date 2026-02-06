@@ -394,11 +394,10 @@ class TestIncident:
 
     def test_chain_put(self, sample_incident):
         """Test putting item in chain."""
-        dt = datetime.now(timezone.utc)
-        sample_incident.chain_put(0, dt, "test_type", "test_id")
+        sample_incident.chain_put(0, 300.0, "test_type", "test_id")
 
         assert len(sample_incident.chain) == 1
-        assert sample_incident.chain[0]['datetime'] == dt
+        assert sample_incident.chain[0]['delay'] == 300.0
         assert sample_incident.chain[0]['type'] == "test_type"
         assert sample_incident.chain[0]['identifier'] == "test_id"
         assert sample_incident.chain[0]['done'] is False
@@ -406,8 +405,7 @@ class TestIncident:
 
     def test_chain_update(self, sample_incident):
         """Test updating chain item."""
-        dt = datetime.now(timezone.utc)
-        sample_incident.chain_put(0, dt, "test_type", "test_id")
+        sample_incident.chain_put(0, 300.0, "test_type", "test_id")
 
         with patch.object(sample_incident, 'dump'):
             sample_incident.chain_update(0, True, "test_result")

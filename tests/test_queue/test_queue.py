@@ -148,9 +148,9 @@ class TestAsyncQueue:
     async def test_recreate_resolved_status(self, queue):
         """Test recreate with resolved status (should not add items)."""
         incident_chain = [
-            {'done': False, 'datetime': create_test_datetime()},
-            {'done': True, 'datetime': create_test_datetime()},
-            {'done': False, 'datetime': create_test_datetime()}
+            {'done': False, 'delay': 300.0},
+            {'done': True, 'delay': 600.0},
+            {'done': False, 'delay': 900.0}
         ]
 
         await queue.recreate('resolved', 'incident123', incident_chain)
@@ -160,11 +160,10 @@ class TestAsyncQueue:
     @pytest.mark.asyncio
     async def test_recreate_non_resolved_status(self, queue):
         """Test recreate with non-resolved status (should add items)."""
-        dt = create_test_datetime()
         incident_chain = [
-            {'done': False, 'datetime': dt, 'type': 'step1'},
-            {'done': True, 'datetime': dt, 'type': 'step2'},
-            {'done': False, 'datetime': dt, 'type': 'step3'}
+            {'done': False, 'delay': 300.0, 'type': 'step1'},
+            {'done': True, 'delay': 600.0, 'type': 'step2'},
+            {'done': False, 'delay': 900.0, 'type': 'step3'}
         ]
 
         await queue.recreate('firing', 'incident123', incident_chain)
@@ -378,19 +377,21 @@ class TestAsyncQueue:
         incident1 = Mock()
         incident1.status = 'firing'
         incident1.is_frozen.return_value = False
+        incident1.chain_active_seconds = 0.0
         incident1.get_chain.return_value = [
-            {'done': False, 'datetime': create_test_datetime()},
-            {'done': True, 'datetime': create_test_datetime()},
-            {'done': False, 'datetime': create_test_datetime()}
+            {'done': False, 'delay': 300.0},
+            {'done': True, 'delay': 600.0},
+            {'done': False, 'delay': 900.0}
         ]
         incident1.status_update_datetime = create_test_datetime()
 
         incident2 = Mock()
         incident2.status = 'resolved'
         incident2.is_frozen.return_value = False
+        incident2.chain_active_seconds = 0.0
         incident2.get_chain.return_value = [
-            {'done': True, 'datetime': create_test_datetime()},
-            {'done': True, 'datetime': create_test_datetime()}
+            {'done': True, 'delay': 300.0},
+            {'done': True, 'delay': 600.0}
         ]
         incident2.status_update_datetime = create_test_datetime()
         

@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-
+from typing import TYPE_CHECKING
 from app.config.config import get_config
 from app.im.template import update_alerts
 from app.incident.incident import IncidentConfig, Incident
@@ -9,6 +9,12 @@ from app.queue.constants import QueueItemType
 from app.queue.handlers.base_handler import BaseHandler
 from app.time import unix_sleep_to_timedelta
 
+if TYPE_CHECKING:
+    from app.queue.queue import AsyncQueue
+    from app.im.application import Application
+    from app.incident.incidents import Incidents
+    from app.route.route import Route
+    from app.inhibition.manager import InhibitionManager
 
 class AlertHandler(BaseHandler):
     """
@@ -20,9 +26,9 @@ class AlertHandler(BaseHandler):
     :param route: Route instance
     :param inhibition_manager: InhibitionManager instance for inhibition rule handling
     """
-    __slots__ = ['queue', 'application', 'incidents', 'route', 'inhibition_manager']
+    __slots__ = ['route', 'inhibition_manager']
 
-    def __init__(self, queue, application, incidents, route, inhibition_manager):
+    def __init__(self, queue: 'AsyncQueue', application: 'Application', incidents: 'Incidents', route: 'Route', inhibition_manager: 'InhibitionManager'):
         super().__init__(queue, application, incidents)
         self.route = route
         self.inhibition_manager = inhibition_manager
@@ -87,7 +93,7 @@ class AlertHandler(BaseHandler):
         incident_.generate_chain(self.app.chains, chain_name)
         # Don't schedule chain steps if incident is inhibited
         if not will_be_inhibited:
-            await self.queue.recreate(status, incident_.uniq_id, incident_.chain)
+            await self.queue.recreate(status, incident_.uniq_id, incident_.chain, incident_.chain_active_seconds)
 
     async def _handle_update(self, uuid_, incident_, alert_state):
         config = get_config()
@@ -98,7 +104,8 @@ class AlertHandler(BaseHandler):
 
         prev_status = incident_.status
         self._regenerate_chain_if_needed(incident_, alert_state, prev_status)
-        await self.queue.recreate(alert_state.get('status'), incident_.uniq_id, incident_.get_chain())
+        incident_.accumulate_chain_time()
+        await self.queue.recreate(alert_state.get('status'), incident_.uniq_id, incident_.get_chain(), incident_.chain_active_seconds)
 
         is_new_firing_alerts_added, is_some_firing_alerts_removed = self._check_alert_changes(config, incident_, alert_state)
         is_status_updated, is_state_updated = incident_.update_state(alert_state)

@@ -24,6 +24,7 @@ class TestIncidentMigrator:
         assert hasattr(migrator, '_migration_methods')
         assert 'v0.4_to_v3.0.0' in migrator._migration_methods
         assert 'v3.0.0_to_v3.2.0' in migrator._migration_methods
+        assert 'v3.2.0_to_v3.4.0' in migrator._migration_methods
 
     def test_migrate_file_success(self, migrator):
         """Test successful file migration."""
@@ -49,7 +50,7 @@ class TestIncidentMigrator:
             mock_config = create_mock_config(messenger_type="slack")
             mock_get_config.return_value = mock_config
 
-            migrator.migrate_file('/test/incident.yml', incident_data, 'v0.4', 'v3.2.0')
+            migrator.migrate_file('/test/incident.yml', incident_data, 'v0.4', 'v3.4.0')
 
             mock_file.assert_called_once_with('/test/incident.yml', 'w')
             mock_yaml_dump.assert_called_once()
@@ -57,12 +58,12 @@ class TestIncidentMigrator:
             # Check that the migrated data has the correct structure
             call_args = mock_yaml_dump.call_args[0]
             migrated_data = call_args[0]
-            assert migrated_data['version'] == 'v3.2.0'
+            assert migrated_data['version'] == 'v3.4.0'
             assert migrated_data['payload'] == incident_data['last_state']
             assert migrated_data['messenger_type'] == 'slack'
 
-    def test_migrate_data_v0_4_to_v3_2_0(self, migrator):
-        """Test migrating data from v0.4 to v3.2.0 (chained)."""
+    def test_migrate_data_v0_4_to_v3_4_0(self, migrator):
+        """Test migrating data from v0.4 to v3.4.0 (chained)."""
         # Use utility function for alert payload
         alert_payload = create_alert_payload(
             status="firing",
@@ -84,9 +85,9 @@ class TestIncidentMigrator:
             mock_config = create_mock_config(messenger_type="slack")
             mock_get_config.return_value = mock_config
 
-            result = migrator._migrate_data(incident_data, 'v0.4', 'v3.2.0')
+            result = migrator._migrate_data(incident_data, 'v0.4', 'v3.4.0')
 
-            assert result['version'] == 'v3.2.0'
+            assert result['version'] == 'v3.4.0'
             assert result['payload'] == incident_data['last_state']
             assert result['messenger_type'] == 'slack'
             assert result['status'] == 'firing'
@@ -109,9 +110,9 @@ class TestIncidentMigrator:
 
     def test_get_migration_path(self, migrator):
         """Test getting migration path between versions."""
-        path = migrator._get_migration_path('v0.4', 'v3.2.0')
+        path = migrator._get_migration_path('v0.4', 'v3.4.0')
 
-        assert path == ['v0.4', 'v3.0.0', 'v3.2.0']
+        assert path == ['v0.4', 'v3.0.0', 'v3.2.0', 'v3.4.0']
 
     def test_apply_single_migration(self, migrator):
         """Test applying a single migration step."""
@@ -247,9 +248,9 @@ class TestIncidentMigrator:
             mock_config = create_mock_config(messenger_type="slack")
             mock_get_config.return_value = mock_config
 
-            migrator.migrate_file('/test/incident.yml', incident_data, 'v0.4', 'v3.2.0')
+            migrator.migrate_file('/test/incident.yml', incident_data, 'v0.4', 'v3.4.0')
 
             # Check that logging was called
             assert mock_logger.info.call_count == 2
-            mock_logger.info.assert_any_call('Migrating incident.yml from v0.4 to v3.2.0')
+            mock_logger.info.assert_any_call('Migrating incident.yml from v0.4 to v3.4.0')
             mock_logger.info.assert_any_call('Successfully migrated incident.yml')

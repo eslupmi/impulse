@@ -99,7 +99,7 @@ class TestAlertHandler:
             # Use utility function for mock config
             mock_config = create_mock_config()
             mock_config.incident.timeouts = {'firing': '1h', 'resolved': '5m'}
-            mock_config.INCIDENT_ACTUAL_VERSION = 'v3.2.0'
+            mock_config.INCIDENT_ACTUAL_VERSION = 'v3.4.0'
             mock_get_config.return_value = mock_config
 
             # Use utility function for test datetime
