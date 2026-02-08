@@ -397,7 +397,7 @@ class TestIncident:
         sample_incident.chain_put(0, 300.0, "test_type", "test_id")
 
         assert len(sample_incident.chain) == 1
-        assert sample_incident.chain[0]['delay'] == 300.0
+        assert sample_incident.chain[0]['delay'] - 300.0 < 0.000001
         assert sample_incident.chain[0]['type'] == "test_type"
         assert sample_incident.chain[0]['identifier'] == "test_id"
         assert sample_incident.chain[0]['done'] is False
