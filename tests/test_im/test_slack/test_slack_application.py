@@ -185,27 +185,6 @@ class TestSlackApplication:
 
         assert destinations == ["U123456", "U789012"]
 
-    def test_get_admins_text(self, app_config, channels, default_channel):
-        """Test get_admins_text method."""
-        app = self.create_slack_app(app_config, channels, default_channel)
-
-        # Mock admin users
-        admin1 = Mock()
-        admin1.id = "U123456"
-        admin2 = Mock()
-        admin2.id = "U789012"
-        app.admin_users = [admin1, admin2]
-
-        with patch('app.im.slack.slack_application.slack_env') as mock_env:
-            mock_template = Mock()
-            mock_template.render.return_value = "Admins: <@U123456> <@U789012>"
-            mock_env.from_string.return_value = mock_template
-
-            result = app.get_admins_text()
-
-            assert result == "Admins: <@U123456> <@U789012>"
-            mock_env.from_string.assert_called_once()
-
     def test_create_thread_payload(self, app_config, channels, default_channel):
         """Test _create_thread_payload method."""
         app = self.create_slack_app(app_config, channels, default_channel)

@@ -531,10 +531,6 @@ class Application(ABC):
         pass
 
     @abstractmethod
-    def get_admins_text(self):
-        pass
-
-    @abstractmethod
     def _create_thread_payload(self, channel_id, body, header, status_icons, status, frozen_by_inhibition=False):
         pass
 

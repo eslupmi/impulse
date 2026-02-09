@@ -189,23 +189,6 @@ class TestTelegramApplication:
         result = app._format_tg_icon('unknown_icon')
         assert result == 'None'
 
-    def test_get_admins_text(self, app_config, channels, users):
-        """Test get_admins_text method."""
-        app = self.create_telegram_app(app_config, channels, users)
-
-        # Mock admin users
-        admin1 = Mock()
-        admin1.id = 123456789
-        admin1.get_notification_identifier = Mock(return_value=123456789)
-        admin2 = Mock()
-        admin2.id = 987654321
-        admin2.get_notification_identifier = Mock(return_value=987654321)
-        app.admin_users = [admin1, admin2]
-
-        result = app.get_admins_text()
-
-        assert result == "@123456789, @987654321"
-
     def test_create_thread_method(self, app_config, channels, users):
         """Test create_thread method signature."""
         app = self.create_telegram_app(app_config, channels, users)
