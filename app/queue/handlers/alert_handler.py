@@ -104,11 +104,13 @@ class AlertHandler(BaseHandler):
 
         prev_status = incident_.status
         self._regenerate_chain_if_needed(incident_, alert_state, prev_status)
-        incident_.accumulate_chain_time()
         await self.queue.recreate(alert_state.get('status'), incident_.uniq_id, incident_.get_chain(), incident_.chain_active_seconds)
 
         is_new_firing_alerts_added, is_some_firing_alerts_removed = self._check_alert_changes(config, incident_, alert_state)
+        previous_firing_start_datetime = incident_.updated
         is_status_updated, is_state_updated = incident_.update_state(alert_state)
+        if is_status_updated and incident_.status == 'resolved':
+            incident_.accumulate_chain_time(previous_firing_start_datetime)
 
         await self._handle_inhibition_state_change(incident_, prev_status)
         await self._create_thread_if_needed(incident_, alert_state)

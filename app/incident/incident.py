@@ -175,7 +175,7 @@ class Incident:
     def freeze(self, until: datetime, user_id: str, user_fullname: str = ''):
         """Freeze the incident until the specified datetime (preserves underlying status)
         Assigns the user who froze the incident and disables chains"""
-        self.accumulate_chain_time()
+        self.accumulate_chain_time(self.updated)
         self.frozen_until = until
         self.assigned_user_id = user_id
         if user_fullname:
@@ -189,13 +189,12 @@ class Incident:
         is_inhibition_unfreeze = self.frozen_by_inhibition
         self.frozen_until = None
         self.frozen_by_inhibition = False
-        if not is_inhibition_unfreeze:
-            self.chain_enabled = False
-        logger.info("Incident unfrozen", extra={'uuid': self.uuid})
         self.dump()
+        logger.info("Incident unfrozen", extra={'uuid': self.uuid})
 
     def freeze_by_inhibition(self):
         """Freeze the incident due to inhibition (no assignee, no expiration time)"""
+        self.accumulate_chain_time(self.updated)
         self.frozen_by_inhibition = True
         self.dump()
         logger.info("Incident frozen by inhibition", extra={'uuid': self.uuid})
@@ -209,15 +208,14 @@ class Incident:
         Chain is active when status is firing/unknown, chain is enabled, and incident is not frozen."""
         return self.status in ('firing', 'unknown') and self.chain_enabled and not self.is_frozen()
 
-    def accumulate_chain_time(self):
+    def accumulate_chain_time(self, updated):
         """Accumulate chain active time from self.updated until now. Updates self.updated.
         Must be called before any state change that affects chain activity."""
         now = datetime.now(timezone.utc)
-        if self.is_chain_active():
-            delta = (now - self.updated).total_seconds()
-            if delta > 0:
-                self.chain_active_seconds += delta
-        self.updated = now
+        delta = (now - updated).total_seconds()
+        if delta > 0:
+            self.chain_active_seconds += delta
+        self.dump()
 
     def get_chain(self) -> List[Dict]:
         if not self.chain_enabled:
@@ -315,8 +313,8 @@ class Incident:
             "childs": self.childs,
             "parents": self.parents,
         }
+        incident_filename = self.get_current_filename()
         try:
-            incident_filename = self.get_current_filename()
             with open(incident_filename, 'w') as f:
                 yaml.dump(data, f, NoAliasDumper, default_flow_style=False)
         except OSError as e:
@@ -415,15 +413,11 @@ class Incident:
         return data
 
     def update_status(self, status: str) -> bool:
-        self.accumulate_chain_time()
-        now = self.updated
-        if status != 'deleted':
-            config = get_config()
-            timeout_value = config.incident.timeouts.get(status)
-            self.status_update_datetime = now + unix_sleep_to_timedelta(timeout_value)
+        self.schedule_status_change_by_timeout(status)
         if self.status != status:
             old_filename = self.get_current_filename()
             self.set_status(status)
+            self.updated = datetime.now(timezone.utc)
             self.dump()
             new_filename = self.get_current_filename()
             if old_filename != new_filename:
@@ -431,6 +425,13 @@ class Incident:
             return True
         self.dump()
         return False
+
+    def schedule_status_change_by_timeout(self, status):
+        now = self.updated
+        if status != 'deleted':
+            config = get_config()
+            timeout_value = config.incident.timeouts.get(status)
+            self.status_update_datetime = now + unix_sleep_to_timedelta(timeout_value)
 
     def update_state(self, alert_state: Dict) -> tuple[bool, bool]:
         update_status = self.update_status(alert_state['status'])

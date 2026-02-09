@@ -59,7 +59,7 @@ class AsyncQueue:
 
     async def recreate(self, status: str, uniq_id: str, incident_chain: list, chain_active_seconds: float = 0.0):
         """Recreate queue items for incident chain using relative seconds"""
-        if status != 'resolved' and status != 'closed':
+        if status == 'firing' or status == 'unknown':
             now = datetime.now(timezone.utc)
             new_items = []
             for i, s in enumerate(incident_chain):

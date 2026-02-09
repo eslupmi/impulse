@@ -53,9 +53,8 @@ class UnfreezeHandler(BaseHandler):
             await self.app.post_thread(incident.channel_id, incident.ts, message)
         
         await self.queue.put_first(datetime.now(timezone.utc), QueueItemType.STATUS_CHECK, uniq_id)
-        
+        await self.queue.recreate(incident.status, uniq_id, incident.get_chain(), incident.chain_active_seconds)
         if incident_status != 'deleted':
-            await self.queue.recreate(incident.status, uniq_id, incident.get_chain(), incident.chain_active_seconds)
             await self.queue.put(incident.status_update_datetime, QueueItemType.UPDATE_STATUS, uniq_id)
         
         body = self.app.body_template.form_message(incident.payload, incident)

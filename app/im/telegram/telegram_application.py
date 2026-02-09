@@ -90,7 +90,6 @@ class TelegramApplication(Application):
             incident_.assign_user(user_display_name)
             self._track_async_task(asyncio.create_task(self.post_assignment_notification(incident_, user_id, user_display_name)))
             self._track_async_task(asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id)))
-            incident_.accumulate_chain_time()
             incident_.chain_enabled = False
         else:
             logger.info('Button pressed', extra={'uuid': incident_.uuid, 'button': 'release', 'user_id': user_id})
