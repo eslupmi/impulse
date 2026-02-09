@@ -132,7 +132,8 @@ class AlertHandler(BaseHandler):
             _, chain_name = self.route.get_route(alert_state)
             incident_.generate_chain(self.app.chains, chain_name)
 
-    def _check_alert_changes(self, config, incident_, alert_state):
+    @staticmethod
+    def _check_alert_changes(config, incident_, alert_state):
         """Check if new alerts are firing or some alerts resolved."""
         is_new_firing = config.incident.notifications.new_firing and incident_.is_new_firing_alerts_added(alert_state)
         is_some_resolved = config.incident.notifications.partial_resolved and incident_.is_some_firing_alerts_removed(alert_state)
