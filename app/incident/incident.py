@@ -203,11 +203,6 @@ class Incident:
         """Check if the incident is currently frozen (by time-based freeze or inhibition)"""
         return self.frozen_by_inhibition or self.frozen_until is not None
 
-    def is_chain_active(self) -> bool:
-        """Check if the chain is currently active.
-        Chain is active when status is firing/unknown, chain is enabled, and incident is not frozen."""
-        return self.status in ('firing', 'unknown') and self.chain_enabled and not self.is_frozen()
-
     def accumulate_chain_time(self, updated):
         """Accumulate chain active time from self.updated until now. Updates self.updated.
         Must be called before any state change that affects chain activity."""
