@@ -74,10 +74,6 @@ class NullApplication(Application):
         """No notification destinations"""
         return []
 
-    def get_admins_text(self):
-        """No admins"""
-        return ''
-
     def _create_thread_payload(self, channel_id, body, header, status_icons, status, frozen_by_inhibition=False):
         """Return empty payload"""
         return {}
