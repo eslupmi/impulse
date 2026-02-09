@@ -22,7 +22,7 @@ buttons = {
             'style': 'normal'
         },
         'inhibited': {
-            'text': ':snowflake: Inhibited',
+            'text': 'Inhibited',
             'style': 'normal'
         },
         'options': [
