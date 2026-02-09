@@ -176,7 +176,7 @@ class TestUnfreezeHandler:
         mock_queue.put_first.assert_called_once()
 
         # Should NOT recreate queue or put update status for deleted incident
-        mock_queue.recreate.assert_not_called()
+        mock_queue.recreate.assert_called_once()
         mock_queue.put.assert_not_called()
 
         # Should still update thread

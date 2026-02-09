@@ -210,7 +210,6 @@ class Incident:
         delta = (now - updated).total_seconds()
         if delta > 0:
             self.chain_active_seconds += delta
-        self.dump()
 
     def get_chain(self) -> List[Dict]:
         if not self.chain_enabled:
