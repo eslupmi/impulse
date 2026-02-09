@@ -106,8 +106,8 @@ async def initialize_primary_server(fastapi_app: FastAPI, file_lock: FileLock) -
         await messenger.initialize_async()
         
         webhooks = generate_webhooks(webhooks_config)
-        incidents = Incidents.create_or_load(messenger.type, messenger.public_url, messenger.team) #!
-        JinjaTemplate.set_incidents(incidents) #!
+        incidents = Incidents.create_or_load(messenger.type, messenger.public_url, messenger.team)
+        JinjaTemplate.set_incidents(incidents)
 
         queue = await AsyncQueue.recreate_queue(incidents)
         
