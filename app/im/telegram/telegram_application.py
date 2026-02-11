@@ -83,9 +83,9 @@ class TelegramApplication(Application):
         await queue_.delete_by_id(incident_.uniq_id, delete_steps=True, delete_status=False)
         if action == 'stop_chain':
             if incident_.assigned_user_id == user_id:
-                logger.info('Button TAKE IT: user already assigned', extra={'uuid': incident_.uuid, 'user': user_id})
+                logger.info('Button TAKE IT: user already assigned', extra={'uuid': incident_.uuid, 'user_id': user_id})
                 return JSONResponse(payload, status_code=200)
-            logger.info('Button TAKE IT: assigning to user', extra={'uuid': incident_.uuid, 'user': user_id})
+            logger.info('Button TAKE IT: assigning to user', extra={'uuid': incident_.uuid, 'user_id': user_id})
             incident_.assign_user_id(user_id)
             incident_.assign_user(user_display_name)
             self._track_async_task(asyncio.create_task(self.post_assignment_notification(incident_, user_id, user_display_name)))
@@ -99,9 +99,7 @@ class TelegramApplication(Application):
 
     async def _show_freeze_menu(self, incident_: 'Incident', callback):
         """Display freeze options menu"""
-        body = self.body_template.form_message(incident_.payload, incident_)
-        header = self.header_template.form_message(incident_.payload, incident_)
-        status_icons = self.status_icons_template.form_message(incident_.payload, incident_)
+        body, header, status_icons = self._form_incident_message(incident_)
         payload = self.update_thread_payload(
             incident_.channel_id, incident_.ts, body, header, status_icons,
             incident_.status, incident_.chain_enabled, incident_.frozen_until, 
@@ -199,13 +197,7 @@ class TelegramApplication(Application):
             self._handle_task_action(incident_, user_id, queue_)
 
         incident_.dump()
-        body = self.body_template.form_message(incident_.payload, incident_)
-        header = self.header_template.form_message(incident_.payload, incident_)
-        status_icons = self.status_icons_template.form_message(incident_.payload, incident_)
-        await self.update_thread(
-            incident_.channel_id, incident_.ts, incident_.status, body, header, status_icons,
-            incident_.chain_enabled, incident_.frozen_until, incident_.task_link
-        )
+        await self.update_thread(incident_)
 
         await self._answer_callback(callback['id'])
         return JSONResponse({}, status_code=200)
@@ -260,12 +252,15 @@ class TelegramApplication(Application):
             'parse_mode': 'HTML'
         }
 
-    async def update_thread(self, channel_id, id_, status, body, header, status_icons, chain_enabled=True,
-                      frozen_until=None, task_link='', frozen_by_inhibition=False):
-        await self._update_topic(channel_id, id_, header, status_icons)
-        payload = self.update_thread_payload(channel_id, id_, body, header, status_icons, status, chain_enabled,
-                                             frozen_until, task_link, frozen_by_inhibition=frozen_by_inhibition)
-        await self._update_thread(id_, payload)
+    async def update_thread(self, incident):
+        body, header, status_icons = self._form_incident_message(incident)
+
+        await self._update_topic(incident.channel_id, incident.ts, header, status_icons)
+        payload = self.update_thread_payload(
+            incident.channel_id, incident.ts, body, header, status_icons, incident.status, incident.chain_enabled,
+            incident.frozen_until, incident.task_link, frozen_by_inhibition=incident.frozen_by_inhibition
+        )
+        await self._update_thread(incident.ts, payload)
 
     async def _update_topic(self, channel_id, id_, header, status_icons):
         topic_id, _ = id_.split('/')
@@ -320,9 +315,7 @@ class TelegramApplication(Application):
     def update_thread_payload(self, channel_id, id_, body, header, status_icons, status, chain_enabled,
                               frozen_until, task_link='', show_freeze_menu=False, frozen_by_inhibition=False):
         _, message_id = id_.split('/')
-
         keyboard = self._build_freeze_menu_keyboard() if show_freeze_menu else self._build_main_keyboard(status, chain_enabled, frozen_until, task_link, frozen_by_inhibition)
-
         return {
             'chat_id': channel_id,
             'message_id': message_id,

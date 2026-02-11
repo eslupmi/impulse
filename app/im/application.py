@@ -110,10 +110,10 @@ class Application(ABC):
         """
         try:
             if self._try_assign_from_user_manager(incident, user_id):
-                logger.debug(f'Incident {incident.uuid} assigned user from manager')
+                logger.debug(f'Incident {incident.uuid} assigned', extra={'user_id': user_id})
             else:
                 await self._assign_from_api(incident, user_id)
-                logger.debug(f'Incident {incident.uuid} assigned user name from API')
+                logger.debug(f'Incident {incident.uuid} assigned', extra={'user_id': user_id})
         except Exception as e:
             logger.error(f'Failed to fetch user name for incident {incident.uuid}: {e}')
             incident.assign_fullname("-")
@@ -418,7 +418,7 @@ class Application(ABC):
             text_template = JinjaTemplate(notification_user_group)
         fields = {'type': self.type.value, 'name': identifier, 'unit': unit, 'admins': destinations}
         text = text_template.form_notification(fields)
-        header = self.header_template.form_message(incident.payload, incident)
+        _, header, _ = self._form_incident_message(incident)
         if self.type == MessengerType.TELEGRAM:
             message = text
         else:
@@ -431,12 +431,7 @@ class Application(ABC):
                      frozen_until, task_link=''):
         # Update thread starter message (skip if frozen)
         if not incident.is_frozen():
-            body = self.body_template.form_message(alert_state, incident)
-            header = self.header_template.form_message(alert_state, incident)
-            status_icons = self.status_icons_template.form_message(alert_state, incident)
-            await self.update_thread(
-                incident.channel_id, incident.ts, incident_status, body, header, status_icons, chain_enabled, frozen_until, task_link
-            )
+            await self.update_thread(incident)
 
             # post to thread (skip if frozen)
             config = get_config()
@@ -446,8 +441,16 @@ class Application(ABC):
                 fields = {'type': self.type.value, 'status': incident_status, 'admins': admins}
                 text = text_template.form_notification(fields)
 
+                _, header, _ = self._form_incident_message(incident)
                 message = text if self.type == MessengerType.TELEGRAM else header + '\n' + text
                 await self.post_thread(incident.channel_id, incident.ts, message)
+
+    def _form_incident_message(self, incident):
+        """Render body, header, and status_icons templates for an incident."""
+        body = self.body_template.form_message(incident.payload, incident)
+        header = self.header_template.form_message(incident.payload, incident)
+        status_icons = self.status_icons_template.form_message(incident.payload, incident)
+        return body, header, status_icons
 
     async def create_thread(self, channel_id, body, header, status_icons, status, frozen_by_inhibition=False):
         payload = self._create_thread_payload(channel_id, body, header, status_icons, status, frozen_by_inhibition)
@@ -459,11 +462,14 @@ class Application(ABC):
         response.close()
         return response_json.get(self.thread_id_key)
 
-    async def update_thread(self, channel_id, id_, status, body, header, status_icons, chain_enabled=True,
-                            frozen_until=None, task_link='', frozen_by_inhibition=False):
-        payload = self.update_thread_payload(channel_id, id_, body, header, status_icons, status, chain_enabled,
-                                             frozen_until, task_link, frozen_by_inhibition)
-        await self._update_thread(id_, payload)
+    async def update_thread(self, incident):
+        body, header, status_icons = self._form_incident_message(incident)
+
+        payload = self.update_thread_payload(
+            incident.channel_id, incident.ts, body, header, status_icons, incident.status, incident.chain_enabled,
+            incident.frozen_until, incident.task_link, incident.frozen_by_inhibition
+        )
+        await self._update_thread(incident.ts, payload)
 
     async def post_thread(self, channel_id, id_, text):
         payload = self._post_thread_payload(channel_id, id_, text)

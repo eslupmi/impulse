@@ -8,7 +8,6 @@ from app.config.environment import get_environment_config
 from app.config.validation import ApplicationConfig
 from app.im.application import Application
 from app.im.slack import reformat_message
-from app.im.slack.config import slack_env, slack_admins_template_string
 from app.im.slack.threads import slack_get_create_thread_payload, slack_get_update_payload
 from app.im.slack.user import User
 from app.logging import logger
@@ -154,14 +153,10 @@ class SlackApplication(Application):
 
     def _build_button_response(self, incident_, original_message):
         """Build JSON response with updated incident message"""
-        incident_.dump()
-        body = self.body_template.form_message(incident_.payload, incident_)
-        header = self.header_template.form_message(incident_.payload, incident_)
-        status_icons = self.status_icons_template.form_message(incident_.payload, incident_)
+        body, header, status_icons = self._form_incident_message(incident_)
         payload = self.update_thread_payload(incident_.channel_id, incident_.ts, body, header, status_icons,
                                              incident_.status, incident_.chain_enabled, incident_.frozen_until, 
                                              incident_.task_link)
-        self._track_async_task(asyncio.create_task(self._update_thread(incident_.ts, payload)))
         config = get_config()
         slack_tz = config.app.general.timezone
         modified_message = reformat_message(original_message, payload['text'], payload['attachments'], incident_.status,
@@ -209,14 +204,10 @@ class SlackApplication(Application):
             logger.debug('Incident frozen, blocking actions', extra={'incident': incident_.uuid})
             return self._build_button_response(incident_, original_message)
 
-        # Handle freeze actions
         for action in actions:
             if action['name'] == 'freeze':
                 await self._handle_freeze_button(action, incident_, user_id, incidents, queue_)
                 return self._build_button_response(incident_, original_message)
-
-        # Handle other actions
-        for action in actions:
             if action['name'] == 'chain':
                 await self._handle_chain_action(incident_, user_id, user_name, queue_)
             elif action['name'] == 'task':

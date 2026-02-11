@@ -325,22 +325,7 @@ class InhibitionManager:
             target: The target incident whose thread should be updated
         """
         try:
-            body = self.application.body_template.form_message(target.payload, target)
-            header = self.application.header_template.form_message(target.payload, target)
-            status_icons = self.application.status_icons_template.form_message(target.payload, target)
-            
-            await self.application.update_thread(
-                target.channel_id,
-                target.ts,
-                target.status,
-                body,
-                header,
-                status_icons,
-                target.chain_enabled,
-                target.frozen_until,
-                target.task_link,
-                frozen_by_inhibition=True
-            )
+            await self.application.update_thread(target)
             logger.info("Updated target thread to show inhibition", extra={'uuid': target.uuid})
         except Exception as e:
             logger.error("Failed to update target thread",
