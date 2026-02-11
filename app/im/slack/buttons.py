@@ -47,7 +47,6 @@ def reformat_message(original_message, text, attachments, status, chain_enabled,
             original_message['attachments'][1]['actions'][2]['style'] = buttons['task']['create']['style']
             # Remove url if it exists
             original_message['attachments'][1]['actions'][2].pop('url', None)
-    
     return original_message
 
 

@@ -126,7 +126,7 @@ class SlackApplication(Application):
     def get_notification_destinations(self):
         return [a.get_notification_identifier() for a in self.admin_users]
 
-    async def _handle_chain_action(self, incident_, user_id, user_name, queue_):
+    async def _handle_chain_action(self, incident_, user_id, queue_):
         """Handle chain-related button actions"""
         await queue_.delete_by_id(incident_.uniq_id, delete_steps=True, delete_status=False)
         if incident_.chain_enabled or incident_.status != 'resolved':
@@ -134,9 +134,7 @@ class SlackApplication(Application):
                 logger.info('Button pressed: user already assigned', extra={'incident': incident_.uuid, 'button': 'take_it', 'user_id': user_id})
             else:
                 logger.info('Button pressed: assigning to user', extra={'incident': incident_.uuid, 'button': 'take_it', 'user_id': user_id})
-                incident_.assign_user_id(user_id)
-                if user_name:
-                    incident_.assign_user(user_name)
+                self._try_assign_from_user_manager(incident_, user_id)
                 self._track_async_task(asyncio.create_task(self.post_assignment_notification(incident_, user_id, user_name)))
                 self._track_async_task(asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id)))
             incident_.chain_enabled = False
@@ -145,12 +143,10 @@ class SlackApplication(Application):
             self._track_async_task(asyncio.create_task(self.post_unassignment_notification(incident_)))
             incident_.release()
 
-    def _build_button_response(self, incident_, original_message):
+    def _build_button_response(self, incident_, original_message, response_url):
         """Build JSON response with updated incident message"""
-        body, header, status_icons = self._form_incident_message(incident_)
-        payload = self.update_thread_payload(incident_.channel_id, incident_.ts, body, header, status_icons,
-                                             incident_.status, incident_.chain_enabled, incident_.frozen_until, 
-                                             incident_.task_link)
+        body, header, status_icons = self.form_incident_message(incident_)
+        payload = self.update_thread_payload(incident_, body, header, status_icons)
         config = get_config()
         slack_tz = config.app.general.timezone
         modified_message = reformat_message(original_message, payload['text'], payload['attachments'], incident_.status,
@@ -188,7 +184,6 @@ class SlackApplication(Application):
         
         actions = payload.get('actions')
         user_id = payload.get('user')['id']
-        user_name = self.get_configured_user_name(user_id, payload.get('user', {}).get('name'))
 
         # Check if this is a freeze action
         is_freeze_action = any(action['name'] == 'freeze' for action in actions)
@@ -196,29 +191,34 @@ class SlackApplication(Application):
         # Block non-freeze actions if incident is frozen
         if incident_.is_frozen() and not is_freeze_action:
             logger.debug('Incident frozen, blocking actions', extra={'incident': incident_.uuid})
-            return self._build_button_response(incident_, original_message)
+
+            # return self._build_button_response(incident_, original_message, response_url)
+            body, header, status_icons = self.form_incident_message(incident_)
+            modified_message = slack_get_update_payload(incident_, body, header, status_icons)
+            return JSONResponse(modified_message, status_code=200)
 
         for action in actions:
             if action['name'] == 'freeze':
                 await self._handle_freeze_button(action, incident_, user_id, incidents, queue_)
-                return self._build_button_response(incident_, original_message)
+                body, header, status_icons = self.form_incident_message(incident_)
+                payload = self.update_thread_payload(incident_, body, header, status_icons)
+                return JSONResponse(payload, status_code=200)
             if action['name'] == 'chain':
-                await self._handle_chain_action(incident_, user_id, user_name, queue_)
+                self._try_assign_from_user_manager(incident_, user_id)
+                await self._handle_chain_action(incident_, user_id, queue_)
             elif action['name'] == 'task':
                 self._handle_task_action(incident_, user_id, queue_)
         
-        return self._build_button_response(incident_, original_message)
+        return self._build_button_response(incident_, original_message, 'test') #!
 
-    def _create_thread_payload(self, channel_id, body, header, status_icons, status, frozen_by_inhibition=False):
-        return slack_get_create_thread_payload(channel_id, body, header, status_icons, status, frozen_by_inhibition)
+    def _create_thread_payload(self, incident, body, header, status_icons):
+        return slack_get_create_thread_payload(incident, body, header, status_icons)
 
     def _post_thread_payload(self, channel_id, id_, text):
         return {'channel': channel_id, 'thread_ts': id_, 'text': text, 'unfurl_links': False, 'unfurl_media': False}
 
-    def update_thread_payload(self, channel_id, id_, body, header, status_icons, status, chain_enabled,
-                              frozen_until, task_link='', frozen_by_inhibition=False):
-        return slack_get_update_payload(channel_id, id_, body, header, status_icons, status, chain_enabled,
-                                        frozen_until, task_link, frozen_by_inhibition=frozen_by_inhibition)
+    def update_thread_payload(self, incident, body, header, status_icons):
+        return slack_get_update_payload(incident, body, header, status_icons)
 
     async def _update_thread(self, id_, payload):
         response = await self.http.post(

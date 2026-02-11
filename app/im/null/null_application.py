@@ -74,7 +74,7 @@ class NullApplication(Application):
         """No notification destinations"""
         return []
 
-    def _create_thread_payload(self, channel_id, body, header, status_icons, status, frozen_by_inhibition=False):
+    def _create_thread_payload(self, incident, body, header, status_icons):
         """Return empty payload"""
         return {}
 
@@ -82,8 +82,7 @@ class NullApplication(Application):
         """Return empty payload"""
         return {}
 
-    def update_thread_payload(self, channel_id, id_, body, header, status_icons, status, chain_enabled, frozen_until,
-                              task_link='', frozen_by_inhibition=False):
+    def update_thread_payload(self, incident, body, header, status_icons):
         """Return empty payload"""
         return {}
 
@@ -99,7 +98,7 @@ class NullApplication(Application):
         """No user creation"""
         return None
 
-    async def create_thread(self, channel_id, body, header, status_icons, status, frozen_by_inhibition=False):
+    async def create_thread(self, incident, body, header, status_icons):
         """Generate a synthetic thread ID but don't create actual thread"""
         return str(uuid.uuid4())
 
@@ -111,8 +110,7 @@ class NullApplication(Application):
         """No thread posting for null application"""
         return 200
 
-    async def update_thread(self, channel_id, id_, status, body, header, status_icons, chain_enabled=True,
-                            frozen_until=None, task_link='', frozen_by_inhibition=False):
+    async def update_thread(self, incident):
         """No thread updating for null application"""
         pass
 

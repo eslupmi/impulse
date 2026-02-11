@@ -136,7 +136,7 @@ class MattermostApplication(Application):
     def get_notification_destinations(self):
         return [a.get_notification_identifier() for a in self.admin_users]
 
-    async def _handle_chain_action(self, incident_, user_id, user_name, queue_, payload):
+    async def _handle_chain_action(self, incident_, user_id, queue_, payload):
         """Handle chain-related button actions"""
         await queue_.delete_by_id(incident_.uniq_id, delete_steps=True, delete_status=False)
         if incident_.chain_enabled or incident_.status != 'resolved':
@@ -144,8 +144,7 @@ class MattermostApplication(Application):
                 logger.info('Button pressed. User already assigned', extra={'incident': incident_.uuid, 'button': 'take_it', 'user_id': user_id})
                 return JSONResponse(payload, status_code=200)
             logger.info('Button pressed: assigning to user', extra={'incident': incident_.uuid, 'button': 'take_it', 'user_id': user_id})
-            incident_.assign_user_id(user_id)
-            incident_.assign_user(user_name)
+            self._try_assign_from_user_manager(incident_, user_id)
             self._track_async_task(asyncio.create_task(self.post_assignment_notification(incident_, user_id, user_name)))
             self._track_async_task(asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id)))
             incident_.chain_enabled = False
@@ -158,7 +157,7 @@ class MattermostApplication(Application):
     def _build_button_response(self, incident_, user_timezone='UTC'):
         """Build JSON response with updated incident message"""
         incident_.dump()
-        body, header, status_icons = self._form_incident_message(incident_)
+        body, header, status_icons = self.form_incident_message(incident_)
         response_payload = mattermost_get_button_update_payload(
             body, header, status_icons, incident_.status,
             incident_.chain_enabled, incident_.frozen_until, incident_.task_link, user_timezone)
@@ -195,7 +194,7 @@ class MattermostApplication(Application):
         # Handle other button actions
         action = context.get('action')
         if action == 'chain':
-            early_return = await self._handle_chain_action(incident_, user_id, user_name, queue_, payload)
+            early_return = await self._handle_chain_action(incident_, user_id, queue_, payload)
             if early_return is not None:
                 return early_return
         elif action == 'task':
@@ -203,16 +202,14 @@ class MattermostApplication(Application):
         
         return self._build_button_response(incident_, mattermost_tz)
 
-    def _create_thread_payload(self, channel_id, body, header, status_icons, status, frozen_by_inhibition=False):
-        return mattermost_get_create_thread_payload(channel_id, body, header, status_icons, status, frozen_by_inhibition)
+    def _create_thread_payload(self, incident, body, header, status_icons):
+        return mattermost_get_create_thread_payload(incident, body, header, status_icons)
 
     def _post_thread_payload(self, channel_id, id_, text):
         return {'channel_id': channel_id, 'root_id': id_, 'message': text}
 
-    def update_thread_payload(self, channel_id, id_, body, header, status_icons, status, chain_enabled,
-                              frozen_until, task_link='', frozen_by_inhibition=False):
-        return mattermost_get_update_payload(channel_id, id_, body, header, status_icons, status, chain_enabled,
-                                             frozen_until, task_link, frozen_by_inhibition)
+    def update_thread_payload(self, incident, body, header, status_icons):
+        return mattermost_get_update_payload(incident, body, header, status_icons)
 
     async def _update_thread(self, id_, payload):
         response = await self.http.put(

@@ -62,9 +62,9 @@ class TelegramApplication(Application):
         """Telegram doesn't include header in freeze/unfreeze notifications"""
         return False
 
-    async def create_thread(self, channel_id, body, header, status_icons, status, frozen_by_inhibition=False):
-        topic_id = await self._create_topic(channel_id, header, status_icons)
-        payload = self._create_thread_payload(channel_id, body, header, status_icons, status, frozen_by_inhibition)
+    async def create_thread(self, incident, body, header, status_icons):
+        topic_id = await self._create_topic(incident.channel_id, header, status_icons)
+        payload = self._create_thread_payload(incident, body, header, status_icons)
         payload['message_thread_id'] = topic_id
         message_id = await self._send_create_thread(payload)
         return f'{topic_id}/{message_id}'
@@ -83,8 +83,7 @@ class TelegramApplication(Application):
                 logger.info('Button TAKE IT: user already assigned', extra={'uuid': incident_.uuid, 'user_id': user_id})
                 return JSONResponse(payload, status_code=200)
             logger.info('Button TAKE IT: assigning to user', extra={'uuid': incident_.uuid, 'user_id': user_id})
-            incident_.assign_user_id(user_id)
-            incident_.assign_user(user_display_name)
+            self._try_assign_from_user_manager(incident_, user_id)
             self._track_async_task(asyncio.create_task(self.post_assignment_notification(incident_, user_id, user_display_name)))
             self._track_async_task(asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id)))
             incident_.chain_enabled = False
@@ -96,12 +95,8 @@ class TelegramApplication(Application):
 
     async def _show_freeze_menu(self, incident_: 'Incident', callback):
         """Display freeze options menu"""
-        body, header, status_icons = self._form_incident_message(incident_)
-        payload = self.update_thread_payload(
-            incident_.channel_id, incident_.ts, body, header, status_icons,
-            incident_.status, incident_.chain_enabled, incident_.frozen_until, 
-            incident_.task_link, show_freeze_menu=True
-        )
+        body, header, status_icons = self.form_incident_message(incident_)
+        payload = self.update_thread_payload(incident_, body, header, status_icons, show_freeze_menu=True)
         await self._update_thread(incident_.ts, payload)
         await self.http.post(
             f'{self.url}/answerCallbackQuery',
@@ -218,11 +213,11 @@ class TelegramApplication(Application):
             logger.error("Topic creation failed", extra={'error': str(e)})
             raise e
 
-    def _create_thread_payload(self, channel_id, body, header, status_icons, status, frozen_by_inhibition=False):
+    def _create_thread_payload(self, incident, body, header, status_icons):
         env_config = get_environment_config()
         config_obj = get_config()
 
-        freeze_button = buttons['freeze']['inhibited'] if frozen_by_inhibition else buttons['freeze']['inactive']
+        freeze_button = buttons['freeze']['inhibited'] if incident.frozen_by_inhibition else buttons['freeze']['inactive']
         keyboard_row = [
             buttons['chain']['takeit'],
             freeze_button
@@ -232,7 +227,7 @@ class TelegramApplication(Application):
             keyboard_row.append(buttons['task']['create'])
 
         return {
-            'chat_id': channel_id,
+            'chat_id': incident.channel_id,
             'text': f'{self._format_tg_icon(status_icons)} {header}\n{body}',
             'parse_mode': 'HTML',
             'reply_markup': {
@@ -250,13 +245,10 @@ class TelegramApplication(Application):
         }
 
     async def update_thread(self, incident):
-        body, header, status_icons = self._form_incident_message(incident)
+        body, header, status_icons = self.form_incident_message(incident)
 
         await self._update_topic(incident.channel_id, incident.ts, header, status_icons)
-        payload = self.update_thread_payload(
-            incident.channel_id, incident.ts, body, header, status_icons, incident.status, incident.chain_enabled,
-            incident.frozen_until, incident.task_link, frozen_by_inhibition=incident.frozen_by_inhibition
-        )
+        payload = self.update_thread_payload(incident, body, header, status_icons, incident.status)
         await self._update_thread(incident.ts, payload)
 
     async def _update_topic(self, channel_id, id_, header, status_icons):
@@ -309,12 +301,14 @@ class TelegramApplication(Application):
 
         return [keyboard_row]
 
-    def update_thread_payload(self, channel_id, id_, body, header, status_icons, status, chain_enabled,
-                              frozen_until, task_link='', show_freeze_menu=False, frozen_by_inhibition=False):
-        _, message_id = id_.split('/')
-        keyboard = self._build_freeze_menu_keyboard() if show_freeze_menu else self._build_main_keyboard(status, chain_enabled, frozen_until, task_link, frozen_by_inhibition)
+    def update_thread_payload(self, incident, body, header, status_icons, show_freeze_menu = False):
+        _, message_id = incident.id_.split('/')
+        if show_freeze_menu:
+            keyboard = self._build_freeze_menu_keyboard()
+        else:
+            keyboard = self._build_main_keyboard(incident.status, incident.chain_enabled, incident.frozen_until, incident.task_link, incident.frozen_by_inhibition)
         return {
-            'chat_id': channel_id,
+            'chat_id': incident.channel_id,
             'message_id': message_id,
             'text': f'{self._format_tg_icon(status_icons)} {header}\n{body}',
             'parse_mode': 'HTML',

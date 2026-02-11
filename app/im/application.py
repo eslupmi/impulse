@@ -13,6 +13,7 @@ from app.im.template import notification_user, notification_user_group, notifica
 from app.im.user_groups import generate_user_groups
 from app.im.user_store import get_user_store, UserUpdateScheduler
 from app.im.users import UserManager
+from app.incident.unfreeze import unfreeze_incident
 from app.integrations.jira_integration import JiraIntegration
 from app.jinja_template import JinjaTemplate
 from app.logging import logger
@@ -111,9 +112,6 @@ class Application(ABC):
         try:
             if self._try_assign_from_user_manager(incident, user_id):
                 logger.debug(f'Incident {incident.uuid} assigned', extra={'user_id': user_id})
-            else:
-                await self._assign_from_api(incident, user_id)
-                logger.debug(f'Incident {incident.uuid} assigned', extra={'user_id': user_id})
         except Exception as e:
             logger.error(f'Failed to fetch user name for incident {incident.uuid}: {e}')
             incident.assign_fullname("-")
@@ -126,24 +124,11 @@ class Application(ABC):
         cached_user = self.users.get_user_by_id(user_id)
         if not (cached_user and cached_user.exists):
             return False
-        
+        incident.assigned_user_id = user_id
+        incident.assigned_user = cached_user.username
         incident.assign_fullname(cached_user.name)
-        notification_id = cached_user.get_notification_identifier()
-        if notification_id and notification_id != cached_user.id:
-            incident.assign_user(notification_id)
         return True
 
-    async def _assign_from_api(self, incident, user_id):
-        """Fetch user from API and assign to incident."""
-        user_details = await self.get_user_details({'id': user_id})
-        assigned_name = self._format_display_name(user_details)
-        incident.assign_fullname(assigned_name)
-        
-        if user_details.get('username'):
-            incident.assign_user(user_details.get('username'))
-        if user_details.get('exists'):
-            self._add_discovered_user(user_id, user_details)
-    
     @staticmethod
     def _format_display_name(user_details: dict) -> str:
         """Format user display name: Full Name → @username → (empty)."""
@@ -257,17 +242,17 @@ class Application(ABC):
         """
         return True
 
-    async def _handle_freeze_action(self, incident_: 'Incident', freeze_option: str, user_id: str, incidents, queue_: 'AsyncQueue', user_display_name: Optional[str] = None, user_timezone: Optional[str] = None):
+    async def _handle_freeze_action(
+            self, incident_: 'Incident', freeze_option: str, user_id: str, incidents, queue_: 'AsyncQueue',
+            user_display_name: Optional[str] = None, user_timezone: Optional[str] = None
+    ):
         """Handle freeze button action"""
         logger.info(log_button_pressed, extra={'uuid': incident_.uuid, 'button': 'freeze', 'user_id': user_id})
         
         config = get_config()
         timezone_str = user_timezone or config.app.general.timezone
         freeze_time = calculate_freeze_time(freeze_option, config.app.general, timezone_str)
-
-        incident_.assign_user_id(user_id)
-        if user_display_name:
-            incident_.assign_user(user_display_name)
+        self._try_assign_from_user_manager(incident_, user_id)
         await self.fetch_and_assign_user_name(incident_, user_id, dump=False)
         incident_.freeze(freeze_time, user_id, user_display_name)
         
@@ -279,7 +264,8 @@ class Application(ABC):
         """Handle unfreeze button action - schedule unfreeze via queue"""
         logger.info(log_button_pressed, extra={'uuid': incident_.uuid, 'button': 'unfreeze', 'user_id': user_id})
         await queue_.delete_by_id_and_type(incident_.uniq_id, QueueItemType.UNFREEZE)
-        await queue_.put_first(datetime.now(timezone.utc), QueueItemType.UNFREEZE, incident_.uniq_id)
+        await unfreeze_incident(incident_, self, queue_)
+
 
     async def _post_freeze_notification(self, incident_: 'Incident', freeze_time: datetime, user_timezone: str = "UTC"):
         """Post freeze notification to thread"""
@@ -418,7 +404,7 @@ class Application(ABC):
             text_template = JinjaTemplate(notification_user_group)
         fields = {'type': self.type.value, 'name': identifier, 'unit': unit, 'admins': destinations}
         text = text_template.form_notification(fields)
-        _, header, _ = self._form_incident_message(incident)
+        _, header, _ = self.form_incident_message(incident)
         if self.type == MessengerType.TELEGRAM:
             message = text
         else:
@@ -441,19 +427,19 @@ class Application(ABC):
                 fields = {'type': self.type.value, 'status': incident_status, 'admins': admins}
                 text = text_template.form_notification(fields)
 
-                _, header, _ = self._form_incident_message(incident)
+                _, header, _ = self.form_incident_message(incident)
                 message = text if self.type == MessengerType.TELEGRAM else header + '\n' + text
                 await self.post_thread(incident.channel_id, incident.ts, message)
 
-    def _form_incident_message(self, incident):
+    def form_incident_message(self, incident):
         """Render body, header, and status_icons templates for an incident."""
         body = self.body_template.form_message(incident.payload, incident)
         header = self.header_template.form_message(incident.payload, incident)
         status_icons = self.status_icons_template.form_message(incident.payload, incident)
         return body, header, status_icons
 
-    async def create_thread(self, channel_id, body, header, status_icons, status, frozen_by_inhibition=False):
-        payload = self._create_thread_payload(channel_id, body, header, status_icons, status, frozen_by_inhibition)
+    async def create_thread(self, incident, body, header, status_icons):
+        payload = self._create_thread_payload(incident, body, header, status_icons)
         return await self._send_create_thread(payload)
 
     async def _send_create_thread(self, payload):
@@ -463,12 +449,9 @@ class Application(ABC):
         return response_json.get(self.thread_id_key)
 
     async def update_thread(self, incident):
-        body, header, status_icons = self._form_incident_message(incident)
+        body, header, status_icons = self.form_incident_message(incident)
 
-        payload = self.update_thread_payload(
-            incident.channel_id, incident.ts, body, header, status_icons, incident.status, incident.chain_enabled,
-            incident.frozen_until, incident.task_link, incident.frozen_by_inhibition
-        )
+        payload = self.update_thread_payload(incident, body, header, status_icons)
         await self._update_thread(incident.ts, payload)
 
     async def post_thread(self, channel_id, id_, text):
@@ -537,7 +520,7 @@ class Application(ABC):
         pass
 
     @abstractmethod
-    def _create_thread_payload(self, channel_id, body, header, status_icons, status, frozen_by_inhibition=False):
+    def _create_thread_payload(self, incident, body, header, status_icons):
         pass
 
     @abstractmethod
@@ -545,7 +528,7 @@ class Application(ABC):
         pass
 
     @abstractmethod
-    def update_thread_payload(self, channel_id, id_, body, header, status_icons, status, chain_enabled, frozen_until, task_link='', frozen_by_inhibition=False):
+    def update_thread_payload(self, incident, body, header, status_icons):
         pass
 
     @abstractmethod

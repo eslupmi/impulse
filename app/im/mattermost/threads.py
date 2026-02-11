@@ -144,14 +144,13 @@ def mattermost_get_button_update_payload(body, header, status_icons, status, cha
     return payload
 
 
-def mattermost_get_update_payload(channel_id, thread_id, body, header, status_icons, status, chain_enabled,
-                                  frozen_until, task_link='', frozen_by_inhibition=False):
-    actions = build_mattermost_actions(chain_enabled, status, frozen_until, task_link, frozen_by_inhibition=frozen_by_inhibition)
-    display_status = 'frozen' if (frozen_until or frozen_by_inhibition) else status
+def mattermost_get_update_payload(incident, body, header, status_icons):
+    actions = build_mattermost_actions(incident.chain_enabled, incident.status, incident.frozen_until, incident.task_link, frozen_by_inhibition=incident.frozen_by_inhibition)
+    display_status = 'frozen' if (incident.frozen_until or incident.frozen_by_inhibition) else incident.status
     
     payload = {
-        'channel_id': channel_id,
-        'id': thread_id,
+        'channel_id': incident.channel_id,
+        'id': incident.ts,
         'message': f'{status_icons} {header}',
         'props': {
             'attachments': [
@@ -167,13 +166,13 @@ def mattermost_get_update_payload(channel_id, thread_id, body, header, status_ic
     return payload
 
 
-def mattermost_get_create_thread_payload(channel_id, body, header, status_icons, status, frozen_by_inhibition=False):
-    actions = build_mattermost_actions(chain_enabled=True, status=status, frozen_until=None, task_link='',
-                                       frozen_by_inhibition=frozen_by_inhibition)
-    display_status = 'frozen' if frozen_by_inhibition else status
+def mattermost_get_create_thread_payload(incident, body, header, status_icons):
+    actions = build_mattermost_actions(chain_enabled=True, status=incident.status, frozen_until=None, task_link='',
+                                       frozen_by_inhibition=incident.frozen_by_inhibition)
+    display_status = 'frozen' if incident.frozen_by_inhibition else incident.status
     
     payload = {
-        'channel_id': channel_id,
+        'channel_id': incident.channel_id,
         'message': f'{status_icons} {header}',
         'props': {
             'attachments': [

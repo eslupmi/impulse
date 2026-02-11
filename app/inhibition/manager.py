@@ -1,10 +1,9 @@
-from datetime import datetime, timezone
 from typing import Dict, List, Set, TYPE_CHECKING
 
 from app.config.validation import InhibitRule
+from app.incident.unfreeze import unfreeze_incident
 from app.inhibition.rule import InhibitionRule
 from app.logging import logger
-from app.queue.constants import QueueItemType
 
 if TYPE_CHECKING:
     from app.incident.incident import Incident
@@ -316,7 +315,7 @@ class InhibitionManager:
             return
         
         logger.info("Target has no more parents - scheduling unfreeze", extra={'uuid': target.uuid})
-        await self.queue.put_first(datetime.now(timezone.utc), QueueItemType.UNFREEZE, target.uniq_id)
+        await unfreeze_incident(target, self.application, self.queue)
     
     async def _update_target_thread(self, target: 'Incident'):
         """Update the messenger thread for a target incident.

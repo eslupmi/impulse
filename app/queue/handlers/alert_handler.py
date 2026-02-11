@@ -175,10 +175,7 @@ class AlertHandler(BaseHandler):
             logger.info("Incident updated with some alerts resolved", extra={'uuid': uuid_})
 
     async def _create_thread(self, incident_, alert_state, frozen_by_inhibition=False):
-        body, header, status_icons = self.app._form_incident_message(incident_)
-        thread_id = await self.app.create_thread(
-            incident_.channel_id, body, header, status_icons, status=alert_state['status'],
-            frozen_by_inhibition=frozen_by_inhibition
-        )
+        body, header, status_icons = self.app.form_incident_message(incident_)
+        thread_id = await self.app.create_thread(incident_, body, header, status_icons)
         incident_.set_thread(thread_id, self.app.public_url)
         return thread_id
