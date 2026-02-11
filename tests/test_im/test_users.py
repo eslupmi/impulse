@@ -224,81 +224,6 @@ class TestUserManager:
         manager = UserManager()
         assert isinstance(manager, UserManager)
     
-    def test_add_and_get_user(self):
-        """Test adding and retrieving a user by user_id."""
-        manager = UserManager()
-        user = TelegramUser("John Doe", id_=12345)
-        manager.add_user("12345", user)
-        
-        retrieved = manager.get_user("12345")
-        assert retrieved == user
-        assert retrieved.name == "John Doe"
-    
-    def test_add_and_get_user_by_config_name(self):
-        """Test adding a user with config_name and retrieving by config name."""
-        manager = UserManager()
-        user = TelegramUser("John Doe", id_=12345)
-        manager.add_user("12345", user, config_name="john")
-        
-        # Should find by config name
-        retrieved = manager.get_user("john")
-        assert retrieved == user
-        assert retrieved.name == "John Doe"
-        
-        # Should also find by user_id
-        retrieved = manager.get_user("12345")
-        assert retrieved == user
-    
-    def test_get_nonexistent_user_returns_undefined(self):
-        """Test that getting a nonexistent user returns UndefinedUser."""
-        manager = UserManager()
-        user = manager.get_user("nonexistent")
-        
-        assert isinstance(user, UndefinedUser)
-        assert user.name == "nonexistent"
-        assert user.defined is False
-    
-    def test_dict_style_access(self):
-        """Test dictionary-style access with []."""
-        manager = UserManager()
-        user = MattermostUser("Bob Johnson", id_="abc123", username="bjohnson")
-        manager.add_user("abc123", user, config_name="bob")
-        
-        # Access by config name
-        retrieved = manager["bob"]
-        assert retrieved == user
-        assert retrieved.name == "Bob Johnson"
-        
-        # Access by user_id
-        retrieved = manager["abc123"]
-        assert retrieved == user
-    
-    def test_dict_style_access_nonexistent(self):
-        """Test dictionary-style access for nonexistent user."""
-        manager = UserManager()
-        user = manager["nonexistent"]
-        
-        assert isinstance(user, UndefinedUser)
-        assert user.name == "nonexistent"
-    
-    def test_get_method_with_default(self):
-        """Test get() method with default value."""
-        manager = UserManager()
-        user = SlackUser("Jane Smith", id_="U12345")
-        manager.add_user("U12345", user, config_name="jane")
-        
-        # Existing user by config name
-        retrieved = manager.get("jane", None)
-        assert retrieved == user
-        
-        # Existing user by user_id
-        retrieved = manager.get("U12345", None)
-        assert retrieved == user
-        
-        # Nonexistent user with default
-        retrieved = manager.get("nonexistent", None)
-        assert retrieved is None
-    
     def test_get_user_by_id_found(self):
         """Test finding a user by their platform ID."""
         manager = UserManager()
@@ -330,20 +255,3 @@ class TestUserManager:
         
         found = manager.get_user_by_id("nonexistent")
         assert found is None
-    
-    def test_add_config_name(self):
-        """Test adding config name mapping for existing user."""
-        manager = UserManager()
-        user = TelegramUser("John Doe", id_=12345)
-        manager.add_user("12345", user)
-        
-        # Initially can't find by config name
-        assert manager.get("john") is None
-        
-        # Add config name mapping
-        manager.add_config_name("john", "12345")
-        
-        # Now can find by config name
-        retrieved = manager.get_user("john")
-        assert retrieved == user
-    

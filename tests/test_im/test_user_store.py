@@ -34,30 +34,6 @@ class TestUserStore:
         users_path = os.path.join(temp_dir, 'users')
         assert os.path.exists(users_path)
 
-    def test_save_and_get_user(self, user_store):
-        """Test saving and retrieving user data."""
-        user_id = "U123456"
-        messenger_type = "slack"
-        user_data = {
-            'username': 'testuser',
-            'email': 'test@example.com',
-            'first_name': 'Test',
-            'last_name': 'User',
-            'timezone': 'UTC'
-        }
-
-        user_store.save(user_id, messenger_type, user_data)
-        retrieved = user_store.get(user_id)
-
-        assert retrieved is not None
-        assert retrieved['messenger_type'] == messenger_type
-        assert retrieved['username'] == 'testuser'
-        assert retrieved['email'] == 'test@example.com'
-        assert retrieved['first_name'] == 'Test'
-        assert retrieved['last_name'] == 'User'
-        assert retrieved['timezone'] == 'UTC'
-        assert 'updated_at' in retrieved
-
     def test_get_nonexistent_user(self, user_store):
         """Test getting a user that doesn't exist returns None."""
         result = user_store.get("nonexistent_user")

@@ -50,25 +50,20 @@ class UserManager:
         """Add a config name mapping for an existing user."""
         self._config_names[config_name] = user_id
     
-    def get_user(self, name: str) -> BaseUser:
-        """Get user by config name or user_id. Returns UndefinedUser if not found."""
-        user = self._resolve_user(name)
-        return user if user else UndefinedUser(name)
-    
     def get(self, name: str, default=None) -> Optional[BaseUser]:
         """Get user by config name or user_id. Returns default if not found."""
         user = self._resolve_user(name)
-        return user if user else default
+        if isinstance(user, UndefinedUser):
+            return default
+        return user
     
-    def _resolve_user(self, name: str) -> Optional[BaseUser]:
+    def _resolve_user(self, name: str) -> BaseUser:
         """Resolve a name to a user, checking config names first, then user_ids."""
         if name in self._config_names:
             user_id = self._config_names[name]
-            return self._users.get(user_id)
-        return self._users.get(name)
-    
-    def __getitem__(self, name: str) -> BaseUser:
-        return self.get_user(name)
+            user = self._users.get(user_id)
+            return user if user else UndefinedUser(name)
+        return UndefinedUser(name)
     
     def get_user_by_id(self, user_id: Union[int, str]) -> Optional[BaseUser]:
         """Get user by their messenger ID."""

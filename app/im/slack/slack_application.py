@@ -118,9 +118,6 @@ class SlackApplication(Application):
 
         return groups
 
-    def get_notification_destinations(self):
-        return [a.get_notification_identifier() for a in self.admin_users]
-
     async def _handle_chain_action(self, incident_, user_id, queue_):
         """Handle chain-related button actions"""
         await queue_.delete_by_id(incident_.uniq_id, delete_steps=True, delete_status=False)

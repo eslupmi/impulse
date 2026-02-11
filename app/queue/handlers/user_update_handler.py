@@ -26,8 +26,8 @@ class UserUpdateHandler(BaseHandler):
                 return
             
             user_store.save(user_id, messenger_type, user_details)
-            display_name = self.app.format_display_name(user_details)
-            user = self.app.create_user(display_name, user_details)
+            config_name = self.app._get_config_name_by_user_id(user_id)
+            user = self.app.create_user(config_name, user_details)
             if user:
                 self.app.users.add_user(user_id, user)
             logger.info('User data refreshed', extra={'user_id': user_id})

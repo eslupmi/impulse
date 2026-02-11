@@ -146,7 +146,8 @@ class Incident:
                 extended_steps.append({type_: value})
         return extended_steps
 
-    def _get_step_type_and_value(self, step):
+    @staticmethod
+    def _get_step_type_and_value(step):
         """Extract step type and value from either SimpleChainStep object or dictionary"""
         if hasattr(step, 'get_type_and_value'):
             return step.get_type_and_value()
@@ -155,7 +156,8 @@ class Incident:
         else:
             raise ValueError(f"Unknown step format: {step}")
 
-    def _step_has_chain(self, step):
+    @staticmethod
+    def _step_has_chain(step):
         """Check if step has a chain reference"""
         if hasattr(step, 'has_chain'):
             return step.has_chain()

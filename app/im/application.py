@@ -12,7 +12,7 @@ from app.im.template import notification_user, notification_user_group, notifica
     notification_assignment, notification_unassignment, notification_freeze, notification_unfreeze
 from app.im.user_groups import generate_user_groups
 from app.im.user_store import get_user_store, UserUpdateScheduler
-from app.im.users import UserManager
+from app.im.users import UserManager, UndefinedUser
 from app.incident.unfreeze import unfreeze_incident
 from app.integrations.jira_integration import JiraIntegration
 from app.jinja_template import JinjaTemplate
@@ -85,14 +85,7 @@ class Application(ABC):
         self.groups = await self._generate_groups(self._groups_config)
         if self.groups:
             logger.info(f'Initialized {len(self.groups)} groups: {", ".join(self.groups.keys())}')
-        self.admin_users = [self.users[admin] for admin in self._admin_users_config]
-
-    @staticmethod
-    def _build_full_name(stored_data: dict) -> str:
-        first_name = stored_data.get('first_name') or ''
-        last_name = stored_data.get('last_name') or ''
-        full_name = f"{first_name} {last_name}".strip()
-        return full_name or stored_data.get('username') or 'Unknown'
+        self.admin_users = [self.users.get(admin) or UndefinedUser(admin) for admin in self._admin_users_config]
 
     async def close(self):
         """Close the aiohttp session"""
@@ -119,15 +112,12 @@ class Application(ABC):
         incident.assigned_fullname = cached_user.name
         return True
 
-    @staticmethod
-    def format_display_name(user_details: dict) -> str:
-        full_name = user_details.get('full_name')
-        if full_name:
-            return full_name
-        username = user_details.get('username')
-        if username:
-            return f"@{username}"
-        return "(empty)"
+    def _get_config_name_by_user_id(self, user_id: Union[int, str]) -> Optional[str]:
+        str_user_id = str(user_id)
+        for config_name, user_info in self._users_config.items():
+            if str(user_info.id) == str_user_id:
+                return config_name
+        return None
 
     async def post_assignment_notification(self, incident):
         config = get_config()
@@ -298,15 +288,14 @@ class Application(ABC):
         loaded_ids = set()
         
         for user_id, stored_data in stored_users.items():
-            full_name = self._build_full_name(stored_data)
             user_details = {
                 'id': user_id,
                 'exists': True,
-                'full_name': full_name,
+                'full_name': stored_data.get('full_name'),
                 'username': stored_data.get('username'),
             }
-            display_name = self.format_display_name(user_details)
-            user = self.create_user(display_name, user_details)
+            config_name = self._get_config_name_by_user_id(user_id)
+            user = self.create_user(config_name, user_details)
             if user:
                 user_manager.add_user(user_id, user)
                 loaded_ids.add(user_id)
@@ -426,6 +415,9 @@ class Application(ABC):
         client.initialize_client()
         return client
 
+    def get_notification_destinations(self):
+        return [a.get_notification_identifier() for a in self.admin_users]
+
     @abstractmethod
     async def buttons_handler(self, payload, incidents, queue_, route):
         pass
@@ -452,10 +444,6 @@ class Application(ABC):
 
     @abstractmethod
     def _get_team_name(self, app_config: ApplicationConfig):
-        pass
-
-    @abstractmethod
-    def get_notification_destinations(self):
         pass
 
     @abstractmethod
