@@ -99,7 +99,7 @@ class Application(ABC):
         if self.http:
             await self.http.close()
 
-    async def fetch_and_assign_user_name(self, incident, user_id, dump=True):
+    def fetch_and_assign_user_name(self, incident, user_id, dump=True):
         try:
             if self._try_assign_from_user_manager(incident, user_id):
                 logger.debug(f'Incident {incident.uuid} assigned', extra={'user_id': user_id})
@@ -215,7 +215,7 @@ class Application(ABC):
         timezone_str = user_timezone or config.app.general.timezone
         freeze_time = calculate_freeze_time(freeze_option, config.app.general, timezone_str)
         self._try_assign_from_user_manager(incident_, user_id)
-        await self.fetch_and_assign_user_name(incident_, user_id, dump=False)
+        self.fetch_and_assign_user_name(incident_, user_id, dump=False)
         incident_.freeze(freeze_time, user_id, user_display_name)
         
         await queue_.delete_by_id(incident_.uniq_id, delete_steps=True, delete_status=False)
@@ -317,7 +317,13 @@ class Application(ABC):
         loaded_ids = set()
         
         for user_id, stored_data in stored_users.items():
-            user_details = self._stored_data_to_user_details(user_id, stored_data)
+            full_name = self._build_full_name(stored_data)
+            user_details = {
+                'id': user_id,
+                'exists': True,
+                'full_name': full_name,
+                'username': stored_data.get('username'),
+            }
             display_name = self._format_display_name(user_details)
             user = self.create_user(display_name, user_details)
             if user:
@@ -328,16 +334,6 @@ class Application(ABC):
             logger.info(f'Loaded {len(loaded_ids)} users from storage')
         
         return loaded_ids
-
-    def _stored_data_to_user_details(self, user_id: str, stored_data: dict) -> dict:
-        """Convert stored data to user_details format."""
-        full_name = self._build_full_name(stored_data)
-        return {
-            'id': user_id,
-            'exists': True,
-            'full_name': full_name,
-            'username': stored_data.get('username'),
-        }
 
     def generate_template(self):
         def read_template(file_key, default_path):
