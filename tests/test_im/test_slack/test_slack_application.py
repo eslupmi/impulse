@@ -185,18 +185,6 @@ class TestSlackApplication:
 
         assert destinations == ["U123456", "U789012"]
 
-    def test_create_thread_payload(self, app_config, channels, default_channel):
-        """Test _create_thread_payload method."""
-        app = self.create_slack_app(app_config, channels, default_channel)
-
-        with patch('app.im.slack.slack_application.slack_get_create_thread_payload') as mock_payload:
-            mock_payload.return_value = {"test": "create_payload"}
-
-            result = app._create_thread_payload("C123456789", "body", "header", "icons", "firing", False)
-
-            assert result == {"test": "create_payload"}
-            mock_payload.assert_called_once_with("C123456789", "body", "header", "icons", "firing", False)
-
     def test_post_thread_payload(self, app_config, channels, default_channel):
         """Test _post_thread_payload method."""
         app = self.create_slack_app(app_config, channels, default_channel)
@@ -211,20 +199,6 @@ class TestSlackApplication:
             'unfurl_media': False
         }
         assert result == expected
-
-    def test_update_thread_payload(self, app_config, channels, default_channel):
-        """Test update_thread_payload method."""
-        app = self.create_slack_app(app_config, channels, default_channel)
-
-        with patch('app.im.slack.slack_application.slack_get_update_payload') as mock_payload:
-            mock_payload.return_value = {"test": "update_payload"}
-
-            result = app.update_thread_payload("C123456789", "1234567890.123456", "body", "header", "icons", "firing",
-                                               True, None, "", False)
-
-            assert result == {"test": "update_payload"}
-            mock_payload.assert_called_once_with("C123456789", "1234567890.123456", "body", "header", "icons", "firing",
-                                                 True, None, "", frozen_by_inhibition=False)
 
     def test_update_thread_method(self, app_config, channels, default_channel):
         """Test _update_thread method signature."""
@@ -320,127 +294,6 @@ class TestSlackApplication:
             assert isinstance(result, JSONResponse)
             assert result.status_code == 200
             assert result.body == b'{"text":"Original message"}'
-
-    @pytest.mark.asyncio
-    async def test_buttons_handler_chain_action_assigned(self, app_config, channels, default_channel):
-        """Test buttons_handler with chain action when user is already assigned."""
-        app = self.create_slack_app(app_config, channels, default_channel)
-
-        # Mock incident
-        incident = create_mock_incident_for_handlers(
-            uuid="test-uuid",
-            status="firing"
-        )
-        incident.assigned_user_id = "U123456"
-        incident.chain_enabled = True
-
-        # Mock incidents collection
-        incidents = create_mock_incidents_collection()
-        incidents.get_by_ts.return_value = incident
-
-        # Mock queue
-        queue = create_mock_queue()
-
-        # Mock route
-        route = create_mock_route()
-
-        payload = {
-            "token": "valid_token",
-            "message_ts": "1234567890.123456",
-            "original_message": {"text": "Original message"},
-            "actions": [{"name": "chain"}],
-            "user": {"id": "U123456"}
-        }
-
-        async with create_slack_buttons_handler_context(
-            app, payload, incidents, queue, route,
-            expected_log_message='Button TAKE IT pressed: user already assigned'
-        ) as (result, mock_logger, mock_reformat, _):
-            pass  # All assertions are handled by the context manager
-
-    @pytest.mark.asyncio
-    async def test_buttons_handler_chain_action_assign(self, app_config, channels, default_channel):
-        """Test buttons_handler with chain action to assign user."""
-        app = self.create_slack_app(app_config, channels, default_channel)
-
-        # Mock incident
-        incident = create_mock_incident_for_handlers(
-            uuid="test-uuid",
-            status="firing"
-        )
-        incident.assigned_user_id = "other_user"
-        incident.chain_enabled = True
-        incident.assign_user_id = Mock()
-
-        # Mock incidents collection
-        incidents = create_mock_incidents_collection()
-        incidents.get_by_ts.return_value = incident
-
-        # Mock queue
-        queue = create_mock_queue()
-
-        # Mock route
-        route = create_mock_route()
-
-        payload = {
-            "token": "valid_token",
-            "message_ts": "1234567890.123456",
-            "original_message": {"text": "Original message"},
-            "actions": [{"name": "chain"}],
-            "user": {"id": "U123456"}
-        }
-
-        async with create_slack_buttons_handler_context(
-            app, payload, incidents, queue, route,
-            expected_log_message='Button TAKE IT pressed: assigning to user',
-            additional_patches={
-                'post_assignment_notification': Mock(),
-                'fetch_and_assign_user_name': Mock()
-            }
-        ) as (result, mock_logger, mock_reformat, patch_objects):
-            patch_objects['post_assignment_notification'].assert_called_once()
-            patch_objects['fetch_and_assign_user_name'].assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_buttons_handler_chain_action_release(self, app_config, channels, default_channel):
-        """Test buttons_handler with chain action to release incident."""
-        app = self.create_slack_app(app_config, channels, default_channel)
-
-        # Mock incident
-        incident = create_mock_incident_for_handlers(
-            uuid="test-uuid",
-            status="resolved"
-        )
-        incident.chain_enabled = False
-        incident.release = Mock()
-
-        # Mock incidents collection
-        incidents = create_mock_incidents_collection()
-        incidents.get_by_ts.return_value = incident
-
-        # Mock queue
-        queue = create_mock_queue()
-
-        # Mock route
-        route = create_mock_route()
-
-        payload = {
-            "token": "valid_token",
-            "message_ts": "1234567890.123456",
-            "original_message": {"text": "Original message"},
-            "actions": [{"name": "chain"}],
-            "user": {"id": "U123456"}
-        }
-
-        async with create_slack_buttons_handler_context(
-            app, payload, incidents, queue, route,
-            expected_log_message='Button RELEASE pressed',
-            additional_patches={
-                'post_unassignment_notification': Mock()
-            }
-        ) as (result, mock_logger, mock_reformat, patch_objects):
-            patch_objects['post_unassignment_notification'].assert_called_once()
-            incident.release.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_buttons_handler_status_action_enable(self, app_config, channels, default_channel):

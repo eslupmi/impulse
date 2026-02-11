@@ -134,8 +134,7 @@ class SlackApplication(Application):
                 logger.info('Button pressed: user already assigned', extra={'incident': incident_.uuid, 'button': 'take_it', 'user_id': user_id})
             else:
                 logger.info('Button pressed: assigning to user', extra={'incident': incident_.uuid, 'button': 'take_it', 'user_id': user_id})
-                self._try_assign_from_user_manager(incident_, user_id)
-                self._track_async_task(asyncio.create_task(self.post_assignment_notification(incident_, user_id, user_name)))
+                self._track_async_task(asyncio.create_task(self.post_assignment_notification(incident_)))
                 self._track_async_task(asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id)))
             incident_.chain_enabled = False
         else:

@@ -166,9 +166,9 @@ class Incident:
     def release(self):
         self.chain = []
         self.chain_active_seconds = 0.0
-        self.assign_user_id("")
-        self.assign_user("")
-        self.assign_fullname("")
+        self.assigned_user_id = ""
+        self.assigned_user = ""
+        self.assigned_fullname = ""
         self.chain_enabled = True
         self.dump()
 
@@ -440,15 +440,6 @@ class Incident:
         logger.debug("Status updated", extra={'uuid': self.uuid, 'status': status})
         if status == 'closed' and not self.closed:
             self.closed = datetime.now(timezone.utc)
-
-    def assign_user_id(self, user_id: str):
-        self.assigned_user_id = user_id
-
-    def assign_user(self, user: str):
-        self.assigned_user = user
-
-    def assign_fullname(self, fullname: str):
-        self.assigned_fullname = fullname
 
     def is_new_firing_alerts_added(self, alert_state: Dict) -> bool:
         old_alerts_labels = self._get_firing_alerts_labels(self.payload)

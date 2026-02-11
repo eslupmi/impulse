@@ -58,10 +58,6 @@ class TelegramApplication(Application):
     def _format_tg_icon(self, icon):
         return f'{self.icon_map.get(icon)}'
 
-    def _should_include_header_in_notifications(self) -> bool:
-        """Telegram doesn't include header in freeze/unfreeze notifications"""
-        return False
-
     async def create_thread(self, incident, body, header, status_icons):
         topic_id = await self._create_topic(incident.channel_id, header, status_icons)
         payload = self._create_thread_payload(incident, body, header, status_icons)
@@ -75,7 +71,7 @@ class TelegramApplication(Application):
         response.close()
         return response_json.get('result', {}).get(self.thread_id_key)
 
-    async def _handle_chain_action(self, action, incident_, user_id, user_display_name, queue_, payload):
+    async def _handle_chain_action(self, action, incident_, user_id, queue_, payload):
         """Handle chain-related button actions (start_chain/stop_chain)"""
         await queue_.delete_by_id(incident_.uniq_id, delete_steps=True, delete_status=False)
         if action == 'stop_chain':
@@ -84,7 +80,7 @@ class TelegramApplication(Application):
                 return JSONResponse(payload, status_code=200)
             logger.info('Button TAKE IT: assigning to user', extra={'uuid': incident_.uuid, 'user_id': user_id})
             self._try_assign_from_user_manager(incident_, user_id)
-            self._track_async_task(asyncio.create_task(self.post_assignment_notification(incident_, user_id, user_display_name)))
+            self._track_async_task(asyncio.create_task(self.post_assignment_notification(incident_)))
             self._track_async_task(asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id)))
             incident_.chain_enabled = False
         else:
@@ -182,7 +178,7 @@ class TelegramApplication(Application):
                 return result
 
         if action in ['start_chain', 'stop_chain']:
-            early_return = await self._handle_chain_action(action, incident_, user_id, user_display_name, queue_, payload)
+            early_return = await self._handle_chain_action(action, incident_, user_id, queue_, payload)
             if early_return is not None:
                 return early_return
         elif action == 'task':

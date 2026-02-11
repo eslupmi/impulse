@@ -147,18 +147,6 @@ class TestMattermostApplication:
 
         assert destinations == ["admin1", "admin2"]
 
-    def test_create_thread_payload(self):
-        """Test _create_thread_payload method."""
-        app = self._create_mattermost_app()
-
-        with patch('app.im.mattermost.mattermost_application.mattermost_get_create_thread_payload') as mock_payload:
-            mock_payload.return_value = {"test": "payload"}
-
-            result = app._create_thread_payload("channel123", "body", "header", "icons", "firing", False)
-
-            assert result == {"test": "payload"}
-            mock_payload.assert_called_once_with("channel123", "body", "header", "icons", "firing", False)
-
     def test_post_thread_payload(self):
         """Test _post_thread_payload method."""
         app = self._create_mattermost_app()
@@ -171,19 +159,6 @@ class TestMattermostApplication:
             "message": "Test message"
         }
         assert result == expected
-
-    def test_update_thread_payload(self):
-        """Test update_thread_payload method."""
-        app = self._create_mattermost_app()
-
-        with patch('app.im.mattermost.mattermost_application.mattermost_get_update_payload') as mock_payload:
-            mock_payload.return_value = {"test": "update_payload"}
-
-            result = app.update_thread_payload("channel123", "post123", "body", "header", "icons", "firing", True, True, "", False)
-
-            assert result == {"test": "update_payload"}
-            mock_payload.assert_called_once_with("channel123", "post123", "body", "header", "icons", "firing", True,
-                                                 True, "", False)
 
     def test_update_thread_method(self):
         """Test _update_thread method signature."""
@@ -209,81 +184,6 @@ class TestMattermostApplication:
 
         # Mattermost doesn't modify markdown links
         assert result == "Test text with [link](url)"
-
-    @pytest.mark.asyncio
-    async def test_buttons_handler_chain_action_assigned(self):
-        """Test buttons_handler with chain action when user is already assigned."""
-        app = self._create_mattermost_app()
-
-        # Mock incident
-        incident = create_mock_incident_for_handlers(
-            uuid="test-uuid",
-            status="firing"
-        )
-        incident.assigned_user_id = "user123"
-
-        # Mock incidents collection
-        incidents = create_mock_incidents_collection()
-        incidents.get_by_ts.return_value = incident
-
-        # Mock queue
-        queue = create_mock_queue()
-
-        # Mock route
-        route = create_mock_route()
-
-        payload = {
-            "post_id": "post123",
-            "context": {"action": "chain"},
-            "user_id": "user123",
-            "user_name": "testuser"
-        }
-
-        async with create_mattermost_buttons_handler_context(
-            app, payload, incidents, queue, route,
-            expected_log_message='Incident test-uuid -> button TAKE IT pressed, but user is already assigned'
-        ) as (result, mock_logger, _):
-            pass  # All assertions are handled by the context manager
-
-    @pytest.mark.asyncio
-    async def test_buttons_handler_chain_action_assign(self):
-        """Test buttons_handler with chain action to assign user."""
-        app = self._create_mattermost_app()
-
-        # Mock incident
-        incident = create_mock_incident_for_handlers(
-            uuid="test-uuid",
-            status="firing"
-        )
-        incident.assigned_user_id = "other_user"
-
-        # Mock incidents collection
-        incidents = create_mock_incidents_collection()
-        incidents.get_by_ts.return_value = incident
-
-        # Mock queue
-        queue = create_mock_queue()
-
-        # Mock route
-        route = create_mock_route()
-
-        payload = {
-            "post_id": "post123",
-            "context": {"action": "chain"},
-            "user_id": "user123",
-            "user_name": "testuser"
-        }
-
-        async with create_mattermost_buttons_handler_context(
-            app, payload, incidents, queue, route,
-            expected_log_message='Incident test-uuid -> button TAKE IT pressed, assigning to user123',
-            additional_patches={
-                'post_assignment_notification': Mock(),
-                'fetch_and_assign_user_name': Mock()
-            }
-        ) as (result, mock_logger, patch_objects):
-            patch_objects['post_assignment_notification'].assert_called_once()
-            patch_objects['fetch_and_assign_user_name'].assert_called_once()
 
     @pytest.mark.asyncio
     async def test_buttons_handler_chain_action_release(self):

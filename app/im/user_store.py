@@ -1,7 +1,7 @@
 import asyncio
 import os
 from datetime import datetime, timezone, timedelta
-from typing import Optional, Dict, Any, List, TYPE_CHECKING
+from typing import Optional, Dict, Any, TYPE_CHECKING
 
 import yaml
 
@@ -65,9 +65,10 @@ class UserStore:
         user_data = self.get(user_id)
         if user_data is None:
             return True
-        return self._is_data_expired(user_data)
-    
-    def _is_data_expired(self, user_data: Dict[str, Any]) -> bool:
+        return self.is_data_expired(user_data)
+
+    @staticmethod
+    def is_data_expired(user_data: Dict[str, Any]) -> bool:
         updated_at = user_data.get('updated_at')
         if not updated_at:
             return True
@@ -81,9 +82,10 @@ class UserStore:
     
     def get_next_refresh_time(self, user_id: str) -> datetime:
         user_data = self.get(user_id)
-        return self._get_refresh_time_from_data(user_data)
-    
-    def _get_refresh_time_from_data(self, user_data: Optional[Dict[str, Any]]) -> datetime:
+        return self.get_refresh_time_from_data(user_data)
+
+    @staticmethod
+    def get_refresh_time_from_data(user_data: Optional[Dict[str, Any]]) -> datetime:
         if user_data is None:
             return datetime.now(timezone.utc)
         updated_at = user_data.get('updated_at')
@@ -112,16 +114,6 @@ class UserStore:
         
         return users
     
-    def get_all_stored_user_ids(self) -> List[str]:
-        if not os.path.exists(self._users_path):
-            return []
-        user_ids = []
-        for filename in os.listdir(self._users_path):
-            if filename.endswith('.yml'):
-                user_id = filename[:-4]
-                user_ids.append(user_id)
-        return user_ids
-
 
 _user_store: Optional[UserStore] = None
 
@@ -171,11 +163,11 @@ class UserUpdateScheduler:
         last_immediate_schedule = now
         
         for user_id, user_data in stored_users.items():
-            if user_store._is_data_expired(user_data):
+            if user_store.is_data_expired(user_data):
                 schedule_time = last_immediate_schedule + timedelta(seconds=self._gap_seconds)
                 last_immediate_schedule = schedule_time
             else:
-                schedule_time = user_store._get_refresh_time_from_data(user_data)
+                schedule_time = user_store.get_refresh_time_from_data(user_data)
             
             await self._queue.put(schedule_time, QueueItemType.UPDATE_USER, identifier=user_id)
         

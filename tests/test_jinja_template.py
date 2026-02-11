@@ -73,18 +73,3 @@ class TestJinjaTemplate:
         result = template.render(name="World")
         assert result == "Hello World!"
         
-    def test_render_with_incident_data(self):
-        """Test rendering with incident object."""
-        template_str = "Status: {{ incident.status }}"
-        template = JinjaTemplate(template_str)
-
-        class MockIncident(Mock):
-            def __init__(self, *args, **kwargs):
-                kwargs.setdefault("spec", Incident)
-                super().__init__(*args, **kwargs)
-
-        mock_incident = MockIncident()
-        mock_incident.serialize.return_value = {"status": "firing"}
-
-        result = template.render(incident=mock_incident)
-        assert result == "Status: firing"

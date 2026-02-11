@@ -1,6 +1,6 @@
 import asyncio
 from abc import ABC, abstractmethod
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Union, Dict, Optional, TYPE_CHECKING
 
 from app.config.config import get_config
@@ -100,21 +100,11 @@ class Application(ABC):
             await self.http.close()
 
     async def fetch_and_assign_user_name(self, incident, user_id, dump=True):
-        """
-        Fetch user details and assign full name to incident.
-        Uses user manager to avoid redundant API calls when possible.
-
-        Args:
-            incident: The incident to assign the user name to
-            user_id: The user ID to fetch the name for
-            dump: Whether to dump the incident after assigning the user name
-        """
         try:
             if self._try_assign_from_user_manager(incident, user_id):
                 logger.debug(f'Incident {incident.uuid} assigned', extra={'user_id': user_id})
         except Exception as e:
             logger.error(f'Failed to fetch user name for incident {incident.uuid}: {e}')
-            incident.assign_fullname("-")
         finally:
             if dump:
                 incident.dump()
@@ -126,7 +116,7 @@ class Application(ABC):
             return False
         incident.assigned_user_id = user_id
         incident.assigned_user = cached_user.username
-        incident.assign_fullname(cached_user.name)
+        incident.assigned_fullname = cached_user.name
         return True
 
     @staticmethod
@@ -141,20 +131,13 @@ class Application(ABC):
         return "(empty)"
 
     def _add_discovered_user(self, user_id, user_details):
-        """Add discovered user to UserStore if not already a configured user.
-        
-        Configured users are already in UserManager and don't need new files.
-        Only truly new users (not in config) get stored and scheduled.
-        """
         user_id_str = str(user_id)
         
         # Check if this is already a configured user
         existing_user = self.users.get_user_by_id(user_id)
         if existing_user and existing_user.defined:
-            # User is already configured, no need to create file
             return
         
-        # Not a configured user - store and schedule updates
         user_store = get_user_store()
         user_store.save(user_id_str, self.type.value, user_details)
         
@@ -165,41 +148,27 @@ class Application(ABC):
             if self._user_scheduler:
                 self._user_scheduler.schedule_update(user_id_str)
 
-    async def post_assignment_notification(self, incident_obj, user_id, user_display_name=None):
-        """
-        Post a notification message to the thread when a user is assigned to an incident.
-
-        Args:
-            incident_obj: The incident object
-            user_id: The user ID that was assigned
-            user_display_name: The display name of the user that was assigned
-        """
+    async def post_assignment_notification(self, incident):
         config = get_config()
-        if not config.incident.notifications.assignment or not user_id:
+        if not config.incident.notifications.assignment or not incident.assigned_user_id:
             return
 
         try:
-            header = self.header_template.form_message(incident_obj.payload, incident_obj)
-            fields = {'type': self.type.value, 'username': user_display_name, 'id': user_id}
+            header = self.header_template.form_message(incident.payload, incident)
+            fields = {'type': self.type.value, 'username': incident.assigned_user, 'id': incident.assigned_user_id}
             text = JinjaTemplate(notification_assignment).form_notification(fields)
             if self.type == MessengerType.TELEGRAM:
                 message = text
             else:
                 message = header + '\n' + text
 
-            await self.post_thread(incident_obj.channel_id, incident_obj.ts, message)
-            logger.debug(f'Posted assignment notification for incident {incident_obj.uuid}')
+            await self.post_thread(incident.channel_id, incident.ts, message)
+            logger.debug(f'Posted assignment notification for incident {incident.uuid}')
 
         except Exception as e:
-            logger.error(f'Failed to post assignment notification for incident {incident_obj.uuid}: {e}')
+            logger.error(f'Failed to post assignment notification for incident {incident.uuid}: {e}')
 
     async def post_unassignment_notification(self, incident_obj):
-        """
-        Post a notification message to the thread when a user is unassigned from an incident.
-
-        Args:
-            incident_obj: The incident object
-        """
         config = get_config()
         if not config.incident.notifications.assignment:
             return
@@ -235,13 +204,6 @@ class Application(ABC):
         logger.info(log_button_pressed, extra={'uuid': incident_.uuid, 'button': 'task', 'user_id': user_id})
         self._track_async_task(asyncio.create_task(self.handle_task_button(incident_, queue_)))
 
-    def _should_include_header_in_notifications(self) -> bool:
-        """
-        Determine if header should be included in freeze/unfreeze notifications.
-        Override in subclass if different behavior is needed (e.g., Telegram returns False).
-        """
-        return True
-
     async def _handle_freeze_action(
             self, incident_: 'Incident', freeze_option: str, user_id: str, incidents, queue_: 'AsyncQueue',
             user_display_name: Optional[str] = None, user_timezone: Optional[str] = None
@@ -273,7 +235,7 @@ class Application(ABC):
         fields = {'type': self.type.value, 'frozen_until': format_freeze_expiration(freeze_time, user_timezone)}
         text = text_template.form_notification(fields)
         
-        if self._should_include_header_in_notifications():
+        if self.type != MessengerType.TELEGRAM:
             header = self.header_template.form_message(incident_.payload, incident_)
             message = header + '\n' + text
         else:
@@ -286,7 +248,7 @@ class Application(ABC):
         text_template = JinjaTemplate(notification_unfreeze)
         text = text_template.form_notification({'type': self.type.value})
         
-        if self._should_include_header_in_notifications():
+        if self.type != MessengerType.TELEGRAM:
             header = self.header_template.form_message(incident_.payload, incident_)
             message = header + '\n' + text
         else:

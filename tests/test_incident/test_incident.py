@@ -227,17 +227,6 @@ class TestIncident:
             assert status_updated is False
             assert state_updated is False
 
-    def test_assign_user_methods(self, sample_incident):
-        """Test user assignment methods."""
-        sample_incident.assign_user_id("U123456")
-        assert sample_incident.assigned_user_id == "U123456"
-
-        sample_incident.assign_user("john.doe")
-        assert sample_incident.assigned_user == "john.doe"
-
-        sample_incident.assign_fullname("John Doe")
-        assert sample_incident.assigned_fullname == "John Doe"
-
     def test_set_status(self, sample_incident):
         """Test setting status."""
         sample_incident.set_status("resolved")
