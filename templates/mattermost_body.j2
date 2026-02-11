@@ -32,7 +32,7 @@ _{{ commonAnnotations.description }}_{% endif %}
 {%- if incident.childs | length > 0 %}
 
 **Inhibited incidents:**
-{%- for uniq_id, child in incident.childs.items() %}
-    [{{ child.payload.commonLabels.alertname }}]({{ child.link }})
+{%- for uniq_id in incident.childs %}
+    [{{ incidents.uniq_ids[uniq_id].payload.commonLabels.alertname }}]({{ incidents.uniq_ids[uniq_id].link }})
 {%- endfor -%}
 {% endif -%}

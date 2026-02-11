@@ -136,12 +136,6 @@ class MattermostApplication(Application):
     def get_notification_destinations(self):
         return [a.get_notification_identifier() for a in self.admin_users]
 
-    def get_admins_text(self):
-        admins_text = mattermost_env.from_string(mattermost_admins_template_string).render(
-            users=self.get_notification_destinations()
-        )
-        return admins_text
-
     async def _handle_chain_action(self, incident_, user_id, user_name, queue_, payload):
         """Handle chain-related button actions"""
         await queue_.delete_by_id(incident_.uniq_id, delete_steps=True, delete_status=False)

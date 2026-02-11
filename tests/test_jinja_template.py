@@ -88,25 +88,3 @@ class TestJinjaTemplate:
 
         result = template.render(incident=mock_incident)
         assert result == "Status: firing"
-
-    def test_render_raises_for_non_serializable_incident(self):
-        """Test strict behavior: incident must provide dict-like serialize() output."""
-        template = JinjaTemplate("Status: {{ incident.status }}")
-        mock_incident = Mock()
-        mock_incident.status = "firing"
-        with pytest.raises(TypeError):
-            template.render(incident=mock_incident)
-
-    def test_form_message_resolves_parent_and_child_incidents(self):
-        """Test parents/childs are available as uniq_id -> incident object maps."""
-        with parent_child_incident_context() as (template, mock_incident):
-            result = template.form_message({"status": "firing"}, mock_incident)
-
-        assert result == "Parent: firing, Child: resolved"
-
-    def test_render_resolves_parent_and_child_incidents(self):
-        """Test generic render also resolves parents/childs incident object maps."""
-        with parent_child_incident_context() as (template, mock_incident):
-            result = template.render(incident=mock_incident)
-
-        assert result == "Parent: firing, Child: resolved"

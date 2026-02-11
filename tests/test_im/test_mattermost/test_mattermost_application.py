@@ -147,27 +147,6 @@ class TestMattermostApplication:
 
         assert destinations == ["admin1", "admin2"]
 
-    def test_get_admins_text(self):
-        """Test get_admins_text method."""
-        app = self._create_mattermost_app()
-
-        # Mock admin users
-        admin1 = Mock()
-        admin1.username = "admin1"
-        admin2 = Mock()
-        admin2.username = "admin2"
-        app.admin_users = [admin1, admin2]
-
-        with patch('app.im.mattermost.mattermost_application.mattermost_env') as mock_env:
-            mock_template = Mock()
-            mock_template.render.return_value = "Admins: @admin1, @admin2"
-            mock_env.from_string.return_value = mock_template
-
-            result = app.get_admins_text()
-
-            assert result == "Admins: @admin1, @admin2"
-            mock_env.from_string.assert_called_once()
-
     def test_create_thread_payload(self):
         """Test _create_thread_payload method."""
         app = self._create_mattermost_app()
