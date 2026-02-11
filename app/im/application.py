@@ -120,7 +120,7 @@ class Application(ABC):
         return True
 
     @staticmethod
-    def _format_display_name(user_details: dict) -> str:
+    def format_display_name(user_details: dict) -> str:
         """Format user display name: Full Name → @username → (empty)."""
         full_name = user_details.get('full_name')
         if full_name:
@@ -129,24 +129,6 @@ class Application(ABC):
         if username:
             return f"@{username}"
         return "(empty)"
-
-    def _add_discovered_user(self, user_id, user_details):
-        user_id_str = str(user_id)
-        
-        # Check if this is already a configured user
-        existing_user = self.users.get_user_by_id(user_id)
-        if existing_user and existing_user.defined:
-            return
-        
-        user_store = get_user_store()
-        user_store.save(user_id_str, self.type.value, user_details)
-        
-        display_name = self._format_display_name(user_details)
-        user = self.create_user(display_name, user_details)
-        if user:
-            self.users.add_user(user_id_str, user)
-            if self._user_scheduler:
-                self._user_scheduler.schedule_update(user_id_str)
 
     async def post_assignment_notification(self, incident):
         config = get_config()
@@ -206,7 +188,7 @@ class Application(ABC):
 
     async def _handle_freeze_action(
             self, incident_: 'Incident', freeze_option: str, user_id: str, incidents, queue_: 'AsyncQueue',
-            user_display_name: Optional[str] = None, user_timezone: Optional[str] = None
+            user_timezone: Optional[str] = None
     ):
         """Handle freeze button action"""
         logger.info(log_button_pressed, extra={'uuid': incident_.uuid, 'button': 'freeze', 'user_id': user_id})
@@ -216,7 +198,8 @@ class Application(ABC):
         freeze_time = calculate_freeze_time(freeze_option, config.app.general, timezone_str)
         self._try_assign_from_user_manager(incident_, user_id)
         self.fetch_and_assign_user_name(incident_, user_id, dump=False)
-        incident_.freeze(freeze_time, user_id, user_display_name)
+        cached_user = self.users.get_user_by_id(user_id)
+        incident_.freeze(freeze_time, cached_user)
         
         await queue_.delete_by_id(incident_.uniq_id, delete_steps=True, delete_status=False)
         await queue_.put(freeze_time, QueueItemType.UNFREEZE, incident_.uniq_id)
@@ -256,12 +239,11 @@ class Application(ABC):
             
         await self.post_thread(incident_.channel_id, incident_.ts, message)
 
-    def get_configured_user_name(self, user_id, fallback_name):
-        """Get user name from configuration, or use fallback name"""
-        if self.users is None:
-            return fallback_name
+    def get_configured_user_name(self, user_id):
         user = self.users.get_user_by_id(user_id)
-        return user.name if user and user.exists else fallback_name
+        if user and user.exists:
+            return user.name
+        return None
 
     async def handle_task_button(self, incident, queue_):
         """
@@ -324,7 +306,7 @@ class Application(ABC):
                 'full_name': full_name,
                 'username': stored_data.get('username'),
             }
-            display_name = self._format_display_name(user_details)
+            display_name = self.format_display_name(user_details)
             user = self.create_user(display_name, user_details)
             if user:
                 user_manager.add_user(user_id, user)

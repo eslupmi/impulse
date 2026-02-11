@@ -1,4 +1,3 @@
-import asyncio
 from datetime import datetime, timezone, timedelta
 
 from app.im.user_store import get_user_store, USER_REFRESH_HOURS
@@ -38,7 +37,7 @@ class UserUpdateHandler(BaseHandler):
 
     def _update_user_manager(self, user_id: str, user_details: dict):
         """Update the user in UserManager with fresh data."""
-        display_name = self.app._format_display_name(user_details)
+        display_name = self.app.format_display_name(user_details)
         user = self.app.create_user(display_name, user_details)
         if user:
             self.app.users.add_user(user_id, user)

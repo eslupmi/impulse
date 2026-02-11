@@ -36,7 +36,8 @@ class MattermostApplication(Application):
     def _get_team_name(self, app_config: ApplicationConfig):
         return app_config.team
 
-    def _extract_timezone(self, timezone_data):
+    @staticmethod
+    def _extract_timezone(timezone_data):
         if not timezone_data or not isinstance(timezone_data, dict):
             return None
         use_automatic = timezone_data.get('useAutomaticTimezone')
@@ -52,13 +53,13 @@ class MattermostApplication(Application):
             logger.debug("User not found", extra={'user_id': id_})
             response.close()
             return {'id': id_, 'username': None, 'exists': False, 'full_name': None,
-                    'first_name': None, 'last_name': None, 'email': None, 'timezone': None}
+                    'email': None, 'timezone': None}
 
         if response.status != 200:
             logger.debug("User details fetch failed", extra={'user_id': id_, 'status': response.status})
             response.close()
             return {'id': id_, 'username': None, 'exists': False, 'full_name': None,
-                    'first_name': None, 'last_name': None, 'email': None, 'timezone': None}
+                    'email': None, 'timezone': None}
 
         data = await response.json()
         response.close()
@@ -70,9 +71,7 @@ class MattermostApplication(Application):
             'username': data.get('username'),
             'exists': True,
             'full_name': full_name,
-            'first_name': first_name or None,
-            'last_name': last_name or None,
-            'email': data.get('email') or None,
+            'email': data.get('email'),
             'timezone': self._extract_timezone(data.get('timezone')),
         }
 
@@ -170,7 +169,7 @@ class MattermostApplication(Application):
         
         context = payload.get('context', {})
         user_id = payload.get('user_id')
-        user_name = self.get_configured_user_name(user_id, payload.get('user_name'))
+        user_name = self.get_configured_user_name(user_id)
         
         config = get_config()
         mattermost_tz = config.app.general.timezone
@@ -179,7 +178,7 @@ class MattermostApplication(Application):
         selected_option = context.get('selected_option')
         if selected_option and selected_option.startswith('freeze_'):
             freeze_option = selected_option.replace('freeze_', '')
-            await self._handle_freeze_action(incident_, freeze_option, user_id, incidents, queue_, user_name, user_timezone=mattermost_tz)
+            await self._handle_freeze_action(incident_, freeze_option, user_id, incidents, queue_, user_timezone=mattermost_tz)
         else:
             action = context.get('action')
             if action == 'unfreeze':

@@ -172,14 +172,14 @@ class Incident:
         self.chain_enabled = True
         self.dump()
 
-    def freeze(self, until: datetime, user_id: str, user_fullname: str = ''):
+    def freeze(self, until: datetime, user):
         """Freeze the incident until the specified datetime (preserves underlying status)
         Assigns the user who froze the incident and disables chains"""
         self.accumulate_chain_time(self.updated)
         self.frozen_until = until
-        self.assigned_user_id = user_id
-        if user_fullname:
-            self.assigned_fullname = user_fullname
+        self.assigned_user_id = user.id
+        self.assigned_user = user.username
+        self.assigned_fullname = user.name
         self.chain_enabled = False
         self.dump()
         logger.info("Incident frozen", extra={'uuid': self.uuid, 'frozen_until': until})
@@ -272,7 +272,8 @@ class Incident:
         else:
             return f'{env_config.incidents_path}/{self.uuid}.yml'
 
-    def _remove_old_file(self, old_filename: str):
+    @staticmethod
+    def _remove_old_file(old_filename: str):
         """Remove old incident file"""
         try:
             if os.path.exists(old_filename):

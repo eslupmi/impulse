@@ -19,7 +19,7 @@ class NullApplication(Application):
     """
 
     async def _handle_freeze_action(self, incident_: 'Incident', freeze_option: str, user_id: str, incidents,
-                                    queue_: 'AsyncQueue', user_display_name: Optional[str] = None, user_timezone: Optional[str] = None):
+                                    queue_: 'AsyncQueue', user_timezone: Optional[str] = None):
         """No-op freeze action for null application"""
         pass
 

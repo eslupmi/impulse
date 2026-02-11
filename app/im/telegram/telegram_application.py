@@ -108,13 +108,7 @@ class TelegramApplication(Application):
             headers=self.headers
         )
 
-    def _extract_user_display_name(self, user_from):
-        """Extract user display name from callback user data"""
-        first_name = user_from.get('first_name', '').strip()
-        last_name = user_from.get('last_name', '').strip()
-        return f"{first_name} {last_name}".strip() or user_from.get('username')
-
-    async def _handle_freeze_actions(self, action, incident_, user_id, user_display_name, incidents, queue_, callback):
+    async def _handle_freeze_actions(self, action, incident_, user_id, incidents, queue_, callback):
         """Handle all freeze-related actions"""
         if action == 'freeze_menu':
             if incident_.is_frozen():
@@ -135,7 +129,7 @@ class TelegramApplication(Application):
         }
         
         if action in freeze_option_map:
-            await self._handle_freeze_action(incident_, freeze_option_map[action], user_id, incidents, queue_, user_display_name)
+            await self._handle_freeze_action(incident_, freeze_option_map[action], user_id, incidents, queue_)
         
         return None
 
@@ -155,12 +149,7 @@ class TelegramApplication(Application):
 
         action = callback['data']
         user_id = callback['from']['id']
-        user_from = callback.get('from', {})
-        first_name = user_from.get('first_name', '').strip()
-        last_name = user_from.get('last_name', '').strip()
-        fallback_name = f"{first_name} {last_name}".strip() or user_from.get('username')
-        user_display_name = self.get_configured_user_name(user_id, fallback_name)
-        
+
         # Check if this is a freeze action
         is_freeze_action = action.startswith('freeze_')
 
@@ -172,7 +161,7 @@ class TelegramApplication(Application):
 
         # Handle freeze actions
         if is_freeze_action:
-            result = await self._handle_freeze_actions(action, incident_, user_id, user_display_name, incidents, queue_, callback)
+            result = await self._handle_freeze_actions(action, incident_, user_id, incidents, queue_, callback)
             if result is not None:
                 return result
 
@@ -297,7 +286,7 @@ class TelegramApplication(Application):
         return [keyboard_row]
 
     def update_thread_payload(self, incident, body, header, status_icons, show_freeze_menu = False):
-        _, message_id = incident.id_.split('/')
+        _, message_id = incident.ts.split('/')
         if show_freeze_menu:
             keyboard = self._build_freeze_menu_keyboard()
         else:
@@ -352,9 +341,7 @@ class TelegramApplication(Application):
             'id': id_,
             'exists': True,
             'full_name': full_name,
-            'username': chat_data.get('username') or full_name,
-            'first_name': first_name or None,
-            'last_name': last_name or None,
+            'username': chat_data.get('username'),
             'email': None,
             'timezone': None,
         }

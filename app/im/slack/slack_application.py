@@ -61,18 +61,13 @@ class SlackApplication(Application):
 
         user_data = data.get('user', {})
         profile = user_data.get('profile', {})
-        full_name = profile.get('real_name_normalized')
-        first_name = profile.get('first_name', '').strip()
-        last_name = profile.get('last_name', '').strip()
         return {
             'id': id_,
             'exists': True,
-            'full_name': full_name,
+            'full_name': profile.get('real_name_normalized'),
             'username': user_data.get('name'),
-            'first_name': first_name or None,
-            'last_name': last_name or None,
-            'email': profile.get('email') or None,
-            'timezone': user_data.get('tz') or None,
+            'email': profile.get('email'),
+            'timezone': user_data.get('tz'),
         }
 
     def create_user(self, name, user_details):
@@ -134,7 +129,7 @@ class SlackApplication(Application):
                 logger.info('Button pressed: user already assigned', extra={'incident': incident_.uuid, 'button': 'take_it', 'user_id': user_id})
             else:
                 logger.info('Button pressed: assigning to user', extra={'incident': incident_.uuid, 'button': 'take_it', 'user_id': user_id})
-                self._track_async_task(asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id)))
+                self.fetch_and_assign_user_name(incident_, user_id)
                 self._track_async_task(asyncio.create_task(self.post_assignment_notification(incident_)))
             incident_.chain_enabled = False
         else:

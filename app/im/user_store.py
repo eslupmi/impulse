@@ -50,8 +50,7 @@ class UserStore:
             'messenger_type': messenger_type,
             'username': user_data.get('username'),
             'email': user_data.get('email'),
-            'first_name': user_data.get('first_name'),
-            'last_name': user_data.get('last_name'),
+            'full_name': user_data.get('full_name'),
             'timezone': user_data.get('timezone'),
         }
         try:
@@ -159,9 +158,7 @@ class UserUpdateScheduler:
         if not stored_users:
             return
         
-        now = datetime.now(timezone.utc)
-        last_immediate_schedule = now
-        
+        last_immediate_schedule = datetime.now(timezone.utc)
         for user_id, user_data in stored_users.items():
             if user_store.is_data_expired(user_data):
                 schedule_time = last_immediate_schedule + timedelta(seconds=self._gap_seconds)
