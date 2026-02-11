@@ -67,14 +67,8 @@ class UserManager:
             return self._users.get(user_id)
         return self._users.get(name)
     
-    def get_all_users(self) -> Dict[str, BaseUser]:
-        return self._users.copy()
-    
     def __getitem__(self, name: str) -> BaseUser:
         return self.get_user(name)
-    
-    def __contains__(self, name: str) -> bool:
-        return name in self._config_names or name in self._users
     
     def get_user_by_id(self, user_id: Union[int, str]) -> Optional[BaseUser]:
         """Get user by their messenger ID."""

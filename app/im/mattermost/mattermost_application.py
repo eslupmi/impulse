@@ -72,7 +72,7 @@ class MattermostApplication(Application):
             'exists': True,
             'full_name': full_name,
             'email': data.get('email'),
-            'timezone': self._extract_timezone(data.get('timezone')),
+            'timezone': self._extract_timezone(data.get('timezone'))
         }
 
     def create_user(self, name, user_details):

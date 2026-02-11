@@ -258,22 +258,6 @@ class TestUserManager:
         assert user.name == "nonexistent"
         assert user.defined is False
     
-    def test_get_all_users(self):
-        """Test getting all users (keyed by user_id)."""
-        manager = UserManager()
-        user1 = TelegramUser("John Doe", id_=12345)
-        user2 = SlackUser("Jane Smith", id_="U12345")
-        
-        manager.add_user("12345", user1, config_name="john")
-        manager.add_user("U12345", user2, config_name="jane")
-        
-        all_users = manager.get_all_users()
-        assert len(all_users) == 2
-        assert "12345" in all_users
-        assert "U12345" in all_users
-        assert all_users["12345"] == user1
-        assert all_users["U12345"] == user2
-    
     def test_dict_style_access(self):
         """Test dictionary-style access with []."""
         manager = UserManager()
@@ -297,16 +281,6 @@ class TestUserManager:
         assert isinstance(user, UndefinedUser)
         assert user.name == "nonexistent"
     
-    def test_contains_operator(self):
-        """Test 'in' operator support for both config names and user_ids."""
-        manager = UserManager()
-        user = TelegramUser("John Doe", id_=12345)
-        manager.add_user("12345", user, config_name="john")
-        
-        assert "john" in manager  # config name
-        assert "12345" in manager  # user_id
-        assert "nonexistent" not in manager
-    
     def test_get_method_with_default(self):
         """Test get() method with default value."""
         manager = UserManager()
@@ -324,23 +298,6 @@ class TestUserManager:
         # Nonexistent user with default
         retrieved = manager.get("nonexistent", None)
         assert retrieved is None
-    
-    def test_multiple_messenger_types(self):
-        """Test manager can handle users from different messengers."""
-        manager = UserManager()
-        
-        telegram_user = TelegramUser("John", id_=12345)
-        slack_user = SlackUser("Jane", id_="U12345")
-        mattermost_user = MattermostUser("Bob", id_="abc123", username="bob")
-        
-        manager.add_user("12345", telegram_user, config_name="john")
-        manager.add_user("U12345", slack_user, config_name="jane")
-        manager.add_user("abc123", mattermost_user, config_name="bob")
-        
-        assert len(manager.get_all_users()) == 3
-        assert isinstance(manager["john"], TelegramUser)
-        assert isinstance(manager["jane"], SlackUser)
-        assert isinstance(manager["bob"], MattermostUser)
     
     def test_get_user_by_id_found(self):
         """Test finding a user by their platform ID."""

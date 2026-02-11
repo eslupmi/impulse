@@ -121,7 +121,6 @@ class Application(ABC):
 
     @staticmethod
     def format_display_name(user_details: dict) -> str:
-        """Format user display name: Full Name → @username → (empty)."""
         full_name = user_details.get('full_name')
         if full_name:
             return full_name
