@@ -5,12 +5,13 @@ from typing import Union, Optional, Dict
 class BaseUser(ABC):
     """Base class for all messenger users."""
     
-    def __init__(self, name: str, id_: Union[int, str, None] = None, exists: bool = False, full_name: str = None):
+    def __init__(self, name: str, id_: Union[int, str, None] = None, exists: bool = False, full_name: str = None, username: str = None):
         self.name = name
         self.id = id_
         self.exists = exists
         self.defined = True
         self.full_name = full_name
+        self.username = username
     
     def __repr__(self):
         return self.name

@@ -1,7 +1,7 @@
 from jinja2 import Environment
 
 buttons = {
-    # styles: normal, danger, primary
+    # styles: default, danger, primary
     'chain': {
         'takeit': {
             'text': 'Take It',
@@ -9,7 +9,7 @@ buttons = {
         },
         'assigned': {
             'text': 'Take It',
-            'style': 'normal'
+            'style': 'default'
         },
         'release': {
             'text': 'Release',
@@ -19,11 +19,11 @@ buttons = {
     'freeze': {
         'inactive': {
             'text': 'Freeze',
-            'style': 'normal'
+            'style': 'default'
         },
         'inhibited': {
             'text': 'Inhibited',
-            'style': 'normal'
+            'style': 'default'
         },
         'options': [
             {'text': 'Tomorrow', 'value': 'tomorrow'},
@@ -35,7 +35,7 @@ buttons = {
     'task': {
         'create': {
             'text': ':pushpin:',
-            'style': 'normal'
+            'style': 'default'
         }
     }
 }
