@@ -7,7 +7,6 @@ from app.config.config import get_config
 from app.config.environment import get_environment_config
 from app.config.validation import ApplicationConfig
 from app.im.application import Application
-from app.im.slack import reformat_message
 from app.im.slack.threads import slack_get_create_thread_payload, slack_get_update_payload
 from app.im.slack.user import User
 from app.logging import logger
@@ -135,19 +134,9 @@ class SlackApplication(Application):
             self._track_async_task(asyncio.create_task(self.post_unassignment_notification(incident_)))
             incident_.release()
 
-    def _build_button_response(self, incident_, original_message, response_url):
-        """Build JSON response with updated incident message"""
-        body, header, status_icons = self.form_incident_message(incident_)
-        payload = self.update_thread_payload(incident_, body, header, status_icons)
-        config = get_config()
-        slack_tz = config.app.general.timezone
-        modified_message = reformat_message(original_message, payload['text'], payload['attachments'], incident_.status,
-                                            incident_.chain_enabled, incident_.frozen_until, incident_.task_link, slack_tz)
-        return JSONResponse(modified_message, status_code=200)
-
     async def _handle_freeze_button(self, action, incident_, user_id, incidents, queue_):
         """Handle freeze button action"""
-        if incident_.is_frozen():
+        if incident_.frozen_until is not None:
             await self._handle_unfreeze_action(incident_, user_id, queue_)
             return
         
@@ -181,27 +170,21 @@ class SlackApplication(Application):
         is_freeze_action = any(action['name'] == 'freeze' for action in actions)
 
         # Block non-freeze actions if incident is frozen
-        if incident_.is_frozen() and not is_freeze_action:
+        if incident_.is_frozen() and (incident_.frozen_by_inhibition or not is_freeze_action):
             logger.debug('Incident frozen, blocking actions', extra={'incident': incident_.uuid})
+        else:
+            for action in actions:
+                if action['name'] == 'freeze':
+                    await self._handle_freeze_button(action, incident_, user_id, incidents, queue_)
+                if action['name'] == 'chain':
+                    self.fetch_and_assign_user_name(incident_, user_id)
+                    await self._handle_chain_action(incident_, user_id, queue_)
+                elif action['name'] == 'task':
+                    self._handle_task_action(incident_, user_id, queue_)
 
-            # return self._build_button_response(incident_, original_message, response_url)
-            body, header, status_icons = self.form_incident_message(incident_)
-            modified_message = slack_get_update_payload(incident_, body, header, status_icons)
-            return JSONResponse(modified_message, status_code=200)
-
-        for action in actions:
-            if action['name'] == 'freeze':
-                await self._handle_freeze_button(action, incident_, user_id, incidents, queue_)
-                body, header, status_icons = self.form_incident_message(incident_)
-                payload = self.update_thread_payload(incident_, body, header, status_icons)
-                return JSONResponse(payload, status_code=200)
-            if action['name'] == 'chain':
-                self.fetch_and_assign_user_name(incident_, user_id)
-                await self._handle_chain_action(incident_, user_id, queue_)
-            elif action['name'] == 'task':
-                self._handle_task_action(incident_, user_id, queue_)
-        
-        return self._build_button_response(incident_, original_message, 'test') #!
+        body, header, status_icons = self.form_incident_message(incident_)
+        modified_message = slack_get_update_payload(incident_, body, header, status_icons)
+        return JSONResponse(modified_message, status_code=200)
 
     def _create_thread_payload(self, incident, body, header, status_icons):
         return slack_get_create_thread_payload(incident, body, header, status_icons)
