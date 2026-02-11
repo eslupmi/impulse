@@ -80,7 +80,8 @@ class MattermostApplication(Application):
             name=name,
             id_=user_details.get('id'),
             username=user_details.get('username'),
-            exists=user_details.get('exists')
+            exists=user_details.get('exists'),
+            full_name=user_details.get('full_name')
         )
 
     async def get_group_details(self, group_id: str):

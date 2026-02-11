@@ -74,7 +74,8 @@ class SlackApplication(Application):
         return User(
             name=name,
             id_=user_details.get('id'),
-            exists=user_details.get('exists')
+            exists=user_details.get('exists'),
+            full_name=user_details.get('full_name')
         )
 
     async def get_all_groups(self):
@@ -195,7 +196,7 @@ class SlackApplication(Application):
                 payload = self.update_thread_payload(incident_, body, header, status_icons)
                 return JSONResponse(payload, status_code=200)
             if action['name'] == 'chain':
-                self._try_assign_from_user_manager(incident_, user_id)
+                self.fetch_and_assign_user_name(incident_, user_id)
                 await self._handle_chain_action(incident_, user_id, queue_)
             elif action['name'] == 'task':
                 self._handle_task_action(incident_, user_id, queue_)

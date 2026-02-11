@@ -94,23 +94,17 @@ class Application(ABC):
 
     def fetch_and_assign_user_name(self, incident, user_id, dump=True):
         try:
-            if self._try_assign_from_user_manager(incident, user_id):
-                logger.debug(f'Incident {incident.uuid} assigned', extra={'user_id': user_id})
+            cached_user = self.users.get_user_by_id(user_id)
+            if cached_user and cached_user.exists:
+                incident.assigned_user_id = user_id
+                incident.assigned_user = cached_user.username
+                incident.assigned_fullname = cached_user.full_name
+            logger.debug(f'Incident {incident.uuid} assigned', extra={'user_id': user_id})
         except Exception as e:
             logger.error(f'Failed to fetch user name for incident {incident.uuid}: {e}')
         finally:
             if dump:
                 incident.dump()
-
-    def _try_assign_from_user_manager(self, incident, user_id):
-        """Try to assign user from the user manager. Returns True if successful."""
-        cached_user = self.users.get_user_by_id(user_id)
-        if not (cached_user and cached_user.exists):
-            return False
-        incident.assigned_user_id = user_id
-        incident.assigned_user = cached_user.username
-        incident.assigned_fullname = cached_user.name
-        return True
 
     def _get_config_name_by_user_id(self, user_id: Union[int, str]) -> Optional[str]:
         str_user_id = str(user_id)
@@ -185,7 +179,6 @@ class Application(ABC):
         config = get_config()
         timezone_str = user_timezone or config.app.general.timezone
         freeze_time = calculate_freeze_time(freeze_option, config.app.general, timezone_str)
-        self._try_assign_from_user_manager(incident_, user_id)
         self.fetch_and_assign_user_name(incident_, user_id, dump=False)
         cached_user = self.users.get_user_by_id(user_id)
         incident_.freeze(freeze_time, cached_user)
