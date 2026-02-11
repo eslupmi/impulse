@@ -167,35 +167,28 @@ class MattermostApplication(Application):
         
         context = payload.get('context', {})
         user_id = payload.get('user_id')
-        user_name = self.get_configured_user_name(user_id)
-        
+        action = context.get('action')
+
         config = get_config()
         mattermost_tz = config.app.general.timezone
 
-        # Handle freeze/unfreeze actions first
-        selected_option = context.get('selected_option')
-        if selected_option and selected_option.startswith('freeze_'):
-            freeze_option = selected_option.replace('freeze_', '')
-            await self._handle_freeze_action(incident_, freeze_option, user_id, incidents, queue_, user_timezone=mattermost_tz)
-        else:
-            action = context.get('action')
-            if action == 'unfreeze':
-                await self._handle_unfreeze_action(incident_, user_id, queue_)
-
         # Block other actions if incident is frozen
-        if incident_.is_frozen():
+        if incident_.is_frozen() and (incident_.frozen_by_inhibition or not action == 'unfreeze'):
             logger.debug('Incident frozen, blocking actions', extra={'uuid': incident_.uuid})
-            return self._build_button_response(incident_, mattermost_tz)
-
-        # Handle other button actions
-        action = context.get('action')
-        if action == 'chain':
-            early_return = await self._handle_chain_action(incident_, user_id, queue_, payload)
-            if early_return is not None:
-                return early_return
-        elif action == 'task':
-            self._handle_task_action(incident_, user_id, queue_)
-        
+        else:
+            if action == 'chain':
+                early_return = await self._handle_chain_action(incident_, user_id, queue_, payload)
+                if early_return is not None:
+                    return early_return
+            elif action == 'task':
+                self._handle_task_action(incident_, user_id, queue_)
+            elif action == 'unfreeze':
+                await self._handle_unfreeze_action(incident_, user_id, queue_)
+            else:
+                selected_option = context.get('selected_option')
+                if selected_option and selected_option.startswith('freeze_'):
+                    freeze_option = selected_option.replace('freeze_', '')
+                    await self._handle_freeze_action(incident_, freeze_option, user_id, incidents, queue_, user_timezone=mattermost_tz)
         return self._build_button_response(incident_, mattermost_tz)
 
     def _create_thread_payload(self, incident, body, header, status_icons):
