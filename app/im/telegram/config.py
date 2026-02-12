@@ -18,7 +18,7 @@ buttons = {
             'callback_data': 'freeze_menu'
         },
         'inhibited': {
-            'text': '❄️ Inhibited',
+            'text': 'Inhibited',
             'callback_data': 'noop'
         },
         'options': [
@@ -36,6 +36,3 @@ buttons = {
         }
     }
 }
-
-telegram_env = Environment()
-telegram_admins_template_string = "{{ users | join(', ') }}"

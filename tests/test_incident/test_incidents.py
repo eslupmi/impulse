@@ -270,7 +270,7 @@ class TestIncidents:
         ]
 
         # Mock YAML content
-        mock_yaml_load.return_value = {'version': 'v3.2.0'}
+        mock_yaml_load.return_value = {'version': 'v3.4.0'}
 
         # Mock incident loading
         mock_incident = Mock()
@@ -313,7 +313,7 @@ class TestIncidents:
         mock_walk.return_value = [('/test/incidents', [], [])]
 
         # Mock YAML content
-        mock_yaml_load.return_value = {'version': 'v3.2.0'}
+        mock_yaml_load.return_value = {'version': 'v3.4.0'}
 
         # Mock incident loading
         mock_incident = Mock()
@@ -359,7 +359,7 @@ class TestIncidents:
         ]
 
         # Mock YAML content
-        mock_yaml_load.return_value = {'version': 'v3.2.0'}
+        mock_yaml_load.return_value = {'version': 'v3.4.0'}
 
         # Mock incident with different messenger type
         mock_incident = Mock()

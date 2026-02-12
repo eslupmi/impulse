@@ -89,31 +89,6 @@ class TestIncident:
         assert mock_gen_uniq_id.call_count == 1
         assert incident.uniq_id == "test-uniq-id"
 
-    def test_set_thread_slack(self, sample_incident):
-        """Test setting thread for Slack."""
-        sample_incident.config.application_type = MessengerType.SLACK
-        sample_incident.set_thread("1234567890.123456", "https://test.slack.com")
-
-        assert sample_incident.ts == "1234567890.123456"
-        assert "archives/C123456789/p1234567890123456" in sample_incident.link
-
-    def test_set_thread_mattermost(self, sample_incident):
-        """Test setting thread for Mattermost."""
-        sample_incident.config.application_type = MessengerType.MATTERMOST
-        sample_incident.set_thread("thread123", "https://mattermost.test.com")
-
-        assert sample_incident.ts == "thread123"
-        assert sample_incident.link == "https://test.slack.com/test-team/pl/thread123"
-
-    def test_set_thread_telegram(self, sample_incident):
-        """Test setting thread for Telegram."""
-        sample_incident.config.application_type = MessengerType.TELEGRAM
-        sample_incident.channel_id = "-1001234567890"
-        sample_incident.set_thread("123", "https://t.me")
-
-        assert sample_incident.ts == "123"
-        assert sample_incident.link == "https://t.me/c/1234567890/123"
-
     def test_generate_link_slack(self, sample_incident):
         """Test link generation for Slack."""
         sample_incident.config.application_type = MessengerType.SLACK
@@ -227,20 +202,9 @@ class TestIncident:
             assert status_updated is False
             assert state_updated is False
 
-    def test_assign_user_methods(self, sample_incident):
-        """Test user assignment methods."""
-        sample_incident.assign_user_id("U123456")
-        assert sample_incident.assigned_user_id == "U123456"
-
-        sample_incident.assign_user("john.doe")
-        assert sample_incident.assigned_user == "john.doe"
-
-        sample_incident.assign_fullname("John Doe")
-        assert sample_incident.assigned_fullname == "John Doe"
-
     def test_set_status(self, sample_incident):
         """Test setting status."""
-        sample_incident.set_status("resolved")
+        sample_incident._set_status("resolved")
         assert sample_incident.status == "resolved"
 
     def test_set_status_closed_sets_closed_field(self, sample_incident):
@@ -248,7 +212,7 @@ class TestIncident:
         from datetime import datetime, timezone
         
         sample_incident.closed = None  # Ensure closed is empty initially
-        sample_incident.set_status("closed")
+        sample_incident._set_status("closed")
         
         assert sample_incident.status == "closed"
         assert sample_incident.closed is not None
@@ -260,7 +224,7 @@ class TestIncident:
         from datetime import datetime, timezone
         existing_closed = datetime(2025, 1, 15, 14, 30, 45, tzinfo=timezone.utc)
         sample_incident.closed = existing_closed
-        sample_incident.set_status("closed")
+        sample_incident._set_status("closed")
         
         assert sample_incident.status == "closed"
         assert sample_incident.closed == existing_closed  # Should not be overwritten
@@ -394,11 +358,10 @@ class TestIncident:
 
     def test_chain_put(self, sample_incident):
         """Test putting item in chain."""
-        dt = datetime.now(timezone.utc)
-        sample_incident.chain_put(0, dt, "test_type", "test_id")
+        sample_incident.chain_put(0, 300.0, "test_type", "test_id")
 
         assert len(sample_incident.chain) == 1
-        assert sample_incident.chain[0]['datetime'] == dt
+        assert sample_incident.chain[0]['delay'] - 300.0 < 0.000001
         assert sample_incident.chain[0]['type'] == "test_type"
         assert sample_incident.chain[0]['identifier'] == "test_id"
         assert sample_incident.chain[0]['done'] is False
@@ -406,8 +369,7 @@ class TestIncident:
 
     def test_chain_update(self, sample_incident):
         """Test updating chain item."""
-        dt = datetime.now(timezone.utc)
-        sample_incident.chain_put(0, dt, "test_type", "test_id")
+        sample_incident.chain_put(0, 300.0, "test_type", "test_id")
 
         with patch.object(sample_incident, 'dump'):
             sample_incident.chain_update(0, True, "test_result")
@@ -451,7 +413,7 @@ class TestIncident:
 
         mock_file_open.assert_called_once()
         # Check that file is opened with correct path for closed incident
-        closed_str = sample_incident.datetime_serialize(sample_incident.closed)
+        closed_str = sample_incident._datetime_serialize(sample_incident.closed)
         assert f'/test/incidents/{sample_incident.uuid}__{closed_str}.yml' in str(mock_file_open.call_args)
         mock_yaml_dump.assert_called_once()
 

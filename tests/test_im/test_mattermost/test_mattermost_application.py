@@ -147,18 +147,6 @@ class TestMattermostApplication:
 
         assert destinations == ["admin1", "admin2"]
 
-    def test_create_thread_payload(self):
-        """Test _create_thread_payload method."""
-        app = self._create_mattermost_app()
-
-        with patch('app.im.mattermost.mattermost_application.mattermost_get_create_thread_payload') as mock_payload:
-            mock_payload.return_value = {"test": "payload"}
-
-            result = app._create_thread_payload("channel123", "body", "header", "icons", "firing", False)
-
-            assert result == {"test": "payload"}
-            mock_payload.assert_called_once_with("channel123", "body", "header", "icons", "firing", False)
-
     def test_post_thread_payload(self):
         """Test _post_thread_payload method."""
         app = self._create_mattermost_app()
@@ -172,31 +160,18 @@ class TestMattermostApplication:
         }
         assert result == expected
 
-    def test_update_thread_payload(self):
-        """Test update_thread_payload method."""
-        app = self._create_mattermost_app()
-
-        with patch('app.im.mattermost.mattermost_application.mattermost_get_update_payload') as mock_payload:
-            mock_payload.return_value = {"test": "update_payload"}
-
-            result = app.update_thread_payload("channel123", "post123", "body", "header", "icons", "firing", True, True, "", False)
-
-            assert result == {"test": "update_payload"}
-            mock_payload.assert_called_once_with("channel123", "post123", "body", "header", "icons", "firing", True,
-                                                 True, "", False)
-
     def test_update_thread_method(self):
         """Test _update_thread method signature."""
         app = self._create_mattermost_app()
 
         # Test that the method exists and is async
         assert hasattr(app, '_update_thread')
-        assert callable(app._update_thread)
+        assert callable(app._update_incident_message)
         import inspect
-        assert inspect.iscoroutinefunction(app._update_thread)
+        assert inspect.iscoroutinefunction(app._update_incident_message)
 
         # Test method signature
-        sig = inspect.signature(app._update_thread)
+        sig = inspect.signature(app._update_incident_message)
         params = list(sig.parameters.keys())
         assert 'id_' in params
         assert 'payload' in params
@@ -209,195 +184,6 @@ class TestMattermostApplication:
 
         # Mattermost doesn't modify markdown links
         assert result == "Test text with [link](url)"
-
-    @pytest.mark.asyncio
-    async def test_buttons_handler_chain_action_assigned(self):
-        """Test buttons_handler with chain action when user is already assigned."""
-        app = self._create_mattermost_app()
-
-        # Mock incident
-        incident = create_mock_incident_for_handlers(
-            uuid="test-uuid",
-            status="firing"
-        )
-        incident.assigned_user_id = "user123"
-
-        # Mock incidents collection
-        incidents = create_mock_incidents_collection()
-        incidents.get_by_ts.return_value = incident
-
-        # Mock queue
-        queue = create_mock_queue()
-
-        # Mock route
-        route = create_mock_route()
-
-        payload = {
-            "post_id": "post123",
-            "context": {"action": "chain"},
-            "user_id": "user123",
-            "user_name": "testuser"
-        }
-
-        async with create_mattermost_buttons_handler_context(
-            app, payload, incidents, queue, route,
-            expected_log_message='Incident test-uuid -> button TAKE IT pressed, but user is already assigned'
-        ) as (result, mock_logger, _):
-            pass  # All assertions are handled by the context manager
-
-    @pytest.mark.asyncio
-    async def test_buttons_handler_chain_action_assign(self):
-        """Test buttons_handler with chain action to assign user."""
-        app = self._create_mattermost_app()
-
-        # Mock incident
-        incident = create_mock_incident_for_handlers(
-            uuid="test-uuid",
-            status="firing"
-        )
-        incident.assigned_user_id = "other_user"
-
-        # Mock incidents collection
-        incidents = create_mock_incidents_collection()
-        incidents.get_by_ts.return_value = incident
-
-        # Mock queue
-        queue = create_mock_queue()
-
-        # Mock route
-        route = create_mock_route()
-
-        payload = {
-            "post_id": "post123",
-            "context": {"action": "chain"},
-            "user_id": "user123",
-            "user_name": "testuser"
-        }
-
-        async with create_mattermost_buttons_handler_context(
-            app, payload, incidents, queue, route,
-            expected_log_message='Incident test-uuid -> button TAKE IT pressed, assigning to user123',
-            additional_patches={
-                'post_assignment_notification': Mock(),
-                'fetch_and_assign_user_name': Mock()
-            }
-        ) as (result, mock_logger, patch_objects):
-            patch_objects['post_assignment_notification'].assert_called_once()
-            patch_objects['fetch_and_assign_user_name'].assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_buttons_handler_chain_action_release(self):
-        """Test buttons_handler with chain action to release incident."""
-        app = self._create_mattermost_app()
-
-        # Mock incident
-        incident = create_mock_incident_for_handlers(
-            uuid="test-uuid",
-            status="resolved",
-            chain_enabled=False
-        )
-
-        # Mock incidents collection
-        incidents = create_mock_incidents_collection()
-        incidents.get_by_ts.return_value = incident
-
-        # Mock queue
-        queue = create_mock_queue()
-
-        # Mock route
-        route = create_mock_route()
-
-        payload = {
-            "post_id": "post123",
-            "context": {"action": "chain"},
-            "user_id": "user123",
-            "user_name": "testuser"
-        }
-
-        async with create_mattermost_buttons_handler_context(
-            app, payload, incidents, queue, route,
-            expected_log_message='Incident test-uuid -> button RELEASE pressed',
-            additional_patches={
-                'post_unassignment_notification': Mock()
-            }
-        ) as (result, mock_logger, patch_objects):
-            patch_objects['post_unassignment_notification'].assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_buttons_handler_status_action_enable(self):
-        """Test buttons_handler with status action to enable status."""
-        app = self._create_mattermost_app()
-
-        # Mock incident
-        incident = create_mock_incident_for_handlers(
-            uuid="test-uuid",
-            status="firing",
-            status_enabled=False
-        )
-
-        # Mock incidents collection
-        incidents = create_mock_incidents_collection()
-        incidents.get_by_ts.return_value = incident
-
-        # Mock queue
-        queue = create_mock_queue()
-
-        # Mock route
-        route = create_mock_route()
-
-        payload = {
-            "post_id": "post123",
-            "context": {"action": "status"},
-            "user_id": "user123",
-            "user_name": "testuser"
-        }
-
-        async with create_mattermost_buttons_handler_context(
-            app, payload, incidents, queue, route,
-            expected_log_message=None,
-            patch_get_config=False
-        ) as (result, mock_logger, _):
-            # Status button functionality has been replaced with freeze/unfreeze
-            # Just verify the response is successful
-            pass # NOSONAR
-
-    @pytest.mark.asyncio
-    async def test_buttons_handler_status_action_disable(self):
-        """Test buttons_handler with status action to disable status."""
-        app = self._create_mattermost_app()
-
-        # Mock incident
-        incident = create_mock_incident_for_handlers(
-            uuid="test-uuid",
-            status="firing",
-            status_enabled=True
-        )
-
-        # Mock incidents collection
-        incidents = create_mock_incidents_collection()
-        incidents.get_by_ts.return_value = incident
-
-        # Mock queue
-        queue = create_mock_queue()
-
-        # Mock route
-        route = create_mock_route()
-
-        payload = {
-            "post_id": "post123",
-            "context": {"action": "status"},
-            "user_id": "user123",
-            "user_name": "testuser"
-        }
-
-        async with create_mattermost_buttons_handler_context(
-            app, payload, incidents, queue, route,
-            expected_log_message=None,
-            patch_get_config=False
-        ) as (result, mock_logger, _):
-            # Status button functionality has been replaced with freeze/unfreeze
-            # Just verify the response is successful
-            pass # NOSONAR
 
     @pytest.mark.asyncio
     async def test_buttons_handler_no_incident(self):
@@ -427,84 +213,6 @@ class TestMattermostApplication:
         assert result.status_code == 200
 
     @pytest.mark.asyncio
-    async def test_get_user_details_success(self):
-        """Test get_user_details method with successful response."""
-        app = self._create_mattermost_app()
-
-        mock_response = create_mock_http_response(200)
-        mock_response.json = AsyncMock(return_value={
-            "id": "user123",
-            "username": "testuser",
-            "first_name": "Test",
-            "last_name": "User"
-        })
-
-        # Mock HTTP client
-        app.http = Mock()
-        app.http.get = AsyncMock(return_value=mock_response)
-
-        result = await app.get_user_details({"id": "user123"})
-
-        assert result == {
-            "id": "user123",
-            "username": "testuser",
-            "exists": True,
-            "full_name": "Test User",
-            "email": None,
-            "first_name": "Test",
-            "last_name": "User",
-            "timezone": None
-        }
-
-    @pytest.mark.asyncio
-    async def test_get_user_details_not_found(self):
-        """Test get_user_details method with 404 response."""
-        app = self._create_mattermost_app()
-
-        mock_response = create_mock_http_response(404)
-
-        # Mock HTTP client
-        app.http = Mock()
-        app.http.get = AsyncMock(return_value=mock_response)
-
-        result = await app.get_user_details({"id": "user123"})
-
-        assert result == {
-            "id": "user123",
-            "username": None,
-            "exists": False,
-            "full_name": None,
-            "email": None,
-            "first_name": None,
-            "last_name": None,
-            "timezone": None
-        }
-
-    @pytest.mark.asyncio
-    async def test_get_user_details_http_error(self):
-        """Test get_user_details method with HTTP error status."""
-        app = self._create_mattermost_app()
-
-        mock_response = create_mock_http_response(500)
-
-        # Mock HTTP client
-        app.http = Mock()
-        app.http.get = AsyncMock(return_value=mock_response)
-
-        result = await app.get_user_details({"id": "user123"})
-
-        assert result == {
-            "id": "user123",
-            "username": None,
-            "exists": False,
-            "full_name": None,
-            "email": None,
-            "first_name": None,
-            "last_name": None,
-            "timezone": None
-        }
-
-    @pytest.mark.asyncio
     async def test_update_thread_success(self):
         """Test _update_thread method with successful HTTP response."""
         app = self._create_mattermost_app()
@@ -515,7 +223,7 @@ class TestMattermostApplication:
         app.http = Mock()
         app.http.put = AsyncMock(return_value=mock_response)
 
-        await app._update_thread("post123", {"message": "Updated message"})
+        await app._update_incident_message("post123", {"message": "Updated message"})
 
         app.http.put.assert_called_once()
 

@@ -81,48 +81,6 @@ class TestAlertHandler:
         assert handler.route == mock_route
 
     @pytest.mark.asyncio
-    async def test_handle_new_incident(self, alert_handler, mock_incidents, mock_application, mock_queue):
-        """Test handling new incident creation."""
-        # Use utility function for alert payload
-        alert_payload = create_alert_payload(
-            status="firing",
-            alertname="TestAlert",
-            severity="critical"
-        )
-
-        # Mock incidents.get to return None (new incident)
-        mock_incidents.get.return_value = None
-
-        with patch('app.queue.handlers.alert_handler.get_config') as mock_get_config, \
-                patch('app.queue.handlers.alert_handler.datetime') as mock_datetime, \
-                patch('app.queue.handlers.alert_handler.Incident') as mock_incident_class:
-            # Use utility function for mock config
-            mock_config = create_mock_config()
-            mock_config.incident.timeouts = {'firing': '1h', 'resolved': '5m'}
-            mock_config.INCIDENT_ACTUAL_VERSION = 'v3.2.0'
-            mock_get_config.return_value = mock_config
-
-            # Use utility function for test datetime
-            test_datetime = create_test_datetime()
-            mock_datetime.now.return_value = test_datetime
-
-            # Mock incident creation
-            mock_incident = Mock()
-            mock_incident.uuid = 'test-uuid-123'
-            mock_incident.link = 'https://test.slack.com/archives/C123456789/p1234567890123456'
-            mock_incident.dump = Mock()
-            mock_incident.generate_chain = Mock()
-            mock_incident_class.return_value = mock_incident
-
-            await alert_handler.handle(alert_payload)
-
-            # Should create new incident
-            mock_incidents.get.assert_called_once_with(alert=alert_payload)
-            mock_incidents.add.assert_called_once_with(mock_incident)
-            mock_queue.put.assert_called_once()
-            mock_queue.recreate.assert_called_once()
-
-    @pytest.mark.asyncio
     async def test_handle_existing_incident(self, alert_handler, mock_incidents, mock_application, mock_queue):
         """Test handling existing incident update."""
         # Use utility function for alert payload

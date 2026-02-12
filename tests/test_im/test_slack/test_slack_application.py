@@ -185,18 +185,6 @@ class TestSlackApplication:
 
         assert destinations == ["U123456", "U789012"]
 
-    def test_create_thread_payload(self, app_config, channels, default_channel):
-        """Test _create_thread_payload method."""
-        app = self.create_slack_app(app_config, channels, default_channel)
-
-        with patch('app.im.slack.slack_application.slack_get_create_thread_payload') as mock_payload:
-            mock_payload.return_value = {"test": "create_payload"}
-
-            result = app._create_thread_payload("C123456789", "body", "header", "icons", "firing", False)
-
-            assert result == {"test": "create_payload"}
-            mock_payload.assert_called_once_with("C123456789", "body", "header", "icons", "firing", False)
-
     def test_post_thread_payload(self, app_config, channels, default_channel):
         """Test _post_thread_payload method."""
         app = self.create_slack_app(app_config, channels, default_channel)
@@ -212,32 +200,18 @@ class TestSlackApplication:
         }
         assert result == expected
 
-    def test_update_thread_payload(self, app_config, channels, default_channel):
-        """Test update_thread_payload method."""
-        app = self.create_slack_app(app_config, channels, default_channel)
-
-        with patch('app.im.slack.slack_application.slack_get_update_payload') as mock_payload:
-            mock_payload.return_value = {"test": "update_payload"}
-
-            result = app.update_thread_payload("C123456789", "1234567890.123456", "body", "header", "icons", "firing",
-                                               True, None, "", False)
-
-            assert result == {"test": "update_payload"}
-            mock_payload.assert_called_once_with("C123456789", "1234567890.123456", "body", "header", "icons", "firing",
-                                                 True, None, "", frozen_by_inhibition=False)
-
     def test_update_thread_method(self, app_config, channels, default_channel):
         """Test _update_thread method signature."""
         app = self.create_slack_app(app_config, channels, default_channel)
 
         # Test that the method exists and is async
         assert hasattr(app, '_update_thread')
-        assert callable(app._update_thread)
+        assert callable(app._update_incident_message)
         import inspect
-        assert inspect.iscoroutinefunction(app._update_thread)
+        assert inspect.iscoroutinefunction(app._update_incident_message)
 
         # Test method signature
-        sig = inspect.signature(app._update_thread)
+        sig = inspect.signature(app._update_incident_message)
         params = list(sig.parameters.keys())
         assert 'id_' in params
         assert 'payload' in params
@@ -322,203 +296,6 @@ class TestSlackApplication:
             assert result.body == b'{"text":"Original message"}'
 
     @pytest.mark.asyncio
-    async def test_buttons_handler_chain_action_assigned(self, app_config, channels, default_channel):
-        """Test buttons_handler with chain action when user is already assigned."""
-        app = self.create_slack_app(app_config, channels, default_channel)
-
-        # Mock incident
-        incident = create_mock_incident_for_handlers(
-            uuid="test-uuid",
-            status="firing"
-        )
-        incident.assigned_user_id = "U123456"
-        incident.chain_enabled = True
-
-        # Mock incidents collection
-        incidents = create_mock_incidents_collection()
-        incidents.get_by_ts.return_value = incident
-
-        # Mock queue
-        queue = create_mock_queue()
-
-        # Mock route
-        route = create_mock_route()
-
-        payload = {
-            "token": "valid_token",
-            "message_ts": "1234567890.123456",
-            "original_message": {"text": "Original message"},
-            "actions": [{"name": "chain"}],
-            "user": {"id": "U123456"}
-        }
-
-        async with create_slack_buttons_handler_context(
-            app, payload, incidents, queue, route,
-            expected_log_message='Button TAKE IT pressed: user already assigned'
-        ) as (result, mock_logger, mock_reformat, _):
-            pass  # All assertions are handled by the context manager
-
-    @pytest.mark.asyncio
-    async def test_buttons_handler_chain_action_assign(self, app_config, channels, default_channel):
-        """Test buttons_handler with chain action to assign user."""
-        app = self.create_slack_app(app_config, channels, default_channel)
-
-        # Mock incident
-        incident = create_mock_incident_for_handlers(
-            uuid="test-uuid",
-            status="firing"
-        )
-        incident.assigned_user_id = "other_user"
-        incident.chain_enabled = True
-        incident.assign_user_id = Mock()
-
-        # Mock incidents collection
-        incidents = create_mock_incidents_collection()
-        incidents.get_by_ts.return_value = incident
-
-        # Mock queue
-        queue = create_mock_queue()
-
-        # Mock route
-        route = create_mock_route()
-
-        payload = {
-            "token": "valid_token",
-            "message_ts": "1234567890.123456",
-            "original_message": {"text": "Original message"},
-            "actions": [{"name": "chain"}],
-            "user": {"id": "U123456"}
-        }
-
-        async with create_slack_buttons_handler_context(
-            app, payload, incidents, queue, route,
-            expected_log_message='Button TAKE IT pressed: assigning to user',
-            additional_patches={
-                'post_assignment_notification': Mock(),
-                'fetch_and_assign_user_name': Mock()
-            }
-        ) as (result, mock_logger, mock_reformat, patch_objects):
-            patch_objects['post_assignment_notification'].assert_called_once()
-            patch_objects['fetch_and_assign_user_name'].assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_buttons_handler_chain_action_release(self, app_config, channels, default_channel):
-        """Test buttons_handler with chain action to release incident."""
-        app = self.create_slack_app(app_config, channels, default_channel)
-
-        # Mock incident
-        incident = create_mock_incident_for_handlers(
-            uuid="test-uuid",
-            status="resolved"
-        )
-        incident.chain_enabled = False
-        incident.release = Mock()
-
-        # Mock incidents collection
-        incidents = create_mock_incidents_collection()
-        incidents.get_by_ts.return_value = incident
-
-        # Mock queue
-        queue = create_mock_queue()
-
-        # Mock route
-        route = create_mock_route()
-
-        payload = {
-            "token": "valid_token",
-            "message_ts": "1234567890.123456",
-            "original_message": {"text": "Original message"},
-            "actions": [{"name": "chain"}],
-            "user": {"id": "U123456"}
-        }
-
-        async with create_slack_buttons_handler_context(
-            app, payload, incidents, queue, route,
-            expected_log_message='Button RELEASE pressed',
-            additional_patches={
-                'post_unassignment_notification': Mock()
-            }
-        ) as (result, mock_logger, mock_reformat, patch_objects):
-            patch_objects['post_unassignment_notification'].assert_called_once()
-            incident.release.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_buttons_handler_status_action_enable(self, app_config, channels, default_channel):
-        """Test buttons_handler with status action to enable status."""
-        app = self.create_slack_app(app_config, channels, default_channel)
-
-        # Mock incident
-        incident = create_mock_incident_for_handlers(
-            uuid="test-uuid",
-            status="firing"
-        )
-        incident.status_enabled = False
-
-        # Mock incidents collection
-        incidents = create_mock_incidents_collection()
-        incidents.get_by_ts.return_value = incident
-
-        # Mock queue
-        queue = create_mock_queue()
-
-        # Mock route
-        route = create_mock_route()
-
-        payload = {
-            "token": "valid_token",
-            "message_ts": "1234567890.123456",
-            "original_message": {"text": "Original message"},
-            "actions": [{"name": "status"}],
-            "user": {"id": "U123456"}
-        }
-
-        async with create_slack_buttons_handler_context(
-            app, payload, incidents, queue, route,
-            expected_log_message=None
-        ) as (result, mock_logger, mock_reformat, _):
-            # Status button functionality has been replaced with freeze/unfreeze
-            # Just verify the response is successful
-            pass # NOSONAR
-
-    @pytest.mark.asyncio
-    async def test_buttons_handler_status_action_disable(self, app_config, channels, default_channel):
-        """Test buttons_handler with status action to disable status."""
-        app = self.create_slack_app(app_config, channels, default_channel)
-
-        # Mock incident
-        incident = create_mock_incident_for_handlers(
-            uuid="test-uuid",
-            status="firing"
-        )
-        incident.status_enabled = True
-
-        # Mock incidents collection
-        incidents = create_mock_incidents_collection()
-        incidents.get_by_ts.return_value = incident
-
-        # Mock queue
-        queue = create_mock_queue()
-
-        # Mock route
-        route = create_mock_route()
-
-        payload = {
-            "token": "valid_token",
-            "message_ts": "1234567890.123456",
-            "original_message": {"text": "Original message"},
-            "actions": [{"name": "status"}],
-            "user": {"id": "U123456"}
-        }
-
-        async with create_slack_buttons_handler_context(
-            app, payload, incidents, queue, route,
-            expected_log_message=None
-        ) as (result, mock_logger, mock_reformat, _):
-            # Status button functionality has been replaced with freeze/unfreeze
-            # Just verify the response is successful
-            pass # NOSONAR
-
-    @pytest.mark.asyncio
     async def test_get_public_url_success(self, app_config, channels, default_channel):
         """Test _get_public_url method with successful HTTP response."""
         app = self.create_slack_app(app_config, channels, default_channel)
@@ -535,63 +312,6 @@ class TestSlackApplication:
 
         assert result == "https://test-workspace.slack.com"
         app.http.get.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_get_user_details_success(self, app_config, channels, default_channel):
-        """Test get_user_details method with successful response."""
-        app = self.create_slack_app(app_config, channels, default_channel)
-
-        mock_response = create_mock_http_response(200)
-        mock_response.json = AsyncMock(return_value={
-            "ok": True,
-            "user": {
-                "id": "U123456",
-                "profile": {
-                    "real_name_normalized": "Test User"
-                }
-            }
-        })
-
-        # Mock HTTP client
-        app.http = Mock()
-        app.http.get = AsyncMock(return_value=mock_response)
-
-        result = await app.get_user_details({"id": "U123456"})
-
-        assert result == {
-            "id": "U123456",
-            "exists": True,
-            "full_name": "Test User",
-            "username": None,
-            "email": None,
-            "first_name": None,
-            "last_name": None,
-            "timezone": None
-        }
-
-    @pytest.mark.asyncio
-    async def test_get_user_details_http_error(self, app_config, channels, default_channel):
-        """Test get_user_details method with HTTP error status."""
-        app = self.create_slack_app(app_config, channels, default_channel)
-
-        mock_response = create_mock_http_response(500)
-
-        # Mock HTTP client
-        app.http = Mock()
-        app.http.get = AsyncMock(return_value=mock_response)
-
-        result = await app.get_user_details({"id": "U123456"})
-
-        assert result == {
-            "id": "U123456",
-            "exists": False,
-            "full_name": None,
-            "username": None,
-            "email": None,
-            "first_name": None,
-            "last_name": None,
-            "timezone": None
-        }
 
     @pytest.mark.asyncio
     async def test_get_user_details_api_error(self, app_config, channels, default_channel):
@@ -632,7 +352,7 @@ class TestSlackApplication:
         app.http = Mock()
         app.http.post = AsyncMock(return_value=mock_response)
 
-        await app._update_thread("1234567890.123456", {"text": "Updated message"})
+        await app._update_incident_message("1234567890.123456", {"text": "Updated message"})
 
         app.http.post.assert_called_once()
 

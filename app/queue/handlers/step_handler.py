@@ -60,7 +60,7 @@ class StepHandler(BaseHandler):
             else:
                 header = self.app.header_template.form_message(incident.payload, incident)
                 message = header + '\n' + text
-            await self.app.post_thread(incident.channel_id, incident.ts, message)
+            await self.app.post_to_thread(incident.channel_id, incident.ts, message)
         else:
             r_code = await self.app.notify(incident, step['type'], step['identifier'])
             incident.chain_update(identifier, done=True, result=r_code)

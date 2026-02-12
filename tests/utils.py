@@ -336,7 +336,7 @@ def create_mock_config(
 
     mock_config = Mock()
     mock_config.incidents_path = incidents_path
-    mock_config.INCIDENT_ACTUAL_VERSION = "v3.2.0"
+    mock_config.INCIDENT_ACTUAL_VERSION = "v3.4.0"
 
     # Mock incident config
     mock_incident_config = Mock()
@@ -419,12 +419,13 @@ def create_mock_incident_data(
     test_datetime = create_test_datetime()
 
     return {
-        'version': 'v3.2.0',
+        'version': 'v3.4.0',
         'status': status,
         'channel_id': channel_id,
         'payload': {'alertname': 'TestAlert', 'severity': 'critical'},
         'chain': [],
         'chain_enabled': False,
+        'chain_active_seconds': 0.0,
         'status_enabled': False,
         'status_update_datetime': test_datetime,
         'updated': test_datetime,
@@ -1383,55 +1384,6 @@ def setup_app_templates(app):
     app.status_icons_template.form_message.return_value = "Test icons"
 
 
-def convert_mock_to_async_if_needed(patch_name: str, patch_value):
-    """
-    Convert Mock to AsyncMock if needed for async methods.
-    
-    Args:
-        patch_name: Name of the patch
-        patch_value: The patch value
-        
-    Returns:
-        Converted patch value
-    """
-    async_methods = ['post_assignment_notification', 'post_unassignment_notification', 'fetch_and_assign_user_name']
-    if patch_name in async_methods and not hasattr(patch_value, '__await__'):
-        from unittest.mock import AsyncMock
-        return AsyncMock()
-    return patch_value
-
-
-def _prepare_button_handler_patches(app, additional_patches, app_specific_patches):
-    """
-    Prepare all patches and patch objects for button handler tests.
-    
-    Args:
-        app: The application instance
-        additional_patches: Additional patches to apply
-        app_specific_patches: List of app-specific patches to apply
-        
-    Returns:
-        Tuple of (patches_context, patch_objects)
-    """
-    from unittest.mock import patch
-    
-    patch_objects = {}
-    patches_context = []
-    
-    # Process additional patches
-    if additional_patches:
-        for patch_name, patch_value in additional_patches.items():
-            patch_value = convert_mock_to_async_if_needed(patch_name, patch_value)
-            patch_objects[patch_name] = patch_value
-            patches_context.append(patch.object(app, patch_name, patch_value))
-    
-    # Add app-specific patches
-    if app_specific_patches:
-        patches_context.extend(app_specific_patches)
-    
-    return patches_context, patch_objects
-
-
 def _find_logger_mock_in_patches(patches_context):
     """
     Find the logger mock from patches.
@@ -1630,7 +1582,6 @@ def create_mattermost_buttons_handler_context(app, payload, incidents, queue, ro
     @asynccontextmanager
     async def mattermost_context():
         with patch('app.im.mattermost.mattermost_application.logger') as mock_logger:
-            # Always patch threads.get_config since it's called by mattermost_get_button_update_payload
             with patch('app.im.mattermost.threads.get_config', create_mock_get_config_patch()):
                 if patch_get_config:
                     # Also patch the main get_config for other uses

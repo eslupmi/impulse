@@ -17,16 +17,6 @@ class AsyncQueueManager:
     """
     
     def __init__(self, queue, application, incidents, webhooks, route_, inhibition_manager):
-        """
-        Initialize AsyncQueueManager object.
-
-        :param queue: AsyncQueue object.
-        :param application: Application object.
-        :param incidents: Incidents object.
-        :param webhooks: Webhooks object.
-        :param route_: Route object
-        :param inhibition_manager: InhibitionManager object for inhibition rule handling
-        """
         self.queue = queue
         self.application = application
         self.incidents = incidents
@@ -42,63 +32,27 @@ class AsyncQueueManager:
         self._task = None
 
     async def handle_step(self, uniq_id: str, identifier: str):
-        """
-        Handle step.
-
-        :param uniq_id: String unique id.
-        :param identifier: String identifier.
-        """
         await self.step_handler.handle(uniq_id, identifier)
 
     async def handle_status_update(self, uniq_id: str):
-        """
-        Handle status update.
-        :param uniq_id: String unique id.
-        """
         await self.status_update_handler.handle(uniq_id)
 
     async def handle_status_check(self, uniq_id: str):
-        """
-        Check incident status and perform appropriate actions (deletion, file removal, etc.)
-        :param uniq_id: String unique id.
-        """
         await self.status_check_handler.handle(uniq_id)
 
     async def handle_message_update(self, uniq_id: str):
-        """
-        Handle message update without status changes.
-        :param uniq_id: String unique id.
-        """
         await self.message_update_handler.handle(uniq_id)
 
     async def handle_alert(self, alert_state: dict):
-        """
-        Handle alert.
-        :param alert_state: Dictionary alert_state.
-        """
         await self.alert_handler.handle(alert_state)
 
     async def handle_unfreeze(self, uniq_id: str):
-        """
-        Handle unfreeze.
-        :param uniq_id: String unique id.
-        """
         await self.unfreeze_handler.handle(uniq_id)
 
     async def handle_user_update(self, user_id: str):
-        """
-        Handle user data refresh.
-        :param user_id: User ID to refresh.
-        """
         await self.user_update_handler.handle(user_id)
 
     async def queue_handle_once(self):
-        """
-        Handle one queue item.
-        The method handles the next ready queue item. Calls the appropriate handler based on the type of the item.
-        """
-        # Don't check items count - just try to get next item
-        # The get_next_ready_item() method handles empty queue safely
         type_, uniq_id, identifier, data = await self.queue.get_next_ready_item()
         if type_ is None:
             return
@@ -125,7 +79,6 @@ class AsyncQueueManager:
         await asyncio.sleep(0)
 
     def start_processing(self):
-        """Start the background queue processing task"""
         if self._running:
             return
             
@@ -134,7 +87,6 @@ class AsyncQueueManager:
         logger.info("Started Queue")
 
     async def stop_processing(self):
-        """Stop the background queue processing task"""
         if not self._running:
             return
             
@@ -149,7 +101,6 @@ class AsyncQueueManager:
         logger.info("Stopped queue")
 
     async def _process_queue_loop(self):
-        """Main queue processing loop"""
         while self._running:
             try:
                 await self.queue_handle_once()

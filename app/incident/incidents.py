@@ -42,22 +42,6 @@ class Incidents:
                 return
             del self.active_map[uuid]
     
-    def unfreeze_incident(self, uniq_id: str):
-        """
-        Handle incident unfreeze logic.
-        Just unfreezes the incident - cleanup is delegated to StatusCheckHandler.
-        """
-        incident = self.uniq_ids.get(uniq_id)
-        if not incident:
-            logger.warning(f'Incident with uniq_id {uniq_id} not found for unfreeze')
-            return
-        
-        if not incident.is_frozen():
-            logger.info(f'Incident {incident.uuid} is not frozen, skipping unfreeze')
-            return
-        
-        incident.unfreeze()
-
     def add(self, incident: Incident):
         self.uniq_ids[incident.uniq_id] = incident
         if (incident.status != 'closed' and incident.status != 'deleted') or incident.is_frozen():
