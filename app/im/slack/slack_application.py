@@ -3,7 +3,6 @@ import re
 
 from fastapi.responses import JSONResponse
 
-from app.config.config import get_config
 from app.config.environment import get_environment_config
 from app.config.validation import ApplicationConfig
 from app.im.application import Application
@@ -74,7 +73,8 @@ class SlackApplication(Application):
             name=name,
             id_=user_details.get('id'),
             exists=user_details.get('exists'),
-            full_name=user_details.get('full_name')
+            full_name=user_details.get('full_name'),
+            timezone=user_details.get('timezone')
         )
 
     async def get_all_groups(self):
@@ -148,9 +148,8 @@ class SlackApplication(Application):
             return
         
         freeze_option = selected_options[0]['value']
-        config = get_config()
-        slack_tz = config.app.general.timezone
-        await self._handle_freeze_action(incident_, freeze_option, user_id, incidents, queue_, user_timezone=slack_tz)
+        user_tz = self._get_user_timezone(user_id)
+        await self._handle_freeze_action(incident_, freeze_option, user_id, incidents, queue_, user_timezone=user_tz)
 
     async def buttons_handler(self, payload, incidents, queue_, route):
         env_config = get_environment_config()

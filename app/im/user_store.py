@@ -42,7 +42,7 @@ class UserStore:
         except (yaml.YAMLError, IOError) as e:
             logger.warning('Failed to read user file', extra={'user_id': user_id, 'error': str(e)})
             return None
-    
+
     def save(self, user_id: str, messenger_type: str, user_data: Dict[str, Any]) -> None:
         file_path = self._get_user_file_path(user_id)
         data = {

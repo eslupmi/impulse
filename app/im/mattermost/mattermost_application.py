@@ -81,6 +81,7 @@ class MattermostApplication(Application):
             id_=user_details.get('id'),
             username=user_details.get('username'),
             exists=user_details.get('exists'),
+            timezone=user_details.get('timezone'),
             full_name=user_details.get('full_name')
         )
 
@@ -166,9 +167,7 @@ class MattermostApplication(Application):
         context = payload.get('context', {})
         user_id = payload.get('user_id')
         action = context.get('action')
-
-        config = get_config()
-        mattermost_tz = config.app.general.timezone
+        user_tz = self._get_user_timezone(user_id)
 
         # Block other actions if incident is frozen
         if incident_.is_frozen() and (incident_.frozen_by_inhibition or not action == 'unfreeze'):
@@ -186,8 +185,8 @@ class MattermostApplication(Application):
                 selected_option = context.get('selected_option')
                 if selected_option and selected_option.startswith('freeze_'):
                     freeze_option = selected_option.replace('freeze_', '')
-                    await self._handle_freeze_action(incident_, freeze_option, user_id, incidents, queue_, user_timezone=mattermost_tz)
-        return self._build_button_response(incident_, mattermost_tz)
+                    await self._handle_freeze_action(incident_, freeze_option, user_id, incidents, queue_, user_timezone=user_tz)
+        return self._build_button_response(incident_, user_tz)
 
     def _get_incident_message_payload(self, incident, body, header, status_icons):
         return mattermost_get_create_thread_payload(incident, body, header, status_icons)
