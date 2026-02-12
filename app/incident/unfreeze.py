@@ -1,8 +1,7 @@
+import asyncio
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
-from app.im.template import notification_unfreeze
-from app.jinja_template import JinjaTemplate
 from app.logging import logger
 from app.queue.constants import QueueItemType
 
@@ -22,16 +21,8 @@ async def unfreeze_incident(incident: 'Incident', app: 'Application', queue: 'As
     incident.unfreeze()
 
     if not is_inhibition_unfreeze:
-        _, header, _ = app.form_incident_message(incident)
-        text_template = JinjaTemplate(notification_unfreeze)
-        fields = {'type': app.type.value}
-        text = text_template.form_notification(fields)
-        if app.type.value == 'telegram':
-            message = text
-        else:
-            message = header + '\n' + text
-        await app.post_thread(incident.channel_id, incident.ts, message)
-    
+        app.track_async_task(asyncio.create_task(app.post_unfreeze_notification(incident)))
+
     await queue.put_first(datetime.now(timezone.utc), QueueItemType.STATUS_CHECK, incident.uniq_id)
     await queue.recreate(incident.status, incident.uniq_id, incident.get_chain(), incident.chain_active_seconds)
     if incident_status != 'deleted':

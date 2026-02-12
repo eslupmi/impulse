@@ -15,12 +15,6 @@ class StatusCheckHandler(BaseHandler):
         self.inhibition_manager = inhibition_manager
 
     async def handle(self, uniq_id: str):
-        """
-        Check incident status and perform appropriate actions
-        
-        Args:
-            uniq_id: The unique identifier of the incident to check
-        """
         incident = self.incidents.uniq_ids.get(uniq_id)
         if incident is None:
             logger.warning("Incident not found", extra={'uniq_id': uniq_id})

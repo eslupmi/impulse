@@ -109,5 +109,5 @@ class NullApplication(Application):
     async def _post_freeze_notification(self, incident_: 'Incident', freeze_time: datetime, user_timezone: str = "UTC"):
         pass
 
-    async def _post_unfreeze_notification(self, incident_: 'Incident'):
+    async def post_unfreeze_notification(self, incident_: 'Incident'):
         pass

@@ -142,11 +142,11 @@ class MattermostApplication(Application):
                 return JSONResponse(payload, status_code=200)
             logger.info('Button pressed: assigning to user', extra={'incident': incident_.uuid, 'button': 'take_it', 'user_id': user_id})
             self.fetch_and_assign_user_name(incident_, user_id)
-            self._track_async_task(asyncio.create_task(self.post_assignment_notification(incident_)))
+            self.track_async_task(asyncio.create_task(self.post_assignment_notification(incident_)))
             incident_.chain_enabled = False
         else:
             logger.info('Button pressed', extra={'uuid': incident_.uuid, 'button': 'release', 'user_id': user_id})
-            self._track_async_task(asyncio.create_task(self.post_unassignment_notification(incident_)))
+            self.track_async_task(asyncio.create_task(self.post_unassignment_notification(incident_)))
             incident_.release()
         return None
 

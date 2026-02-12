@@ -235,6 +235,12 @@ class Application(ABC):
         status_icons = self.status_icons_template.form_message(incident.payload, incident)
         return body, header, status_icons
 
+    def track_async_task(self, task):
+        if not hasattr(self, '_async_tasks'):
+            self._async_tasks = set()
+        self._async_tasks.add(task)
+        task.add_done_callback(self._async_tasks.discard)
+
     async def create_thread(self, incident, body, header, status_icons):
         payload = self._create_thread_payload(incident, body, header, status_icons)
         return await self._send_create_thread(payload)
@@ -254,6 +260,19 @@ class Application(ABC):
 
     def get_notification_destinations(self):
         return [a.get_notification_identifier() for a in self.admin_users]
+
+    async def post_unfreeze_notification(self, incident_: 'Incident'): #!
+        """Post unfreeze notification to thread"""
+        text_template = JinjaTemplate(notification_unfreeze)
+        text = text_template.form_notification({'type': self.type.value})
+
+        if self.type != MessengerType.TELEGRAM:
+            header = self.header_template.form_message(incident_.payload, incident_)
+            message = header + '\n' + text
+        else:
+            message = text
+
+        await self.post_thread(incident_.channel_id, incident_.ts, message)
 
     def _load_stored_users(self, user_manager: UserManager, user_store, messenger_type: str) -> set:
         """Load ALL stored users for this messenger type into UserManager. Returns set of loaded user IDs."""
@@ -278,15 +297,9 @@ class Application(ABC):
 
         return loaded_ids
 
-    def _track_async_task(self, task):
-        if not hasattr(self, '_async_tasks'):
-            self._async_tasks = set()
-        self._async_tasks.add(task)
-        task.add_done_callback(self._async_tasks.discard)
-
     def _handle_task_action(self, incident_, user_id, queue_):
         logger.info(log_button_pressed, extra={'uuid': incident_.uuid, 'button': 'task', 'user_id': user_id})
-        self._track_async_task(asyncio.create_task(self.handle_task_button(incident_, queue_)))
+        self.track_async_task(asyncio.create_task(self.handle_task_button(incident_, queue_)))
 
     def _get_config_name_by_user_id(self, user_id: Union[int, str]) -> Optional[str]:
         str_user_id = str(user_id)
@@ -310,7 +323,7 @@ class Application(ABC):
 
         await queue_.delete_by_id(incident_.uniq_id, delete_steps=True, delete_status=False)
         await queue_.put(freeze_time, QueueItemType.UNFREEZE, incident_.uniq_id)
-        self._track_async_task(asyncio.create_task(self._post_freeze_notification(incident_, freeze_time, timezone_str)))
+        self.track_async_task(asyncio.create_task(self._post_freeze_notification(incident_, freeze_time, timezone_str)))
 
     async def _handle_unfreeze_action(self, incident_: 'Incident', user_id: str, queue_: 'AsyncQueue'):
         logger.info(log_button_pressed, extra={'uuid': incident_.uuid, 'button': 'unfreeze', 'user_id': user_id})
@@ -329,19 +342,6 @@ class Application(ABC):
             message = header + '\n' + text
         else:
             message = text
-        await self.post_thread(incident_.channel_id, incident_.ts, message)
-
-    async def _post_unfreeze_notification(self, incident_: 'Incident'):
-        """Post unfreeze notification to thread"""
-        text_template = JinjaTemplate(notification_unfreeze)
-        text = text_template.form_notification({'type': self.type.value})
-
-        if self.type != MessengerType.TELEGRAM:
-            header = self.header_template.form_message(incident_.payload, incident_)
-            message = header + '\n' + text
-        else:
-            message = text
-
         await self.post_thread(incident_.channel_id, incident_.ts, message)
 
     async def _send_create_thread(self, payload):
