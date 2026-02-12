@@ -229,7 +229,7 @@ class TestIncident:
 
     def test_set_status(self, sample_incident):
         """Test setting status."""
-        sample_incident.set_status("resolved")
+        sample_incident._set_status("resolved")
         assert sample_incident.status == "resolved"
 
     def test_set_status_closed_sets_closed_field(self, sample_incident):
@@ -237,7 +237,7 @@ class TestIncident:
         from datetime import datetime, timezone
         
         sample_incident.closed = None  # Ensure closed is empty initially
-        sample_incident.set_status("closed")
+        sample_incident._set_status("closed")
         
         assert sample_incident.status == "closed"
         assert sample_incident.closed is not None
@@ -249,7 +249,7 @@ class TestIncident:
         from datetime import datetime, timezone
         existing_closed = datetime(2025, 1, 15, 14, 30, 45, tzinfo=timezone.utc)
         sample_incident.closed = existing_closed
-        sample_incident.set_status("closed")
+        sample_incident._set_status("closed")
         
         assert sample_incident.status == "closed"
         assert sample_incident.closed == existing_closed  # Should not be overwritten
@@ -438,7 +438,7 @@ class TestIncident:
 
         mock_file_open.assert_called_once()
         # Check that file is opened with correct path for closed incident
-        closed_str = sample_incident.datetime_serialize(sample_incident.closed)
+        closed_str = sample_incident._datetime_serialize(sample_incident.closed)
         assert f'/test/incidents/{sample_incident.uuid}__{closed_str}.yml' in str(mock_file_open.call_args)
         mock_yaml_dump.assert_called_once()
 

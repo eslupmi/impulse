@@ -168,4 +168,4 @@ class UserUpdateScheduler:
             
             await self._queue.put(schedule_time, QueueItemType.UPDATE_USER, identifier=user_id)
         
-        logger.info('Scheduled user refresh tasks', extra={'count': len(stored_users)})
+        logger.debug('Scheduled user refresh tasks', extra={'count': len(stored_users)})
