@@ -69,10 +69,6 @@ class Incident:
         if not self.uniq_id:
             self.uniq_id = self.gen_uniq_id(self.payload.get('groupLabels'), self.created)
 
-    def set_thread(self, thread_id: str, public_url: str):
-        self.ts = thread_id
-        self.link = self.generate_link(public_url)
-
     def generate_link(self, public_url) -> str:
         if self.config.application_type == MessengerType.SLACK:
             return f'{public_url}' + f'archives/{self.channel_id}/p{self.ts.replace(".", "")}'
@@ -213,7 +209,8 @@ class Incident:
             childs=content.get('childs', []),
             parents=content.get('parents', []),
         )
-        incident_.set_thread(content.get('ts'), incident_config.application_url)
+        incident_.ts = content.get('ts')
+        incident_.link = incident_.generate_link(incident_config.application_url)
         incident_.task_link = content.get('task_link', '')
         return incident_
 

@@ -177,5 +177,6 @@ class AlertHandler(BaseHandler):
     async def _create_thread(self, incident_, alert_state, frozen_by_inhibition=False):
         body, header, status_icons = self.app.form_body_header_status_icons(incident_)
         thread_id = await self.app.create_incident_message(incident_, body, header, status_icons)
-        incident_.set_thread(thread_id, self.app.public_url)
+        incident_.ts = thread_id
+        incident_.link = incident_.generate_link(self.app.public_url)
         return thread_id

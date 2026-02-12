@@ -1582,7 +1582,6 @@ def create_mattermost_buttons_handler_context(app, payload, incidents, queue, ro
     @asynccontextmanager
     async def mattermost_context():
         with patch('app.im.mattermost.mattermost_application.logger') as mock_logger:
-            # Always patch threads.get_config since it's called by mattermost_get_button_update_payload
             with patch('app.im.mattermost.threads.get_config', create_mock_get_config_patch()):
                 if patch_get_config:
                     # Also patch the main get_config for other uses

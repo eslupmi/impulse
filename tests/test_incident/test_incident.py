@@ -89,31 +89,6 @@ class TestIncident:
         assert mock_gen_uniq_id.call_count == 1
         assert incident.uniq_id == "test-uniq-id"
 
-    def test_set_thread_slack(self, sample_incident):
-        """Test setting thread for Slack."""
-        sample_incident.config.application_type = MessengerType.SLACK
-        sample_incident.set_thread("1234567890.123456", "https://test.slack.com")
-
-        assert sample_incident.ts == "1234567890.123456"
-        assert "archives/C123456789/p1234567890123456" in sample_incident.link
-
-    def test_set_thread_mattermost(self, sample_incident):
-        """Test setting thread for Mattermost."""
-        sample_incident.config.application_type = MessengerType.MATTERMOST
-        sample_incident.set_thread("thread123", "https://mattermost.test.com")
-
-        assert sample_incident.ts == "thread123"
-        assert sample_incident.link == "https://test.slack.com/test-team/pl/thread123"
-
-    def test_set_thread_telegram(self, sample_incident):
-        """Test setting thread for Telegram."""
-        sample_incident.config.application_type = MessengerType.TELEGRAM
-        sample_incident.channel_id = "-1001234567890"
-        sample_incident.set_thread("123", "https://t.me")
-
-        assert sample_incident.ts == "123"
-        assert sample_incident.link == "https://t.me/c/1234567890/123"
-
     def test_generate_link_slack(self, sample_incident):
         """Test link generation for Slack."""
         sample_incident.config.application_type = MessengerType.SLACK

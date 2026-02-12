@@ -6,8 +6,8 @@ from app.config.config import get_config
 from app.config.environment import get_environment_config
 from app.config.validation import ApplicationConfig
 from app.im.application import Application
-from app.im.mattermost.threads import mattermost_get_create_thread_payload, mattermost_get_update_payload, \
-    mattermost_get_button_update_payload
+from app.im.mattermost.threads import mattermost_get_button_update_payload, \
+    mattermost_get_update_payload, mattermost_get_create_thread_payload
 from app.im.mattermost.user import User
 from app.logging import logger
 
@@ -154,9 +154,7 @@ class MattermostApplication(Application):
         """Build JSON response with updated incident message"""
         incident_.dump()
         body, header, status_icons = self.form_body_header_status_icons(incident_)
-        response_payload = mattermost_get_button_update_payload(
-            body, header, status_icons, incident_.status,
-            incident_.chain_enabled, incident_.frozen_until, incident_.task_link, user_timezone)
+        response_payload = mattermost_get_button_update_payload(incident_, body, header, status_icons, user_timezone)
         return JSONResponse(response_payload, status_code=200)
 
     async def buttons_handler(self, payload, incidents, queue_, route):
