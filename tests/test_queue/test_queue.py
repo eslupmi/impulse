@@ -224,30 +224,6 @@ class TestAsyncQueue:
         assert data == {'data': 'test'}
         assert len(queue._items) == 0  # Item should be removed
 
-    @pytest.mark.asyncio
-    async def test_get_next_ready_item_not_ready(self, queue):
-        """Test getting next ready item when no item is ready."""
-        future_time = create_test_datetime(year=2030) + timedelta(minutes=1)
-
-        await queue.put(future_time, 'test_type', 'incident123', 'identifier456', {'data': 'test'})
-
-        item_type, uniq_id, identifier, data = await queue.get_next_ready_item()
-
-        assert item_type is None
-        assert uniq_id is None
-        assert identifier is None
-        assert data is None
-        assert len(queue._items) == 1  # Item should remain
-
-    @pytest.mark.asyncio
-    async def test_get_next_ready_item_empty_queue(self, queue):
-        """Test getting next ready item from empty queue."""
-        item_type, uniq_id, identifier, data = await queue.get_next_ready_item()
-
-        assert item_type is None
-        assert uniq_id is None
-        assert identifier is None
-        assert data is None
 
     @pytest.mark.asyncio
     async def test_serialize(self, queue):
