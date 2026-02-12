@@ -1422,6 +1422,41 @@ def _cleanup_all_patches(patches_context):
         patch_context.stop()
 
 
+def _prepare_button_handler_patches(app, additional_patches: Optional[dict] = None, app_specific_patches: Optional[list] = None):
+    """
+    Prepare patches for button handler tests.
+    
+    Args:
+        app: The application instance
+        additional_patches: Dictionary of additional patches to apply (key: patch target, value: mock or patch config)
+        app_specific_patches: List of app-specific patch objects to apply
+        
+    Returns:
+        Tuple of (patches_context list, patch_objects dict)
+    """
+    from unittest.mock import patch
+    
+    patches_context = []
+    patch_objects = {}
+    
+    if additional_patches:
+        for target, mock_or_config in additional_patches.items():
+            if isinstance(mock_or_config, dict):
+                patch_obj = patch(target, **mock_or_config)
+            else:
+                patch_obj = patch(target, mock_or_config)
+            patches_context.append(patch_obj)
+            patch_objects[target] = patch_obj
+    
+    if app_specific_patches:
+        for patch_obj in app_specific_patches:
+            patches_context.append(patch_obj)
+            if hasattr(patch_obj, 'target'):
+                patch_objects[patch_obj.target] = patch_obj
+    
+    return patches_context, patch_objects
+
+
 def create_buttons_handler_context_manager(app, payload, incidents, queue, route,
                                          expected_log_message: Optional[str] = None,
                                          additional_patches: Optional[dict] = None,

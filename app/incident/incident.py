@@ -136,7 +136,6 @@ class Incident:
 
     def unfreeze(self):
         """Unfreeze the incident from all freeze types (time-based and inhibition)"""
-        is_inhibition_unfreeze = self.frozen_by_inhibition
         self.frozen_until = None
         self.frozen_by_inhibition = False
         self.dump()

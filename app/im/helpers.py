@@ -32,10 +32,7 @@ def create_task_management_integration(
         api_token=env_config.jira_api_token
     )
     
-    return JiraIntegration(
-        jira_client, 
-        tm_type=task_management_config.type.value
-    )
+    return JiraIntegration(jira_client, tm_type=task_management_config.type.value)
 
 
 def initialize_task_management_integration(

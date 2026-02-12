@@ -298,7 +298,7 @@ class Application(ABC):
                 'full_name': stored_data.get('full_name'),
                 'username': stored_data.get('username'),
             }
-            config_name = self._get_config_name_by_user_id(user_id)
+            config_name = self.get_config_name_by_user_id(user_id)
             user = self.create_user(config_name, user_details)
             if user:
                 user_manager.add_user(user_id, user)
@@ -404,7 +404,7 @@ class Application(ABC):
     def get_notification_destinations(self):
         return [a.get_notification_identifier() for a in self.admin_users]
 
-    def _get_config_name_by_user_id(self, user_id: Union[int, str]) -> Optional[str]:
+    def get_config_name_by_user_id(self, user_id: Union[int, str]) -> Optional[str]:
         str_user_id = str(user_id)
         for config_name, user_info in self._users_config.items():
             if str(user_info.id) == str_user_id:

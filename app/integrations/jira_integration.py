@@ -14,23 +14,12 @@ class JiraIntegration:
     High-level Jira integration logic for creating tasks from incidents.
     """
 
-    def __init__(self, jira_client: JiraClient, project_key: str = None, 
-                 tm_type: str = "jira",
-                 template_files: Optional[dict] = None):
-        """
-        Initialize Jira integration.
-        
-        Args:
-            jira_client: JiraClient instance
-            project_key: Default Jira project key for task creation (deprecated, fetched from config)
-            tm_type: Task management type (e.g., "jira") - used for default template paths
-            template_files: Optional dict with 'summary' and 'description' template paths (deprecated, fetched from config)
-        """
+    def __init__(self, jira_client: JiraClient, tm_type: str = "jira"):
         self.jira_client = jira_client
         self.tm_type = tm_type
-    
-    def _get_project_key(self) -> str:
-        """Get project key from current config"""
+
+    @staticmethod
+    def _get_project_key() -> str:
         config = get_config()
         if config.app.task_management:
             return config.app.task_management.project_key

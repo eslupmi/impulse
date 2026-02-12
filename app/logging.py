@@ -5,6 +5,7 @@ import warnings
 from datetime import datetime, timezone
 
 from pythonjsonlogger import jsonlogger
+from app.config.environment import get_environment_config
 
 DEFAULT_JSON_FORMAT = '%(time)s %(level)s %(module)s %(message)s'
 
@@ -85,7 +86,6 @@ def configure_warnings_logging():
 
 # Initialize logger
 try:
-    from app.config.environment import get_environment_config
     log_level = getattr(logging, get_environment_config().log_level, logging.INFO)
 except ImportError:
     log_level = getattr(logging, os.getenv('LOG_LEVEL', 'INFO').upper(), logging.INFO)

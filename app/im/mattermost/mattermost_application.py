@@ -2,7 +2,6 @@ import asyncio
 
 from fastapi.responses import JSONResponse
 
-from app.config.config import get_config
 from app.config.environment import get_environment_config
 from app.config.validation import ApplicationConfig
 from app.im.application import Application

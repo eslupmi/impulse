@@ -105,6 +105,7 @@ class ScheduleChain:
             return self._match_dom_condition(value, start_day_values)
         elif selector == "date":
             return self._match_date_condition(value, start_day_values)
+        return False
 
     def _within_shift_time(self, start_time: str, duration: str, current_time: datetime) -> bool:
         """
@@ -120,6 +121,7 @@ class ScheduleChain:
         """
         if duration:
             return duration
+        return None
 
     @staticmethod
     def _get_shift_time(start_time: str, duration: str, current_time: datetime) -> Tuple[datetime, datetime]:

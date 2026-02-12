@@ -80,7 +80,7 @@ class AlertHandler(BaseHandler):
         await self.inhibition_manager.process_incident(incident_)
 
         # Always create thread, but with frozen state if inhibited
-        await self._create_thread(incident_, alert_state, frozen_by_inhibition=will_be_inhibited)
+        await self._create_thread(incident_)
         incident_.dump()
 
         if will_be_inhibited:
@@ -149,7 +149,7 @@ class AlertHandler(BaseHandler):
     async def _create_thread_if_needed(self, incident_, alert_state):
         """Create thread for legacy incidents that don't have one (backward compatibility)."""
         if not incident_.ts and not incident_.is_frozen():
-            await self._create_thread(incident_, alert_state)
+            await self._create_thread(incident_)
             incident_.dump()
             logger.info("Thread created for legacy incident without thread", extra={'uuid': incident_.uuid, 'link': incident_.link})
 
@@ -174,7 +174,7 @@ class AlertHandler(BaseHandler):
         elif new_alerts_r:
             logger.info("Incident updated with some alerts resolved", extra={'uuid': uuid_})
 
-    async def _create_thread(self, incident_, alert_state, frozen_by_inhibition=False):
+    async def _create_thread(self, incident_):
         body, header, status_icons = self.app.form_body_header_status_icons(incident_)
         thread_id = await self.app.create_incident_message(incident_, body, header, status_icons)
         incident_.ts = thread_id

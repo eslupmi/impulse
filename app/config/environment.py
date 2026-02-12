@@ -4,7 +4,6 @@ from typing import List
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field, field_validator
 
-# Load environment variables from .env file
 load_dotenv()
 
 
