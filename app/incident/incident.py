@@ -62,17 +62,6 @@ class Incident:
         'closed': 'deleted'
     }
 
-    @staticmethod
-    def gen_uuid(group_labels: Dict) -> str:
-        return str(uuid.uuid5(uuid.NAMESPACE_OID, json.dumps(group_labels)))
-
-    @staticmethod
-    def gen_uniq_id(group_labels: Dict, datetime_: datetime) -> str:
-        return str(uuid.uuid5(
-            uuid.NAMESPACE_OID,
-            json.dumps({'group_labels': group_labels, 'datetime': datetime_.isoformat()})
-        ))
-
     def __post_init__(self):
         if not self.created:
             self.created = datetime.now(timezone.utc)
@@ -127,43 +116,6 @@ class Incident:
                 self.chain_put(index=index, delay=cumulative_delay, type_=type_, identifier=value)
         self.chain_active_seconds = 0.0
         self.dump()
-
-    def _unchain(self, chains, steps):
-        if not any(self._step_has_chain(step) for step in steps):
-            return steps
-
-        extended_steps = []
-        for step in steps:
-            type_, value = self._get_step_type_and_value(step)
-            if type_ == 'chain':
-                nested_chain = chains.get(value)
-                if nested_chain is None:
-                    logger.warning("Chain not found", extra={'chain': value})
-                    continue
-                nested_steps = nested_chain.steps
-                extended_steps.extend(self._unchain(chains, nested_steps))
-            else:
-                extended_steps.append({type_: value})
-        return extended_steps
-
-    @staticmethod
-    def _get_step_type_and_value(step):
-        """Extract step type and value from either SimpleChainStep object or dictionary"""
-        if hasattr(step, 'get_type_and_value'):
-            return step.get_type_and_value()
-        elif isinstance(step, dict):
-            return next(iter(step.items()))
-        else:
-            raise ValueError(f"Unknown step format: {step}")
-
-    @staticmethod
-    def _step_has_chain(step):
-        """Check if step has a chain reference"""
-        if hasattr(step, 'has_chain'):
-            return step.has_chain()
-        elif isinstance(step, dict):
-            return 'chain' in step
-        return False
 
     def release(self):
         self.chain = []
@@ -269,20 +221,10 @@ class Incident:
         """Get the current filename based on incident state"""
         env_config = get_environment_config()
         if self.status == 'closed' or self.status == 'deleted':
-            closed_str = self.datetime_serialize(self.closed)
+            closed_str = self._datetime_serialize(self.closed)
             return f'{env_config.incidents_path}/{self.uuid}__{closed_str}.yml'
         else:
             return f'{env_config.incidents_path}/{self.uuid}.yml'
-
-    @staticmethod
-    def _remove_old_file(old_filename: str):
-        """Remove old incident file"""
-        try:
-            if os.path.exists(old_filename):
-                os.remove(old_filename)
-                logger.debug("Removed incident file", extra={'file': old_filename})
-        except OSError as e:
-            logger.error("Failed to remove incident file", extra={'file': old_filename, 'error': str(e)})
 
     def dump(self):
         data = {
@@ -410,10 +352,10 @@ class Incident:
         return data
 
     def update_status(self, status: str) -> bool:
-        self.schedule_status_change_by_timeout(status)
+        self._schedule_status_change_by_timeout(status)
         if self.status != status:
             old_filename = self.get_current_filename()
-            self.set_status(status)
+            self._set_status(status)
             self.updated = datetime.now(timezone.utc)
             self.dump()
             new_filename = self.get_current_filename()
@@ -423,13 +365,6 @@ class Incident:
         self.dump()
         return False
 
-    def schedule_status_change_by_timeout(self, status):
-        now = self.updated
-        if status != 'deleted':
-            config = get_config()
-            timeout_value = config.incident.timeouts.get(status)
-            self.status_update_datetime = now + unix_sleep_to_timedelta(timeout_value)
-
     def update_state(self, alert_state: Dict) -> tuple[bool, bool]:
         update_status = self.update_status(alert_state['status'])
         state_updated = self.payload != alert_state
@@ -437,12 +372,6 @@ class Incident:
             self.payload = alert_state
             self.dump()
         return update_status, state_updated
-
-    def set_status(self, status: str):
-        self.status = status
-        logger.debug("Status updated", extra={'uuid': self.uuid, 'status': status})
-        if status == 'closed' and not self.closed:
-            self.closed = datetime.now(timezone.utc)
 
     def is_new_firing_alerts_added(self, alert_state: Dict) -> bool:
         old_alerts_labels = self._get_firing_alerts_labels(self.payload)
@@ -455,11 +384,82 @@ class Incident:
         return any(label not in new_alerts_labels for label in old_alerts_labels)
 
     @staticmethod
+    def gen_uuid(group_labels: Dict) -> str:
+        return str(uuid.uuid5(uuid.NAMESPACE_OID, json.dumps(group_labels)))
+
+    @staticmethod
+    def gen_uniq_id(group_labels: Dict, datetime_: datetime) -> str:
+        return str(uuid.uuid5(
+            uuid.NAMESPACE_OID,
+            json.dumps({'group_labels': group_labels, 'datetime': datetime_.isoformat()})
+        ))
+
+    def _set_status(self, status: str):
+        self.status = status
+        logger.debug("Status updated", extra={'uuid': self.uuid, 'status': status})
+        if status == 'closed' and not self.closed:
+            self.closed = datetime.now(timezone.utc)
+
+    def _schedule_status_change_by_timeout(self, status):
+        now = self.updated
+        if status != 'deleted':
+            config = get_config()
+            timeout_value = config.incident.timeouts.get(status)
+            self.status_update_datetime = now + unix_sleep_to_timedelta(timeout_value)
+
+    def _unchain(self, chains, steps):
+        if not any(self._step_has_chain(step) for step in steps):
+            return steps
+
+        extended_steps = []
+        for step in steps:
+            type_, value = self._get_step_type_and_value(step)
+            if type_ == 'chain':
+                nested_chain = chains.get(value)
+                if nested_chain is None:
+                    logger.warning("Chain not found", extra={'chain': value})
+                    continue
+                nested_steps = nested_chain.steps
+                extended_steps.extend(self._unchain(chains, nested_steps))
+            else:
+                extended_steps.append({type_: value})
+        return extended_steps
+
+    @staticmethod
+    def _get_step_type_and_value(step):
+        """Extract step type and value from either SimpleChainStep object or dictionary"""
+        if hasattr(step, 'get_type_and_value'):
+            return step.get_type_and_value()
+        elif isinstance(step, dict):
+            return next(iter(step.items()))
+        else:
+            raise ValueError(f"Unknown step format: {step}")
+
+    @staticmethod
+    def _step_has_chain(step):
+        """Check if step has a chain reference"""
+        if hasattr(step, 'has_chain'):
+            return step.has_chain()
+        elif isinstance(step, dict):
+            return 'chain' in step
+        return False
+
+    @staticmethod
+    def _remove_old_file(old_filename: str):
+        """Remove old incident file"""
+        try:
+            if os.path.exists(old_filename):
+                os.remove(old_filename)
+                logger.debug("Removed incident file", extra={'file': old_filename})
+        except OSError as e:
+            logger.error("Failed to remove incident file", extra={'file': old_filename, 'error': str(e)})
+
+    @staticmethod
     def _get_firing_alerts_labels(alert_state):
         return [a.get('labels') for a in alert_state['alerts'] if a['status'] == 'firing']
 
     @staticmethod
-    def datetime_serialize(datetime_: Optional[datetime]) -> str:
+    def _datetime_serialize(datetime_: Optional[datetime]) -> str:
         if datetime_ is None:
             return ''
         return datetime_.strftime('%Y_%m_%d__%H_%M_%S')
