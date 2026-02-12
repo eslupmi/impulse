@@ -58,56 +58,42 @@ class TelegramApplication(Application):
     def _format_tg_icon(self, icon):
         return f'{self.icon_map.get(icon)}'
 
-    def get_admins_text(self): #!
-        return ', '.join([f'@{a.get_notification_identifier()}' for a in self.admin_users])
-
-    def _should_include_header_in_notifications(self) -> bool:
-        """Telegram doesn't include header in freeze/unfreeze notifications"""
-        return False
-
-    async def create_thread(self, channel_id, body, header, status_icons, status):
-        topic_id = await self._create_topic(channel_id, header, status_icons)
-        payload = self._create_thread_payload(channel_id, body, header, status_icons, status)
+    async def create_incident_message(self, incident, body, header, status_icons):
+        topic_id = await self._create_topic(incident.channel_id, header, status_icons)
+        payload = self._get_incident_message_payload(incident, body, header, status_icons)
         payload['message_thread_id'] = topic_id
-        message_id = await self._send_create_thread(payload)
+        message_id = await self._send_create_incident_message(payload)
         return f'{topic_id}/{message_id}'
 
-    async def _send_create_thread(self, payload):
+    async def _send_create_incident_message(self, payload):
+        logger.debug('Create incident message')
         response = await self.http.post(self.post_message_url, headers=self.headers, json=payload)
         response_json = await response.json()
         response.close()
         return response_json.get('result', {}).get(self.thread_id_key)
 
-    async def _handle_chain_action(self, action, incident_, user_id, user_display_name, queue_, payload):
+    async def _handle_chain_action(self, action, incident_, user_id, queue_, payload):
         """Handle chain-related button actions (start_chain/stop_chain)"""
         await queue_.delete_by_id(incident_.uniq_id, delete_steps=True, delete_status=False)
         if action == 'stop_chain':
             if incident_.assigned_user_id == user_id:
-                logger.info('Button TAKE IT: user already assigned', extra={'uuid': incident_.uuid, 'user': user_id})
+                logger.info('Button TAKE IT: user already assigned', extra={'uuid': incident_.uuid, 'user_id': user_id})
                 return JSONResponse(payload, status_code=200)
-            logger.info('Button TAKE IT: assigning to user', extra={'uuid': incident_.uuid, 'user': user_id})
-            incident_.assign_user_id(user_id)
-            incident_.assign_user(user_display_name)
-            self._track_async_task(asyncio.create_task(self.post_assignment_notification(incident_, user_id, user_display_name)))
-            self._track_async_task(asyncio.create_task(self.fetch_and_assign_user_name(incident_, user_id)))
+            logger.info('Button TAKE IT: assigning to user', extra={'uuid': incident_.uuid, 'user_id': user_id})
+            self.fetch_and_assign_user_name(incident_, user_id)
+            self.track_async_task(asyncio.create_task(self.post_assignment_notification(incident_)))
             incident_.chain_enabled = False
         else:
             logger.info('Button pressed', extra={'uuid': incident_.uuid, 'button': 'release', 'user_id': user_id})
-            self._track_async_task(asyncio.create_task(self.post_unassignment_notification(incident_)))
+            self.track_async_task(asyncio.create_task(self.post_unassignment_notification(incident_)))
             incident_.release()
         return None
 
     async def _show_freeze_menu(self, incident_: 'Incident', callback):
         """Display freeze options menu"""
-        body = self.body_template.form_message(incident_.payload, incident_)
-        header = self.header_template.form_message(incident_.payload, incident_)
-        status_icons = self.status_icons_template.form_message(incident_.payload, incident_)
-        payload = self.update_thread_payload(
-            incident_.channel_id, incident_.ts, body, header, status_icons,
-            incident_.status, incident_.chain_enabled, incident_.frozen_until, 
-            incident_.task_link, show_freeze_menu=True
-        )
-        await self._update_thread(incident_.ts, payload)
+        body, header, status_icons = self.form_body_header_status_icons(incident_)
+        payload = self.update_incident_payload(incident_, body, header, status_icons, show_freeze_menu=True)
+        await self._update_incident_message(incident_.ts, payload)
         await self.http.post(
             f'{self.url}/answerCallbackQuery',
             json={'callback_query_id': callback['id']},
@@ -123,13 +109,7 @@ class TelegramApplication(Application):
             headers=self.headers
         )
 
-    def _extract_user_display_name(self, user_from):
-        """Extract user display name from callback user data"""
-        first_name = user_from.get('first_name', '').strip()
-        last_name = user_from.get('last_name', '').strip()
-        return f"{first_name} {last_name}".strip() or user_from.get('username')
-
-    async def _handle_freeze_actions(self, action, incident_, user_id, user_display_name, incidents, queue_, callback):
+    async def _handle_freeze_actions(self, action, incident_, user_id, incidents, queue_, callback):
         """Handle all freeze-related actions"""
         if action == 'freeze_menu':
             if incident_.is_frozen():
@@ -150,8 +130,8 @@ class TelegramApplication(Application):
         }
         
         if action in freeze_option_map:
-            await self._handle_freeze_action(incident_, freeze_option_map[action], user_id, incidents, queue_, user_display_name)
-        
+            await self._handle_freeze_action(incident_, freeze_option_map[action], user_id, incidents, queue_)
+
         return None
 
     async def buttons_handler(self, payload, incidents, queue_, route):
@@ -170,12 +150,7 @@ class TelegramApplication(Application):
 
         action = callback['data']
         user_id = callback['from']['id']
-        user_from = callback.get('from', {})
-        first_name = user_from.get('first_name', '').strip()
-        last_name = user_from.get('last_name', '').strip()
-        fallback_name = f"{first_name} {last_name}".strip() or user_from.get('username')
-        user_display_name = self.get_configured_user_name(user_id, fallback_name)
-        
+
         # Check if this is a freeze action
         is_freeze_action = action.startswith('freeze_')
 
@@ -187,25 +162,19 @@ class TelegramApplication(Application):
 
         # Handle freeze actions
         if is_freeze_action:
-            result = await self._handle_freeze_actions(action, incident_, user_id, user_display_name, incidents, queue_, callback)
+            result = await self._handle_freeze_actions(action, incident_, user_id, incidents, queue_, callback)
             if result is not None:
                 return result
 
         if action in ['start_chain', 'stop_chain']:
-            early_return = await self._handle_chain_action(action, incident_, user_id, user_display_name, queue_, payload)
+            early_return = await self._handle_chain_action(action, incident_, user_id, queue_, payload)
             if early_return is not None:
                 return early_return
         elif action == 'task':
             self._handle_task_action(incident_, user_id, queue_)
 
         incident_.dump()
-        body = self.body_template.form_message(incident_.payload, incident_)
-        header = self.header_template.form_message(incident_.payload, incident_)
-        status_icons = self.status_icons_template.form_message(incident_.payload, incident_)
-        await self.update_thread(
-            incident_.channel_id, incident_.ts, incident_.status, body, header, status_icons,
-            incident_.chain_enabled, incident_.frozen_until, incident_.task_link
-        )
+        await self.update_incident_message(incident_)
 
         await self._answer_callback(callback['id'])
         return JSONResponse({}, status_code=200)
@@ -229,20 +198,21 @@ class TelegramApplication(Application):
             logger.error("Topic creation failed", extra={'error': str(e)})
             raise e
 
-    def _create_thread_payload(self, channel_id, body, header, status_icons, status):
+    def _get_incident_message_payload(self, incident, body, header, status_icons):
         env_config = get_environment_config()
         config_obj = get_config()
 
+        freeze_button = buttons['freeze']['inhibited'] if incident.frozen_by_inhibition else buttons['freeze']['inactive']
         keyboard_row = [
             buttons['chain']['takeit'],
-            buttons['freeze']['inactive']
+            freeze_button
         ]
 
         if config_obj.app.task_management and env_config.task_management_enabled:
             keyboard_row.append(buttons['task']['create'])
 
         return {
-            'chat_id': channel_id,
+            'chat_id': incident.channel_id,
             'text': f'{self._format_tg_icon(status_icons)} {header}\n{body}',
             'parse_mode': 'HTML',
             'reply_markup': {
@@ -259,12 +229,12 @@ class TelegramApplication(Application):
             'parse_mode': 'HTML'
         }
 
-    async def update_thread(self, channel_id, id_, status, body, header, status_icons, chain_enabled=True,
-                      frozen_until=None, task_link=''):
-        await self._update_topic(channel_id, id_, header, status_icons)
-        payload = self.update_thread_payload(channel_id, id_, body, header, status_icons, status, chain_enabled,
-                                             frozen_until, task_link)
-        await self._update_thread(id_, payload)
+    async def update_incident_message(self, incident):
+        body, header, status_icons = self.form_body_header_status_icons(incident)
+
+        await self._update_topic(incident.channel_id, incident.ts, header, status_icons)
+        payload = self.update_incident_payload(incident, body, header, status_icons, show_freeze_menu=False)
+        await self._update_incident_message(incident.ts, payload)
 
     async def _update_topic(self, channel_id, id_, header, status_icons):
         topic_id, _ = id_.split('/')
@@ -284,7 +254,8 @@ class TelegramApplication(Application):
         except aiohttp.ClientError as e:
             logger.error("Topic update failed", extra={'error': str(e)})
 
-    def _build_freeze_menu_keyboard(self):
+    @staticmethod
+    def _build_freeze_menu_keyboard():
         """Build keyboard for freeze menu"""
         keyboard = []
         for opt in buttons['freeze']['options']:
@@ -293,35 +264,38 @@ class TelegramApplication(Application):
         keyboard.append([buttons['freeze']['options'][-1]])
         return keyboard
 
-    def _build_main_keyboard(self, status, chain_enabled, frozen_until, task_link):
+    @staticmethod
+    def _build_main_keyboard(incident):
         """Build main keyboard with chain, freeze, and task buttons"""
         config_obj = get_config()
         env_config = get_environment_config()
         
-        chain_button = buttons['chain']['takeit'] if chain_enabled or status != 'resolved' else buttons['chain']['release']
+        chain_button = buttons['chain']['takeit'] if incident.chain_enabled or incident.status != 'resolved' else buttons['chain']['release']
         
-        if frozen_until:
+        if incident.frozen_by_inhibition:
+            freeze_button = buttons['freeze']['inhibited']
+        elif incident.frozen_until:
             telegram_tz = config_obj.app.general.timezone
-            freeze_text = format_freeze_expiration(frozen_until, telegram_tz)
+            freeze_text = format_freeze_expiration(incident.frozen_until, telegram_tz)
             freeze_button = {'text': freeze_text, 'callback_data': 'freeze_menu'}
         else:
             freeze_button = buttons['freeze']['inactive']
         
         keyboard_row = [chain_button, freeze_button]
 
-        if config_obj.app.task_management and env_config.task_management_enabled and not task_link:
+        if config_obj.app.task_management and env_config.task_management_enabled and not incident.task_link:
             keyboard_row.append(buttons['task']['create'])
 
         return [keyboard_row]
 
-    def update_thread_payload(self, channel_id, id_, body, header, status_icons, status, chain_enabled,
-                              frozen_until, task_link='', show_freeze_menu=False):
-        _, message_id = id_.split('/')
-
-        keyboard = self._build_freeze_menu_keyboard() if show_freeze_menu else self._build_main_keyboard(status, chain_enabled, frozen_until, task_link)
-
+    def update_incident_payload(self, incident, body, header, status_icons, show_freeze_menu = False):
+        _, message_id = incident.ts.split('/')
+        if show_freeze_menu:
+            keyboard = self._build_freeze_menu_keyboard()
+        else:
+            keyboard = self._build_main_keyboard(incident)
         return {
-            'chat_id': channel_id,
+            'chat_id': incident.channel_id,
             'message_id': message_id,
             'text': f'{self._format_tg_icon(status_icons)} {header}\n{body}',
             'parse_mode': 'HTML',
@@ -330,7 +304,7 @@ class TelegramApplication(Application):
             }
         }
 
-    async def _update_thread(self, id_, payload):
+    async def _update_incident_message(self, id_, payload):
         try:
             response = await self.http.post(
                 f'{self.url}/editMessageText',
@@ -370,9 +344,7 @@ class TelegramApplication(Application):
             'id': id_,
             'exists': True,
             'full_name': full_name,
-            'username': chat_data.get('username') or full_name,
-            'first_name': first_name or None,
-            'last_name': last_name or None,
+            'username': chat_data.get('username'),
             'email': None,
             'timezone': None,
         }
@@ -381,7 +353,8 @@ class TelegramApplication(Application):
         return User(
             name=name,
             id_=user_details.get('id'),
-            exists=user_details.get('exists', False)
+            exists=user_details.get('exists', False),
+            full_name=user_details.get('full_name')
         )
 
     async def _generate_groups(self, groups_dict):

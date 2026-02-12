@@ -50,6 +50,10 @@ class Incident:
     task_creation_in_progress: bool = False
     closed: Optional[datetime] = field(default=None)
     frozen_until: Optional[datetime] = field(default=None)
+    frozen_by_inhibition: bool = False
+    chain_active_seconds: float = 0.0
+    childs: List[str] = field(default_factory=list)  # Target incident uniq_ids that this incident inhibits
+    parents: List[str] = field(default_factory=list)  # Source incident uniq_ids that inhibit this incident
 
     next_status = {
         'firing': 'unknown',
@@ -58,27 +62,12 @@ class Incident:
         'closed': 'deleted'
     }
 
-    @staticmethod
-    def gen_uuid(group_labels: Dict) -> str:
-        return str(uuid.uuid5(uuid.NAMESPACE_OID, json.dumps(group_labels)))
-
-    @staticmethod
-    def gen_uniq_id(group_labels: Dict, datetime_: datetime) -> str:
-        return str(uuid.uuid5(
-            uuid.NAMESPACE_OID,
-            json.dumps({'group_labels': group_labels, 'datetime': datetime_.isoformat()})
-        ))
-
     def __post_init__(self):
         if not self.created:
             self.created = datetime.now(timezone.utc)
         self.uuid = self.gen_uuid(self.payload.get('groupLabels'))
         if not self.uniq_id:
             self.uniq_id = self.gen_uniq_id(self.payload.get('groupLabels'), self.created)
-
-    def set_thread(self, thread_id: str, public_url: str):
-        self.ts = thread_id
-        self.link = self.generate_link(public_url)
 
     def generate_link(self, public_url) -> str:
         if self.config.application_type == MessengerType.SLACK:
@@ -114,88 +103,72 @@ class Incident:
 
         steps = self._unchain(chains, steps)
 
-        dt = datetime.now(timezone.utc)
+        cumulative_delay = 0.0
         for index, step in enumerate(steps):
             type_, value = self._get_step_type_and_value(step)
             if type_ == 'wait':
-                dt += unix_sleep_to_timedelta(value)
+                cumulative_delay += unix_sleep_to_timedelta(value).total_seconds()
             else:
-                self.chain_put(index=index, datetime_=dt, type_=type_, identifier=value)
+                self.chain_put(index=index, delay=cumulative_delay, type_=type_, identifier=value)
+        self.chain_active_seconds = 0.0
         self.dump()
-
-    def _unchain(self, chains, steps):
-        if not any(self._step_has_chain(step) for step in steps):
-            return steps
-
-        extended_steps = []
-        for step in steps:
-            type_, value = self._get_step_type_and_value(step)
-            if type_ == 'chain':
-                nested_chain = chains.get(value)
-                if nested_chain is None:
-                    logger.warning("Chain not found", extra={'chain': value})
-                    continue
-                nested_steps = nested_chain.steps
-                extended_steps.extend(self._unchain(chains, nested_steps))
-            else:
-                extended_steps.append({type_: value})
-        return extended_steps
-
-    def _get_step_type_and_value(self, step):
-        """Extract step type and value from either SimpleChainStep object or dictionary"""
-        if hasattr(step, 'get_type_and_value'):
-            return step.get_type_and_value()
-        elif isinstance(step, dict):
-            return next(iter(step.items()))
-        else:
-            raise ValueError(f"Unknown step format: {step}")
-
-    def _step_has_chain(self, step):
-        """Check if step has a chain reference"""
-        if hasattr(step, 'has_chain'):
-            return step.has_chain()
-        elif isinstance(step, dict):
-            return 'chain' in step
-        return False
 
     def release(self):
         self.chain = []
-        self.assign_user_id("")
-        self.assign_user("")
-        self.assign_fullname("")
+        self.chain_active_seconds = 0.0
+        self.assigned_user_id = ""
+        self.assigned_user = ""
+        self.assigned_fullname = ""
         self.chain_enabled = True
         self.dump()
 
-    def freeze(self, until: datetime, user_id: str, user_fullname: str = ''):
+    def freeze(self, until: datetime, user):
         """Freeze the incident until the specified datetime (preserves underlying status)
         Assigns the user who froze the incident and disables chains"""
+        self.accumulate_chain_time(self.updated)
         self.frozen_until = until
-        self.assigned_user_id = user_id
-        if user_fullname:
-            self.assigned_fullname = user_fullname
+        self.assigned_user_id = user.id
+        self.assigned_user = user.username
+        self.assigned_fullname = user.name
         self.chain_enabled = False
         self.dump()
         logger.info("Incident frozen", extra={'uuid': self.uuid, 'frozen_until': until})
 
     def unfreeze(self):
-        """Unfreeze the incident and re-enable chains (underlying status is already correct)"""
+        """Unfreeze the incident from all freeze types (time-based and inhibition)"""
+        is_inhibition_unfreeze = self.frozen_by_inhibition
         self.frozen_until = None
-        self.chain_enabled = False
-        logger.info("Incident unfrozen", extra={'uuid': self.uuid})
+        self.frozen_by_inhibition = False
         self.dump()
+        logger.info("Incident unfrozen", extra={'uuid': self.uuid})
+
+    def freeze_by_inhibition(self):
+        """Freeze the incident due to inhibition (no assignee, no expiration time)"""
+        self.accumulate_chain_time(self.updated)
+        self.frozen_by_inhibition = True
+        self.dump()
+        logger.info("Incident frozen by inhibition", extra={'uuid': self.uuid})
 
     def is_frozen(self) -> bool:
-        """Check if the incident is currently frozen"""
-        return self.frozen_until is not None
+        """Check if the incident is currently frozen (by time-based freeze or inhibition)"""
+        return self.frozen_by_inhibition or self.frozen_until is not None
+
+    def accumulate_chain_time(self, updated):
+        """Accumulate chain active time from self.updated until now. Updates self.updated.
+        Must be called before any state change that affects chain activity."""
+        now = datetime.now(timezone.utc)
+        delta = (now - updated).total_seconds()
+        if delta > 0:
+            self.chain_active_seconds += delta
 
     def get_chain(self) -> List[Dict]:
         if not self.chain_enabled:
             return []
         return self.chain
 
-    def chain_put(self, index: int, datetime_: datetime, type_: str, identifier: str):
+    def chain_put(self, index: int, delay: float, type_: str, identifier: str):
         self.chain.insert(index, {
-            'datetime': datetime_,
+            'delay': delay,
             'type': type_,
             'identifier': identifier,
             'done': False,
@@ -231,8 +204,13 @@ class Incident:
             uniq_id=content.get('uniq_id', ''),
             version=content.get('version', config.INCIDENT_ACTUAL_VERSION),
             frozen_until=content.get('frozen_until', None),
+            frozen_by_inhibition=content.get('frozen_by_inhibition', False),
+            chain_active_seconds=content.get('chain_active_seconds', 0.0),
+            childs=content.get('childs', []),
+            parents=content.get('parents', []),
         )
-        incident_.set_thread(content.get('ts'), incident_config.application_url)
+        incident_.ts = content.get('ts')
+        incident_.link = incident_.generate_link(incident_config.application_url)
         incident_.task_link = content.get('task_link', '')
         return incident_
 
@@ -240,19 +218,10 @@ class Incident:
         """Get the current filename based on incident state"""
         env_config = get_environment_config()
         if self.status == 'closed' or self.status == 'deleted':
-            closed_str = self.datetime_serialize(self.closed)
+            closed_str = self._datetime_serialize(self.closed)
             return f'{env_config.incidents_path}/{self.uuid}__{closed_str}.yml'
         else:
             return f'{env_config.incidents_path}/{self.uuid}.yml'
-
-    def _remove_old_file(self, old_filename: str):
-        """Remove old incident file"""
-        try:
-            if os.path.exists(old_filename):
-                os.remove(old_filename)
-                logger.debug("Removed incident file", extra={'file': old_filename})
-        except OSError as e:
-            logger.error("Failed to remove incident file", extra={'file': old_filename, 'error': str(e)})
 
     def dump(self):
         data = {
@@ -275,9 +244,13 @@ class Incident:
             "version": self.version,
             "task_link": self.task_link,
             "frozen_until": self.frozen_until,
+            "frozen_by_inhibition": self.frozen_by_inhibition,
+            "chain_active_seconds": self.chain_active_seconds,
+            "childs": self.childs,
+            "parents": self.parents,
         }
+        incident_filename = self.get_current_filename()
         try:
-            incident_filename = self.get_current_filename()
             with open(incident_filename, 'w') as f:
                 yaml.dump(data, f, NoAliasDumper, default_flow_style=False)
         except OSError as e:
@@ -315,6 +288,10 @@ class Incident:
             "uuid": self.uuid,
             "uniq_id": self.uniq_id,
             "frozen_until": self.frozen_until,
+            "frozen_by_inhibition": self.frozen_by_inhibition,
+            "chain_active_seconds": self.chain_active_seconds,
+            "childs": self.childs,
+            "parents": self.parents,
         }
 
     def get_table_data(self, params) -> Dict:
@@ -372,15 +349,11 @@ class Incident:
         return data
 
     def update_status(self, status: str) -> bool:
-        now = datetime.now(timezone.utc)
-        self.updated = now
-        if status != 'deleted':
-            config = get_config()
-            timeout_value = config.incident.timeouts.get(status)
-            self.status_update_datetime = now + unix_sleep_to_timedelta(timeout_value)
+        self._schedule_status_change_by_timeout(status)
         if self.status != status:
             old_filename = self.get_current_filename()
-            self.set_status(status)
+            self._set_status(status)
+            self.updated = datetime.now(timezone.utc)
             self.dump()
             new_filename = self.get_current_filename()
             if old_filename != new_filename:
@@ -397,21 +370,6 @@ class Incident:
             self.dump()
         return update_status, state_updated
 
-    def set_status(self, status: str):
-        self.status = status
-        logger.debug("Status updated", extra={'uuid': self.uuid, 'status': status})
-        if status == 'closed' and not self.closed:
-            self.closed = datetime.now(timezone.utc)
-
-    def assign_user_id(self, user_id: str):
-        self.assigned_user_id = user_id
-
-    def assign_user(self, user: str):
-        self.assigned_user = user
-
-    def assign_fullname(self, fullname: str):
-        self.assigned_fullname = fullname
-
     def is_new_firing_alerts_added(self, alert_state: Dict) -> bool:
         old_alerts_labels = self._get_firing_alerts_labels(self.payload)
         new_alerts_labels = self._get_firing_alerts_labels(alert_state)
@@ -423,11 +381,82 @@ class Incident:
         return any(label not in new_alerts_labels for label in old_alerts_labels)
 
     @staticmethod
+    def gen_uuid(group_labels: Dict) -> str:
+        return str(uuid.uuid5(uuid.NAMESPACE_OID, json.dumps(group_labels)))
+
+    @staticmethod
+    def gen_uniq_id(group_labels: Dict, datetime_: datetime) -> str:
+        return str(uuid.uuid5(
+            uuid.NAMESPACE_OID,
+            json.dumps({'group_labels': group_labels, 'datetime': datetime_.isoformat()})
+        ))
+
+    def _set_status(self, status: str):
+        self.status = status
+        logger.debug("Status updated", extra={'uuid': self.uuid, 'status': status})
+        if status == 'closed' and not self.closed:
+            self.closed = datetime.now(timezone.utc)
+
+    def _schedule_status_change_by_timeout(self, status):
+        now = self.updated
+        if status != 'deleted':
+            config = get_config()
+            timeout_value = config.incident.timeouts.get(status)
+            self.status_update_datetime = now + unix_sleep_to_timedelta(timeout_value)
+
+    def _unchain(self, chains, steps):
+        if not any(self._step_has_chain(step) for step in steps):
+            return steps
+
+        extended_steps = []
+        for step in steps:
+            type_, value = self._get_step_type_and_value(step)
+            if type_ == 'chain':
+                nested_chain = chains.get(value)
+                if nested_chain is None:
+                    logger.warning("Chain not found", extra={'chain': value})
+                    continue
+                nested_steps = nested_chain.steps
+                extended_steps.extend(self._unchain(chains, nested_steps))
+            else:
+                extended_steps.append({type_: value})
+        return extended_steps
+
+    @staticmethod
+    def _get_step_type_and_value(step):
+        """Extract step type and value from either SimpleChainStep object or dictionary"""
+        if hasattr(step, 'get_type_and_value'):
+            return step.get_type_and_value()
+        elif isinstance(step, dict):
+            return next(iter(step.items()))
+        else:
+            raise ValueError(f"Unknown step format: {step}")
+
+    @staticmethod
+    def _step_has_chain(step):
+        """Check if step has a chain reference"""
+        if hasattr(step, 'has_chain'):
+            return step.has_chain()
+        elif isinstance(step, dict):
+            return 'chain' in step
+        return False
+
+    @staticmethod
+    def _remove_old_file(old_filename: str):
+        """Remove old incident file"""
+        try:
+            if os.path.exists(old_filename):
+                os.remove(old_filename)
+                logger.debug("Removed incident file", extra={'file': old_filename})
+        except OSError as e:
+            logger.error("Failed to remove incident file", extra={'file': old_filename, 'error': str(e)})
+
+    @staticmethod
     def _get_firing_alerts_labels(alert_state):
         return [a.get('labels') for a in alert_state['alerts'] if a['status'] == 'firing']
 
     @staticmethod
-    def datetime_serialize(datetime_: Optional[datetime]) -> str:
+    def _datetime_serialize(datetime_: Optional[datetime]) -> str:
         if datetime_ is None:
             return ''
         return datetime_.strftime('%Y_%m_%d__%H_%M_%S')

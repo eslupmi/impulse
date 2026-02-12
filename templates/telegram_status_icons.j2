@@ -1,4 +1,4 @@
-{%- if incident.frozen_until -%}
+{%- if incident.frozen_until or incident.frozen_by_inhibition -%}
 5309958691854754293
 {%- else -%}
 {%- set status = incident.status -%}

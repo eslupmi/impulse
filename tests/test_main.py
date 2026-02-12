@@ -28,11 +28,17 @@ class TestMainApplication:
                 patch('main.FileLock') as mock_file_lock_class, \
                 patch('app.config.environment.get_environment_config') as mock_get_env_config, \
                 patch('app.im.application.Application') as mock_application, \
-                patch('main.UserUpdateScheduler') as mock_scheduler_class:
+                patch('main.UserUpdateScheduler') as mock_scheduler_class, \
+                patch('main.InhibitionManager') as mock_inhibition_manager_class:
             # Setup mock scheduler
             mock_scheduler = Mock()
             mock_scheduler.schedule_all_stored = AsyncMock()
             mock_scheduler_class.return_value = mock_scheduler
+            
+            # Setup mock inhibition manager
+            mock_inhibition_manager = Mock()
+            mock_inhibition_manager.restore_from_incidents = Mock()
+            mock_inhibition_manager_class.return_value = mock_inhibition_manager
             
             # Setup mock config
             mock_config = Mock()
@@ -40,6 +46,7 @@ class TestMainApplication:
             mock_config.messenger.channels = {'default': {'id': 'C123456789'}}
             mock_config.app.route = Mock()
             mock_config.app.webhooks = Mock()
+            mock_config.app.inhibit_rules = []
             mock_get_config.return_value = mock_config
             
             # Setup mock environment config
@@ -117,7 +124,8 @@ class TestMainApplication:
                 'queue_manager': mock_qm_instance,
                 'file_lock': mock_file_lock_instance,
                 'env_config': mock_env_config,
-                'application': mock_application
+                'application': mock_application,
+                'inhibition_manager': mock_inhibition_manager
             }
 
     def test_app_creation(self):

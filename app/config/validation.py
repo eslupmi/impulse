@@ -512,6 +512,13 @@ class WebhookConfig(BaseModel):
         return self
 
 
+class InhibitRule(BaseModel):
+    """Single inhibition rule configuration for AlertManager-style inhibition"""
+    source_matchers: List[str] = Field(..., description="Source matchers (e.g., 'severity =~ \"critical\"')")
+    target_matchers: List[str] = Field(..., description="Target matchers (e.g., 'severity =~ \"warning\"')")
+    equal: Optional[List[str]] = Field([], description="Labels that must be equal between source and target")
+
+
 class ImpulseConfig(BaseModel):
     """Main Impulse configuration"""
     general: Optional[GeneralConfig] = Field(GeneralConfig(), description="General configuration")
@@ -521,6 +528,7 @@ class ImpulseConfig(BaseModel):
     ui: Optional[UIConfig] = Field(None, description="UI configuration")
     webhooks: Optional[Dict[str, WebhookConfig]] = Field({}, description="Webhook configurations")
     task_management: Optional[TaskManagementConfig] = Field(None, description="Task management configuration")
+    inhibit_rules: Optional[List[InhibitRule]] = Field([], description="Inhibition rules for AlertManager-style inhibition")
 
     @model_validator(mode='after')
     def validate_route_exists(self):

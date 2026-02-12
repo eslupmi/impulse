@@ -29,3 +29,10 @@
     {{ k }}=<code>{{ v }}</code>
 {%- endfor -%}
 {% endif -%}
+{%- if incident.childs | length > 0 %}
+
+<b>Inhibited incidents:</b>
+{%- for uniq_id in incident.childs %}
+    <a href="{{ incidents.uniq_ids[uniq_id].link }}">{{ incidents.uniq_ids[uniq_id].payload.commonLabels.alertname }}</a>
+{%- endfor -%}
+{% endif -%}

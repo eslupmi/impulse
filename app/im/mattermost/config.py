@@ -21,6 +21,10 @@ buttons = {
             'text': 'Freeze',
             'style': 'default'
         },
+        'inhibited': {
+            'text': 'Inhibited',
+            'style': 'default'
+        },
         'options': [
             {'text': 'Tomorrow', 'value': 'tomorrow'},
             {'text': 'Next Monday', 'value': 'next_monday'},

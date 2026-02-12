@@ -1,6 +1,6 @@
 import asyncio
 from collections import namedtuple
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Tuple, Any
 
 from app.logging import logger
@@ -57,13 +57,16 @@ class AsyncQueue:
             if not (item.uniq_id == uniq_id and item.type == type_)
         ]
 
-    async def recreate(self, status: str, uniq_id: str, incident_chain: list):
-        """Recreate queue items for incident chain"""
-        if status != 'resolved' and status != 'closed':
+    async def recreate(self, status: str, uniq_id: str, incident_chain: list, chain_active_seconds: float = 0.0):
+        """Recreate queue items for incident chain using relative seconds"""
+        if status == 'firing' or status == 'unknown':
+            now = datetime.now(timezone.utc)
             new_items = []
             for i, s in enumerate(incident_chain):
                 if not s['done']:
-                    new_items.append(QueueItem(s['datetime'], QueueItemType.CHAIN_STEP, uniq_id, i, None))
+                    remaining = s['delay'] - chain_active_seconds
+                    schedule_at = now + timedelta(seconds=max(0, remaining))
+                    new_items.append(QueueItem(schedule_at, QueueItemType.CHAIN_STEP, uniq_id, i, None))
 
             async with self._lock:
                 for new_item in new_items:
@@ -146,10 +149,10 @@ class AsyncQueue:
         queue = cls()
 
         for uniq_id, incident in incidents.uniq_ids.items():
-            if incident.is_frozen():
+            if incident.is_frozen() and incident.frozen_until:
                 await queue.put(incident.frozen_until, QueueItemType.UNFREEZE, uniq_id)
-            else:
-                await queue.recreate(incident.status, uniq_id, incident.get_chain())
+            elif not incident.is_frozen():
+                await queue.recreate(incident.status, uniq_id, incident.get_chain(), incident.chain_active_seconds)
             if incident.status != 'deleted':
                 await queue.put(incident.status_update_datetime, QueueItemType.UPDATE_STATUS, uniq_id)
             else:
