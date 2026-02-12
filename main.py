@@ -167,8 +167,7 @@ async def lifespan(fastapi_app: FastAPI):
             if shutdown_event.is_set():
                 break
             logger.info('Transitioning to primary server')
-            success = await initialize_primary_server(fastapi_app, file_lock)
-            if success:
+            if await initialize_primary_server(fastapi_app, file_lock):
                 break
             logger.error('Transition failed, retrying')
             try:

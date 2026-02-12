@@ -113,7 +113,6 @@ class AlertHandler(BaseHandler):
             incident_.accumulate_chain_time(previous_firing_start_datetime)
 
         await self._handle_inhibition_state_change(incident_, prev_status) #!
-        # await self._create_thread_if_needed(incident_, alert_state) #!
 
         if is_state_updated or is_status_updated:
             await self.app.update(
@@ -145,13 +144,6 @@ class AlertHandler(BaseHandler):
             await self.inhibition_manager.handle_resolved(incident_)
         elif incident_.status == 'firing' and prev_status != 'firing':
             await self.inhibition_manager.process_incident(incident_)
-
-    async def _create_thread_if_needed(self, incident_, alert_state):
-        """Create thread for legacy incidents that don't have one (backward compatibility)."""
-        if not incident_.ts and not incident_.is_frozen():
-            await self._create_thread(incident_)
-            incident_.dump()
-            logger.info("Thread created for legacy incident without thread", extra={'uuid': incident_.uuid, 'link': incident_.link})
 
     async def _notify_new_fire_alert(self, incident_, new_alerts_f, new_alerts_r, uuid_):
         """

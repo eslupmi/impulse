@@ -1,6 +1,5 @@
 """Jira integration for task creation from incidents"""
 from datetime import datetime, timezone
-from typing import Optional
 
 from app.config.config import get_config
 from app.integrations.jira_client import JiraClient

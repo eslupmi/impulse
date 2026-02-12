@@ -28,7 +28,7 @@ class ChainFactory:
                 try:
                     return ScheduleChain(
                         name=name,
-                        timezone=config.timezone,
+                        timezone_=config.timezone,
                         schedule=config.schedule,
                     )
                 except Exception as e:
