@@ -75,7 +75,7 @@ class InhibitionManager:
                 if not source:
                     continue
                 
-                if rule.equal_labels_match(source, incident):
+                if rule.equal_labels_match(source, incident) and source.status != 'resolved':
                     return True
         
         return False
@@ -91,9 +91,6 @@ class InhibitionManager:
         if not self.rules:
             return
 
-        await unfreeze_incident(incident, self.application, self.queue)
-        await self.application.update_thread(incident)
-        
         for rule_idx in range(len(self.rules)):
             if incident.uniq_id in self.sources[rule_idx]:
                 await self._cleanup_source(incident)
@@ -150,12 +147,14 @@ class InhibitionManager:
             await self._freeze_matching_targets(
                 incident, self.sources[rule_idx], rule, incident_is_target=True
             )
-
+            await self.application.update_incident_message(incident)
         if rule.is_source(incident):
             self.sources[rule_idx].add(incident.uniq_id)
-            await self._freeze_matching_targets(
+            done = await self._freeze_matching_targets(
                 incident, self.targets[rule_idx], rule, incident_is_target=False
             )
+            if done:
+                await self.application.update_incident_message(incident)
 
     async def _freeze_matching_targets(
         self,
@@ -164,6 +163,7 @@ class InhibitionManager:
         rule: InhibitionRule,
         incident_is_target: bool
     ):
+        done = False
         for candidate_uniq_id in candidates:
             if candidate_uniq_id == incident.uniq_id:
                 continue
@@ -177,12 +177,14 @@ class InhibitionManager:
             else:
                 source, target = incident, candidate
 
-            if rule.equal_labels_match(source, target):
-                await self._freeze_target(source, target)
+            if rule.equal_labels_match(source, target) and source.status != 'resolved':
+                if await self._freeze_target(source, target):
+                    done = True
+        return done
     
     async def _freeze_target(self, source: 'Incident', target: 'Incident'):
         if source.uniq_id in target.parents:
-            return
+            return False
         
         if target.uniq_id not in source.childs:
             source.childs.append(target.uniq_id)
@@ -190,17 +192,14 @@ class InhibitionManager:
         
         if source.uniq_id not in target.parents:
             target.parents.append(source.uniq_id)
-        
-        was_frozen = target.is_frozen()
         target.freeze_by_inhibition()
         await self.queue.delete_by_id(target.uniq_id, delete_steps=True, delete_status=False)
         
         logger.info("Target frozen by inhibition",
                    extra={'source_uuid': source.uuid, 'target_uuid': target.uuid})
-        
-        if not was_frozen and target.ts:
-            await self._update_target_thread(target)
-    
+        await self.application.update_incident_message(target)
+        return True
+
     async def _unfreeze_target_if_no_parents(self, target: 'Incident'):
         if target.parents:
             return
@@ -210,12 +209,4 @@ class InhibitionManager:
         
         logger.info("Target has no more parents - scheduling unfreeze", extra={'uuid': target.uuid})
         await unfreeze_incident(target, self.application, self.queue)
-        await self.application.update_thread(target)
-    
-    async def _update_target_thread(self, target: 'Incident'):
-        try:
-            await self.application.update_thread(target)
-            logger.info("Updated target thread to show inhibition", extra={'uuid': target.uuid})
-        except Exception as e:
-            logger.error("Failed to update target thread",
-                        extra={'uuid': target.uuid, 'error': str(e)})
+        await self.application.update_incident_message(target)

@@ -153,7 +153,7 @@ class MattermostApplication(Application):
     def _build_button_response(self, incident_, user_timezone='UTC'):
         """Build JSON response with updated incident message"""
         incident_.dump()
-        body, header, status_icons = self.form_incident_message(incident_)
+        body, header, status_icons = self.form_body_header_status_icons(incident_)
         response_payload = mattermost_get_button_update_payload(
             body, header, status_icons, incident_.status,
             incident_.chain_enabled, incident_.frozen_until, incident_.task_link, user_timezone)
@@ -191,16 +191,16 @@ class MattermostApplication(Application):
                     await self._handle_freeze_action(incident_, freeze_option, user_id, incidents, queue_, user_timezone=mattermost_tz)
         return self._build_button_response(incident_, mattermost_tz)
 
-    def _create_thread_payload(self, incident, body, header, status_icons):
+    def _get_incident_message_payload(self, incident, body, header, status_icons):
         return mattermost_get_create_thread_payload(incident, body, header, status_icons)
 
     def _post_thread_payload(self, channel_id, id_, text):
         return {'channel_id': channel_id, 'root_id': id_, 'message': text}
 
-    def update_thread_payload(self, incident, body, header, status_icons):
+    def update_incident_payload(self, incident, body, header, status_icons):
         return mattermost_get_update_payload(incident, body, header, status_icons)
 
-    async def _update_thread(self, id_, payload):
+    async def _update_incident_message(self, id_, payload):
         response = await self.http.put(
             f'{self.url}/api/v4/posts/{id_}',
             headers=self.headers,

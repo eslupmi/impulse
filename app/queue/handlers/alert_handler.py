@@ -112,8 +112,8 @@ class AlertHandler(BaseHandler):
         if is_status_updated and incident_.status == 'resolved':
             incident_.accumulate_chain_time(previous_firing_start_datetime)
 
-        await self._handle_inhibition_state_change(incident_, prev_status)
-        await self._create_thread_if_needed(incident_, alert_state)
+        await self._handle_inhibition_state_change(incident_, prev_status) #!
+        # await self._create_thread_if_needed(incident_, alert_state) #!
 
         if is_state_updated or is_status_updated:
             await self.app.update(
@@ -168,14 +168,14 @@ class AlertHandler(BaseHandler):
             message = text
         else:
             message = header + '\n' + text
-        await self.app.post_thread(incident_.channel_id, incident_.ts, message)
+        await self.app.post_to_thread(incident_.channel_id, incident_.ts, message)
         if new_alerts_f:
             logger.info("Incident updated with new alerts firing", extra={'uuid': uuid_})
         elif new_alerts_r:
             logger.info("Incident updated with some alerts resolved", extra={'uuid': uuid_})
 
     async def _create_thread(self, incident_, alert_state, frozen_by_inhibition=False):
-        body, header, status_icons = self.app.form_incident_message(incident_)
-        thread_id = await self.app.create_thread(incident_, body, header, status_icons)
+        body, header, status_icons = self.app.form_body_header_status_icons(incident_)
+        thread_id = await self.app.create_incident_message(incident_, body, header, status_icons)
         incident_.set_thread(thread_id, self.app.public_url)
         return thread_id

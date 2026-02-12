@@ -58,14 +58,15 @@ class TelegramApplication(Application):
     def _format_tg_icon(self, icon):
         return f'{self.icon_map.get(icon)}'
 
-    async def create_thread(self, incident, body, header, status_icons):
+    async def create_incident_message(self, incident, body, header, status_icons):
         topic_id = await self._create_topic(incident.channel_id, header, status_icons)
-        payload = self._create_thread_payload(incident, body, header, status_icons)
+        payload = self._get_incident_message_payload(incident, body, header, status_icons)
         payload['message_thread_id'] = topic_id
-        message_id = await self._send_create_thread(payload)
+        message_id = await self._send_create_incident_message(payload)
         return f'{topic_id}/{message_id}'
 
-    async def _send_create_thread(self, payload):
+    async def _send_create_incident_message(self, payload):
+        logger.debug('Create incident message')
         response = await self.http.post(self.post_message_url, headers=self.headers, json=payload)
         response_json = await response.json()
         response.close()
@@ -90,9 +91,9 @@ class TelegramApplication(Application):
 
     async def _show_freeze_menu(self, incident_: 'Incident', callback):
         """Display freeze options menu"""
-        body, header, status_icons = self.form_incident_message(incident_)
-        payload = self.update_thread_payload(incident_, body, header, status_icons, show_freeze_menu=True)
-        await self._update_thread(incident_.ts, payload)
+        body, header, status_icons = self.form_body_header_status_icons(incident_)
+        payload = self.update_incident_payload(incident_, body, header, status_icons, show_freeze_menu=True)
+        await self._update_incident_message(incident_.ts, payload)
         await self.http.post(
             f'{self.url}/answerCallbackQuery',
             json={'callback_query_id': callback['id']},
@@ -173,7 +174,7 @@ class TelegramApplication(Application):
             self._handle_task_action(incident_, user_id, queue_)
 
         incident_.dump()
-        await self.update_thread(incident_)
+        await self.update_incident_message(incident_)
 
         await self._answer_callback(callback['id'])
         return JSONResponse({}, status_code=200)
@@ -197,7 +198,7 @@ class TelegramApplication(Application):
             logger.error("Topic creation failed", extra={'error': str(e)})
             raise e
 
-    def _create_thread_payload(self, incident, body, header, status_icons):
+    def _get_incident_message_payload(self, incident, body, header, status_icons):
         env_config = get_environment_config()
         config_obj = get_config()
 
@@ -228,12 +229,12 @@ class TelegramApplication(Application):
             'parse_mode': 'HTML'
         }
 
-    async def update_thread(self, incident):
-        body, header, status_icons = self.form_incident_message(incident)
+    async def update_incident_message(self, incident):
+        body, header, status_icons = self.form_body_header_status_icons(incident)
 
         await self._update_topic(incident.channel_id, incident.ts, header, status_icons)
-        payload = self.update_thread_payload(incident, body, header, status_icons, incident.status)
-        await self._update_thread(incident.ts, payload)
+        payload = self.update_incident_payload(incident, body, header, status_icons, incident.status)
+        await self._update_incident_message(incident.ts, payload)
 
     async def _update_topic(self, channel_id, id_, header, status_icons):
         topic_id, _ = id_.split('/')
@@ -285,7 +286,7 @@ class TelegramApplication(Application):
 
         return [keyboard_row]
 
-    def update_thread_payload(self, incident, body, header, status_icons, show_freeze_menu = False):
+    def update_incident_payload(self, incident, body, header, status_icons, show_freeze_menu = False):
         _, message_id = incident.ts.split('/')
         if show_freeze_menu:
             keyboard = self._build_freeze_menu_keyboard()
@@ -301,7 +302,7 @@ class TelegramApplication(Application):
             }
         }
 
-    async def _update_thread(self, id_, payload):
+    async def _update_incident_message(self, id_, payload):
         try:
             response = await self.http.post(
                 f'{self.url}/editMessageText',

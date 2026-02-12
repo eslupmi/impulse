@@ -206,12 +206,12 @@ class TestSlackApplication:
 
         # Test that the method exists and is async
         assert hasattr(app, '_update_thread')
-        assert callable(app._update_thread)
+        assert callable(app._update_incident_message)
         import inspect
-        assert inspect.iscoroutinefunction(app._update_thread)
+        assert inspect.iscoroutinefunction(app._update_incident_message)
 
         # Test method signature
-        sig = inspect.signature(app._update_thread)
+        sig = inspect.signature(app._update_incident_message)
         params = list(sig.parameters.keys())
         assert 'id_' in params
         assert 'payload' in params
@@ -352,7 +352,7 @@ class TestSlackApplication:
         app.http = Mock()
         app.http.post = AsyncMock(return_value=mock_response)
 
-        await app._update_thread("1234567890.123456", {"text": "Updated message"})
+        await app._update_incident_message("1234567890.123456", {"text": "Updated message"})
 
         app.http.post.assert_called_once()
 

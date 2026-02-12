@@ -166,12 +166,12 @@ class TestMattermostApplication:
 
         # Test that the method exists and is async
         assert hasattr(app, '_update_thread')
-        assert callable(app._update_thread)
+        assert callable(app._update_incident_message)
         import inspect
-        assert inspect.iscoroutinefunction(app._update_thread)
+        assert inspect.iscoroutinefunction(app._update_incident_message)
 
         # Test method signature
-        sig = inspect.signature(app._update_thread)
+        sig = inspect.signature(app._update_incident_message)
         params = list(sig.parameters.keys())
         assert 'id_' in params
         assert 'payload' in params
@@ -223,7 +223,7 @@ class TestMattermostApplication:
         app.http = Mock()
         app.http.put = AsyncMock(return_value=mock_response)
 
-        await app._update_thread("post123", {"message": "Updated message"})
+        await app._update_incident_message("post123", {"message": "Updated message"})
 
         app.http.put.assert_called_once()
 

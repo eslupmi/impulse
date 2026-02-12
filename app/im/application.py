@@ -69,11 +69,9 @@ class Application(ABC):
         self._user_scheduler: Optional[UserUpdateScheduler] = None
 
     def configure_scheduler(self, scheduler: UserUpdateScheduler) -> None:
-        """Configure user update scheduler."""
         self._user_scheduler = scheduler
 
     async def initialize_async(self):
-        """Initialize async components after object creation"""
         self.http = self._setup_http()
         if hasattr(self, '_get_public_url') and callable(getattr(self, '_get_public_url')):
             if asyncio.iscoroutinefunction(self._get_public_url):
@@ -88,7 +86,6 @@ class Application(ABC):
         self.admin_users = [self.users.get(admin) or UndefinedUser(admin) for admin in self._admin_users_config]
 
     async def close(self):
-        """Close the aiohttp session"""
         if self.http:
             await self.http.close()
 
@@ -120,7 +117,7 @@ class Application(ABC):
             else:
                 message = header + '\n' + text
 
-            await self.post_thread(incident.channel_id, incident.ts, message)
+            await self.post_to_thread(incident.channel_id, incident.ts, message)
             logger.debug(f'Posted assignment notification for incident {incident.uuid}')
 
         except Exception as e:
@@ -139,7 +136,7 @@ class Application(ABC):
             else:
                 message = header + '\n' + text
 
-            await self.post_thread(incident_obj.channel_id, incident_obj.ts, message)
+            await self.post_to_thread(incident_obj.channel_id, incident_obj.ts, message)
             logger.debug(f'Posted unassignment notification for incident {incident_obj.uuid}: {message}')
 
         except Exception as e:
@@ -152,16 +149,6 @@ class Application(ABC):
         return None
 
     async def handle_task_button(self, incident, queue_):
-        """
-        Handle Task button press for an incident.
-
-        Args:
-            incident: Incident object
-            queue_: Queue manager
-
-        Returns:
-            Response dict with success status
-        """
         if not self.task_management_integration:
             logger.error("Task management integration not initialized")
             return {"success": False, "message": "Task management integration not available"}
@@ -201,12 +188,12 @@ class Application(ABC):
             text_template = JinjaTemplate(notification_user_group)
         fields = {'type': self.type.value, 'name': identifier, 'unit': unit, 'admins': destinations}
         text = text_template.form_notification(fields)
-        _, header, _ = self.form_incident_message(incident)
+        _, header, _ = self.form_body_header_status_icons(incident)
         if self.type == MessengerType.TELEGRAM:
             message = text
         else:
             message = header + '\n' + text
-        response_code = await self.post_thread(incident.channel_id, incident.ts, message)
+        response_code = await self.post_to_thread(incident.channel_id, incident.ts, message)
         logger.info(f'Chain step {notify_type} \'{identifier}\'', extra={'uuid': incident.uuid})
         return response_code
 
@@ -214,7 +201,7 @@ class Application(ABC):
                      frozen_until, task_link=''):
         # Update thread starter message (skip if frozen)
         if not incident.is_frozen():
-            await self.update_thread(incident)
+            await self.update_incident_message(incident)
 
             # post to thread (skip if frozen)
             config = get_config()
@@ -224,11 +211,11 @@ class Application(ABC):
                 fields = {'type': self.type.value, 'status': incident_status, 'admins': admins}
                 text = text_template.form_notification(fields)
 
-                _, header, _ = self.form_incident_message(incident)
+                _, header, _ = self.form_body_header_status_icons(incident)
                 message = text if self.type == MessengerType.TELEGRAM else header + '\n' + text
-                await self.post_thread(incident.channel_id, incident.ts, message)
+                await self.post_to_thread(incident.channel_id, incident.ts, message)
 
-    def form_incident_message(self, incident):
+    def form_body_header_status_icons(self, incident):
         """Render body, header, and status_icons templates for an incident."""
         body = self.body_template.form_message(incident.payload, incident)
         header = self.header_template.form_message(incident.payload, incident)
@@ -241,17 +228,26 @@ class Application(ABC):
         self._async_tasks.add(task)
         task.add_done_callback(self._async_tasks.discard)
 
-    async def create_thread(self, incident, body, header, status_icons):
-        payload = self._create_thread_payload(incident, body, header, status_icons)
-        return await self._send_create_thread(payload)
+    def create_group(self, config_name, group_details):
+        group_id = group_details.get('id') if group_details.get('exists') else None
+        group_name = group_details.get('name')
+        return Group(
+            config_name=config_name,
+            name=group_name,
+            id_=group_id,
+            exists=group_details.get('exists', False)
+        )
 
-    async def update_thread(self, incident):
-        body, header, status_icons = self.form_incident_message(incident)
+    async def create_incident_message(self, incident, body, header, status_icons):
+        payload = self._get_incident_message_payload(incident, body, header, status_icons)
+        return await self._send_create_incident_message(payload)
 
-        payload = self.update_thread_payload(incident, body, header, status_icons)
-        await self._update_thread(incident.ts, payload)
+    async def update_incident_message(self, incident):
+        body, header, status_icons = self.form_body_header_status_icons(incident)
+        payload = self.update_incident_payload(incident, body, header, status_icons)
+        await self._update_incident_message(incident.ts, payload)
 
-    async def post_thread(self, channel_id, id_, text):
+    async def post_to_thread(self, channel_id, id_, text):
         payload = self._post_thread_payload(channel_id, id_, text)
         response = await self.http.post(self.post_message_url, headers=self.headers, json=payload)
         status = response.status
@@ -272,7 +268,7 @@ class Application(ABC):
         else:
             message = text
 
-        await self.post_thread(incident_.channel_id, incident_.ts, message)
+        await self.post_to_thread(incident_.channel_id, incident_.ts, message)
 
     def _load_stored_users(self, user_manager: UserManager, user_store, messenger_type: str) -> set:
         """Load ALL stored users for this messenger type into UserManager. Returns set of loaded user IDs."""
@@ -329,10 +325,9 @@ class Application(ABC):
         logger.info(log_button_pressed, extra={'uuid': incident_.uuid, 'button': 'unfreeze', 'user_id': user_id})
         await queue_.delete_by_id_and_type(incident_.uniq_id, QueueItemType.UNFREEZE)
         await unfreeze_incident(incident_, self, queue_)
-
+        await self.update_incident_message(incident_)
 
     async def _post_freeze_notification(self, incident_: 'Incident', freeze_time: datetime, user_timezone: str = "UTC"):
-        """Post freeze notification to thread"""
         text_template = JinjaTemplate(notification_freeze)
         fields = {'type': self.type.value, 'frozen_until': format_freeze_expiration(freeze_time, user_timezone)}
         text = text_template.form_notification(fields)
@@ -342,21 +337,15 @@ class Application(ABC):
             message = header + '\n' + text
         else:
             message = text
-        await self.post_thread(incident_.channel_id, incident_.ts, message)
+        await self.post_to_thread(incident_.channel_id, incident_.ts, message)
 
-    async def _send_create_thread(self, payload):
+    async def _send_create_incident_message(self, payload):
         response = await self.http.post(self.post_message_url, headers=self.headers, json=payload)
         response_json = await response.json()
         response.close()
         return response_json.get(self.thread_id_key)
 
     def _setup_http(self) -> RateLimitedClient:
-        """
-        Setup HTTP client with rate limiting.
-
-        Returns:
-            RateLimitedClient instance
-        """
         if self.rate_limit:
             logger.debug(
                 f"Rate limit: "
@@ -377,7 +366,6 @@ class Application(ABC):
         return client
 
     async def _generate_users(self, users_dict: Dict[str, Union[SlackUser, MattermostUser, TelegramUser]]):
-        """Load users from UserStore, then fetch missing configured users from API."""
         logger.info('Creating users')
         user_store = get_user_store()
         messenger_type = self.type.value
@@ -430,7 +418,7 @@ class Application(ABC):
         pass
 
     @abstractmethod
-    def _create_thread_payload(self, incident, body, header, status_icons):
+    def _get_incident_message_payload(self, incident, body, header, status_icons):
         pass
 
     @abstractmethod
@@ -438,16 +426,15 @@ class Application(ABC):
         pass
 
     @abstractmethod
-    def update_thread_payload(self, incident, body, header, status_icons):
+    def update_incident_payload(self, incident, body, header, status_icons):
         pass
 
     @abstractmethod
-    async def _update_thread(self, id_, payload):
+    async def _update_incident_message(self, id_, payload):
         pass
 
     @abstractmethod
     async def get_user_details(self, user_info: Union[SlackUser, MattermostUser, TelegramUser, Dict]):
-        """Fetch user-specific details (ID, name, etc.) from the system. Must be implemented by subclasses."""
         pass
 
     @abstractmethod
@@ -457,14 +444,3 @@ class Application(ABC):
     @abstractmethod
     async def get_all_groups(self):
         pass
-
-    def create_group(self, config_name, group_details):
-        """Create a Group object from group details. Default implementation for Slack and Mattermost."""
-        group_id = group_details.get('id') if group_details.get('exists') else None
-        group_name = group_details.get('name')
-        return Group(
-            config_name=config_name,
-            name=group_name,
-            id_=group_id,
-            exists=group_details.get('exists', False)
-        )

@@ -22,4 +22,4 @@ class UnfreezeHandler(BaseHandler):
             return
 
         await unfreeze_incident(incident, self.app, self.queue)
-        await self.app.update_thread(incident)
+        await self.app.update_incident_message(incident)

@@ -384,7 +384,7 @@ class TestTelegramApplication:
         mock_response = create_mock_http_response()
         mock_response.json = AsyncMock(return_value={'result': {'message_id': 12345}})
         with patch.object(app.http, 'post', new=AsyncMock(return_value=mock_response)) as mock_post:
-            result = await app._send_create_thread({'test': 'payload'})
+            result = await app._send_create_incident_message({'test': 'payload'})
 
             assert result == 12345
             mock_post.assert_called_once()
@@ -445,7 +445,7 @@ class TestTelegramApplication:
         # Mock successful HTTP response
         mock_response = create_mock_http_response()
         with patch.object(app.http, 'post', new=AsyncMock(return_value=mock_response)) as mock_post:
-            await app._update_thread("123/456", {'test': 'payload'})
+            await app._update_incident_message("123/456", {'test': 'payload'})
 
             mock_post.assert_called_once()
 
@@ -458,7 +458,7 @@ class TestTelegramApplication:
             mock_post.side_effect = aiohttp.ClientError("Connection failed")
 
             # Should not raise exception, just log error
-            await app._update_thread("123/456", {'test': 'payload'})
+            await app._update_incident_message("123/456", {'test': 'payload'})
 
     @pytest.mark.asyncio
     async def test_get_user_details_api_error(self, app_config, channels, users):

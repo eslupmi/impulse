@@ -41,7 +41,7 @@ class NullApplication(Application):
     def get_notification_destinations(self):
         return []
 
-    def update_thread_payload(self, incident, body, header, status_icons):
+    def update_incident_payload(self, incident, body, header, status_icons):
         return {}
 
     async def get_user_details(self, user_details):
@@ -50,13 +50,13 @@ class NullApplication(Application):
     def create_user(self, name, user_details):
         return None
 
-    async def create_thread(self, incident, body, header, status_icons):
+    async def create_incident_message(self, incident, body, header, status_icons):
         return str(uuid.uuid4())
 
-    async def post_thread(self, channel_id, id_, text):
+    async def post_to_thread(self, channel_id, id_, text):
         return 200
 
-    async def update_thread(self, incident):
+    async def update_incident_message(self, incident):
         pass
 
     async def update(self, incident, incident_status, alert_state, updated_status, chain_enabled, status_enabled,
@@ -87,16 +87,16 @@ class NullApplication(Application):
     def _get_team_name(self, app_config):
         return None
 
-    def _create_thread_payload(self, incident, body, header, status_icons):
+    def _get_incident_message_payload(self, incident, body, header, status_icons):
         return {}
 
     def _post_thread_payload(self, channel_id, id_, text):
         return {}
 
-    async def _update_thread(self, id_, payload):
+    async def _update_incident_message(self, id_, payload):
         pass
 
-    async def _send_create_thread(self, payload):
+    async def _send_create_incident_message(self, payload):
         return str(uuid.uuid4())
 
     async def _generate_groups(self, groups_dict: Dict):

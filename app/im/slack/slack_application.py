@@ -7,7 +7,7 @@ from app.config.config import get_config
 from app.config.environment import get_environment_config
 from app.config.validation import ApplicationConfig
 from app.im.application import Application
-from app.im.slack.threads import slack_get_create_thread_payload, slack_get_update_payload
+from app.im.slack.threads import get_incident_message_payload, slack_get_update_payload
 from app.im.slack.user import User
 from app.logging import logger
 
@@ -172,6 +172,7 @@ class SlackApplication(Application):
         # Block non-freeze actions if incident is frozen
         if incident_.is_frozen() and (incident_.frozen_by_inhibition or not is_freeze_action):
             logger.debug('Incident frozen, blocking actions', extra={'incident': incident_.uuid})
+            return JSONResponse(original_message, status_code=200)
         else:
             for action in actions:
                 if action['name'] == 'freeze':
@@ -181,21 +182,20 @@ class SlackApplication(Application):
                     await self._handle_chain_action(incident_, user_id, queue_)
                 elif action['name'] == 'task':
                     self._handle_task_action(incident_, user_id, queue_)
+            body, header, status_icons = self.form_body_header_status_icons(incident_)
+            modified_message = slack_get_update_payload(incident_, body, header, status_icons)
+            return JSONResponse(modified_message, status_code=200)
 
-        body, header, status_icons = self.form_incident_message(incident_)
-        modified_message = slack_get_update_payload(incident_, body, header, status_icons)
-        return JSONResponse(modified_message, status_code=200)
-
-    def _create_thread_payload(self, incident, body, header, status_icons):
-        return slack_get_create_thread_payload(incident, body, header, status_icons)
+    def _get_incident_message_payload(self, incident, body, header, status_icons):
+        return get_incident_message_payload(incident, body, header, status_icons)
 
     def _post_thread_payload(self, channel_id, id_, text):
         return {'channel': channel_id, 'thread_ts': id_, 'text': text, 'unfurl_links': False, 'unfurl_media': False}
 
-    def update_thread_payload(self, incident, body, header, status_icons):
+    def update_incident_payload(self, incident, body, header, status_icons):
         return slack_get_update_payload(incident, body, header, status_icons)
 
-    async def _update_thread(self, id_, payload):
+    async def _update_incident_message(self, id_, payload):
         response = await self.http.post(
             f'{self.url}/api/chat.update',
             headers=self.headers,
