@@ -197,7 +197,8 @@ class InhibitionManager:
         
         logger.info("Target frozen by inhibition",
                    extra={'source_uuid': source.uuid, 'target_uuid': target.uuid})
-        await self.application.update_incident_message(target)
+        if target.ts != '':
+            await self.application.update_incident_message(target)
         return True
 
     async def _unfreeze_target_if_no_parents(self, target: 'Incident'):

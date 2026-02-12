@@ -131,7 +131,7 @@ class TelegramApplication(Application):
         
         if action in freeze_option_map:
             await self._handle_freeze_action(incident_, freeze_option_map[action], user_id, incidents, queue_)
-        
+
         return None
 
     async def buttons_handler(self, payload, incidents, queue_, route):
@@ -233,7 +233,7 @@ class TelegramApplication(Application):
         body, header, status_icons = self.form_body_header_status_icons(incident)
 
         await self._update_topic(incident.channel_id, incident.ts, header, status_icons)
-        payload = self.update_incident_payload(incident, body, header, status_icons, incident.status)
+        payload = self.update_incident_payload(incident, body, header, status_icons, show_freeze_menu=False)
         await self._update_incident_message(incident.ts, payload)
 
     async def _update_topic(self, channel_id, id_, header, status_icons):
@@ -254,7 +254,8 @@ class TelegramApplication(Application):
         except aiohttp.ClientError as e:
             logger.error("Topic update failed", extra={'error': str(e)})
 
-    def _build_freeze_menu_keyboard(self):
+    @staticmethod
+    def _build_freeze_menu_keyboard():
         """Build keyboard for freeze menu"""
         keyboard = []
         for opt in buttons['freeze']['options']:
@@ -263,25 +264,26 @@ class TelegramApplication(Application):
         keyboard.append([buttons['freeze']['options'][-1]])
         return keyboard
 
-    def _build_main_keyboard(self, status, chain_enabled, frozen_until, task_link, frozen_by_inhibition=False):
+    @staticmethod
+    def _build_main_keyboard(incident):
         """Build main keyboard with chain, freeze, and task buttons"""
         config_obj = get_config()
         env_config = get_environment_config()
         
-        chain_button = buttons['chain']['takeit'] if chain_enabled or status != 'resolved' else buttons['chain']['release']
+        chain_button = buttons['chain']['takeit'] if incident.chain_enabled or incident.status != 'resolved' else buttons['chain']['release']
         
-        if frozen_by_inhibition:
+        if incident.frozen_by_inhibition:
             freeze_button = buttons['freeze']['inhibited']
-        elif frozen_until:
+        elif incident.frozen_until:
             telegram_tz = config_obj.app.general.timezone
-            freeze_text = format_freeze_expiration(frozen_until, telegram_tz)
+            freeze_text = format_freeze_expiration(incident.frozen_until, telegram_tz)
             freeze_button = {'text': freeze_text, 'callback_data': 'freeze_menu'}
         else:
             freeze_button = buttons['freeze']['inactive']
         
         keyboard_row = [chain_button, freeze_button]
 
-        if config_obj.app.task_management and env_config.task_management_enabled and not task_link:
+        if config_obj.app.task_management and env_config.task_management_enabled and not incident.task_link:
             keyboard_row.append(buttons['task']['create'])
 
         return [keyboard_row]
@@ -291,7 +293,7 @@ class TelegramApplication(Application):
         if show_freeze_menu:
             keyboard = self._build_freeze_menu_keyboard()
         else:
-            keyboard = self._build_main_keyboard(incident.status, incident.chain_enabled, incident.frozen_until, incident.task_link, incident.frozen_by_inhibition)
+            keyboard = self._build_main_keyboard(incident)
         return {
             'chat_id': incident.channel_id,
             'message_id': message_id,
