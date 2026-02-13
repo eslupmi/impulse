@@ -81,7 +81,7 @@ class MattermostApplication(Application):
             username=user_details.get('username'),
             exists=user_details.get('exists'),
             full_name=user_details.get('full_name'),
-            timezone=user_details.get('timezone')
+            timezone_=user_details.get('timezone')
         )
 
     async def get_group_details(self, group_id: str):
