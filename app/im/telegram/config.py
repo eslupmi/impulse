@@ -2,11 +2,17 @@ buttons = {
     'chain': {
         'takeit': {
             'text': 'Take It',
-            'callback_data': 'stop_chain'
+            'callback_data': 'stop_chain',
+            'style': 'primary'
+        },
+        'assigned': {
+            'text': 'Take It',
+            'callback_data': 'stop_chain',
         },
         'release': {
             'text': 'Release',
-            'callback_data': 'start_chain'
+            'callback_data': 'start_chain',
+            'style': 'primary'
         }
     },
     'freeze': {
