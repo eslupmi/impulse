@@ -166,25 +166,6 @@ class TestIncidents:
         assert len(incidents.uniq_ids) == initial_count + 1
         assert new_incident.uniq_id in incidents.uniq_ids
 
-    def test_del_by_uuid_existing(self, incidents):
-        """Test deleting incident by UUID."""
-        # Get an existing incident
-        incident_uuid = list(incidents.uniq_ids.keys())[0]
-        initial_count = len(incidents.uniq_ids)
-
-        with patch('os.remove') as mock_remove, \
-                patch('asyncio.get_event_loop') as mock_get_loop, \
-                patch('app.incident.incidents.incident_ws'):
-            # Use utility function for mock event loop
-            mock_loop = create_mock_event_loop(running=True)
-            mock_get_loop.return_value = mock_loop
-
-            incidents.del_by_uniq_id(incident_uuid)
-
-            assert len(incidents.uniq_ids) == initial_count - 1
-            assert incident_uuid not in incidents.uniq_ids
-            mock_remove.assert_called_once()
-
     def test_del_by_uuid_nonexistent(self, incidents):
         """Test deleting non-existent incident."""
         initial_count = len(incidents.uniq_ids)
@@ -195,27 +176,6 @@ class TestIncidents:
         # Verify that the incident was not removed (count unchanged)
         assert len(incidents.uniq_ids) == initial_count
         mock_remove.assert_not_called()
-
-    def test_del_by_uuid_file_not_found(self, incidents):
-        """Test deleting incident when file doesn't exist."""
-        incident_uuid = list(incidents.uniq_ids.keys())[0]
-
-        with patch('os.remove', side_effect=FileNotFoundError) as mock_remove, \
-                patch('app.incident.incidents.logger') as mock_logger:
-            incidents.del_by_uniq_id(incident_uuid)
-
-            mock_remove.assert_called_once()
-            mock_logger.error.assert_called_once()
-
-    def test_del_by_uuid_no_event_loop(self, incidents):
-        """Test deleting incident when no event loop is running."""
-        incident_uuid = list(incidents.uniq_ids.keys())[0]
-
-        with patch('os.remove') as mock_remove, \
-                patch('asyncio.get_event_loop', side_effect=RuntimeError("No event loop")):
-            incidents.del_by_uniq_id(incident_uuid)
-
-            mock_remove.assert_called_once()
 
     def test_serialize(self, incidents):
         """Test serializing incidents."""

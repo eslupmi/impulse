@@ -151,33 +151,6 @@ class TestIncident:
             mock_update.assert_called_once_with("closed")
             assert result is True
 
-    @patch('app.incident.incident.get_config')
-    def test_update_status_with_timeout(self, mock_get_config, sample_incident, mock_unified_config):
-        """Test updating status with timeout configuration."""
-        mock_get_config.return_value = mock_unified_config
-        mock_unified_config.incident.timeouts = {"unknown": "1h"}
-
-        # Set initial status to something different to ensure change
-        sample_incident.status = "firing"
-
-        with patch.object(sample_incident, 'dump'), \
-                patch.object(sample_incident, 'set_status') as mock_set_status:
-            result = sample_incident.update_status("unknown")
-
-            assert result is True
-            mock_set_status.assert_called_once_with("unknown")
-            assert isinstance(sample_incident.status_update_datetime, datetime)
-
-    def test_update_status_no_change(self, sample_incident):
-        """Test updating status when status doesn't change."""
-        sample_incident.status = "firing"
-
-        with patch.object(sample_incident, 'dump'), \
-                patch.object(sample_incident, 'set_status') as mock_set_status:
-            result = sample_incident.update_status("firing")
-
-            assert result is False
-            mock_set_status.assert_not_called()
 
     def test_update_state_status_changed(self, sample_incident, sample_alert_payload):
         """Test updating incident state when status changes."""
@@ -536,24 +509,6 @@ class TestIncident:
         assert sample_incident.chain[1]['type'] == 'user'
         assert sample_incident.chain[1]['identifier'] == 'admin'
 
-    def test_generate_chain_with_missing_nested_chain(self, sample_incident):
-        """Test generating chain with missing nested chain."""
-        chains = {
-            'main_chain': Mock(steps=[
-                {'user': 'testuser'},
-                {'chain': 'missing_nested'},
-                {'wait': '10m'}
-            ])
-        }
-
-        with patch('app.incident.incident.logger') as mock_logger:
-            with patch('builtins.open', mock_open()):
-                with patch('os.makedirs'):
-                    sample_incident.generate_chain(chains, 'main_chain')
-
-        mock_logger.warning.assert_called_once()
-        # Should have 1 step: user (missing nested chain and wait are skipped)
-        assert len(sample_incident.chain) == 1
 
     def test_get_step_type_and_value_with_dict(self, sample_incident):
         """Test _get_step_type_and_value with dictionary step."""

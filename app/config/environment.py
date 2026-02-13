@@ -4,7 +4,6 @@ from typing import List
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field, field_validator
 
-# Load environment variables from .env file
 load_dotenv()
 
 
@@ -153,14 +152,12 @@ class EnvironmentConfig(BaseModel):
 
 
 # Global instance - created once and reused
-_env_config: EnvironmentConfig = None
+_env_config = EnvironmentConfig()
 
 
 def get_environment_config() -> EnvironmentConfig:
     """Get the singleton instance of environment configuration"""
     global _env_config
-    if _env_config is None:
-        _env_config = EnvironmentConfig()
     return _env_config
 
 

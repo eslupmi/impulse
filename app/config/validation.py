@@ -248,17 +248,17 @@ class BaseApplicationConfig(BaseModel):
         def validate_chain_steps(steps):
             if not isinstance(steps, list):
                 return
-            for step in steps:
-                if isinstance(step, dict):
-                    if 'user' in step and step['user'] and users and step['user'] not in users:
-                        raise ValueError(f"User '{step['user']}' in chain not found in users")
-                    if 'user_group' in step and step['user_group'] and user_groups and step[
+            for step_ in steps:
+                if isinstance(step_, dict):
+                    if 'user' in step_ and step_['user'] and users and step_['user'] not in users:
+                        raise ValueError(f"User '{step_['user']}' in chain not found in users")
+                    if 'user_group' in step_ and step_['user_group'] and user_groups and step_[
                         'user_group'] not in user_groups:
-                        raise ValueError(f"User group '{step['user_group']}' in chain not found in user_groups")
-                    if 'group' in step and step['group'] and groups and step['group'] not in groups:
-                        raise ValueError(f"Group '{step['group']}' in chain not found in groups")
-                    if 'chain' in step and step['chain'] and step['chain'] not in v:
-                        raise ValueError(f"Nested chain '{step['chain']}' not found in chains")
+                        raise ValueError(f"User group '{step_['user_group']}' in chain not found in user_groups")
+                    if 'group' in step_ and step_['group'] and groups and step_['group'] not in groups:
+                        raise ValueError(f"Group '{step_['group']}' in chain not found in groups")
+                    if 'chain' in step_ and step_['chain'] and step_['chain'] not in v:
+                        raise ValueError(f"Nested chain '{step_['chain']}' not found in chains")
 
         validated_chains = {}
 

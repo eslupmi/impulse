@@ -6,7 +6,7 @@ from app.im.slack.config import buttons
 from app.time import format_freeze_expiration
 
 
-def build_slack_actions(incident):
+def build_slack_actions(incident, tz_str: str = "UTC"):
     env_config = get_environment_config()
     config = get_config()
     chain_text, chain_style = chain_attrs(incident.chain_enabled, incident.status)
@@ -31,7 +31,7 @@ def build_slack_actions(incident):
             "style": buttons['freeze']['inhibited']['style'],
         })
     elif incident.frozen_until:
-        freeze_text = format_freeze_expiration(incident.frozen_until, tz_str='UTC') #!
+        freeze_text = format_freeze_expiration(incident.frozen_until, tz_str)
         actions.append({
             "name": 'freeze',
             "type": 'button',
@@ -63,8 +63,8 @@ def build_slack_actions(incident):
     return actions
 
 
-def slack_get_update_payload(incident, body, header, status_icons):
-    actions = build_slack_actions(incident)
+def slack_get_update_payload(incident, body, header, status_icons, tz_str):
+    actions = build_slack_actions(incident, tz_str)
     display_status = 'frozen' if incident.is_frozen() else incident.status
     
     payload = {
@@ -88,8 +88,8 @@ def slack_get_update_payload(incident, body, header, status_icons):
     return payload
 
 
-def get_incident_message_payload(incident, body, header, status_icons):
-    actions = build_slack_actions(incident)
+def get_incident_message_payload(incident, body, header, status_icons, tz_str):
+    actions = build_slack_actions(incident, tz_str)
     display_status = 'frozen' if incident.is_frozen() else incident.status
     
     payload = {

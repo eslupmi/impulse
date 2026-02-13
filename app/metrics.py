@@ -89,7 +89,7 @@ async def update_queue_latency(queue: AsyncQueue):
         QUEUE_LATENCY.set(0.0)
     else:
         now = datetime.now(timezone.utc)
-        delay = max(0, (now - first_item_datetime).total_seconds())
+        delay = max(0.0, (now - first_item_datetime).total_seconds())
         QUEUE_LATENCY.set(delay)
 
 

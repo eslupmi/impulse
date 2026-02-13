@@ -124,8 +124,8 @@ def mattermost_get_button_update_payload(incident, body, header, status_icons, u
     }
     return payload
 
-def mattermost_get_update_payload(incident, body, header, status_icons):
-    actions = build_mattermost_actions(incident)
+def mattermost_get_update_payload(incident, body, header, status_icons, tz_str):
+    actions = build_mattermost_actions(incident, tz_str)
     display_status = 'frozen' if (incident.frozen_until or incident.frozen_by_inhibition) else incident.status
     
     payload = {

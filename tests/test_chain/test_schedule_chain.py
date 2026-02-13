@@ -24,7 +24,7 @@ class TestScheduleChainInit:
 
     def test_init_with_custom_timezone(self):
         """Test initialization with custom timezone."""
-        chain = ScheduleChain(name="test_chain", timezone="America/New_York")
+        chain = ScheduleChain(name="test_chain", timezone_="America/New_York")
 
         assert chain.name == "test_chain"
         assert chain.timezone == "America/New_York"
@@ -137,10 +137,10 @@ class TestScheduleChainDayConditions:
         test_time = datetime(2024, 1, 15, 12, 0, 0, tzinfo=ZoneInfo("UTC"))  # Monday
 
         # Monday is 1 in Sunday=0 format
-        result = chain._check_day_condition("dow", [1], test_time)
+        result = chain._match_day_condition("dow", [1], test_time)
         assert result is True
 
-        result = chain._check_day_condition("dow", [0], test_time)  # Sunday
+        result = chain._match_day_condition("dow", [0], test_time)  # Sunday
         assert result is False
 
     def test_check_day_condition_dom(self):
@@ -148,10 +148,10 @@ class TestScheduleChainDayConditions:
         chain = ScheduleChain(name="test_chain")
         test_time = datetime(2024, 1, 15, 12, 0, 0, tzinfo=ZoneInfo("UTC"))
 
-        result = chain._check_day_condition("dom", [15], test_time)
+        result = chain._match_day_condition("dom", [15], test_time)
         assert result is True
 
-        result = chain._check_day_condition("dom", [1, 10, 20], test_time)
+        result = chain._match_day_condition("dom", [1, 10, 20], test_time)
         assert result is False
 
     def test_check_day_condition_date(self):
@@ -159,10 +159,10 @@ class TestScheduleChainDayConditions:
         chain = ScheduleChain(name="test_chain")
         test_time = datetime(2024, 1, 15, 12, 0, 0, tzinfo=ZoneInfo("UTC"))
 
-        result = chain._check_day_condition("date", ["2024-01-15"], test_time)
+        result = chain._match_day_condition("date", ["2024-01-15"], test_time)
         assert result is True
 
-        result = chain._check_day_condition("date", ["2024-01-20"], test_time)
+        result = chain._match_day_condition("date", ["2024-01-20"], test_time)
         assert result is False
 
     def test_check_day_condition_with_modulo(self):
@@ -170,10 +170,10 @@ class TestScheduleChainDayConditions:
         chain = ScheduleChain(name="test_chain")
         test_time = datetime(2024, 1, 15, 12, 0, 0, tzinfo=ZoneInfo("UTC"))  # 15th day
 
-        result = chain._check_day_condition("dom % 2", [1], test_time)
+        result = chain._match_day_condition("dom % 2", [1], test_time)
         assert result is True
 
-        result = chain._check_day_condition("dom % 2", [0], test_time)
+        result = chain._match_day_condition("dom % 2", [0], test_time)
         assert result is False
 
 
@@ -207,7 +207,7 @@ class TestScheduleChainShiftTime:
 
     def test_within_shift_time_inside_window(self):
         """Test within shift time when current time is inside window."""
-        chain = ScheduleChain(name="test_chain", timezone="UTC")
+        chain = ScheduleChain(name="test_chain", timezone_="UTC")
 
         # Get current time in UTC
         now = datetime.now(ZoneInfo("UTC"))
@@ -222,7 +222,7 @@ class TestScheduleChainShiftTime:
 
     def test_within_shift_time_outside_window(self):
         """Test within shift time when current time is outside window."""
-        chain = ScheduleChain(name="test_chain", timezone="UTC")
+        chain = ScheduleChain(name="test_chain", timezone_="UTC")
 
         # Get current time in UTC
         now = datetime.now(ZoneInfo("UTC"))
@@ -249,7 +249,7 @@ class TestScheduleChainMatchConditions:
 
     def test_match_conditions_day_only(self):
         """Test matching conditions with only day condition."""
-        chain = ScheduleChain(name="test_chain", timezone="UTC")
+        chain = ScheduleChain(name="test_chain", timezone_="UTC")
         test_time = datetime(2024, 1, 15, 12, 0, 0, tzinfo=ZoneInfo("UTC"))  # Monday
 
         matcher = ScheduleMatcherExpression(
@@ -264,7 +264,7 @@ class TestScheduleChainMatchConditions:
 
     def test_match_conditions_day_and_time_match(self):
         """Test matching conditions with both day and time matching."""
-        chain = ScheduleChain(name="test_chain", timezone="UTC")
+        chain = ScheduleChain(name="test_chain", timezone_="UTC")
 
         # Use actual current time for this test since _within_shift_time uses datetime.now()
         now = datetime.now(ZoneInfo("UTC"))
@@ -286,7 +286,7 @@ class TestScheduleChainMatchConditions:
 
     def test_match_conditions_day_match_time_no_match(self):
         """Test matching conditions with day matching but time not matching."""
-        chain = ScheduleChain(name="test_chain", timezone="UTC")
+        chain = ScheduleChain(name="test_chain", timezone_="UTC")
         test_time = datetime(2024, 1, 15, 20, 0, 0, tzinfo=ZoneInfo("UTC"))  # Monday 20:00
 
         matcher = ScheduleMatcherExpression(
@@ -301,7 +301,7 @@ class TestScheduleChainMatchConditions:
 
     def test_match_conditions_specific_date(self):
         """Test matching conditions with specific date."""
-        chain = ScheduleChain(name="test_chain", timezone="UTC")
+        chain = ScheduleChain(name="test_chain", timezone_="UTC")
 
         # Use actual current time since _within_shift_time uses datetime.now()
         now = datetime.now(ZoneInfo("UTC"))
@@ -321,7 +321,7 @@ class TestScheduleChainMatchConditions:
 
     def test_match_conditions_no_match(self):
         """Test matching conditions when nothing matches."""
-        chain = ScheduleChain(name="test_chain", timezone="UTC")
+        chain = ScheduleChain(name="test_chain", timezone_="UTC")
         test_time = datetime(2024, 1, 15, 12, 0, 0, tzinfo=ZoneInfo("UTC"))  # Monday
 
         matcher = ScheduleMatcherExpression(
@@ -376,7 +376,7 @@ class TestScheduleChainTimezones:
 
     def test_different_timezone_conversion(self):
         """Test that times are properly converted to chain's timezone."""
-        chain = ScheduleChain(name="test_chain", timezone="America/New_York")
+        chain = ScheduleChain(name="test_chain", timezone_="America/New_York")
 
         # Create a time in UTC
         utc_time = datetime(2024, 1, 15, 17, 0, 0, tzinfo=ZoneInfo("UTC"))
@@ -390,7 +390,7 @@ class TestScheduleChainTimezones:
 
     def test_timezone_aware_comparison(self):
         """Test that timezone-aware times work correctly."""
-        chain = ScheduleChain(name="test_chain", timezone="Europe/London")
+        chain = ScheduleChain(name="test_chain", timezone_="Europe/London")
 
         # Use actual current time since _within_shift_time uses datetime.now()
         now = datetime.now(ZoneInfo("Europe/London"))
@@ -460,8 +460,8 @@ class TestScheduleChainEdgeCases:
 
     def test_empty_start_day_values(self):
         """Test with empty start_day_values list."""
-        chain = ScheduleChain(name="test_chain", timezone="UTC")
+        chain = ScheduleChain(name="test_chain", timezone_="UTC")
         test_time = datetime(2024, 1, 15, 12, 0, 0, tzinfo=ZoneInfo("UTC"))
 
-        result = chain._check_day_condition("dow", [], test_time)
+        result = chain._match_day_condition("dow", [], test_time)
         assert result is False

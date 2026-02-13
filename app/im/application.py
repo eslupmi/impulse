@@ -95,7 +95,7 @@ class Application(ABC):
             if cached_user and cached_user.exists:
                 incident.assigned_user_id = user_id
                 incident.assigned_user = cached_user.username
-                incident.assigned_fullname = cached_user.full_name
+                incident.assigned_fullname = cached_user.full_name or '(empty)'
             logger.debug(f'Incident {incident.uuid} assigned', extra={'user_id': user_id})
         except Exception as e:
             logger.error(f'Failed to fetch user name for incident {incident.uuid}: {e}')
@@ -222,11 +222,11 @@ class Application(ABC):
 
         await queue_.delete_by_id(incident_.uniq_id, delete_steps=True, delete_status=False)
         await queue_.put(freeze_time, QueueItemType.UNFREEZE, incident_.uniq_id)
-        self.track_async_task(asyncio.create_task(self._post_freeze_notification(incident_, freeze_time, timezone_str)))
+        self.track_async_task(asyncio.create_task(self._post_freeze_notification(incident_, freeze_time)))
 
-    async def _post_freeze_notification(self, incident_: 'Incident', freeze_time: datetime, user_timezone: str = "UTC"):
+    async def _post_freeze_notification(self, incident_: 'Incident', freeze_time: datetime):
         text_template = JinjaTemplate(notification_freeze)
-        fields = {'type': self.type.value, 'frozen_until': format_freeze_expiration(freeze_time, user_timezone)}
+        fields = {'type': self.type.value}
         text = text_template.form_notification(fields)
 
         if self.type != MessengerType.TELEGRAM:
@@ -255,7 +255,7 @@ class Application(ABC):
             return user.name
         return None
 
-    def _get_user_timezone(self, user_id: Optional[str] = None) -> str:
+    def _get_user_timezone_str(self, user_id: Optional[str] = None) -> str:
         if user_id and self.users:
             user_tz = self.users.get_user_timezone(user_id)
             if user_tz:
@@ -297,8 +297,9 @@ class Application(ABC):
                 'exists': True,
                 'full_name': stored_data.get('full_name'),
                 'username': stored_data.get('username'),
+                'timezone': stored_data.get('timezone'),
             }
-            config_name = self._get_config_name_by_user_id(user_id)
+            config_name = self.get_config_name_by_user_id(user_id)
             user = self.create_user(config_name, user_details)
             if user:
                 user_manager.add_user(user_id, user)
@@ -391,7 +392,8 @@ class Application(ABC):
 
     async def update_incident_message(self, incident):
         body, header, status_icons = self.form_body_header_status_icons(incident)
-        payload = self.update_incident_payload(incident, body, header, status_icons)
+        tz_str = self._get_user_timezone_str(incident.assigned_user_id)
+        payload = self.update_incident_payload(incident, body, header, status_icons, tz_str)
         await self._update_incident_message(incident.ts, payload)
 
     async def post_to_thread(self, channel_id, id_, text):
@@ -404,7 +406,7 @@ class Application(ABC):
     def get_notification_destinations(self):
         return [a.get_notification_identifier() for a in self.admin_users]
 
-    def _get_config_name_by_user_id(self, user_id: Union[int, str]) -> Optional[str]:
+    def get_config_name_by_user_id(self, user_id: Union[int, str]) -> Optional[str]:
         str_user_id = str(user_id)
         for config_name, user_info in self._users_config.items():
             if str(user_info.id) == str_user_id:
@@ -498,7 +500,7 @@ class Application(ABC):
         pass
 
     @abstractmethod
-    def update_incident_payload(self, incident, body, header, status_icons):
+    def update_incident_payload(self, incident, body, header, status_icons, tz_str):
         pass
 
     @abstractmethod

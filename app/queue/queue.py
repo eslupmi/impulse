@@ -98,7 +98,7 @@ class AsyncQueue:
                 item = self._items.pop(0)
                 # Using _items list as the source of truth for ordering and content
                 return item.type, item.uniq_id, item.identifier, item.data
-        return None, None, None, None
+        return "", "", "", {}
 
     async def get_first_item_datetime(self) -> Optional[datetime]:
         """Get datetime of the next item that's ready to be processed (if any)."""

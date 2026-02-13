@@ -2,7 +2,6 @@ import asyncio
 
 from fastapi.responses import JSONResponse
 
-from app.config.config import get_config
 from app.config.environment import get_environment_config
 from app.config.validation import ApplicationConfig
 from app.im.application import Application
@@ -81,8 +80,8 @@ class MattermostApplication(Application):
             id_=user_details.get('id'),
             username=user_details.get('username'),
             exists=user_details.get('exists'),
-            timezone=user_details.get('timezone'),
-            full_name=user_details.get('full_name')
+            full_name=user_details.get('full_name'),
+            timezone_=user_details.get('timezone')
         )
 
     async def get_group_details(self, group_id: str):
@@ -167,7 +166,7 @@ class MattermostApplication(Application):
         context = payload.get('context', {})
         user_id = payload.get('user_id')
         action = context.get('action')
-        user_tz = self._get_user_timezone(user_id)
+        user_tz = self._get_user_timezone_str(user_id)
 
         # Block other actions if incident is frozen
         if incident_.is_frozen() and (incident_.frozen_by_inhibition or not action == 'unfreeze'):
@@ -194,8 +193,8 @@ class MattermostApplication(Application):
     def _post_thread_payload(self, channel_id, id_, text):
         return {'channel_id': channel_id, 'root_id': id_, 'message': text}
 
-    def update_incident_payload(self, incident, body, header, status_icons):
-        return mattermost_get_update_payload(incident, body, header, status_icons)
+    def update_incident_payload(self, incident, body, header, status_icons, tz_str):
+        return mattermost_get_update_payload(incident, body, header, status_icons, tz_str)
 
     async def _update_incident_message(self, id_, payload):
         response = await self.http.put(

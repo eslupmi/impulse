@@ -41,7 +41,7 @@ class NullApplication(Application):
     def get_notification_destinations(self):
         return []
 
-    def update_incident_payload(self, incident, body, header, status_icons):
+    def update_incident_payload(self, incident, body, header, status_icons, tz_str):
         return {}
 
     async def get_user_details(self, user_details):

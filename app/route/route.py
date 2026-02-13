@@ -30,8 +30,7 @@ class MainRoute:
             return self.channel, self.chain
 
     def get_uniq_channels(self):
-        channels = []
-        channels.append(self.channel)
+        channels = [self.channel]
         for r in self.routes:
             if len(r.routes) == 0:
                 channels.append(r.channel)

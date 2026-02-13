@@ -80,7 +80,7 @@ class AlertHandler(BaseHandler):
         await self.inhibition_manager.process_incident(incident_)
 
         # Always create thread, but with frozen state if inhibited
-        await self._create_thread(incident_, alert_state, frozen_by_inhibition=will_be_inhibited)
+        await self._create_thread(incident_)
         incident_.dump()
 
         if will_be_inhibited:
@@ -113,7 +113,6 @@ class AlertHandler(BaseHandler):
             incident_.accumulate_chain_time(previous_firing_start_datetime)
 
         await self._handle_inhibition_state_change(incident_, prev_status) #!
-        # await self._create_thread_if_needed(incident_, alert_state) #!
 
         if is_state_updated or is_status_updated:
             await self.app.update(
@@ -146,13 +145,6 @@ class AlertHandler(BaseHandler):
         elif incident_.status == 'firing' and prev_status != 'firing':
             await self.inhibition_manager.process_incident(incident_)
 
-    async def _create_thread_if_needed(self, incident_, alert_state):
-        """Create thread for legacy incidents that don't have one (backward compatibility)."""
-        if not incident_.ts and not incident_.is_frozen():
-            await self._create_thread(incident_, alert_state)
-            incident_.dump()
-            logger.info("Thread created for legacy incident without thread", extra={'uuid': incident_.uuid, 'link': incident_.link})
-
     async def _notify_new_fire_alert(self, incident_, new_alerts_f, new_alerts_r, uuid_):
         """
         Notify about new firing alerts added to the incident
@@ -174,7 +166,7 @@ class AlertHandler(BaseHandler):
         elif new_alerts_r:
             logger.info("Incident updated with some alerts resolved", extra={'uuid': uuid_})
 
-    async def _create_thread(self, incident_, alert_state, frozen_by_inhibition=False):
+    async def _create_thread(self, incident_):
         body, header, status_icons = self.app.form_body_header_status_icons(incident_)
         thread_id = await self.app.create_incident_message(incident_, body, header, status_icons)
         incident_.ts = thread_id

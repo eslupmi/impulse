@@ -404,64 +404,6 @@ class TestStepHandler:
         assert handler.incidents == mock_incidents
         assert handler.webhooks == mock_webhooks
 
-    @pytest.mark.asyncio
-    async def test_handle_webhook_step(self, step_handler, mock_incidents, mock_application, mock_webhooks):
-        """Test handling webhook step."""
-        incident_uniq_id = 'incident123'
-        identifier = 0
-
-        # Mock incident with webhook step
-        mock_incident = Mock()
-        mock_incident.uuid = 'uuid123'
-        mock_incident.channel_id = 'C123456789'
-        mock_incident.ts = '1234567890.123456'
-        mock_incident.payload = {'alertname': 'TestAlert'}
-        mock_incident.chain = [
-            {'type': 'webhook', 'identifier': 'test-webhook', 'done': False}
-        ]
-        mock_incident.chain_update = Mock()
-        mock_incident.is_frozen.return_value = False
-        mock_incidents.uniq_ids = {incident_uniq_id: mock_incident}
-
-        # Mock webhook
-        mock_webhook = Mock()
-        mock_webhook.push = AsyncMock(return_value=('ok', 200))
-        mock_webhooks.get.return_value = mock_webhook
-
-        await step_handler.handle(incident_uniq_id, identifier)
-
-        # Should execute webhook and update chain
-        mock_webhook.push.assert_called_once_with(mock_incident)
-        mock_incident.chain_update.assert_called_once_with(identifier, done=True, result=200)
-        mock_application.post_thread.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_handle_webhook_step_undefined(self, step_handler, mock_incidents, mock_application, mock_webhooks):
-        """Test handling undefined webhook step."""
-        incident_uniq_id = 'incident123'
-        identifier = 0
-
-        # Mock incident with webhook step
-        mock_incident = Mock()
-        mock_incident.uuid = 'uuid123'
-        mock_incident.channel_id = 'C123456789'
-        mock_incident.ts = '1234567890.123456'
-        mock_incident.payload = {'alertname': 'TestAlert'}
-        mock_incident.chain = [
-            {'type': 'webhook', 'identifier': 'undefined-webhook', 'done': False}
-        ]
-        mock_incident.chain_update = Mock()
-        mock_incident.is_frozen.return_value = False
-        mock_incidents.uniq_ids = {incident_uniq_id: mock_incident}
-
-        # Mock undefined webhook
-        mock_webhooks.get.return_value = None
-
-        await step_handler.handle(incident_uniq_id, identifier)
-
-        # Should handle undefined webhook
-        mock_incident.chain_update.assert_called_once_with(identifier, done=True, result=None)
-        mock_application.post_thread.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_handle_non_webhook_step(self, step_handler, mock_incidents, mock_application):

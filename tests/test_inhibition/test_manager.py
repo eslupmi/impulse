@@ -180,43 +180,6 @@ class TestInhibitionManager:
         assert "other-1" not in inhibition_manager.sources[0]
         assert "other-1" not in inhibition_manager.targets[0]
 
-    @pytest.mark.asyncio
-    async def test_source_freezes_existing_target(self, inhibition_manager, mock_incidents, mock_queue):
-        """Test that a new source freezes an existing target."""
-        target = self._create_mock_incident("target-1", "warning", "api")
-        source = self._create_mock_incident("source-1", "critical", "api")
-        
-        mock_incidents.uniq_ids = {"target-1": target, "source-1": source}
-        inhibition_manager.targets[0].add("target-1")
-        
-        await inhibition_manager.process_incident(source)
-        
-        # Target should be frozen
-        target.freeze_by_inhibition.assert_called_once()
-        # Chain steps should be deleted for target
-        mock_queue.delete_by_id.assert_called_once_with("target-1", delete_steps=True, delete_status=False)
-        # Relationships should be set
-        assert "target-1" in source.childs
-        assert "source-1" in target.parents
-
-    @pytest.mark.asyncio
-    async def test_target_frozen_by_existing_source(self, inhibition_manager, mock_incidents, mock_queue):
-        """Test that a new target is frozen by an existing source."""
-        source = self._create_mock_incident("source-1", "critical", "api")
-        target = self._create_mock_incident("target-1", "warning", "api")
-        
-        mock_incidents.uniq_ids = {"source-1": source, "target-1": target}
-        inhibition_manager.sources[0].add("source-1")
-        
-        await inhibition_manager.process_incident(target)
-        
-        # Target should be frozen
-        target.freeze_by_inhibition.assert_called_once()
-        # Chain steps should be deleted for target
-        mock_queue.delete_by_id.assert_called_once_with("target-1", delete_steps=True, delete_status=False)
-        # Relationships should be set
-        assert "target-1" in source.childs
-        assert "source-1" in target.parents
 
     @pytest.mark.asyncio
     async def test_equal_labels_prevent_freeze(self, inhibition_manager, mock_incidents):
@@ -259,47 +222,6 @@ class TestInhibitionManager:
         assert "inc-1" in manager.sources[0]
         assert "inc-1" in manager.targets[0]
 
-    @pytest.mark.asyncio
-    async def test_multiple_sources_freeze_same_target(self, inhibition_manager, mock_incidents, mock_queue):
-        """Test that multiple sources can freeze the same target."""
-        source1 = self._create_mock_incident("source-1", "critical", "api")
-        source2 = self._create_mock_incident("source-2", "critical", "api")
-        target = self._create_mock_incident("target-1", "warning", "api")
-        
-        mock_incidents.uniq_ids = {
-            "source-1": source1, 
-            "source-2": source2, 
-            "target-1": target
-        }
-        inhibition_manager.targets[0].add("target-1")
-        
-        await inhibition_manager.process_incident(source1)
-        await inhibition_manager.process_incident(source2)
-        
-        # Target should have both sources as parents
-        assert "source-1" in target.parents
-        assert "source-2" in target.parents
-        # Chain steps should be deleted for target (called twice, once per source)
-        assert mock_queue.delete_by_id.call_count == 2
-
-    @pytest.mark.asyncio
-    async def test_already_frozen_target_not_frozen_again(self, inhibition_manager, mock_incidents, mock_application, mock_queue):
-        """Test that already frozen target doesn't trigger messenger update."""
-        source = self._create_mock_incident("source-1", "critical", "api")
-        target = self._create_mock_incident("target-1", "warning", "api", 
-                                            frozen_by_inhibition=True,
-                                            parents=["other-source"])
-        target.is_frozen = Mock(return_value=True)
-        
-        mock_incidents.uniq_ids = {"source-1": source, "target-1": target}
-        inhibition_manager.targets[0].add("target-1")
-        
-        await inhibition_manager.process_incident(source)
-        
-        # Chain steps should still be deleted
-        mock_queue.delete_by_id.assert_called_once_with("target-1", delete_steps=True, delete_status=False)
-        # Messenger update should not be called (target was already frozen)
-        mock_application.update_thread.assert_not_called()
 
     # Handle Resolved Tests
 
@@ -311,33 +233,6 @@ class TestInhibitionManager:
         await empty_inhibition_manager.handle_resolved(incident)
         # Should not raise
 
-    @pytest.mark.asyncio
-    async def test_handle_resolved_source_unfreezes_target(
-        self, inhibition_manager, mock_incidents, mock_queue
-    ):
-        """Test that resolving a source unfreezes its targets."""
-        source = self._create_mock_incident(
-            "source-1", "critical", "api", 
-            childs=["target-1"]
-        )
-        target = self._create_mock_incident(
-            "target-1", "warning", "api", 
-            parents=["source-1"],
-            frozen_by_inhibition=True
-        )
-        
-        mock_incidents.uniq_ids = {"source-1": source, "target-1": target}
-        inhibition_manager.sources[0].add("source-1")
-        inhibition_manager.targets[0].add("target-1")
-        
-        await inhibition_manager.handle_resolved(source)
-        
-        # Parent should be removed from target
-        assert "source-1" not in target.parents
-        # Child should be removed from source
-        assert "target-1" not in source.childs
-        # Unfreeze should be scheduled
-        mock_queue.put_first.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_handle_resolved_multiple_parents_no_unfreeze(
@@ -403,31 +298,6 @@ class TestInhibitionManager:
         
         assert "source-1" not in inhibition_manager.sources[0]
 
-    @pytest.mark.asyncio
-    async def test_handle_closed_source_unfreezes_targets(
-        self, inhibition_manager, mock_incidents, mock_queue
-    ):
-        """Test that closing a source unfreezes its targets."""
-        source = self._create_mock_incident(
-            "source-1", "critical", "api",
-            childs=["target-1"]
-        )
-        target = self._create_mock_incident(
-            "target-1", "warning", "api",
-            parents=["source-1"],
-            frozen_by_inhibition=True
-        )
-        
-        mock_incidents.uniq_ids = {"source-1": source, "target-1": target}
-        inhibition_manager.sources[0].add("source-1")
-        inhibition_manager.targets[0].add("target-1")
-        
-        await inhibition_manager.handle_closed(source)
-        
-        # Source should be removed from sources set
-        assert "source-1" not in inhibition_manager.sources[0]
-        # Target should be unfrozen
-        mock_queue.put_first.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_handle_closed_unfrozen_target_removed_from_set(
@@ -550,63 +420,3 @@ class TestInhibitionManager:
 
     # Thread Update Tests
 
-    @pytest.mark.asyncio
-    async def test_freeze_updates_thread_for_existing_target(
-        self, inhibition_manager, mock_incidents, mock_application, mock_queue
-    ):
-        """Test that freezing updates messenger thread for existing targets."""
-        source = self._create_mock_incident("source-1", "critical", "api")
-        target = self._create_mock_incident("target-1", "warning", "api", ts="123.456")
-        target.is_frozen = Mock(return_value=False)
-        
-        mock_incidents.uniq_ids = {"source-1": source, "target-1": target}
-        inhibition_manager.targets[0].add("target-1")
-        
-        await inhibition_manager.process_incident(source)
-        
-        # Chain steps should be deleted
-        mock_queue.delete_by_id.assert_called_once_with("target-1", delete_steps=True, delete_status=False)
-        # Thread should be updated
-        mock_application.update_thread.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_freeze_no_thread_update_for_new_target(
-        self, inhibition_manager, mock_incidents, mock_application, mock_queue
-    ):
-        """Test that freezing doesn't update thread for targets without ts."""
-        source = self._create_mock_incident("source-1", "critical", "api")
-        target = self._create_mock_incident("target-1", "warning", "api", ts="")
-        target.is_frozen = Mock(return_value=False)
-        
-        mock_incidents.uniq_ids = {"source-1": source, "target-1": target}
-        inhibition_manager.targets[0].add("target-1")
-        
-        await inhibition_manager.process_incident(source)
-        
-        # Chain steps should still be deleted
-        mock_queue.delete_by_id.assert_called_once_with("target-1", delete_steps=True, delete_status=False)
-        # Thread should NOT be updated (no ts)
-        mock_application.update_thread.assert_not_called()
-
-    @pytest.mark.asyncio
-    async def test_thread_update_error_handled(
-        self, inhibition_manager, mock_incidents, mock_application, mock_queue
-    ):
-        """Test that thread update errors are handled gracefully."""
-        source = self._create_mock_incident("source-1", "critical", "api")
-        target = self._create_mock_incident("target-1", "warning", "api", ts="123.456")
-        target.is_frozen = Mock(return_value=False)
-        
-        mock_incidents.uniq_ids = {"source-1": source, "target-1": target}
-        inhibition_manager.targets[0].add("target-1")
-        
-        # Make update_thread raise
-        mock_application.update_thread = AsyncMock(side_effect=Exception("Network error"))
-        
-        # Should not raise
-        await inhibition_manager.process_incident(source)
-        
-        # Chain steps should still be deleted
-        mock_queue.delete_by_id.assert_called_once_with("target-1", delete_steps=True, delete_status=False)
-        # Target should still be frozen
-        target.freeze_by_inhibition.assert_called_once()

@@ -1,6 +1,6 @@
 """Template rendering utilities for IMPulse application."""
 from pathlib import Path
-from typing import Dict, Optional, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING
 
 from jinja2 import Template
 
