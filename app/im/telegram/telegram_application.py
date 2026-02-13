@@ -269,9 +269,15 @@ class TelegramApplication(Application):
         """Build main keyboard with chain, freeze, and task buttons"""
         config_obj = get_config()
         env_config = get_environment_config()
-        
-        chain_button = buttons['chain']['takeit'] if incident.chain_enabled or incident.status != 'resolved' else buttons['chain']['release']
-        
+
+        if incident.chain_enabled:
+            chain_button = buttons['chain']['takeit']
+        else:
+            if incident.status == 'resolved':
+                chain_button = buttons['chain']['release']
+            else:
+                chain_button = buttons['chain']['assigned']
+
         if incident.frozen_by_inhibition:
             freeze_button = buttons['freeze']['inhibited']
         elif incident.frozen_until:
