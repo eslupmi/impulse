@@ -95,7 +95,7 @@ class Application(ABC):
             if cached_user and cached_user.exists:
                 incident.assigned_user_id = user_id
                 incident.assigned_user = cached_user.username
-                incident.assigned_fullname = cached_user.full_name
+                incident.assigned_fullname = cached_user.full_name or '(empty)'
             logger.debug(f'Incident {incident.uuid} assigned', extra={'user_id': user_id})
         except Exception as e:
             logger.error(f'Failed to fetch user name for incident {incident.uuid}: {e}')
