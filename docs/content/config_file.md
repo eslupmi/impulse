@@ -582,7 +582,7 @@ Below are all the configuration options supported by IMPulse.
 
 - **description:** path to custom template files for `status_icons`, `header`, and `body` (see [Incident Structure](concepts/incident.md#messages-structure))
 - **type:** dict
-- **[special variables](concepts/special_variables.md):** `incident` and `payload` supported
+- **[special variables](concepts/special_variables.md):** `incident`, `incidents` and `payload` supported
 - **details:**
     
     !!! note ""
