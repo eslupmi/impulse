@@ -66,8 +66,9 @@ class ChannelManager:
             }
         
         return channels_dict
-    
-    def _get_channel_id(self, channel_obj):
+
+    @staticmethod
+    def _get_channel_id(channel_obj):
         """Extract channel ID from either a typed channel object or a dictionary"""
         if hasattr(channel_obj, 'id'):
             return channel_obj.id

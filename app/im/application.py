@@ -18,7 +18,7 @@ from app.integrations.jira_integration import JiraIntegration
 from app.jinja_template import JinjaTemplate
 from app.logging import logger
 from app.queue.constants import QueueItemType
-from app.time import calculate_freeze_time, format_freeze_expiration
+from app.time import calculate_freeze_time
 
 if TYPE_CHECKING:
     from app.incident.incident import Incident
@@ -169,7 +169,7 @@ class Application(ABC):
 
         try:
             header = self.header_template.form_message(incident.payload, incident)
-            fields = {'type': self.type.value, 'username': incident.assigned_user, 'id': incident.assigned_user_id}
+            fields = {'type': self.type.value, 'full_name': incident.assigned_fullname, 'id': incident.assigned_user_id}
             text = JinjaTemplate(notification_assignment).form_notification(fields)
             if self.type == MessengerType.TELEGRAM:
                 message = text
@@ -236,7 +236,7 @@ class Application(ABC):
             message = text
         await self.post_to_thread(incident_.channel_id, incident_.ts, message)
 
-    async def post_unfreeze_notification(self, incident_: 'Incident'): #!
+    async def post_unfreeze_notification(self, incident_: 'Incident'):
         """Post unfreeze notification to thread"""
         text_template = JinjaTemplate(notification_unfreeze)
         text = text_template.form_notification({'type': self.type.value})

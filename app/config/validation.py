@@ -453,13 +453,6 @@ class UISorting(BaseModel):
 
         return cls(column_name=column_name, sort_order=sort_order, order=order)
 
-    def to_dict(self) -> Dict[str, Union[str, List[str]]]:
-        """Convert back to dictionary format"""
-        result = {self.column_name: self.sort_order}
-        if self.order:
-            result['order'] = self.order
-        return result
-
 
 class UIConfig(BaseModel):
     """UI configuration"""

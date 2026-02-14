@@ -180,7 +180,7 @@ update: assigned to <@{{ fields.id }}>
 {%- elif fields.type == 'mattermost' -%}
 update: assigned to @{{ fields.username }}
 {%- elif fields.type == 'telegram' -%}
-update: assigned to <a href="tg://user?id={{ fields.id }}">{{ fields.username }}</a>
+update: assigned to <a href="tg://user?id={{ fields.id }}">{{ fields.full_name }}</a>
 {%- endif -%}
 """
 

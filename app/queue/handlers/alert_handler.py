@@ -112,7 +112,7 @@ class AlertHandler(BaseHandler):
         if is_status_updated and incident_.status == 'resolved':
             incident_.accumulate_chain_time(previous_firing_start_datetime)
 
-        await self._handle_inhibition_state_change(incident_, prev_status) #!
+        await self._handle_inhibition_state_change(incident_, prev_status)
 
         if is_state_updated or is_status_updated:
             await self.app.update(

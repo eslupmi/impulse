@@ -565,27 +565,6 @@ class TestUISorting:
         assert sorting.column_name == "status"
         assert sorting.sort_order == "asc"
 
-    def test_ui_sorting_to_dict(self):
-        """Test UISorting.to_dict method."""
-        sorting = UISorting(
-            column_name="status",
-            sort_order="asc"
-        )
-
-        result = sorting.to_dict()
-        assert result == {"status": "asc"}
-
-    def test_ui_sorting_to_dict_with_order(self):
-        """Test UISorting.to_dict method with custom order."""
-        sorting = UISorting(
-            column_name="status",
-            sort_order="none",
-            order=["firing", "resolved"]
-        )
-
-        result = sorting.to_dict()
-        assert result == {"status": "none", "order": ["firing", "resolved"]}
-
 
 class TestIncidentTimeouts:
     """Test cases for IncidentTimeouts."""
