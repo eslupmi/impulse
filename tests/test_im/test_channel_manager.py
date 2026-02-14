@@ -91,7 +91,7 @@ class TestChannelManager:
 
             # Check warning was logged
             mock_logger.warning.assert_called_once_with(
-                '.. channel undefined_channel not defined. Using default channel instead'
+                'Channel not defined', extra={'channel': 'undefined_channel'}
             )
 
             # Check result structure
@@ -116,7 +116,8 @@ class TestChannelManager:
 
             # Check error was logged
             mock_logger.error.assert_called_once_with(
-                'Default channel missing_default not found in configuration'
+                'Default channel not found in configuration',
+                extra={'channel': 'missing_default'}
             )
 
             # Check that undefined channel uses default channel name as ID
@@ -138,11 +139,37 @@ class TestChannelManager:
 
             # Check warning was logged
             mock_logger.warning.assert_called_once_with(
-                ".. channel 'no_id_channel' has no 'id'. Using default channel instead"
+                "Channel has no `id`. Using default channel instead", extra={'channel': 'no_id_channel'}
             )
 
             # Check that no_id_channel uses default
             assert result["no_id_channel"]["id"] == "C999999999"
+
+    def test_initialize_with_channel_no_id_and_missing_default(self):
+        """Test initialize with channel that has no ID and default channel is not found."""
+        channels_list = ["channel1", "no_id_channel"]
+        channels_config = {
+            "channel1": Mock(id="C123456789", name="Test Channel 1"),
+            "no_id_channel": Mock(id=None, name="No ID Channel")
+        }
+        default_channel = "missing_default"
+
+        with patch('app.im.channel_manager.logger') as mock_logger:
+            manager = ChannelManager()
+            result = manager.initialize(channels_list, channels_config, default_channel)
+
+            # Check warning was logged for channel with no id
+            mock_logger.warning.assert_any_call(
+                "Channel has no `id`. Using default channel instead", extra={'channel': 'no_id_channel'}
+            )
+            # Check error was logged for missing default channel
+            mock_logger.error.assert_called_with(
+                'Default channel not found in configuration',
+                extra={'channel': 'missing_default'}
+            )
+
+            # Check that no_id_channel uses channel name as ID
+            assert result["no_id_channel"]["id"] == "no_id_channel"
 
     def test_initialize_with_dict_channel_config(self):
         """Test initialize with dictionary channel configuration."""

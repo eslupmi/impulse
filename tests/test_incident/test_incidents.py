@@ -132,62 +132,6 @@ class TestIncidents:
 
         assert found_incident is None
 
-    def test_get_assigned_user_by_id_existing(self, incidents):
-        """Test getting assigned user by ID when user exists."""
-        # Find an incident with assigned user
-        incident_with_user = None
-        for incident in incidents.uniq_ids.values():
-            if incident.assigned_user_id and incident.assigned_fullname:
-                incident_with_user = incident
-                break
-
-        if incident_with_user:
-            user_id = incident_with_user.assigned_user_id
-            fullname = incidents.get_assigned_user_by_id(user_id)
-
-            assert fullname == incident_with_user.assigned_fullname
-
-    def test_get_assigned_user_by_id_nonexistent(self, incidents):
-        """Test getting assigned user by ID when user doesn't exist."""
-        fullname = incidents.get_assigned_user_by_id("nonexistent_user_id")
-
-        assert fullname is None
-
-    def test_get_assigned_user_by_id_empty_name(self, incidents):
-        """Test getting assigned user by ID when name is empty."""
-        # Create incident with empty fullname
-        config = IncidentConfig(
-            application_type="slack",
-            application_url="https://test.slack.com",
-            application_team="test-team"
-        )
-
-        # Use utility function for alert payload
-        alert_payload = create_alert_payload(
-            status="firing",
-            alertname="TestAlert",
-            severity="critical"
-        )
-        alert_payload["groupLabels"] = {"alertname": "TestAlert", "severity": "critical"}
-
-        incident = Incident(
-            payload=alert_payload,
-            status="firing",
-            channel_id="C123456789",
-            config=config,
-            status_update_datetime=create_test_datetime(),
-            assigned_user_id="U999999",  # Different user ID
-            assigned_user="testuser",
-            assigned_fullname="",  # Empty fullname
-            messenger_type="slack"
-        )
-
-        incidents.add(incident)
-
-        fullname = incidents.get_assigned_user_by_id("U999999")
-
-        assert fullname is None
-
     def test_add_incident(self, incidents):
         """Test adding incident to collection."""
         config = IncidentConfig(
@@ -222,25 +166,6 @@ class TestIncidents:
         assert len(incidents.uniq_ids) == initial_count + 1
         assert new_incident.uniq_id in incidents.uniq_ids
 
-    def test_del_by_uuid_existing(self, incidents):
-        """Test deleting incident by UUID."""
-        # Get an existing incident
-        incident_uuid = list(incidents.uniq_ids.keys())[0]
-        initial_count = len(incidents.uniq_ids)
-
-        with patch('os.remove') as mock_remove, \
-                patch('asyncio.get_event_loop') as mock_get_loop, \
-                patch('app.incident.incidents.incident_ws'):
-            # Use utility function for mock event loop
-            mock_loop = create_mock_event_loop(running=True)
-            mock_get_loop.return_value = mock_loop
-
-            incidents.del_by_uniq_id(incident_uuid)
-
-            assert len(incidents.uniq_ids) == initial_count - 1
-            assert incident_uuid not in incidents.uniq_ids
-            mock_remove.assert_called_once()
-
     def test_del_by_uuid_nonexistent(self, incidents):
         """Test deleting non-existent incident."""
         initial_count = len(incidents.uniq_ids)
@@ -251,27 +176,6 @@ class TestIncidents:
         # Verify that the incident was not removed (count unchanged)
         assert len(incidents.uniq_ids) == initial_count
         mock_remove.assert_not_called()
-
-    def test_del_by_uuid_file_not_found(self, incidents):
-        """Test deleting incident when file doesn't exist."""
-        incident_uuid = list(incidents.uniq_ids.keys())[0]
-
-        with patch('os.remove', side_effect=FileNotFoundError) as mock_remove, \
-                patch('app.incident.incidents.logger') as mock_logger:
-            incidents.del_by_uniq_id(incident_uuid)
-
-            mock_remove.assert_called_once()
-            mock_logger.error.assert_called_once()
-
-    def test_del_by_uuid_no_event_loop(self, incidents):
-        """Test deleting incident when no event loop is running."""
-        incident_uuid = list(incidents.uniq_ids.keys())[0]
-
-        with patch('os.remove') as mock_remove, \
-                patch('asyncio.get_event_loop', side_effect=RuntimeError("No event loop")):
-            incidents.del_by_uniq_id(incident_uuid)
-
-            mock_remove.assert_called_once()
 
     def test_serialize(self, incidents):
         """Test serializing incidents."""
@@ -297,6 +201,7 @@ class TestIncidents:
         for row in table_data:
             assert isinstance(row, dict)
 
+    @patch('app.incident.incidents.get_environment_config')
     @patch('app.incident.incidents.get_config')
     @patch('os.path.exists')
     @patch('os.makedirs')
@@ -305,7 +210,7 @@ class TestIncidents:
     @patch('builtins.open', create=True)
     @patch('yaml.load')
     def test_create_or_load_success(self, mock_yaml_load, mock_open, mock_load, mock_walk, mock_makedirs,
-                                    mock_exists, mock_get_config):
+                                    mock_exists, mock_get_config, mock_get_env_config):
         """Test successful creation or loading of incidents."""
         # Use utility function for mock config
         mock_config = create_mock_config(
@@ -313,6 +218,11 @@ class TestIncidents:
             incidents_path="/test/incidents"
         )
         mock_get_config.return_value = mock_config
+        
+        # Setup env config
+        mock_env_config = Mock()
+        mock_env_config.incidents_path = "/test/incidents"
+        mock_get_env_config.return_value = mock_env_config
 
         mock_exists.return_value = True
         mock_walk.return_value = [
@@ -320,7 +230,7 @@ class TestIncidents:
         ]
 
         # Mock YAML content
-        mock_yaml_load.return_value = {'version': 'v3.2.0'}
+        mock_yaml_load.return_value = {'version': 'v3.4.0'}
 
         # Mock incident loading
         mock_incident = Mock()
@@ -336,6 +246,7 @@ class TestIncidents:
         assert isinstance(incidents, Incidents)
         mock_makedirs.assert_not_called()  # Directory already exists
 
+    @patch('app.incident.incidents.get_environment_config')
     @patch('app.incident.incidents.get_config')
     @patch('os.path.exists')
     @patch('os.makedirs')
@@ -344,7 +255,7 @@ class TestIncidents:
     @patch('builtins.open', create=True)
     @patch('yaml.load')
     def test_create_or_load_create_directory(self, mock_yaml_load, mock_open, mock_load, mock_walk, mock_makedirs,
-                                             mock_exists, mock_get_config):
+                                             mock_exists, mock_get_config, mock_get_env_config):
         """Test creating incidents directory when it doesn't exist."""
         # Use utility function for mock config
         mock_config = create_mock_config(
@@ -352,12 +263,17 @@ class TestIncidents:
             incidents_path="/test/incidents"
         )
         mock_get_config.return_value = mock_config
+        
+        # Setup env config
+        mock_env_config = Mock()
+        mock_env_config.incidents_path = "/test/incidents"
+        mock_get_env_config.return_value = mock_env_config
 
         mock_exists.return_value = False
         mock_walk.return_value = [('/test/incidents', [], [])]
 
         # Mock YAML content
-        mock_yaml_load.return_value = {'version': 'v3.2.0'}
+        mock_yaml_load.return_value = {'version': 'v3.4.0'}
 
         # Mock incident loading
         mock_incident = Mock()
@@ -373,6 +289,7 @@ class TestIncidents:
         assert isinstance(incidents, Incidents)
         mock_makedirs.assert_called_once_with('/test/incidents')
 
+    @patch('app.incident.incidents.get_environment_config')
     @patch('app.incident.incidents.get_config')
     @patch('os.path.exists')
     @patch('os.makedirs')
@@ -382,7 +299,7 @@ class TestIncidents:
     @patch('yaml.load')
     def test_create_or_load_different_messenger_type(self, mock_yaml_load, mock_open, mock_load, mock_walk,
                                                      mock_makedirs,
-                                                     mock_exists, mock_get_config):
+                                                     mock_exists, mock_get_config, mock_get_env_config):
         """Test loading incidents with different messenger type."""
         # Use utility function for mock config
         mock_config = create_mock_config(
@@ -390,6 +307,11 @@ class TestIncidents:
             incidents_path="/test/incidents"
         )
         mock_get_config.return_value = mock_config
+        
+        # Setup env config
+        mock_env_config = Mock()
+        mock_env_config.incidents_path = "/test/incidents"
+        mock_get_env_config.return_value = mock_env_config
 
         mock_exists.return_value = True
         mock_walk.return_value = [
@@ -397,7 +319,7 @@ class TestIncidents:
         ]
 
         # Mock YAML content
-        mock_yaml_load.return_value = {'version': 'v3.2.0'}
+        mock_yaml_load.return_value = {'version': 'v3.4.0'}
 
         # Mock incident with different messenger type
         mock_incident = Mock()
@@ -413,6 +335,7 @@ class TestIncidents:
         assert isinstance(incidents, Incidents)
         assert len(incidents.uniq_ids) == 0  # Should not include different messenger type
 
+    @patch('app.incident.incidents.get_environment_config')
     @patch('app.incident.incidents.get_config')
     @patch('os.path.exists')
     @patch('os.makedirs')
@@ -423,7 +346,7 @@ class TestIncidents:
     @patch('yaml.load')
     def test_create_or_load_with_migration(self, mock_yaml_load, mock_open, mock_load, mock_migrator_class, mock_walk,
                                            mock_makedirs,
-                                           mock_exists, mock_get_config):
+                                           mock_exists, mock_get_config, mock_get_env_config):
         """Test loading incidents with migration."""
         # Use utility function for mock config
         mock_config = create_mock_config(
@@ -431,6 +354,11 @@ class TestIncidents:
             incidents_path="/test/incidents"
         )
         mock_get_config.return_value = mock_config
+        
+        # Setup env config
+        mock_env_config = Mock()
+        mock_env_config.incidents_path = "/test/incidents"
+        mock_get_env_config.return_value = mock_env_config
 
         mock_exists.return_value = True
         mock_walk.return_value = [

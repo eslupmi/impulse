@@ -30,8 +30,7 @@ class MainRoute:
             return self.channel, self.chain
 
     def get_uniq_channels(self):
-        channels = []
-        channels.append(self.channel)
+        channels = [self.channel]
         for r in self.routes:
             if len(r.routes) == 0:
                 channels.append(r.channel)
@@ -78,4 +77,5 @@ def generate_route(route_config: Optional[RouteConfig]):
     routes = route_config.routes
 
     route_ = MainRoute(main_channel_name, main_chain, routes)
+    logger.info("Route created")
     return route_

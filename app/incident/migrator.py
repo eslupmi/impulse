@@ -1,11 +1,13 @@
 import os
-import yaml
-from typing import Dict, List
 from datetime import datetime, timezone
-from app.logging import logger
-from app.tools import NoAliasDumper
+from typing import Dict, List
+
+import yaml
+
 from app.config.config import get_config
 from app.incident.incident import Incident
+from app.logging import logger
+from app.tools import NoAliasDumper
 
 
 class IncidentMigrator:
@@ -20,6 +22,7 @@ class IncidentMigrator:
     MIGRATION_CHAIN = {
         'v0.4': 'v3.0.0',
         'v3.0.0': 'v3.2.0',
+        'v3.2.0': 'v3.4.0',
     }
     
     def __init__(self):
@@ -29,6 +32,7 @@ class IncidentMigrator:
         self._migration_methods = {
             'v0.4_to_v3.0.0': self._migrate_v0_4_to_v3_0_0,
             'v3.0.0_to_v3.2.0': self._migrate_v3_0_0_to_v3_2_0,
+            'v3.2.0_to_v3.4.0': self._migrate_v3_2_0_to_v3_4_0,
         }
     
     def migrate_file(self, file_path: str, incident_data: Dict, current_version: str, target_version: str):
@@ -118,8 +122,9 @@ class IncidentMigrator:
         migrated_data = migration_method(data)
         migrated_data['version'] = to_version
         return migrated_data
-    
-    def _migrate_v0_4_to_v3_0_0(self, data: Dict) -> Dict:
+
+    @staticmethod
+    def _migrate_v0_4_to_v3_0_0(data: Dict) -> Dict:
         migrated = data.copy()
         migrated['payload'] = migrated.pop('last_state')
         
@@ -157,5 +162,34 @@ class IncidentMigrator:
             migrated.get('payload', {}).get('groupLabels', {}),
             migrated.get('created')
         )
+
+        return migrated
+
+    @staticmethod
+    def _migrate_v3_2_0_to_v3_4_0(data: Dict) -> Dict:
+        """Migrate chain steps from absolute datetime to relative delay.
+        Computes delay as the difference from the first step's datetime.
+        Sets chain_active_seconds to the delay of the last completed step."""
+        migrated = data.copy()
+
+        chain = migrated.get('chain') or []
+        if chain and 'datetime' in chain[0] and 'delay' not in chain[0]:
+            first_dt = chain[0].get('datetime')
+            new_chain = []
+            last_done_delay = 0.0
+            for step in chain:
+                step_copy = step.copy()
+                step_dt = step_copy.pop('datetime', None)
+                if first_dt is not None and step_dt is not None:
+                    step_copy['delay'] = (step_dt - first_dt).total_seconds()
+                else:
+                    step_copy['delay'] = 0.0
+                if step_copy.get('done') and step_copy['delay'] > last_done_delay:
+                    last_done_delay = step_copy['delay']
+                new_chain.append(step_copy)
+            migrated['chain'] = new_chain
+            migrated['chain_active_seconds'] = last_done_delay
+        else:
+            migrated.setdefault('chain_active_seconds', 0.0)
 
         return migrated

@@ -9,11 +9,11 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3 import Retry
 
+from app.config.environment import get_environment_config
 from app.config.validation import CloudChain, ScheduleEntry, ScheduleMatcherExpression, SimpleChainStep
 from app.im.chain.schedule_chain import ScheduleChain
 from app.logging import logger
 from app.tools import HTMLTextExtractor
-from app.config.config import get_config
 
 
 class GoogleCalendarChain(ScheduleChain):
@@ -24,7 +24,7 @@ class GoogleCalendarChain(ScheduleChain):
         super().__init__(name)
         
         # Get environment configuration
-        self._app_config = get_config()
+        self._env_config = get_environment_config()
 
         self.calendar_id = config.calendar_id
         if not self.calendar_id:
@@ -64,15 +64,15 @@ class GoogleCalendarChain(ScheduleChain):
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as e:
-            logger.error(f"Calendar API request failed: {str(e)}")
-            if hasattr(e.response, 'text'):
-                logger.error(f"Response text: {e.response.text}")
+            logger.error(f"Calendar API request failed: {str(e)}", extra={'provider': 'google'})
+            if hasattr(e, 'response') and hasattr(e.response, 'text'):
+                logger.error(f"API response: {e.response.text}", extra={'provider': 'google'})
             raise
 
     def _update_timezone(self, new_timezone: str) -> None:
         """Update the chain's timezone if it has changed."""
         if new_timezone != self.timezone:
-            logger.info(f"Updating timezone from {self.timezone} to {new_timezone}")
+            logger.info(f"Timezone: {new_timezone}", extra={'provider': 'google'})
             self.timezone = new_timezone
             self.tz = ZoneInfo(new_timezone)
 
@@ -86,9 +86,9 @@ class GoogleCalendarChain(ScheduleChain):
             # Then sync events
             events = self._fetch_events()
             self._update_schedule(events)
-            logger.info(f"Initial sync: {len(events)} events from Google Calendar")
+            logger.info(f"Initial sync: {len(events)} events", extra={'provider': 'google'})
         except Exception as e:
-            logger.error(f"Error during initial calendar sync: {str(e)}")
+            logger.error(f"Initial sync failed: {str(e)}", extra={'provider': 'google'})
             # Initialize with empty schedule if sync fails
             self.schedule = []
 
@@ -110,18 +110,18 @@ class GoogleCalendarChain(ScheduleChain):
                 loop = asyncio.get_event_loop()
                 if loop.is_running():
                     self._sync_task = asyncio.create_task(self._sync_calendar())
-                    logger.info(f"Started Google Calendar sync task for {self.name}")
+                    logger.info("Calendar sync started", extra={'provider': 'google'})
                 else:
-                    logger.warning(f"Event loop not running, cannot start sync task for {self.name}")
+                    logger.warning("Event loop not running", extra={'provider': 'google'})
             except RuntimeError:
-                logger.error(f"Failed to start Google Calendar sync task for {self.name} - no event loop")
+                logger.error("Calendar sync start failed", extra={'provider': 'google'})
 
     def stop_sync(self) -> None:
         """Stop the sync task."""
         if self._sync_task is not None:
             self._sync_task.cancel()
             self._sync_task = None
-            logger.info(f"Stopped Google Calendar sync task for {self.name}")
+            logger.info("Calendar sync stopped", extra={'provider': 'google'})
 
     def cleanup(self) -> None:
         """Cleanup resources when shutting down."""
@@ -131,7 +131,7 @@ class GoogleCalendarChain(ScheduleChain):
     def _load_credentials(self) -> None:
         """Load service account credentials from JSON file."""
         try:
-            with open(self._app_config.provider_service_account_file, 'r') as f:
+            with open(self._env_config.provider_service_account_file, 'r') as f:
                 self.credentials = json.load(f)
             # Validate required fields
             required_fields = ['client_email', 'private_key', 'token_uri']
@@ -139,9 +139,9 @@ class GoogleCalendarChain(ScheduleChain):
                 if field not in self.credentials:
                     raise ValueError(f"Missing required field '{field}' in service account file")
         except FileNotFoundError:
-            raise ValueError(f"Service account file {self._app_config.provider_service_account_file} not found")
+            raise ValueError(f"Service account file {self._env_config.provider_service_account_file} not found")
         except json.JSONDecodeError:
-            raise ValueError(f"Invalid JSON in service account file {self._app_config.provider_service_account_file}")
+            raise ValueError(f"Invalid JSON in service account file {self._env_config.provider_service_account_file}")
 
     def _get_access_token(self) -> str:
         """Get access token using JWT with retry logic."""
@@ -198,15 +198,15 @@ class GoogleCalendarChain(ScheduleChain):
             return self._last_token
 
         except jwt.InvalidTokenError as e:
-            logger.error(f"JWT token generation failed: {str(e)}")
+            logger.error(f"JWT generation failed: {str(e)}", extra={'provider': 'google'})
             raise
         except requests.exceptions.RequestException as e:
-            logger.error(f"Token request failed: {str(e)}")
+            logger.error(f"Token request failed: {str(e)}", extra={'provider': 'google'})
             if hasattr(e.response, 'text'):
-                logger.error(f"Response text: {e.response.text}")
+                logger.error(f"Response: {e.response.text}", extra={'provider': 'google'})
             raise
         except KeyError as e:
-            logger.error(f"Missing key in response: {str(e)}")
+            logger.error(f"Missing response key: {str(e)}", extra={'provider': 'google'})
             raise
 
     def _get_calendar_timezone(self) -> str:
@@ -219,7 +219,7 @@ class GoogleCalendarChain(ScheduleChain):
             data = self._make_api_request('GET', url, headers=headers)
             return data.get('timeZone', 'UTC')
         except requests.exceptions.RequestException as e:
-            logger.error(f"Failed to get calendar timezone: {str(e)}")
+            logger.error(f"Timezone fetch failed: {str(e)}", extra={'provider': 'google'})
             return 'UTC'  # Fallback to UTC
 
     def _fetch_events(self) -> List[Dict[str, Any]]:
@@ -228,12 +228,12 @@ class GoogleCalendarChain(ScheduleChain):
             token = self._get_access_token()
 
             date_from = datetime.datetime.now(datetime.timezone.utc)
-            date_to = date_from + datetime.timedelta(days=self._app_config.provider_days_to_sync)
+            date_to = date_from + datetime.timedelta(days=self._env_config.provider_days_to_sync)
 
             params = {
                 'timeMin': date_from.isoformat().replace(self._UTC_OFFSET, self._Z_TIMEZONE),
                 'timeMax': date_to.isoformat().replace(self._UTC_OFFSET, self._Z_TIMEZONE),
-                'maxResults': self._app_config.provider_max_events,
+                'maxResults': self._env_config.provider_max_events,
                 'singleEvents': 'true',
                 'orderBy': 'startTime'
             }
@@ -246,7 +246,7 @@ class GoogleCalendarChain(ScheduleChain):
             data = self._make_api_request('GET', url, headers=headers, params=params)
             return data.get('items', [])
         except requests.exceptions.RequestException as e:
-            logger.error(f"Failed to fetch calendar events: {str(e)}")
+            logger.error(f"Events fetch failed: {str(e)}", extra={'provider': 'google'})
             return []
 
     @staticmethod
@@ -260,11 +260,11 @@ class GoogleCalendarChain(ScheduleChain):
             parser.feed(description)
             description = parser.get_text()
         except (ValueError, TypeError) as e:
-            logger.warning(f"Failed to parse description due to invalid input: {str(e)}")            
+            logger.warning(f"Description parse error: {str(e)}", extra={'provider': 'google'})
         except MemoryError as e:
-            logger.error(f"Memory error while parsing description (content too large): {str(e)}")
+            logger.error(f"Description too large: {str(e)}", extra={'provider': 'google'})
         except Exception as e:
-            logger.warning(f"Unexpected error while parsing description: {str(e)}")
+            logger.warning(f"Description parse failed: {str(e)}", extra={'provider': 'google'})
 
         steps = []
         for line in description.strip().split('\n'):
@@ -312,11 +312,11 @@ class GoogleCalendarChain(ScheduleChain):
 
                 events = self._fetch_events()
                 self._update_schedule(events)
-                logger.debug(f"Synced {len(events)} events from Google Calendar")
+                logger.debug(f"Synced {len(events)} events", extra={'provider': 'google'})
 
             except Exception as e:
-                logger.error(f"Error syncing Google Calendar: {str(e)}")
-                await asyncio.sleep(min(self._app_config.provider_sync_interval * 2, 300))  # Max 5 minutes
+                logger.error(f"Calendar sync error: {str(e)}", extra={'provider': 'google'})
+                await asyncio.sleep(min(self._env_config.provider_sync_interval * 2, 300))  # Max 5 minutes
                 continue
 
-            await asyncio.sleep(self._app_config.provider_sync_interval)
+            await asyncio.sleep(self._env_config.provider_sync_interval)

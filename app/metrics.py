@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from functools import wraps
 
 import aiohttp
+from fastapi.responses import Response
 from prometheus_client import (
     CollectorRegistry,
     CONTENT_TYPE_LATEST,
@@ -12,7 +13,6 @@ from prometheus_client import (
     Histogram,
     generate_latest
 )
-from fastapi.responses import Response
 
 from app.queue.queue import AsyncQueue
 
@@ -89,7 +89,7 @@ async def update_queue_latency(queue: AsyncQueue):
         QUEUE_LATENCY.set(0.0)
     else:
         now = datetime.now(timezone.utc)
-        delay = max(0, (now - first_item_datetime).total_seconds())
+        delay = max(0.0, (now - first_item_datetime).total_seconds())
         QUEUE_LATENCY.set(delay)
 
 

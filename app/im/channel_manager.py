@@ -1,7 +1,7 @@
 from typing import Dict, Optional, List, Union
 
-from app.logging import logger
 from app.config.validation import SlackChannel, MattermostChannel, TelegramChannel
+from app.logging import logger
 
 
 class ChannelManager:
@@ -29,26 +29,26 @@ class ChannelManager:
         
         for channel in channels_list:
             if channel not in channels_config:
-                logger.warning(f'.. channel {channel} not defined. Using default channel instead')
+                logger.warning('Channel not defined', extra={'channel': channel})
                 default_channel_obj = channels_config.get(default_channel)
                 if default_channel_obj:
                     default_id = self._get_channel_id(default_channel_obj)
                     channels_dict[channel] = {'id': default_id}
                 else:
-                    logger.error(f'Default channel {default_channel} not found in configuration')
+                    logger.error('Default channel not found in configuration', extra={'channel': default_channel})
                     channels_dict[channel] = {'id': default_channel}
             else:
                 channel_obj = channels_config[channel]
                 channel_id = self._get_channel_id(channel_obj)
                 
                 if channel_id is None:
-                    logger.warning(f'.. channel \'{channel}\' has no \'id\'. Using default channel instead')
+                    logger.warning('Channel has no `id`. Using default channel instead', extra={'channel': channel})
                     default_channel_obj = channels_config.get(default_channel)
                     if default_channel_obj:
                         default_id = self._get_channel_id(default_channel_obj)
                         channels_dict[channel] = {'id': default_id}
                     else:
-                        logger.error(f'Default channel {default_channel} not found in configuration')
+                        logger.error('Default channel not found in configuration', extra={'channel': default_channel})
                         channels_dict[channel] = {'id': channel}
                 else:
                     channel_dict = {'id': channel_id}
@@ -66,8 +66,9 @@ class ChannelManager:
             }
         
         return channels_dict
-    
-    def _get_channel_id(self, channel_obj):
+
+    @staticmethod
+    def _get_channel_id(channel_obj):
         """Extract channel ID from either a typed channel object or a dictionary"""
         if hasattr(channel_obj, 'id'):
             return channel_obj.id

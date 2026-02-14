@@ -1,6 +1,6 @@
 import re
 from datetime import datetime, timedelta, timezone
-from typing import List, Dict, Tuple, Optional
+from typing import List, Tuple, Optional
 from zoneinfo import ZoneInfo
 
 from app.config.validation import ScheduleEntry, ScheduleMatcherExpression, SimpleChainStep
@@ -12,9 +12,9 @@ class ScheduleChain:
     DAY_MAP = {0: "Sun", 1: "Mon", 2: "Tue", 3: "Wed", 4: "Thu", 5: "Fri", 6: "Sat", 7: "Sun"}
     DEFAULT_TIMEZONE = "UTC"
 
-    def __init__(self, name, timezone: str = DEFAULT_TIMEZONE, schedule: List[ScheduleEntry] = None):
+    def __init__(self, name, timezone_: str = DEFAULT_TIMEZONE, schedule: List[ScheduleEntry] = None):
         self.name = name
-        self.timezone = timezone or self.DEFAULT_TIMEZONE
+        self.timezone = timezone_ or self.DEFAULT_TIMEZONE
         self.schedule = schedule if schedule else []
         self.tz = ZoneInfo(self.timezone)
 
@@ -53,10 +53,10 @@ class ScheduleChain:
         duration = matcher.duration
 
         duration_ = self._get_duration(duration)
-        day_condition = self._check_day_condition(start_day_expr, start_day_values, current_time)
+        is_day_match = self._match_day_condition(start_day_expr, start_day_values, current_time)
 
         if start_time and duration_:
-            if day_condition:
+            if is_day_match:
                 if self._within_shift_time(start_time, duration_, current_time):
                     return True
                 else:
@@ -69,15 +69,15 @@ class ScheduleChain:
                 else:
                     for i in range(days_difference + 1):
                         check_time = current_time - timedelta(days=i)
-                        if self._check_day_condition(start_day_expr, start_day_values, check_time):
+                        if self._match_day_condition(start_day_expr, start_day_values, check_time):
                             return self._within_shift_time(start_time, duration_, check_time)
 
-        if day_condition:
+        if is_day_match:
             return True
 
         return False
 
-    def _check_day_condition(self, start_day_expr: str, start_day_values: List, current_time: datetime) -> bool:
+    def _match_day_condition(self, start_day_expr: str, start_day_values: List, current_time: datetime) -> bool:
         """
         Check if the day condition is met.
         """
@@ -91,6 +91,7 @@ class ScheduleChain:
         match = expr.match(start_day_expr)
         if not match:
             logger.error(f'Incorrect start_day_expr \'{start_day_expr}\'')
+            return False
 
         selector = match.group('selector')
         divider = match.group('divider')
@@ -105,6 +106,7 @@ class ScheduleChain:
             return self._match_dom_condition(value, start_day_values)
         elif selector == "date":
             return self._match_date_condition(value, start_day_values)
+        return False
 
     def _within_shift_time(self, start_time: str, duration: str, current_time: datetime) -> bool:
         """
@@ -120,6 +122,7 @@ class ScheduleChain:
         """
         if duration:
             return duration
+        return None
 
     @staticmethod
     def _get_shift_time(start_time: str, duration: str, current_time: datetime) -> Tuple[datetime, datetime]:

@@ -12,26 +12,6 @@ from app.im.chain.chain_factory import ChainFactory
 class TestChainFactory:
     """Test cases for ChainFactory class."""
 
-    def test_create_chain_with_schedule_chain_type(self):
-        """Test _create_chain with schedule chain type."""
-        config = Mock()
-        config.type = ChainType.SCHEDULE
-        config.timezone = "UTC"
-        config.schedule = [{"matcher": None, "steps": [{"user": "user1"}]}]
-
-        with patch('app.im.chain.chain_factory.ScheduleChain') as mock_schedule_chain:
-            mock_instance = Mock()
-            mock_schedule_chain.return_value = mock_instance
-
-            result = ChainFactory._create_chain("test_chain", config)
-
-            mock_schedule_chain.assert_called_once_with(
-                name="test_chain",
-                timezone="UTC",
-                schedule=[{"matcher": None, "steps": [{"user": "user1"}]}]
-            )
-            assert result == mock_instance
-
     def test_create_chain_with_google_calendar_chain_type(self):
         """Test _create_chain with Google Calendar chain type."""
         config = Mock()

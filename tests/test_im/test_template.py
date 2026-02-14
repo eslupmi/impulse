@@ -5,6 +5,7 @@ from unittest.mock import Mock
 
 import pytest
 
+from app.incident.incident import Incident
 from app.jinja_template import JinjaTemplate
 
 
@@ -33,8 +34,8 @@ class TestJinjaTemplate:
         template_str = "Incident: {{ incident.status }}"
         template = JinjaTemplate(template_str)
 
-        # Mock incident
-        mock_incident = Mock()
+        # Mock incident with strict Incident spec
+        mock_incident = Mock(spec=Incident)
         mock_incident.serialize.return_value = {"status": "firing"}
 
         alert_state = {"status": "firing"}

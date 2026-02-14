@@ -1,5 +1,4 @@
 import {table} from "./table.js";
-import {ZOOM_IN_ICON, ZOOM_OUT_ICON} from "./constants.js";
 
 const symbolicOperators = new Set(["=", ">", "<", ">=", "<=", "!=", "=~", "!~"]);
 // Mapping of custom filter operators to Tabulator's built-in operators
@@ -152,8 +151,6 @@ function parseFilterString(filterString) {
     return {field, operator, value};
 }
 
-
-
 // Get current filters from URL
 function getCurrentFilters() {
     const urlParams = new URLSearchParams(window.location.search);
@@ -163,15 +160,15 @@ function getCurrentFilters() {
 // Update filters in URL
 function updateFiltersInURL(filters) {
     const urlParams = new URLSearchParams(window.location.search);
-    
+
     const cleanFilters = filters.filter(f => f && f.trim());
-    
+
     if (cleanFilters.length === 0) {
         urlParams.delete("filters");
     } else {
         urlParams.set("filters", cleanFilters.join(","));
     }
-    
+
     const queryString = urlParams.toString();
     const newUrl = queryString ? `${window.location.pathname}?${queryString}` : window.location.pathname;
     window.history.replaceState({}, "", newUrl);
@@ -190,9 +187,9 @@ function applyFilters() {
             let {field, operator, value} = parsedFilter;
 
             value = value.replace(/^(?:["'])|(?:["'])$/g, '');
-            
+
             const columnExists = table.getColumns().some(col => col.getField() === field);
-            
+
             if (!columnExists) {
                 if (operator === "=~" || operator === "!~") {
                     if (!isValidRegex(value)) {
@@ -221,7 +218,7 @@ function applyFilters() {
             }
         }
     });
-    
+
     updateZoomIcons();
 }
 
@@ -310,7 +307,7 @@ function setupFilterContainerScroll() {
     const scrollableFilters = document.getElementById("scrollable-filters");
     const leftArrow = document.querySelector(".scroll-arrow.left");
     const rightArrow = document.querySelector(".scroll-arrow.right");
-    
+
     if (!filterContainer || !leftArrow || !rightArrow || !scrollableFilters) {
         console.warn("Required elements for filter scrolling not found");
         return;
@@ -340,10 +337,10 @@ function setupFilterContainerScroll() {
     function updateArrowVisibility() {
         const hasFilters = filterContainer.children.length > 0;
         scrollableFilters.classList.toggle("has-filters", hasFilters);
-        
+
         const leftWrapper = document.querySelector(".arrow-wrapper.left");
         const rightWrapper = document.querySelector(".arrow-wrapper.right");
-        
+
         if (hasFilters) {
             leftWrapper.classList.toggle("visible", filterContainer.scrollLeft > 0);
 
@@ -380,7 +377,57 @@ export function setupTableFiltering() {
     }
 }
 
-// Separate the event listener setup into its own function
+// Update filter badge UI when filter value changes
+function updateFilterBadgeUI(existingFilter, newFilter) {
+    const filterElements = document.querySelectorAll(".filter-badge");
+    const filterElement = Array.from(filterElements).find(badge => {
+        return badge.querySelector("span")?.innerText === existingFilter;
+    });
+    
+    if (filterElement) {
+        const textSpan = filterElement.querySelector("span");
+        if (textSpan) {
+            textSpan.innerText = newFilter;
+        }
+        // Update remove button handler with new filter
+        const removeButton = filterElement.querySelector(".cross");
+        if (removeButton) {
+            removeButton.replaceWith(removeButton.cloneNode(true));
+            filterElement.querySelector(".cross").addEventListener("click", () => removeFilter(newFilter, filterElement));
+        }
+    }
+}
+
+// Handle zoom icon click to add or update filter
+function handleZoomIconClick(field, value, isZoomOut) {
+    const operator = isZoomOut ? "!=" : "=";
+    const oppositeOperator = isZoomOut ? "=" : "!=";
+    const newFilter = `${field}${operator}"${value}"`;
+    const existingOppositeFilter = `${field}${oppositeOperator}"${value}"`;
+
+    let filters = getCurrentFilters();
+
+    // If filter already exists, do nothing
+    if (filters.includes(newFilter)) {
+        return;
+    }
+
+    // If opposite filter exists, replace operator in it
+    if (filters.includes(existingOppositeFilter)) {
+        filters = filters.filter(f => f !== existingOppositeFilter);
+        filters.push(newFilter);
+        updateFiltersInURL(filters);
+        updateFilterBadgeUI(existingOppositeFilter, newFilter);
+    } else {
+        // Add new filter
+        filters.push(newFilter);
+        updateFiltersInURL(filters);
+        addFilterUI(newFilter);
+    }
+    
+    applyFilters();
+}
+
 function setupFilterEventListeners() {
     document.getElementById("filter-input").addEventListener("keypress", function (event) {
         if (event.key === "Enter") {
@@ -396,77 +443,48 @@ function setupFilterEventListeners() {
             e.stopPropagation();
             return;
         }
-        
-        const isZoomIcon = e.target.classList.contains("zoom-icon") || 
-                           e.target.closest(".zoom-icon") !== null;
-        
-        if (!isZoomIcon) return;
+
+        const zoomIcon = e.target.closest(".zoom-icon");
+        if (!zoomIcon) return;
 
         const field = cell.getColumn().getField();
         const value = cell.getValue();
-        const newFilter = `${field}="${value}"`;
-
-        let filters = getCurrentFilters();
-
-        if (!filters.includes(newFilter)) {
-            filters.push(newFilter);
-            updateFiltersInURL(filters);
-
-            addFilterUI(newFilter);
-            applyFilters();
-        } else {
-            const filterElements = document.querySelectorAll(`.filter-badge span`)
-            const filterElement = Array.from(filterElements).find(el => el.innerText === newFilter);
-            removeFilter(newFilter, filterElement.parentElement);
-        }
+        const isZoomOut = zoomIcon.classList.contains("zoom-out");
+        
+        handleZoomIconClick(field, value, isZoomOut);
     });
 }
 
 // Function to update zoom icons based on current filters
 function updateZoomIcons() {
-    const filters = getCurrentFilters();
-    
     // Get all cells in the table
     const cells = table.getRows().flatMap(row => row.getCells());
-    
+
     cells.forEach(cell => {
         const column = cell.getColumn();
         // Skip the responsive collapse column
         if (column.getDefinition().formatter === 'responsiveCollapse') return;
-        
+
         if (cell.getElement().classList.contains("unclickable-cell")) return;
-        
+
         const field = column.getField();
         if (!field) return;
-        
+
         const value = cell.getValue();
-        
-        const zoomIcon = cell.getElement().querySelector(".zoom-icon");
-        if (zoomIcon) {
+
+        const zoomInIcon = cell.getElement().querySelector(".zoom-icon.zoom-in");
+        const zoomOutIcon = cell.getElement().querySelector(".zoom-icon.zoom-out");
+
+        if (zoomInIcon && zoomOutIcon) {
             if (!value || value === '' || value === null || value === undefined) {
-                zoomIcon.classList.add("hidden");
+                zoomInIcon.classList.add("hidden");
+                zoomOutIcon.classList.add("hidden");
                 return;
             }
-            
-            zoomIcon.classList.remove("hidden");
-            
-            const filterForThisCell = filters.find(f => {
-                const match = f.match(/^(.+?)(=)(.*)$/);
-                if (match) {
-                    const [, fieldName, , filterValue] = match;
-                    const trimmedValue = filterValue.trim().replace(/^(?:["'])|(?:["'])$/g, '');
-                    return fieldName.trim() === field && trimmedValue === value;
-                }
-                return false;
-            });
-            
-            if (filterForThisCell) {
-                zoomIcon.className = "zoom-icon zoom-out";
-                zoomIcon.innerHTML = ZOOM_OUT_ICON;
-            } else {
-                zoomIcon.className = "zoom-icon zoom-in";
-                zoomIcon.innerHTML = ZOOM_IN_ICON;
-            }
+
+            // Always show both icons
+            zoomInIcon.classList.remove("hidden");
+            zoomOutIcon.classList.remove("hidden");
         }
     });
 }

@@ -1,6 +1,6 @@
 from typing import Optional
 
-from app.config.environment import get_environment_config, EnvironmentConfig
+from app.config.environment import get_environment_config
 from app.config.loader import load_and_validate_config, ConfigValidationError
 from app.config.validation import ImpulseConfig
 from app.logging import logger
@@ -8,15 +8,15 @@ from app.logging import logger
 
 class UnifiedConfig:
     """
-    Unified configuration that combines environment and validated application config.
-    Uses existing ImpulseConfig as source of truth for application configuration.
+    Unified configuration for application settings.
+    Uses ImpulseConfig as source of truth for application configuration.
+    Environment configuration should be accessed via get_environment_config().
     """
 
-    def __init__(self, env: EnvironmentConfig, app: ImpulseConfig):
-        self.env = env
+    def __init__(self, app: ImpulseConfig):
         self.app = app
 
-        self.INCIDENT_ACTUAL_VERSION = 'v3.2.0'
+        self.INCIDENT_ACTUAL_VERSION = 'v3.4.0'
         self.check_updates = True
 
     @property
@@ -30,69 +30,6 @@ class UnifiedConfig:
     @property
     def ui_config(self):
         return self.app.ui
-
-    @property
-    def slack_bot_user_oauth_token(self) -> str:
-        return self.env.slack_bot_user_oauth_token
-
-    @property
-    def slack_verification_token(self) -> str:
-        return self.env.slack_verification_token
-
-    @property
-    def mattermost_access_token(self) -> str:
-        return self.env.mattermost_access_token
-
-    @property
-    def telegram_bot_token(self) -> str:
-        return self.env.telegram_bot_token
-
-    @property
-    def data_path(self) -> str:
-        return self.env.data_path
-
-    @property
-    def config_path(self) -> str:
-        return self.env.config_path
-
-    @property
-    def incidents_path(self) -> str:
-        return self.env.incidents_path
-
-    @property
-    def provider_sync_interval(self) -> int:
-        return self.env.provider_sync_interval
-
-    @property
-    def provider_max_events(self) -> int:
-        return self.env.provider_max_events
-
-    @property
-    def provider_days_to_sync(self) -> int:
-        return self.env.provider_days_to_sync
-
-    @property
-    def provider_service_account_file(self) -> str:
-        return self.env.provider_service_account_file
-
-    @property
-    def cors_allowed_origins(self) -> list:
-        return self.env.cors_allowed_origins
-    
-    @property
-    def http_prefix(self) -> str:
-        return self.env.http_prefix
-    
-    @property
-    def listen_host(self) -> str:
-        """Host to listen on"""
-        return self.env.listen_host
-    
-    @property
-    def listen_port(self) -> int:
-        """Port to listen on"""
-        return self.env.listen_port
-    
 
 _config: Optional[UnifiedConfig] = None
 
@@ -109,7 +46,7 @@ def get_config() -> UnifiedConfig:
 
 def load_unified_config(config_path: Optional[str] = None, exit_on_error: bool = True) -> UnifiedConfig:
     """
-    Load and create unified configuration from environment and YAML file.
+    Load and create unified configuration from YAML file.
     
     Args:
         config_path: Optional path to configuration file. Uses env CONFIG_PATH if not provided.
@@ -130,28 +67,21 @@ def load_unified_config(config_path: Optional[str] = None, exit_on_error: bool =
 
         validated_config, _ = load_and_validate_config(config_path)
 
-        return UnifiedConfig(
-            env=env_config,
-            app=validated_config
-        )
+        return UnifiedConfig(app=validated_config)
 
     except ConfigValidationError as e:
-        error_msg = (f"{e}\n"
-                     f"Please check your impulse.yml file and fix any validation errors.\n"
-                     f"Documentation: https://docs.impulse.bot/stable/config_file/")
         if exit_on_error:
-            logger.error(error_msg)
+            logger.error("Config validation failed", extra={'error': str(e)})
             raise SystemExit(1)
         else:
-            logger.warning(error_msg)
+            logger.warning("Config validation failed", extra={'error': str(e)})
             raise
     except Exception as e:
-        error_msg = f"Failed to load configuration: {e}"
         if exit_on_error:
-            logger.error(error_msg)
+            logger.error("Config load failed", extra={'error': str(e)})
             raise SystemExit(1)
         else:
-            logger.warning(error_msg)
+            logger.warning("Config load failed", extra={'error': str(e)})
             raise
 
 
@@ -179,11 +109,11 @@ def reload_config(config_path: Optional[str] = None) -> bool:
             return False
 
     except ConfigValidationError as e:
-        logger.warning("Configuration validation failed, keeping current configuration")
+        logger.warning("Config validation failed, keeping current config", extra={'error': str(e)})
         _config = current_config
         return False
     except Exception as e:
-        logger.warning(f"Configuration reload failed, keeping current configuration: {e}")
+        logger.warning("Config reload failed, keeping current config", extra={'error': str(e)})
         _config = current_config
         return False
 

@@ -1,6 +1,6 @@
-from app.im.slack.config import buttons
-from app.config.environment import get_environment_config
 from app.config.config import get_config
+from app.config.environment import get_environment_config
+from app.im.slack.config import buttons
 from app.time import format_freeze_expiration
 
 
@@ -47,7 +47,6 @@ def reformat_message(original_message, text, attachments, status, chain_enabled,
             original_message['attachments'][1]['actions'][2]['style'] = buttons['task']['create']['style']
             # Remove url if it exists
             original_message['attachments'][1]['actions'][2].pop('url', None)
-    
     return original_message
 
 

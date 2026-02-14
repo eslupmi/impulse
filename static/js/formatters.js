@@ -166,32 +166,19 @@ function formatterWrapper(formatter) {
             container.appendChild(textDiv);
         }
         
-        // Add zoom icon for filterable cells
+        // Add zoom icons for filterable cells
         if (!cell.getElement().classList.contains("unclickable-cell")) {
-            const zoomIcon = document.createElement("span");
-            zoomIcon.className = "zoom-icon zoom-in";
+            // Add zoom-in icon (for "=" filter)
+            const zoomInIcon = document.createElement("span");
+            zoomInIcon.className = "zoom-icon zoom-in";
+            zoomInIcon.innerHTML = ZOOM_IN_ICON;
+            container.appendChild(zoomInIcon);
             
-            // Check if this cell value is currently filtered
-            const urlParams = new URLSearchParams(window.location.search);
-            const filters = urlParams.get("filters") ? urlParams.get("filters").split(",") : [];
-            const filterForThisCell = filters.find(f => {
-                const match = f.match(/^(.+?)(=)(.*)$/);
-                if (match) {
-                    const [, field, , value] = match;
-                    const trimmedValue = value.trim().replace(/^["']|["']$/g, '');
-                    return field.trim() === columnName && trimmedValue === cellValue;
-                }
-                return false;
-            });
-            
-            if (filterForThisCell) {
-                zoomIcon.className = "zoom-icon zoom-out";
-                zoomIcon.innerHTML = ZOOM_OUT_ICON;
-            } else {
-                zoomIcon.innerHTML = ZOOM_IN_ICON;
-            }
-            
-            container.appendChild(zoomIcon);
+            // Add zoom-out icon (for "!=" filter)
+            const zoomOutIcon = document.createElement("span");
+            zoomOutIcon.className = "zoom-icon zoom-out";
+            zoomOutIcon.innerHTML = ZOOM_OUT_ICON;
+            container.appendChild(zoomOutIcon);
         }
         
         return container;
@@ -232,37 +219,19 @@ function formatterWrapper(formatter) {
             
             container.appendChild(originalContent);
             
-            // Add zoom icon for filterable cells
+            // Add zoom icons for filterable cells
             if (!cell.getElement().classList.contains("unclickable-cell")) {
-                const zoomIcon = document.createElement("span");
-                zoomIcon.className = "zoom-icon zoom-in";
-                zoomIcon.style.cursor = "pointer";
-                zoomIcon.style.marginLeft = "5px";
-                zoomIcon.style.display = "inline-flex";
-                zoomIcon.style.alignItems = "center";
-                zoomIcon.style.justifyContent = "center";
+                // Add zoom-in icon (for "=" filter)
+                const zoomInIcon = document.createElement("span");
+                zoomInIcon.className = "zoom-icon zoom-in";
+                zoomInIcon.innerHTML = ZOOM_IN_ICON;
+                container.appendChild(zoomInIcon);
                 
-                // Check if this cell value is currently filtered
-                const urlParams = new URLSearchParams(window.location.search);
-                const filters = urlParams.get("filters") ? urlParams.get("filters").split(",") : [];
-                const filterForThisCell = filters.find(f => {
-                    const match = f.match(/^(.+?)(=)(.*)$/);
-                    if (match) {
-                        const [, field, , value] = match;
-                        const trimmedValue = value.trim().replace(/^["']|["']$/g, '');
-                        return field.trim() === cell.getColumn().getField() && trimmedValue === cell.getValue();
-                    }
-                    return false;
-                });
-                
-                if (filterForThisCell) {
-                    zoomIcon.className = "zoom-icon zoom-out";
-                    zoomIcon.innerHTML = ZOOM_OUT_ICON;
-                } else {
-                    zoomIcon.innerHTML = ZOOM_IN_ICON;
-                }
-                
-                container.appendChild(zoomIcon);
+                // Add zoom-out icon (for "!=" filter)
+                const zoomOutIcon = document.createElement("span");
+                zoomOutIcon.className = "zoom-icon zoom-out";
+                zoomOutIcon.innerHTML = ZOOM_OUT_ICON;
+                container.appendChild(zoomOutIcon);
             }
             
             return container;
@@ -529,6 +498,13 @@ function createSimpleCommonBlock(responsiveData) {
         linkSpan.className = 'info-item';
         linkSpan.innerHTML = `<strong>link:</strong> <a href="${info.link}" target="_blank" class="incident-link">${LINK_ICON}</a>`;
         infoStack.appendChild(linkSpan);
+    }
+    
+    if (info.task_link) {
+        const taskLinkSpan = document.createElement('span');
+        taskLinkSpan.className = 'info-item';
+        taskLinkSpan.innerHTML = `<strong>task:</strong> <a href="${info.task_link}" target="_blank" class="incident-link">${LINK_ICON}</a>`;
+        infoStack.appendChild(taskLinkSpan);
     }
     
     commonBlock.appendChild(infoStack);

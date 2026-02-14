@@ -40,7 +40,7 @@ sed -i "s|<release_tag>|$tag|" impulse/docker-compose.yml
 
 # Run IMPulse without messenger integration
 cd impulse
-docker-compose up
+docker compose up
 ```
 
 Now IMPulse is available at http://localhost:5000/.

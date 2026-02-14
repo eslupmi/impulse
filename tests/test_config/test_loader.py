@@ -378,7 +378,10 @@ class TestValidateConfigAndShowErrors:
                     validate_config_and_show_errors('nonexistent.yml')
 
                 assert exc_info.value.code == 1
-                mock_logger.error.assert_called_once_with("\nConfiguration file not found: File not found")
+                mock_logger.error.assert_called_once_with(
+                    "Configuration file not found", 
+                    extra={'error': 'File not found', 'config_path': 'nonexistent.yml'}
+                )
 
     def test_validate_config_and_show_errors_yaml_error(self):
         """Test handling of YAML parsing error."""
@@ -388,15 +391,25 @@ class TestValidateConfigAndShowErrors:
                     validate_config_and_show_errors('invalid.yml')
 
                 assert exc_info.value.code == 1
-                mock_logger.error.assert_called_once_with("\nYAML parsing error: Invalid YAML")
+                mock_logger.error.assert_called_once_with(
+                    "YAML parsing error", 
+                    extra={'error': 'Invalid YAML', 'config_path': 'invalid.yml'}
+                )
 
     def test_validate_config_and_show_errors_validation_error(self):
         """Test handling of validation error."""
         validation_error = ConfigValidationError("Validation failed")
 
         with patch('app.config.loader.load_and_validate_config', side_effect=validation_error):
-            with pytest.raises(ConfigValidationError, match="Validation failed"):
-                validate_config_and_show_errors('invalid_config.yml')
+            with patch('app.config.loader.logger') as mock_logger:
+                with pytest.raises(SystemExit) as exc_info:
+                    validate_config_and_show_errors('invalid_config.yml')
+
+                assert exc_info.value.code == 1
+                mock_logger.error.assert_called_once_with(
+                    "Configuration validation failed", 
+                    extra={'error': 'Validation failed', 'config_path': 'invalid_config.yml'}
+                )
 
     def test_validate_config_and_show_errors_no_path(self):
         """Test validation with no config path provided."""

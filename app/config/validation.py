@@ -1,11 +1,11 @@
-from typing import Dict, List, Optional, Union, Any
-
-from typing import Literal
-from pydantic import BaseModel, Field, field_validator, model_validator
-from enum import Enum
-import re
-import yaml
 import os
+import re
+from enum import Enum
+from typing import Dict, List, Optional, Union, Any
+from typing import Literal
+
+import yaml
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class MessengerType(str, Enum):
@@ -73,15 +73,26 @@ class SlackChannel(BaseModel):
     id: str = Field(..., description="Channel ID")
 
 
+class SlackGroup(BaseModel):
+    """Slack group configuration"""
+    id: str = Field(..., description="Group ID")
+
+
 class MattermostChannel(BaseModel):
     """Mattermost channel configuration"""
     id: str = Field(..., description="Channel ID")
+
+
+class MattermostGroup(BaseModel):
+    """Mattermost group configuration"""
+    id: str = Field(..., description="Group ID")
 
 
 class SimpleChainStep(BaseModel):
     """Base chain step"""
     user: Optional[str] = Field(None, description="User to notify")
     user_group: Optional[str] = Field(None, description="User group to notify")
+    group: Optional[str] = Field(None, description="Slack group to notify")
     webhook: Optional[str] = Field(None, description="Webhook to call")
     chain: Optional[str] = Field(None, description="Nested chain to execute")
     wait: Optional[str] = Field(None, description="Wait duration (e.g., '5m', '1h')")
@@ -89,11 +100,11 @@ class SimpleChainStep(BaseModel):
     @model_validator(mode='after')
     def validate_step_type(self):
         """Validate that exactly one step type is specified"""
-        fields = [self.user, self.user_group, self.webhook, self.chain, self.wait]
+        fields = [self.user, self.user_group, self.group, self.webhook, self.chain, self.wait]
         non_none_fields = [f for f in fields if f is not None]
 
         if len(non_none_fields) != 1:
-            raise ValueError("Exactly one of user, user_group, webhook, chain, or wait must be specified")
+            raise ValueError("Exactly one of user, user_group, group, webhook, chain, or wait must be specified")
 
         return self
 
@@ -112,7 +123,7 @@ class SimpleChainStep(BaseModel):
 
     def get_type_and_value(self) -> tuple[str, str]:
         """Get both type and value of this chain step"""
-        for field_name in ['user', 'user_group', 'webhook', 'chain', 'wait']:
+        for field_name in ['user', 'user_group', 'group', 'webhook', 'chain', 'wait']:
             value = getattr(self, field_name)
             if value is not None:
                 return field_name, value
@@ -232,19 +243,22 @@ class BaseApplicationConfig(BaseModel):
 
         users = info.data.get('users', {})
         user_groups = info.data.get('user_groups', {})
+        groups = info.data.get('groups', {})
 
         def validate_chain_steps(steps):
             if not isinstance(steps, list):
                 return
-            for step in steps:
-                if isinstance(step, dict):
-                    if 'user' in step and step['user'] and users and step['user'] not in users:
-                        raise ValueError(f"User '{step['user']}' in chain not found in users")
-                    if 'user_group' in step and step['user_group'] and user_groups and step[
+            for step_ in steps:
+                if isinstance(step_, dict):
+                    if 'user' in step_ and step_['user'] and users and step_['user'] not in users:
+                        raise ValueError(f"User '{step_['user']}' in chain not found in users")
+                    if 'user_group' in step_ and step_['user_group'] and user_groups and step_[
                         'user_group'] not in user_groups:
-                        raise ValueError(f"User group '{step['user_group']}' in chain not found in user_groups")
-                    if 'chain' in step and step['chain'] and step['chain'] not in v:
-                        raise ValueError(f"Nested chain '{step['chain']}' not found in chains")
+                        raise ValueError(f"User group '{step_['user_group']}' in chain not found in user_groups")
+                    if 'group' in step_ and step_['group'] and groups and step_['group'] not in groups:
+                        raise ValueError(f"Group '{step_['group']}' in chain not found in groups")
+                    if 'chain' in step_ and step_['chain'] and step_['chain'] not in v:
+                        raise ValueError(f"Nested chain '{step_['chain']}' not found in chains")
 
         validated_chains = {}
 
@@ -282,6 +296,7 @@ class SlackApplicationConfig(BaseApplicationConfig):
     """Slack messenger configuration"""
     type: Literal[MessengerType.SLACK] = Field(MessengerType.SLACK, description="Application type")
     channels: Dict[str, SlackChannel] = Field(..., description="Channel definitions")
+    groups: Optional[Dict[str, SlackGroup]] = Field({}, description="Slack group definitions")
     users: Dict[str, SlackUser] = Field(..., description="User definitions")
 
 
@@ -289,6 +304,7 @@ class MattermostApplicationConfig(BaseApplicationConfig):
     """Mattermost messenger configuration"""
     type: Literal[MessengerType.MATTERMOST] = Field(MessengerType.MATTERMOST, description="Application type")
     channels: Dict[str, MattermostChannel] = Field(..., description="Channel definitions")
+    groups: Optional[Dict[str, MattermostGroup]] = Field({}, description="Mattermost group definitions")
     users: Dict[str, MattermostUser] = Field(..., description="User definitions")
     address: str = Field(..., description="Mattermost server address")
     team: str = Field(..., description="Mattermost team name")
@@ -437,13 +453,6 @@ class UISorting(BaseModel):
 
         return cls(column_name=column_name, sort_order=sort_order, order=order)
 
-    def to_dict(self) -> Dict[str, Union[str, List[str]]]:
-        """Convert back to dictionary format"""
-        result = {self.column_name: self.sort_order}
-        if self.order:
-            result['order'] = self.order
-        return result
-
 
 class UIConfig(BaseModel):
     """UI configuration"""
@@ -496,6 +505,13 @@ class WebhookConfig(BaseModel):
         return self
 
 
+class InhibitRule(BaseModel):
+    """Single inhibition rule configuration for AlertManager-style inhibition"""
+    source_matchers: List[str] = Field(..., description="Source matchers (e.g., 'severity =~ \"critical\"')")
+    target_matchers: List[str] = Field(..., description="Target matchers (e.g., 'severity =~ \"warning\"')")
+    equal: Optional[List[str]] = Field([], description="Labels that must be equal between source and target")
+
+
 class ImpulseConfig(BaseModel):
     """Main Impulse configuration"""
     general: Optional[GeneralConfig] = Field(GeneralConfig(), description="General configuration")
@@ -505,6 +521,7 @@ class ImpulseConfig(BaseModel):
     ui: Optional[UIConfig] = Field(None, description="UI configuration")
     webhooks: Optional[Dict[str, WebhookConfig]] = Field({}, description="Webhook configurations")
     task_management: Optional[TaskManagementConfig] = Field(None, description="Task management configuration")
+    inhibit_rules: Optional[List[InhibitRule]] = Field([], description="Inhibition rules for AlertManager-style inhibition")
 
     @model_validator(mode='after')
     def validate_route_exists(self):

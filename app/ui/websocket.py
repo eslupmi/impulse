@@ -1,9 +1,10 @@
-import asyncio
 import json
 from typing import Set
+
 from fastapi import WebSocket
-from app.logging import logger
+
 from app.config.config import get_config
+from app.logging import logger
 
 
 class AsyncIncidentWS:
@@ -75,7 +76,8 @@ class AsyncIncidentWS:
         except Exception as e:
             logger.error(f"Failed to send full table data: {e}")
 
-    async def handle_ping(self, websocket: WebSocket):
+    @staticmethod
+    async def handle_ping(websocket: WebSocket):
         """Handle ping event from a specific client"""
         await websocket.send_text(json.dumps({"event": "pong"}))
 

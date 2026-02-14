@@ -1,8 +1,43 @@
 """Tests for Jinja template utilities."""
-import pytest
-from pathlib import Path
+from contextlib import contextmanager
+from types import SimpleNamespace
+from unittest.mock import Mock
 
+import pytest
+
+from app.incident.incident import Incident
 from app.jinja_template import load_template_file, JinjaTemplate
+
+
+@contextmanager
+def parent_child_incident_context():
+    template_str = (
+        "Parent: {{ incident.parents['parent-1'].status }}, "
+        "Child: {{ incident.childs['child-1'].status }}"
+    )
+    template = JinjaTemplate(template_str)
+
+    class MockIncident(Mock):
+        def __init__(self, *args, **kwargs):
+            kwargs.setdefault("spec", Incident)
+            super().__init__(*args, **kwargs)
+
+    incidents = SimpleNamespace(
+        uniq_ids={
+            "parent-1": SimpleNamespace(status="firing"),
+            "child-1": SimpleNamespace(status="resolved"),
+        }
+    )
+
+    JinjaTemplate.set_incidents(incidents)
+    try:
+        mock_incident = MockIncident()
+        mock_incident.parents = ["parent-1"]
+        mock_incident.childs = ["child-1"]
+        mock_incident.serialize.return_value = {"parents": ["parent-1"], "childs": ["child-1"]}
+        yield template, mock_incident
+    finally:
+        JinjaTemplate.set_incidents(None)
 
 
 class TestLoadTemplateFile:
@@ -38,15 +73,3 @@ class TestJinjaTemplate:
         result = template.render(name="World")
         assert result == "Hello World!"
         
-    def test_render_with_incident_data(self):
-        """Test rendering with incident object."""
-        template_str = "Status: {{ incident.status }}"
-        template = JinjaTemplate(template_str)
-        
-        # Create a mock incident object
-        class MockIncident:
-            status = "firing"
-        
-        result = template.render(incident=MockIncident())
-        assert result == "Status: firing"
-

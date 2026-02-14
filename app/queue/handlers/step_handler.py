@@ -22,6 +22,15 @@ class StepHandler(BaseHandler):
 
     async def handle(self, uniq_id, identifier):
         incident = self.incidents.uniq_ids[uniq_id]
+
+        if incident.is_frozen():
+            logger.debug("Incident frozen, skipping chain step", extra={'uuid': incident.uuid})
+            return
+
+        if not incident.ts:
+            logger.debug("Incident has no thread, skipping chain step", extra={'uuid': incident.uuid})
+            return
+
         step = incident.chain[identifier]
         if step['type'] == 'webhook':
             webhook_name = step['identifier']
@@ -36,18 +45,14 @@ class StepHandler(BaseHandler):
                           'result': result, 'response': r_code}
                 incident.chain_update(identifier, done=True, result=r_code)
                 if result == 'ok':
-                    logger.info(f'Incident {incident.uuid} -> chain step webhook \'{webhook_name}\': {result}, '
-                                f'response code {r_code}')
+                    logger.info("Webhook sent", extra={'uuid': incident.uuid, 'webhook': webhook_name, 'response': r_code})
                 else:
-                    logger.warning(f'Incident {incident.uuid} -> chain step webhook \'{webhook_name}\': {result}, '
-                                   f'response code {r_code}')
+                    logger.warning("Webhook failed", extra={'uuid': incident.uuid, 'webhook': webhook_name, 'response': r_code})
             else:
                 fields = {'type': self.app.type, 'name': webhook_name, 'unit': webhook, 'admins': admins}
 
                 incident.chain_update(identifier, done=True, result=None)
-                logger.warning(
-                    f'Incident {incident.uuid} -> chain step webhook \'{webhook_name}\': undefined in impulse.yml'
-                )
+                logger.warning("Webhook undefined", extra={'uuid': incident.uuid, 'webhook': webhook_name})
 
             text = text_template.form_notification(fields)
             if self.app.type == MessengerType.TELEGRAM:
@@ -55,7 +60,7 @@ class StepHandler(BaseHandler):
             else:
                 header = self.app.header_template.form_message(incident.payload, incident)
                 message = header + '\n' + text
-            await self.app.post_thread(incident.channel_id, incident.ts, message)
+            await self.app.post_to_thread(incident.channel_id, incident.ts, message)
         else:
             r_code = await self.app.notify(incident, step['type'], step['identifier'])
             incident.chain_update(identifier, done=True, result=r_code)

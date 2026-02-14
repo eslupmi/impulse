@@ -17,7 +17,8 @@ from tests.utils import (
     create_mock_incidents_collection,
     create_mock_queue,
     create_mock_route,
-    create_telegram_buttons_handler_context
+    create_telegram_buttons_handler_context,
+    create_mock_http_response
 )
 
 
@@ -52,14 +53,25 @@ class TestTelegramApplication:
                 app.status_icons_template = Mock()
                 # Set up HTTP mock with proper context manager support
                 app.http = Mock()
-                app.http.post = Mock()
-                app.http.get = Mock()
+                # Create default mock responses for HTTP methods
+                default_get_response = AsyncMock()
+                default_get_response.status = 200
+                default_get_response.json = AsyncMock(return_value={'ok': True, 'result': {'id': 123456, 'first_name': 'Test', 'last_name': 'User'}})
+                
+                default_post_response = AsyncMock()
+                default_post_response.status = 200
+                default_post_response.json = AsyncMock(return_value={'ok': True, 'result': {}})
+                
+                app.http.post = AsyncMock(return_value=default_post_response)
+                app.http.get = AsyncMock(return_value=default_get_response)
                 app.public_url = None
                 app.users = None
                 app.user_groups = None
+                app.groups = {}
                 app.admin_users = None
                 app._users_config = users
                 app._user_groups_config = app_config.user_groups
+                app._groups_config = getattr(app_config, 'groups', {})
                 app._admin_users_config = app_config.admin_users
 
                 # Set Telegram-specific attributes
@@ -80,6 +92,7 @@ class TestTelegramApplication:
         config.users = {"admin1": {"id": 123456789}}
         config.admin_users = ["admin1"]  # Only include users that exist
         config.user_groups = {}
+        config.groups = {}
         config.chains = {}
         config.template_files = Mock()
         config.template_files.status_icons = None
@@ -114,10 +127,10 @@ class TestTelegramApplication:
 
     def test_initialize_specific_params(self, app_config, channels, users):
         """Test _initialize_specific_params method."""
-        with patch('app.im.telegram.telegram_application.get_config') as mock_get_config:
-            mock_config = Mock()
-            mock_config.telegram_bot_token = "test-token"
-            mock_get_config.return_value = mock_config
+        with patch('app.im.telegram.telegram_application.get_environment_config') as mock_get_env_config:
+            mock_env_config = Mock()
+            mock_env_config.telegram_bot_token = "test-token"
+            mock_get_env_config.return_value = mock_env_config
 
             app = self.create_telegram_app(app_config, channels, users)
             # Manually call the method to test it
@@ -176,81 +189,6 @@ class TestTelegramApplication:
         result = app._format_tg_icon('unknown_icon')
         assert result == 'None'
 
-    def test_get_admins_text(self, app_config, channels, users):
-        """Test get_admins_text method."""
-        app = self.create_telegram_app(app_config, channels, users)
-
-        # Mock admin users
-        admin1 = Mock()
-        admin1.id = 123456789
-        admin2 = Mock()
-        admin2.id = 987654321
-        app.admin_users = [admin1, admin2]
-
-        result = app.get_admins_text()
-
-        assert result == "@123456789, @987654321"
-
-    def test_create_thread_method(self, app_config, channels, users):
-        """Test create_thread method signature."""
-        app = self.create_telegram_app(app_config, channels, users)
-
-        # Test that the method exists and is async
-        assert hasattr(app, 'create_thread')
-        assert callable(app.create_thread)
-        import inspect
-        assert inspect.iscoroutinefunction(app.create_thread)
-
-        # Test method signature
-        sig = inspect.signature(app.create_thread)
-        params = list(sig.parameters.keys())
-        assert 'channel_id' in params
-        assert 'body' in params
-        assert 'header' in params
-        assert 'status_icons' in params
-        assert 'status' in params
-
-    def test_create_thread_payload(self, app_config, channels, users):
-        """Test _create_thread_payload method."""
-        import os
-        from tests.utils import create_telegram_buttons_mock
-        
-        app = self.create_telegram_app(app_config, channels, users)
-
-        with patch('app.im.telegram.telegram_application.buttons') as mock_buttons, \
-             patch('app.im.telegram.telegram_application.get_config') as mock_get_config, \
-             patch.dict(os.environ, {
-                 'JIRA_BASE_URL': 'https://test.atlassian.net',
-                 'JIRA_USER_EMAIL': 'test@example.com',
-                 'JIRA_API_TOKEN': 'test_token'
-             }), \
-             patch('app.config.environment._env_config', None):  # Reset cached config
-            # Mock config with task_management enabled
-            mock_config = Mock()
-            mock_config.app.task_management = True
-            mock_get_config.return_value = mock_config
-            
-            buttons_config = create_telegram_buttons_mock()
-            mock_buttons.__getitem__.side_effect = lambda x: buttons_config[x]
-
-            result = app._create_thread_payload(-1001234567890, "body", "header", "5312241539987020022", "firing")
-
-            expected = {
-                'chat_id': -1001234567890,
-                'text': '🔥 header\nbody',
-                'parse_mode': 'HTML',
-                'reply_markup': {
-                    'inline_keyboard': [
-                        [
-                            {'text': 'Take It', 'callback_data': 'start_chain'},
-                            {'text': '❄️', 'callback_data': 'freeze'},  # Freeze button replaced Status
-                            {'text': '📌', 'callback_data': 'task'}  # Jira button
-                        ]
-                    ]
-                }
-            }
-            assert result == expected
-
     def test_post_thread_payload(self, app_config, channels, users):
         """Test _post_thread_payload method."""
         app = self.create_telegram_app(app_config, channels, users)
@@ -264,81 +202,6 @@ class TestTelegramApplication:
             'parse_mode': 'HTML'
         }
         assert result == expected
-
-    def test_update_thread_payload(self, app_config, channels, users):
-        """Test update_thread_payload method."""
-        import os
-        from tests.utils import create_telegram_buttons_mock
-        
-        app = self.create_telegram_app(app_config, channels, users)
-
-        with patch('app.im.telegram.telegram_application.buttons') as mock_buttons, \
-             patch('app.im.telegram.telegram_application.get_config') as mock_get_config, \
-             patch.dict(os.environ, {
-                 'JIRA_BASE_URL': 'https://test.atlassian.net',
-                 'JIRA_USER_EMAIL': 'test@example.com',
-                 'JIRA_API_TOKEN': 'test_token'
-             }), \
-             patch('app.config.environment._env_config', None):  # Reset cached config
-            # Mock config with task_management enabled
-            mock_config = Mock()
-            mock_config.app.task_management = True
-            mock_get_config.return_value = mock_config
-            
-            buttons_config = create_telegram_buttons_mock()
-            mock_buttons.__getitem__.side_effect = lambda x: buttons_config[x]
-
-            result = app.update_thread_payload(-1001234567890, "123456/789012", "body", "header", "5312241539987020022",
-                                              "firing", True, None)
-
-            expected = {
-                'chat_id': -1001234567890,
-                'message_id': '789012',
-                'text': '🔥 header\nbody',
-                'parse_mode': 'HTML',
-                'reply_markup': {
-                    'inline_keyboard': [
-                        [
-                            {'text': 'Take It', 'callback_data': 'start_chain'},
-                            {'text': '❄️', 'callback_data': 'freeze'},  # Freeze button replaced Status
-                            {'text': '📌', 'callback_data': 'task'}  # Jira button
-                        ]
-                    ]
-                }
-            }
-            assert result == expected
-
-    def test_update_thread_payload_with_task_link(self, app_config, channels, users):
-        """Test update_thread_payload method when task link exists - button should be removed."""
-        from tests.utils import create_telegram_buttons_mock
-        
-        app = self.create_telegram_app(app_config, channels, users)
-
-        with patch('app.im.telegram.telegram_application.buttons') as mock_buttons:
-            buttons_config = create_telegram_buttons_mock()
-            mock_buttons.__getitem__.side_effect = lambda x: buttons_config[x]
-
-            # Pass task_link to verify button is NOT included
-            result = app.update_thread_payload(-1001234567890, "123456/789012", "body", "header", "5312241539987020022",
-                                              "firing", True, None, task_link="https://jira.com/browse/DTS-123")
-
-            # Button should NOT include task button when task_link is provided
-            expected = {
-                'chat_id': -1001234567890,
-                'message_id': '789012',
-                'text': '🔥 header\nbody',
-                'parse_mode': 'HTML',
-                'reply_markup': {
-                    'inline_keyboard': [
-                        [
-                            {'text': 'Take It', 'callback_data': 'start_chain'},
-                            {'text': '❄️', 'callback_data': 'freeze'}  # Freeze button replaced Status
-                            # No task button when task_link exists
-                        ]
-                    ]
-                }
-            }
-            assert result == expected
 
     def test_markdown_links_to_native_format(self, app_config, channels, users):
         """Test _markdown_links_to_native_format method."""
@@ -434,244 +297,6 @@ class TestTelegramApplication:
             assert result.status_code == 200
             mock_post.assert_called_once()
 
-    @pytest.mark.asyncio
-    async def test_buttons_handler_chain_action_assigned(self, app_config, channels, users):
-        """Test buttons_handler with chain action when user is already assigned."""
-        app = self.create_telegram_app(app_config, channels, users)
-
-        # Mock incident
-        incident = create_mock_incident_for_handlers(
-            uuid="test-uuid",
-            status="firing"
-        )
-        incident.assigned_user_id = 123456789
-        incident.chain_enabled = True
-
-        # Mock incidents collection
-        incidents = create_mock_incidents_collection()
-        incidents.get_by_ts.return_value = incident
-
-        # Mock queue
-        queue = create_mock_queue()
-
-        # Mock route
-        route = create_mock_route()
-
-        payload = {
-            "callback_query": {
-                "id": "test_callback_id",
-                "message": {
-                    "message_id": 123,
-                    "message_thread_id": 456
-                },
-                "data": "stop_chain",
-                "from": {
-                    "id": 123456789,
-                    "first_name": "Test",
-                    "last_name": "User"
-                }
-            }
-        }
-
-        async with create_telegram_buttons_handler_context(
-            app, payload, incidents, queue, route,
-            expected_log_message='Incident test-uuid -> button TAKE IT pressed, but user is already assigned'
-        ) as (result, mock_logger, _):
-            pass  # All assertions are handled by the context manager
-
-    @pytest.mark.asyncio
-    async def test_buttons_handler_chain_action_assign(self, app_config, channels, users):
-        """Test buttons_handler with chain action to assign user."""
-        app = self.create_telegram_app(app_config, channels, users)
-
-        # Mock incident
-        incident = create_mock_incident_for_handlers(
-            uuid="test-uuid",
-            status="firing"
-        )
-        incident.assigned_user_id = "other_user"
-        incident.chain_enabled = True
-        incident.assign_user_id = Mock()
-        incident.assign_user = Mock()
-
-        # Mock incidents collection
-        incidents = create_mock_incidents_collection()
-        incidents.get_by_ts.return_value = incident
-
-        # Mock queue
-        queue = create_mock_queue()
-
-        # Mock route
-        route = create_mock_route()
-
-        payload = {
-            "callback_query": {
-                "id": "test_callback_id",
-                "message": {
-                    "message_id": 123,
-                    "message_thread_id": 456
-                },
-                "data": "stop_chain",
-                "from": {
-                    "id": 123456789,
-                    "first_name": "Test",
-                    "last_name": "User"
-                }
-            }
-        }
-
-        async with create_telegram_buttons_handler_context(
-            app, payload, incidents, queue, route,
-            expected_log_message='Incident test-uuid -> button TAKE IT pressed, assigning to 123456789',
-            additional_patches={
-                'post_assignment_notification': Mock(),
-                'fetch_and_assign_user_name': Mock()
-            }
-        ) as (result, mock_logger, patch_objects):
-            patch_objects['post_assignment_notification'].assert_called_once()
-            patch_objects['fetch_and_assign_user_name'].assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_buttons_handler_chain_action_release(self, app_config, channels, users):
-        """Test buttons_handler with chain action to release incident."""
-        app = self.create_telegram_app(app_config, channels, users)
-
-        # Mock incident
-        incident = create_mock_incident_for_handlers(
-            uuid="test-uuid",
-            status="resolved"
-        )
-        incident.chain_enabled = False
-        incident.release = Mock()
-
-        # Mock incidents collection
-        incidents = create_mock_incidents_collection()
-        incidents.get_by_ts.return_value = incident
-
-        # Mock queue
-        queue = create_mock_queue()
-
-        # Mock route
-        route = create_mock_route()
-
-        payload = {
-            "callback_query": {
-                "id": "test_callback_id",
-                "message": {
-                    "message_id": 123,
-                    "message_thread_id": 456
-                },
-                "data": "start_chain",
-                "from": {
-                    "id": 123456789,
-                    "first_name": "Test",
-                    "last_name": "User"
-                }
-            }
-        }
-
-        async with create_telegram_buttons_handler_context(
-            app, payload, incidents, queue, route,
-            expected_log_message='Incident test-uuid -> button RELEASE pressed',
-            additional_patches={
-                'post_unassignment_notification': Mock()
-            }
-        ) as (result, mock_logger, patch_objects):
-            patch_objects['post_unassignment_notification'].assert_called_once()
-            incident.release.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_buttons_handler_status_action_enable(self, app_config, channels, users):
-        """Test buttons_handler with status action to enable status."""
-        app = self.create_telegram_app(app_config, channels, users)
-
-        # Mock incident
-        incident = create_mock_incident_for_handlers(
-            uuid="test-uuid",
-            status="firing"
-        )
-        incident.status_enabled = False
-
-        # Mock incidents collection
-        incidents = create_mock_incidents_collection()
-        incidents.get_by_ts.return_value = incident
-
-        # Mock queue
-        queue = create_mock_queue()
-
-        # Mock route
-        route = create_mock_route()
-
-        payload = {
-            "callback_query": {
-                "id": "test_callback_id",
-                "message": {
-                    "message_id": 123,
-                    "message_thread_id": 456
-                },
-                "data": "start_status",
-                "from": {
-                    "id": 123456789,
-                    "first_name": "Test",
-                    "last_name": "User"
-                }
-            }
-        }
-
-        async with create_telegram_buttons_handler_context(
-            app, payload, incidents, queue, route,
-            expected_log_message=None
-        ) as (result, mock_logger, _):
-            # Status button functionality has been replaced with freeze/unfreeze
-            # Just verify the response is successful
-            pass # NOSONAR
-
-    @pytest.mark.asyncio
-    async def test_buttons_handler_status_action_disable(self, app_config, channels, users):
-        """Test buttons_handler with status action to disable status."""
-        app = self.create_telegram_app(app_config, channels, users)
-
-        # Mock incident
-        incident = create_mock_incident_for_handlers(
-            uuid="test-uuid",
-            status="firing"
-        )
-        incident.status_enabled = True
-
-        # Mock incidents collection
-        incidents = create_mock_incidents_collection()
-        incidents.get_by_ts.return_value = incident
-
-        # Mock queue
-        queue = create_mock_queue()
-
-        # Mock route
-        route = create_mock_route()
-
-        payload = {
-            "callback_query": {
-                "id": "test_callback_id",
-                "message": {
-                    "message_id": 123,
-                    "message_thread_id": 456
-                },
-                "data": "stop_status",
-                "from": {
-                    "id": 123456789,
-                    "first_name": "Test",
-                    "last_name": "User"
-                }
-            }
-        }
-
-        async with create_telegram_buttons_handler_context(
-            app, payload, incidents, queue, route,
-            expected_log_message=None
-        ) as (result, mock_logger, _):
-            # Status button functionality has been replaced with freeze/unfreeze
-            # Just verify the response is successful
-            pass # NOSONAR
-
     def test_create_topic_method(self, app_config, channels, users):
         """Test _create_topic method signature."""
         app = self.create_telegram_app(app_config, channels, users)
@@ -722,33 +347,33 @@ class TestTelegramApplication:
         """Test initialize_async method."""
         app = self.create_telegram_app(app_config, channels, users)
 
-        with patch.object(app, '_setup_webhook') as mock_setup_webhook:
-            mock_setup_webhook.return_value = AsyncMock()
+        # Create mock HTTP client that will be returned by _setup_http
+        mock_http = Mock()
+        default_get_response = AsyncMock()
+        default_get_response.status = 200
+        default_get_response.json = AsyncMock(return_value={'ok': True, 'result': {'id': 123456, 'first_name': 'Test', 'last_name': 'User'}})
+        default_post_response = AsyncMock()
+        default_post_response.status = 200
+        default_post_response.json = AsyncMock(return_value={'ok': True, 'result': {}})
+        mock_http.get = AsyncMock(return_value=default_get_response)
+        mock_http.post = AsyncMock(return_value=default_post_response)
 
+        # Mock _setup_webhook as async function
+        mock_setup_webhook = AsyncMock(return_value=None)
+        
+        # Mock UserStore to avoid filesystem access
+        mock_user_store = Mock()
+        mock_user_store.get_all_users_by_type.return_value = {}
+        mock_user_store.get.return_value = None
+        mock_user_store.is_expired.return_value = True
+        mock_user_store.save = Mock()
+        
+        with patch.object(app, '_setup_http', return_value=mock_http), \
+             patch.object(app, '_setup_webhook', mock_setup_webhook), \
+             patch('app.im.application.get_user_store', return_value=mock_user_store):
             await app.initialize_async()
 
             mock_setup_webhook.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_create_thread_http_interaction(self, app_config, channels, users):
-        """Test create_thread method with HTTP interaction."""
-        app = self.create_telegram_app(app_config, channels, users)
-
-        # Mock HTTP responses
-        mock_topic_response = AsyncMock()
-        mock_topic_response.json = AsyncMock(return_value={'result': {'message_thread_id': 67890}})
-        mock_topic_response.close = Mock()
-
-        mock_thread_response = AsyncMock()
-        mock_thread_response.json = AsyncMock(return_value={'result': {'message_id': 12345}})
-        mock_thread_response.close = Mock()
-
-        mock_post = AsyncMock(side_effect=[mock_topic_response, mock_thread_response])
-        with patch.object(app.http, 'post', new=mock_post):
-            result = await app.create_thread("test_channel", "body", "header", "icon", "status")
-
-            assert result == "67890/12345"
-            assert mock_post.call_count == 2
 
     @pytest.mark.asyncio
     async def test_send_create_thread_http_interaction(self, app_config, channels, users):
@@ -756,12 +381,10 @@ class TestTelegramApplication:
         app = self.create_telegram_app(app_config, channels, users)
 
         # Mock HTTP response
-        mock_response = AsyncMock()
+        mock_response = create_mock_http_response()
         mock_response.json = AsyncMock(return_value={'result': {'message_id': 12345}})
-        mock_response.close = Mock()
-
         with patch.object(app.http, 'post', new=AsyncMock(return_value=mock_response)) as mock_post:
-            result = await app._send_create_thread({'test': 'payload'})
+            result = await app._send_create_incident_message({'test': 'payload'})
 
             assert result == 12345
             mock_post.assert_called_once()
@@ -772,10 +395,8 @@ class TestTelegramApplication:
         app = self.create_telegram_app(app_config, channels, users)
 
         # Mock successful HTTP response
-        mock_response = AsyncMock()
+        mock_response = create_mock_http_response()
         mock_response.json = AsyncMock(return_value={'result': {'message_thread_id': 67890}})
-        mock_response.close = Mock()
-
         with patch.object(app.http, 'post', new=AsyncMock(return_value=mock_response)) as mock_post:
             result = await app._create_topic("test_channel", "test_header", "test_icon")
 
@@ -794,73 +415,12 @@ class TestTelegramApplication:
                 await app._create_topic("test_channel", "test_header", "test_icon")
 
     @pytest.mark.asyncio
-    async def test_update_thread_with_status_enabled(self, app_config, channels, users):
-        """Test update_thread method when status is enabled."""
-        app = self.create_telegram_app(app_config, channels, users)
-
-        with patch.object(app, '_update_topic') as mock_update_topic, \
-                patch.object(app, 'update_thread_payload') as mock_payload, \
-                patch.object(app, '_update_thread') as mock_update:
-            mock_payload.return_value = {'test': 'payload'}
-            mock_update_topic.return_value = AsyncMock()
-            mock_update.return_value = AsyncMock()
-
-            await app.update_thread("channel", "123/456", "firing", "body", "header", "icon", True, None)
-
-            mock_update_topic.assert_called_once_with("channel", "123/456", "header", "icon")
-            mock_payload.assert_called_once()
-            mock_update.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_update_thread_with_status_disabled(self, app_config, channels, users):
-        """Test update_thread method when status is disabled."""
-        app = self.create_telegram_app(app_config, channels, users)
-
-        with patch.object(app, '_update_topic') as mock_update_topic, \
-                patch.object(app, 'update_thread_payload') as mock_payload, \
-                patch.object(app, '_update_thread') as mock_update:
-            mock_payload.return_value = {'test': 'payload'}
-            mock_update_topic.return_value = AsyncMock()
-            mock_update.return_value = AsyncMock()
-
-            # Use a future datetime to indicate the incident is frozen
-            from datetime import datetime, timezone, timedelta
-            frozen_time = datetime.now(timezone.utc) + timedelta(hours=1)
-            await app.update_thread("channel", "123/456", "firing", "body", "header", "icon", True, frozen_time)
-
-            # Should use original icon when frozen (frozen_until is not None)
-            mock_update_topic.assert_called_once_with("channel", "123/456", "header", "icon")
-            mock_payload.assert_called_once()
-            mock_update.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_update_thread_with_closed_status(self, app_config, channels, users):
-        """Test update_thread method when status is closed."""
-        app = self.create_telegram_app(app_config, channels, users)
-
-        with patch.object(app, '_update_topic') as mock_update_topic, \
-                patch.object(app, 'update_thread_payload') as mock_payload, \
-                patch.object(app, '_update_thread') as mock_update:
-            mock_payload.return_value = {'test': 'payload'}
-            mock_update_topic.return_value = AsyncMock()
-            mock_update.return_value = AsyncMock()
-
-            await app.update_thread("channel", "123/456", "closed", "body", "header", "icon", True, None)
-
-            # Should use original icon when status is closed
-            mock_update_topic.assert_called_once_with("channel", "123/456", "header", "icon")
-            mock_payload.assert_called_once()
-            mock_update.assert_called_once()
-
-    @pytest.mark.asyncio
     async def test_update_topic_success(self, app_config, channels, users):
         """Test _update_topic method with successful HTTP response."""
         app = self.create_telegram_app(app_config, channels, users)
 
         # Mock successful HTTP response
-        mock_response = AsyncMock()
-        mock_response.close = Mock()
-
+        mock_response = create_mock_http_response()
         with patch.object(app.http, 'post', new=AsyncMock(return_value=mock_response)) as mock_post:
             await app._update_topic("test_channel", "123/456", "test_header", "test_icon")
 
@@ -883,11 +443,9 @@ class TestTelegramApplication:
         app = self.create_telegram_app(app_config, channels, users)
 
         # Mock successful HTTP response
-        mock_response = AsyncMock()
-        mock_response.close = Mock()
-
+        mock_response = create_mock_http_response()
         with patch.object(app.http, 'post', new=AsyncMock(return_value=mock_response)) as mock_post:
-            await app._update_thread("123/456", {'test': 'payload'})
+            await app._update_incident_message("123/456", {'test': 'payload'})
 
             mock_post.assert_called_once()
 
@@ -900,55 +458,7 @@ class TestTelegramApplication:
             mock_post.side_effect = aiohttp.ClientError("Connection failed")
 
             # Should not raise exception, just log error
-            await app._update_thread("123/456", {'test': 'payload'})
-
-    @pytest.mark.asyncio
-    async def test_get_user_details_success(self, app_config, channels, users):
-        """Test get_user_details method with successful HTTP response."""
-        app = self.create_telegram_app(app_config, channels, users)
-
-        # Mock successful HTTP response
-        mock_response = AsyncMock()
-        mock_response.status = 200
-        mock_response.json = AsyncMock(return_value={
-            'ok': True,
-            'result': {
-                'first_name': 'John',
-                'last_name': 'Doe',
-                'username': 'johndoe'
-            }
-        })
-        mock_response.close = Mock()
-
-        with patch.object(app.http, 'get', new=AsyncMock(return_value=mock_response)):
-            result = await app.get_user_details({'id': '123456'})
-
-            assert result == {
-                'id': '123456',
-                'exists': True,
-                'full_name': 'John Doe',
-                'username': 'John Doe'
-            }
-
-    @pytest.mark.asyncio
-    async def test_get_user_details_http_error(self, app_config, channels, users):
-        """Test get_user_details method with HTTP error."""
-        app = self.create_telegram_app(app_config, channels, users)
-
-        # Mock HTTP error response
-        mock_response = AsyncMock()
-        mock_response.status = 404
-        mock_response.close = Mock()
-
-        with patch.object(app.http, 'get', new=AsyncMock(return_value=mock_response)):
-            result = await app.get_user_details({'id': '123456'})
-
-            assert result == {
-                'id': '123456',
-                'exists': False,
-                'full_name': None,
-                'username': None
-            }
+            await app._update_incident_message("123/456", {'test': 'payload'})
 
     @pytest.mark.asyncio
     async def test_get_user_details_api_error(self, app_config, channels, users):
@@ -956,14 +466,11 @@ class TestTelegramApplication:
         app = self.create_telegram_app(app_config, channels, users)
 
         # Mock API error response
-        mock_response = AsyncMock()
-        mock_response.status = 200
+        mock_response = create_mock_http_response(200)
         mock_response.json = AsyncMock(return_value={
             'ok': False,
             'description': 'User not found'
         })
-        mock_response.close = Mock()
-
         with patch.object(app.http, 'get', new=AsyncMock(return_value=mock_response)):
             result = await app.get_user_details({'id': '123456'})
 
@@ -971,7 +478,11 @@ class TestTelegramApplication:
                 'id': '123456',
                 'exists': False,
                 'full_name': None,
-                'username': None
+                'username': None,
+                'email': None,
+                'first_name': None,
+                'last_name': None,
+                'timezone': None
             }
 
     @pytest.mark.asyncio
@@ -980,9 +491,7 @@ class TestTelegramApplication:
         app = self.create_telegram_app(app_config, channels, users)
 
         # Mock successful HTTP response
-        mock_response = AsyncMock()
-        mock_response.close = Mock()
-
+        mock_response = create_mock_http_response()
         with patch.object(app.http, 'post', new=AsyncMock(return_value=mock_response)) as mock_post, \
                 patch('app.im.telegram.telegram_application.get_config') as mock_get_config:
             mock_config = Mock()

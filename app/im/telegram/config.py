@@ -1,21 +1,28 @@
-from jinja2 import Environment
-
-
 buttons = {
     'chain': {
         'takeit': {
             'text': 'Take It',
-            'callback_data': 'stop_chain'
+            'callback_data': 'stop_chain',
+            'style': 'primary'
+        },
+        'assigned': {
+            'text': 'Take It',
+            'callback_data': 'stop_chain',
         },
         'release': {
             'text': 'Release',
-            'callback_data': 'start_chain'
+            'callback_data': 'start_chain',
+            'style': 'primary'
         }
     },
     'freeze': {
         'inactive': {
             'text': 'Freeze',
             'callback_data': 'freeze_menu'
+        },
+        'inhibited': {
+            'text': 'Inhibited',
+            'callback_data': 'noop'
         },
         'options': [
             {'text': 'Tomorrow', 'callback_data': 'freeze_tomorrow'},
@@ -32,6 +39,3 @@ buttons = {
         }
     }
 }
-
-telegram_env = Environment()
-telegram_admins_template_string = "{{ users | join(', ') }}"

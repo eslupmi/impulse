@@ -80,6 +80,28 @@ notification_user_group = """
 {%- endif -%}
 """
 
+notification_group = """
+{%- if fields.type == 'slack' -%}
+:loudspeaker: group *{{ fields.name }}*
+{#--#}{%- if not fields.unit -%}
+{#-   #} (<https://docs.impulse.bot/stable/warnings/NotDefined/|NotDefined>)  |  :loudspeaker: admins ({%- for a in fields.admins %}<@{{ a }}>{% if not loop.last %},{% endif %}{% endfor -%})
+{#--#}{%- elif not fields.unit.exists -%}
+{#-   #} (<https://docs.impulse.bot/stable/warnings/NotFound/|NotFound>)  |  :loudspeaker: admins ({%- for a in fields.admins %}<@{{ a }}>{% if not loop.last %},{% endif %}{% endfor -%})
+{#--#}{%- else -%}
+{#-     #} (<!subteam^{{ fields.unit.id }}>)
+{#--#}{%- endif -%}
+{%- elif fields.type == 'mattermost' -%}
+:bell: group **{{ fields.name }}**
+{#--#}{%- if not fields.unit -%}
+{#-   #} ([NotDefined](https://docs.impulse.bot/stable/warnings/NotDefined/))  |  :bell: admins ({%- for a in fields.admins %}@{{ a }}{% if not loop.last %},{% endif %}{% endfor -%})
+{#--#}{%- elif not fields.unit.exists -%}
+{#-   #} ([NotFound](https://docs.impulse.bot/stable/warnings/NotFound/))  |  :bell: admins ({%- for a in fields.admins %}@{{ a }}{% if not loop.last %},{% endif %}{% endfor -%})
+{#--#}{%- else -%}
+{#-     #} (@{{ fields.unit.name }})
+{#--#}{%- endif -%}
+{%- endif -%}
+"""
+
 update_status = """
 {%- if fields.type == 'slack' -%}
 update: status *{% if fields.status == 'unknown' %}<https://docs.impulse.bot/stable/warnings/StatusUnknown/|unknown>{% else %}{{ fields.status }}{% endif %}*
@@ -158,7 +180,7 @@ update: assigned to <@{{ fields.id }}>
 {%- elif fields.type == 'mattermost' -%}
 update: assigned to @{{ fields.username }}
 {%- elif fields.type == 'telegram' -%}
-update: assigned to <a href="tg://user?id={{ fields.id }}">{{ fields.username }}</a>
+update: assigned to <a href="tg://user?id={{ fields.id }}">{{ fields.full_name }}</a>
 {%- endif -%}
 """
 

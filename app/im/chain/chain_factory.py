@@ -2,8 +2,8 @@ from typing import Union
 
 from app.config.validation import ChainType, CloudChain, ScheduleChain as ScheduleChainType
 from app.im.chain.chain import Chain
-from app.im.chain.schedule_chain import ScheduleChain
 from app.im.chain.google_calendar_chain import GoogleCalendarChain
+from app.im.chain.schedule_chain import ScheduleChain
 from app.logging import logger
 
 
@@ -28,7 +28,7 @@ class ChainFactory:
                 try:
                     return ScheduleChain(
                         name=name,
-                        timezone=config.timezone,
+                        timezone_=config.timezone,
                         schedule=config.schedule,
                     )
                 except Exception as e:

@@ -10,30 +10,28 @@ class StatusCheckHandler(BaseHandler):
     - Removes from active map when appropriate
     """
 
+    def __init__(self, queue, application, incidents, inhibition_manager):
+        super().__init__(queue, application, incidents)
+        self.inhibition_manager = inhibition_manager
+
     async def handle(self, uniq_id: str):
-        """
-        Check incident status and perform appropriate actions
-        
-        Args:
-            uniq_id: The unique identifier of the incident to check
-        """
         incident = self.incidents.uniq_ids.get(uniq_id)
         if incident is None:
-            logger.warning(f'Incident with uniq_id {uniq_id} not found for status check')
+            logger.warning("Incident not found", extra={'uniq_id': uniq_id})
             return
 
         # Skip any actions if incident is frozen
         if incident.is_frozen():
-            logger.debug(f'Incident {incident.uuid} is frozen, skipping status-based actions')
+            logger.debug("Incident frozen, skipping actions", extra={'uuid': incident.uuid})
             return
 
-        # Handle deleted status - full deletion
         if incident.status == 'deleted':
-            logger.debug(f'Incident {incident.uuid} has deleted status, removing completely')
+            await self.inhibition_manager.handle_closed(incident)
+            logger.debug("Removing incident", extra={'uuid': incident.uuid})
             self.incidents.del_by_uniq_id(uniq_id)
             return
 
         # Handle closed status - remove from active map only (file cleanup handled by update_status)
         if incident.status == 'closed':
-            logger.info(f'Incident {incident.uuid} has closed status')
+            logger.info("Incident closed", extra={'uuid': incident.uuid})
             self.incidents.remove_from_active_map(incident.uuid)
