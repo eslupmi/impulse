@@ -46,7 +46,8 @@ class FileLock:
         except (OSError, IOError):
             return None
 
-    def _is_process_running(self, pid: int) -> bool:
+    @staticmethod
+    def _is_process_running(pid: int) -> bool:
         try:
             os.kill(pid, 0)
             return True

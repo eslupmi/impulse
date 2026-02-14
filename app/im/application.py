@@ -18,7 +18,7 @@ from app.integrations.jira_integration import JiraIntegration
 from app.jinja_template import JinjaTemplate
 from app.logging import logger
 from app.queue.constants import QueueItemType
-from app.time import calculate_freeze_time, format_freeze_expiration
+from app.time import calculate_freeze_time
 
 if TYPE_CHECKING:
     from app.incident.incident import Incident
