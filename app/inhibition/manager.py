@@ -147,7 +147,6 @@ class InhibitionManager:
             await self._freeze_matching_targets(
                 incident, self.sources[rule_idx], rule, incident_is_target=True
             )
-            # await self.application.update_incident_message(incident) #!
         if rule.is_source(incident):
             self.sources[rule_idx].add(incident.uniq_id)
             done = await self._freeze_matching_targets(

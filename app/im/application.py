@@ -236,7 +236,7 @@ class Application(ABC):
             message = text
         await self.post_to_thread(incident_.channel_id, incident_.ts, message)
 
-    async def post_unfreeze_notification(self, incident_: 'Incident'): #!
+    async def post_unfreeze_notification(self, incident_: 'Incident'):
         """Post unfreeze notification to thread"""
         text_template = JinjaTemplate(notification_unfreeze)
         text = text_template.form_notification({'type': self.type.value})
