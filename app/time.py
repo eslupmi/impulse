@@ -76,16 +76,3 @@ def format_freeze_expiration(frozen_until: datetime, tz_str: str = "UTC") -> str
         return f"{day_name} {time_str}"
     else:
         return frozen_until_local.strftime('%b %d')
-
-
-def parse_week_start_to_weekday(week_start: str) -> int:
-    week_start_map = {
-        'Mon': 0, '1': 0,
-        'Tue': 1, '2': 1,
-        'Wed': 2, '3': 2,
-        'Thu': 3, '4': 3,
-        'Fri': 4, '5': 4,
-        'Sat': 5, '6': 5,
-        'Sun': 6, '0': 6, '7': 6
-    }
-    return week_start_map.get(week_start, 0)

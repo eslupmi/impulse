@@ -12,7 +12,6 @@ if TYPE_CHECKING:
 
 
 class JinjaTemplate:
-    """Jinja2 template wrapper for rendering messages and notifications."""
     _incidents: Optional['Incidents'] = None
 
     def __init__(self, template: str):
@@ -38,28 +37,3 @@ class JinjaTemplate:
         """Generic render method for any template with provided kwargs."""
         template = Template(self.template)
         return template.render(**kwargs)
-
-
-def load_template_file(filename: str) -> str:
-    """
-    Load a template file from the templates directory.
-    
-    Args:
-        filename: Name of the template file (e.g., 'jira_summary.j2')
-        
-    Returns:
-        Template content as string
-        
-    Raises:
-        FileNotFoundError: If template file doesn't exist
-    """
-    # Get the project root directory (parent of app directory)
-    app_dir = Path(__file__).parent
-    project_root = app_dir.parent
-    template_path = project_root / 'templates' / filename
-
-    if not template_path.exists():
-        raise FileNotFoundError(f"Template file not found: {template_path}")
-
-    with open(template_path, 'r', encoding='utf-8') as f:
-        return f.read()
