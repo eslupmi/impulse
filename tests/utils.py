@@ -1539,54 +1539,6 @@ def create_slack_mock_config(token: str = "valid_token"):
     return mock_env_config
 
 
-def create_slack_buttons_handler_context(app, payload, incidents, queue, route, 
-                                        expected_log_message: Optional[str] = None,
-                                        additional_patches: Optional[dict] = None):
-    """
-    Create a context manager for testing Slack buttons_handler with common setup.
-    
-    Args:
-        app: The Slack application instance
-        payload: The Slack payload
-        incidents: Mock incidents collection
-        queue: Mock queue
-        route: Mock route
-        expected_log_message: Expected log message for assertion
-        additional_patches: Additional patches to apply
-        
-    Returns:
-        Context manager that yields (result, mock_logger, mock_reformat, patch_objects)
-    """
-    from contextlib import asynccontextmanager
-    from unittest.mock import patch
-    
-    @asynccontextmanager
-    async def slack_context():
-        with patch('app.im.slack.slack_application.get_environment_config') as mock_get_env_config, \
-             patch('app.im.slack.slack_application.get_config') as mock_get_config:
-            mock_env_config = create_slack_mock_config()
-            mock_get_env_config.return_value = mock_env_config
-            
-            # Also mock unified config for timezone access
-            mock_config = Mock()
-            mock_config.app.general.timezone = 'UTC'
-            mock_get_config.return_value = mock_config
-            
-            with patch('app.im.slack.slack_application.logger') as mock_logger:
-                with patch('app.im.slack.slack_application.reformat_message') as mock_reformat:
-                    mock_reformat.return_value = {"text": "Modified message"}
-                    
-                    async with create_buttons_handler_context_manager(
-                        app, payload, incidents, queue, route,
-                        expected_log_message=expected_log_message,
-                        additional_patches=additional_patches,
-                        app_specific_setup=lambda app: setup_app_templates(app)
-                    ) as (result, _, patch_objects):
-                        yield result, mock_logger, mock_reformat, patch_objects
-    
-    return slack_context()
-
-
 # ============================================================================
 # Mattermost Application Test Utilities
 # ============================================================================

@@ -1,7 +1,7 @@
 # telegram.org
 
 !!! info ""
-    Integration work using [webhooks](../../config_file.md/#webhooks)
+    Integration work using [webhooks](../../config_file.md#webhooks)
 
 If Telegram is not your main messenger but you want to use it for additional notifications, see this guide.
 

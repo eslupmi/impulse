@@ -1,5 +1,27 @@
 # Changelog
 
+## v3.4.0
+Changes:
+- [Inhibition](https://docs.impulse.bot/stable/concepts/inhibition/) mechanism to suppress child Incidents
+- [_Slack_, _Mattermost_] Added [support](https://docs.impulse.bot/stable/config_file/#messengergroups) for custom user groups
+
+    ```bash
+    # For Slack add `usergroups:read` permission
+    ```
+
+- [_Slack_, _Mattermost_] [Freeze](https://docs.impulse.bot/stable/concepts/buttons/#freeze) prefer User's timezone instead of [general](https://docs.impulse.bot/stable/config_file/#generaltimezone)
+- [_Telegram_] Using new [colored buttons](https://t.me/telegram/427) feature for **Take It** button
+- Added **Filter Out** button to UI
+- Moved Helm to [new repo](https://github.com/eslupmi-community/helm-charts) in community organization
+
+    ```bash
+    # Switch to community repo with commands:
+    helm repo remove impulse
+    helm repo add impulse https://eslupmi-community.github.io/helm-charts
+    ```
+- Added Jira task link to UI
+- Fixed concurrent execution of multiple chain steps
+
 ## v3.3.0
 Changes:
 - Implemented [Freeze](https://docs.impulse.bot/stable/buttons/#freeze) mechanism ([silence](https://prometheus.io/docs/alerting/latest/alertmanager/#silences) analog)

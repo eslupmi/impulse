@@ -186,7 +186,7 @@ async def lifespan(fastapi_app: FastAPI):
     else:
         if can_take_over:
             hostname, pid = file_lock.get_lock_info()
-            logger.info("Taking over from dead process", extra={'hostname': hostname, 'pid': pid})
+            logger.debug("Taking over from dead process", extra={'hostname': hostname, 'pid': pid})
         success = await initialize_primary_server(fastapi_app, file_lock)
         if not success:
             logger.error('Primary server start failed, entering standby mode')

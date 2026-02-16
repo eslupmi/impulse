@@ -6,7 +6,7 @@ from unittest.mock import patch
 import pytest
 from pydantic import ValidationError
 
-from app.config.environment import EnvironmentConfig, get_environment_config, get_messenger_token
+from app.config.environment import EnvironmentConfig, get_environment_config
 from tests.utils import create_mock_environment_config
 
 

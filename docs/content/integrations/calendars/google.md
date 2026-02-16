@@ -1,6 +1,6 @@
-# Google Calendar [↰](../../config_file.md#cloud-chain)
+# Google Calendar [↰](../../config_file.md#cloud-chains)
 
-Google Calendar can be used as a [cloud chain](../../config_file.md#cloud-chain). To enable it, you need to create a Google Cloud project and generate a service account key file named `key.json`, which will be used as [`GOOGLE_SERVICE_ACCOUNT_FILE`](../../envs.md).
+Google Calendar can be used as a [cloud chain](../../config_file.md#cloud-chains). To enable it, you need to create a Google Cloud project and generate a service account key file named `key.json`, which will be used as [`GOOGLE_SERVICE_ACCOUNT_FILE`](../../envs.md).
 
 ## Create project and get key.json
 

@@ -590,27 +590,3 @@ def validate_config(config_dict: dict) -> ImpulseConfig:
         pydantic.ValidationError: If validation fails
     """
     return ImpulseConfig(**config_dict)
-
-
-def validate_config_file(config_path: str) -> ImpulseConfig:
-    """
-    Load and validate configuration from YAML file.
-    
-    Args:
-        config_path: Path to the YAML configuration file
-        
-    Returns:
-        ImpulseConfig: Validated configuration object
-        
-    Raises:
-        FileNotFoundError: If config file doesn't exist
-        yaml.YAMLError: If YAML parsing fails
-        pydantic.ValidationError: If validation fails
-    """
-    if not os.path.exists(config_path):
-        raise FileNotFoundError(f"Configuration file not found: {config_path}")
-
-    with open(config_path, 'r', encoding='utf-8') as file:
-        config_dict = yaml.safe_load(file)
-
-    return validate_config(config_dict)

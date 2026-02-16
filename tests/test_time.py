@@ -12,10 +12,9 @@ import pytest
 
 from app.time import (
     unix_sleep_to_timedelta,
-    add_months,
+    _add_months,
     calculate_freeze_time,
-    format_freeze_expiration,
-    parse_week_start_to_weekday
+    format_freeze_expiration
 )
 
 
@@ -54,7 +53,7 @@ class TestAddMonths:
     def test_add_one_month(self):
         """Test adding one month."""
         source = datetime(2023, 1, 15, 10, 30, 0)
-        result = add_months(source, 1)
+        result = _add_months(source, 1)
         assert result.year == 2023
         assert result.month == 2
         assert result.day == 15
@@ -62,7 +61,7 @@ class TestAddMonths:
     def test_add_multiple_months(self):
         """Test adding multiple months."""
         source = datetime(2023, 1, 15, 10, 30, 0)
-        result = add_months(source, 6)
+        result = _add_months(source, 6)
         assert result.year == 2023
         assert result.month == 7
         assert result.day == 15
@@ -70,7 +69,7 @@ class TestAddMonths:
     def test_add_months_crossing_year(self):
         """Test adding months that cross year boundary."""
         source = datetime(2023, 11, 15, 10, 30, 0)
-        result = add_months(source, 3)
+        result = _add_months(source, 3)
         assert result.year == 2024
         assert result.month == 2
         assert result.day == 15
@@ -78,7 +77,7 @@ class TestAddMonths:
     def test_add_months_end_of_month(self):
         """Test adding months with end-of-month date."""
         source = datetime(2023, 1, 31, 10, 30, 0)
-        result = add_months(source, 1)
+        result = _add_months(source, 1)
         # February has only 28/29 days, so day should be adjusted
         assert result.year == 2023
         assert result.month == 2
@@ -87,7 +86,7 @@ class TestAddMonths:
     def test_add_months_leap_year(self):
         """Test adding months with leap year."""
         source = datetime(2024, 1, 31, 10, 30, 0)
-        result = add_months(source, 1)
+        result = _add_months(source, 1)
         # February 2024 is a leap year, so has 29 days
         assert result.year == 2024
         assert result.month == 2
@@ -96,7 +95,7 @@ class TestAddMonths:
     def test_add_twelve_months(self):
         """Test adding 12 months (one year)."""
         source = datetime(2023, 1, 15, 10, 30, 0)
-        result = add_months(source, 12)
+        result = _add_months(source, 12)
         assert result.year == 2024
         assert result.month == 1
         assert result.day == 15
@@ -261,73 +260,3 @@ class TestFormatFreezeExpiration:
         
         # Should include the specific time
         assert '14:30' in result or '14' in result
-
-
-class TestParseWeekStartToWeekday:
-    """Test cases for parse_week_start_to_weekday function."""
-
-    def test_parse_monday_text(self):
-        """Test parsing 'Mon' to weekday number."""
-        result = parse_week_start_to_weekday('Mon')
-        assert result == 0
-
-    def test_parse_monday_numeric(self):
-        """Test parsing '1' to weekday number."""
-        result = parse_week_start_to_weekday('1')
-        assert result == 0
-
-    def test_parse_tuesday(self):
-        """Test parsing Tuesday."""
-        assert parse_week_start_to_weekday('Tue') == 1
-        assert parse_week_start_to_weekday('2') == 1
-
-    def test_parse_wednesday(self):
-        """Test parsing Wednesday."""
-        assert parse_week_start_to_weekday('Wed') == 2
-        assert parse_week_start_to_weekday('3') == 2
-
-    def test_parse_thursday(self):
-        """Test parsing Thursday."""
-        assert parse_week_start_to_weekday('Thu') == 3
-        assert parse_week_start_to_weekday('4') == 3
-
-    def test_parse_friday(self):
-        """Test parsing Friday."""
-        assert parse_week_start_to_weekday('Fri') == 4
-        assert parse_week_start_to_weekday('5') == 4
-
-    def test_parse_saturday(self):
-        """Test parsing Saturday."""
-        assert parse_week_start_to_weekday('Sat') == 5
-        assert parse_week_start_to_weekday('6') == 5
-
-    def test_parse_sunday(self):
-        """Test parsing Sunday."""
-        assert parse_week_start_to_weekday('Sun') == 6
-        assert parse_week_start_to_weekday('0') == 6
-        assert parse_week_start_to_weekday('7') == 6
-
-    def test_parse_invalid_defaults_to_monday(self):
-        """Test that invalid week start defaults to Monday."""
-        result = parse_week_start_to_weekday('Invalid')
-        assert result == 0
-
-    def test_parse_all_text_formats(self):
-        """Test all text-based week start formats."""
-        text_formats = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-        expected = [0, 1, 2, 3, 4, 5, 6]
-        
-        for fmt, exp in zip(text_formats, expected):
-            assert parse_week_start_to_weekday(fmt) == exp
-
-    def test_parse_all_numeric_formats(self):
-        """Test all numeric week start formats."""
-        # Note: 0 and 7 both map to Sunday (6)
-        assert parse_week_start_to_weekday('1') == 0  # Monday
-        assert parse_week_start_to_weekday('2') == 1  # Tuesday
-        assert parse_week_start_to_weekday('3') == 2  # Wednesday
-        assert parse_week_start_to_weekday('4') == 3  # Thursday
-        assert parse_week_start_to_weekday('5') == 4  # Friday
-        assert parse_week_start_to_weekday('6') == 5  # Saturday
-        assert parse_week_start_to_weekday('0') == 6  # Sunday
-        assert parse_week_start_to_weekday('7') == 6  # Sunday

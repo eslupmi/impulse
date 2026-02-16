@@ -116,13 +116,3 @@ def reload_config(config_path: Optional[str] = None) -> bool:
         logger.warning("Config reload failed, keeping current config", extra={'error': str(e)})
         _config = current_config
         return False
-
-
-def force_reload_config(config_path: Optional[str] = None) -> UnifiedConfig:
-    """
-    Force reload configuration from file (original behavior).
-    Useful for testing or when you want the process to exit on validation errors.
-    """
-    global _config
-    _config = load_unified_config(config_path)
-    return _config

@@ -23,7 +23,7 @@ class ChannelManager:
         self._channels: Dict[str, Dict] = {}
     
     def initialize(self, channels_list: List[str], channels_config: Dict[str, Union[SlackChannel, MattermostChannel, TelegramChannel, Dict]], default_channel: str) -> Dict[str, Dict]:
-        logger.info('Checking all channels defined')
+        logger.debug('Checking all channels defined')
         
         channels_dict = {}
         

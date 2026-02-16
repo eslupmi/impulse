@@ -32,9 +32,9 @@ img {
 	padding: 0px;
 }
 /* hide site_name from menu */
-.md-nav__title {
+/* .md-nav__title {
   display: none;
-}
+} */
 /* navigation menu sections font size */
 .md-nav__item--section.md-nav__item--nested {
   font-size: 18px;

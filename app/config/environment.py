@@ -152,22 +152,12 @@ class EnvironmentConfig(BaseModel):
 
 
 # Global instance - created once and reused
-_env_config = EnvironmentConfig()
+_env_config: EnvironmentConfig = None
 
 
 def get_environment_config() -> EnvironmentConfig:
     """Get the singleton instance of environment configuration"""
     global _env_config
+    if _env_config is None:
+        _env_config = EnvironmentConfig()
     return _env_config
-
-
-# Convenience function for common environment variables
-def get_messenger_token(messenger_type: str) -> str:
-    """Get the appropriate token based on messenger type"""
-    env_config = get_environment_config()
-    token_map = {
-        'slack': env_config.slack_bot_user_oauth_token,
-        'mattermost': env_config.mattermost_access_token,
-        'telegram': env_config.telegram_bot_token,
-    }
-    return token_map.get(messenger_type, '')
