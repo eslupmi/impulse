@@ -348,11 +348,12 @@ class Incident:
         return data
 
     def update_status(self, status: str) -> bool:
-        self._schedule_status_change_by_timeout(status)
+        now = datetime.now(timezone.utc)
+        self._schedule_status_change_by_timeout(status, now)
         if self.status != status:
             old_filename = self.get_current_filename()
             self._set_status(status)
-            self.updated = datetime.now(timezone.utc)
+            self.updated = now
             self.dump()
             new_filename = self.get_current_filename()
             if old_filename != new_filename:
@@ -396,8 +397,7 @@ class Incident:
         if status == 'closed' and not self.closed:
             self.closed = datetime.now(timezone.utc)
 
-    def _schedule_status_change_by_timeout(self, status):
-        now = self.updated
+    def _schedule_status_change_by_timeout(self, status, now):
         if status != 'deleted':
             config = get_config()
             timeout_value = config.incident.timeouts.get(status)
