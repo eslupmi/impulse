@@ -82,7 +82,7 @@ class Application(ABC):
         self.user_groups = generate_user_groups(self._user_groups_config, self.users)
         self.groups = await self._generate_groups(self._groups_config)
         if self.groups:
-            logger.info(f'Initialized {len(self.groups)} groups: {", ".join(self.groups.keys())}')
+            logger.debug(f'Initialized {len(self.groups)} groups: {", ".join(self.groups.keys())}')
         self.admin_users = [self.users.get(admin) or UndefinedUser(admin) for admin in self._admin_users_config]
 
     async def close(self):
