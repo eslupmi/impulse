@@ -38,9 +38,14 @@ notification_user = """
 
 notification_user_group = """
 {%- set undefined_users = [] -%}
-{%- for u in fields.unit.users | selectattr('defined', 'equalto', false) %}{% set _ = undefined_users.append(u.name) %}{% endfor -%}
 {%- set absent_users = [] -%}
-{%- for u in fields.unit.users | selectattr('exists', 'equalto', false) %}{% set _ = absent_users.append(u.name) %}{% endfor -%}
+{%- for u in fields.unit.users -%}
+{%-   if not u.defined -%}
+{%-     set _ = undefined_users.append(u.name) -%}
+{%-   elif not u.exists -%}
+{%-     set _ = absent_users.append(u.name) -%}
+{%-   endif -%}
+{%- endfor -%}
 {%- if fields.type == 'slack' -%}
 {%- set existing_users = [] -%}
 {%- for u in fields.unit.users if u.exists %}{% set _ = existing_users.append(u.id) %}{% endfor -%}
