@@ -5,7 +5,7 @@ from app.im.mattermost.config import buttons
 from app.time import format_freeze_expiration
 
 
-def chain_attrs(chain_enabled, status):
+def _chain_attrs(chain_enabled, status):
     if chain_enabled:
         chain_text = buttons['chain']['takeit']['text']
         chain_style = buttons['chain']['takeit']['style']
@@ -19,11 +19,11 @@ def chain_attrs(chain_enabled, status):
     return chain_text, chain_style
 
 
-def build_mattermost_actions(incident, user_timezone='UTC'):
+def _build_mattermost_actions(incident, user_timezone='UTC'):
     config = get_config()
     env_config = get_environment_config()
     
-    chain_text, chain_style = chain_attrs(incident.chain_enabled, incident.status)
+    chain_text, chain_style = _chain_attrs(incident.chain_enabled, incident.status)
     if incident.frozen_by_inhibition:
         chain_style = 'default'
     
@@ -104,7 +104,7 @@ def build_mattermost_actions(incident, user_timezone='UTC'):
 
 
 def mattermost_get_button_update_payload(incident, body, header, status_icons, user_timezone='UTC'):
-    actions = build_mattermost_actions(incident, user_timezone)
+    actions = _build_mattermost_actions(incident, user_timezone)
     display_status = 'frozen' if incident.is_frozen() else incident.status
     
     payload = {
@@ -125,7 +125,7 @@ def mattermost_get_button_update_payload(incident, body, header, status_icons, u
     return payload
 
 def mattermost_get_update_payload(incident, body, header, status_icons, tz_str):
-    actions = build_mattermost_actions(incident, tz_str)
+    actions = _build_mattermost_actions(incident, tz_str)
     display_status = 'frozen' if (incident.frozen_until or incident.frozen_by_inhibition) else incident.status
     
     payload = {
@@ -147,7 +147,7 @@ def mattermost_get_update_payload(incident, body, header, status_icons, tz_str):
 
 
 def mattermost_get_create_thread_payload(incident, body, header, status_icons):
-    actions = build_mattermost_actions(incident)
+    actions = _build_mattermost_actions(incident)
     display_status = 'frozen' if incident.frozen_by_inhibition else incident.status
     
     payload = {

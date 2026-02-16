@@ -10,7 +10,7 @@ def unix_sleep_to_timedelta(unix_sleep_time):
     return timedelta(**{unit_map[unit]: value})
 
 
-def add_months(source_date: datetime, months: int) -> datetime:
+def _add_months(source_date: datetime, months: int) -> datetime:
     month = source_date.month - 1 + months
     year = source_date.year + month // 12
     month = month % 12 + 1
@@ -51,12 +51,12 @@ def calculate_freeze_time(option: str, general_config, timezone_str: str = "UTC"
         return freeze_time.astimezone(timezone.utc)
         
     elif option == 'month':
-        freeze_time = add_months(now, 1)
+        freeze_time = _add_months(now, 1)
         freeze_time = freeze_time.replace(hour=workday_hour, minute=workday_minute, second=0, microsecond=0)
         return freeze_time.astimezone(timezone.utc)
         
     elif option == '6months':
-        freeze_time = add_months(now, 6)
+        freeze_time = _add_months(now, 6)
         freeze_time = freeze_time.replace(hour=workday_hour, minute=workday_minute, second=0, microsecond=0)
         return freeze_time.astimezone(timezone.utc)
         

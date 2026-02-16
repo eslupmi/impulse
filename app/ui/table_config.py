@@ -9,14 +9,14 @@ def get_all_ui_config():
         dict: Complete UI configuration including table config, sorting, colors, and filters.
     """
     return {
-        'table_config': get_incident_table_config(),
-        'sorting': get_incident_table_sorting(),
-        'colors': get_incident_table_colors(),
-        'filters': get_incident_table_filters()
+        'table_config': _get_incident_table_config(),
+        'sorting': _get_incident_table_sorting(),
+        'colors': _get_incident_table_colors(),
+        'filters': _get_incident_table_filters()
     }
 
 
-def get_incident_table_config():
+def _get_incident_table_config():
     """
     Get the table configuration for the incidents table.
 
@@ -68,7 +68,7 @@ def get_incident_table_config():
     return tabulator_config
 
 
-def get_incident_table_sorting():
+def _get_incident_table_sorting():
     """
     Convert sorting configuration to a format compatible with Tabulator's JavaScript sorting logic.
 
@@ -96,7 +96,7 @@ def get_incident_table_sorting():
     
     return tabulator_sorting
 
-def get_incident_table_colors():
+def _get_incident_table_colors():
     """
     Get the colors for the incidents table.
 
@@ -110,7 +110,7 @@ def get_incident_table_colors():
         return ui_config.colors
     return {}
 
-def get_incident_table_filters():
+def _get_incident_table_filters():
     """
     Get the filters for the incidents table.
 

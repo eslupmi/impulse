@@ -1,4 +1,3 @@
-"""Template rendering utilities for IMPulse application."""
 from pathlib import Path
 from typing import Optional, TYPE_CHECKING
 

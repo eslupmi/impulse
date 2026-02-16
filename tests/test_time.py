@@ -12,7 +12,7 @@ import pytest
 
 from app.time import (
     unix_sleep_to_timedelta,
-    add_months,
+    _add_months,
     calculate_freeze_time,
     format_freeze_expiration
 )
@@ -53,7 +53,7 @@ class TestAddMonths:
     def test_add_one_month(self):
         """Test adding one month."""
         source = datetime(2023, 1, 15, 10, 30, 0)
-        result = add_months(source, 1)
+        result = _add_months(source, 1)
         assert result.year == 2023
         assert result.month == 2
         assert result.day == 15
@@ -61,7 +61,7 @@ class TestAddMonths:
     def test_add_multiple_months(self):
         """Test adding multiple months."""
         source = datetime(2023, 1, 15, 10, 30, 0)
-        result = add_months(source, 6)
+        result = _add_months(source, 6)
         assert result.year == 2023
         assert result.month == 7
         assert result.day == 15
@@ -69,7 +69,7 @@ class TestAddMonths:
     def test_add_months_crossing_year(self):
         """Test adding months that cross year boundary."""
         source = datetime(2023, 11, 15, 10, 30, 0)
-        result = add_months(source, 3)
+        result = _add_months(source, 3)
         assert result.year == 2024
         assert result.month == 2
         assert result.day == 15
@@ -77,7 +77,7 @@ class TestAddMonths:
     def test_add_months_end_of_month(self):
         """Test adding months with end-of-month date."""
         source = datetime(2023, 1, 31, 10, 30, 0)
-        result = add_months(source, 1)
+        result = _add_months(source, 1)
         # February has only 28/29 days, so day should be adjusted
         assert result.year == 2023
         assert result.month == 2
@@ -86,7 +86,7 @@ class TestAddMonths:
     def test_add_months_leap_year(self):
         """Test adding months with leap year."""
         source = datetime(2024, 1, 31, 10, 30, 0)
-        result = add_months(source, 1)
+        result = _add_months(source, 1)
         # February 2024 is a leap year, so has 29 days
         assert result.year == 2024
         assert result.month == 2
@@ -95,7 +95,7 @@ class TestAddMonths:
     def test_add_twelve_months(self):
         """Test adding 12 months (one year)."""
         source = datetime(2023, 1, 15, 10, 30, 0)
-        result = add_months(source, 12)
+        result = _add_months(source, 12)
         assert result.year == 2024
         assert result.month == 1
         assert result.day == 15
