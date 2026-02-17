@@ -61,6 +61,26 @@ class InhibitionManager:
         logger.debug("Inhibition state restoration complete",
                    extra={'sources_count': sum(len(s) for s in self.sources.values()),
                          'targets_count': sum(len(t) for t in self.targets.values())})
+
+    async def apply_current_inhibition(self):
+        logger.debug("Applying current inhibition to existing incidents")
+
+        source_ids = set().union(*self.sources.values()) if self.sources else set()
+        target_ids = set().union(*self.targets.values()) if self.targets else set()
+
+        for uniq_id in self.incidents.active_map.values():
+            incident = self.incidents.uniq_ids.get(uniq_id)
+            if not incident:
+                continue
+
+            if uniq_id in source_ids or uniq_id in target_ids:
+                await self.process_incident(incident)
+                continue
+
+            if incident.childs or incident.parents:
+                await self._cleanup_untracked_incident(incident)
+
+        logger.debug("Applied current inhibition to existing incidents")
     
     def would_be_inhibited(self, incident: 'Incident') -> bool:
         if not self.rules:
@@ -140,6 +160,21 @@ class InhibitionManager:
             await self._unfreeze_target_if_no_parents(target)
         
         source.dump()
+
+    async def _cleanup_untracked_incident(self, incident: 'Incident'):
+        if incident.childs:
+            await self._cleanup_source(incident)
+
+        if incident.parents:
+            for parent_uniq_id in list(incident.parents):
+                parent = self.incidents.uniq_ids.get(parent_uniq_id)
+                if parent and incident.uniq_id in parent.childs:
+                    parent.childs.remove(incident.uniq_id)
+                    parent.dump()
+                incident.parents.remove(parent_uniq_id)
+            incident.dump()
+
+        await self._unfreeze_target_if_no_parents(incident)
 
     async def _process_incident_for_rule(self, incident: 'Incident', rule_idx: int, rule: InhibitionRule):
         if rule.is_target(incident):

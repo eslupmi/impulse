@@ -118,6 +118,7 @@ async def initialize_primary_server(fastapi_app: FastAPI, file_lock: FileLock) -
             queue=queue
         )
         inhibition_manager.restore_from_incidents()
+        await inhibition_manager.apply_current_inhibition()
 
         user_scheduler = UserUpdateScheduler(queue, messenger.type.value)
         messenger.configure_scheduler(user_scheduler)

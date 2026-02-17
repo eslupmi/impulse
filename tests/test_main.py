@@ -38,6 +38,7 @@ class TestMainApplication:
             # Setup mock inhibition manager
             mock_inhibition_manager = Mock()
             mock_inhibition_manager.restore_from_incidents = Mock()
+            mock_inhibition_manager.apply_current_inhibition = AsyncMock()
             mock_inhibition_manager_class.return_value = mock_inhibition_manager
             
             # Setup mock config

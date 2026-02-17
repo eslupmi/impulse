@@ -29,6 +29,7 @@ class TestInhibitionManager:
         """Create mock application."""
         app = create_mock_application()
         app.update_thread = AsyncMock()
+        app.update_incident_message = AsyncMock()
         app.body_template = Mock()
         app.body_template.form_message = Mock(return_value="body")
         app.header_template = Mock()
@@ -391,6 +392,67 @@ class TestInhibitionManager:
         assert "firing-1" in inhibition_manager.sources[0]
         assert "unknown-1" in inhibition_manager.sources[0]
         assert "resolved-1" in inhibition_manager.sources[0]
+
+    @pytest.mark.asyncio
+    async def test_apply_current_inhibition_no_rules(self, empty_inhibition_manager, mock_incidents):
+        """Test apply_current_inhibition with no rules does nothing."""
+        incident = self._create_mock_incident("inc-1", "critical", "api")
+        mock_incidents.active_map = {"uuid-inc-1": "inc-1"}
+        mock_incidents.uniq_ids = {"inc-1": incident}
+
+        await empty_inhibition_manager.apply_current_inhibition()
+
+        incident.freeze_by_inhibition.assert_not_called()
+        empty_inhibition_manager.queue.delete_by_id.assert_not_awaited()
+        empty_inhibition_manager.application.update_incident_message.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_apply_current_inhibition_processes_tracked_incidents(self, inhibition_manager, mock_incidents):
+        """Test apply_current_inhibition processes incidents tracked by current rules."""
+        source = self._create_mock_incident("source-1", "critical", "api")
+        target = self._create_mock_incident("target-1", "warning", "api")
+        mock_incidents.active_map = {"uuid-source-1": "source-1", "uuid-target-1": "target-1"}
+        mock_incidents.uniq_ids = {"source-1": source, "target-1": target}
+        inhibition_manager.restore_from_incidents()
+
+        await inhibition_manager.apply_current_inhibition()
+
+        assert "target-1" in source.childs
+        assert "source-1" in target.parents
+        target.freeze_by_inhibition.assert_called_once()
+        inhibition_manager.queue.delete_by_id.assert_awaited_once_with(
+            "target-1", delete_steps=True, delete_status=False
+        )
+
+    @pytest.mark.asyncio
+    @patch("app.inhibition.manager.unfreeze_incident", new_callable=AsyncMock)
+    async def test_apply_current_inhibition_cleans_untracked_state(
+        self, mock_unfreeze_incident, inhibition_manager, mock_incidents
+    ):
+        """Test stale inhibition links are cleaned and stale frozen target is unfrozen."""
+        async def _unfreeze_side_effect(incident, _application, _queue):
+            incident.frozen_by_inhibition = False
+
+        mock_unfreeze_incident.side_effect = _unfreeze_side_effect
+
+        source = self._create_mock_incident("source-1", "critical", "api", childs=["target-1"])
+        target = self._create_mock_incident(
+            "target-1", "warning", "api", parents=["source-1"], frozen_by_inhibition=True
+        )
+
+        # No current rules match these incidents, but stale inhibition links exist.
+        target.payload["commonLabels"]["severity"] = "info"
+        mock_incidents.active_map = {"uuid-source-1": "source-1", "uuid-target-1": "target-1"}
+        mock_incidents.uniq_ids = {"source-1": source, "target-1": target}
+        inhibition_manager.restore_from_incidents()
+
+        await inhibition_manager.apply_current_inhibition()
+
+        target.freeze_by_inhibition.assert_not_called()
+        assert source.childs == []
+        assert target.parents == []
+        mock_unfreeze_incident.assert_awaited_once_with(target, inhibition_manager.application, inhibition_manager.queue)
+        inhibition_manager.application.update_incident_message.assert_awaited_once_with(target)
 
     # Reload Rules Tests
 
