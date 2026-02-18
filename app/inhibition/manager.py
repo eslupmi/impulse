@@ -77,6 +77,9 @@ class InhibitionManager:
                 await self.process_incident(incident)
                 continue
 
+            if incident.childs or incident.parents:
+                await self._cleanup_untracked_incident(incident)
+
         logger.debug("Applied current inhibition to existing incidents")
     
     def would_be_inhibited(self, incident: 'Incident') -> bool:
@@ -174,24 +177,18 @@ class InhibitionManager:
         await self._unfreeze_target_if_no_parents(incident)
 
     async def _process_incident_for_rule(self, incident: 'Incident', rule_idx: int, rule: InhibitionRule):
-        done_1 = False
-        done_2 = False
         if rule.is_target(incident):
-            done_1 = True
             self.targets[rule_idx].add(incident.uniq_id)
             await self._freeze_matching_targets(
                 incident, self.sources[rule_idx], rule, incident_is_target=True
             )
         if rule.is_source(incident):
-            done_2 = True
             self.sources[rule_idx].add(incident.uniq_id)
             done = await self._freeze_matching_targets(
                 incident, self.targets[rule_idx], rule, incident_is_target=False
             )
             if done and self.application.type != MessengerType.TELEGRAM:
                 await self.application.update_incident_message(incident)
-        if not done_1 and not done_2:
-            await self._cleanup_untracked_incident(incident)
 
     async def _freeze_matching_targets(
         self,
