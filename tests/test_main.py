@@ -272,6 +272,38 @@ class TestSignalHandlers:
         mock_logger.info.assert_any_call("Reloading configuration")
         mock_logger.info.assert_any_call("Configuration reloaded")
 
+    @patch('main.get_config')
+    @patch('main.reload_config')
+    @patch('main.logger')
+    def test_sighup_handler_schedules_inhibition_reconciliation(
+        self, mock_logger, mock_reload_config, mock_get_config
+    ):
+        """Test SIGHUP reload schedules apply_current_inhibition when manager is present."""
+        mock_reload_config.return_value = True
+        mock_config = Mock()
+        mock_config.app.inhibit_rules = []
+        mock_get_config.return_value = mock_config
+
+        mock_manager = Mock()
+        mock_manager.reload_rules = Mock()
+        reconcile_coro = Mock()
+        mock_manager.apply_current_inhibition = Mock(return_value=reconcile_coro)
+        mock_app = Mock()
+        mock_app.state = Mock()
+        mock_app.state.inhibition_manager = mock_manager
+        mock_loop = Mock()
+
+        with patch('main.hasattr', return_value=True), \
+                patch('main.signal') as mock_signal, \
+                patch('main.asyncio.get_running_loop', return_value=mock_loop):
+            main.setup_sighup_handler(mock_app)
+            handler = mock_signal.signal.call_args[0][1]
+            handler(None, None)
+
+        mock_manager.reload_rules.assert_called_once_with([])
+        mock_manager.apply_current_inhibition.assert_called_once()
+        mock_loop.create_task.assert_called_once_with(reconcile_coro)
+
     @patch('main.reload_config')
     @patch('main.logger')
     def test_sighup_handler_error(self, mock_logger, mock_reload_config):

@@ -454,6 +454,100 @@ class TestInhibitionManager:
         mock_unfreeze_incident.assert_awaited_once_with(target, inhibition_manager.application, inhibition_manager.queue)
         inhibition_manager.application.update_incident_message.assert_awaited_once_with(target)
 
+    @pytest.mark.asyncio
+    @patch("app.inhibition.manager.unfreeze_incident", new_callable=AsyncMock)
+    async def test_apply_current_inhibition_cleans_tracked_links_after_equal_change(
+        self, mock_unfreeze_incident, inhibition_manager, mock_incidents
+    ):
+        """Test stale links are removed when incidents remain tracked but equal labels no longer match."""
+        async def _unfreeze_side_effect(incident, _application, _queue):
+            incident.frozen_by_inhibition = False
+
+        mock_unfreeze_incident.side_effect = _unfreeze_side_effect
+
+        source = self._create_mock_incident("source-1", "critical", "api", childs=["target-1"])
+        target = self._create_mock_incident(
+            "target-1", "warning", "api", parents=["source-1"], frozen_by_inhibition=True
+        )
+        target.payload["commonLabels"]["service"] = "web"
+
+        mock_incidents.active_map = {"uuid-source-1": "source-1", "uuid-target-1": "target-1"}
+        mock_incidents.uniq_ids = {"source-1": source, "target-1": target}
+        inhibition_manager.restore_from_incidents()
+
+        await inhibition_manager.apply_current_inhibition()
+
+        assert source.childs == []
+        assert target.parents == []
+        target.freeze_by_inhibition.assert_not_called()
+        mock_unfreeze_incident.assert_awaited_once_with(target, inhibition_manager.application, inhibition_manager.queue)
+
+    @pytest.mark.asyncio
+    @patch("app.inhibition.manager.unfreeze_incident", new_callable=AsyncMock)
+    async def test_apply_current_inhibition_keeps_valid_existing_link(
+        self, mock_unfreeze_incident, inhibition_manager, mock_incidents
+    ):
+        """Test existing parent-child link is preserved when still valid under current rules."""
+        source = self._create_mock_incident("source-1", "critical", "api", childs=["target-1"])
+        target = self._create_mock_incident(
+            "target-1", "warning", "api", parents=["source-1"], frozen_by_inhibition=True
+        )
+
+        mock_incidents.active_map = {"uuid-source-1": "source-1", "uuid-target-1": "target-1"}
+        mock_incidents.uniq_ids = {"source-1": source, "target-1": target}
+        inhibition_manager.restore_from_incidents()
+
+        await inhibition_manager.apply_current_inhibition()
+
+        assert source.childs == ["target-1"]
+        assert target.parents == ["source-1"]
+        target.freeze_by_inhibition.assert_not_called()
+        inhibition_manager.queue.delete_by_id.assert_not_awaited()
+        mock_unfreeze_incident.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    @patch("app.inhibition.manager.unfreeze_incident", new_callable=AsyncMock)
+    async def test_apply_current_inhibition_keeps_link_if_any_rule_matches(
+        self, mock_unfreeze_incident, mock_queue, mock_application, mock_incidents
+    ):
+        """Test link remains valid if at least one rule still matches equal labels."""
+        rule_service = Mock(spec=InhibitRule)
+        rule_service.source_matchers = ['severity = "critical"']
+        rule_service.target_matchers = ['severity = "warning"']
+        rule_service.equal = ['service']
+
+        rule_cluster = Mock(spec=InhibitRule)
+        rule_cluster.source_matchers = ['severity = "critical"']
+        rule_cluster.target_matchers = ['severity = "warning"']
+        rule_cluster.equal = ['cluster']
+
+        manager = InhibitionManager(
+            rules=[rule_service, rule_cluster],
+            incidents=mock_incidents,
+            application=mock_application,
+            queue=mock_queue
+        )
+
+        source = self._create_mock_incident("source-1", "critical", "api", childs=["target-1"])
+        target = self._create_mock_incident(
+            "target-1", "warning", "api", parents=["source-1"], frozen_by_inhibition=True
+        )
+        target.payload["commonLabels"]["service"] = "web"
+        source.payload["commonLabels"]["cluster"] = "prod"
+        target.payload["commonLabels"]["cluster"] = "prod"
+
+        mock_incidents.active_map = {"uuid-source-1": "source-1", "uuid-target-1": "target-1"}
+        mock_incidents.uniq_ids = {"source-1": source, "target-1": target}
+        manager.restore_from_incidents()
+
+        await manager.apply_current_inhibition()
+
+        assert source.childs == ["target-1"]
+        assert target.parents == ["source-1"]
+        target.freeze_by_inhibition.assert_not_called()
+        mock_queue.delete_by_id.assert_not_awaited()
+        mock_unfreeze_incident.assert_not_awaited()
+
     # Reload Rules Tests
 
     def test_reload_rules(self, inhibition_manager, mock_incidents):

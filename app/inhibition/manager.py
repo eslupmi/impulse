@@ -65,22 +65,130 @@ class InhibitionManager:
     async def apply_current_inhibition(self):
         logger.debug("Applying current inhibition to existing incidents")
 
-        source_ids = set().union(*self.sources.values()) if self.sources else set()
-        target_ids = set().union(*self.targets.values()) if self.targets else set()
+        required_children_by_source, required_parents_by_target, tracked_ids = self._build_required_inhibition_graph()
+        await self._reconcile_existing_inhibition_links(required_children_by_source, required_parents_by_target)
 
-        for uniq_id in self.incidents.active_map.values():
-            incident = self.incidents.uniq_ids.get(uniq_id)
-            if not incident:
-                continue
+        updated_sources = await self._apply_missing_required_links(required_children_by_source)
+        if updated_sources and self.application.type != MessengerType.TELEGRAM:
+            await self._update_sources_messages(updated_sources)
 
-            if uniq_id in source_ids or uniq_id in target_ids:
-                await self.process_incident(incident)
-                continue
-
-            if incident.childs or incident.parents:
-                await self._cleanup_untracked_incident(incident)
+        await self._cleanup_untracked_inhibition(tracked_ids)
 
         logger.debug("Applied current inhibition to existing incidents")
+
+    def _build_required_inhibition_graph(self):
+        required_children_by_source: Dict[str, Set[str]] = {}
+        required_parents_by_target: Dict[str, Set[str]] = {}
+        tracked_ids: Set[str] = set()
+
+        for rule_idx, rule in enumerate(self.rules):
+            source_ids = self.sources[rule_idx]
+            target_ids = self.targets[rule_idx]
+            tracked_ids.update(source_ids)
+            tracked_ids.update(target_ids)
+
+            for source_uniq_id in source_ids:
+                source = self.incidents.uniq_ids.get(source_uniq_id)
+                if not source or source.status == 'resolved':
+                    continue
+
+                for target_uniq_id in target_ids:
+                    if source_uniq_id == target_uniq_id:
+                        continue
+
+                    target = self.incidents.uniq_ids.get(target_uniq_id)
+                    if not target:
+                        continue
+
+                    if not rule.equal_labels_match(source, target):
+                        continue
+
+                    required_children_by_source.setdefault(source_uniq_id, set()).add(target_uniq_id)
+                    required_parents_by_target.setdefault(target_uniq_id, set()).add(source_uniq_id)
+
+        return required_children_by_source, required_parents_by_target, tracked_ids
+
+    async def _reconcile_existing_inhibition_links(
+        self,
+        required_children_by_source: Dict[str, Set[str]],
+        required_parents_by_target: Dict[str, Set[str]]
+    ):
+        for incident in self._iter_active_incidents():
+            await self._reconcile_source_links(incident, required_children_by_source.get(incident.uniq_id, set()))
+            await self._reconcile_target_links(incident, required_parents_by_target.get(incident.uniq_id, set()))
+
+    async def _reconcile_source_links(self, source: 'Incident', required_childs: Set[str]):
+        source_changed = False
+
+        for child_uniq_id in list(source.childs):
+            if child_uniq_id in required_childs:
+                continue
+
+            source.childs.remove(child_uniq_id)
+            source_changed = True
+
+            child = self.incidents.uniq_ids.get(child_uniq_id)
+            if child and source.uniq_id in child.parents:
+                child.parents.remove(source.uniq_id)
+                child.dump()
+                await self._unfreeze_target_if_no_parents(child)
+
+        if source_changed:
+            source.dump()
+
+    async def _reconcile_target_links(self, target: 'Incident', required_parents: Set[str]):
+        target_changed = False
+
+        for parent_uniq_id in list(target.parents):
+            if parent_uniq_id in required_parents:
+                continue
+
+            target.parents.remove(parent_uniq_id)
+            target_changed = True
+
+            parent = self.incidents.uniq_ids.get(parent_uniq_id)
+            if parent and target.uniq_id in parent.childs:
+                parent.childs.remove(target.uniq_id)
+                parent.dump()
+
+        if target_changed:
+            target.dump()
+            await self._unfreeze_target_if_no_parents(target)
+
+    async def _apply_missing_required_links(self, required_children_by_source: Dict[str, Set[str]]) -> Set[str]:
+        updated_sources: Set[str] = set()
+
+        for source_uniq_id, target_uniq_ids in required_children_by_source.items():
+            source = self.incidents.uniq_ids.get(source_uniq_id)
+            if not source:
+                continue
+
+            for target_uniq_id in target_uniq_ids:
+                target = self.incidents.uniq_ids.get(target_uniq_id)
+                if not target:
+                    continue
+
+                if await self._freeze_target(source, target):
+                    updated_sources.add(source_uniq_id)
+
+        return updated_sources
+
+    async def _update_sources_messages(self, source_ids: Set[str]):
+        for source_uniq_id in source_ids:
+            source = self.incidents.uniq_ids.get(source_uniq_id)
+            if source:
+                await self.application.update_incident_message(source)
+
+    async def _cleanup_untracked_inhibition(self, tracked_ids: Set[str]):
+        for incident in self._iter_active_incidents():
+            if incident.uniq_id not in tracked_ids and (incident.childs or incident.parents or incident.frozen_by_inhibition):
+                await self._cleanup_untracked_incident(incident)
+
+    def _iter_active_incidents(self):
+        for uniq_id in self.incidents.active_map.values():
+            incident = self.incidents.uniq_ids.get(uniq_id)
+            if incident:
+                yield incident
     
     def would_be_inhibited(self, incident: 'Incident') -> bool:
         if not self.rules:

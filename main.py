@@ -49,6 +49,11 @@ def setup_sighup_handler(fastapi_app=None):
                 if fastapi_app and fastapi_app.state.inhibition_manager:
                     config_data = get_config()
                     fastapi_app.state.inhibition_manager.reload_rules(config_data.app.inhibit_rules or [])
+                    try:
+                        loop = asyncio.get_running_loop()
+                        loop.create_task(fastapi_app.state.inhibition_manager.apply_current_inhibition())
+                    except RuntimeError:
+                        logger.warning("No running event loop for inhibition reconciliation after reload")
         except Exception as e:
             logger.error("Configuration reload error", extra={'error': str(e)})
             logger.warning("Configuration reload aborted")
