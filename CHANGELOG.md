@@ -12,6 +12,8 @@ Changes:
 - [_Slack_, _Mattermost_] [Freeze](https://docs.impulse.bot/stable/concepts/buttons/#freeze) prefer User's timezone instead of [general](https://docs.impulse.bot/stable/config_file/#generaltimezone)
 - [_Telegram_] Using new [colored buttons](https://t.me/telegram/427) feature for **Take It** button
 - Added **Filter Out** button to UI
+- Switch to **JSON** logs
+- Added Jira task link to UI
 - Moved Helm to [new repo](https://github.com/eslupmi-community/helm-charts) in community organization
 
     ```bash
@@ -19,7 +21,6 @@ Changes:
     helm repo remove impulse
     helm repo add impulse https://eslupmi-community.github.io/helm-charts
     ```
-- Added Jira task link to UI
 - Fixed concurrent execution of multiple chain steps
 
 ## v3.3.0
