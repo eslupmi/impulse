@@ -44,14 +44,8 @@ http_prefix = env_config.http_prefix
 router = APIRouter(prefix=http_prefix)
 
 
-def _parse_bool_env(value: str, default: bool = False) -> bool:
-    if value is None:
-        return default
-    return value.strip().lower() in {"1", "true", "yes", "on"}
-
-
 def _build_auth_redirect_uri() -> str:
-    configured = os.getenv("AUTH_REDIRECT_URI", "").strip()
+    configured = env_config.auth_redirect_uri.strip()
     if configured:
         return configured
 
@@ -64,8 +58,8 @@ def _build_auth_redirect_uri() -> str:
 
 def _build_auth_manager() -> UserAuthenticationManager:
     messenger_type = config.messenger.type
-    client_id = os.getenv("AUTH_CLIENT_ID", "").strip()
-    client_secret = os.getenv("AUTH_CLIENT_SECRET", "").strip()
+    client_id = env_config.auth_client_id.strip()
+    client_secret = env_config.auth_client_secret.strip()
 
     provider = TelegramAuthenticationProviderMock()
 
@@ -87,12 +81,10 @@ def _build_auth_manager() -> UserAuthenticationManager:
                 "Auth disabled for Mattermost: AUTH_CLIENT_ID, AUTH_CLIENT_SECRET and messenger.address are required"
             )
 
-    cookie_secure = _parse_bool_env(os.getenv("AUTH_COOKIE_SECURE"), default=False)
-
     return UserAuthenticationManager(
         provider=provider,
         redirect_uri=_build_auth_redirect_uri(),
-        cookie_secure=cookie_secure,
+        cookie_secure=env_config.auth_cookie_secure,
     )
 
 

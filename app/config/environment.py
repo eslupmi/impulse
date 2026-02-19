@@ -7,6 +7,13 @@ from pydantic import BaseModel, Field, field_validator
 load_dotenv()
 
 
+def _env_bool(name: str, default: bool = False) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
 class EnvironmentConfig(BaseModel):
     """Environment-based configuration loaded from environment variables"""
     
@@ -26,6 +33,22 @@ class EnvironmentConfig(BaseModel):
     telegram_bot_token: str = Field(
         default_factory=lambda: os.getenv('TELEGRAM_BOT_TOKEN', ''),
         description="Telegram Bot Token"
+    )
+    auth_client_id: str = Field(
+        default_factory=lambda: os.getenv('AUTH_CLIENT_ID', ''),
+        description="OAuth client id for messenger auth"
+    )
+    auth_client_secret: str = Field(
+        default_factory=lambda: os.getenv('AUTH_CLIENT_SECRET', ''),
+        description="OAuth client secret for messenger auth"
+    )
+    auth_redirect_uri: str = Field(
+        default_factory=lambda: os.getenv('AUTH_REDIRECT_URI', ''),
+        description="OAuth callback URI for messenger auth"
+    )
+    auth_cookie_secure: bool = Field(
+        default_factory=lambda: _env_bool('AUTH_COOKIE_SECURE', False),
+        description="Set auth cookie with Secure attribute"
     )
     
     # Jira integration (Cloud with Basic Auth)

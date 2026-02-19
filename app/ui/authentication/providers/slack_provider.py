@@ -15,9 +15,9 @@ class SlackAuthenticationProvider(AuthenticationProvider):
         client_id: str,
         client_secret: str,
         scopes: Sequence[str] = ("openid", "profile", "email"),
-        authorize_url: str = "https://slack.com/oauth/v2/authorize",
-        token_url: str = "https://slack.com/api/oauth.v2.access",
-        user_url: str = "https://slack.com/api/users.identity",
+        authorize_url: str = "https://slack.com/openid/connect/authorize",
+        token_url: str = "https://slack.com/api/openid.connect.token",
+        user_url: str = "https://slack.com/api/openid.connect.userInfo",
         timeout_seconds: float = 10.0,
     ):
         self.client_id = client_id
@@ -30,6 +30,7 @@ class SlackAuthenticationProvider(AuthenticationProvider):
 
     def build_authorization_url(self, state: str, redirect_uri: str) -> str:
         params = {
+            "response_type": "code",
             "client_id": self.client_id,
             "redirect_uri": redirect_uri,
             "state": state,
@@ -39,6 +40,7 @@ class SlackAuthenticationProvider(AuthenticationProvider):
 
     async def exchange_code(self, code: str, redirect_uri: str) -> str:
         payload = {
+            "grant_type": "authorization_code",
             "client_id": self.client_id,
             "client_secret": self.client_secret,
             "code": code,
@@ -55,8 +57,6 @@ class SlackAuthenticationProvider(AuthenticationProvider):
 
                 token = data.get("access_token")
                 if not token:
-                    token = (data.get("authed_user") or {}).get("access_token")
-                if not token:
                     raise ValueError("Slack access token not found in response")
                 return token
 
@@ -72,12 +72,7 @@ class SlackAuthenticationProvider(AuthenticationProvider):
                     raise ValueError(f"Slack user fetch failed: {data.get('error', 'unknown')}")
 
                 user_data = data.get("user") if isinstance(data.get("user"), dict) else data
-                user_id = str(
-                    user_data.get("id")
-                    or user_data.get("user_id")
-                    or data.get("sub")
-                    or ""
-                )
+                user_id = str(user_data.get("id") or user_data.get("user_id") or data.get("sub") or "")
                 if not user_id:
                     raise ValueError("Slack user id not found in response")
 
