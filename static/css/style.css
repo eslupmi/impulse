@@ -544,6 +544,41 @@ strong {
     transition: all 0.3s ease;
 }
 
+.auth-controls-wrapper {
+    position: fixed;
+    bottom: 4px;
+    right: 74px;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.auth-status {
+    color: var(--text-secondary);
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.auth-action-btn {
+    cursor: pointer;
+    min-width: 52px;
+    height: 22px;
+    border: 1px solid var(--table-border);
+    border-radius: 6px;
+    padding: 0 8px;
+    background: var(--background-primary);
+    color: var(--text-primary);
+    font-size: 12px;
+    line-height: 20px;
+    transition: all 0.2s ease;
+}
+
+.auth-action-btn:hover {
+    border-color: var(--brand-primary);
+    color: var(--brand-primary);
+}
+
 .theme-toggle-wrapper {
     position: fixed;
     bottom: 7px;

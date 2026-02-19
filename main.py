@@ -1,13 +1,31 @@
+import json
+import os
+from datetime import datetime, timezone
+
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, HTTPException, APIRouter
+from fastapi.responses import HTMLResponse, Response
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 
 from app.cli import parse_arguments
-from app.config.config import validate_config_only
+from app.config.config import get_config, validate_config_only
 from app.config.environment import get_environment_config
+from app.config.validation import MessengerType
 from app.lifespan import lifespan
-from app.logging import configure_logging
-from app.middleware import StandbyMiddleware
+from app.logging import logger, configure_logging
+from app.metrics import STATUS, generate_metrics_response
+from app.middleware import StandbyMiddleware, is_standby_mode, service_unavailable_response
 from app.signals import setup_sighup_forwarder
+from app.ui.table_config import get_all_ui_config
+from app.ui.websocket import incident_ws
+from app.ui.authentication import (
+    UserAuthenticationManager,
+    create_auth_router,
+    SlackAuthenticationProvider,
+    MattermostAuthenticationProvider,
+    TelegramAuthenticationProviderMock,
+)
 
 
 app = FastAPI(
@@ -19,6 +37,194 @@ app = FastAPI(
     redoc_url=None
 )
 app.add_middleware(StandbyMiddleware)
+
+config = get_config()
+env_config = get_environment_config()
+http_prefix = env_config.http_prefix
+router = APIRouter(prefix=http_prefix)
+
+
+def _parse_bool_env(value: str, default: bool = False) -> bool:
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _build_auth_redirect_uri() -> str:
+    configured = os.getenv("AUTH_REDIRECT_URI", "").strip()
+    if configured:
+        return configured
+
+    callback_path = f"{http_prefix}/auth/callback" if http_prefix else "/auth/callback"
+    impulse_address = getattr(config.messenger, "impulse_address", None)
+    if impulse_address:
+        return f"{impulse_address.rstrip('/')}{callback_path}"
+    return callback_path
+
+
+def _build_auth_manager() -> UserAuthenticationManager:
+    messenger_type = config.messenger.type
+    client_id = os.getenv("AUTH_CLIENT_ID", "").strip()
+    client_secret = os.getenv("AUTH_CLIENT_SECRET", "").strip()
+
+    provider = TelegramAuthenticationProviderMock()
+
+    if messenger_type == MessengerType.SLACK:
+        if client_id and client_secret:
+            provider = SlackAuthenticationProvider(client_id=client_id, client_secret=client_secret)
+        else:
+            logger.warning("Auth disabled for Slack: AUTH_CLIENT_ID and AUTH_CLIENT_SECRET are required")
+    elif messenger_type == MessengerType.MATTERMOST:
+        mattermost_url = getattr(config.messenger, "address", "").strip()
+        if client_id and client_secret and mattermost_url:
+            provider = MattermostAuthenticationProvider(
+                base_url=mattermost_url,
+                client_id=client_id,
+                client_secret=client_secret,
+            )
+        else:
+            logger.warning(
+                "Auth disabled for Mattermost: AUTH_CLIENT_ID, AUTH_CLIENT_SECRET and messenger.address are required"
+            )
+
+    cookie_secure = _parse_bool_env(os.getenv("AUTH_COOKIE_SECURE"), default=False)
+
+    return UserAuthenticationManager(
+        provider=provider,
+        redirect_uri=_build_auth_redirect_uri(),
+        cookie_secure=cookie_secure,
+    )
+
+
+auth_manager = _build_auth_manager()
+router.include_router(create_auth_router(auth_manager))
+
+
+def get_live(request: Request):
+    return Response(status_code=200, content="OK", media_type="text/plain")
+
+
+def get_ready(request: Request):
+    if not hasattr(request.app, 'state'):
+        return service_unavailable_response("Service Unavailable - Initializing")
+
+    if is_standby_mode(request.app.state):
+        return service_unavailable_response("Service Unavailable - Standby mode")
+
+    if not hasattr(request.app.state, 'queue') or not hasattr(request.app.state, 'queue_manager'):
+        return service_unavailable_response("Service Unavailable - Initializing")
+
+    return Response(status_code=200, content="OK", media_type="text/plain")
+
+
+@router.get("/metrics")
+async def get_metrics(request: Request):
+    queue = request.app.state.queue
+    return await generate_metrics_response(queue)
+
+
+app.add_api_route(f"{http_prefix}/livez", get_live, methods=["GET"])
+app.add_api_route(f"{http_prefix}/readyz", get_ready, methods=["GET"])
+app.add_api_route(f"{http_prefix}/metrics", get_metrics, methods=["GET"])
+
+if get_config().ui_config:
+    if http_prefix:
+        app.mount(f"{http_prefix}/static", StaticFiles(directory="static"), name="static")
+    else:
+        app.mount("/static", StaticFiles(directory="static"), name="static")
+    templates = Jinja2Templates(directory="templates")
+
+    @router.get("/", response_class=HTMLResponse)
+    async def get_index(request: Request):
+        return templates.TemplateResponse("index.html", {
+            "request": request,
+            "http_prefix": http_prefix
+        })
+
+
+@router.get("/queue")
+async def get_queue(request: Request):
+    return await request.app.state.queue.serialize()
+
+
+@router.post("/")
+async def post_alert(request: Request):
+    try:
+        alert_state = await request.json()
+        logger.debug("Alert received", extra={'payload': alert_state})
+        await request.app.state.queue.put_first(datetime.now(timezone.utc), 'alert', None, None, alert_state)
+        return alert_state
+    except Exception as e:
+        logger.error("Alert processing error", extra={'error': str(e)})
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/app")
+@router.put("/app")
+async def handle_app_buttons(request: Request):
+    try:
+        if request.app.state.messenger.type == 'slack':
+            form_data = await request.form()
+            payload = json.loads(form_data['payload'])
+        else:
+            payload = await request.json()
+
+        return await request.app.state.messenger.buttons_handler(
+            payload,
+            request.app.state.incidents,
+            request.app.state.queue,
+            request.app.state.route
+        )
+    except Exception as e:
+        logger.error("App buttons error", extra={'error': str(e)})
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/incidents")
+async def get_incidents(request: Request):
+    return request.app.state.incidents.serialize()
+
+
+@router.get("/ui_config")
+async def get_ui_config():
+    return get_all_ui_config()
+
+
+@router.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    if is_standby_mode(websocket.app.state):
+        await websocket.close(code=1008, reason="Service Unavailable - Standby mode")
+        return
+
+    await incident_ws.connect(websocket)
+
+    try:
+        while True:
+            data = await websocket.receive_text()
+
+            try:
+                message = json.loads(data)
+                event_type = message.get("event")
+
+                if event_type == "request_data":
+                    show_full_table = message.get("show_full_table", False)
+                    await incident_ws.handle_request_data(websocket, websocket.app.state.incidents, show_full_table)
+                elif event_type == "ping":
+                    await incident_ws.handle_ping(websocket)
+
+            except json.JSONDecodeError:
+                logger.warning("Invalid WebSocket JSON", extra={'data': data})
+            except Exception as e:
+                logger.error("WebSocket message error", extra={'error': str(e)})
+
+    except WebSocketDisconnect:
+        incident_ws.disconnect(websocket)
+    except Exception as e:
+        logger.error("WebSocket error", extra={'error': str(e)})
+        incident_ws.disconnect(websocket)
+
+
+app.include_router(router)
 
 
 if __name__ == "__main__":

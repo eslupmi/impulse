@@ -4,6 +4,7 @@ import {loadFiltersFromURL, setupTableFiltering, updateZoomIcons} from "./filter
 import {setupSortingListener} from "./sorters.js";
 import {updateRelativeTimeSpans, updateRelativeTimeFieldsInResponsiveData} from "./formatters.js";
 import {ThemeManager} from "./theme.js";
+import {initAuthControls} from "./auth.js";
 
 
 // **Initialize Everything**
@@ -17,6 +18,7 @@ setupSortingListener();
 setupWebSocketEvents();
 initHistoryToggle();
 ThemeManager.init();
+await initAuthControls();
 
 // Update zoom icons after table initialization and filters are loaded
 setTimeout(() => {
