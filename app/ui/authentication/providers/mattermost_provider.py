@@ -1,10 +1,10 @@
-from typing import Sequence
+from typing import Mapping, Sequence
 from urllib.parse import urlencode
 
 import aiohttp
 
 from app.ui.authentication.models.auth_user import AuthUser
-from app.ui.authentication.providers.base_provider import AuthenticationProvider
+from app.ui.authentication.providers.base_provider import AuthenticationProvider, AuthenticationProviderError
 
 
 class MattermostAuthenticationProvider(AuthenticationProvider):
@@ -41,7 +41,7 @@ class MattermostAuthenticationProvider(AuthenticationProvider):
         }
         return f"{self.authorize_url}?{urlencode(params)}"
 
-    async def exchange_code(self, code: str, redirect_uri: str) -> str:
+    async def _exchange_code(self, code: str, redirect_uri: str) -> str:
         payload = {
             "grant_type": "authorization_code",
             "client_id": self.client_id,
@@ -54,25 +54,25 @@ class MattermostAuthenticationProvider(AuthenticationProvider):
             async with session.post(self.token_url, data=payload) as response:
                 data = await response.json(content_type=None)
                 if response.status != 200:
-                    raise ValueError(f"Mattermost token exchange failed with status {response.status}")
+                    raise AuthenticationProviderError("auth_failed", f"Mattermost token exchange failed with status {response.status}")
 
                 token = data.get("access_token")
                 if not token:
-                    raise ValueError("Mattermost access token not found in response")
+                    raise AuthenticationProviderError("auth_failed", "Mattermost access token not found in response")
                 return token
 
-    async def fetch_user(self, access_token: str) -> AuthUser:
+    async def _fetch_user(self, access_token: str) -> AuthUser:
         headers = {"Authorization": f"Bearer {access_token}"}
         timeout = aiohttp.ClientTimeout(total=self.timeout_seconds)
         async with aiohttp.ClientSession(timeout=timeout) as session:
             async with session.get(self.user_url, headers=headers) as response:
                 data = await response.json(content_type=None)
                 if response.status != 200:
-                    raise ValueError(f"Mattermost user fetch failed with status {response.status}")
+                    raise AuthenticationProviderError("auth_failed", f"Mattermost user fetch failed with status {response.status}")
 
                 user_id = str(data.get("id") or "")
                 if not user_id:
-                    raise ValueError("Mattermost user id not found in response")
+                    raise AuthenticationProviderError("auth_failed", "Mattermost user id not found in response")
 
                 first_name = (data.get("first_name") or "").strip()
                 last_name = (data.get("last_name") or "").strip()
@@ -85,3 +85,15 @@ class MattermostAuthenticationProvider(AuthenticationProvider):
                     email=data.get("email"),
                     messenger=self.name,
                 )
+
+    async def authenticate_callback(self, params: Mapping[str, str], redirect_uri: str) -> AuthUser:
+        error = params.get("error")
+        if error:
+            raise AuthenticationProviderError("provider_error", error)
+
+        code = params.get("code")
+        if not code:
+            raise AuthenticationProviderError("missing_code")
+
+        access_token = await self._exchange_code(code, redirect_uri)
+        return await self._fetch_user(access_token)

@@ -50,6 +50,14 @@ class EnvironmentConfig(BaseModel):
         default_factory=lambda: _env_bool('AUTH_COOKIE_SECURE', False),
         description="Set auth cookie with Secure attribute"
     )
+    auth_telegram_bot_username: str = Field(
+        default_factory=lambda: os.getenv('AUTH_TELEGRAM_BOT_USERNAME', ''),
+        description="Telegram bot username used by Telegram Login Widget"
+    )
+    auth_whitelist_enabled: bool = Field(
+        default_factory=lambda: _env_bool('AUTH_WHITELIST_ENABLED', False),
+        description="Allow only users configured in impulse.yml messenger.users"
+    )
     
     # Jira integration (Cloud with Basic Auth)
     jira_base_url: str = Field(

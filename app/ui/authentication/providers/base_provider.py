@@ -1,6 +1,13 @@
 from abc import ABC, abstractmethod
+from typing import Mapping
 
 from app.ui.authentication.models.auth_user import AuthUser
+
+
+class AuthenticationProviderError(Exception):
+    def __init__(self, code: str, message: str = ""):
+        self.code = code
+        super().__init__(message or code)
 
 
 class AuthenticationProvider(ABC):
@@ -14,9 +21,5 @@ class AuthenticationProvider(ABC):
         pass
 
     @abstractmethod
-    async def exchange_code(self, code: str, redirect_uri: str) -> str:
-        pass
-
-    @abstractmethod
-    async def fetch_user(self, access_token: str) -> AuthUser:
+    async def authenticate_callback(self, params: Mapping[str, str], redirect_uri: str) -> AuthUser:
         pass

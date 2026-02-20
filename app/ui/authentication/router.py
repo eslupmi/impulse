@@ -13,12 +13,12 @@ def create_auth_router(manager: UserAuthenticationManager) -> APIRouter:
         return manager.start_auth(next_path=next_path)
 
     @router.get("/auth/callback")
-    async def auth_callback(
-        code: Optional[str] = None,
-        state: Optional[str] = None,
-        error: Optional[str] = None,
-    ):
-        return await manager.handle_callback(code=code, state=state, error=error)
+    async def auth_callback(request: Request):
+        return await manager.handle_callback(params=dict(request.query_params))
+
+    @router.get("/auth/telegram/widget")
+    async def auth_telegram_widget(state: Optional[str] = None):
+        return manager.build_telegram_widget_response(state=state)
 
     @router.get("/auth/me")
     async def auth_me(request: Request):

@@ -1,5 +1,4 @@
 import json
-import os
 from datetime import datetime, timezone
 
 import uvicorn
@@ -11,7 +10,6 @@ from fastapi.templating import Jinja2Templates
 from app.cli import parse_arguments
 from app.config.config import get_config, validate_config_only
 from app.config.environment import get_environment_config
-from app.config.validation import MessengerType
 from app.lifespan import lifespan
 from app.logging import logger, configure_logging
 from app.metrics import STATUS, generate_metrics_response
@@ -19,13 +17,8 @@ from app.middleware import StandbyMiddleware, is_standby_mode, service_unavailab
 from app.signals import setup_sighup_forwarder
 from app.ui.table_config import get_all_ui_config
 from app.ui.websocket import incident_ws
-from app.ui.authentication import (
-    UserAuthenticationManager,
-    create_auth_router,
-    SlackAuthenticationProvider,
-    MattermostAuthenticationProvider,
-    TelegramAuthenticationProviderMock,
-)
+from app.ui.authentication.factory import build_auth_manager
+from app.ui.authentication.router import create_auth_router
 
 
 app = FastAPI(
@@ -44,51 +37,11 @@ http_prefix = env_config.http_prefix
 router = APIRouter(prefix=http_prefix)
 
 
-def _build_auth_redirect_uri() -> str:
-    configured = env_config.auth_redirect_uri.strip()
-    if configured:
-        return configured
-
-    callback_path = f"{http_prefix}/auth/callback" if http_prefix else "/auth/callback"
-    impulse_address = getattr(config.messenger, "impulse_address", None)
-    if impulse_address:
-        return f"{impulse_address.rstrip('/')}{callback_path}"
-    return callback_path
-
-
-def _build_auth_manager() -> UserAuthenticationManager:
-    messenger_type = config.messenger.type
-    client_id = env_config.auth_client_id.strip()
-    client_secret = env_config.auth_client_secret.strip()
-
-    provider = TelegramAuthenticationProviderMock()
-
-    if messenger_type == MessengerType.SLACK:
-        if client_id and client_secret:
-            provider = SlackAuthenticationProvider(client_id=client_id, client_secret=client_secret)
-        else:
-            logger.warning("Auth disabled for Slack: AUTH_CLIENT_ID and AUTH_CLIENT_SECRET are required")
-    elif messenger_type == MessengerType.MATTERMOST:
-        mattermost_url = getattr(config.messenger, "address", "").strip()
-        if client_id and client_secret and mattermost_url:
-            provider = MattermostAuthenticationProvider(
-                base_url=mattermost_url,
-                client_id=client_id,
-                client_secret=client_secret,
-            )
-        else:
-            logger.warning(
-                "Auth disabled for Mattermost: AUTH_CLIENT_ID, AUTH_CLIENT_SECRET and messenger.address are required"
-            )
-
-    return UserAuthenticationManager(
-        provider=provider,
-        redirect_uri=_build_auth_redirect_uri(),
-        cookie_secure=env_config.auth_cookie_secure,
-    )
-
-
-auth_manager = _build_auth_manager()
+auth_manager = build_auth_manager(
+    config=config,
+    env_config=env_config,
+    http_prefix=http_prefix,
+)
 router.include_router(create_auth_router(auth_manager))
 
 

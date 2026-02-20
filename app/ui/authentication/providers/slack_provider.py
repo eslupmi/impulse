@@ -1,10 +1,10 @@
-from typing import Sequence
+from typing import Mapping, Sequence
 from urllib.parse import urlencode
 
 import aiohttp
 
 from app.ui.authentication.models.auth_user import AuthUser
-from app.ui.authentication.providers.base_provider import AuthenticationProvider
+from app.ui.authentication.providers.base_provider import AuthenticationProvider, AuthenticationProviderError
 
 
 class SlackAuthenticationProvider(AuthenticationProvider):
@@ -38,7 +38,7 @@ class SlackAuthenticationProvider(AuthenticationProvider):
         }
         return f"{self.authorize_url}?{urlencode(params)}"
 
-    async def exchange_code(self, code: str, redirect_uri: str) -> str:
+    async def _exchange_code(self, code: str, redirect_uri: str) -> str:
         payload = {
             "grant_type": "authorization_code",
             "client_id": self.client_id,
@@ -51,30 +51,30 @@ class SlackAuthenticationProvider(AuthenticationProvider):
             async with session.post(self.token_url, data=payload) as response:
                 data = await response.json(content_type=None)
                 if response.status != 200:
-                    raise ValueError(f"Slack token exchange failed with status {response.status}")
+                    raise AuthenticationProviderError("auth_failed", f"Slack token exchange failed with status {response.status}")
                 if data.get("ok") is False:
-                    raise ValueError(f"Slack token exchange failed: {data.get('error', 'unknown')}")
+                    raise AuthenticationProviderError("auth_failed", f"Slack token exchange failed: {data.get('error', 'unknown')}")
 
                 token = data.get("access_token")
                 if not token:
-                    raise ValueError("Slack access token not found in response")
+                    raise AuthenticationProviderError("auth_failed", "Slack access token not found in response")
                 return token
 
-    async def fetch_user(self, access_token: str) -> AuthUser:
+    async def _fetch_user(self, access_token: str) -> AuthUser:
         headers = {"Authorization": f"Bearer {access_token}"}
         timeout = aiohttp.ClientTimeout(total=self.timeout_seconds)
         async with aiohttp.ClientSession(timeout=timeout) as session:
             async with session.get(self.user_url, headers=headers) as response:
                 data = await response.json(content_type=None)
                 if response.status != 200:
-                    raise ValueError(f"Slack user fetch failed with status {response.status}")
+                    raise AuthenticationProviderError("auth_failed", f"Slack user fetch failed with status {response.status}")
                 if data.get("ok") is False:
-                    raise ValueError(f"Slack user fetch failed: {data.get('error', 'unknown')}")
+                    raise AuthenticationProviderError("auth_failed", f"Slack user fetch failed: {data.get('error', 'unknown')}")
 
                 user_data = data.get("user") if isinstance(data.get("user"), dict) else data
                 user_id = str(user_data.get("id") or user_data.get("user_id") or data.get("sub") or "")
                 if not user_id:
-                    raise ValueError("Slack user id not found in response")
+                    raise AuthenticationProviderError("auth_failed", "Slack user id not found in response")
 
                 username = user_data.get("name") or user_data.get("username") or data.get("preferred_username")
                 full_name = user_data.get("real_name") or user_data.get("name") or data.get("name")
@@ -87,3 +87,15 @@ class SlackAuthenticationProvider(AuthenticationProvider):
                     email=email,
                     messenger=self.name,
                 )
+
+    async def authenticate_callback(self, params: Mapping[str, str], redirect_uri: str) -> AuthUser:
+        error = params.get("error")
+        if error:
+            raise AuthenticationProviderError("provider_error", error)
+
+        code = params.get("code")
+        if not code:
+            raise AuthenticationProviderError("missing_code")
+
+        access_token = await self._exchange_code(code, redirect_uri)
+        return await self._fetch_user(access_token)
