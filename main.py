@@ -57,15 +57,9 @@ def setup_sighup_handler(fastapi_app=None):
 
 
 def validate_config_only():
-    """Validate configuration and exit"""
     try:
         get_config()
         logger.info("Configuration valid")
-        sys.exit(0)
-    except SystemExit as e:
-        if e.code != 0:
-            logger.error("Configuration validation failed")
-            sys.exit(1)
     except Exception as e:
         logger.error("Configuration validation failed", extra={'error': str(e)})
         sys.exit(1)
