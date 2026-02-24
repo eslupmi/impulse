@@ -3,8 +3,6 @@ import sys
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 from app.config.config import get_config, validate_config_only
 from app.config.environment import get_environment_config
 from app.config.validation import MessengerType
@@ -196,12 +194,7 @@ config = get_config()
 env_config = get_environment_config()
 http_prefix = env_config.http_prefix
 
-templates = None
-if get_config().ui_config:
-    app.mount(f"{http_prefix}/static", StaticFiles(directory="static"), name="static")
-    templates = Jinja2Templates(directory="templates")
-
-router = create_router(http_prefix, templates)
+router = create_router(http_prefix, app)
 app.include_router(router)
 
 

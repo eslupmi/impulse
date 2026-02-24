@@ -1,10 +1,12 @@
 import json
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Request, WebSocket, WebSocketDisconnect, HTTPException
+from fastapi import APIRouter, FastAPI, Request, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.responses import HTMLResponse, Response
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+from app.config.config import get_config
 from app.logging import logger
 from app.metrics import generate_metrics_response
 from app.middleware import is_standby_mode, service_unavailable_response
@@ -12,8 +14,13 @@ from app.ui.table_config import get_all_ui_config
 from app.ui.websocket import incident_ws
 
 
-def create_router(http_prefix: str, templates: Jinja2Templates = None) -> APIRouter:
+def create_router(http_prefix: str, fastapi_app: FastAPI = None) -> APIRouter:
     router = APIRouter(prefix=http_prefix)
+
+    templates = None
+    if fastapi_app and get_config().ui_config:
+        fastapi_app.mount(f"{http_prefix}/static", StaticFiles(directory="static"), name="static")
+        templates = Jinja2Templates(directory="templates")
 
     @router.get("/livez")
     def get_live(request: Request):
@@ -27,13 +34,13 @@ def create_router(http_prefix: str, templates: Jinja2Templates = None) -> APIRou
     def get_ready(request: Request):
         if not hasattr(request.app, 'state'):
             return service_unavailable_response("Service Unavailable - Initializing")
-        
+
         if is_standby_mode(request.app.state):
             return service_unavailable_response("Service Unavailable - Standby mode")
-        
+
         if not hasattr(request.app.state, 'queue') or not hasattr(request.app.state, 'queue_manager'):
             return service_unavailable_response("Service Unavailable - Initializing")
-        
+
         return Response(
             status_code=200,
             content="OK",
