@@ -2,7 +2,7 @@
 
 ## v3.4.1
 Changes:
-- Fixed assignment notification for Slack and Mattermost
+- [_Slack_, _Mattermost_] Fixed assignment notification [bug](https://github.com/eslupmi/impulse/issues/428)
 
 ## v3.4.0
 Changes:
