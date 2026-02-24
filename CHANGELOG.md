@@ -1,5 +1,9 @@
 # Changelog
 
+## v3.4.1
+Changes:
+- Fixed assignment notification for Slack and Mattermost
+
 ## v3.4.0
 Changes:
 - [Inhibition](https://docs.impulse.bot/stable/concepts/inhibition/) mechanism to suppress child Incidents
