@@ -85,6 +85,15 @@ def load_unified_config(config_path: Optional[str] = None, exit_on_error: bool =
             raise
 
 
+def validate_config_only():
+    try:
+        get_config()
+        logger.info("Configuration valid")
+    except Exception as e:
+        logger.error("Configuration validation failed", extra={'error': str(e)})
+        raise SystemExit(1)
+
+
 def reload_config(config_path: Optional[str] = None) -> bool:
     """
     Reload configuration from file with graceful error handling.

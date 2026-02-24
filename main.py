@@ -1,12 +1,11 @@
 import asyncio
-import signal
 import sys
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from app.config.config import get_config, reload_config
+from app.config.config import get_config, validate_config_only
 from app.config.environment import get_environment_config
 from app.config.validation import MessengerType
 from app.file_lock import FileLock
@@ -24,45 +23,9 @@ from app.queue.queue import AsyncQueue
 from app.route import generate_route
 from app.cli import parse_arguments
 from app.routes import create_router
+from app.signals import setup_sighup_handler
 from app.webhook import generate_webhooks
 
-
-def setup_sighup_handler(fastapi_app=None):
-    """Setup only SIGHUP signal handler for configuration reloading, preserving other Uvicorn handlers
-    
-    Args:
-        fastapi_app: Optional FastAPI app instance for reloading component configurations
-    """
-
-    def handle_sighup(signum, frame):
-        """Handle SIGHUP signal to reload configuration"""
-        try:
-            logger.info("Reloading configuration")
-            success = reload_config()
-            if success:
-                logger.info("Configuration reloaded")
-                
-                if fastapi_app and fastapi_app.state.inhibition_manager:
-                    config_data = get_config()
-                    fastapi_app.state.inhibition_manager.reload_rules(config_data.app.inhibit_rules or [])
-        except Exception as e:
-            logger.error("Configuration reload error", extra={'error': str(e)})
-            logger.warning("Configuration reload aborted")
-
-    if hasattr(signal, 'SIGHUP'):
-        signal.signal(signal.SIGHUP, handle_sighup)
-        logger.debug("SIGHUP handler registered")
-    else:
-        logger.warning("SIGHUP signal not available on this platform")
-
-
-def validate_config_only():
-    try:
-        get_config()
-        logger.info("Configuration valid")
-    except Exception as e:
-        logger.error("Configuration validation failed", extra={'error': str(e)})
-        sys.exit(1)
 
 
 async def initialize_primary_server(fastapi_app: FastAPI, file_lock: FileLock) -> bool:
