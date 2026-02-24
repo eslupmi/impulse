@@ -244,25 +244,24 @@ app.include_router(router)
 
 if __name__ == "__main__":
     args = parse_arguments()
-
     if args.check:
         validate_config_only()
-    else:
-        setup_sighup_handler(app)
 
-        import uvicorn
+    setup_sighup_handler(app)
 
-        configure_uvicorn_logging()
-        configure_aiohttp_logging()
-        configure_warnings_logging()
+    import uvicorn
 
-        config = get_config()
-        env_config = get_environment_config()
-        
-        uvicorn.run(
-            "main:app",
-            host=env_config.listen_host,
-            port=env_config.listen_port,
-            reload=True,
-            log_level="warning"
-        )
+    configure_uvicorn_logging()
+    configure_aiohttp_logging()
+    configure_warnings_logging()
+
+    config = get_config()
+    env_config = get_environment_config()
+    
+    uvicorn.run(
+        "main:app",
+        host=env_config.listen_host,
+        port=env_config.listen_port,
+        reload=True,
+        log_level="warning"
+    )
