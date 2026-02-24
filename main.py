@@ -1,13 +1,10 @@
 import argparse
 import asyncio
-import json
 import signal
 import sys
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
 
-from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, HTTPException, APIRouter
-from fastapi.responses import HTMLResponse, Response
+from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from app.config.config import get_config, reload_config
@@ -21,13 +18,12 @@ from app.incident.incidents import Incidents
 from app.inhibition.manager import InhibitionManager
 from app.jinja_template import JinjaTemplate
 from app.logging import logger, configure_uvicorn_logging, configure_aiohttp_logging, configure_warnings_logging
-from app.metrics import STATUS, generate_metrics_response
-from app.middleware import StandbyMiddleware, is_standby_mode, service_unavailable_response
+from app.metrics import STATUS
+from app.middleware import StandbyMiddleware
 from app.queue.manager import AsyncQueueManager
 from app.queue.queue import AsyncQueue
 from app.route import generate_route
-from app.ui.table_config import get_all_ui_config
-from app.ui.websocket import incident_ws
+from app.routes import create_router
 from app.webhook import generate_webhooks
 
 
@@ -242,152 +238,13 @@ app.add_middleware(StandbyMiddleware)
 config = get_config()
 env_config = get_environment_config()
 http_prefix = env_config.http_prefix
-router = APIRouter(prefix=http_prefix)
 
-
-def get_live(request: Request):
-    """Liveness check endpoint - returns 200 if container is alive (in standby or primary mode)"""
-    return Response(
-        status_code=200,
-        content="OK",
-        media_type="text/plain"
-    )
-
-
-def get_ready(request: Request):
-    """Readiness check endpoint - returns 503 if server is in standby mode, 200 if ready"""
-    if not hasattr(request.app, 'state'):
-        return service_unavailable_response("Service Unavailable - Initializing")
-    
-    if is_standby_mode(request.app.state):
-        return service_unavailable_response("Service Unavailable - Standby mode")
-    
-    if not hasattr(request.app.state, 'queue') or not hasattr(request.app.state, 'queue_manager'):
-        return service_unavailable_response("Service Unavailable - Initializing")
-    
-    return Response(
-        status_code=200,
-        content="OK",
-        media_type="text/plain"
-    )
-
-@router.get("/metrics")
-async def get_metrics(request: Request):
-    """Prometheus metrics endpoint"""
-    queue = request.app.state.queue
-    return await generate_metrics_response(queue)
-
-app.add_api_route(f"{http_prefix}/livez", get_live, methods=["GET"])
-app.add_api_route(f"{http_prefix}/readyz", get_ready, methods=["GET"])
-app.add_api_route(f"{http_prefix}/metrics", get_metrics, methods=["GET"])
-
+templates = None
 if get_config().ui_config:
-    if http_prefix:
-        app.mount(f"{http_prefix}/static", StaticFiles(directory="static"), name="static")
-    else:
-        app.mount("/static", StaticFiles(directory="static"), name="static")
+    app.mount(f"{http_prefix}/static", StaticFiles(directory="static"), name="static")
     templates = Jinja2Templates(directory="templates")
 
-
-    @router.get("/", response_class=HTMLResponse)
-    async def get_index(request: Request):
-        """Serve the main page"""
-        return templates.TemplateResponse("index.html", {
-            "request": request,
-            "http_prefix": http_prefix
-        })
-
-
-@router.get("/queue")
-async def get_queue(request: Request):
-    """Get current queue state"""
-    return await request.app.state.queue.serialize()
-
-
-@router.post("/")
-async def post_alert(request: Request):
-    """Handle incoming alerts"""
-    try:
-        alert_state = await request.json()
-        logger.debug("Alert received", extra={'payload': alert_state})
-        await request.app.state.queue.put_first(datetime.now(timezone.utc), 'alert', None, None, alert_state)
-        return alert_state
-    except Exception as e:
-        logger.error("Alert processing error", extra={'error': str(e)})
-        raise HTTPException(status_code=400, detail=str(e))
-
-
-@router.post("/app")
-@router.put("/app")
-async def handle_app_buttons(request: Request):
-    """Handle application button interactions"""
-    try:
-        if request.app.state.messenger.type == 'slack':
-            form_data = await request.form()
-            payload = json.loads(form_data['payload'])
-        else:
-            payload = await request.json()
-
-        return await request.app.state.messenger.buttons_handler(
-            payload,
-            request.app.state.incidents,
-            request.app.state.queue,
-            request.app.state.route
-        )
-    except Exception as e:
-        logger.error("App buttons error", extra={'error': str(e)})
-        raise HTTPException(status_code=400, detail=str(e))
-
-
-@router.get("/incidents")
-async def get_incidents(request: Request):
-    """Get all incidents"""
-    return request.app.state.incidents.serialize()
-
-
-@router.get("/ui_config")
-async def get_ui_config():
-    """Get complete UI configuration"""
-    return get_all_ui_config()
-
-
-@router.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
-    """Handle WebSocket connections"""
-    # Block WebSocket in standby mode
-    if is_standby_mode(websocket.app.state):
-        await websocket.close(code=1008, reason="Service Unavailable - Standby mode")
-        return
-    
-    await incident_ws.connect(websocket)
-
-    try:
-        while True:
-            data = await websocket.receive_text()
-
-            try:
-                message = json.loads(data)
-                event_type = message.get("event")
-
-                if event_type == "request_data":
-                    show_full_table = message.get("show_full_table", False)
-                    await incident_ws.handle_request_data(websocket, websocket.app.state.incidents, show_full_table)
-                elif event_type == "ping":
-                    await incident_ws.handle_ping(websocket)
-
-            except json.JSONDecodeError:
-                logger.warning("Invalid WebSocket JSON", extra={'data': data})
-            except Exception as e:
-                logger.error("WebSocket message error", extra={'error': str(e)})
-
-    except WebSocketDisconnect:
-        incident_ws.disconnect(websocket)
-    except Exception as e:
-        logger.error("WebSocket error", extra={'error': str(e)})
-        incident_ws.disconnect(websocket)
-
-
-# Include router in the app
+router = create_router(http_prefix, templates)
 app.include_router(router)
 
 def parse_arguments():
