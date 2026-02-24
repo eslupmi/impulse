@@ -1,4 +1,3 @@
-import argparse
 import asyncio
 import signal
 import sys
@@ -23,6 +22,7 @@ from app.middleware import StandbyMiddleware
 from app.queue.manager import AsyncQueueManager
 from app.queue.queue import AsyncQueue
 from app.route import generate_route
+from app.cli import parse_arguments
 from app.routes import create_router
 from app.webhook import generate_webhooks
 
@@ -246,16 +246,6 @@ if get_config().ui_config:
 
 router = create_router(http_prefix, templates)
 app.include_router(router)
-
-def parse_arguments():
-    """Parse command line arguments"""
-    parser = argparse.ArgumentParser(description="IMPulse - Incident Management Platform")
-    parser.add_argument(
-        '--check',
-        action='store_true',
-        help='Validate configuration and exit'
-    )
-    return parser.parse_args()
 
 
 if __name__ == "__main__":
