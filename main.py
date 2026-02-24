@@ -1,13 +1,14 @@
+import uvicorn
 from fastapi import FastAPI
+
+from app.cli import parse_arguments
 from app.config.config import get_config, validate_config_only
 from app.config.environment import get_environment_config
 from app.lifespan import lifespan
 from app.logging import configure_uvicorn_logging, configure_aiohttp_logging, configure_warnings_logging
 from app.middleware import StandbyMiddleware
-from app.cli import parse_arguments
 from app.routes import create_router
 from app.signals import setup_sighup_handler
-
 
 app = FastAPI(
     title="IMPulse",
@@ -32,8 +33,6 @@ if __name__ == "__main__":
         validate_config_only()
 
     setup_sighup_handler(app)
-
-    import uvicorn
 
     configure_uvicorn_logging()
     configure_aiohttp_logging()
