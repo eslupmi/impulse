@@ -5,7 +5,7 @@ from app.cli import parse_arguments
 from app.config.config import get_config, validate_config_only
 from app.config.environment import get_environment_config
 from app.lifespan import lifespan
-from app.logging import configure_uvicorn_logging, configure_aiohttp_logging, configure_warnings_logging
+from app.logging import configure_logging
 from app.middleware import StandbyMiddleware
 from app.routes import create_router
 from app.signals import setup_sighup_handler
@@ -34,9 +34,7 @@ if __name__ == "__main__":
 
     setup_sighup_handler(app)
 
-    configure_uvicorn_logging()
-    configure_aiohttp_logging()
-    configure_warnings_logging()
+    configure_logging()
 
     config = get_config()
     env_config = get_environment_config()
