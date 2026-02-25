@@ -25,8 +25,8 @@
 
     - Set properly [Group and repeat intervals](alertmanager.md/#group-and-repeat-intervals)
     - Configure IMPulse as [receiver](alertmanager.md/#receiver)
-    - Move [route](alertmanager.md/#routing) from alertmanager to [impulse.yml](config_file.md/#route) 
-    - Move [inhibit_rules](alertmanager.md/#inhibition) from alertmanager to [impulse.yml](config_file.md/#route) 
+    - Move [route](alertmanager.md/#routing) from Alertmanager to [impulse.yml](config_file.md/#route) 
+    - Move [inhibit_rules](alertmanager.md/#inhibition) from Alertmanager to [impulse.yml](config_file.md/#route) 
 
 === "Grafana"
 

@@ -85,7 +85,7 @@ Incident status changes to **firing** and **resolved** based on Alertmanager's a
 
 IMPulse introduces an additional status called **unknown** to indicate that the current status of the incident may be outdated.
 
-Alert sources use **Group interval** and **Repeat interval** to periodically resend the current alert status, even if it hasn't changed. IMPulse has a setting [`incident.timeouts.firing`](../config_file.md) which defines how long it should wait for an update from Alertmanager. If an Incident status isn't updated within `incident.timeouts.firing` it switches to non-actual status named **unknown**. For IMPulse to work correctly, you must properly configure these options: see instructions in the corresponding alert source in the **INTEGRATIONS / Alert Sources** menu.
+Alert sources use **Group interval** and **Repeat interval** to periodically resend the current alert status, even if it hasn't changed. IMPulse has a setting [incident.timeouts.firing](../config_file.md#incidenttimeoutsfiring) which defines how long it should wait for an update from Alertmanager. If an Incident status isn't updated within [incident.timeouts.firing](../config_file.md#incidenttimeoutsfiring) it switches to non-actual status named **unknown**.
 
 Possible causes of **unknown** status:
 
@@ -94,7 +94,7 @@ Possible causes of **unknown** status:
     - inhibited rules configured in Alertmanager were triggered ([fix it](../alertmanager.md#inhibition))
     - IMPulse or Alertmanager was down
     - network issues
-- `repeat_interval` + `group_interval` exceeds IMPulse's `incident.timeouts.firing`
+- **Repeat Interval** + **Group Interval** in alert source less or equal IMPulse's [incident.timeouts.firing](../config_file.md#incidenttimeoutsfiring)
 
 When an incident becomes **unknown** , IMPulse sends a warning message to `messenger.admin_users`.
 

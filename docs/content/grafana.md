@@ -2,12 +2,9 @@
 
 ## Group and repeat intervals
 
-!!! warning ""
-    Configure group and repeat intervals correctly to ensure IMPulse works properly (the explanation is [here](concepts/incident.md#unknown))
-
 1. Go to menu **Alerting** > **Notification Policies** and modify your notification policy by pressing **More** > **Edit**
 
-2. Expand **Timing options** and set the sum of "Group interval" and "Repeat interval" options to be less than [`incident.timeouts.firing`](https://github.com/DiTsi/impulse/blob/develop/examples/impulse.slack.yml) (default is `6h`).
+2. Expand **Timing options** and set the sum of "Group interval" and "Repeat interval" options to be less than [incident.timeouts.firing](config_file.md#incidenttimeoutsfiring) (the explanation is [here](concepts/incident.md#unknown)).
 
 ## Contact point
 
