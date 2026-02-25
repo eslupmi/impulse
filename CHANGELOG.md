@@ -1,5 +1,9 @@
 # Changelog
 
+## v3.4.1
+Changes:
+- [_Slack_, _Mattermost_] Fixed assignment notification [bug](https://github.com/eslupmi/impulse/issues/428)
+
 ## v3.4.0
 Changes:
 - [Inhibition](https://docs.impulse.bot/stable/concepts/inhibition/) mechanism to suppress child Incidents
