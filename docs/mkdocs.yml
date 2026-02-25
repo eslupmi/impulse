@@ -46,7 +46,6 @@ nav:
   - Concepts:
     - concepts/api.md
     - concepts/basics.md
-    - concepts/buttons.md
     - concepts/check.md
     - concepts/ha.md
     - concepts/incident.md

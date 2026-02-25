@@ -18,7 +18,7 @@ The default `body` template supports 3 links:
 
 - source - link points to Prometheus query
 - runbook - link for [runbook](#runbook)
-- task - link points to a task in the task management application if a [task was created](buttons.md) for the incident
+- task - link points to a task if [it was created](incident.md#task) for the incident
 
 #### runbook
 
