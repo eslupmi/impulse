@@ -29,7 +29,7 @@ class StandbyMiddleware(BaseHTTPMiddleware):
         
         # Get http_prefix from environment config
         env_config = get_environment_config()
-        http_prefix = env_config.http_prefix or ""
+        http_prefix = env_config.http_prefix
         
         # Check if path is /readyz, /livez or /metrics (with or without prefix)
         # Endpoints are registered directly in app with prefix, so check full path
