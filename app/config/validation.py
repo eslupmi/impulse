@@ -218,6 +218,7 @@ class TaskManagementConfig(BaseModel):
 class BaseApplicationConfig(BaseModel):
     """Base messenger configuration with common fields"""
     type: MessengerType = Field(..., description="Application type")
+    impulse_address: str = Field(..., description="Impulse callback address")
     admin_users: List[str] = Field(..., description="Admin users")
     user_groups: Optional[Dict[str, UserGroup]] = Field({}, description="User groups")
     chains: Optional[Dict[str, Any]] = Field({}, description="Chain definitions")
@@ -308,7 +309,6 @@ class MattermostApplicationConfig(BaseApplicationConfig):
     users: Dict[str, MattermostUser] = Field(..., description="User definitions")
     address: str = Field(..., description="Mattermost server address")
     team: str = Field(..., description="Mattermost team name")
-    impulse_address: str = Field(..., description="Impulse callback address")
 
 
 class TelegramApplicationConfig(BaseApplicationConfig):
@@ -316,7 +316,6 @@ class TelegramApplicationConfig(BaseApplicationConfig):
     type: Literal[MessengerType.TELEGRAM] = Field(MessengerType.TELEGRAM, description="Application type")
     channels: Dict[str, TelegramChannel] = Field(..., description="Channel definitions")
     users: Dict[str, TelegramUser] = Field(..., description="User definitions")
-    impulse_address: str = Field(..., description="Impulse callback address")
     address: Optional[str] = Field(None, description="Telegram API address (optional)")
 
 
@@ -326,6 +325,7 @@ class NullApplicationConfig(BaseApplicationConfig):
     channels: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Channel definitions (not used)")
     users: Optional[Dict[str, Any]] = Field(default_factory=dict, description="User definitions (not used)")
     admin_users: List[str] = Field(default_factory=list, description="Admin users (not used)")
+    impulse_address: Optional[str] = Field(None, description="Impulse callback address (not used)")
 
     @field_validator('admin_users')
     @classmethod

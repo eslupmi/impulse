@@ -18,7 +18,7 @@ def create_auth_router(manager: UserAuthenticationManager) -> APIRouter:
 
     @router.get("/auth/telegram/widget")
     async def auth_telegram_widget(state: Optional[str] = None):
-        return manager.build_telegram_widget_response(state=state)
+        return await manager.build_telegram_widget_response(state=state)
 
     @router.get("/auth/me")
     async def auth_me(request: Request):

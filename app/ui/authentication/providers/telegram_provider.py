@@ -5,6 +5,8 @@ import time
 from typing import Mapping
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
+import aiohttp
+
 from app.ui.authentication.models.auth_user import AuthUser
 from app.ui.authentication.providers.base_provider import AuthenticationProvider, AuthenticationProviderError
 
@@ -14,18 +16,21 @@ class TelegramAuthenticationProvider(AuthenticationProvider):
 
     def __init__(
         self,
-        bot_username: str,
         bot_token: str,
         widget_path: str = "/auth/telegram/widget",
         max_auth_age_seconds: int = 300,
+        api_base_url: str = "https://api.telegram.org",
+        timeout_seconds: float = 10.0,
     ):
-        self.bot_username = bot_username
         self.bot_token = bot_token
+        self.bot_username = ""
         self.widget_path = widget_path
         self.max_auth_age_seconds = max_auth_age_seconds
+        self.api_base_url = api_base_url.rstrip("/")
+        self.timeout_seconds = timeout_seconds
 
     def is_supported(self) -> bool:
-        return bool(self.bot_username and self.bot_token)
+        return bool(self.bot_token)
 
     def build_authorization_url(self, state: str, redirect_uri: str) -> str:
         params = {"state": state}
@@ -64,7 +69,8 @@ class TelegramAuthenticationProvider(AuthenticationProvider):
             messenger=self.name,
         )
 
-    def build_widget_html(self, state: str, redirect_uri: str) -> str:
+    async def build_widget_html(self, state: str, redirect_uri: str) -> str:
+        await self._ensure_bot_username()
         auth_url = self._append_state(redirect_uri, state)
         safe_bot_username = html.escape(self.bot_username, quote=True)
         safe_auth_url = html.escape(auth_url, quote=True)
@@ -101,7 +107,7 @@ class TelegramAuthenticationProvider(AuthenticationProvider):
 
         items = []
         for key, value in params.items():
-            if key in {"hash", "state", "next", "auth_error"}:
+            if key in {"hash", "state", "next", "auth_error", "popup"}:
                 continue
             if value is None:
                 continue
@@ -117,6 +123,25 @@ class TelegramAuthenticationProvider(AuthenticationProvider):
             hashlib.sha256,
         ).hexdigest()
         return hmac.compare_digest(expected_hash, received_hash)
+
+    async def _ensure_bot_username(self) -> None:
+        if self.bot_username:
+            return
+
+        timeout = aiohttp.ClientTimeout(total=self.timeout_seconds)
+        url = f"{self.api_base_url}/bot{self.bot_token}/getMe"
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.get(url) as response:
+                data = await response.json(content_type=None)
+                if response.status != 200:
+                    raise AuthenticationProviderError("auth_start_failed", "Telegram getMe failed")
+                if not data.get("ok"):
+                    raise AuthenticationProviderError("auth_start_failed", "Telegram getMe returned error")
+                result = data.get("result") or {}
+                username = str(result.get("username") or "").strip()
+                if not username:
+                    raise AuthenticationProviderError("auth_start_failed", "Telegram bot username missing")
+                self.bot_username = username
 
     @staticmethod
     def _append_state(url: str, state: str) -> str:

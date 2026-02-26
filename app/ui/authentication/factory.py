@@ -12,11 +12,7 @@ if TYPE_CHECKING:
     from app.config.validation import ImpulseConfig
     from app.config.environment import EnvironmentConfig
 
-def build_auth_redirect_uri(config: 'ImpulseConfig', env_config: 'EnvironmentConfig', http_prefix: str = "") -> str:
-    configured = env_config.auth_redirect_uri.strip()
-    if configured:
-        return configured
-
+def build_auth_redirect_uri(config: 'ImpulseConfig', http_prefix: str = "") -> str:
     callback_path = f"{http_prefix}/auth/callback" if http_prefix else "/auth/callback"
     impulse_address = getattr(config.messenger, "impulse_address", None)
     if impulse_address:
@@ -58,23 +54,22 @@ def build_auth_manager(config: 'ImpulseConfig', env_config: 'EnvironmentConfig',
                 "Auth disabled for Mattermost: AUTH_CLIENT_ID, AUTH_CLIENT_SECRET and messenger.address are required"
             )
     elif messenger_type == MessengerType.TELEGRAM:
-        bot_username = env_config.auth_telegram_bot_username.strip()
         bot_token = env_config.telegram_bot_token.strip()
         widget_path = f"{http_prefix}/auth/telegram/widget" if http_prefix else "/auth/telegram/widget"
 
-        if bot_username and bot_token:
+        if bot_token:
             provider = TelegramAuthenticationProvider(
-                bot_username=bot_username,
                 bot_token=bot_token,
                 widget_path=widget_path,
                 max_auth_age_seconds=300,
+                api_base_url=(getattr(config.messenger, "address", None) or "https://api.telegram.org"),
             )
         else:
-            logger.warning("Auth disabled for Telegram: AUTH_TELEGRAM_BOT_USERNAME and TELEGRAM_BOT_TOKEN are required")
+            logger.warning("Auth disabled for Telegram: TELEGRAM_BOT_TOKEN is required")
 
     return UserAuthenticationManager(
         provider=provider,
-        redirect_uri=build_auth_redirect_uri(config=config, env_config=env_config, http_prefix=http_prefix),
+        redirect_uri=build_auth_redirect_uri(config=config, http_prefix=http_prefix),
         cookie_secure=env_config.auth_cookie_secure,
         allowed_user_ids=allowed_user_ids,
     )

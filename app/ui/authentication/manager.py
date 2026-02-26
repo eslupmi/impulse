@@ -123,7 +123,7 @@ class UserAuthenticationManager:
         response.delete_cookie(key=self.session_cookie_name, path="/")
         return response
 
-    def build_telegram_widget_response(self, state: Optional[str]) -> Response:
+    async def build_telegram_widget_response(self, state: Optional[str]) -> Response:
         if not state:
             return self._build_error_redirect("/", "invalid_state")
 
@@ -143,7 +143,7 @@ class UserAuthenticationManager:
             return self._build_error_redirect(auth_state.next_path, "not_supported")
 
         try:
-            html_content = build_widget_html(state, self.redirect_uri)
+            html_content = await build_widget_html(state, self.redirect_uri)
         except Exception as exc:
             logger.warning(
                 "Failed to build Telegram widget page",

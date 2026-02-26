@@ -42,17 +42,9 @@ class EnvironmentConfig(BaseModel):
         default_factory=lambda: os.getenv('AUTH_CLIENT_SECRET', ''),
         description="OAuth client secret for messenger auth"
     )
-    auth_redirect_uri: str = Field(
-        default_factory=lambda: os.getenv('AUTH_REDIRECT_URI', ''),
-        description="OAuth callback URI for messenger auth"
-    )
     auth_cookie_secure: bool = Field(
         default_factory=lambda: _env_bool('AUTH_COOKIE_SECURE', False),
         description="Set auth cookie with Secure attribute"
-    )
-    auth_telegram_bot_username: str = Field(
-        default_factory=lambda: os.getenv('AUTH_TELEGRAM_BOT_USERNAME', ''),
-        description="Telegram bot username used by Telegram Login Widget"
     )
     auth_whitelist_enabled: bool = Field(
         default_factory=lambda: _env_bool('AUTH_WHITELIST_ENABLED', False),
