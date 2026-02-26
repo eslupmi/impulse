@@ -147,7 +147,7 @@ function prepareEventsForCalendar(chains) {
         if (Math.abs(timeDiff) < 1000) {
             const priority1 = a.extendedProps?.priority !== undefined ? a.extendedProps.priority : 2;
             const priority2 = b.extendedProps?.priority !== undefined ? b.extendedProps.priority : 2;
-            return priority1 - priority2;
+            return priority2 - priority1;
         }
         return timeDiff;
     });
@@ -157,15 +157,68 @@ function getExpandedChains(chains) {
     return prepareEventsForCalendar(chains);
 }
 
+function applyEventInset(element, event = null) {
+    if (!element) return;
+    
+    const priority = event?.extendedProps?.priority !== undefined 
+        ? event.extendedProps.priority 
+        : parseInt(element.getAttribute('data-priority')) || 2;
+    
+    let isSingle = false;
+    if (event && calendar) {
+        const overlappingCount = countOverlappingEvents(event.start, event.end, event.id);
+        isSingle = overlappingCount === 0;
+    }
+    
+    if (priority === 2) {
+        element.style.setProperty('inset', '0px 10% 0px 0px', 'important');
+    } else if (priority === 1) {
+        element.style.setProperty('inset', '0 0% 0 0%', 'important');
+    } else if (isSingle) {
+        element.style.setProperty('inset', '0 5% 0 5%', 'important');
+    } else {
+        element.style.setProperty('inset', '0 0 0 0', 'important');
+    }
+}
+
+function updateEventStyles() {
+    if (!calendar) return;
+    
+    setTimeout(() => {
+        const events = calendar.getEvents();
+        events.forEach(event => {
+            if (event.extendedProps?.isOccurrence) return;
+            if (event.el) {
+                applyEventInset(event.el, event);
+            }
+        });
+    }, 100);
+}
+
+function recalculatePriorities(chains) {
+    return chains.map(chain => {
+        const overlapping = findOverlappingChains(chains, chain.start, chain.end, chain.id);
+        const priority = calculateNewPriority(chain, overlapping);
+        return {
+            ...chain,
+            priority: priority
+        };
+    });
+}
+
 async function loadChains() {
     try {
         const response = await fetch(`${getHttpPrefix()}/managed_chains`);
         if (response.ok) {
             cachedChains = await response.json();
+            cachedChains = recalculatePriorities(cachedChains);
             return cachedChains;
         }
     } catch (error) {
         console.error('Failed to load managed chains:', error);
+    }
+    if (cachedChains.length > 0) {
+        return recalculatePriorities(cachedChains);
     }
     return cachedChains;
 }
@@ -536,6 +589,10 @@ async function updateEventPriority(droppedEvent) {
     droppedEvent.setExtendedProp('priority', newPriority);
     droppedChain.priority = newPriority;
     
+    if (droppedEvent.el) {
+        applyEventInset(droppedEvent.el, droppedEvent);
+    }
+    
     for (const overlappingEvent of overlappingEvents) {
         const originalId = overlappingEvent.extendedProps?.originalId || overlappingEvent.id;
         const overlappingChainIndex = chains.findIndex(c => c.id === originalId);
@@ -545,6 +602,10 @@ async function updateEventPriority(droppedEvent) {
             const otherPriority = calculateNewPriority(overlappingChain, otherOverlapping);
             overlappingEvent.setExtendedProp('priority', otherPriority);
             overlappingChain.priority = otherPriority;
+            
+            if (overlappingEvent.el) {
+                applyEventInset(overlappingEvent.el, overlappingEvent);
+            }
         }
     }
     
@@ -664,6 +725,7 @@ async function saveChain() {
         calendar.addEventSource(expandedChains);
         monthCalendar.removeAllEvents();
         monthCalendar.addEventSource(expandedChains);
+        updateEventStyles();
         closeChainEditModal();
         return;
     } else {
@@ -710,21 +772,31 @@ async function saveChain() {
     calendar.addEventSource(expandedChains);
     monthCalendar.removeAllEvents();
     monthCalendar.addEventSource(expandedChains);
+    updateEventStyles();
     closeChainEditModal();
 }
 
 async function deleteChain() {
     if (!currentChainId) return;
 
-    const chains = await loadChains();
-    const filtered = chains.filter(c => c.id !== currentChainId);
-    await saveChains(filtered);
-    const expandedChains = getExpandedChains(filtered);
-    calendar.removeAllEvents();
-    calendar.addEventSource(expandedChains);
-    monthCalendar.removeAllEvents();
-    monthCalendar.addEventSource(expandedChains);
-    closeChainEditModal();
+    try {
+        const chains = await loadChains();
+        const filtered = chains.filter(c => c.id !== currentChainId);
+        await saveChains(filtered);
+        const expandedChains = getExpandedChains(filtered);
+        if (calendar) {
+            calendar.removeAllEvents();
+            calendar.addEventSource(expandedChains);
+        }
+        if (monthCalendar) {
+            monthCalendar.removeAllEvents();
+            monthCalendar.addEventSource(expandedChains);
+        }
+        updateEventStyles();
+        closeChainEditModal();
+    } catch (error) {
+        console.error('Failed to delete chain:', error);
+    }
 }
 
 function parseWeekStart(weekStart) {
@@ -872,7 +944,7 @@ async function initializeCalendars() {
                 if (Math.abs(time1 - time2) < 1000) {
                     const priority1 = event1.extendedProps?.priority !== undefined ? event1.extendedProps.priority : 2;
                     const priority2 = event2.extendedProps?.priority !== undefined ? event2.extendedProps.priority : 2;
-                    return priority1 - priority2;
+                    return priority2 - priority1;
                 }
                 return time1 - time2;
             },
@@ -900,8 +972,7 @@ async function initializeCalendars() {
                 el.classList.add(`fc-event-priority-${priority}`);
                 el.setAttribute('data-priority', priority.toString());
                 el.style.zIndex = 3 - priority;
-                
-                el.style.setProperty('width', '90%', 'important');
+                applyEventInset(el, arg.event);
                 
                 const isOriginal = arg.event.extendedProps?.isOriginal;
                 if ((isOccurrence || isOriginal) && hasRepeat) {
@@ -940,6 +1011,7 @@ async function initializeCalendars() {
                                 calendar.addEventSource(expandedChains);
                                 monthCalendar.removeAllEvents();
                                 monthCalendar.addEventSource(expandedChains);
+                                updateEventStyles();
                             }
                         });
                         
@@ -1038,6 +1110,7 @@ async function initializeCalendars() {
                     calendar.addEventSource(expandedChains);
                     monthCalendar.removeAllEvents();
                     monthCalendar.addEventSource(expandedChains);
+                    updateEventStyles();
                 }
             },
 
@@ -1068,6 +1141,7 @@ async function initializeCalendars() {
                     calendar.addEventSource(expandedChains);
                     monthCalendar.removeAllEvents();
                     monthCalendar.addEventSource(expandedChains);
+                    updateEventStyles();
                 }
             },
 
@@ -1134,6 +1208,7 @@ async function initializeCalendars() {
         setTimeout(() => {
             updateWeekNumberDisplay();
             updateCurrentWeekHighlight();
+            updateEventStyles();
         }, 200);
         
         const prevBtn = document.getElementById('calendar-prev');
@@ -1186,6 +1261,12 @@ function setupChainEditModalListeners() {
 
     modal.addEventListener('click', (e) => {
         if (e.target === modal) {
+            closeChainEditModal();
+        }
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && modal.classList.contains('visible')) {
             closeChainEditModal();
         }
     });
