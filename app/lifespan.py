@@ -22,7 +22,7 @@ from app.route import generate_route
 from app.webhook import generate_webhooks
 
 
-async def initialize_primary_server(fastapi_app: FastAPI, file_lock: FileLock) -> bool:
+async def _initialize_primary_server(fastapi_app: FastAPI, file_lock: FileLock) -> bool:
     if not file_lock.acquire_lock():
         logger.error("Failed to acquire lock")
         return False
@@ -30,54 +30,7 @@ async def initialize_primary_server(fastapi_app: FastAPI, file_lock: FileLock) -
     logger.info("Starting as primary server")
 
     try:
-        config_data = get_config()
-        route_config = config_data.app.route
-        webhooks_config = config_data.app.webhooks
-
-        route = generate_route(route_config)
-
-        channel_manager = ChannelManager()
-        if (config_data.messenger.type == MessengerType.NONE and
-                (not config_data.messenger.channels or 'default' not in config_data.messenger.channels)):
-            config_data.messenger.channels = {'default': {'id': 'default'}}
-        channels = channel_manager.initialize(route.get_uniq_channels(), config_data.messenger.channels, route.channel)
-        default_channel = route.channel
-
-        messenger = get_application(config_data.messenger, channels, default_channel,
-                                    task_management_config=config_data.app.task_management)
-        await messenger.initialize_async()
-
-        webhooks = generate_webhooks(webhooks_config)
-        incidents = Incidents.create_or_load(messenger.type, messenger.public_url, messenger.team)
-        JinjaTemplate.set_incidents(incidents)
-
-        queue = await AsyncQueue.recreate_queue(incidents)
-
-        inhibition_manager = InhibitionManager(
-            rules=config_data.app.inhibit_rules or [],
-            incidents=incidents,
-            application=messenger,
-            queue=queue
-        )
-        inhibition_manager.restore_from_incidents()
-
-        user_scheduler = UserUpdateScheduler(queue, messenger.type.value)
-        messenger.configure_scheduler(user_scheduler)
-        await user_scheduler.schedule_all_stored()
-        queue_manager = AsyncQueueManager(queue, messenger, incidents, webhooks, route, inhibition_manager)
-
-        fastapi_app.state.queue = queue
-        fastapi_app.state.queue_manager = queue_manager
-        fastapi_app.state.incidents = incidents
-        fastapi_app.state.messenger = messenger
-        fastapi_app.state.webhooks = webhooks
-        fastapi_app.state.route = route
-        fastapi_app.state.channel_manager = channel_manager
-        fastapi_app.state.config = config_data
-        fastapi_app.state.inhibition_manager = inhibition_manager
-
-        queue_manager.start_processing()
-        fastapi_app.state.is_standby = False
+        await create_main_objects(fastapi_app)
         STATUS.set(1)
         logger.info('Started as primary server')
         return True
@@ -87,9 +40,75 @@ async def initialize_primary_server(fastapi_app: FastAPI, file_lock: FileLock) -
         return False
 
 
+async def create_main_objects(fastapi_app: FastAPI):
+    config_data = get_config()
+    route_config = config_data.app.route
+    webhooks_config = config_data.app.webhooks
+
+    route = generate_route(route_config)
+
+    channel_manager = ChannelManager()
+    if (config_data.messenger.type == MessengerType.NONE and
+            (not config_data.messenger.channels or 'default' not in config_data.messenger.channels)):
+        config_data.messenger.channels = {'default': {'id': 'default'}}
+    channels = channel_manager.initialize(route.get_uniq_channels(), config_data.messenger.channels, route.channel)
+    default_channel = route.channel
+
+    messenger = get_application(config_data.messenger, channels, default_channel,
+                                task_management_config=config_data.app.task_management)
+    await messenger.initialize_async()
+
+    webhooks = generate_webhooks(webhooks_config)
+    incidents = Incidents.create_or_load(messenger.type, messenger.public_url, messenger.team)
+    JinjaTemplate.set_incidents(incidents)
+
+    queue = await AsyncQueue.recreate_queue(incidents)
+
+    inhibition_manager = InhibitionManager(
+        rules=config_data.app.inhibit_rules or [],
+        incidents=incidents,
+        application=messenger,
+        queue=queue
+    )
+    inhibition_manager.restore_from_incidents()
+
+    user_scheduler = UserUpdateScheduler(queue, messenger.type.value)
+    messenger.configure_scheduler(user_scheduler)
+    await user_scheduler.schedule_all_stored()
+    queue_manager = AsyncQueueManager(queue, messenger, incidents, webhooks, route, inhibition_manager)
+
+    fastapi_app.state.queue = queue
+    fastapi_app.state.queue_manager = queue_manager
+    fastapi_app.state.incidents = incidents
+    fastapi_app.state.messenger = messenger
+    fastapi_app.state.webhooks = webhooks
+    fastapi_app.state.route = route
+    fastapi_app.state.channel_manager = channel_manager
+    fastapi_app.state.config = config_data
+    fastapi_app.state.inhibition_manager = inhibition_manager
+
+    queue_manager.start_processing()
+    fastapi_app.state.is_standby = False
+
+
+async def _cleanup_application_objects(fastapi_app: FastAPI):
+    if fastapi_app.state.queue_manager:
+        await fastapi_app.state.queue_manager.stop_processing()
+    if hasattr(fastapi_app.state, 'messenger') and hasattr(fastapi_app.state.messenger, 'close'):
+        await fastapi_app.state.messenger.close()
+
+    if hasattr(fastapi_app.state, 'messenger') and getattr(fastapi_app.state.messenger, 'task_management_integration', None):
+        await fastapi_app.state.messenger.task_management_integration.jira_client.close()
+
+    if hasattr(fastapi_app.state, 'messenger') and hasattr(fastapi_app.state.messenger, 'chains'):
+        for chain in fastapi_app.state.messenger.chains.values():
+            if hasattr(chain, 'cleanup'):
+                chain.cleanup()
+
+
 @asynccontextmanager
 async def lifespan(fastapi_app: FastAPI):
-    setup_sighup_handler()
+    setup_sighup_handler(fastapi_app, create_main_objects, _cleanup_application_objects)
 
     env_config = get_environment_config()
     http_prefix = env_config.http_prefix
@@ -119,7 +138,7 @@ async def lifespan(fastapi_app: FastAPI):
         if can_take_over:
             hostname, pid = file_lock.get_lock_info()
             logger.debug("Taking over from dead process", extra={'hostname': hostname, 'pid': pid})
-        success = await initialize_primary_server(fastapi_app, file_lock)
+        success = await _initialize_primary_server(fastapi_app, file_lock)
         if not success:
             logger.error('Primary server start failed, entering standby mode')
             fastapi_app.state.is_standby = True
@@ -141,18 +160,7 @@ async def lifespan(fastapi_app: FastAPI):
             logger.info('Shutting down standby server')
             return
 
-    if fastapi_app.state.queue_manager:
-        await fastapi_app.state.queue_manager.stop_processing()
-    if hasattr(fastapi_app.state, 'messenger') and hasattr(fastapi_app.state.messenger, 'close'):
-        await fastapi_app.state.messenger.close()
-
-    if hasattr(fastapi_app.state, 'messenger') and getattr(fastapi_app.state.messenger, 'task_management_integration', None):
-        await fastapi_app.state.messenger.task_management_integration.jira_client.close()
-
-    if hasattr(fastapi_app.state, 'messenger') and hasattr(fastapi_app.state.messenger, 'chains'):
-        for chain in fastapi_app.state.messenger.chains.values():
-            if hasattr(chain, 'cleanup'):
-                chain.cleanup()
+    await _cleanup_application_objects(fastapi_app)
 
     await file_lock.release_lock()
 
@@ -165,7 +173,7 @@ async def _wait_and_become_primary(shutdown_event, file_lock, fastapi_app):
         if shutdown_event.is_set():
             break
         logger.info('Transitioning to primary server')
-        if await initialize_primary_server(fastapi_app, file_lock):
+        if await _initialize_primary_server(fastapi_app, file_lock):
             break
         logger.error('Transition failed, retrying')
         try:

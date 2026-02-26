@@ -35,6 +35,5 @@ if __name__ == "__main__":
         "main:app",
         host=env_config.listen_host,
         port=env_config.listen_port,
-        reload=True,
         log_level="warning"
     )
