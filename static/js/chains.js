@@ -23,6 +23,9 @@ function expandRecurringEvents(chains, rangeStart, rangeEnd) {
         const startDate = new Date(chain.start);
         const endDate = chain.end ? new Date(chain.end) : null;
         const duration = endDate ? endDate.getTime() - startDate.getTime() : msPerDay;
+        const repeatEndDate = chain.repeatEnd ? new Date(chain.repeatEnd) : null;
+        const originalBgColor = chain.backgroundColor;
+        const originalBorderColor = chain.borderColor;
         
         let intervalDays;
         switch (chain.repeat) {
@@ -35,16 +38,25 @@ function expandRecurringEvents(chains, rangeStart, rangeEnd) {
                 return;
         }
         
-        expandedEvents.push({
-            ...chain,
-            isOriginal: true
-        });
+        if (!repeatEndDate || (endDate ? endDate <= repeatEndDate : startDate <= repeatEndDate)) {
+            expandedEvents.push({
+                ...chain,
+                isOriginal: true
+            });
+        }
         
         let currentStart = new Date(startDate.getTime() + intervalDays * msPerDay);
         const maxOccurrences = 52;
         let count = 0;
+        const effectiveRangeEnd = repeatEndDate && repeatEndDate < rangeEnd ? repeatEndDate : rangeEnd;
         
-        while (currentStart <= rangeEnd && count < maxOccurrences) {
+        while (currentStart <= effectiveRangeEnd && count < maxOccurrences) {
+            const currentEnd = endDate ? new Date(currentStart.getTime() + duration) : new Date(currentStart.getTime() + msPerDay);
+            
+            if (repeatEndDate && currentEnd > repeatEndDate) {
+                break;
+            }
+            
             if (currentStart >= rangeStart) {
                 const occurrence = {
                     ...chain,
@@ -52,7 +64,9 @@ function expandRecurringEvents(chains, rangeStart, rangeEnd) {
                     originalId: chain.id,
                     start: currentStart.toISOString(),
                     end: endDate ? new Date(currentStart.getTime() + duration).toISOString() : null,
-                    isOccurrence: true
+                    isOccurrence: true,
+                    backgroundColor: originalBgColor,
+                    borderColor: originalBorderColor
                 };
                 expandedEvents.push(occurrence);
             }
@@ -90,6 +104,7 @@ function prepareEventsForCalendar(chains) {
                 ...chain.extendedProps,
                 steps: chain.steps,
                 repeat: chain.repeat,
+                repeatEnd: chain.repeatEnd,
                 priority: priority,
                 originalId: chain.originalId,
                 isOccurrence: chain.isOccurrence,
@@ -394,6 +409,54 @@ function showOverlapError() {
     }, 4000);
 }
 
+function showError(message) {
+    const notification = document.createElement('div');
+    notification.className = 'overlap-notification';
+    notification.textContent = message;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.classList.add('show');
+    }, 10);
+    
+    setTimeout(() => {
+        notification.classList.remove('show');
+        notification.classList.add('hide');
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 300);
+    }, 4000);
+}
+
+function findFutureSingleEvents(chains, start, excludeId = null) {
+    const startDate = new Date(start);
+    
+    return chains.filter(chain => {
+        if (excludeId && chain.id === excludeId) return false;
+        if (!chain.start) return false;
+        if (chain.repeat) return false;
+        
+        const chainStart = new Date(chain.start);
+        return chainStart >= startDate;
+    });
+}
+
+function findFutureRepeatEvents(chains, start, excludeId = null) {
+    const startDate = new Date(start);
+    
+    return chains.filter(chain => {
+        if (excludeId && chain.id === excludeId) return false;
+        if (!chain.start) return false;
+        if (!chain.repeat) return false;
+        
+        const chainStart = new Date(chain.start);
+        return chainStart >= startDate;
+    });
+}
+
 async function changeEventPriority(event, overlappingEvent) {
     const currentPriority = event.extendedProps?.priority !== undefined ? event.extendedProps.priority : 2;
     const newPriority = currentPriority === 1 ? 2 : 1;
@@ -497,6 +560,7 @@ function openChainEditModal(chainData = null) {
         renderSteps([]);
         deleteBtn.classList.add('hidden');
     }
+    
     modal.classList.add('visible');
 }
 
@@ -530,24 +594,71 @@ async function saveChain() {
             showOverlapError();
             return;
         }
+        
+        if (repeat) {
+            const futureRepeatEvents = findFutureRepeatEvents(chains, start, currentChainId);
+            if (futureRepeatEvents.length > 0) {
+                showError('Cannot create REPEAT event: another REPEAT event exists in the future');
+                return;
+            }
+            
+            const futureSingleEvents = findFutureSingleEvents(chains, start, currentChainId);
+            futureSingleEvents.forEach(chain => {
+                const index = chains.findIndex(c => c.id === chain.id);
+                if (index !== -1 && chains[index].priority !== 1) {
+                    chains[index].priority = 1;
+                }
+            });
+        }
+        
         const index = chains.findIndex(c => c.id === currentChainId);
         if (index !== -1) {
+            const existingChain = chains[index];
+            const priority = repeat ? 1 : (existingChain.priority !== undefined ? existingChain.priority : 2);
+            
             chains[index] = {
                 ...chains[index],
                 start,
                 end: end || null,
                 repeat: repeat || null,
+                repeatEnd: existingChain.repeatEnd || null,
                 steps: steps.length > 0 ? steps : null,
-                priority: chains[index].priority !== undefined ? chains[index].priority : 2
+                priority: priority
             };
         }
+        
+        await saveChains(chains);
+        const expandedChains = getExpandedChains(chains);
+        calendar.removeAllEvents();
+        calendar.addEventSource(expandedChains);
+        monthCalendar.removeAllEvents();
+        monthCalendar.addEventSource(expandedChains);
+        closeChainEditModal();
+        return;
     } else {
         const overlapping = findOverlappingChains(chains, start, end);
         if (overlapping.length >= 2) {
             showOverlapError();
             return;
         }
-        const newPriority = calculateNewPriority(overlapping);
+        
+        if (repeat) {
+            const futureRepeatEvents = findFutureRepeatEvents(chains, start);
+            if (futureRepeatEvents.length > 0) {
+                showError('Cannot create REPEAT event: another REPEAT event exists in the future');
+                return;
+            }
+            
+            const futureSingleEvents = findFutureSingleEvents(chains, start);
+            futureSingleEvents.forEach(chain => {
+                const index = chains.findIndex(c => c.id === chain.id);
+                if (index !== -1 && chains[index].priority !== 1) {
+                    chains[index].priority = 1;
+                }
+            });
+        }
+        
+        const newPriority = repeat ? 1 : calculateNewPriority(overlapping);
         
         chains.push({
             id: generateId(),
@@ -596,6 +707,48 @@ function parseWeekStart(weekStart) {
     return weekStartMap[weekStart] || 1;
 }
 
+function getWeekNumber(date) {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
+    const week1 = new Date(d.getFullYear(), 0, 4);
+    week1.setHours(0, 0, 0, 0);
+    week1.setDate(week1.getDate() + 3 - (week1.getDay() + 6) % 7);
+    return 1 + Math.round(((d.getTime() - week1.getTime()) / 86400000) / 7);
+}
+
+function updateWeekNumberDisplay() {
+    if (!calendar) return;
+    
+    const weekStart = calendar.view.currentStart;
+    const weekNumber = getWeekNumber(weekStart);
+    const weekNumberDisplay = document.getElementById('week-number-display');
+    
+    if (weekNumberDisplay) {
+        weekNumberDisplay.textContent = `Week ${weekNumber}`;
+    }
+}
+
+function updateCurrentWeekHighlight() {
+    if (!calendar || !monthCalendar) return;
+    
+    const weekStart = calendar.view.currentStart;
+    const weekEnd = calendar.view.currentEnd;
+    
+    const dayCells = monthCalendar.el.querySelectorAll('.fc-daygrid-day:not(.fc-day-other)');
+    dayCells.forEach(cell => {
+        const dateStr = cell.getAttribute('data-date');
+        if (!dateStr) return;
+        
+        const cellDate = new Date(dateStr + 'T00:00:00');
+        if (cellDate >= weekStart && cellDate < weekEnd) {
+            cell.classList.add('current-week');
+        } else {
+            cell.classList.remove('current-week');
+        }
+    });
+}
+
 async function initializeCalendars() {
     try {
         console.log('initializeCalendars called, initialized =', initialized);
@@ -621,6 +774,26 @@ async function initializeCalendars() {
             console.log('Calendars already initialized, re-rendering');
             calendar.render();
             monthCalendar.render();
+            
+            const prevBtn = document.getElementById('calendar-prev');
+            const nextBtn = document.getElementById('calendar-next');
+            
+            if (prevBtn && !prevBtn.hasAttribute('data-listener-attached')) {
+                prevBtn.setAttribute('data-listener-attached', 'true');
+                prevBtn.addEventListener('click', () => {
+                    calendar.prev();
+                    setTimeout(() => updateWeekNumberDisplay(), 50);
+                });
+            }
+            
+            if (nextBtn && !nextBtn.hasAttribute('data-listener-attached')) {
+                nextBtn.setAttribute('data-listener-attached', 'true');
+                nextBtn.addEventListener('click', () => {
+                    calendar.next();
+                    setTimeout(() => updateWeekNumberDisplay(), 50);
+                });
+            }
+            
             setTimeout(() => {
                 calendar.updateSize();
                 monthCalendar.updateSize();
@@ -681,12 +854,11 @@ async function initializeCalendars() {
                 return { html: '' };
             },
             eventDidMount: function(arg) {
-                if (arg.event.extendedProps?.isOccurrence) {
-                    return;
-                }
+                const el = arg.el;
+                const isOccurrence = arg.event.extendedProps?.isOccurrence;
+                const hasRepeat = arg.event.extendedProps?.repeat;
                 
                 const priority = arg.event.extendedProps?.priority !== undefined ? arg.event.extendedProps.priority : 2;
-                const el = arg.el;
                 
                 for (let i = 1; i <= 2; i++) {
                     el.classList.remove(`fc-event-priority-${i}`);
@@ -697,6 +869,51 @@ async function initializeCalendars() {
                 el.style.zIndex = 3 - priority;
                 
                 el.style.setProperty('width', '90%', 'important');
+                
+                if (isOccurrence && hasRepeat) {
+                    setTimeout(() => {
+                        if (el.querySelector('.fc-event-repeat-end-btn')) {
+                            return;
+                        }
+                        
+                        const repeatEndBtn = document.createElement('button');
+                        repeatEndBtn.className = 'fc-event-repeat-end-btn';
+                        repeatEndBtn.innerHTML = 'End';
+                        repeatEndBtn.title = 'Set repeat end after this event';
+                        
+                        repeatEndBtn.addEventListener('click', async (e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            const originalId = arg.event.extendedProps?.originalId || arg.event.id;
+                            const eventEnd = arg.event.end || new Date(arg.event.start.getTime() + 24 * 60 * 60 * 1000);
+                            
+                            const chains = await loadChains();
+                            const index = chains.findIndex(c => c.id === originalId);
+                            
+                            if (index !== -1) {
+                                chains[index].repeatEnd = eventEnd.toISOString();
+                                await saveChains(chains);
+                                const expandedChains = getExpandedChains(chains);
+                                calendar.removeAllEvents();
+                                calendar.addEventSource(expandedChains);
+                                monthCalendar.removeAllEvents();
+                                monthCalendar.addEventSource(expandedChains);
+                            }
+                        });
+                        
+                        repeatEndBtn.style.display = 'none';
+                        const eventMain = el.querySelector('.fc-event-main') || el;
+                        eventMain.appendChild(repeatEndBtn);
+                        
+                        el.addEventListener('mouseenter', () => {
+                            repeatEndBtn.style.setProperty('display', 'block', 'important');
+                        });
+                        
+                        el.addEventListener('mouseleave', () => {
+                            repeatEndBtn.style.setProperty('display', 'none', 'important');
+                        });
+                    }, 10);
+                }
                 
                 setTimeout(() => {
                     const overlappingEvents = findOverlappingEvents(arg.event);
@@ -759,6 +976,7 @@ async function initializeCalendars() {
                         start: originalChain.start,
                         end: originalChain.end,
                         repeat: originalChain.repeat,
+                        repeatEnd: originalChain.repeatEnd,
                         steps: originalChain.steps
                     });
                 } else {
@@ -767,6 +985,7 @@ async function initializeCalendars() {
                         start: info.event.start,
                         end: info.event.end,
                         repeat: info.event.extendedProps?.repeat,
+                        repeatEnd: info.event.extendedProps?.repeatEnd,
                         steps: info.event.extendedProps?.steps
                     });
                 }
@@ -834,18 +1053,14 @@ async function initializeCalendars() {
             },
 
             datesSet: function() {
+                updateWeekNumberDisplay();
                 if (monthCalendar) {
                     monthCalendar.gotoDate(calendar.view.currentStart);
                     monthCalendar.render();
+                    setTimeout(() => {
+                        updateCurrentWeekHighlight();
+                    }, 100);
                 }
-                setTimeout(() => {
-                    const axisCushions = document.querySelectorAll('#calendar .fc-timegrid-axis-cushion');
-                    axisCushions.forEach(el => {
-                        if (el.textContent) {
-                            el.textContent = el.textContent.replace(/W\s+(\d+)/g, 'W$1');
-                        }
-                    });
-                }, 50);
             }
         });
 
@@ -882,20 +1097,47 @@ async function initializeCalendars() {
             
             if (cellDate >= weekStart && cellDate < weekEnd) {
                 info.el.classList.add('current-week');
+            } else {
+                info.el.classList.remove('current-week');
             }
-            }
+        },
+
+        datesSet: function() {
+            setTimeout(() => {
+                updateCurrentWeekHighlight();
+            }, 50);
+        }
         });
 
         calendar.render();
         monthCalendar.render();
         
         setTimeout(() => {
-            const axisCushions = document.querySelectorAll('#calendar .fc-timegrid-axis-cushion');
-            axisCushions.forEach(el => {
-                if (el.textContent) {
-                    el.textContent = el.textContent.replace(/W\s+(\d+)/g, 'W$1');
-                }
+            updateWeekNumberDisplay();
+            updateCurrentWeekHighlight();
+        }, 200);
+        
+        const prevBtn = document.getElementById('calendar-prev');
+        const nextBtn = document.getElementById('calendar-next');
+        
+        if (prevBtn && !prevBtn.hasAttribute('data-listener-attached')) {
+            prevBtn.setAttribute('data-listener-attached', 'true');
+            prevBtn.addEventListener('click', () => {
+                calendar.prev();
+                setTimeout(() => updateWeekNumberDisplay(), 50);
             });
+        }
+        
+        if (nextBtn && !nextBtn.hasAttribute('data-listener-attached')) {
+            nextBtn.setAttribute('data-listener-attached', 'true');
+            nextBtn.addEventListener('click', () => {
+                calendar.next();
+                setTimeout(() => updateWeekNumberDisplay(), 50);
+            });
+        }
+        
+        setTimeout(() => {
+            updateWeekNumberDisplay();
         }, 100);
         
         initialized = true;

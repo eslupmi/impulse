@@ -95,6 +95,12 @@ class ManagedChainsStore:
                 if rrule:
                     event.add("rrule", rrule)
 
+            repeatEnd = chain.get("repeatEnd")
+            if repeatEnd:
+                repeatEnd_dt = self._parse_datetime(repeatEnd)
+                if repeatEnd_dt:
+                    event.add("x-repeat-end", repeatEnd_dt)
+
             steps = chain.get("steps")
             if steps:
                 import json
@@ -152,6 +158,19 @@ class ManagedChainsStore:
                 chain["repeat"] = self._rrule_to_repeat(rrule)
             else:
                 chain["repeat"] = None
+
+            x_repeat_end = event.get("x-repeat-end")
+            if x_repeat_end:
+                dt = x_repeat_end.dt if hasattr(x_repeat_end, "dt") else x_repeat_end
+                if hasattr(dt, 'isoformat'):
+                    iso_str = dt.isoformat()
+                    if not iso_str.endswith('Z') and '+' not in iso_str and '-' not in iso_str[-6:]:
+                        iso_str += 'Z'
+                    chain["repeatEnd"] = iso_str
+                else:
+                    chain["repeatEnd"] = str(dt)
+            else:
+                chain["repeatEnd"] = None
 
             description = event.get("description")
             if description:

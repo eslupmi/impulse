@@ -11,7 +11,6 @@
     z-index: 2000;
     opacity: 0;
     visibility: hidden;
-    transition: all 0.3s ease;
 }
 
 .chains-modal.visible {
@@ -26,16 +25,11 @@
     height: 90%;
     max-width: 1400px;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-    transform: translateY(-20px);
-    transition: transform 0.3s ease;
     display: flex;
     flex-direction: column;
     overflow: hidden;
 }
 
-.chains-modal.visible .chains-modal-content {
-    transform: translateY(0);
-}
 
 .chains-modal-header {
     display: flex;
@@ -61,7 +55,6 @@
     cursor: pointer;
     padding: 0;
     line-height: 1;
-    transition: color 0.2s ease;
 }
 
 .chains-modal-close:hover {
@@ -88,6 +81,41 @@
     display: flex;
     gap: 20px;
     overflow: hidden;
+}
+
+#calendar-wrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+#calendar-nav {
+    display: flex;
+    gap: 8px;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.calendar-nav-btn {
+    background: var(--background-secondary) !important;
+    border: 1px solid var(--border-primary) !important;
+    color: var(--text-primary) !important;
+    font-weight: 500;
+    padding: 3px 6px !important;
+    cursor: pointer;
+    font-size: 11px !important;
+}
+
+.calendar-nav-btn:hover {
+    background: var(--brand-primary-light) !important;
+}
+
+.calendar-nav-btn:not(:disabled).calendar-nav-btn-active,
+.calendar-nav-btn:not(:disabled):active {
+    background: var(--brand-secondary) !important;
+    border-color: var(--brand-secondary) !important;
+    color: var(--text-inverse) !important;
 }
 
 #calendar {
@@ -162,13 +190,13 @@
 }
 
 #calendar .fc-timegrid-week-number {
-    width: 32px;
-    text-align: center;
-    font-size: 11px;
-    color: var(--text-secondary);
-    opacity: 0.7;
-    padding: 2px;
-    font-weight: 500;
+    display: none !important;
+}
+
+#week-number-display {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
 }
 
 
@@ -214,7 +242,7 @@
 }
 
 #month-calendar .fc-daygrid-day-frame {
-    position: relative;
+    /* position: relative; */
     padding: 2px;
 }
 
@@ -317,7 +345,6 @@
     color: var(--text-primary) !important;
     font-weight: 500;
     padding: 6px 12px;
-    transition: all 0.2s ease;
 }
 
 .fc .fc-button:hover {
@@ -372,19 +399,19 @@
     border: none !important;
 }
 
-.fc .fc-day-today {
-    background: var(--brand-primary-light) !important;
-}
-
 .fc .fc-event {
+    position: absolute;
     background: var(--brand-secondary);
     border: none;
     border-radius: 4px;
     padding: 2px 6px;
     cursor: pointer;
-    transition: all 0.2s ease;
     width: 90% !important;
-    overflow: hidden;
+    overflow: visible;
+}
+
+.fc .fc-event-main {
+    position: relative;
 }
 
 .fc .fc-timegrid-event {
@@ -421,16 +448,35 @@
     line-height: 1;
     user-select: none;
     pointer-events: auto;
-    transition: all 0.2s ease;
 }
 
 .fc-event-priority-toggle:hover {
     background: rgba(0, 0, 0, 0.9);
-    transform: scale(1.1);
 }
 
-.fc-event-priority-toggle:active {
-    transform: scale(0.95);
+.fc-event-repeat-end-btn {
+    display: none;
+    position: absolute;
+    right: 4px;
+    top: 4px;
+    background: rgba(0, 0, 0, 0.7);
+    border: none;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 600;
+    z-index: 1000;
+    line-height: 1.2;
+    user-select: none;
+    pointer-events: auto;
+    min-width: 32px;
+    text-align: center;
+}
+
+.fc-event-repeat-end-btn:hover {
+    background: rgba(0, 0, 0, 0.9);
 }
 
 .fc .fc-event:hover {
@@ -465,9 +511,7 @@
 }
 
 .fc .fc-timegrid-axis-cushion {
-    color: var(--text-secondary);
-    white-space: nowrap;
-    letter-spacing: -0.1em;
+    display: none !important;
 }
 
 .fc .fc-daygrid-more-link {
@@ -488,7 +532,6 @@
     z-index: 2000;
     opacity: 0;
     visibility: hidden;
-    transition: all 0.3s ease;
 }
 
 .modal.visible {
@@ -502,13 +545,8 @@
     width: 100%;
     max-width: 480px;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-    transform: translateY(-20px);
-    transition: transform 0.3s ease;
 }
 
-.modal.visible .modal-content {
-    transform: translateY(0);
-}
 
 .modal-header {
     display: flex;
@@ -533,7 +571,6 @@
     cursor: pointer;
     padding: 0;
     line-height: 1;
-    transition: color 0.2s ease;
 }
 
 .modal-close:hover {
@@ -571,7 +608,6 @@
     color: var(--text-primary);
     font-size: 14px;
     font-family: inherit;
-    transition: border-color 0.2s ease;
     box-sizing: border-box;
 }
 
@@ -606,7 +642,6 @@
     font-size: 14px;
     font-weight: 500;
     cursor: pointer;
-    transition: all 0.2s ease;
 }
 
 .btn-primary {
@@ -672,7 +707,6 @@
     border-radius: 6px;
     font-size: 12px;
     cursor: pointer;
-    transition: opacity 0.2s ease;
     flex-shrink: 0;
 }
 
@@ -695,8 +729,6 @@
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     z-index: 3000;
     opacity: 0;
-    transform: translateX(100%);
-    transition: opacity 0.3s ease, transform 0.3s ease;
     max-width: 400px;
     font-size: 14px;
     line-height: 1.5;
@@ -704,10 +736,8 @@
 
 .overlap-notification.show {
     opacity: 1;
-    transform: translateX(0);
 }
 
 .overlap-notification.hide {
     opacity: 0;
-    transform: translateX(100%);
 }
