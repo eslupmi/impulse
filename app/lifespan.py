@@ -40,7 +40,7 @@ async def _initialize_primary_server(fastapi_app: FastAPI, file_lock: FileLock) 
         return False
 
 
-async def create_main_objects(fastapi_app: FastAPI):
+async def create_main_objects(fastapi_app: FastAPI, reload=False):
     config_data = get_config()
     route_config = config_data.app.route
     webhooks_config = config_data.app.webhooks
@@ -62,7 +62,10 @@ async def create_main_objects(fastapi_app: FastAPI):
     incidents = Incidents.create_or_load(messenger.type, messenger.public_url, messenger.team)
     JinjaTemplate.set_incidents(incidents)
 
-    queue = await AsyncQueue.recreate_queue(incidents)
+    if not reload:
+        queue = await AsyncQueue.recreate_queue(incidents)
+    else:
+        queue = fastapi_app.state.queue
 
     inhibition_manager = InhibitionManager(
         rules=config_data.app.inhibit_rules or [],
@@ -74,25 +77,27 @@ async def create_main_objects(fastapi_app: FastAPI):
 
     user_scheduler = UserUpdateScheduler(queue, messenger.type.value)
     messenger.configure_scheduler(user_scheduler)
-    await user_scheduler.schedule_all_stored()
-    queue_manager = AsyncQueueManager(queue, messenger, incidents, webhooks, route, inhibition_manager)
+    if not reload:
+        await user_scheduler.schedule_all_stored()
+        queue_manager = AsyncQueueManager(queue, messenger, incidents, webhooks, route, inhibition_manager)
+        fastapi_app.state.queue_manager = queue_manager
 
     fastapi_app.state.queue = queue
-    fastapi_app.state.queue_manager = queue_manager
     fastapi_app.state.incidents = incidents
     fastapi_app.state.messenger = messenger
     fastapi_app.state.webhooks = webhooks
     fastapi_app.state.route = route
     fastapi_app.state.channel_manager = channel_manager
-    fastapi_app.state.config = config_data
+    # fastapi_app.state.config = config_data
     fastapi_app.state.inhibition_manager = inhibition_manager
 
-    queue_manager.start_processing()
+    if not reload:
+        queue_manager.start_processing()
     fastapi_app.state.is_standby = False
 
 
-async def _cleanup_application_objects(fastapi_app: FastAPI):
-    if fastapi_app.state.queue_manager:
+async def _cleanup_application_objects(fastapi_app: FastAPI, reload = False):
+    if fastapi_app.state.queue_manager and not reload:
         await fastapi_app.state.queue_manager.stop_processing()
     if hasattr(fastapi_app.state, 'messenger') and hasattr(fastapi_app.state.messenger, 'close'):
         await fastapi_app.state.messenger.close()
