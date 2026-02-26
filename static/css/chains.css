@@ -429,36 +429,11 @@
     border: none !important;
 }
 
-.fc-event-priority-toggle {
-    display: none;
-    position: absolute;
-    right: 4px;
-    top: 4px;
-    background: rgba(0, 0, 0, 0.7);
-    border: none;
-    color: white;
-    width: 24px;
-    height: 24px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 14px;
-    font-weight: bold;
-    z-index: 1000;
-    padding: 0;
-    line-height: 1;
-    user-select: none;
-    pointer-events: auto;
-}
-
-.fc-event-priority-toggle:hover {
-    background: rgba(0, 0, 0, 0.9);
-}
-
 .fc-event-repeat-end-btn {
     display: none;
     position: absolute;
     right: 4px;
-    top: 4px;
+    bottom: 4px;
     background: rgba(0, 0, 0, 0.7);
     border: none;
     color: white;
@@ -477,6 +452,16 @@
 
 .fc-event-repeat-end-btn:hover {
     background: rgba(0, 0, 0, 0.9);
+}
+
+.fc-event-repeat-end-btn.active {
+    display: block !important;
+    background: rgba(59, 130, 246, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+.fc-event-repeat-end-btn.active:hover {
+    background: rgba(37, 99, 235, 0.95);
 }
 
 .fc .fc-event:hover {
