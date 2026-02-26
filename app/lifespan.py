@@ -3,8 +3,11 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from app.config.config import get_config
+from app.config.environment import get_environment_config
 from app.config.validation import MessengerType
+from app.signals import setup_sighup_handler
 from app.file_lock import FileLock
+from app.routes import create_router
 from app.im.channel_manager import ChannelManager
 from app.im.helpers import get_application
 from app.im.user_store import UserUpdateScheduler
@@ -86,6 +89,13 @@ async def initialize_primary_server(fastapi_app: FastAPI, file_lock: FileLock) -
 
 @asynccontextmanager
 async def lifespan(fastapi_app: FastAPI):
+    setup_sighup_handler()
+
+    env_config = get_environment_config()
+    http_prefix = env_config.http_prefix
+    router = create_router(http_prefix, fastapi_app)
+    fastapi_app.include_router(router)
+
     file_lock = FileLock()
     shutdown_event = asyncio.Event()
 
@@ -98,28 +108,13 @@ async def lifespan(fastapi_app: FastAPI):
     fastapi_app.state.queue = AsyncQueue()
     fastapi_app.state.inhibition_manager = None
 
-    async def wait_and_become_primary():
-        while not shutdown_event.is_set():
-            await file_lock.wait_for_unlock()
-            if shutdown_event.is_set():
-                break
-            logger.info('Transitioning to primary server')
-            if await initialize_primary_server(fastapi_app, file_lock):
-                break
-            logger.error('Transition failed, retrying')
-            try:
-                await asyncio.wait_for(shutdown_event.wait(), timeout=5.0)
-                break
-            except asyncio.TimeoutError:
-                pass
-
     if is_standby:
         logger.info("Another IMPulse instance is running, working as standby server")
         hostname, pid = file_lock.get_lock_info()
         STATUS.set(0)
         logger.debug("Lock held by another instance", extra={'hostname': hostname, 'pid': pid})
         logger.info('IMPulse started in standby mode')
-        unlock_task = asyncio.create_task(wait_and_become_primary())
+        unlock_task = asyncio.create_task(_wait_and_become_primary(shutdown_event, file_lock, fastapi_app))
     else:
         if can_take_over:
             hostname, pid = file_lock.get_lock_info()
@@ -128,7 +123,7 @@ async def lifespan(fastapi_app: FastAPI):
         if not success:
             logger.error('Primary server start failed, entering standby mode')
             fastapi_app.state.is_standby = True
-            unlock_task = asyncio.create_task(wait_and_become_primary())
+            unlock_task = asyncio.create_task(_wait_and_become_primary(shutdown_event, file_lock, fastapi_app))
         else:
             unlock_task = None
 
@@ -162,3 +157,19 @@ async def lifespan(fastapi_app: FastAPI):
     await file_lock.release_lock()
 
     logger.info('Shutdown complete')
+
+
+async def _wait_and_become_primary(shutdown_event, file_lock, fastapi_app):
+    while not shutdown_event.is_set():
+        await file_lock.wait_for_unlock()
+        if shutdown_event.is_set():
+            break
+        logger.info('Transitioning to primary server')
+        if await initialize_primary_server(fastapi_app, file_lock):
+            break
+        logger.error('Transition failed, retrying')
+        try:
+            await asyncio.wait_for(shutdown_event.wait(), timeout=5.0)
+            break
+        except asyncio.TimeoutError:
+            pass
