@@ -59,6 +59,8 @@ nav:
   - Configuration:
     - envs.md
     - impulse.yml: config_file.md
+  - Feature Guides:
+    - guides/authentication.md
   - versioning.md
 - INTEGRATIONS:
   - Alert Sources:

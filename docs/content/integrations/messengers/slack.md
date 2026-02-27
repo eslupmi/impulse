@@ -1,5 +1,12 @@
 # Slack
 
+## Authentication
+
+1. Go to [Slack Apps](https://api.slack.com/apps), select IMPulse app
+2. In the **Basic Information** section:
+    - use "Client ID" as ENV `CLIENT_ID`
+    - use "Client Secret" as ENV `CLIENT_SECRET`
+
 ## Create a bot
 
 1. Go to [Slack Apps](https://api.slack.com/apps) and click button **Create New App**.

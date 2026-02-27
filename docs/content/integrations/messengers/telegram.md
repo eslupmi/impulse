@@ -5,6 +5,10 @@
 
 In Telegram, although the configuration uses the term `channels`, they are actually implemented as groups with topics.
 
+## Authentication
+
+You should set "Domain" for your bot using [@BotFather](https://telegram.me/BotFather). Using BotFather select your bot, go to "Bot Settings" -> "Domain" and set it.
+
 ## Create a bot
 
 Follow this [instruction](https://core.telegram.org/bots/features#creating-a-new-bot). Save the bot token as the `TELEGRAM_BOT_TOKEN` environment variable (used in section 2.3 [here](../../installation.md#4-configure-impulse)).
