@@ -6,7 +6,7 @@ from fastapi.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from app.config.config import get_config
+from app.config.config import get_config, reload_config
 from app.logging import logger
 from app.metrics import generate_metrics_response
 from app.middleware import is_standby_mode, service_unavailable_response
@@ -102,6 +102,31 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None) -> APIRouter:
     @router.get("/ui_config")
     async def get_ui_config():
         return get_all_ui_config()
+
+    @router.post("/-/reload")
+    async def post_reload(request: Request):
+        if is_standby_mode(request.app.state):
+            raise HTTPException(status_code=503, detail="Service Unavailable - Standby mode")
+        
+        try:
+            from app.lifespan import create_main_objects, _cleanup_application_objects
+            
+            logger.info("Reloading configuration via API")
+            success = reload_config()
+            if success:
+                await _cleanup_application_objects(request.app, reload=True)
+                await create_main_objects(request.app, reload=True)
+                logger.info("Configuration reloaded via API")
+                return Response(
+                    status_code=200,
+                    content="OK",
+                    media_type="text/plain"
+                )
+            else:
+                raise HTTPException(status_code=400, detail="Configuration reload failed")
+        except Exception as e:
+            logger.error("Configuration reload error via API", extra={'error': str(e)})
+            raise HTTPException(status_code=500, detail=str(e))
 
     @router.websocket("/ws")
     async def websocket_endpoint(websocket: WebSocket):
