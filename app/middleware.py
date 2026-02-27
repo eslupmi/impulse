@@ -5,6 +5,9 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from app.config.environment import get_environment_config
 
 
+STANDBY_MODE_MESSAGE = "Service Unavailable - Standby mode"
+
+
 def is_standby_mode(state) -> bool:
     """Check if server is in standby mode"""
     return getattr(state, 'is_standby', False)
@@ -49,7 +52,7 @@ class StandbyMiddleware(BaseHTTPMiddleware):
                 return await call_next(request)
             
             # Block all other requests
-            return service_unavailable_response("Service Unavailable - Standby mode. Only /readyz, /livez and /metrics endpoints are available.")
+            return service_unavailable_response(STANDBY_MODE_MESSAGE)
         
         return await call_next(request)
 
