@@ -79,19 +79,6 @@ class TestConfigFunctions:
 
     @patch('app.config.config.get_environment_config')
     @patch('app.config.config.load_and_validate_config')
-    def test_load_unified_config_custom_path(self, mock_load_and_validate, mock_get_env_config,
-                                             mock_environment_config, mock_impulse_config):
-        """Test loading unified config with custom path."""
-        mock_get_env_config.return_value = mock_environment_config
-        mock_load_and_validate.return_value = (mock_impulse_config, {})
-
-        result = load_unified_config("custom_config.yml")
-
-        mock_load_and_validate.assert_called_once_with("custom_config.yml")
-        assert isinstance(result, UnifiedConfig)
-
-    @patch('app.config.config.get_environment_config')
-    @patch('app.config.config.load_and_validate_config')
     @patch('app.config.config.logger')
     def test_load_unified_config_validation_error_exit(self, mock_logger, mock_load_and_validate,
                                                        mock_get_env_config, mock_environment_config):
@@ -163,7 +150,7 @@ class TestConfigFunctions:
         result = reload_config()
 
         assert result is True
-        mock_load_unified_config.assert_called_once_with(None, exit_on_error=False)
+        mock_load_unified_config.assert_called_once_with(exit_on_error=False)
 
     @patch('app.config.config._config')
     @patch('app.config.config.load_unified_config')
@@ -214,9 +201,11 @@ class TestConfigFunctions:
     @patch('app.config.config.load_unified_config')
     def test_force_reload_config(self, mock_load_unified_config, mock_current_config, mock_unified_config):
         """Test force reload config."""
+        mock_current_config.messenger.type = MessengerType.SLACK
+        mock_unified_config.messenger.type = MessengerType.SLACK
         mock_load_unified_config.return_value = mock_unified_config
 
         result = reload_config()
 
-        mock_load_unified_config.assert_called_once_with(None, exit_on_error=False)
-        assert result is not None
+        mock_load_unified_config.assert_called_once_with(exit_on_error=False)
+        assert result is True
