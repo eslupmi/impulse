@@ -164,18 +164,10 @@ function applyEventInset(element, event = null) {
         ? event.extendedProps.priority 
         : parseInt(element.getAttribute('data-priority')) || 2;
     
-    let isSingle = false;
-    if (event && calendar) {
-        const overlappingCount = countOverlappingEvents(event.start, event.end, event.id);
-        isSingle = overlappingCount === 0;
-    }
-    
     if (priority === 2) {
         element.style.setProperty('inset', '0px 10% 0px 0px', 'important');
     } else if (priority === 1) {
         element.style.setProperty('inset', '0 0% 0 0%', 'important');
-    } else if (isSingle) {
-        element.style.setProperty('inset', '0 5% 0 5%', 'important');
     } else {
         element.style.setProperty('inset', '0 0 0 0', 'important');
     }
@@ -576,6 +568,9 @@ async function updateEventPriority(droppedEvent) {
     if (overlappingEvents.length === 0) {
         droppedEvent.setExtendedProp('priority', 2);
         droppedChain.priority = 2;
+        if (droppedEvent.el) {
+            applyEventInset(droppedEvent.el, droppedEvent);
+        }
         await saveChains(chains);
         return;
     }
