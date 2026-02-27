@@ -4,11 +4,11 @@ Environment variables are created in `.env` file for python installation or in `
 
 | Variable | Description | Default | Required |
 |-|-|-|-|
+| AUTH_CLIENT_ID | OAuth Client ID | | for [user authentication](../content/guides/user_authentication.md) |
+| AUTH_CLIENT_SECRET | OAuth Client Secret | | for [user authentication](../content/guides/user_authentication.md) |
 | CHAIN_PROVIDER_DAYS_TO_SYNC | How many days will be synced<br/>(for [cloud chain](config_file.md#cloud-chains)) | 7 | - |
 | CHAIN_PROVIDER_MAX_EVENTS | Maximum events which will be synced<br/>(for [cloud chain](config_file.md#cloud-chains)) | 10 | - |
 | CHAIN_PROVIDER_SYNC_INTERVAL_SECONDS | Sync interval, seconds<br/>(for [cloud chain](config_file.md#cloud-chains)) | 60 | - |
-| CLIENT_ID | OAuth Client ID | | for [user authentication](../content/guides/user_authentication.md) |
-| CLIENT_SECRET | OAuth Client Secret | | for [user authentication](../content/guides/user_authentication.md) |
 | CONFIG_PATH | Path to `impulse.yml` directory | ./ | - |
 | CORS_ALLOWED_ORIGINS | Сomma-separated list of origins<br> allowed to make cross-origin<br> requests to the server | http://localhost:5000 | for UI |
 | DATA_PATH | Path to data directory | ./data | - |

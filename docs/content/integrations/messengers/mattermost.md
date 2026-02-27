@@ -11,8 +11,8 @@
         - set "Homepage" to the same as [messenger.impulse_address](../../config_file.md#messengerimpulse_address)
         - set "Callback URLs" to the same as [messenger.impulse_address](../../config_file.md#messengerimpulse_address) plus "/auth/callback" (e.g. `https://impulse.bot/auth/callback`)
     - press **Save**
-    - use "Client ID" as ENV `CLIENT_ID`
-    - use "Client Secret" as ENV `CLIENT_SECRET`
+    - use "Client ID" as ENV `AUTH_CLIENT_ID`
+    - use "Client Secret" as ENV `AUTH_CLIENT_SECRET`
     - press **Done**
 
 ## Create a bot
