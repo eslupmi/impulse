@@ -1,7 +1,7 @@
 let calendar = null;
 let monthCalendar = null;
 let currentChainId = null;
-let chainsConfig = { users: [], user_groups: [], groups: [], chains: [], webhooks: [], week_start: "Mon" };
+let chainsConfig = { users: [], user_groups: [], groups: [], chains: [], webhooks: [], week_start: "Mon", timezone: "UTC" };
 let initialized = false;
 let cachedChains = [];
 
@@ -271,6 +271,8 @@ function createStepElement(step = null, index = null) {
     
     const stepType = step ? Object.keys(step)[0] : 'user';
     const stepValue = step ? step[stepType] : '';
+    const isFirst = index === 0;
+    const waitOption = isFirst ? '' : `<option value="wait" ${stepType === 'wait' ? 'selected' : ''}>wait</option>`;
     
     stepDiv.innerHTML = `
         <div class="step-controls">
@@ -278,11 +280,11 @@ function createStepElement(step = null, index = null) {
                 <option value="user" ${stepType === 'user' ? 'selected' : ''}>user</option>
                 <option value="user_group" ${stepType === 'user_group' ? 'selected' : ''}>user_group</option>
                 <option value="group" ${stepType === 'group' ? 'selected' : ''}>group</option>
-                <option value="wait" ${stepType === 'wait' ? 'selected' : ''}>wait</option>
+                ${waitOption}
                 <option value="chain" ${stepType === 'chain' ? 'selected' : ''}>chain</option>
             </select>
-            <input type="text" class="step-value" placeholder="Enter value" value="${stepValue}" list="step-options-${index || Date.now()}">
-            <datalist id="step-options-${index || Date.now()}"></datalist>
+            <input type="text" class="step-value" placeholder="Enter value" value="${stepValue}" list="step-options-${index !== null ? index : Date.now()}">
+            <datalist id="step-options-${index !== null ? index : Date.now()}"></datalist>
             <button type="button" class="btn-remove-step">Remove</button>
         </div>
     `;
@@ -322,7 +324,7 @@ function renderSteps(steps = []) {
     const stepsContainer = document.getElementById('steps-container');
     stepsContainer.innerHTML = '';
     if (steps.length === 0) {
-        stepsContainer.appendChild(createStepElement());
+        stepsContainer.appendChild(createStepElement(null, 0));
     } else {
         steps.forEach((step, index) => {
             stepsContainer.appendChild(createStepElement(step, index));
@@ -663,7 +665,15 @@ async function saveChain() {
     const startStr = startInput.value.trim();
     const endStr = endInput.value.trim();
     const repeat = repeatSelect.value;
-    const steps = getSteps();
+    let steps = getSteps();
+
+    if (steps.length > 0) {
+        const lastStep = steps[steps.length - 1];
+        const lastStepType = Object.keys(lastStep)[0];
+        if (lastStepType === 'wait') {
+            steps = steps.slice(0, -1);
+        }
+    }
 
     if (!startStr) return;
 
@@ -807,6 +817,93 @@ function parseWeekStart(weekStart) {
     return weekStartMap[weekStart] || 1;
 }
 
+function getTimezoneMode() {
+    const saved = localStorage.getItem('managed_chains_timezone_mode');
+    if (saved === 'user' || saved === 'config' || saved === 'utc') {
+        return saved;
+    }
+    const userTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const configTz = chainsConfig.timezone;
+    if (userTz && userTz !== 'UTC') {
+        return 'user';
+    } else if (configTz && configTz !== 'UTC') {
+        return 'config';
+    }
+    return 'utc';
+}
+
+function setTimezoneMode(mode) {
+    localStorage.setItem('managed_chains_timezone_mode', mode);
+}
+
+function getEffectiveTimezone() {
+    const mode = getTimezoneMode();
+    if (mode === 'user') {
+        return Intl.DateTimeFormat().resolvedOptions().timeZone;
+    } else if (mode === 'config') {
+        return chainsConfig.timezone || 'UTC';
+    }
+    return 'UTC';
+}
+
+function updateTimezoneSelector() {
+    const selector = document.getElementById('timezone-select');
+    if (!selector) return;
+    
+    selector.innerHTML = '';
+    
+    const userTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const configTz = chainsConfig.timezone;
+    const currentMode = getTimezoneMode();
+    
+    if (userTz && userTz !== 'UTC') {
+        const option = document.createElement('option');
+        option.value = 'user';
+        option.textContent = `${userTz} (user)`;
+        if (currentMode === 'user') {
+            option.selected = true;
+        }
+        selector.appendChild(option);
+    }
+    
+    if (configTz && configTz !== 'UTC') {
+        const option = document.createElement('option');
+        option.value = 'config';
+        option.textContent = `${configTz} (config)`;
+        if (currentMode === 'config') {
+            option.selected = true;
+        }
+        selector.appendChild(option);
+    }
+    
+    const utcOption = document.createElement('option');
+    utcOption.value = 'utc';
+    utcOption.textContent = 'UTC';
+    if (currentMode === 'utc') {
+        utcOption.selected = true;
+    }
+    selector.appendChild(utcOption);
+}
+
+async function updateCalendarTimezone() {
+    if (!calendar || !monthCalendar) return;
+    
+    const timezone = getEffectiveTimezone();
+    calendar.setOption('timeZone', timezone);
+    monthCalendar.setOption('timeZone', timezone);
+    
+    const chains = await loadChains();
+    const expandedChains = getExpandedChains(chains);
+    calendar.removeAllEvents();
+    calendar.addEventSource(expandedChains);
+    monthCalendar.removeAllEvents();
+    monthCalendar.addEventSource(expandedChains);
+    updateEventStyles();
+    
+    calendar.render();
+    monthCalendar.render();
+}
+
 function getWeekNumber(date) {
     const d = new Date(date);
     d.setHours(0, 0, 0, 0);
@@ -832,8 +929,10 @@ function updateWeekNumberDisplay() {
 function updateCurrentWeekHighlight() {
     if (!calendar || !monthCalendar) return;
     
-    const weekStart = calendar.view.currentStart;
-    const weekEnd = calendar.view.currentEnd;
+    const weekStart = new Date(calendar.view.activeStart);
+    weekStart.setHours(0, 0, 0, 0);
+    const weekEnd = new Date(calendar.view.activeEnd);
+    weekEnd.setHours(0, 0, 0, 0);
     
     const dayCells = monthCalendar.el.querySelectorAll('.fc-daygrid-day:not(.fc-day-other)');
     dayCells.forEach(cell => {
@@ -841,6 +940,7 @@ function updateCurrentWeekHighlight() {
         if (!dateStr) return;
         
         const cellDate = new Date(dateStr + 'T00:00:00');
+        cellDate.setHours(0, 0, 0, 0);
         if (cellDate >= weekStart && cellDate < weekEnd) {
             cell.classList.add('current-week');
         } else {
@@ -872,6 +972,10 @@ async function initializeCalendars() {
         
         if (initialized && calendar && monthCalendar) {
             console.log('Calendars already initialized, re-rendering');
+            updateTimezoneSelector();
+            const timezone = getEffectiveTimezone();
+            calendar.setOption('timeZone', timezone);
+            monthCalendar.setOption('timeZone', timezone);
             calendar.render();
             monthCalendar.render();
             
@@ -902,6 +1006,7 @@ async function initializeCalendars() {
         }
         
         const firstDay = parseWeekStart(chainsConfig.week_start);
+        const timezone = getEffectiveTimezone();
 
         if (calendar) {
             calendar.destroy();
@@ -919,6 +1024,7 @@ async function initializeCalendars() {
             slotMinHeight: 60,
             allDaySlot: false,
             firstDay: firstDay,
+            timeZone: timezone,
             weekNumbers: true,
             weekNumberCalculation: 'ISO',
             dayHeaderFormat: { weekday: 'short', day: 'numeric', omitCommas: false },
@@ -1143,7 +1249,7 @@ async function initializeCalendars() {
             datesSet: function() {
                 updateWeekNumberDisplay();
                 if (monthCalendar) {
-                    monthCalendar.gotoDate(calendar.view.currentStart);
+                    monthCalendar.gotoDate(calendar.view.activeStart);
                     monthCalendar.render();
                     setTimeout(() => {
                         updateCurrentWeekHighlight();
@@ -1160,6 +1266,7 @@ async function initializeCalendars() {
             right: 'prev,next'
         },
         firstDay: firstDay,
+        timeZone: timezone,
         height: 'auto',
         fixedWeekCount: false,
         showNonCurrentDates: false,
@@ -1179,9 +1286,12 @@ async function initializeCalendars() {
         },
 
         dayCellDidMount: function(info) {
-            const cellDate = info.date;
-            const weekStart = calendar.view.currentStart;
-            const weekEnd = calendar.view.currentEnd;
+            const cellDate = new Date(info.date);
+            cellDate.setHours(0, 0, 0, 0);
+            const weekStart = new Date(calendar.view.activeStart);
+            weekStart.setHours(0, 0, 0, 0);
+            const weekEnd = new Date(calendar.view.activeEnd);
+            weekEnd.setHours(0, 0, 0, 0);
             
             if (cellDate >= weekStart && cellDate < weekEnd) {
                 info.el.classList.add('current-week');
@@ -1251,7 +1361,9 @@ function setupChainEditModalListeners() {
     saveBtn.addEventListener('click', saveChain);
     deleteBtn.addEventListener('click', deleteChain);
     addStepBtn.addEventListener('click', () => {
-        stepsContainer.appendChild(createStepElement());
+        const existingSteps = stepsContainer.querySelectorAll('.step-item');
+        const nextIndex = existingSteps.length;
+        stepsContainer.appendChild(createStepElement(null, nextIndex));
     });
 
     modal.addEventListener('click', (e) => {
@@ -1287,6 +1399,8 @@ export const ChainsManager = {
             
             setTimeout(async () => {
                 console.log('Initializing calendars...');
+                await loadChainsConfig();
+                updateTimezoneSelector();
                 await initializeCalendars();
                 console.log('After initializeCalendars, initialized =', initialized);
                 
@@ -1300,6 +1414,14 @@ export const ChainsManager = {
                 }, 100);
             }, 200);
         });
+        
+        const timezoneSelect = document.getElementById('timezone-select');
+        if (timezoneSelect) {
+            timezoneSelect.addEventListener('change', async (e) => {
+                setTimezoneMode(e.target.value);
+                await updateCalendarTimezone();
+            });
+        }
 
         chainsCloseBtn.addEventListener('click', () => {
             chainsModal.classList.remove('visible');

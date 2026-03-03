@@ -330,7 +330,7 @@ async def get_ui_config():
 async def get_chains_config(request: Request):
     """Get configuration data for chains (users, user_groups, groups, chains, webhooks)"""
     if not hasattr(request.app.state, 'config'):
-        return {"users": [], "user_groups": [], "groups": [], "chains": [], "webhooks": [], "week_start": "Mon"}
+        return {"users": [], "user_groups": [], "groups": [], "chains": [], "webhooks": [], "week_start": "Mon", "timezone": "UTC"}
     
     config = request.app.state.config
     messenger_config = config.app.messenger if hasattr(config, 'app') and hasattr(config.app, 'messenger') else None
@@ -341,6 +341,7 @@ async def get_chains_config(request: Request):
     chains = list(messenger_config.chains.keys()) if messenger_config and hasattr(messenger_config, 'chains') and messenger_config.chains else []
     webhooks = list(config.app.webhooks.keys()) if hasattr(config, 'app') and hasattr(config.app, 'webhooks') and config.app.webhooks else []
     week_start = config.app.general.week_start if hasattr(config, 'app') and hasattr(config.app, 'general') else "Mon"
+    timezone = config.app.general.timezone if hasattr(config, 'app') and hasattr(config.app, 'general') else "UTC"
     
     return {
         "users": users,
@@ -348,7 +349,8 @@ async def get_chains_config(request: Request):
         "groups": groups,
         "chains": chains,
         "webhooks": webhooks,
-        "week_start": week_start
+        "week_start": week_start,
+        "timezone": timezone
     }
 
 

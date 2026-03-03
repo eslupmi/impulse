@@ -47,6 +47,29 @@
     color: var(--text-primary);
 }
 
+.chains-header-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.timezone-select {
+    padding: 6px 10px;
+    border: 1px solid var(--border-primary);
+    border-radius: 6px;
+    background: var(--background-secondary);
+    color: var(--text-primary);
+    font-size: 14px;
+    font-family: inherit;
+    cursor: pointer;
+    margin-right: calc(12px + 1.2em);
+}
+
+.timezone-select:focus {
+    outline: none;
+    border-color: var(--brand-secondary);
+}
+
 .chains-modal-close {
     background: none;
     border: none;
