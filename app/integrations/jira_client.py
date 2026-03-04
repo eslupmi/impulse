@@ -41,7 +41,8 @@ class JiraClient:
             timeout=30.0
         )
     
-    ### private methods ###
+    ### PRIVATE METHODS ###
+
     def _get_auth_headers(self) -> Dict[str, str]:
         """
         Get authentication headers for Jira API requests.

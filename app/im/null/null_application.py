@@ -72,7 +72,8 @@ class NullApplication(Application):
     async def close(self):
         pass
 
-    ### private methods ###
+    ### PRIVATE METHODS ###
+
     def _initialize_specific_params(self):
         pass
 

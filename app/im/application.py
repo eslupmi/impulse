@@ -284,7 +284,8 @@ class Application(ABC):
     def update_incident_payload(self, incident, body, header, status_icons, tz_str):
         pass
 
-    ### private methods ###
+    ### PRIVATE METHODS ###
+
     def _add_discovered_user(self, user_id, user_details):
         user_id_str = str(user_id)
         

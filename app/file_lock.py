@@ -174,7 +174,8 @@ class FileLock:
         while self.is_locked():
             await asyncio.sleep(1)
 
-    ### private methods ###
+    ### PRIVATE METHODS ###
+
     def _cleanup_failed_acquisition(self):
         """Clean up after a failed lock acquisition attempt."""
         try:

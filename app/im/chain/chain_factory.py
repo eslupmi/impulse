@@ -8,7 +8,8 @@ from app.logging import logger
 
 
 class ChainFactory:
-    ### private methods ###
+    ### PRIVATE METHODS ###
+
     @staticmethod
     def _create_chain(name: str, config: Union[ScheduleChainType, CloudChain, list]):
         """

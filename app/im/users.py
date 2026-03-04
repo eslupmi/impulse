@@ -73,7 +73,8 @@ class UserManager:
             return user.timezone
         return None
     
-    ### private methods ###
+    ### PRIVATE METHODS ###
+
     def _resolve_user(self, name: str) -> BaseUser:
         """Resolve a name to a user, checking config names first, then user_ids."""
         if name in self._config_names:

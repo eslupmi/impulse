@@ -153,7 +153,8 @@ class TelegramApplication(Application):
             }
         }
 
-    ### private methods ###
+    ### PRIVATE METHODS ###
+
     async def _answer_callback(self, callback_id):
         await self.http.post(
             f'{self.url}/answerCallbackQuery',

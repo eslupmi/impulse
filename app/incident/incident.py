@@ -395,7 +395,8 @@ class Incident:
             json.dumps({'group_labels': group_labels, 'datetime': datetime_.isoformat()})
         ))
 
-    ### private methods ###
+    ### PRIVATE METHODS ###
+
     def _set_status(self, status: str):
         self.status = status
         logger.debug("Status updated", extra={'uuid': self.uuid, 'status': status})

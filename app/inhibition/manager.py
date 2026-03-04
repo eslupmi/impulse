@@ -107,7 +107,8 @@ class InhibitionManager:
         
         return False
 
-    ### private methods ###
+    ### PRIVATE METHODS ###
+
     async def _cleanup_source(self, source: 'Incident'):
         children_to_process = list(source.childs)
         

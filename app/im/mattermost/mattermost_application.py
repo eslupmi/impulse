@@ -120,7 +120,8 @@ class MattermostApplication(Application):
     def update_incident_payload(self, incident, body, header, status_icons, tz_str):
         return mattermost_get_update_payload(incident, body, header, status_icons, tz_str)
 
-    ### private methods ###
+    ### PRIVATE METHODS ###
+
     def _build_button_response(self, incident_, user_timezone='UTC'):
         """Build JSON response with updated incident message"""
         incident_.dump()

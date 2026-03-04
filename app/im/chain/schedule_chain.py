@@ -29,7 +29,8 @@ class ScheduleChain:
         current_time = datetime.now(timezone.utc)
         return self._get_steps(current_time)
 
-    ### private methods ###
+    ### PRIVATE METHODS ###
+
     def _get_steps(self, current_time: datetime) -> List[SimpleChainStep]:
         """
         Get the steps based on the matchers and schedule.

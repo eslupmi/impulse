@@ -125,7 +125,8 @@ class AlertHandler(BaseHandler):
             await self._notify_new_fire_alert(incident_, is_new_firing_alerts_added, is_some_firing_alerts_removed, uuid_)
         await self.queue.update(incident_.uniq_id, incident_.status_update_datetime, incident_.status)
 
-    ### private methods ###
+    ### PRIVATE METHODS ###
+
     def _regenerate_chain_if_needed(self, incident_, alert_state, prev_status):
         """Generate chain from scratch if incident chain is empty and was resolved."""
         if prev_status == 'resolved' and incident_.chain_enabled and incident_.chain == []:

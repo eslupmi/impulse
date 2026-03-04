@@ -69,7 +69,8 @@ class Webhook:
             logger.error(f'Webhook request failed: {e}')
             return 'ClientError', None
 
-    ### private methods ###
+    ### PRIVATE METHODS ###
+
     def _render_data(self, incident: Incident = None):
         rendered_data = {}
         if self._data:

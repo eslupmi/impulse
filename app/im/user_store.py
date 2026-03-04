@@ -99,7 +99,8 @@ class UserStore:
         except IOError as e:
             logger.error('Failed to save user file', extra={'user_id': user_id, 'error': str(e)})
     
-    ### private methods ###
+    ### PRIVATE METHODS ###
+
     def _ensure_directory(self):
         if not os.path.exists(self._users_path):
             logger.info('Creating users directory')

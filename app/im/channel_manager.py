@@ -71,7 +71,8 @@ class ChannelManager:
         
         return channels_dict
 
-    ### private methods ###
+    ### PRIVATE METHODS ###
+
     @staticmethod
     def _get_channel_id(channel_obj):
         """Extract channel ID from either a typed channel object or a dictionary"""

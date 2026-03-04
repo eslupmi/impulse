@@ -109,7 +109,8 @@ class SlackApplication(Application):
     def update_incident_payload(self, incident, body, header, status_icons, user_tz):
         return slack_get_update_payload(incident, body, header, status_icons, user_tz)
 
-    ### private methods ###
+    ### PRIVATE METHODS ###
+
     async def _generate_groups(self, groups_dict):
         """Generate groups by polling them from the API"""
         if not groups_dict:
