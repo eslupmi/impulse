@@ -460,12 +460,6 @@ class Application(ABC):
         response.close()
         return response_json.get(self.thread_id_key)
 
-    async def _send_create_thread(self, payload):
-        response = await self.http.post(self.post_message_url, headers=self.headers, json=payload)
-        response_json = await response.json()
-        response.close()
-        return response_json.get(self.thread_id_key)
-
     def _setup_http(self) -> RateLimitedClient:
         if self.rate_limit:
             logger.debug(
