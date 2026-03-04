@@ -63,6 +63,7 @@ class Application(ABC):
         
         self._user_scheduler: Optional[UserUpdateScheduler] = None
 
+    @abstractmethod
     async def buttons_handler(self, payload, incidents, queue_, route):
         pass
 
@@ -87,6 +88,7 @@ class Application(ABC):
         payload = self._get_incident_message_payload(incident, body, header, status_icons)
         return await self._send_create_incident_message(payload)
 
+    @abstractmethod
     def create_user(self, name, user_details):
         pass
 
@@ -121,6 +123,7 @@ class Application(ABC):
 
         return body_template, header_template, status_icons_template
 
+    @abstractmethod
     async def get_all_groups(self):
         pass
 
@@ -143,6 +146,7 @@ class Application(ABC):
     def get_team_name(self, app_config: ApplicationConfig):
         return self._get_team_name(app_config)
 
+    @abstractmethod
     async def get_user_details(self, user_info: Union[SlackUser, MattermostUser, TelegramUser, Dict]):
         pass
 
@@ -281,6 +285,7 @@ class Application(ABC):
         payload = self.update_incident_payload(incident, body, header, status_icons, tz_str)
         await self._update_incident_message(incident.ts, payload)
 
+    @abstractmethod
     def update_incident_payload(self, incident, body, header, status_icons, tz_str):
         pass
 
@@ -323,6 +328,7 @@ class Application(ABC):
             return f"@{username}"
         return "(empty)"
 
+    @abstractmethod
     async def _generate_groups(self, groups_dict: Dict):
         pass
 
@@ -350,15 +356,19 @@ class Application(ABC):
 
         return user_manager
 
+    @abstractmethod
     def _get_incident_message_payload(self, incident, body, header, status_icons):
         pass
 
+    @abstractmethod
     def _get_public_url(self, app_config: ApplicationConfig):
         pass
 
+    @abstractmethod
     def _get_team_name(self, app_config: ApplicationConfig):
         pass
 
+    @abstractmethod
     def _get_url(self, app_config: ApplicationConfig):
         pass
 
@@ -397,6 +407,7 @@ class Application(ABC):
         await unfreeze_incident(incident_, self, queue_)
         await self.update_incident_message(incident_)
 
+    @abstractmethod
     def _initialize_specific_params(self):
         pass
 
@@ -423,6 +434,7 @@ class Application(ABC):
 
         return loaded_ids
 
+    @abstractmethod
     def _markdown_links_to_native_format(self, text):
         pass
 
@@ -438,6 +450,7 @@ class Application(ABC):
             message = text
         await self.post_to_thread(incident_.channel_id, incident_.ts, message)
 
+    @abstractmethod
     def _post_thread_payload(self, channel_id, id_, text):
         pass
 
@@ -484,5 +497,6 @@ class Application(ABC):
             incident.assign_user(notification_id)
         return True
 
+    @abstractmethod
     async def _update_incident_message(self, id_, payload):
         pass
