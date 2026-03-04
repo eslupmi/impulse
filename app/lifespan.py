@@ -53,43 +53,39 @@ async def create_main_objects(fastapi_app: FastAPI, reload=False):
         config_data.messenger.channels = {'default': {'id': 'default'}}
     channels = channel_manager.initialize(route.get_uniq_channels(), config_data.messenger.channels, route.channel)
     default_channel = route.channel
-
-    messenger = get_application(config_data.messenger, channels, default_channel,
-                                task_management_config=config_data.app.task_management)
-    await messenger.initialize_async()
-
-    webhooks = generate_webhooks(webhooks_config)
-    incidents = Incidents.create_or_load(messenger.type, messenger.public_url, messenger.team)
-    JinjaTemplate.set_incidents(incidents)
-
-    if not reload:
-        queue = await AsyncQueue.recreate_queue(incidents)
-    else:
-        queue = fastapi_app.state.queue
-
-    inhibition_manager = InhibitionManager(
-        rules=config_data.app.inhibit_rules or [],
-        incidents=incidents,
-        application=messenger,
-        queue=queue
+    messenger = get_application(
+        config_data.messenger, channels, default_channel, task_management_config=config_data.app.task_management
     )
-    inhibition_manager.restore_from_incidents()
+    await messenger.initialize_async()
+    webhooks = generate_webhooks(webhooks_config)
 
-    user_scheduler = UserUpdateScheduler(queue, messenger.type.value)
-    messenger.configure_scheduler(user_scheduler)
-    if not reload:
+    if reload:
+        fastapi_app.state.inhibition_manager.reload_rules(config_data.app.inhibit_rules)
+    else:
+        incidents = Incidents.create_or_load(messenger.type, messenger.public_url, messenger.team)
+        JinjaTemplate.set_incidents(incidents)
+        queue = await AsyncQueue.recreate_queue(incidents)
+        inhibition_manager = InhibitionManager(
+            rules=config_data.app.inhibit_rules,
+            incidents=incidents,
+            application=messenger,
+            queue=queue
+        )
+        inhibition_manager.restore_from_incidents()
+        user_scheduler = UserUpdateScheduler(queue, messenger.type.value)
+        messenger.configure_scheduler(user_scheduler)
         await user_scheduler.schedule_all_stored()
         queue_manager = AsyncQueueManager(queue, messenger, incidents, webhooks, route, inhibition_manager)
-        fastapi_app.state.queue_manager = queue_manager
 
-    fastapi_app.state.queue = queue
-    fastapi_app.state.incidents = incidents
+        fastapi_app.state.queue_manager = queue_manager
+        fastapi_app.state.incidents = incidents
+        fastapi_app.state.queue = queue
+        fastapi_app.state.inhibition_manager = inhibition_manager
+
     fastapi_app.state.messenger = messenger
     fastapi_app.state.webhooks = webhooks
     fastapi_app.state.route = route
     fastapi_app.state.channel_manager = channel_manager
-    # fastapi_app.state.config = config_data
-    fastapi_app.state.inhibition_manager = inhibition_manager
 
     if not reload:
         queue_manager.start_processing()

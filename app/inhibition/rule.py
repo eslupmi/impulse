@@ -21,7 +21,7 @@ class InhibitionRule:
         """
         self.source_matchers = [Matcher(m) for m in source_matchers]
         self.target_matchers = [Matcher(m) for m in target_matchers]
-        self.equal_labels = equal_labels or []
+        self.equal_labels = equal_labels
     
     def is_source(self, incident: Incident) -> bool:
         """Check if incident matches all source matchers.
