@@ -18,7 +18,7 @@ class TestUnifiedConfig:
         config = UnifiedConfig(mock_impulse_config)
 
         assert config.app == mock_impulse_config
-        assert config.INCIDENT_ACTUAL_VERSION == 'v3.2.0'
+        assert config.INCIDENT_ACTUAL_VERSION == 'v3.4.0'
         assert config.check_updates is True
 
     def test_messenger_property(self, mock_impulse_config):
@@ -76,19 +76,6 @@ class TestConfigFunctions:
         mock_load_and_validate.assert_called_once_with("test_config.yml")
         assert isinstance(result, UnifiedConfig)
         assert result.app == mock_impulse_config
-
-    @patch('app.config.config.get_environment_config')
-    @patch('app.config.config.load_and_validate_config')
-    def test_load_unified_config_custom_path(self, mock_load_and_validate, mock_get_env_config,
-                                             mock_environment_config, mock_impulse_config):
-        """Test loading unified config with custom path."""
-        mock_get_env_config.return_value = mock_environment_config
-        mock_load_and_validate.return_value = (mock_impulse_config, {})
-
-        result = load_unified_config("custom_config.yml")
-
-        mock_load_and_validate.assert_called_once_with("custom_config.yml")
-        assert isinstance(result, UnifiedConfig)
 
     @patch('app.config.config.get_environment_config')
     @patch('app.config.config.load_and_validate_config')
@@ -163,7 +150,7 @@ class TestConfigFunctions:
         result = reload_config()
 
         assert result is True
-        mock_load_unified_config.assert_called_once_with(None, exit_on_error=False)
+        mock_load_unified_config.assert_called_once_with(exit_on_error=False)
 
     @patch('app.config.config._config')
     @patch('app.config.config.load_unified_config')
@@ -214,9 +201,11 @@ class TestConfigFunctions:
     @patch('app.config.config.load_unified_config')
     def test_force_reload_config(self, mock_load_unified_config, mock_current_config, mock_unified_config):
         """Test force reload config."""
+        mock_current_config.messenger.type = MessengerType.SLACK
+        mock_unified_config.messenger.type = MessengerType.SLACK
         mock_load_unified_config.return_value = mock_unified_config
 
         result = reload_config()
 
-        mock_load_unified_config.assert_called_once_with(None, exit_on_error=False)
-        assert result is not None
+        mock_load_unified_config.assert_called_once_with(exit_on_error=False)
+        assert result is True

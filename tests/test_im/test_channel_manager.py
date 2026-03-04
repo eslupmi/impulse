@@ -50,9 +50,6 @@ class TestChannelManager:
             manager = ChannelManager()
             result = manager.initialize(channels_list, channels_config, default_channel)
 
-            # Check logger was called
-            mock_logger.info.assert_called_once_with('Checking all channels defined')
-
             # Check result structure
             assert len(result) == 2
             assert "channel1" in result

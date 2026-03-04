@@ -3,7 +3,7 @@
 IMPulse provides simple API and WebSocket endpoints for incident management and system interaction.
 
 !!! info
-    All endpoints use the [HTTP_PREFIX](envs.md) prefix if configured.
+    All endpoints use the [HTTP_PREFIX](../envs.md) prefix if configured.
 
 ## Requests
 
@@ -22,7 +22,7 @@ Send a new alert for processing.
 
 **Requirements:**
 
-- UI must be enabled in configuration ([[ui](config_file.md/#ui) section])
+- UI must be enabled in configuration ([[ui](../config_file.md#ui) section])
 
 ### HTTP `/app` [POST]
 ### HTTP `/app` [PUT]

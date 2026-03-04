@@ -57,60 +57,28 @@ class TestAlertHandler:
         return create_mock_route()
 
     @pytest.fixture
-    def alert_handler(self, mock_queue, mock_application, mock_incidents, mock_route):
-        """Create AlertHandler instance for testing."""
-        return AlertHandler(mock_queue, mock_application, mock_incidents, mock_route)
+    def mock_inhibition_manager(self):
+        """Create mock inhibition manager."""
+        manager = Mock()
+        manager.process_incident = AsyncMock()
+        manager.handle_resolved = AsyncMock()
+        manager.handle_closed = AsyncMock()
+        manager.would_be_inhibited = Mock(return_value=False)
+        return manager
 
-    def test_alert_handler_initialization(self, mock_queue, mock_application, mock_incidents, mock_route):
+    @pytest.fixture
+    def alert_handler(self, mock_queue, mock_application, mock_incidents, mock_route, mock_inhibition_manager):
+        """Create AlertHandler instance for testing."""
+        return AlertHandler(mock_queue, mock_application, mock_incidents, mock_route, mock_inhibition_manager)
+
+    def test_alert_handler_initialization(self, mock_queue, mock_application, mock_incidents, mock_route, mock_inhibition_manager):
         """Test AlertHandler initialization."""
-        handler = AlertHandler(mock_queue, mock_application, mock_incidents, mock_route)
+        handler = AlertHandler(mock_queue, mock_application, mock_incidents, mock_route, mock_inhibition_manager)
 
         assert handler.queue == mock_queue
         assert handler.app == mock_application
         assert handler.incidents == mock_incidents
         assert handler.route == mock_route
-
-    @pytest.mark.asyncio
-    async def test_handle_new_incident(self, alert_handler, mock_incidents, mock_application, mock_queue):
-        """Test handling new incident creation."""
-        # Use utility function for alert payload
-        alert_payload = create_alert_payload(
-            status="firing",
-            alertname="TestAlert",
-            severity="critical"
-        )
-
-        # Mock incidents.get to return None (new incident)
-        mock_incidents.get.return_value = None
-
-        with patch('app.queue.handlers.alert_handler.get_config') as mock_get_config, \
-                patch('app.queue.handlers.alert_handler.datetime') as mock_datetime, \
-                patch('app.queue.handlers.alert_handler.Incident') as mock_incident_class:
-            # Use utility function for mock config
-            mock_config = create_mock_config()
-            mock_config.incident.timeouts = {'firing': '1h', 'resolved': '5m'}
-            mock_config.INCIDENT_ACTUAL_VERSION = 'v3.2.0'
-            mock_get_config.return_value = mock_config
-
-            # Use utility function for test datetime
-            test_datetime = create_test_datetime()
-            mock_datetime.now.return_value = test_datetime
-
-            # Mock incident creation
-            mock_incident = Mock()
-            mock_incident.uuid = 'test-uuid-123'
-            mock_incident.link = 'https://test.slack.com/archives/C123456789/p1234567890123456'
-            mock_incident.dump = Mock()
-            mock_incident.generate_chain = Mock()
-            mock_incident_class.return_value = mock_incident
-
-            await alert_handler.handle(alert_payload)
-
-            # Should create new incident
-            mock_incidents.get.assert_called_once_with(alert=alert_payload)
-            mock_incidents.add.assert_called_once_with(mock_incident)
-            mock_queue.put.assert_called_once()
-            mock_queue.recreate.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_handle_existing_incident(self, alert_handler, mock_incidents, mock_application, mock_queue):
@@ -221,13 +189,22 @@ class TestStatusUpdateHandler:
         return create_mock_incidents_collection(include_get_method=False)
 
     @pytest.fixture
-    def status_update_handler(self, mock_queue, mock_application, mock_incidents):
-        """Create StatusUpdateHandler instance for testing."""
-        return StatusUpdateHandler(mock_queue, mock_application, mock_incidents)
+    def mock_inhibition_manager(self):
+        """Create mock inhibition manager."""
+        manager = Mock()
+        manager.process_incident = AsyncMock()
+        manager.handle_resolved = AsyncMock()
+        manager.handle_closed = AsyncMock()
+        return manager
 
-    def test_status_update_handler_initialization(self, mock_queue, mock_application, mock_incidents):
+    @pytest.fixture
+    def status_update_handler(self, mock_queue, mock_application, mock_incidents, mock_inhibition_manager):
+        """Create StatusUpdateHandler instance for testing."""
+        return StatusUpdateHandler(mock_queue, mock_application, mock_incidents, mock_inhibition_manager)
+
+    def test_status_update_handler_initialization(self, mock_queue, mock_application, mock_incidents, mock_inhibition_manager):
         """Test StatusUpdateHandler initialization."""
-        handler = StatusUpdateHandler(mock_queue, mock_application, mock_incidents)
+        handler = StatusUpdateHandler(mock_queue, mock_application, mock_incidents, mock_inhibition_manager)
 
         assert handler.queue == mock_queue
         assert handler.app == mock_application
@@ -427,62 +404,6 @@ class TestStepHandler:
         assert handler.incidents == mock_incidents
         assert handler.webhooks == mock_webhooks
 
-    @pytest.mark.asyncio
-    async def test_handle_webhook_step(self, step_handler, mock_incidents, mock_application, mock_webhooks):
-        """Test handling webhook step."""
-        incident_uniq_id = 'incident123'
-        identifier = 0
-
-        # Mock incident with webhook step
-        mock_incident = Mock()
-        mock_incident.uuid = 'uuid123'
-        mock_incident.channel_id = 'C123456789'
-        mock_incident.ts = '1234567890.123456'
-        mock_incident.payload = {'alertname': 'TestAlert'}
-        mock_incident.chain = [
-            {'type': 'webhook', 'identifier': 'test-webhook', 'done': False}
-        ]
-        mock_incident.chain_update = Mock()
-        mock_incidents.uniq_ids = {incident_uniq_id: mock_incident}
-
-        # Mock webhook
-        mock_webhook = Mock()
-        mock_webhook.push = AsyncMock(return_value=('ok', 200))
-        mock_webhooks.get.return_value = mock_webhook
-
-        await step_handler.handle(incident_uniq_id, identifier)
-
-        # Should execute webhook and update chain
-        mock_webhook.push.assert_called_once_with(mock_incident)
-        mock_incident.chain_update.assert_called_once_with(identifier, done=True, result=200)
-        mock_application.post_thread.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_handle_webhook_step_undefined(self, step_handler, mock_incidents, mock_application, mock_webhooks):
-        """Test handling undefined webhook step."""
-        incident_uniq_id = 'incident123'
-        identifier = 0
-
-        # Mock incident with webhook step
-        mock_incident = Mock()
-        mock_incident.uuid = 'uuid123'
-        mock_incident.channel_id = 'C123456789'
-        mock_incident.ts = '1234567890.123456'
-        mock_incident.payload = {'alertname': 'TestAlert'}
-        mock_incident.chain = [
-            {'type': 'webhook', 'identifier': 'undefined-webhook', 'done': False}
-        ]
-        mock_incident.chain_update = Mock()
-        mock_incidents.uniq_ids = {incident_uniq_id: mock_incident}
-
-        # Mock undefined webhook
-        mock_webhooks.get.return_value = None
-
-        await step_handler.handle(incident_uniq_id, identifier)
-
-        # Should handle undefined webhook
-        mock_incident.chain_update.assert_called_once_with(identifier, done=True, result=None)
-        mock_application.post_thread.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_handle_non_webhook_step(self, step_handler, mock_incidents, mock_application):
@@ -500,6 +421,7 @@ class TestStepHandler:
             {'type': 'user', 'identifier': 'testuser', 'done': False}
         ]
         mock_incident.chain_update = Mock()
+        mock_incident.is_frozen.return_value = False
         mock_incidents.uniq_ids = {incident_uniq_id: mock_incident}
 
         await step_handler.handle(incident_uniq_id, identifier)

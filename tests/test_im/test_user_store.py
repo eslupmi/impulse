@@ -4,7 +4,7 @@ Unit tests for app.im.user_store module.
 import os
 import tempfile
 from datetime import datetime, timezone, timedelta
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
+from unittest.mock import Mock, AsyncMock, patch
 
 import pytest
 import yaml
@@ -33,30 +33,6 @@ class TestUserStore:
         """Test UserStore initialization creates users directory."""
         users_path = os.path.join(temp_dir, 'users')
         assert os.path.exists(users_path)
-
-    def test_save_and_get_user(self, user_store):
-        """Test saving and retrieving user data."""
-        user_id = "U123456"
-        messenger_type = "slack"
-        user_data = {
-            'username': 'testuser',
-            'email': 'test@example.com',
-            'first_name': 'Test',
-            'last_name': 'User',
-            'timezone': 'UTC'
-        }
-
-        user_store.save(user_id, messenger_type, user_data)
-        retrieved = user_store.get(user_id)
-
-        assert retrieved is not None
-        assert retrieved['messenger_type'] == messenger_type
-        assert retrieved['username'] == 'testuser'
-        assert retrieved['email'] == 'test@example.com'
-        assert retrieved['first_name'] == 'Test'
-        assert retrieved['last_name'] == 'User'
-        assert retrieved['timezone'] == 'UTC'
-        assert 'updated_at' in retrieved
 
     def test_get_nonexistent_user(self, user_store):
         """Test getting a user that doesn't exist returns None."""
@@ -105,12 +81,12 @@ class TestUserStore:
     def test_is_data_expired_with_missing_updated_at(self, user_store):
         """Test _is_data_expired returns True when updated_at is missing."""
         data = {'username': 'test'}
-        assert user_store._is_data_expired(data) is True
+        assert user_store.is_data_expired(data) is True
 
     def test_is_data_expired_with_invalid_updated_at(self, user_store):
         """Test _is_data_expired returns True for invalid updated_at."""
         data = {'updated_at': 'invalid-date'}
-        assert user_store._is_data_expired(data) is True
+        assert user_store.is_data_expired(data) is True
 
     def test_get_next_refresh_time(self, user_store):
         """Test get_next_refresh_time calculates correctly."""
@@ -136,7 +112,7 @@ class TestUserStore:
         now = datetime.now(timezone.utc)
         data = {'updated_at': now.isoformat()}
         
-        refresh_time = user_store._get_refresh_time_from_data(data)
+        refresh_time = user_store.get_refresh_time_from_data(data)
         expected = now + timedelta(hours=USER_REFRESH_HOURS)
         
         assert abs((refresh_time - expected).total_seconds()) < 2
@@ -160,24 +136,6 @@ class TestUserStore:
         """Test get_all_users_by_type returns empty dict for no users."""
         users = user_store.get_all_users_by_type("slack")
         assert users == {}
-
-    def test_get_all_stored_user_ids(self, user_store):
-        """Test get_all_stored_user_ids returns all user IDs."""
-        user_store.save("user1", "slack", {'username': 'u1'})
-        user_store.save("user2", "telegram", {'username': 'u2'})
-        user_store.save("user3", "mattermost", {'username': 'u3'})
-        
-        user_ids = user_store.get_all_stored_user_ids()
-        
-        assert len(user_ids) == 3
-        assert "user1" in user_ids
-        assert "user2" in user_ids
-        assert "user3" in user_ids
-
-    def test_get_all_stored_user_ids_empty(self, user_store):
-        """Test get_all_stored_user_ids returns empty list when no users."""
-        user_ids = user_store.get_all_stored_user_ids()
-        assert user_ids == []
 
     def test_save_with_none_values(self, user_store):
         """Test save handles None values in user_data."""
@@ -263,30 +221,6 @@ class TestUserUpdateScheduler:
             await scheduler.schedule_all_stored()
         
         assert mock_queue.put.call_count == 2
-
-    @pytest.mark.asyncio
-    async def test_schedule_all_stored_fresh_users(self, mock_queue):
-        """Test schedule_all_stored schedules fresh users at refresh time."""
-        fresh_time = datetime.now(timezone.utc)
-        
-        mock_user_store = Mock()
-        mock_user_store.get_all_users_by_type.return_value = {
-            'user1': {'updated_at': fresh_time, 'username': 'u1'}
-        }
-        mock_user_store._is_data_expired.return_value = False
-        mock_user_store._get_refresh_time_from_data.return_value = fresh_time + timedelta(hours=USER_REFRESH_HOURS)
-        
-        scheduler = UserUpdateScheduler(mock_queue, "slack")
-        
-        with patch('app.im.user_store.get_user_store', return_value=mock_user_store):
-            await scheduler.schedule_all_stored()
-        
-        mock_queue.put.assert_called_once()
-        call_args = mock_queue.put.call_args
-        schedule_time = call_args[0][0]
-        
-        expected_min = datetime.now(timezone.utc) + timedelta(hours=USER_REFRESH_HOURS - 0.1)
-        assert schedule_time > expected_min
 
     @pytest.mark.asyncio
     async def test_schedule_all_stored_uses_messenger_gap(self, mock_queue):

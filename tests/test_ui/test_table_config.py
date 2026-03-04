@@ -6,8 +6,8 @@ from unittest.mock import Mock, patch
 import pytest
 
 from app.ui.table_config import (
-    get_all_ui_config, get_incident_table_config, get_incident_table_sorting,
-    get_incident_table_colors, get_incident_table_filters
+    get_all_ui_config, _get_incident_table_config, _get_incident_table_sorting,
+    _get_incident_table_colors, _get_incident_table_filters
 )
 from tests.utils import create_mock_config
 
@@ -45,7 +45,7 @@ class TestTableConfig:
         mock_config.ui_config = mock_ui_config
         mock_get_config.return_value = mock_config
 
-        result = get_incident_table_config()
+        result = _get_incident_table_config()
 
         assert len(result) == 1
         assert result[0]['field'] == 'indicator'
@@ -83,7 +83,7 @@ class TestTableConfig:
         mock_config.ui_config = mock_ui_config
         mock_get_config.return_value = mock_config
 
-        result = get_incident_table_config()
+        result = _get_incident_table_config()
 
         # Should have indicator + 3 custom columns + 1 URL field for link
         assert len(result) == 5
@@ -131,7 +131,7 @@ class TestTableConfig:
         mock_config.ui_config = mock_ui_config
         mock_get_config.return_value = mock_config
 
-        result = get_incident_table_config()
+        result = _get_incident_table_config()
 
         # Should have indicator + 1 custom column
         assert len(result) == 2
@@ -157,7 +157,7 @@ class TestTableConfig:
         mock_config.ui_config = mock_ui_config
         mock_get_config.return_value = mock_config
 
-        result = get_incident_table_config()
+        result = _get_incident_table_config()
 
         # Check default visible column
         default_col = next(col for col in result if col['field'] == 'default_field')
@@ -180,7 +180,7 @@ class TestTableConfig:
         mock_config.ui_config = mock_ui_config
         mock_get_config.return_value = mock_config
 
-        result = get_incident_table_config()
+        result = _get_incident_table_config()
 
         # Check default type column
         default_type_col = next(col for col in result if col['field'] == 'default_type_field')
@@ -204,7 +204,7 @@ class TestTableConfig:
         mock_config.ui_config = mock_ui_config
         mock_get_config.return_value = mock_config
 
-        result = get_incident_table_config()
+        result = _get_incident_table_config()
 
         # Check default format column
         default_format_col = next(col for col in result if col['field'] == 'default_format_field')
@@ -220,7 +220,7 @@ class TestTableConfig:
         mock_config.ui_config = mock_ui_config
         mock_get_config.return_value = mock_config
 
-        result = get_incident_table_sorting()
+        result = _get_incident_table_sorting()
 
         assert result == []
 
@@ -251,7 +251,7 @@ class TestTableConfig:
         mock_config.ui_config = mock_ui_config
         mock_get_config.return_value = mock_config
 
-        result = get_incident_table_sorting()
+        result = _get_incident_table_sorting()
 
         assert len(result) == 3
 
@@ -286,7 +286,7 @@ class TestTableConfig:
         mock_config.ui_config = mock_ui_config
         mock_get_config.return_value = mock_config
 
-        result = get_incident_table_sorting()
+        result = _get_incident_table_sorting()
 
         assert len(result) == 1
         assert result[0]['column'] == 'status'
@@ -310,7 +310,7 @@ class TestTableConfig:
         mock_config.ui_config = mock_ui_config
         mock_get_config.return_value = mock_config
 
-        result = get_incident_table_colors()
+        result = _get_incident_table_colors()
 
         assert result == colors
 
@@ -324,7 +324,7 @@ class TestTableConfig:
         mock_config.ui_config = mock_ui_config
         mock_get_config.return_value = mock_config
 
-        result = get_incident_table_colors()
+        result = _get_incident_table_colors()
 
         assert result == {}
 
@@ -344,7 +344,7 @@ class TestTableConfig:
         mock_config.ui_config = mock_ui_config
         mock_get_config.return_value = mock_config
 
-        result = get_incident_table_filters()
+        result = _get_incident_table_filters()
 
         assert result == filters
 
@@ -358,6 +358,6 @@ class TestTableConfig:
         mock_config.ui_config = mock_ui_config
         mock_get_config.return_value = mock_config
 
-        result = get_incident_table_filters()
+        result = _get_incident_table_filters()
 
         assert result == []

@@ -148,9 +148,9 @@ class TestAsyncQueue:
     async def test_recreate_resolved_status(self, queue):
         """Test recreate with resolved status (should not add items)."""
         incident_chain = [
-            {'done': False, 'datetime': create_test_datetime()},
-            {'done': True, 'datetime': create_test_datetime()},
-            {'done': False, 'datetime': create_test_datetime()}
+            {'done': False, 'delay': 300.0},
+            {'done': True, 'delay': 600.0},
+            {'done': False, 'delay': 900.0}
         ]
 
         await queue.recreate('resolved', 'incident123', incident_chain)
@@ -160,11 +160,10 @@ class TestAsyncQueue:
     @pytest.mark.asyncio
     async def test_recreate_non_resolved_status(self, queue):
         """Test recreate with non-resolved status (should add items)."""
-        dt = create_test_datetime()
         incident_chain = [
-            {'done': False, 'datetime': dt, 'type': 'step1'},
-            {'done': True, 'datetime': dt, 'type': 'step2'},
-            {'done': False, 'datetime': dt, 'type': 'step3'}
+            {'done': False, 'delay': 300.0, 'type': 'step1'},
+            {'done': True, 'delay': 600.0, 'type': 'step2'},
+            {'done': False, 'delay': 900.0, 'type': 'step3'}
         ]
 
         await queue.recreate('firing', 'incident123', incident_chain)
@@ -225,30 +224,6 @@ class TestAsyncQueue:
         assert data == {'data': 'test'}
         assert len(queue._items) == 0  # Item should be removed
 
-    @pytest.mark.asyncio
-    async def test_get_next_ready_item_not_ready(self, queue):
-        """Test getting next ready item when no item is ready."""
-        future_time = create_test_datetime(year=2030) + timedelta(minutes=1)
-
-        await queue.put(future_time, 'test_type', 'incident123', 'identifier456', {'data': 'test'})
-
-        item_type, uniq_id, identifier, data = await queue.get_next_ready_item()
-
-        assert item_type is None
-        assert uniq_id is None
-        assert identifier is None
-        assert data is None
-        assert len(queue._items) == 1  # Item should remain
-
-    @pytest.mark.asyncio
-    async def test_get_next_ready_item_empty_queue(self, queue):
-        """Test getting next ready item from empty queue."""
-        item_type, uniq_id, identifier, data = await queue.get_next_ready_item()
-
-        assert item_type is None
-        assert uniq_id is None
-        assert identifier is None
-        assert data is None
 
     @pytest.mark.asyncio
     async def test_serialize(self, queue):
@@ -378,19 +353,21 @@ class TestAsyncQueue:
         incident1 = Mock()
         incident1.status = 'firing'
         incident1.is_frozen.return_value = False
+        incident1.chain_active_seconds = 0.0
         incident1.get_chain.return_value = [
-            {'done': False, 'datetime': create_test_datetime()},
-            {'done': True, 'datetime': create_test_datetime()},
-            {'done': False, 'datetime': create_test_datetime()}
+            {'done': False, 'delay': 300.0},
+            {'done': True, 'delay': 600.0},
+            {'done': False, 'delay': 900.0}
         ]
         incident1.status_update_datetime = create_test_datetime()
 
         incident2 = Mock()
         incident2.status = 'resolved'
         incident2.is_frozen.return_value = False
+        incident2.chain_active_seconds = 0.0
         incident2.get_chain.return_value = [
-            {'done': True, 'datetime': create_test_datetime()},
-            {'done': True, 'datetime': create_test_datetime()}
+            {'done': True, 'delay': 300.0},
+            {'done': True, 'delay': 600.0}
         ]
         incident2.status_update_datetime = create_test_datetime()
         

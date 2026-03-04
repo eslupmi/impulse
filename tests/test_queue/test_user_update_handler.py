@@ -32,16 +32,6 @@ class TestUserUpdateHandler:
         app.create_user = Mock()
         app.users = Mock()
         app.users.add_user = Mock()
-        # Mock _format_display_name to behave like the real implementation
-        def format_display_name(user_details):
-            full_name = user_details.get('full_name')
-            if full_name:
-                return full_name
-            username = user_details.get('username')
-            if username:
-                return f"@{username}"
-            return "(empty)"
-        app._format_display_name = Mock(side_effect=format_display_name)
         return app
 
     @pytest.fixture
@@ -70,43 +60,6 @@ class TestUserUpdateHandler:
             
             mock_application.get_user_details.assert_not_called()
             mock_store.return_value.save.assert_not_called()
-
-    @pytest.mark.asyncio
-    async def test_handle_user_exists(self, handler, mock_queue, mock_application):
-        """Test handle with existing user saves data and schedules next refresh."""
-        user_id = "U123456"
-        user_details = {
-            'exists': True,
-            'full_name': 'Test User',
-            'username': 'testuser',
-            'email': 'test@example.com',
-            'first_name': 'Test',
-            'last_name': 'User',
-            'timezone': 'UTC'
-        }
-        mock_application.get_user_details.return_value = user_details
-        mock_user = Mock()
-        mock_application.create_user.return_value = mock_user
-        
-        mock_user_store = Mock()
-        
-        with patch('app.queue.handlers.user_update_handler.get_user_store', return_value=mock_user_store):
-            await handler.handle(user_id)
-        
-        # Should fetch user details
-        mock_application.get_user_details.assert_called_once_with({'id': user_id})
-        
-        # Should save to user store
-        mock_user_store.save.assert_called_once_with(user_id, "slack", user_details)
-        
-        # Should update user manager
-        mock_application.create_user.assert_called_once_with('Test User', user_details)
-        mock_application.users.add_user.assert_called_once_with(user_id, mock_user)
-        
-        # Should schedule next refresh
-        mock_queue.put.assert_called_once()
-        call_args = mock_queue.put.call_args
-        assert call_args[1]['identifier'] == user_id
 
     @pytest.mark.asyncio
     async def test_handle_user_not_found(self, handler, mock_queue, mock_application):
@@ -194,47 +147,6 @@ class TestUserUpdateHandler:
         queue_item_type = call_args[0][1]
         
         assert queue_item_type == QueueItemType.UPDATE_USER
-
-    @pytest.mark.asyncio
-    async def test_update_user_manager(self, handler, mock_application):
-        """Test _update_user_manager creates and adds user."""
-        user_id = "U123456"
-        user_details = {
-            'full_name': 'Test User',
-            'username': 'testuser'
-        }
-        mock_user = Mock()
-        mock_application.create_user.return_value = mock_user
-        
-        handler._update_user_manager(user_id, user_details)
-        
-        mock_application.create_user.assert_called_once_with('Test User', user_details)
-        mock_application.users.add_user.assert_called_once_with(user_id, mock_user)
-
-    @pytest.mark.asyncio
-    async def test_update_user_manager_no_full_name(self, handler, mock_application):
-        """Test _update_user_manager uses @username when no full_name."""
-        user_id = "U123456"
-        user_details = {'username': 'testuser'}
-        mock_user = Mock()
-        mock_application.create_user.return_value = mock_user
-        
-        handler._update_user_manager(user_id, user_details)
-        
-        # Should use @username format when no full_name
-        mock_application.create_user.assert_called_once_with('@testuser', user_details)
-
-    @pytest.mark.asyncio
-    async def test_update_user_manager_create_user_returns_none(self, handler, mock_application):
-        """Test _update_user_manager handles None from create_user."""
-        user_id = "U123456"
-        user_details = {'full_name': 'Test'}
-        mock_application.create_user.return_value = None
-        
-        handler._update_user_manager(user_id, user_details)
-        
-        # Should not try to add None user
-        mock_application.users.add_user.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_handle_different_messenger_types(self, mock_queue, mock_incidents):

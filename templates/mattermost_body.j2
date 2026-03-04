@@ -7,7 +7,8 @@
 {%- if commonAnnotations.summary %}**{{ commonAnnotations.summary }}**  {% endif %}
 {%- if url %}|  [source]({{ url }})  {% endif %}
 {%- if runbook %}|  [runbook]({{ runbook }})  {% endif %}
-{%- if incident.task_link %}|  [task]({{ incident.task_link }}){% endif %}
+{%- if incident.task_link %}|  [task]({{ incident.task_link }})  {% endif %}
+{%- if incident.assigned_user != "" %} (*assigned to @{{ incident.assigned_user }}*){% endif %}
 {%- if commonAnnotations.description %}
 _{{ commonAnnotations.description }}_{% endif %}
 {%- if alerts | length > 1 %}
@@ -27,5 +28,12 @@ _{{ commonAnnotations.description }}_{% endif %}
 **Common labels:**
 {%- for k, v in commonLabels.items() if k != 'alertname' and k != 'instance' %}
     {{ k }}=`{{ v }}`
+{%- endfor -%}
+{% endif -%}
+{%- if incident.childs | length > 0 %}
+
+**Inhibited incidents:**
+{%- for uniq_id in incident.childs %}
+    [{{ incidents.uniq_ids[uniq_id].payload.commonLabels.alertname }}]({{ incidents.uniq_ids[uniq_id].link }})
 {%- endfor -%}
 {% endif -%}

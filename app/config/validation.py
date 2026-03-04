@@ -248,17 +248,17 @@ class BaseApplicationConfig(BaseModel):
         def validate_chain_steps(steps):
             if not isinstance(steps, list):
                 return
-            for step in steps:
-                if isinstance(step, dict):
-                    if 'user' in step and step['user'] and users and step['user'] not in users:
-                        raise ValueError(f"User '{step['user']}' in chain not found in users")
-                    if 'user_group' in step and step['user_group'] and user_groups and step[
+            for step_ in steps:
+                if isinstance(step_, dict):
+                    if 'user' in step_ and step_['user'] and users and step_['user'] not in users:
+                        raise ValueError(f"User '{step_['user']}' in chain not found in users")
+                    if 'user_group' in step_ and step_['user_group'] and user_groups and step_[
                         'user_group'] not in user_groups:
-                        raise ValueError(f"User group '{step['user_group']}' in chain not found in user_groups")
-                    if 'group' in step and step['group'] and groups and step['group'] not in groups:
-                        raise ValueError(f"Group '{step['group']}' in chain not found in groups")
-                    if 'chain' in step and step['chain'] and step['chain'] not in v:
-                        raise ValueError(f"Nested chain '{step['chain']}' not found in chains")
+                        raise ValueError(f"User group '{step_['user_group']}' in chain not found in user_groups")
+                    if 'group' in step_ and step_['group'] and groups and step_['group'] not in groups:
+                        raise ValueError(f"Group '{step_['group']}' in chain not found in groups")
+                    if 'chain' in step_ and step_['chain'] and step_['chain'] not in v:
+                        raise ValueError(f"Nested chain '{step_['chain']}' not found in chains")
 
         validated_chains = {}
 
@@ -453,13 +453,6 @@ class UISorting(BaseModel):
 
         return cls(column_name=column_name, sort_order=sort_order, order=order)
 
-    def to_dict(self) -> Dict[str, Union[str, List[str]]]:
-        """Convert back to dictionary format"""
-        result = {self.column_name: self.sort_order}
-        if self.order:
-            result['order'] = self.order
-        return result
-
 
 class UIConfig(BaseModel):
     """UI configuration"""
@@ -512,6 +505,13 @@ class WebhookConfig(BaseModel):
         return self
 
 
+class InhibitRule(BaseModel):
+    """Single inhibition rule configuration for AlertManager-style inhibition"""
+    source_matchers: List[str] = Field(..., description="Source matchers (e.g., 'severity =~ \"critical\"')")
+    target_matchers: List[str] = Field(..., description="Target matchers (e.g., 'severity =~ \"warning\"')")
+    equal: Optional[List[str]] = Field([], description="Labels that must be equal between source and target")
+
+
 class ImpulseConfig(BaseModel):
     """Main Impulse configuration"""
     general: Optional[GeneralConfig] = Field(GeneralConfig(), description="General configuration")
@@ -521,6 +521,7 @@ class ImpulseConfig(BaseModel):
     ui: Optional[UIConfig] = Field(None, description="UI configuration")
     webhooks: Optional[Dict[str, WebhookConfig]] = Field({}, description="Webhook configurations")
     task_management: Optional[TaskManagementConfig] = Field(None, description="Task management configuration")
+    inhibit_rules: Optional[List[InhibitRule]] = Field([], description="Inhibition rules for AlertManager-style inhibition")
 
     @model_validator(mode='after')
     def validate_route_exists(self):
@@ -589,27 +590,3 @@ def validate_config(config_dict: dict) -> ImpulseConfig:
         pydantic.ValidationError: If validation fails
     """
     return ImpulseConfig(**config_dict)
-
-
-def validate_config_file(config_path: str) -> ImpulseConfig:
-    """
-    Load and validate configuration from YAML file.
-    
-    Args:
-        config_path: Path to the YAML configuration file
-        
-    Returns:
-        ImpulseConfig: Validated configuration object
-        
-    Raises:
-        FileNotFoundError: If config file doesn't exist
-        yaml.YAMLError: If YAML parsing fails
-        pydantic.ValidationError: If validation fails
-    """
-    if not os.path.exists(config_path):
-        raise FileNotFoundError(f"Configuration file not found: {config_path}")
-
-    with open(config_path, 'r', encoding='utf-8') as file:
-        config_dict = yaml.safe_load(file)
-
-    return validate_config(config_dict)

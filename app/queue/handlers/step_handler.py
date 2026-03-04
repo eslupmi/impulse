@@ -22,6 +22,15 @@ class StepHandler(BaseHandler):
 
     async def handle(self, uniq_id, identifier):
         incident = self.incidents.uniq_ids[uniq_id]
+
+        if incident.is_frozen():
+            logger.debug("Incident frozen, skipping chain step", extra={'uuid': incident.uuid})
+            return
+
+        if not incident.ts:
+            logger.debug("Incident has no thread, skipping chain step", extra={'uuid': incident.uuid})
+            return
+
         step = incident.chain[identifier]
         if step['type'] == 'webhook':
             webhook_name = step['identifier']
@@ -51,7 +60,7 @@ class StepHandler(BaseHandler):
             else:
                 header = self.app.header_template.form_message(incident.payload, incident)
                 message = header + '\n' + text
-            await self.app.post_thread(incident.channel_id, incident.ts, message)
+            await self.app.post_to_thread(incident.channel_id, incident.ts, message)
         else:
             r_code = await self.app.notify(incident, step['type'], step['identifier'])
             incident.chain_update(identifier, done=True, result=r_code)

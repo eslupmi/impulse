@@ -13,6 +13,12 @@ route:
   group_interval: 5m
 ```
 
+## Inhibition
+
+IMPulse's [inhibition](concepts/inhibition.md) is similar to Alertmanager's.
+
+In order for IMPulse to work correctly, you need to move the [inhibit_rules](config_file.md#inhibit_rules) section from Alertmanager to IMPulse config as is. This will help avoid the appearance of unnecessary [unknown](concepts/incident.md#unknown) statuses.
+
 ## Receiver
 
 Set IMPulse as default receiver:

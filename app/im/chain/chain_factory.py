@@ -8,6 +8,8 @@ from app.logging import logger
 
 
 class ChainFactory:
+    ### PRIVATE METHODS ###
+
     @staticmethod
     def _create_chain(name: str, config: Union[ScheduleChainType, CloudChain, list]):
         """
@@ -28,7 +30,7 @@ class ChainFactory:
                 try:
                     return ScheduleChain(
                         name=name,
-                        timezone=config.timezone,
+                        timezone_=config.timezone,
                         schedule=config.schedule,
                     )
                 except Exception as e:

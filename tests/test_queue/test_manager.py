@@ -44,9 +44,18 @@ class TestAsyncQueueManager:
         return create_mock_route()
 
     @pytest.fixture
-    def queue_manager(self, mock_queue, mock_application, mock_incidents, mock_webhooks, mock_route):
+    def mock_inhibition_manager(self):
+        """Create mock inhibition manager for testing."""
+        manager = Mock()
+        manager.process_incident = AsyncMock()
+        manager.handle_resolved = AsyncMock()
+        manager.handle_closed = AsyncMock()
+        return manager
+
+    @pytest.fixture
+    def queue_manager(self, mock_queue, mock_application, mock_incidents, mock_webhooks, mock_route, mock_inhibition_manager):
         """Create AsyncQueueManager instance for testing."""
-        manager = AsyncQueueManager(mock_queue, mock_application, mock_incidents, mock_webhooks, mock_route)
+        manager = AsyncQueueManager(mock_queue, mock_application, mock_incidents, mock_webhooks, mock_route, mock_inhibition_manager)
 
         # Replace handlers with mocks to avoid read-only attribute issues
         class AwaitableMock(Mock):
@@ -62,14 +71,15 @@ class TestAsyncQueueManager:
 
         return manager
 
-    def test_initialization(self, mock_queue, mock_application, mock_incidents, mock_webhooks, mock_route):
+    def test_initialization(self, mock_queue, mock_application, mock_incidents, mock_webhooks, mock_route, mock_inhibition_manager):
         """Test AsyncQueueManager initialization."""
-        manager = AsyncQueueManager(mock_queue, mock_application, mock_incidents, mock_webhooks, mock_route)
+        manager = AsyncQueueManager(mock_queue, mock_application, mock_incidents, mock_webhooks, mock_route, mock_inhibition_manager)
 
         assert manager.queue == mock_queue
         assert manager.step_handler is not None
         assert manager.status_update_handler is not None
         assert manager.alert_handler is not None
+        assert manager.inhibition_manager == mock_inhibition_manager
         assert manager._running is False
         assert manager._task is None
 

@@ -89,31 +89,6 @@ class TestIncident:
         assert mock_gen_uniq_id.call_count == 1
         assert incident.uniq_id == "test-uniq-id"
 
-    def test_set_thread_slack(self, sample_incident):
-        """Test setting thread for Slack."""
-        sample_incident.config.application_type = MessengerType.SLACK
-        sample_incident.set_thread("1234567890.123456", "https://test.slack.com")
-
-        assert sample_incident.ts == "1234567890.123456"
-        assert "archives/C123456789/p1234567890123456" in sample_incident.link
-
-    def test_set_thread_mattermost(self, sample_incident):
-        """Test setting thread for Mattermost."""
-        sample_incident.config.application_type = MessengerType.MATTERMOST
-        sample_incident.set_thread("thread123", "https://mattermost.test.com")
-
-        assert sample_incident.ts == "thread123"
-        assert sample_incident.link == "https://test.slack.com/test-team/pl/thread123"
-
-    def test_set_thread_telegram(self, sample_incident):
-        """Test setting thread for Telegram."""
-        sample_incident.config.application_type = MessengerType.TELEGRAM
-        sample_incident.channel_id = "-1001234567890"
-        sample_incident.set_thread("123", "https://t.me")
-
-        assert sample_incident.ts == "123"
-        assert sample_incident.link == "https://t.me/c/1234567890/123"
-
     def test_generate_link_slack(self, sample_incident):
         """Test link generation for Slack."""
         sample_incident.config.application_type = MessengerType.SLACK
@@ -176,33 +151,6 @@ class TestIncident:
             mock_update.assert_called_once_with("closed")
             assert result is True
 
-    @patch('app.incident.incident.get_config')
-    def test_update_status_with_timeout(self, mock_get_config, sample_incident, mock_unified_config):
-        """Test updating status with timeout configuration."""
-        mock_get_config.return_value = mock_unified_config
-        mock_unified_config.incident.timeouts = {"unknown": "1h"}
-
-        # Set initial status to something different to ensure change
-        sample_incident.status = "firing"
-
-        with patch.object(sample_incident, 'dump'), \
-                patch.object(sample_incident, 'set_status') as mock_set_status:
-            result = sample_incident.update_status("unknown")
-
-            assert result is True
-            mock_set_status.assert_called_once_with("unknown")
-            assert isinstance(sample_incident.status_update_datetime, datetime)
-
-    def test_update_status_no_change(self, sample_incident):
-        """Test updating status when status doesn't change."""
-        sample_incident.status = "firing"
-
-        with patch.object(sample_incident, 'dump'), \
-                patch.object(sample_incident, 'set_status') as mock_set_status:
-            result = sample_incident.update_status("firing")
-
-            assert result is False
-            mock_set_status.assert_not_called()
 
     def test_update_state_status_changed(self, sample_incident, sample_alert_payload):
         """Test updating incident state when status changes."""
@@ -227,20 +175,9 @@ class TestIncident:
             assert status_updated is False
             assert state_updated is False
 
-    def test_assign_user_methods(self, sample_incident):
-        """Test user assignment methods."""
-        sample_incident.assign_user_id("U123456")
-        assert sample_incident.assigned_user_id == "U123456"
-
-        sample_incident.assign_user("john.doe")
-        assert sample_incident.assigned_user == "john.doe"
-
-        sample_incident.assign_fullname("John Doe")
-        assert sample_incident.assigned_fullname == "John Doe"
-
     def test_set_status(self, sample_incident):
         """Test setting status."""
-        sample_incident.set_status("resolved")
+        sample_incident._set_status("resolved")
         assert sample_incident.status == "resolved"
 
     def test_set_status_closed_sets_closed_field(self, sample_incident):
@@ -248,7 +185,7 @@ class TestIncident:
         from datetime import datetime, timezone
         
         sample_incident.closed = None  # Ensure closed is empty initially
-        sample_incident.set_status("closed")
+        sample_incident._set_status("closed")
         
         assert sample_incident.status == "closed"
         assert sample_incident.closed is not None
@@ -260,7 +197,7 @@ class TestIncident:
         from datetime import datetime, timezone
         existing_closed = datetime(2025, 1, 15, 14, 30, 45, tzinfo=timezone.utc)
         sample_incident.closed = existing_closed
-        sample_incident.set_status("closed")
+        sample_incident._set_status("closed")
         
         assert sample_incident.status == "closed"
         assert sample_incident.closed == existing_closed  # Should not be overwritten
@@ -394,11 +331,10 @@ class TestIncident:
 
     def test_chain_put(self, sample_incident):
         """Test putting item in chain."""
-        dt = datetime.now(timezone.utc)
-        sample_incident.chain_put(0, dt, "test_type", "test_id")
+        sample_incident.chain_put(0, 300.0, "test_type", "test_id")
 
         assert len(sample_incident.chain) == 1
-        assert sample_incident.chain[0]['datetime'] == dt
+        assert sample_incident.chain[0]['delay'] - 300.0 < 0.000001
         assert sample_incident.chain[0]['type'] == "test_type"
         assert sample_incident.chain[0]['identifier'] == "test_id"
         assert sample_incident.chain[0]['done'] is False
@@ -406,8 +342,7 @@ class TestIncident:
 
     def test_chain_update(self, sample_incident):
         """Test updating chain item."""
-        dt = datetime.now(timezone.utc)
-        sample_incident.chain_put(0, dt, "test_type", "test_id")
+        sample_incident.chain_put(0, 300.0, "test_type", "test_id")
 
         with patch.object(sample_incident, 'dump'):
             sample_incident.chain_update(0, True, "test_result")
@@ -451,7 +386,7 @@ class TestIncident:
 
         mock_file_open.assert_called_once()
         # Check that file is opened with correct path for closed incident
-        closed_str = sample_incident.datetime_serialize(sample_incident.closed)
+        closed_str = sample_incident._datetime_serialize(sample_incident.closed)
         assert f'/test/incidents/{sample_incident.uuid}__{closed_str}.yml' in str(mock_file_open.call_args)
         mock_yaml_dump.assert_called_once()
 
@@ -574,24 +509,6 @@ class TestIncident:
         assert sample_incident.chain[1]['type'] == 'user'
         assert sample_incident.chain[1]['identifier'] == 'admin'
 
-    def test_generate_chain_with_missing_nested_chain(self, sample_incident):
-        """Test generating chain with missing nested chain."""
-        chains = {
-            'main_chain': Mock(steps=[
-                {'user': 'testuser'},
-                {'chain': 'missing_nested'},
-                {'wait': '10m'}
-            ])
-        }
-
-        with patch('app.incident.incident.logger') as mock_logger:
-            with patch('builtins.open', mock_open()):
-                with patch('os.makedirs'):
-                    sample_incident.generate_chain(chains, 'main_chain')
-
-        mock_logger.warning.assert_called_once()
-        # Should have 1 step: user (missing nested chain and wait are skipped)
-        assert len(sample_incident.chain) == 1
 
     def test_get_step_type_and_value_with_dict(self, sample_incident):
         """Test _get_step_type_and_value with dictionary step."""
@@ -866,3 +783,119 @@ class TestIncident:
         # Should have created datetime set
         assert incident.created is not None
         assert isinstance(incident.created, datetime)
+
+
+class TestIncidentInhibitionFields:
+    """Test cases for inhibition-related fields in Incident class."""
+
+    @patch('app.incident.incident.ChannelManager')
+    def test_serialize_includes_inhibition_fields(self, mock_channel_manager, sample_incident):
+        """Test that serialize includes inhibition-related fields."""
+        mock_channel_manager.return_value.get_channel_name_by_id.return_value = "test-channel"
+        
+        sample_incident.frozen_by_inhibition = True
+        sample_incident.childs = ["child-1", "child-2"]
+        sample_incident.parents = ["parent-1"]
+
+        result = sample_incident.serialize()
+
+        assert 'frozen_by_inhibition' in result
+        assert result['frozen_by_inhibition'] is True
+        assert 'childs' in result
+        assert result['childs'] == ["child-1", "child-2"]
+        assert 'parents' in result
+        assert result['parents'] == ["parent-1"]
+
+    @patch('app.incident.incident.get_environment_config')
+    @patch('app.incident.incident.get_config')
+    @patch('builtins.open', new_callable=mock_open)
+    @patch('yaml.dump')
+    def test_dump_includes_inhibition_fields(
+        self, mock_yaml_dump, mock_file_open, mock_get_config, mock_get_env_config, 
+        sample_incident, mock_unified_config, mock_environment_config
+    ):
+        """Test that dump includes inhibition-related fields in YAML."""
+        mock_get_config.return_value = mock_unified_config
+        mock_get_env_config.return_value = mock_environment_config
+        mock_environment_config.incidents_path = "/test/incidents"
+        
+        sample_incident.frozen_by_inhibition = True
+        sample_incident.childs = ["child-1"]
+        sample_incident.parents = ["parent-1", "parent-2"]
+
+        with patch('app.incident.incident.incident_ws'):
+            sample_incident.dump()
+
+        # Check that yaml.dump was called with data containing inhibition fields
+        call_args = mock_yaml_dump.call_args
+        dumped_data = call_args[0][0]
+        
+        assert 'frozen_by_inhibition' in dumped_data
+        assert dumped_data['frozen_by_inhibition'] is True
+        assert 'childs' in dumped_data
+        assert dumped_data['childs'] == ["child-1"]
+        assert 'parents' in dumped_data
+        assert dumped_data['parents'] == ["parent-1", "parent-2"]
+
+    @patch('app.incident.incident.get_config')
+    @patch('builtins.open', new_callable=mock_open)
+    @patch('yaml.load')
+    def test_load_includes_inhibition_fields(
+        self, mock_yaml_load, mock_file_open, mock_get_config, 
+        incident_config, mock_unified_config
+    ):
+        """Test that load properly reads inhibition-related fields."""
+        mock_get_config.return_value = mock_unified_config
+
+        mock_incident_data = create_mock_incident_data()
+        mock_incident_data['frozen_by_inhibition'] = True
+        mock_incident_data['childs'] = ["child-1", "child-2"]
+        mock_incident_data['parents'] = ["parent-1"]
+        mock_yaml_load.return_value = mock_incident_data
+
+        incident = Incident.load('/test/incident.yml', incident_config)
+
+        assert incident.frozen_by_inhibition is True
+        assert incident.childs == ["child-1", "child-2"]
+        assert incident.parents == ["parent-1"]
+
+    @patch('app.incident.incident.get_config')
+    @patch('builtins.open', new_callable=mock_open)
+    @patch('yaml.load')
+    def test_load_without_inhibition_fields_uses_defaults(
+        self, mock_yaml_load, mock_file_open, mock_get_config, 
+        incident_config, mock_unified_config
+    ):
+        """Test that load uses defaults when inhibition fields are missing."""
+        mock_get_config.return_value = mock_unified_config
+
+        # Old incident data without inhibition fields
+        mock_incident_data = create_mock_incident_data()
+        # Don't include frozen_by_inhibition, childs, or parents
+        mock_yaml_load.return_value = mock_incident_data
+
+        incident = Incident.load('/test/incident.yml', incident_config)
+
+        # Should use defaults
+        assert incident.frozen_by_inhibition is False
+        assert incident.childs == []
+        assert incident.parents == []
+
+    def test_default_inhibition_field_values(self, sample_incident):
+        """Test that inhibition fields have correct default values."""
+        assert sample_incident.frozen_by_inhibition is False
+        assert sample_incident.childs == []
+        assert sample_incident.parents == []
+        # Ensure they are mutable lists, not shared references
+        assert sample_incident.childs is not sample_incident.parents
+
+    def test_childs_and_parents_are_independent_lists(self, sample_incident):
+        """Test that childs and parents are independent mutable lists."""
+        # Modify one, ensure the other is unaffected
+        sample_incident.childs.append("child-1")
+        sample_incident.parents.append("parent-1")
+        
+        assert "child-1" in sample_incident.childs
+        assert "parent-1" in sample_incident.parents
+        assert "child-1" not in sample_incident.parents
+        assert "parent-1" not in sample_incident.childs

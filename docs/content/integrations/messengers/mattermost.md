@@ -1,6 +1,6 @@
 # Mattermost
 
-## Create bot
+## Create a bot
 
 1. Go to **menu (3×3 dots)** > **System Console** > **Integrations** > **Bot Accounts**:
     - set **Enable Bot Account Creation** to `True` and press **Save**
@@ -12,10 +12,10 @@
     - set **Display Name** to "IMPulse"
     - set **Role** to "System Admin"
     - click **Create Bot Account**
-    - copy the "Token" and use it as the `MATTERMOST_ACCESS_TOKEN` environment variable (see [step 2.3 here](../../installation.md#3-configure-impulse))
+    - copy the "Token" and use it as the `MATTERMOST_ACCESS_TOKEN` environment variable (see [step 2.3 here](../../installation.md#4-configure-impulse))
     - click **Done**
 
-## Configure bot
+## Configure the bot
 
 1. Go to **menu (dots 3x3)** > **System Console** > **User Management** > **Teams**:
     - press on your Team
@@ -35,10 +35,16 @@
 
 3. Users mentioned in `messenger.chains` should be added to their respective channels.
     
-    To simplify this, you can add all `messenger.users` to all channels from the `route` block.
-
-4. We highly recommend configuring notification preferences for `messenger.users` in their `route` channels:
+4. We recommend configuring IMPulse channels for all `messenger.users` as follows:
     - select the channel in main list and press on it
     - click the **View Info** icon (`i`) in the top right, click **Notifications Preferences**
     - in the "Notify me about..." choose "Mentions, direct messages, and keywords only"
     - click **Save**.
+
+## Get group IDs
+
+```bash
+MATTERMOST_URL="<your_mattermost_address>"
+MATTEMROST_TOKEN="<your_mattermost_bot_token>"
+curl -s -H "Authorization: Bearer $MATTEMROST_TOKEN" "$MATTERMOST_URL/api/v4/groups"
+```

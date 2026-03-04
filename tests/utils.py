@@ -38,6 +38,26 @@ class MockContextManager:
         pass
 
 
+def create_mock_http_response(status_code=200):
+    """
+    Create a mock aiohttp HTTP response.
+    
+    This helper ensures consistent mock response setup, particularly
+    that close() is a regular Mock (not AsyncMock) since aiohttp's
+    ClientResponse.close() is not async.
+    
+    Args:
+        status_code: HTTP status code for the mock response (default: 200)
+        
+    Returns:
+        AsyncMock: Configured mock response object
+    """
+    mock_response = AsyncMock()
+    mock_response.status = status_code
+    mock_response.close = Mock()  # close() is not async in aiohttp
+    return mock_response
+
+
 def create_mock_session_with_response(status_code=200):
     """
     Create a mock aiohttp session with a configured response.
@@ -48,8 +68,7 @@ def create_mock_session_with_response(status_code=200):
     Returns:
         tuple: (mock_session, mock_response)
     """
-    mock_response = AsyncMock()
-    mock_response.status = status_code
+    mock_response = create_mock_http_response(status_code)
 
     mock_session = AsyncMock()
     mock_session.post = Mock(return_value=MockContextManager(mock_response))
@@ -67,8 +86,7 @@ def create_mock_session_class_with_response(status_code=200):
     Returns:
         tuple: (mock_session_class, mock_session, mock_response)
     """
-    mock_response = AsyncMock()
-    mock_response.status = status_code
+    mock_response = create_mock_http_response(status_code)
 
     mock_session = AsyncMock()
     mock_session.post = Mock(return_value=MockContextManager(mock_response))
@@ -92,8 +110,7 @@ def setup_mock_session_class_patch(mock_session_class, status_code=200, patch_re
         mock_retry_client: The mock RetryClient instance (if patch_retry_client=True)
         tuple: (mock_session, mock_response) if patch_retry_client=False (legacy behavior)
     """
-    mock_response = AsyncMock()
-    mock_response.status = status_code
+    mock_response = create_mock_http_response(status_code)
 
     # Mock the base session
     mock_session = AsyncMock()
@@ -319,7 +336,7 @@ def create_mock_config(
 
     mock_config = Mock()
     mock_config.incidents_path = incidents_path
-    mock_config.INCIDENT_ACTUAL_VERSION = "v3.2.0"
+    mock_config.INCIDENT_ACTUAL_VERSION = "v3.4.0"
 
     # Mock incident config
     mock_incident_config = Mock()
@@ -402,12 +419,13 @@ def create_mock_incident_data(
     test_datetime = create_test_datetime()
 
     return {
-        'version': 'v3.2.0',
+        'version': 'v3.4.0',
         'status': status,
         'channel_id': channel_id,
         'payload': {'alertname': 'TestAlert', 'severity': 'critical'},
         'chain': [],
         'chain_enabled': False,
+        'chain_active_seconds': 0.0,
         'status_enabled': False,
         'status_update_datetime': test_datetime,
         'updated': test_datetime,
@@ -585,6 +603,7 @@ def create_mock_incident_for_handlers(
         chain_enabled: bool = True,
         status_enabled: bool = True,
         frozen_until: Optional[datetime] = None,
+        frozen_by_inhibition: bool = False,
         update_state_return: tuple = (True, True),
         update_status_return: bool = True
 ) -> Mock:
@@ -601,6 +620,7 @@ def create_mock_incident_for_handlers(
         chain_enabled: Whether chain is enabled
         status_enabled: Whether status updates are enabled
         frozen_until: Freeze expiration datetime
+        frozen_by_inhibition: Whether frozen by inhibition rule
         update_state_return: Return value for update_state method
         update_status_return: Return value for update_status method
         
@@ -622,6 +642,7 @@ def create_mock_incident_for_handlers(
     incident.chain_enabled = chain_enabled
     incident.status_enabled = status_enabled
     incident.frozen_until = frozen_until
+    incident.frozen_by_inhibition = frozen_by_inhibition
     incident.status_update_datetime = create_test_datetime()
     incident.next_status = {
         'firing': 'unknown',
@@ -639,8 +660,26 @@ def create_mock_incident_for_handlers(
     incident.dump = Mock()
     incident.generate_chain = Mock()
     incident.link = f'https://test.slack.com/archives/{channel_id}/p{ts}'
+    incident.assigned_user_id = ''
+    incident.assigned_user = ''
     incident.task_link = ''
     incident.task_creation_in_progress = False
+    incident.parents = []
+    incident.childs = []
+
+    def _serialize():
+        return {
+            'status': incident.status,
+            'payload': incident.payload,
+            'assigned_user_id': incident.assigned_user_id,
+            'assigned_user': incident.assigned_user,
+            'task_link': incident.task_link,
+            'link': incident.link,
+            'parents': incident.parents,
+            'childs': incident.childs,
+        }
+
+    incident.serialize = Mock(side_effect=_serialize)
 
     return incident
 
@@ -1167,11 +1206,9 @@ def setup_mock_webhook_with_retry_client(mock_session_class, mock_retry_client_c
     Returns:
         Tuple of (mock_retry_client, mock_response)
     """
-    mock_response = AsyncMock()
-    mock_response.status = status_code
+    mock_response = create_mock_http_response(status_code)
     
     mock_retry_client = AsyncMock()
-    from unittest.mock import Mock
     mock_retry_client.post = Mock(return_value=MockContextManager(mock_response))
     mock_retry_client_class.return_value = mock_retry_client
     
@@ -1347,55 +1384,6 @@ def setup_app_templates(app):
     app.status_icons_template.form_message.return_value = "Test icons"
 
 
-def convert_mock_to_async_if_needed(patch_name: str, patch_value):
-    """
-    Convert Mock to AsyncMock if needed for async methods.
-    
-    Args:
-        patch_name: Name of the patch
-        patch_value: The patch value
-        
-    Returns:
-        Converted patch value
-    """
-    async_methods = ['post_assignment_notification', 'post_unassignment_notification', 'fetch_and_assign_user_name']
-    if patch_name in async_methods and not hasattr(patch_value, '__await__'):
-        from unittest.mock import AsyncMock
-        return AsyncMock()
-    return patch_value
-
-
-def _prepare_button_handler_patches(app, additional_patches, app_specific_patches):
-    """
-    Prepare all patches and patch objects for button handler tests.
-    
-    Args:
-        app: The application instance
-        additional_patches: Additional patches to apply
-        app_specific_patches: List of app-specific patches to apply
-        
-    Returns:
-        Tuple of (patches_context, patch_objects)
-    """
-    from unittest.mock import patch
-    
-    patch_objects = {}
-    patches_context = []
-    
-    # Process additional patches
-    if additional_patches:
-        for patch_name, patch_value in additional_patches.items():
-            patch_value = convert_mock_to_async_if_needed(patch_name, patch_value)
-            patch_objects[patch_name] = patch_value
-            patches_context.append(patch.object(app, patch_name, patch_value))
-    
-    # Add app-specific patches
-    if app_specific_patches:
-        patches_context.extend(app_specific_patches)
-    
-    return patches_context, patch_objects
-
-
 def _find_logger_mock_in_patches(patches_context):
     """
     Find the logger mock from patches.
@@ -1432,6 +1420,41 @@ def _cleanup_all_patches(patches_context):
     """
     for patch_context in patches_context:
         patch_context.stop()
+
+
+def _prepare_button_handler_patches(app, additional_patches: Optional[dict] = None, app_specific_patches: Optional[list] = None):
+    """
+    Prepare patches for button handler tests.
+    
+    Args:
+        app: The application instance
+        additional_patches: Dictionary of additional patches to apply (key: patch target, value: mock or patch config)
+        app_specific_patches: List of app-specific patch objects to apply
+        
+    Returns:
+        Tuple of (patches_context list, patch_objects dict)
+    """
+    from unittest.mock import patch
+    
+    patches_context = []
+    patch_objects = {}
+    
+    if additional_patches:
+        for target, mock_or_config in additional_patches.items():
+            if isinstance(mock_or_config, dict):
+                patch_obj = patch(target, **mock_or_config)
+            else:
+                patch_obj = patch(target, mock_or_config)
+            patches_context.append(patch_obj)
+            patch_objects[target] = patch_obj
+    
+    if app_specific_patches:
+        for patch_obj in app_specific_patches:
+            patches_context.append(patch_obj)
+            if hasattr(patch_obj, 'target'):
+                patch_objects[patch_obj.target] = patch_obj
+    
+    return patches_context, patch_objects
 
 
 def create_buttons_handler_context_manager(app, payload, incidents, queue, route,
@@ -1516,54 +1539,6 @@ def create_slack_mock_config(token: str = "valid_token"):
     return mock_env_config
 
 
-def create_slack_buttons_handler_context(app, payload, incidents, queue, route, 
-                                        expected_log_message: Optional[str] = None,
-                                        additional_patches: Optional[dict] = None):
-    """
-    Create a context manager for testing Slack buttons_handler with common setup.
-    
-    Args:
-        app: The Slack application instance
-        payload: The Slack payload
-        incidents: Mock incidents collection
-        queue: Mock queue
-        route: Mock route
-        expected_log_message: Expected log message for assertion
-        additional_patches: Additional patches to apply
-        
-    Returns:
-        Context manager that yields (result, mock_logger, mock_reformat, patch_objects)
-    """
-    from contextlib import asynccontextmanager
-    from unittest.mock import patch
-    
-    @asynccontextmanager
-    async def slack_context():
-        with patch('app.im.slack.slack_application.get_environment_config') as mock_get_env_config, \
-             patch('app.im.slack.slack_application.get_config') as mock_get_config:
-            mock_env_config = create_slack_mock_config()
-            mock_get_env_config.return_value = mock_env_config
-            
-            # Also mock unified config for timezone access
-            mock_config = Mock()
-            mock_config.app.general.timezone = 'UTC'
-            mock_get_config.return_value = mock_config
-            
-            with patch('app.im.slack.slack_application.logger') as mock_logger:
-                with patch('app.im.slack.slack_application.reformat_message') as mock_reformat:
-                    mock_reformat.return_value = {"text": "Modified message"}
-                    
-                    async with create_buttons_handler_context_manager(
-                        app, payload, incidents, queue, route,
-                        expected_log_message=expected_log_message,
-                        additional_patches=additional_patches,
-                        app_specific_setup=lambda app: setup_app_templates(app)
-                    ) as (result, _, patch_objects):
-                        yield result, mock_logger, mock_reformat, patch_objects
-    
-    return slack_context()
-
-
 # ============================================================================
 # Mattermost Application Test Utilities
 # ============================================================================
@@ -1594,7 +1569,6 @@ def create_mattermost_buttons_handler_context(app, payload, incidents, queue, ro
     @asynccontextmanager
     async def mattermost_context():
         with patch('app.im.mattermost.mattermost_application.logger') as mock_logger:
-            # Always patch threads.get_config since it's called by mattermost_get_button_update_payload
             with patch('app.im.mattermost.threads.get_config', create_mock_get_config_patch()):
                 if patch_get_config:
                     # Also patch the main get_config for other uses

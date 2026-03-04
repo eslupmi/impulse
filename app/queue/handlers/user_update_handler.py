@@ -1,4 +1,3 @@
-import asyncio
 from datetime import datetime, timezone, timedelta
 
 from app.im.user_store import get_user_store, USER_REFRESH_HOURS
@@ -21,27 +20,20 @@ class UserUpdateHandler(BaseHandler):
         
         try:
             user_details = await self.app.get_user_details({'id': user_id})
-            
             if not user_details.get('exists'):
                 logger.debug('User not found in messenger, skipping storage', extra={'user_id': user_id})
                 await self._schedule_next_refresh(user_id)
                 return
             
             user_store.save(user_id, messenger_type, user_details)
-            self._update_user_manager(user_id, user_details)
+            config_name = self.app.get_config_name_by_user_id(user_id)
+            user = self.app.create_user(config_name, user_details)
+            if user:
+                self.app.users.add_user(user_id, user)
             logger.info('User data refreshed', extra={'user_id': user_id})
-            
         except Exception as e:
             logger.error('Failed to update user', extra={'user_id': user_id, 'error': str(e)})
-        
         await self._schedule_next_refresh(user_id)
-
-    def _update_user_manager(self, user_id: str, user_details: dict):
-        """Update the user in UserManager with fresh data."""
-        display_name = self.app._format_display_name(user_details)
-        user = self.app.create_user(display_name, user_details)
-        if user:
-            self.app.users.add_user(user_id, user)
 
     async def _schedule_next_refresh(self, user_id: str):
         """Schedule next refresh with proper gap from latest UPDATE_USER item."""

@@ -45,6 +45,8 @@ class GoogleCalendarChain(ScheduleChain):
         # Fetch initial data
         self._fetch_initial_data()
 
+    ### PRIVATE METHODS ###
+
     def _setup_session(self) -> None:
         """Setup the requests session with retry strategy."""
         retry_strategy = Retry(
@@ -72,7 +74,7 @@ class GoogleCalendarChain(ScheduleChain):
     def _update_timezone(self, new_timezone: str) -> None:
         """Update the chain's timezone if it has changed."""
         if new_timezone != self.timezone:
-            logger.info(f"Timezone: {new_timezone}", extra={'provider': 'google'})
+            logger.debug(f"Timezone: {new_timezone}", extra={'provider': 'google'})
             self.timezone = new_timezone
             self.tz = ZoneInfo(new_timezone)
 
@@ -86,7 +88,7 @@ class GoogleCalendarChain(ScheduleChain):
             # Then sync events
             events = self._fetch_events()
             self._update_schedule(events)
-            logger.info(f"Initial sync: {len(events)} events", extra={'provider': 'google'})
+            logger.debug(f"Initial sync: {len(events)} events", extra={'provider': 'google'})
         except Exception as e:
             logger.error(f"Initial sync failed: {str(e)}", extra={'provider': 'google'})
             # Initialize with empty schedule if sync fails
@@ -110,7 +112,7 @@ class GoogleCalendarChain(ScheduleChain):
                 loop = asyncio.get_event_loop()
                 if loop.is_running():
                     self._sync_task = asyncio.create_task(self._sync_calendar())
-                    logger.info("Calendar sync started", extra={'provider': 'google'})
+                    logger.debug("Calendar sync started", extra={'provider': 'google'})
                 else:
                     logger.warning("Event loop not running", extra={'provider': 'google'})
             except RuntimeError:

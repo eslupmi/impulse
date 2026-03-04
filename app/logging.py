@@ -5,6 +5,7 @@ import warnings
 from datetime import datetime, timezone
 
 from pythonjsonlogger import jsonlogger
+from app.config.environment import get_environment_config
 
 DEFAULT_JSON_FORMAT = '%(time)s %(level)s %(module)s %(message)s'
 
@@ -33,24 +34,29 @@ class InfoFilter(logging.Filter):
         return record.levelno < logging.ERROR
 
 def create_logger(name, level=logging.INFO):
-    logger = logging.getLogger(name)
-    logger.setLevel(level)
+    logger_ = logging.getLogger(name)
+    logger_.setLevel(level)
     # Avoid duplicate handlers
     if not any(isinstance(h, logging.StreamHandler) and h.stream == sys.stdout 
                and any(isinstance(f, InfoFilter) for f in h.filters) 
-               for h in logger.handlers):
+               for h in logger_.handlers):
         h = logging.StreamHandler(sys.stdout)
         h.setFormatter(JSONFormatter(DEFAULT_JSON_FORMAT))
         h.addFilter(InfoFilter())
-        logger.addHandler(h)
+        logger_.addHandler(h)
     if not any(isinstance(h, logging.StreamHandler) and h.stream == sys.stderr 
                and any(isinstance(f, ErrorFilter) for f in h.filters) 
-               for h in logger.handlers):
+               for h in logger_.handlers):
         h = logging.StreamHandler(sys.stderr)
         h.setFormatter(JSONFormatter(DEFAULT_JSON_FORMAT))
         h.addFilter(ErrorFilter())
-        logger.addHandler(h)
-    return logger
+        logger_.addHandler(h)
+    return logger_
+
+def configure_logging():
+    configure_uvicorn_logging()
+    configure_aiohttp_logging()
+    configure_warnings_logging()
 
 def configure_uvicorn_logging():
     for logger_name in ["uvicorn", "uvicorn.access", "uvicorn.error"]:
@@ -85,7 +91,6 @@ def configure_warnings_logging():
 
 # Initialize logger
 try:
-    from app.config.environment import get_environment_config
     log_level = getattr(logging, get_environment_config().log_level, logging.INFO)
 except ImportError:
     log_level = getattr(logging, os.getenv('LOG_LEVEL', 'INFO').upper(), logging.INFO)
