@@ -470,11 +470,10 @@
     .auth-controls-wrapper {
         bottom: 30px;
         right: 20px;
-        gap: 6px;
     }
 
-    .auth-status {
-        max-width: 120px;
+    .auth-username {
+        max-width: 100px;
         overflow: hidden;
         text-overflow: ellipsis;
     }

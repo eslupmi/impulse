@@ -4,38 +4,31 @@ let isAuthenticated = false;
 
 function getElements() {
     return {
-        status: document.getElementById("auth-status"),
-        button: document.getElementById("auth-action-btn"),
+        wrapper: document.getElementById("auth-controls"),
+        username: document.getElementById("auth-username"),
+        loginBtn: document.getElementById("auth-login-btn"),
+        logoutBtn: document.getElementById("auth-logout-btn"),
     };
-}
-
-function getAuthErrorFromQuery() {
-    const params = new URLSearchParams(window.location.search);
-    const authError = params.get("auth_error");
-    return authError || "";
 }
 
 function getNextPath() {
     return `${window.location.pathname}${window.location.search}`;
 }
 
-function setUiState(authenticated, userData, authError = "") {
-    const {status, button} = getElements();
-    if (!status || !button) {
+function setUiState(authenticated, userData) {
+    const {wrapper, username, loginBtn} = getElements();
+    if (!wrapper) {
         return;
     }
 
-    if (authenticated) {
-        const username = userData?.username || userData?.full_name || userData?.email || userData?.id || "user";
-        status.textContent = `auth: ${username}`;
-    } else if (authError) {
-        status.textContent = `auth error: ${authError}`;
+    if (authenticated && userData) {
+        const displayName = userData.full_name || userData.username || userData.email || userData.id || "user";
+        username.textContent = displayName;
+        wrapper.classList.add("logged-in");
     } else {
-        status.textContent = "auth: anonymous";
+        username.textContent = "";
+        wrapper.classList.remove("logged-in");
     }
-
-    button.textContent = authenticated ? "Logout" : "Login";
-    button.title = authenticated ? "Log out from current session" : "Authenticate with messenger";
 }
 
 async function refreshAuthState() {
@@ -48,44 +41,43 @@ async function refreshAuthState() {
 
         if (!response.ok) {
             isAuthenticated = false;
-            setUiState(false, null, "me_failed");
+            setUiState(false, null);
             return;
         }
 
         const payload = await response.json();
         isAuthenticated = Boolean(payload?.authenticated);
-        setUiState(isAuthenticated, payload?.user, getAuthErrorFromQuery());
-    } catch (error) {
+        setUiState(isAuthenticated, payload?.user);
+    } catch {
         isAuthenticated = false;
-        setUiState(false, null, "network_error");
+        setUiState(false, null);
     }
 }
 
-async function handleAuthAction() {
+async function handleLogin() {
     const baseUrl = getBaseUrl();
-    if (isAuthenticated) {
-        await fetch(`${baseUrl}/auth/logout`, {
-            method: "POST",
-            credentials: "same-origin",
-        });
-        isAuthenticated = false;
-        setUiState(false, null);
-        return;
-    }
-
     const loginUrl = `${baseUrl}/auth/login?next=${encodeURIComponent(getNextPath())}`;
     window.location.assign(loginUrl);
 }
 
+async function handleLogout() {
+    const baseUrl = getBaseUrl();
+    await fetch(`${baseUrl}/auth/logout`, {
+        method: "POST",
+        credentials: "same-origin",
+    });
+    isAuthenticated = false;
+    setUiState(false, null);
+}
+
 async function initAuthControls() {
-    const {button} = getElements();
-    if (!button) {
+    const {loginBtn, logoutBtn} = getElements();
+    if (!loginBtn || !logoutBtn) {
         return;
     }
 
-    button.addEventListener("click", async () => {
-        await handleAuthAction();
-    });
+    loginBtn.addEventListener("click", handleLogin);
+    logoutBtn.addEventListener("click", handleLogout);
 
     await refreshAuthState();
 }

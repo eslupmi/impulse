@@ -551,32 +551,77 @@ strong {
     z-index: 1000;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 0;
 }
 
-.auth-status {
+.auth-controls-wrapper.logged-in {
+    gap: 0;
+}
+
+.auth-username {
+    display: none;
     color: var(--text-secondary);
-    font-size: 12px;
+    font-size: 13px;
+    white-space: nowrap;
+    line-height: 22px;
+    user-select: none;
+}
+
+.auth-separator {
+    display: none;
+    color: var(--text-secondary);
+    font-size: 13px;
+    line-height: 22px;
+    padding: 0 8px;
+    user-select: none;
+    opacity: 0.5;
+}
+
+.auth-login-btn {
+    cursor: pointer;
+    height: 24px;
+    border: none;
+    border-radius: 6px;
+    padding: 0 14px;
+    background: var(--brand-primary);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 24px;
+    transition: all 0.2s ease;
     white-space: nowrap;
 }
 
-.auth-action-btn {
-    cursor: pointer;
-    min-width: 52px;
-    height: 22px;
-    border: 1px solid var(--table-border);
-    border-radius: 6px;
-    padding: 0 8px;
-    background: var(--background-primary);
-    color: var(--text-primary);
-    font-size: 12px;
-    line-height: 20px;
-    transition: all 0.2s ease;
+.auth-login-btn:hover {
+    background: var(--brand-primary-dark);
 }
 
-.auth-action-btn:hover {
-    border-color: var(--brand-primary);
-    color: var(--brand-primary);
+.auth-logout-btn {
+    display: none;
+    cursor: pointer;
+    height: 22px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 13px;
+    line-height: 22px;
+    padding: 0;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.auth-logout-btn:hover {
+    color: var(--text-primary);
+}
+
+.auth-controls-wrapper.logged-in .auth-username,
+.auth-controls-wrapper.logged-in .auth-separator,
+.auth-controls-wrapper.logged-in .auth-logout-btn {
+    display: inline;
+}
+
+.auth-controls-wrapper.logged-in .auth-login-btn {
+    display: none;
 }
 
 .theme-toggle-wrapper {

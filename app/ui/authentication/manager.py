@@ -1,7 +1,7 @@
 import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Mapping, Optional, Set
-from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+from urllib.parse import urlsplit, urlunsplit
 from uuid import uuid4
 
 from fastapi.responses import RedirectResponse, Response
@@ -115,7 +115,7 @@ class UserAuthenticationManager:
             logger.warning("Failed to save auth session", extra={"error": str(exc)})
             return self._build_error_redirect(auth_state.next_path, "auth_failed")
 
-        response = self._build_local_redirect(self._strip_auth_error(auth_state.next_path))
+        response = self._build_local_redirect(auth_state.next_path)
         response.set_cookie(
             key=self.session_cookie_name,
             value=session_id,
@@ -195,9 +195,8 @@ class UserAuthenticationManager:
         return urlunsplit(("", "", normalized_path, split.query, split.fragment))
 
     def _build_error_redirect(self, next_path: str, error_code: str) -> RedirectResponse:
-        safe_path = self._normalize_next_path(next_path)
-        location = self._append_query_param(safe_path, "auth_error", error_code)
-        return self._build_local_redirect(location)
+        logger.warning("Auth redirect error", extra={"error": error_code, "provider": self.provider.name})
+        return self._build_local_redirect(next_path)
 
     def _build_local_redirect(self, next_path: str) -> RedirectResponse:
         safe_path = self._normalize_next_path(next_path)
@@ -231,20 +230,6 @@ class UserAuthenticationManager:
             path_only = (urlsplit(canonical).path or "/").rstrip("/") or "/"
             normalized_prefixes.add(path_only)
         return normalized_prefixes or {"/"}
-
-    @staticmethod
-    def _append_query_param(path: str, key: str, value: str) -> str:
-        split = urlsplit(path)
-        query = dict(parse_qsl(split.query, keep_blank_values=True))
-        query[key] = value
-        new_query = urlencode(query)
-        return urlunsplit(("", "", split.path or "/", new_query, split.fragment))
-
-    @staticmethod
-    def _strip_auth_error(path: str) -> str:
-        split = urlsplit(path)
-        query = [(k, v) for k, v in parse_qsl(split.query, keep_blank_values=True) if k != "auth_error"]
-        return urlunsplit(("", "", split.path or "/", urlencode(query), split.fragment))
 
     @staticmethod
     def _sanitize_error(error: str) -> str:
