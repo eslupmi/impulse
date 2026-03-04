@@ -13,16 +13,15 @@ def setup_sighup_handler(fastapi_app: FastAPI, create_main_objects, cleanup_appl
         try:
             logger.info("Reloading configuration")
             success = reload_config()
-            if success:
-                if fastapi_app:
-                    async def reload():
-                        await cleanup_application_objects(fastapi_app, reload=True)
-                        await create_main_objects(fastapi_app, reload=True)
-                        logger.info("Configuration reloaded")
-                    try:
-                        asyncio.get_running_loop().create_task(reload())
-                    except RuntimeError:
-                        asyncio.run(reload())
+            if success and fastapi_app:
+                async def reload():
+                    await cleanup_application_objects(fastapi_app, reload=True)
+                    await create_main_objects(fastapi_app, reload=True)
+                    logger.info("Configuration reloaded")
+                try:
+                    asyncio.get_running_loop().create_task(reload())
+                except RuntimeError:
+                    asyncio.run(reload())
         except Exception as e:
             logger.error("Configuration reload error", extra={'error': str(e)})
             logger.warning("Configuration reload aborted")
