@@ -76,18 +76,10 @@ def build_auth_manager(config: 'ImpulseConfig', env_config: 'EnvironmentConfig',
                 "Auth disabled for Mattermost: AUTH_CLIENT_ID, AUTH_CLIENT_SECRET and messenger.address are required"
             )
     elif messenger_type == MessengerType.TELEGRAM:
-        bot_token = env_config.telegram_bot_token.strip()
-        widget_path = f"{http_prefix}/auth/telegram/widget" if http_prefix else "/auth/telegram/widget"
-
-        if bot_token:
-            provider = TelegramAuthenticationProvider(
-                bot_token=bot_token,
-                widget_path=widget_path,
-                max_auth_age_seconds=300,
-                api_base_url=(getattr(config.messenger, "address", None) or "https://api.telegram.org"),
-            )
+        if client_id and client_secret:
+            provider = TelegramAuthenticationProvider(client_id=client_id, client_secret=client_secret)
         else:
-            logger.warning("Auth disabled for Telegram: TELEGRAM_BOT_TOKEN is required")
+            logger.warning("Auth disabled for Telegram: AUTH_CLIENT_ID and AUTH_CLIENT_SECRET are required")
 
     default_redirect_path = http_prefix or "/"
 

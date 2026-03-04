@@ -1,11 +1,9 @@
-import hashlib
-import hmac
-import html
-import time
-from typing import Mapping
-from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+from base64 import b64encode
+from typing import Mapping, Optional, Sequence
+from urllib.parse import urlencode
 
 import aiohttp
+import jwt
 
 from app.ui.authentication.models.auth_user import AuthUser
 from app.ui.authentication.providers.base_provider import AuthenticationProvider, AuthenticationProviderError
@@ -14,138 +12,126 @@ from app.ui.authentication.providers.base_provider import AuthenticationProvider
 class TelegramAuthenticationProvider(AuthenticationProvider):
     name = "telegram"
 
+    ISSUER = "https://oauth.telegram.org"
+
     def __init__(
         self,
-        bot_token: str,
-        widget_path: str = "/auth/telegram/widget",
-        max_auth_age_seconds: int = 300,
-        api_base_url: str = "https://api.telegram.org",
+        client_id: str,
+        client_secret: str,
+        scopes: Sequence[str] = ("openid", "profile"),
+        authorize_url: str = "https://oauth.telegram.org/auth",
+        token_url: str = "https://oauth.telegram.org/token",
+        jwks_url: str = "https://oauth.telegram.org/.well-known/jwks.json",
         timeout_seconds: float = 10.0,
     ):
-        self.bot_token = bot_token
-        self.bot_username = ""
-        self.widget_path = widget_path
-        self.max_auth_age_seconds = max_auth_age_seconds
-        self.api_base_url = api_base_url.rstrip("/")
+        self.client_id = client_id
+        self.client_secret = client_secret
+        self.scopes = tuple(scopes)
+        self.authorize_url = authorize_url
+        self.token_url = token_url
+        self.jwks_url = jwks_url
         self.timeout_seconds = timeout_seconds
-
-    def is_supported(self) -> bool:
-        return bool(self.bot_token)
+        self._jwks_cache: Optional[dict] = None
 
     def build_authorization_url(self, state: str, redirect_uri: str) -> str:
-        params = {"state": state}
-        return f"{self.widget_path}?{urlencode(params)}"
+        params = {
+            "response_type": "code",
+            "client_id": self.client_id,
+            "redirect_uri": redirect_uri,
+            "state": state,
+            "scope": " ".join(self.scopes),
+        }
+        return f"{self.authorize_url}?{urlencode(params)}"
+
+    async def _exchange_code(self, code: str, redirect_uri: str) -> dict:
+        payload = {
+            "grant_type": "authorization_code",
+            "code": code,
+            "redirect_uri": redirect_uri,
+            "client_id": self.client_id,
+        }
+        credentials = b64encode(f"{self.client_id}:{self.client_secret}".encode()).decode()
+        headers = {"Authorization": f"Basic {credentials}"}
+
+        timeout = aiohttp.ClientTimeout(total=self.timeout_seconds)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.post(self.token_url, data=payload, headers=headers) as response:
+                data = await response.json(content_type=None)
+                if response.status != 200:
+                    raise AuthenticationProviderError(
+                        "auth_failed", f"Telegram token exchange failed with status {response.status}"
+                    )
+                if not data.get("id_token"):
+                    raise AuthenticationProviderError("auth_failed", "Telegram id_token not found in response")
+                return data
+
+    async def _fetch_jwks(self) -> dict:
+        if self._jwks_cache is not None:
+            return self._jwks_cache
+
+        timeout = aiohttp.ClientTimeout(total=self.timeout_seconds)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.get(self.jwks_url) as response:
+                if response.status != 200:
+                    raise AuthenticationProviderError("auth_failed", "Failed to fetch Telegram JWKS")
+                data = await response.json(content_type=None)
+                self._jwks_cache = data
+                return data
+
+    async def _decode_id_token(self, id_token: str) -> dict:
+        try:
+            header = jwt.get_unverified_header(id_token)
+        except jwt.DecodeError as exc:
+            raise AuthenticationProviderError("auth_failed", "Invalid id_token format") from exc
+
+        kid = header.get("kid")
+        signing_key = await self._find_signing_key(kid)
+
+        if signing_key is None:
+            self._jwks_cache = None
+            signing_key = await self._find_signing_key(kid)
+
+        if signing_key is None:
+            raise AuthenticationProviderError("auth_failed", "No matching key in Telegram JWKS")
+
+        try:
+            return jwt.decode(
+                id_token,
+                signing_key,
+                algorithms=["RS256", "ES256"],
+                audience=self.client_id,
+                issuer=self.ISSUER,
+            )
+        except jwt.PyJWTError as exc:
+            raise AuthenticationProviderError("auth_failed", f"id_token validation failed: {exc}") from exc
+
+    async def _find_signing_key(self, kid: Optional[str]):
+        jwks_data = await self._fetch_jwks()
+        for key_data in jwks_data.get("keys", []):
+            if kid is None or key_data.get("kid") == kid:
+                return jwt.PyJWK(key_data).key
+        return None
 
     async def authenticate_callback(self, params: Mapping[str, str], redirect_uri: str) -> AuthUser:
-        if params.get("error"):
-            raise AuthenticationProviderError("provider_error", params.get("error", "provider_error"))
+        error = params.get("error")
+        if error:
+            raise AuthenticationProviderError("provider_error", error)
 
-        required = ("id", "auth_date", "hash")
-        if any(not params.get(field) for field in required):
-            raise AuthenticationProviderError("telegram_missing_fields")
+        code = params.get("code")
+        if not code:
+            raise AuthenticationProviderError("missing_code")
 
-        auth_date_str = params.get("auth_date", "")
-        try:
-            auth_date = int(auth_date_str)
-        except ValueError as exc:
-            raise AuthenticationProviderError("telegram_missing_fields") from exc
+        token_data = await self._exchange_code(code, redirect_uri)
+        claims = await self._decode_id_token(token_data["id_token"])
 
-        now = int(time.time())
-        if abs(now - auth_date) > self.max_auth_age_seconds:
-            raise AuthenticationProviderError("telegram_auth_expired")
-
-        if not self._is_signature_valid(params):
-            raise AuthenticationProviderError("telegram_invalid_signature")
-
-        first_name = (params.get("first_name") or "").strip()
-        last_name = (params.get("last_name") or "").strip()
-        full_name = f"{first_name} {last_name}".strip() or None
+        user_id = str(claims.get("id") or claims.get("sub") or "")
+        if not user_id:
+            raise AuthenticationProviderError("auth_failed", "Telegram user id not found in id_token")
 
         return AuthUser(
-            id=str(params.get("id")),
-            username=params.get("username"),
-            full_name=full_name,
+            id=user_id,
+            username=claims.get("preferred_username"),
+            full_name=claims.get("name"),
             email=None,
             messenger=self.name,
         )
-
-    async def build_widget_html(self, state: str, redirect_uri: str) -> str:
-        await self._ensure_bot_username()
-        auth_url = self._append_state(redirect_uri, state)
-        safe_bot_username = html.escape(self.bot_username, quote=True)
-        safe_auth_url = html.escape(auth_url, quote=True)
-
-        return f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Telegram Login</title>
-  <style>
-    body {{ font-family: sans-serif; background: #f3f4f6; margin: 0; padding: 24px; }}
-    .box {{ max-width: 480px; margin: 60px auto; background: #fff; border-radius: 12px; padding: 24px; text-align: center; box-shadow: 0 8px 24px rgba(0,0,0,0.08); }}
-    h1 {{ margin: 0 0 12px; font-size: 20px; }}
-    p {{ color: #666; margin: 0 0 20px; }}
-  </style>
-</head>
-<body>
-  <div class="box">
-    <h1>Login with Telegram</h1>
-    <p>Complete authentication to continue.</p>
-    <script async src="https://telegram.org/js/telegram-widget.js?22"
-            data-telegram-login="{safe_bot_username}"
-            data-size="large"
-            data-userpic="false"
-            data-auth-url="{safe_auth_url}"
-            data-request-access="write"></script>
-  </div>
-</body>
-</html>"""
-
-    def _is_signature_valid(self, params: Mapping[str, str]) -> bool:
-        received_hash = str(params.get("hash") or "")
-
-        items = []
-        for key, value in params.items():
-            if key in {"hash", "state", "next", "auth_error", "popup"}:
-                continue
-            if value is None:
-                continue
-            items.append((key, str(value)))
-
-        items.sort(key=lambda item: item[0])
-        data_check_string = "\n".join(f"{key}={value}" for key, value in items)
-
-        secret_key = hashlib.sha256(self.bot_token.encode("utf-8")).digest()
-        expected_hash = hmac.new(
-            secret_key,
-            data_check_string.encode("utf-8"),
-            hashlib.sha256,
-        ).hexdigest()
-        return hmac.compare_digest(expected_hash, received_hash)
-
-    async def _ensure_bot_username(self) -> None:
-        if self.bot_username:
-            return
-
-        timeout = aiohttp.ClientTimeout(total=self.timeout_seconds)
-        url = f"{self.api_base_url}/bot{self.bot_token}/getMe"
-        async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.get(url) as response:
-                data = await response.json(content_type=None)
-                if response.status != 200:
-                    raise AuthenticationProviderError("auth_start_failed", "Telegram getMe failed")
-                if not data.get("ok"):
-                    raise AuthenticationProviderError("auth_start_failed", "Telegram getMe returned error")
-                result = data.get("result") or {}
-                username = str(result.get("username") or "").strip()
-                if not username:
-                    raise AuthenticationProviderError("auth_start_failed", "Telegram bot username missing")
-                self.bot_username = username
-
-    @staticmethod
-    def _append_state(url: str, state: str) -> str:
-        split = urlsplit(url)
-        query = dict(parse_qsl(split.query, keep_blank_values=True))
-        query["state"] = state
-        return urlunsplit((split.scheme, split.netloc, split.path, urlencode(query), split.fragment))

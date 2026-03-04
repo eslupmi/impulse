@@ -16,10 +16,6 @@ def create_auth_router(manager: UserAuthenticationManager) -> APIRouter:
     async def auth_callback(request: Request):
         return await manager.handle_callback(params=dict(request.query_params))
 
-    @router.get("/auth/telegram/widget")
-    async def auth_telegram_widget(state: Optional[str] = None):
-        return await manager.build_telegram_widget_response(state=state)
-
     @router.get("/auth/me")
     async def auth_me(request: Request):
         session_id = request.cookies.get(manager.session_cookie_name)

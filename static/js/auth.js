@@ -25,11 +25,11 @@ function setUiState(authenticated, userData, authError = "") {
         return;
     }
 
-    if (authError) {
-        status.textContent = `auth error: ${authError}`;
-    } else if (authenticated) {
+    if (authenticated) {
         const username = userData?.username || userData?.full_name || userData?.email || userData?.id || "user";
         status.textContent = `auth: ${username}`;
+    } else if (authError) {
+        status.textContent = `auth error: ${authError}`;
     } else {
         status.textContent = "auth: anonymous";
     }

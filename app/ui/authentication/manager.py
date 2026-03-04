@@ -4,7 +4,7 @@ from typing import Dict, Mapping, Optional, Set
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from uuid import uuid4
 
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi.responses import RedirectResponse, Response
 
 from app.logging import logger
 from app.ui.authentication.models.auth_session import AuthSession
@@ -115,7 +115,7 @@ class UserAuthenticationManager:
             logger.warning("Failed to save auth session", extra={"error": str(exc)})
             return self._build_error_redirect(auth_state.next_path, "auth_failed")
 
-        response = self._build_local_redirect(auth_state.next_path)
+        response = self._build_local_redirect(self._strip_auth_error(auth_state.next_path))
         response.set_cookie(
             key=self.session_cookie_name,
             value=session_id,
@@ -140,36 +140,6 @@ class UserAuthenticationManager:
         response = Response(status_code=204)
         response.delete_cookie(key=self.session_cookie_name, path="/")
         return response
-
-    async def build_telegram_widget_response(self, state: Optional[str]) -> Response:
-        if not state:
-            return self._build_error_redirect("/", "invalid_state")
-
-        if self.provider.name != "telegram":
-            return self._build_error_redirect("/", "not_supported")
-
-        if not self.provider.is_supported():
-            return self._build_error_redirect("/", "not_supported")
-
-        self._cleanup_states()
-        auth_state = self._states.get(state)
-        if not auth_state:
-            return self._build_error_redirect("/", "invalid_state")
-
-        build_widget_html = getattr(self.provider, "build_widget_html", None)
-        if not callable(build_widget_html):
-            return self._build_error_redirect(auth_state.next_path, "not_supported")
-
-        try:
-            html_content = await build_widget_html(state, self.redirect_uri)
-        except Exception as exc:
-            logger.warning(
-                "Failed to build Telegram widget page",
-                extra={"provider": self.provider.name, "error": str(exc)},
-            )
-            return self._build_error_redirect(auth_state.next_path, "auth_start_failed")
-
-        return HTMLResponse(content=html_content, status_code=200)
 
     def _pop_state(self, state: str) -> Optional[AuthState]:
         self._cleanup_states()
@@ -269,6 +239,12 @@ class UserAuthenticationManager:
         query[key] = value
         new_query = urlencode(query)
         return urlunsplit(("", "", split.path or "/", new_query, split.fragment))
+
+    @staticmethod
+    def _strip_auth_error(path: str) -> str:
+        split = urlsplit(path)
+        query = [(k, v) for k, v in parse_qsl(split.query, keep_blank_values=True) if k != "auth_error"]
+        return urlunsplit(("", "", split.path or "/", urlencode(query), split.fragment))
 
     @staticmethod
     def _sanitize_error(error: str) -> str:
