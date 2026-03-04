@@ -113,7 +113,7 @@ class InhibitionManager:
             InhibitionRule(
                 source_matchers=rule.source_matchers,
                 target_matchers=rule.target_matchers,
-                equal_labels=rule.equal or []
+                equal_labels=rule.equal
             )
             for rule in rules
         ]

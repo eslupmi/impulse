@@ -53,6 +53,11 @@ def create_logger(name, level=logging.INFO):
         logger_.addHandler(h)
     return logger_
 
+def configure_logging():
+    configure_uvicorn_logging()
+    configure_aiohttp_logging()
+    configure_warnings_logging()
+
 def configure_uvicorn_logging():
     for logger_name in ["uvicorn", "uvicorn.access", "uvicorn.error"]:
         logger_obj = logging.getLogger(logger_name)
