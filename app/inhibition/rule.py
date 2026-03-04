@@ -21,7 +21,26 @@ class InhibitionRule:
         """
         self.source_matchers = [Matcher(m) for m in source_matchers]
         self.target_matchers = [Matcher(m) for m in target_matchers]
-        self.equal_labels = equal_labels or []
+        self.equal_labels = equal_labels
+    
+    def equal_labels_match(self, source: Incident, target: Incident) -> bool:
+        """Check if equal labels have same values in both incidents.
+        
+        Args:
+            source: The source incident
+            target: The target incident
+            
+        Returns:
+            True if all equal labels have the same value in both incidents
+        """
+        if not self.equal_labels:
+            return True
+        source_labels = source.payload.get('commonLabels', {})
+        target_labels = target.payload.get('commonLabels', {})
+        return all(
+            source_labels.get(label) == target_labels.get(label)
+            for label in self.equal_labels
+        )
     
     def is_source(self, incident: Incident) -> bool:
         """Check if incident matches all source matchers.
@@ -44,22 +63,3 @@ class InhibitionRule:
             True if incident matches all target matchers
         """
         return all(m.matches(incident.payload) for m in self.target_matchers)
-    
-    def equal_labels_match(self, source: Incident, target: Incident) -> bool:
-        """Check if equal labels have same values in both incidents.
-        
-        Args:
-            source: The source incident
-            target: The target incident
-            
-        Returns:
-            True if all equal labels have the same value in both incidents
-        """
-        if not self.equal_labels:
-            return True
-        source_labels = source.payload.get('commonLabels', {})
-        target_labels = target.payload.get('commonLabels', {})
-        return all(
-            source_labels.get(label) == target_labels.get(label)
-            for label in self.equal_labels
-        )

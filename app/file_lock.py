@@ -40,58 +40,6 @@ class FileLock:
         self._pid = os.getpid()
         self._boot_id = self._get_boot_id()
 
-    def _get_boot_id(self) -> Optional[str]:
-        try:
-            return self.BOOT_ID_FILE_PATH.read_text().strip()
-        except (OSError, IOError):
-            return None
-
-    @staticmethod
-    def _is_process_running(pid: int) -> bool:
-        try:
-            os.kill(pid, 0)
-            return True
-        except (ProcessLookupError, PermissionError):
-            return False
-
-    def can_take_over_lock(self) -> bool:
-        """
-        Check if we can immediately take over the lock from a dead process.
-        
-        Returns:
-            True if hostname and boot_id match and the process is not running.
-        """
-        try:
-            stored_hostname = self.host_path.read_text().strip()
-            if stored_hostname != self._hostname:
-                return False
-            
-            stored_boot_id = self.boot_id_path.read_text().strip()
-            if stored_boot_id != (self._boot_id or ""):
-                return False
-            
-            stored_pid = int(self.pid_path.read_text().strip())
-            if self._is_process_running(stored_pid):
-                return False
-            
-            logger.debug(f"Previous master (PID {stored_pid}) on same host/boot is dead, taking over")
-            return True
-        except (ValueError, OSError, IOError):
-            return False
-
-    def _cleanup_stale_lock(self):
-        """Remove stale lock directory if it exists and is stale."""
-        if not self.lock_dir.exists():
-            return
-        
-        can_take_over = self.can_take_over_lock()
-        
-        if not can_take_over and self.is_locked():
-            return
-            
-        logger.debug("Removing stale lock")
-        shutil.rmtree(self.lock_dir, ignore_errors=True)
-
     def acquire_lock(self) -> bool:
         """
         Attempt to acquire the lock.
@@ -142,26 +90,64 @@ class FileLock:
             logger.error(f"Lock acquisition failed: {e}")
             return False
 
-    def _cleanup_failed_acquisition(self):
-        """Clean up after a failed lock acquisition attempt."""
-        try:
-            if self.lock_dir.exists():
-                shutil.rmtree(self.lock_dir, ignore_errors=True)
-        except (OSError, IOError):
-            pass
-
-    def _verify_ownership(self) -> bool:
+    def can_take_over_lock(self) -> bool:
         """
-        Verify that this instance owns the lock.
+        Check if we can immediately take over the lock from a dead process.
         
         Returns:
-            True if this instance owns the lock, False otherwise.
+            True if hostname and boot_id match and the process is not running.
+        """
+        try:
+            stored_hostname = self.host_path.read_text().strip()
+            if stored_hostname != self._hostname:
+                return False
+            
+            stored_boot_id = self.boot_id_path.read_text().strip()
+            if stored_boot_id != (self._boot_id or ""):
+                return False
+            
+            stored_pid = int(self.pid_path.read_text().strip())
+            if self._is_process_running(stored_pid):
+                return False
+            
+            logger.debug(f"Previous master (PID {stored_pid}) on same host/boot is dead, taking over")
+            return True
+        except (ValueError, OSError, IOError):
+            return False
+
+    def get_lock_info(self) -> Tuple[Optional[str], Optional[str]]:
+        """
+        Get information about the current lock holder.
+        
+        Returns:
+            Tuple of (hostname, pid) or (None, None) if not available.
         """
         try:
             hostname = self.host_path.read_text().strip()
             pid = self.pid_path.read_text().strip()
-            return hostname == self._hostname and pid == str(self._pid)
-        except (FileNotFoundError, OSError, IOError):
+            return hostname, pid
+        except FileNotFoundError:
+            return None, None
+        except (ValueError, OSError):
+            return None, None
+
+    def is_locked(self) -> bool:
+        """
+        Check if the lock is currently held by any instance.
+        
+        Returns:
+            True if lock exists and heartbeat is fresh, False otherwise.
+        """
+        if not self.lock_dir.exists():
+            return False
+        try:
+            locktime = float(self.heartbeat_path.read_text().strip())
+            elapsed = time.time() - locktime
+            return elapsed <= self.STALE_SEC
+        except FileNotFoundError:
+            return False
+        except (ValueError, OSError) as e:
+            logger.error(f"Heartbeat read failed: {e}")
             return False
 
     async def release_lock(self):
@@ -183,45 +169,39 @@ class FileLock:
             except (OSError, IOError) as e:
                 logger.warning(f"Lock release failed: {e}")
 
-    def is_locked(self) -> bool:
-        """
-        Check if the lock is currently held by any instance.
-        
-        Returns:
-            True if lock exists and heartbeat is fresh, False otherwise.
-        """
-        if not self.lock_dir.exists():
-            return False
-        try:
-            locktime = float(self.heartbeat_path.read_text().strip())
-            elapsed = time.time() - locktime
-            return elapsed <= self.STALE_SEC
-        except FileNotFoundError:
-            return False
-        except (ValueError, OSError) as e:
-            logger.error(f"Heartbeat read failed: {e}")
-            return False
-
-    def get_lock_info(self) -> Tuple[Optional[str], Optional[str]]:
-        """
-        Get information about the current lock holder.
-        
-        Returns:
-            Tuple of (hostname, pid) or (None, None) if not available.
-        """
-        try:
-            hostname = self.host_path.read_text().strip()
-            pid = self.pid_path.read_text().strip()
-            return hostname, pid
-        except FileNotFoundError:
-            return None, None
-        except (ValueError, OSError):
-            return None, None
-
     async def wait_for_unlock(self):
         """Wait until the lock becomes available."""
         while self.is_locked():
             await asyncio.sleep(1)
+
+    ### PRIVATE METHODS ###
+
+    def _cleanup_failed_acquisition(self):
+        """Clean up after a failed lock acquisition attempt."""
+        try:
+            if self.lock_dir.exists():
+                shutil.rmtree(self.lock_dir, ignore_errors=True)
+        except (OSError, IOError):
+            pass
+
+    def _cleanup_stale_lock(self):
+        """Remove stale lock directory if it exists and is stale."""
+        if not self.lock_dir.exists():
+            return
+        
+        can_take_over = self.can_take_over_lock()
+        
+        if not can_take_over and self.is_locked():
+            return
+            
+        logger.debug("Removing stale lock")
+        shutil.rmtree(self.lock_dir, ignore_errors=True)
+
+    def _get_boot_id(self) -> Optional[str]:
+        try:
+            return self.BOOT_ID_FILE_PATH.read_text().strip()
+        except (OSError, IOError):
+            return None
 
     async def _heartbeat(self):
         """Background task to update heartbeat while lock is held."""
@@ -238,6 +218,14 @@ class FileLock:
                 self._heartbeat_failures = 0
             
             await asyncio.sleep(self.HEARTBEAT_SEC)
+
+    @staticmethod
+    def _is_process_running(pid: int) -> bool:
+        try:
+            os.kill(pid, 0)
+            return True
+        except (ProcessLookupError, PermissionError):
+            return False
 
     def _update(self) -> bool:
         """
@@ -257,4 +245,18 @@ class FileLock:
             return True
         except (OSError, IOError) as e:
             logger.debug(f"Heartbeat update failed: {e}")
+            return False
+
+    def _verify_ownership(self) -> bool:
+        """
+        Verify that this instance owns the lock.
+        
+        Returns:
+            True if this instance owns the lock, False otherwise.
+        """
+        try:
+            hostname = self.host_path.read_text().strip()
+            pid = self.pid_path.read_text().strip()
+            return hostname == self._hostname and pid == str(self._pid)
+        except (FileNotFoundError, OSError, IOError):
             return False

@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 import uuid
@@ -10,8 +11,11 @@ import yaml
 from app.config.config import get_config
 from app.config.environment import get_environment_config
 from app.config.validation import MessengerType
+from app.im.application import Application
 from app.im.channel_manager import ChannelManager
 from app.logging import logger
+from app.queue.constants import QueueItemType
+from app.queue.queue import AsyncQueue
 from app.time import unix_sleep_to_timedelta
 from app.tools import NoAliasDumper
 from app.ui.websocket import incident_ws
@@ -391,6 +395,8 @@ class Incident:
             json.dumps({'group_labels': group_labels, 'datetime': datetime_.isoformat()})
         ))
 
+    ### PRIVATE METHODS ###
+
     def _set_status(self, status: str):
         self.status = status
         logger.debug("Status updated", extra={'uuid': self.uuid, 'status': status})
@@ -459,3 +465,21 @@ class Incident:
         if datetime_ is None:
             return ''
         return datetime_.strftime('%Y_%m_%d__%H_%M_%S')
+
+
+async def unfreeze_incident(incident: 'Incident', app: 'Application', queue: 'AsyncQueue'):
+    if not incident.is_frozen():
+        logger.info(f'Incident {incident.uuid} is not frozen, skipping unfreeze')
+        return
+
+    is_inhibition_unfreeze = incident.frozen_by_inhibition
+    incident_status = incident.status
+    incident.unfreeze()
+
+    if not is_inhibition_unfreeze:
+        app.track_async_task(asyncio.create_task(app.post_unfreeze_notification(incident)))
+
+    await queue.put_first(datetime.now(timezone.utc), QueueItemType.STATUS_CHECK, incident.uniq_id)
+    await queue.recreate(incident.status, incident.uniq_id, incident.get_chain(), incident.chain_active_seconds)
+    if incident_status != 'deleted':
+        await queue.put(incident.status_update_datetime, QueueItemType.UPDATE_STATUS, incident.uniq_id)

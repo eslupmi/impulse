@@ -6,6 +6,54 @@ from app.im.slack.config import buttons
 from app.time import format_freeze_expiration
 
 
+def get_incident_message_payload(incident, body, header, status_icons, tz_str):
+    actions = _build_slack_actions(incident, tz_str)
+    display_status = 'frozen' if incident.is_frozen() else incident.status
+    
+    payload = {
+        'channel': incident.channel_id,
+        'text': f'{status_icons} {header}',
+        'attachments': [
+            {
+                'color': status_colors.get(display_status),
+                'text': body,
+                'mrkdwn_in': ['text'],
+            },
+            {
+                'color': status_colors.get(display_status),
+                'text': '',
+                'callback_id': 'buttons',
+                'actions': actions
+            }
+        ]
+    }
+    return payload
+
+def slack_get_update_payload(incident, body, header, status_icons, tz_str):
+    actions = _build_slack_actions(incident, tz_str)
+    display_status = 'frozen' if incident.is_frozen() else incident.status
+    
+    payload = {
+        'channel': incident.channel_id,
+        'text': f'{status_icons} {header}',
+        'attachments': [
+            {
+                'color': status_colors.get(display_status),
+                'text': body,
+                'mrkdwn_in': ['text'],
+            },
+            {
+                'color': status_colors.get(display_status),
+                'text': '',
+                "callback_id": "buttons",
+                "actions": actions,
+            },
+        ],
+        'ts': incident.ts,
+    }
+    return payload
+
+
 def _build_slack_actions(incident, tz_str: str = "UTC"):
     env_config = get_environment_config()
     config = get_config()
@@ -23,7 +71,6 @@ def _build_slack_actions(incident, tz_str: str = "UTC"):
     ]
     
     if incident.frozen_by_inhibition:
-        # Frozen by inhibition - show static button (no unfreeze option)
         actions.append({
             "name": 'freeze',
             "type": 'button',
@@ -61,52 +108,3 @@ def _build_slack_actions(incident, tz_str: str = "UTC"):
         })
     
     return actions
-
-
-def slack_get_update_payload(incident, body, header, status_icons, tz_str):
-    actions = _build_slack_actions(incident, tz_str)
-    display_status = 'frozen' if incident.is_frozen() else incident.status
-    
-    payload = {
-        'channel': incident.channel_id,
-        'text': f'{status_icons} {header}',
-        'attachments': [
-            {
-                'color': status_colors.get(display_status),
-                'text': body,
-                'mrkdwn_in': ['text'],
-            },
-            {
-                'color': status_colors.get(display_status),
-                'text': '',
-                "callback_id": "buttons",
-                "actions": actions,
-            },
-        ],
-        'ts': incident.ts,
-    }
-    return payload
-
-
-def get_incident_message_payload(incident, body, header, status_icons, tz_str):
-    actions = _build_slack_actions(incident, tz_str)
-    display_status = 'frozen' if incident.is_frozen() else incident.status
-    
-    payload = {
-        'channel': incident.channel_id,
-        'text': f'{status_icons} {header}',
-        'attachments': [
-            {
-                'color': status_colors.get(display_status),
-                'text': body,
-                'mrkdwn_in': ['text'],
-            },
-            {
-                'color': status_colors.get(display_status),
-                'text': '',
-                'callback_id': 'buttons',
-                'actions': actions
-            }
-        ]
-    }
-    return payload

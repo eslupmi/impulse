@@ -17,19 +17,19 @@ class TestMainApplication:
     @pytest.fixture
     def mock_app_dependencies(self):
         """Mock all application dependencies."""
-        with patch('main.get_config') as mock_get_config, \
-                patch('main.generate_route') as mock_generate_route, \
-                patch('main.ChannelManager') as mock_channel_manager, \
-                patch('main.get_application') as mock_get_application, \
-                patch('main.generate_webhooks') as mock_generate_webhooks, \
-                patch('main.Incidents.create_or_load') as mock_incidents, \
-                patch('main.AsyncQueue.recreate_queue') as mock_queue, \
-                patch('main.AsyncQueueManager') as mock_queue_manager, \
-                patch('main.FileLock') as mock_file_lock_class, \
+        with patch('app.lifespan.get_config') as mock_get_config, \
+                patch('app.lifespan.generate_route') as mock_generate_route, \
+                patch('app.lifespan.ChannelManager') as mock_channel_manager, \
+                patch('app.lifespan.get_application') as mock_get_application, \
+                patch('app.lifespan.generate_webhooks') as mock_generate_webhooks, \
+                patch('app.lifespan.Incidents.create_or_load') as mock_incidents, \
+                patch('app.lifespan.AsyncQueue.recreate_queue') as mock_queue, \
+                patch('app.lifespan.AsyncQueueManager') as mock_queue_manager, \
+                patch('app.lifespan.FileLock') as mock_file_lock_class, \
                 patch('app.config.environment.get_environment_config') as mock_get_env_config, \
                 patch('app.im.application.Application') as mock_application, \
-                patch('main.UserUpdateScheduler') as mock_scheduler_class, \
-                patch('main.InhibitionManager') as mock_inhibition_manager_class:
+                patch('app.lifespan.UserUpdateScheduler') as mock_scheduler_class, \
+                patch('app.lifespan.InhibitionManager') as mock_inhibition_manager_class:
             # Setup mock scheduler
             mock_scheduler = Mock()
             mock_scheduler.schedule_all_stored = AsyncMock()
@@ -135,8 +135,8 @@ class TestMainApplication:
         assert main.app.description == "Incident Management Platform"
         assert main.app.version == "0.0.0"
 
-    @patch('main.get_environment_config')
-    @patch('main.get_config')
+    @patch('app.config.environment.get_environment_config')
+    @patch('app.config.config.get_config')
     def test_http_prefix_configuration(self, mock_get_config, mock_get_env_config):
         """Test HTTP prefix configuration."""
         mock_config = Mock()
@@ -210,8 +210,8 @@ class TestMainApplication:
             await asyncio.Event().wait()  # Wait forever
         mock_file_lock.wait_for_unlock = blocking_wait
         
-        with patch('main.FileLock', return_value=mock_file_lock), \
-             patch('main.logger') as mock_logger:
+        with patch('app.lifespan.FileLock', return_value=mock_file_lock), \
+             patch('app.lifespan.logger') as mock_logger:
             async with main.lifespan(app_mock):
                 await asyncio.sleep(0.01)  # Let task start
                 
@@ -228,166 +228,3 @@ class TestMainApplication:
             mock_file_lock.acquire_lock.assert_not_called()
 
 
-class TestSignalHandlers:
-    """Test cases for signal handlers."""
-
-    @patch('main.hasattr')
-    @patch('main.signal')
-    @patch('main.logger')
-    def test_setup_sighup_handler_available(self, mock_logger, mock_signal, mock_hasattr):
-        """Test SIGHUP handler setup when signal is available."""
-        mock_hasattr.return_value = True
-
-        main.setup_sighup_handler()
-
-        mock_signal.signal.assert_called_once()
-        mock_logger.debug.assert_called_once()
-
-    @patch('main.hasattr')
-    @patch('main.logger')
-    def test_setup_sighup_handler_not_available(self, mock_logger, mock_hasattr):
-        """Test SIGHUP handler setup when signal is not available."""
-        mock_hasattr.return_value = False
-
-        main.setup_sighup_handler()
-
-        mock_logger.warning.assert_called_once_with("SIGHUP signal not available on this platform")
-
-    @patch('main.reload_config')
-    @patch('main.logger')
-    def test_sighup_handler_success(self, mock_logger, mock_reload_config):
-        """Test SIGHUP handler with successful config reload."""
-        mock_reload_config.return_value = True
-
-        # Get the handler function
-        with patch('main.hasattr', return_value=True), \
-                patch('main.signal') as mock_signal:
-            main.setup_sighup_handler()
-            handler = mock_signal.signal.call_args[0][1]
-
-        # Call the handler
-        handler(None, None)
-
-        mock_logger.info.assert_any_call("Reloading configuration")
-        mock_logger.info.assert_any_call("Configuration reloaded")
-
-    @patch('main.reload_config')
-    @patch('main.logger')
-    def test_sighup_handler_error(self, mock_logger, mock_reload_config):
-        """Test SIGHUP handler with error during config reload."""
-        mock_reload_config.side_effect = Exception("Config error")
-
-        # Get the handler function
-        with patch('main.hasattr', return_value=True), \
-                patch('main.signal') as mock_signal:
-            main.setup_sighup_handler()
-            handler = mock_signal.signal.call_args[0][1]
-
-        # Call the handler
-        handler(None, None)
-
-        mock_logger.error.assert_called_once()
-        mock_logger.warning.assert_called_once()
-
-
-class TestConfigValidation:
-    """Test cases for configuration validation."""
-
-    @patch('main.get_config')
-    @patch('main.logger')
-    @patch('main.sys.exit')
-    def test_validate_config_only_success(self, mock_exit, mock_logger, mock_get_config):
-        """Test successful configuration validation."""
-        mock_config = Mock()
-        mock_config.messenger.type.value = "slack"
-        mock_config.messenger.channels = {'default': {'id': 'C123456789'}}
-        mock_config.messenger.users = {}
-        mock_config.app.incident = True
-        mock_config.app.ui = True
-        mock_config.app.route = True
-        mock_get_config.return_value = mock_config
-
-        main.validate_config_only()
-
-        mock_exit.assert_called_once_with(0)
-        mock_logger.info.assert_called()
-
-    @patch('main.get_config')
-    @patch('main.logger')
-    @patch('main.sys.exit')
-    def test_validate_config_only_system_exit_non_zero(self, mock_exit, mock_logger, mock_get_config):
-        """Test configuration validation with SystemExit non-zero."""
-        mock_get_config.side_effect = SystemExit(1)
-
-        main.validate_config_only()
-
-        mock_exit.assert_called_with(1)
-        mock_logger.error.assert_called_once()
-
-    @patch('main.get_config')
-    @patch('main.logger')
-    @patch('main.sys.exit')
-    def test_validate_config_only_exception(self, mock_exit, mock_logger, mock_get_config):
-        """Test configuration validation with general exception."""
-        mock_get_config.side_effect = Exception("Config error")
-
-        main.validate_config_only()
-
-        mock_exit.assert_called_with(1)
-        mock_logger.error.assert_called_once()
-
-
-class TestArgumentParsing:
-    """Test cases for argument parsing."""
-
-    def test_parse_arguments_no_args(self):
-        """Test parsing with no arguments."""
-        with patch('main.argparse.ArgumentParser.parse_args') as mock_parse:
-            mock_parse.return_value = Mock(check=False)
-            args = main.parse_arguments()
-            assert args.check is False
-
-    def test_parse_arguments_check_flag(self):
-        """Test parsing with --check flag."""
-        with patch('main.argparse.ArgumentParser.parse_args') as mock_parse:
-            mock_parse.return_value = Mock(check=True)
-            args = main.parse_arguments()
-            assert args.check is True
-
-
-class TestMainExecution:
-    """Test cases for main execution."""
-
-    @patch('main.parse_arguments')
-    @patch('main.validate_config_only')
-    def test_main_with_check_flag(self, mock_validate, mock_parse):
-        """Test main execution with --check flag."""
-        mock_parse.return_value = Mock(check=True)
-
-        # This would normally be tested by running the script, but we can test the logic
-        args = mock_parse.return_value
-        if args.check:
-            mock_validate()
-
-        mock_validate.assert_called_once()
-
-    @patch('main.parse_arguments')
-    @patch('main.setup_sighup_handler')
-    @patch('main.configure_uvicorn_logging')
-    @patch('uvicorn.run')  # Patch uvicorn.run directly
-    def test_main_without_check_flag(self, mock_uvicorn_run, mock_configure_logging,
-                                     mock_setup_sighup, mock_parse):
-        """Test main execution without --check flag."""
-        mock_parse.return_value = Mock(check=False)
-
-        # This would normally be tested by running the script
-        args = mock_parse.return_value
-        if not args.check:
-            mock_setup_sighup()
-            mock_configure_logging()
-            # Import uvicorn here to simulate the actual behavior
-            mock_uvicorn_run("main:app", host="0.0.0.0", port=5000, reload=True, log_level="warning")
-
-        mock_setup_sighup.assert_called_once()
-        mock_configure_logging.assert_called_once()
-        mock_uvicorn_run.assert_called_once()

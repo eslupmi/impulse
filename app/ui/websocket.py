@@ -81,6 +81,8 @@ class AsyncIncidentWS:
         """Handle ping event from a specific client"""
         await websocket.send_text(json.dumps({"event": "pong"}))
 
+    ### PRIVATE METHODS ###
+
     def _get_values(self):
         """Get values mapping for table configuration"""
         values_map = {}

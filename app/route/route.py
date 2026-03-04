@@ -19,6 +19,9 @@ class MainRoute:
                     route = Route(r.channel, r.chain, r.routes, r.matchers)
                     self.routes.append(route)
 
+    def __repr__(self):
+        return self.chain
+
     def get_route(self, alert_state):
         if len(self.routes) == 0:
             return self.channel, self.chain
@@ -38,14 +41,18 @@ class MainRoute:
                 channels = r.get_channels(channels)
         return set(channels)
 
-    def __repr__(self):
-        return self.chain
-
 
 class Route(MainRoute):
     def __init__(self, channel: str, chain: str, routes_list: List[RouteConfig], matchers: List[str]):
         super().__init__(channel, chain, routes_list)
         self.matchers = [Matcher(m) for m in matchers]
+
+    def get_channels(self, channels):
+        channels.append(self.channel)
+        if len(self.routes) != 0:
+            for r in self.routes:
+                channels = r.get_channels(channels)
+        return channels
 
     def get_route(self, alert_state):
         for m in self.matchers:
@@ -59,13 +66,6 @@ class Route(MainRoute):
                 if match:
                     return True, channel, chain
             return True, self.channel, self.chain
-
-    def get_channels(self, channels):
-        channels.append(self.channel)
-        if len(self.routes) != 0:
-            for r in self.routes:
-                channels = r.get_channels(channels)
-        return channels
 
 
 def generate_route(route_config: Optional[RouteConfig]):

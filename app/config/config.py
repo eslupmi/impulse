@@ -44,29 +44,11 @@ def get_config() -> UnifiedConfig:
     return _config
 
 
-def load_unified_config(config_path: Optional[str] = None, exit_on_error: bool = True) -> UnifiedConfig:
-    """
-    Load and create unified configuration from YAML file.
-    
-    Args:
-        config_path: Optional path to configuration file. Uses env CONFIG_PATH if not provided.
-        exit_on_error: If True, exit process on validation errors. If False, raise exception.
-        
-    Returns:
-        UnifiedConfig: Complete configuration object
-        
-    Raises:
-        ConfigValidationError: If configuration loading or validation fails
-        SystemExit: If configuration is invalid and exit_on_error is True
-    """
+def load_unified_config(exit_on_error: bool = True) -> UnifiedConfig:
     try:
         env_config = get_environment_config()
-
-        if config_path is None:
-            config_path = env_config.config_file_path
-
+        config_path = env_config.config_file_path
         validated_config, _ = load_and_validate_config(config_path)
-
         return UnifiedConfig(app=validated_config)
 
     except ConfigValidationError as e:
@@ -85,22 +67,12 @@ def load_unified_config(config_path: Optional[str] = None, exit_on_error: bool =
             raise
 
 
-def reload_config(config_path: Optional[str] = None) -> bool:
-    """
-    Reload configuration from file with graceful error handling.
-    If validation fails, keeps the current configuration and logs a warning.
-    
-    Args:
-        config_path: Optional path to configuration file. Uses env CONFIG_PATH if not provided.
-        
-    Returns:
-        bool: True if reload was successful, False if failed and kept old config
-    """
+def reload_config() -> bool:
     global _config
     current_config = _config
 
     try:
-        new_config = load_unified_config(config_path, exit_on_error=False)
+        new_config = load_unified_config(exit_on_error=False)
         if new_config.messenger.type == current_config.messenger.type:
             _config = new_config
             return True
@@ -116,3 +88,12 @@ def reload_config(config_path: Optional[str] = None) -> bool:
         logger.warning("Config reload failed, keeping current config", extra={'error': str(e)})
         _config = current_config
         return False
+
+
+def validate_config_only():
+    try:
+        get_config()
+        logger.info("Configuration valid")
+    except Exception as e:
+        logger.error("Configuration validation failed", extra={'error': str(e)})
+        raise SystemExit(1)

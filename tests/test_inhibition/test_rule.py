@@ -66,15 +66,6 @@ class TestInhibitionRule:
         assert len(rule.target_matchers) == 1
         assert rule.equal_labels == ['service', 'cluster']
 
-    def test_initialization_with_none_equal_labels(self):
-        """Test InhibitionRule initialization with None equal labels."""
-        rule = InhibitionRule(
-            source_matchers=['severity = "critical"'],
-            target_matchers=['severity = "warning"'],
-            equal_labels=None
-        )
-        assert rule.equal_labels == []
-
     def test_is_source_matches(self, critical_source_warning_target_rule):
         """Test is_source returns True for matching incident."""
         payload = create_alert_payload(severity="critical")

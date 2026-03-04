@@ -1,12 +1,11 @@
 from typing import Dict, List, Set, TYPE_CHECKING
 
 from app.config.validation import InhibitRule, MessengerType
-from app.incident.unfreeze import unfreeze_incident
 from app.inhibition.rule import InhibitionRule
 from app.logging import logger
 
 if TYPE_CHECKING:
-    from app.incident.incident import Incident
+    from app.incident.incident import Incident, unfreeze_incident
     from app.incident.incidents import Incidents
     from app.im.application import Application
     from app.queue.queue import AsyncQueue
@@ -27,6 +26,34 @@ class InhibitionManager:
         self.application = application
         self.queue = queue
         self._init_rules(rules)
+    
+    async def handle_closed(self, incident: 'Incident'):
+        if not self.rules:
+            return
+        
+        for rule_idx in range(len(self.rules)):
+            if incident.uniq_id in self.sources[rule_idx]:
+                await self._cleanup_source(incident)
+                self.sources[rule_idx].discard(incident.uniq_id)
+            
+            if incident.uniq_id in self.targets[rule_idx]:
+                if not incident.is_frozen():
+                    self.targets[rule_idx].discard(incident.uniq_id)
+    
+    async def handle_resolved(self, incident: 'Incident'):
+        if not self.rules:
+            return
+
+        for rule_idx in range(len(self.rules)):
+            if incident.uniq_id in self.sources[rule_idx]:
+                await self._cleanup_source(incident)
+    
+    async def process_incident(self, incident: 'Incident'):
+        if not self.rules:
+            return
+        
+        for rule_idx, rule in enumerate(self.rules):
+            await self._process_incident_for_rule(incident, rule_idx, rule)
     
     def reload_rules(self, rules: List[InhibitRule]):
         logger.info("Reloading inhibition rules")
@@ -80,46 +107,8 @@ class InhibitionManager:
         
         return False
 
-    async def process_incident(self, incident: 'Incident'):
-        if not self.rules:
-            return
-        
-        for rule_idx, rule in enumerate(self.rules):
-            await self._process_incident_for_rule(incident, rule_idx, rule)
-    
-    async def handle_resolved(self, incident: 'Incident'):
-        if not self.rules:
-            return
+    ### PRIVATE METHODS ###
 
-        for rule_idx in range(len(self.rules)):
-            if incident.uniq_id in self.sources[rule_idx]:
-                await self._cleanup_source(incident)
-    
-    async def handle_closed(self, incident: 'Incident'):
-        if not self.rules:
-            return
-        
-        for rule_idx in range(len(self.rules)):
-            if incident.uniq_id in self.sources[rule_idx]:
-                await self._cleanup_source(incident)
-                self.sources[rule_idx].discard(incident.uniq_id)
-            
-            if incident.uniq_id in self.targets[rule_idx]:
-                if not incident.is_frozen():
-                    self.targets[rule_idx].discard(incident.uniq_id)
-
-    def _init_rules(self, rules: List[InhibitRule]):
-        self.rules: List[InhibitionRule] = [
-            InhibitionRule(
-                source_matchers=rule.source_matchers,
-                target_matchers=rule.target_matchers,
-                equal_labels=rule.equal or []
-            )
-            for rule in rules
-        ]
-        self.sources: Dict[int, Set[str]] = {i: set() for i in range(len(self.rules))}
-        self.targets: Dict[int, Set[str]] = {i: set() for i in range(len(self.rules))}
-    
     async def _cleanup_source(self, source: 'Incident'):
         children_to_process = list(source.childs)
         
@@ -140,20 +129,6 @@ class InhibitionManager:
             await self._unfreeze_target_if_no_parents(target)
         
         source.dump()
-
-    async def _process_incident_for_rule(self, incident: 'Incident', rule_idx: int, rule: InhibitionRule):
-        if rule.is_target(incident):
-            self.targets[rule_idx].add(incident.uniq_id)
-            await self._freeze_matching_targets(
-                incident, self.sources[rule_idx], rule, incident_is_target=True
-            )
-        if rule.is_source(incident):
-            self.sources[rule_idx].add(incident.uniq_id)
-            done = await self._freeze_matching_targets(
-                incident, self.targets[rule_idx], rule, incident_is_target=False
-            )
-            if done and self.application.type != MessengerType.TELEGRAM:
-                await self.application.update_incident_message(incident)
 
     async def _freeze_matching_targets(
         self,
@@ -199,6 +174,32 @@ class InhibitionManager:
         if target.ts != '':
             await self.application.update_incident_message(target)
         return True
+
+    def _init_rules(self, rules: List[InhibitRule]):
+        self.rules: List[InhibitionRule] = [
+            InhibitionRule(
+                source_matchers=rule.source_matchers,
+                target_matchers=rule.target_matchers,
+                equal_labels=rule.equal
+            )
+            for rule in rules
+        ]
+        self.sources: Dict[int, Set[str]] = {i: set() for i in range(len(self.rules))}
+        self.targets: Dict[int, Set[str]] = {i: set() for i in range(len(self.rules))}
+
+    async def _process_incident_for_rule(self, incident: 'Incident', rule_idx: int, rule: InhibitionRule):
+        if rule.is_target(incident):
+            self.targets[rule_idx].add(incident.uniq_id)
+            await self._freeze_matching_targets(
+                incident, self.sources[rule_idx], rule, incident_is_target=True
+            )
+        if rule.is_source(incident):
+            self.sources[rule_idx].add(incident.uniq_id)
+            done = await self._freeze_matching_targets(
+                incident, self.targets[rule_idx], rule, incident_is_target=False
+            )
+            if done and self.application.type != MessengerType.TELEGRAM:
+                await self.application.update_incident_message(incident)
 
     async def _unfreeze_target_if_no_parents(self, target: 'Incident'):
         if target.parents:

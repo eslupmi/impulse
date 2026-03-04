@@ -109,12 +109,50 @@ class RateLimitedClient:
         """Async context manager exit"""
         await self.close()
     
+    async def close(self):
+        """Close the HTTP client"""
+        if self._client:
+            await self._client.close()
+            self._client = None
+            self._session = None
+    
+    async def delete(self, url: str, **kwargs):
+        """Make a DELETE request with rate limiting"""
+        return await self.request('DELETE', url, **kwargs)
+    
+    async def get(self, url: str, **kwargs):
+        """Make a GET request with rate limiting"""
+        return await self.request('GET', url, **kwargs)
+    
+    def get_rate_limit_info(self) -> dict:
+        """
+        Get current rate limit status information.
+        
+        Returns:
+            dict with keys:
+                - rate_limit: Maximum requests per window
+                - rate_window: Window duration in seconds
+                - request_count: Current requests in window
+                - window_start_time: Start time of current window
+                - last_request_time: Time of last request
+        """
+        return {
+            'rate_limit': self.rate_limit,
+            'rate_window': self.rate_window,
+            'request_count': self._request_count,
+            'window_start_time': self._window_start_time,
+            'last_request_time': self._last_request_time
+        }
+    
+    async def head(self, url: str, **kwargs):
+        """Make a HEAD request with rate limiting"""
+        return await self.request('HEAD', url, **kwargs)
+    
     def initialize_client(self):
         """Initialize the HTTP client if not already initialized"""
         if self._client is not None:
             return
         
-        # Use custom retry policy that respects Retry-After header for 429 responses
         retry_options = RetryAfterRetry(
             attempts=self._retry_attempts,
             statuses={429, 500, 502, 503, 504},
@@ -139,62 +177,22 @@ class RateLimitedClient:
             retry_options=retry_options
         )
     
-    async def close(self):
-        """Close the HTTP client"""
-        if self._client:
-            await self._client.close()
-            self._client = None
-            self._session = None
+    async def options(self, url: str, **kwargs):
+        """Make an OPTIONS request with rate limiting"""
+        return await self.request('OPTIONS', url, **kwargs)
     
-    async def _wait_for_rate_limit(self):
-        """
-        Check rate limit and wait if necessary.
-        
-        This method:
-        1. Resets the counter if idle for rate_window duration
-        2. Waits if the rate limit has been reached within the current window
-        3. Updates request tracking state
-        """
-        if self.rate_limit is None:
-            # No rate limiting
-            return
-        
-        async with self._lock:
-            current_time = time.monotonic()
-            
-            # Reset counter if idle for rate_window duration
-            if self._last_request_time is not None:
-                idle_duration = current_time - self._last_request_time
-                if idle_duration >= self.rate_window:
-                    self._request_count = 0
-                    self._window_start_time = None
-            
-            # Initialize window if not set
-            if self._window_start_time is None:
-                self._window_start_time = current_time
-                self._request_count = 0
-            
-            # Check if we need to wait for the current window to expire
-            time_since_window_start = current_time - self._window_start_time
-            
-            if self._request_count >= self.rate_limit:
-                # We've reached the limit, need to wait for window to expire
-                if time_since_window_start < self.rate_window:
-                    wait_duration = self.rate_window - time_since_window_start
-                    logger.warning(
-                        f"Rate limit reached ({self._request_count}/{self.rate_limit}), "
-                        f"waiting {wait_duration:.2f}s"
-                    )
-                    await asyncio.sleep(wait_duration)
-                
-                # Start a new window
-                self._window_start_time = time.monotonic()
-                self._request_count = 0
-
-            # Increment request counter
-            self._request_count += 1
-            self._last_request_time = time.monotonic()
-
+    async def patch(self, url: str, **kwargs):
+        """Make a PATCH request with rate limiting"""
+        return await self.request('PATCH', url, **kwargs)
+    
+    async def post(self, url: str, **kwargs):
+        """Make a POST request with rate limiting"""
+        return await self.request('POST', url, **kwargs)
+    
+    async def put(self, url: str, **kwargs):
+        """Make a PUT request with rate limiting"""
+        return await self.request('PUT', url, **kwargs)
+    
     @measure_request
     async def request(self, method: str, url: str, **kwargs):
         """
@@ -212,50 +210,44 @@ class RateLimitedClient:
         await self._wait_for_rate_limit()
         return await self._client.request(method, url, **kwargs)
     
-    async def get(self, url: str, **kwargs):
-        """Make a GET request with rate limiting"""
-        return await self.request('GET', url, **kwargs)
-
-    async def post(self, url: str, **kwargs):
-        """Make a POST request with rate limiting"""
-        return await self.request('POST', url, **kwargs)
-
-    async def put(self, url: str, **kwargs):
-        """Make a PUT request with rate limiting"""
-        return await self.request('PUT', url, **kwargs)
-
-    async def delete(self, url: str, **kwargs):
-        """Make a DELETE request with rate limiting"""
-        return await self.request('DELETE', url, **kwargs)
-
-    async def patch(self, url: str, **kwargs):
-        """Make a PATCH request with rate limiting"""
-        return await self.request('PATCH', url, **kwargs)
-
-    async def head(self, url: str, **kwargs):
-        """Make a HEAD request with rate limiting"""
-        return await self.request('HEAD', url, **kwargs)
-
-    async def options(self, url: str, **kwargs):
-        """Make an OPTIONS request with rate limiting"""
-        return await self.request('OPTIONS', url, **kwargs)
-    
-    def get_rate_limit_info(self) -> dict:
+    async def _wait_for_rate_limit(self):
         """
-        Get current rate limit status information.
+        Check rate limit and wait if necessary.
         
-        Returns:
-            dict with keys:
-                - rate_limit: Maximum requests per window
-                - rate_window: Window duration in seconds
-                - request_count: Current requests in window
-                - window_start_time: Start time of current window
-                - last_request_time: Time of last request
+        This method:
+        1. Resets the counter if idle for rate_window duration
+        2. Waits if the rate limit has been reached within the current window
+        3. Updates request tracking state
         """
-        return {
-            'rate_limit': self.rate_limit,
-            'rate_window': self.rate_window,
-            'request_count': self._request_count,
-            'window_start_time': self._window_start_time,
-            'last_request_time': self._last_request_time
-        }
+        if self.rate_limit is None:
+            return
+        
+        async with self._lock:
+            current_time = time.monotonic()
+            
+            if self._last_request_time is not None:
+                idle_duration = current_time - self._last_request_time
+                if idle_duration >= self.rate_window:
+                    self._request_count = 0
+                    self._window_start_time = None
+            
+            if self._window_start_time is None:
+                self._window_start_time = current_time
+                self._request_count = 0
+            
+            time_since_window_start = current_time - self._window_start_time
+            
+            if self._request_count >= self.rate_limit:
+                if time_since_window_start < self.rate_window:
+                    wait_duration = self.rate_window - time_since_window_start
+                    logger.warning(
+                        f"Rate limit reached ({self._request_count}/{self.rate_limit}), "
+                        f"waiting {wait_duration:.2f}s"
+                    )
+                    await asyncio.sleep(wait_duration)
+                
+                self._window_start_time = time.monotonic()
+                self._request_count = 0
+
+            self._request_count += 1
+            self._last_request_time = time.monotonic()

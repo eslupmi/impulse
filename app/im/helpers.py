@@ -35,6 +35,26 @@ def create_task_management_integration(
     return JiraIntegration(jira_client, tm_type=task_management_config.type.value)
 
 
+def get_application(app_config: ApplicationConfig, channels, default_channel,
+                   task_management_config: Optional[TaskManagementConfig] = None):
+    app_type = app_config.type
+    if app_type == 'slack':
+        messenger = SlackApplication(app_config, channels, default_channel)
+    elif app_type == 'mattermost':
+        messenger = MattermostApplication(app_config, channels, default_channel)
+    elif app_type == 'telegram':
+        messenger = TelegramApplication(app_config, channels, default_channel)
+    elif app_type == 'none':
+        messenger = NullApplication(app_config, channels, default_channel)
+    else:
+        raise ValueError(f'Unknown application type: {app_type}')
+    
+    if task_management_config:
+        initialize_task_management_integration(messenger, task_management_config)
+    
+    return messenger
+
+
 def initialize_task_management_integration(
     messenger: Application,
     task_management_config: TaskManagementConfig
@@ -59,23 +79,3 @@ def initialize_task_management_integration(
             env_config
         )
         logger.info("Task management initialized and ready", extra={'provider': provider})
-
-
-def get_application(app_config: ApplicationConfig, channels, default_channel,
-                   task_management_config: Optional[TaskManagementConfig] = None):
-    app_type = app_config.type
-    if app_type == 'slack':
-        messenger = SlackApplication(app_config, channels, default_channel)
-    elif app_type == 'mattermost':
-        messenger = MattermostApplication(app_config, channels, default_channel)
-    elif app_type == 'telegram':
-        messenger = TelegramApplication(app_config, channels, default_channel)
-    elif app_type == 'none':
-        messenger = NullApplication(app_config, channels, default_channel)
-    else:
-        raise ValueError(f'Unknown application type: {app_type}')
-    
-    if task_management_config:
-        initialize_task_management_integration(messenger, task_management_config)
-    
-    return messenger
