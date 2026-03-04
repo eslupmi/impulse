@@ -24,6 +24,7 @@ class JiraIntegration:
             return config.app.task_management.project_key
         raise ValueError("Task management not configured")
     
+    ### private methods ###
     def _read_template(self, file_key: str) -> JinjaTemplate:
         """Read template file from current config"""
         config = get_config()

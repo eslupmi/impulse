@@ -1,4 +1,4 @@
-from app.incident.unfreeze import unfreeze_incident
+from app.incident.incident import unfreeze_incident
 from app.logging import logger
 from app.queue.handlers.base_handler import BaseHandler
 

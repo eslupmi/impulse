@@ -45,6 +45,7 @@ class GoogleCalendarChain(ScheduleChain):
         # Fetch initial data
         self._fetch_initial_data()
 
+    ### private methods ###
     def _setup_session(self) -> None:
         """Setup the requests session with retry strategy."""
         retry_strategy = Retry(

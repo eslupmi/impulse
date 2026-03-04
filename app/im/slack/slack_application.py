@@ -16,58 +16,6 @@ class SlackApplication(Application):
     def __init__(self, app_config: ApplicationConfig, channels, default_channel):
         super().__init__(app_config, channels, default_channel)
 
-    def _initialize_specific_params(self):
-        self.post_message_url = f'{self.url}/api/chat.postMessage'
-        env_config = get_environment_config()
-        self.headers = {
-            'Content-Type': 'application/json',
-            'Authorization': f'Bearer {env_config.slack_bot_user_oauth_token}',
-        }
-        self.rate_limit = 10
-        self.thread_id_key = 'ts'
-
-    def _get_url(self, app_config: ApplicationConfig):
-        return 'https://slack.com'
-
-    async def _get_public_url(self, app_config: ApplicationConfig):
-        response = await self.http.get(
-            'https://slack.com/api/auth.test',
-            headers=self.headers
-        )
-        json_ = await response.json()
-        response.close()
-        return json_.get('url')
-
-    def _get_team_name(self, app_config: ApplicationConfig):
-        return None
-
-    async def get_user_details(self, user_details):
-        id_ = user_details.get('id')
-        response = await self.http.get(f'{self.url}/api/users.info?user={id_}', headers=self.headers)
-        if response.status != 200:
-            logger.debug("User details fetch failed", extra={'user_id': id_, 'status': response.status})
-            response.close()
-            return {'id': id_, 'exists': False, 'full_name': None, 'username': None,
-                    'first_name': None, 'last_name': None, 'email': None, 'timezone': None}
-
-        data = await response.json()
-        response.close()
-        if not data.get('ok'):
-            logger.debug("Slack API error", extra={'user_id': id_, 'error': data.get("error", "unknown error")})
-            return {'id': id_, 'exists': False, 'full_name': None, 'username': None,
-                    'first_name': None, 'last_name': None, 'email': None, 'timezone': None}
-
-        user_data = data.get('user', {})
-        profile = user_data.get('profile', {})
-        return {
-            'id': id_,
-            'exists': True,
-            'full_name': profile.get('real_name_normalized'),
-            'username': user_data.get('name'),
-            'email': profile.get('email'),
-            'timezone': user_data.get('tz'),
-        }
-
     def create_user(self, name, user_details):
         return User(
             name=name,
@@ -96,59 +44,32 @@ class SlackApplication(Application):
         finally:
             response.close()
 
-    async def _generate_groups(self, groups_dict):
-        """Generate groups by polling them from the API"""
-        if not groups_dict:
-            return {}
-        
-        logger.info('Creating groups')
-        
-        # Get all groups from API once
-        all_groups = await self.get_all_groups()
+    async def get_user_details(self, user_details):
+        id_ = user_details.get('id')
+        response = await self.http.get(f'{self.url}/api/users.info?user={id_}', headers=self.headers)
+        if response.status != 200:
+            logger.debug("User details fetch failed", extra={'user_id': id_, 'status': response.status})
+            response.close()
+            return {'id': id_, 'exists': False, 'full_name': None, 'username': None,
+                    'first_name': None, 'last_name': None, 'email': None, 'timezone': None}
 
-        groups = {}
-        for config_name, group_info in groups_dict.items():
-            group_name = all_groups.get(group_info.id)
-            group_exists = group_name is not None
-            group_details = {'id': group_info.id, 'name': group_name, 'exists': group_exists}
-            if not group_exists:
-                logger.warning('Group not found in Slack', extra={'group': config_name})
-                group_details = {'id': None, 'name': None, 'exists': False}
-            groups[config_name] = self.create_group(config_name, group_details)
+        data = await response.json()
+        response.close()
+        if not data.get('ok'):
+            logger.debug("Slack API error", extra={'user_id': id_, 'error': data.get("error", "unknown error")})
+            return {'id': id_, 'exists': False, 'full_name': None, 'username': None,
+                    'first_name': None, 'last_name': None, 'email': None, 'timezone': None}
 
-        return groups
-
-    async def _handle_chain_action(self, incident_, user_id, queue_):
-        """Handle chain-related button actions"""
-        await queue_.delete_by_id(incident_.uniq_id, delete_steps=True, delete_status=False)
-        if incident_.chain_enabled or incident_.status != 'resolved':
-            if incident_.assigned_user_id == user_id:
-                logger.info('Button pressed: user already assigned', extra={'incident': incident_.uuid, 'button': 'take_it', 'user_id': user_id})
-            else:
-                logger.info('Button pressed: assigning to user', extra={'incident': incident_.uuid, 'button': 'take_it', 'user_id': user_id})
-                self.fetch_and_assign_user_name(incident_, user_id)
-                self.track_async_task(asyncio.create_task(self.post_assignment_notification(incident_)))
-            incident_.chain_enabled = False
-        else:
-            logger.info('Button pressed', extra={'incident': incident_.uuid, 'button': 'release', 'user_id': user_id})
-            self.track_async_task(asyncio.create_task(self.post_unassignment_notification(incident_)))
-            incident_.release()
-
-    async def _handle_freeze_button(self, action, incident_, user_id, incidents, queue_, tz_str):
-        """Handle freeze button action"""
-        if incident_.frozen_until is not None:
-            await self._handle_unfreeze_action(incident_, user_id, queue_)
-            return
-        
-        if action.get('type') != 'select':
-            return
-        
-        selected_options = action.get('selected_options', [])
-        if not selected_options:
-            return
-        
-        freeze_option = selected_options[0]['value']
-        await self._handle_freeze_action(incident_, freeze_option, user_id, incidents, queue_, user_timezone=tz_str)
+        user_data = data.get('user', {})
+        profile = user_data.get('profile', {})
+        return {
+            'id': id_,
+            'exists': True,
+            'full_name': profile.get('real_name_normalized'),
+            'username': user_data.get('name'),
+            'email': profile.get('email'),
+            'timezone': user_data.get('tz'),
+        }
 
     async def buttons_handler(self, payload, incidents, queue_, route):
         env_config = get_environment_config()
@@ -185,22 +106,94 @@ class SlackApplication(Application):
             modified_message = slack_get_update_payload(incident_, body, header, status_icons, user_tz)
             return JSONResponse(modified_message, status_code=200)
 
-    def _get_incident_message_payload(self, incident, body, header, status_icons):
-        return get_incident_message_payload(incident, body, header, status_icons, None)
-
-    def _post_thread_payload(self, channel_id, id_, text):
-        return {'channel': channel_id, 'thread_ts': id_, 'text': text, 'unfurl_links': False, 'unfurl_media': False}
-
     def update_incident_payload(self, incident, body, header, status_icons, user_tz):
         return slack_get_update_payload(incident, body, header, status_icons, user_tz)
 
-    async def _update_incident_message(self, id_, payload):
-        response = await self.http.post(
-            f'{self.url}/api/chat.update',
-            headers=self.headers,
-            json=payload
+    ### private methods ###
+    async def _generate_groups(self, groups_dict):
+        """Generate groups by polling them from the API"""
+        if not groups_dict:
+            return {}
+        
+        logger.info('Creating groups')
+        
+        # Get all groups from API once
+        all_groups = await self.get_all_groups()
+
+        groups = {}
+        for config_name, group_info in groups_dict.items():
+            group_name = all_groups.get(group_info.id)
+            group_exists = group_name is not None
+            group_details = {'id': group_info.id, 'name': group_name, 'exists': group_exists}
+            if not group_exists:
+                logger.warning('Group not found in Slack', extra={'group': config_name})
+                group_details = {'id': None, 'name': None, 'exists': False}
+            groups[config_name] = self.create_group(config_name, group_details)
+
+        return groups
+
+    def _get_incident_message_payload(self, incident, body, header, status_icons):
+        return get_incident_message_payload(incident, body, header, status_icons, None)
+
+    async def _get_public_url(self, app_config: ApplicationConfig):
+        response = await self.http.get(
+            'https://slack.com/api/auth.test',
+            headers=self.headers
         )
+        json_ = await response.json()
         response.close()
+        return json_.get('url')
+
+    def _get_team_name(self, app_config: ApplicationConfig):
+        return None
+
+    def _get_url(self, app_config: ApplicationConfig):
+        return 'https://slack.com'
+
+    async def _handle_chain_action(self, incident_, user_id, queue_):
+        """Handle chain-related button actions"""
+        await queue_.delete_by_id(incident_.uniq_id, delete_steps=True, delete_status=False)
+        if incident_.chain_enabled or incident_.status != 'resolved':
+            if incident_.assigned_user_id == user_id:
+                logger.info('Button pressed: user already assigned', extra={'incident': incident_.uuid, 'button': 'take_it', 'user_id': user_id})
+            else:
+                logger.info('Button pressed: assigning to user', extra={'incident': incident_.uuid, 'button': 'take_it', 'user_id': user_id})
+                self.fetch_and_assign_user_name(incident_, user_id)
+                self.track_async_task(asyncio.create_task(self.post_assignment_notification(incident_)))
+            incident_.chain_enabled = False
+        else:
+            logger.info('Button pressed', extra={'incident': incident_.uuid, 'button': 'release', 'user_id': user_id})
+            self.track_async_task(asyncio.create_task(self.post_unassignment_notification(incident_)))
+            incident_.release()
+
+    async def _handle_freeze_button(self, action, incident_, user_id, incidents, queue_, tz_str):
+        """Handle freeze button action"""
+        if incident_.frozen_until is not None:
+            await self._handle_unfreeze_action(incident_, user_id, queue_)
+            return
+        
+        if action.get('type') != 'select':
+            return
+        
+        selected_options = action.get('selected_options', [])
+        if not selected_options:
+            return
+        
+        freeze_option = selected_options[0]['value']
+        await self._handle_freeze_action(incident_, freeze_option, user_id, incidents, queue_, user_timezone=tz_str)
+
+    def _initialize_specific_params(self):
+        self.post_message_url = f'{self.url}/api/chat.postMessage'
+        env_config = get_environment_config()
+        self.headers = {
+            'Content-Type': 'application/json',
+            'Authorization': f'Bearer {env_config.slack_bot_user_oauth_token}',
+        }
+        self.rate_limit = 10
+        self.thread_id_key = 'ts'
+
+    def _post_thread_payload(self, channel_id, id_, text):
+        return {'channel': channel_id, 'thread_ts': id_, 'text': text, 'unfurl_links': False, 'unfurl_media': False}
 
     def _markdown_links_to_native_format(self, text):
         def replace_link(match):
@@ -211,3 +204,11 @@ class SlackApplication(Application):
         pattern = r'\[([^\]]+)\]\(([^)]+)\)'
         converted_text = re.sub(pattern, replace_link, text, flags=re.DOTALL)
         return converted_text
+
+    async def _update_incident_message(self, id_, payload):
+        response = await self.http.post(
+            f'{self.url}/api/chat.update',
+            headers=self.headers,
+            json=payload
+        )
+        response.close()

@@ -72,6 +72,7 @@ class NullApplication(Application):
     async def close(self):
         pass
 
+    ### private methods ###
     def _initialize_specific_params(self):
         pass
 

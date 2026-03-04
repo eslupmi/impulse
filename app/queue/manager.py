@@ -31,20 +31,20 @@ class AsyncQueueManager:
         self._running = False
         self._task = None
 
-    async def handle_step(self, uniq_id: str, identifier: str):
-        await self.step_handler.handle(uniq_id, identifier)
-
-    async def handle_status_update(self, uniq_id: str):
-        await self.status_update_handler.handle(uniq_id)
-
-    async def handle_status_check(self, uniq_id: str):
-        await self.status_check_handler.handle(uniq_id)
+    async def handle_alert(self, alert_state: dict):
+        await self.alert_handler.handle(alert_state)
 
     async def handle_message_update(self, uniq_id: str):
         await self.message_update_handler.handle(uniq_id)
 
-    async def handle_alert(self, alert_state: dict):
-        await self.alert_handler.handle(alert_state)
+    async def handle_status_check(self, uniq_id: str):
+        await self.status_check_handler.handle(uniq_id)
+
+    async def handle_status_update(self, uniq_id: str):
+        await self.status_update_handler.handle(uniq_id)
+
+    async def handle_step(self, uniq_id: str, identifier: str):
+        await self.step_handler.handle(uniq_id, identifier)
 
     async def handle_unfreeze(self, uniq_id: str):
         await self.unfreeze_handler.handle(uniq_id)

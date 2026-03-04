@@ -57,6 +57,7 @@ class IncidentMigrator:
         
         logger.info(f'Successfully migrated {os.path.basename(file_path)}')
     
+    ### private methods ###
     def _migrate_data(self, incident_data: Dict, from_version: str, to_version: str) -> Dict:
         """
         Apply sequential migrations from from_version to to_version.

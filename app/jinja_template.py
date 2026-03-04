@@ -1,12 +1,9 @@
-from pathlib import Path
 from typing import Optional, TYPE_CHECKING
 
 from jinja2 import Template
 
-from app.incident.incident import Incident
-from app.incident.incidents import Incidents
-
 if TYPE_CHECKING:
+    from app.incident.incident import Incident
     from app.incident.incidents import Incidents
 
 
@@ -16,12 +13,7 @@ class JinjaTemplate:
     def __init__(self, template: str):
         self.template = template
 
-    @classmethod
-    def set_incidents(cls, incidents: Optional['Incidents']):
-        """Set incidents storage used to resolve parent/child incident objects in templates."""
-        cls._incidents = incidents
-
-    def form_message(self, alert_state, incident: Incident = None):
+    def form_message(self, alert_state, incident: Optional['Incident'] = None):
         """Render a message template with alert state and incident data."""
         template = Template(self.template)
         incident_data = incident.serialize() if incident else {}
@@ -36,3 +28,8 @@ class JinjaTemplate:
         """Generic render method for any template with provided kwargs."""
         template = Template(self.template)
         return template.render(**kwargs)
+
+    @classmethod
+    def set_incidents(cls, incidents: Optional['Incidents']):
+        """Set incidents storage used to resolve parent/child incident objects in templates."""
+        cls._incidents = incidents

@@ -9,18 +9,22 @@ class ChannelManager:
     
     _instance = None
     
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super(ChannelManager, cls).__new__(cls)
-            cls._instance._initialized = False
-        return cls._instance
-    
     def __init__(self):
         if self._initialized:
             return
         
         self._initialized = True
         self._channels: Dict[str, Dict] = {}
+    
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(ChannelManager, cls).__new__(cls)
+            cls._instance._initialized = False
+        return cls._instance
+    
+    def get_channel_name_by_id(self, channel_id: str) -> Optional[str]:
+        channel_data = self._channels.get(channel_id)
+        return channel_data['name'] if channel_data else None
     
     def initialize(self, channels_list: List[str], channels_config: Dict[str, Union[SlackChannel, MattermostChannel, TelegramChannel, Dict]], default_channel: str) -> Dict[str, Dict]:
         logger.debug('Checking all channels defined')
@@ -67,6 +71,7 @@ class ChannelManager:
         
         return channels_dict
 
+    ### private methods ###
     @staticmethod
     def _get_channel_id(channel_obj):
         """Extract channel ID from either a typed channel object or a dictionary"""
@@ -76,7 +81,3 @@ class ChannelManager:
             return channel_obj.get('id')
         else:
             return None
-    
-    def get_channel_name_by_id(self, channel_id: str) -> Optional[str]:
-        channel_data = self._channels.get(channel_id)
-        return channel_data['name'] if channel_data else None

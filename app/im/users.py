@@ -43,15 +43,15 @@ class UserManager:
         self._users: Dict[str, BaseUser] = {}  # user_id -> BaseUser
         self._config_names: Dict[str, str] = {}  # config_name -> user_id
     
+    def add_config_name(self, config_name: str, user_id: str) -> None:
+        """Add a config name mapping for an existing user."""
+        self._config_names[config_name] = user_id
+    
     def add_user(self, user_id: str, user: BaseUser, config_name: str = None) -> None:
         """Add a user by user_id, optionally with a config name mapping."""
         self._users[user_id] = user
         if config_name:
             self._config_names[config_name] = user_id
-    
-    def add_config_name(self, config_name: str, user_id: str) -> None:
-        """Add a config name mapping for an existing user."""
-        self._config_names[config_name] = user_id
 
     def get(self, name: str, default=None) -> Optional[BaseUser]:
         """Get user by config name or user_id. Returns default if not found."""
@@ -59,14 +59,6 @@ class UserManager:
         if isinstance(user, UndefinedUser):
             return default
         return user
-    
-    def _resolve_user(self, name: str) -> BaseUser:
-        """Resolve a name to a user, checking config names first, then user_ids."""
-        if name in self._config_names:
-            user_id = self._config_names[name]
-            user = self._users.get(user_id)
-            return user if user else UndefinedUser(name)
-        return UndefinedUser(name)
     
     def get_user_by_id(self, user_id: Union[int, str]) -> Optional[BaseUser]:
         """Get user by their messenger ID."""
@@ -80,3 +72,12 @@ class UserManager:
         if user and user.timezone:
             return user.timezone
         return None
+    
+    ### private methods ###
+    def _resolve_user(self, name: str) -> BaseUser:
+        """Resolve a name to a user, checking config names first, then user_ids."""
+        if name in self._config_names:
+            user_id = self._config_names[name]
+            user = self._users.get(user_id)
+            return user if user else UndefinedUser(name)
+        return UndefinedUser(name)

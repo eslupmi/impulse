@@ -67,15 +67,6 @@ def load_unified_config(exit_on_error: bool = True) -> UnifiedConfig:
             raise
 
 
-def validate_config_only():
-    try:
-        get_config()
-        logger.info("Configuration valid")
-    except Exception as e:
-        logger.error("Configuration validation failed", extra={'error': str(e)})
-        raise SystemExit(1)
-
-
 def reload_config() -> bool:
     global _config
     current_config = _config
@@ -97,3 +88,12 @@ def reload_config() -> bool:
         logger.warning("Config reload failed, keeping current config", extra={'error': str(e)})
         _config = current_config
         return False
+
+
+def validate_config_only():
+    try:
+        get_config()
+        logger.info("Configuration valid")
+    except Exception as e:
+        logger.error("Configuration validation failed", extra={'error': str(e)})
+        raise SystemExit(1)

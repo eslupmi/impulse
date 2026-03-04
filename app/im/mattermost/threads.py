@@ -5,18 +5,67 @@ from app.im.mattermost.config import buttons
 from app.time import format_freeze_expiration
 
 
-def _chain_attrs(chain_enabled, status):
-    if chain_enabled:
-        chain_text = buttons['chain']['takeit']['text']
-        chain_style = buttons['chain']['takeit']['style']
-    else:
-        if status != 'resolved':
-            chain_text = buttons['chain']['assigned']['text']
-            chain_style = buttons['chain']['assigned']['style']
-        else:
-            chain_text = buttons['chain']['release']['text']
-            chain_style = buttons['chain']['release']['style']
-    return chain_text, chain_style
+def mattermost_get_button_update_payload(incident, body, header, status_icons, user_timezone='UTC'):
+    actions = _build_mattermost_actions(incident, user_timezone)
+    display_status = 'frozen' if incident.is_frozen() else incident.status
+    
+    payload = {
+        'update': {
+            'message': f'{status_icons} {header}',
+            'props': {
+                'attachments': [
+                    {
+                        'fallback': 'test',
+                        'text': body,
+                        'color': status_colors.get(display_status),
+                        'actions': actions
+                    }
+                ]
+            }
+        }
+    }
+    return payload
+
+def mattermost_get_create_thread_payload(incident, body, header, status_icons):
+    actions = _build_mattermost_actions(incident)
+    display_status = 'frozen' if incident.frozen_by_inhibition else incident.status
+    
+    payload = {
+        'channel_id': incident.channel_id,
+        'message': f'{status_icons} {header}',
+        'props': {
+            'attachments': [
+                {
+                    'fallback': 'test',
+                    'text': body,
+                    'color': status_colors.get(display_status),
+                    'actions': actions
+                }
+            ]
+        }
+    }
+    return payload
+
+def mattermost_get_update_payload(incident, body, header, status_icons, tz_str):
+    actions = _build_mattermost_actions(incident, tz_str)
+    display_status = 'frozen' if (incident.frozen_until or incident.frozen_by_inhibition) else incident.status
+    
+    payload = {
+        'channel_id': incident.channel_id,
+        'id': incident.ts,
+        'message': f'{status_icons} {header}',
+        'props': {
+            'attachments': [
+                {
+                    'fallback': 'test',
+                    'text': body,
+                    'color': status_colors.get(display_status),
+                    'actions': actions
+                }
+            ]
+        }
+    }
+    return payload
 
 
 def _build_mattermost_actions(incident, user_timezone='UTC'):
@@ -102,66 +151,15 @@ def _build_mattermost_actions(incident, user_timezone='UTC'):
     
     return actions
 
-
-def mattermost_get_button_update_payload(incident, body, header, status_icons, user_timezone='UTC'):
-    actions = _build_mattermost_actions(incident, user_timezone)
-    display_status = 'frozen' if incident.is_frozen() else incident.status
-    
-    payload = {
-        'update': {
-            'message': f'{status_icons} {header}',
-            'props': {
-                'attachments': [
-                    {
-                        'fallback': 'test',
-                        'text': body,
-                        'color': status_colors.get(display_status),
-                        'actions': actions
-                    }
-                ]
-            }
-        }
-    }
-    return payload
-
-def mattermost_get_update_payload(incident, body, header, status_icons, tz_str):
-    actions = _build_mattermost_actions(incident, tz_str)
-    display_status = 'frozen' if (incident.frozen_until or incident.frozen_by_inhibition) else incident.status
-    
-    payload = {
-        'channel_id': incident.channel_id,
-        'id': incident.ts,
-        'message': f'{status_icons} {header}',
-        'props': {
-            'attachments': [
-                {
-                    'fallback': 'test',
-                    'text': body,
-                    'color': status_colors.get(display_status),
-                    'actions': actions
-                }
-            ]
-        }
-    }
-    return payload
-
-
-def mattermost_get_create_thread_payload(incident, body, header, status_icons):
-    actions = _build_mattermost_actions(incident)
-    display_status = 'frozen' if incident.frozen_by_inhibition else incident.status
-    
-    payload = {
-        'channel_id': incident.channel_id,
-        'message': f'{status_icons} {header}',
-        'props': {
-            'attachments': [
-                {
-                    'fallback': 'test',
-                    'text': body,
-                    'color': status_colors.get(display_status),
-                    'actions': actions
-                }
-            ]
-        }
-    }
-    return payload
+def _chain_attrs(chain_enabled, status):
+    if chain_enabled:
+        chain_text = buttons['chain']['takeit']['text']
+        chain_style = buttons['chain']['takeit']['style']
+    else:
+        if status != 'resolved':
+            chain_text = buttons['chain']['assigned']['text']
+            chain_style = buttons['chain']['assigned']['style']
+        else:
+            chain_text = buttons['chain']['release']['text']
+            chain_style = buttons['chain']['release']['style']
+    return chain_text, chain_style

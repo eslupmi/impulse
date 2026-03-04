@@ -120,6 +120,7 @@ class Incidents:
 
         return incidents
 
+    ### private methods ###
     @staticmethod
     def _migrate_file_if_needed(migrator: IncidentMigrator, file_path: str):
         """
