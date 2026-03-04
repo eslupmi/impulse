@@ -35,18 +35,13 @@ def setup_sighup_handler(fastapi_app: FastAPI, create_main_objects, cleanup_appl
 
 
 def setup_sighup_forwarder():
-    _handling = False
-
     def forward_sighup(signum, frame):
-        nonlocal _handling
-        if _handling:
-            return
-        _handling = True
+        signal.signal(signal.SIGHUP, signal.SIG_IGN)
         try:
-            os.killpg(os.getpgid(os.getpid()), signal.SIGHUP)
+            pgid = os.getpgrp()
+            os.killpg(pgid, signal.SIGHUP)
         finally:
-            _handling = False
+            signal.signal(signal.SIGHUP, forward_sighup)
 
     if hasattr(signal, 'SIGHUP'):
         signal.signal(signal.SIGHUP, forward_sighup)
-        logger.debug("SIGHUP forwarder registered")
