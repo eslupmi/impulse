@@ -1,12 +1,15 @@
 from typing import TYPE_CHECKING
+from pathlib import Path
 
 from app.config.validation import MessengerType
 from app.logging import logger
 from app.ui.authentication.manager import UserAuthenticationManager
+from app.ui.authentication.models.auth_user import AuthUser
 from app.ui.authentication.providers.mattermost_provider import MattermostAuthenticationProvider
 from app.ui.authentication.providers.slack_provider import SlackAuthenticationProvider
 from app.ui.authentication.providers.telegram_provider import TelegramAuthenticationProvider
 from app.ui.authentication.providers.unsupported_provider import UnsupportedAuthenticationProvider
+from app.ui.authentication.session_store import FileSessionStore
 
 if TYPE_CHECKING:
     from app.config.validation import ImpulseConfig
@@ -20,11 +23,30 @@ def build_auth_redirect_uri(config: 'ImpulseConfig', http_prefix: str = "") -> s
     return callback_path
 
 
+def _build_configured_users(config: 'ImpulseConfig') -> dict[str, AuthUser]:
+    users = getattr(config.messenger, "users", {}) or {}
+    messenger = config.messenger.type.value
+    configured_users: dict[str, AuthUser] = {}
+    for user_name, user in users.items():
+        user_id = str(getattr(user, "id", "")).strip()
+        if not user_id:
+            continue
+        configured_users[user_id] = AuthUser(
+            id=user_id,
+            username=getattr(user, "username", None) or user_name,
+            full_name=getattr(user, "name", None),
+            email=getattr(user, "email", None),
+            messenger=messenger,
+        )
+    return configured_users
+
+
 def build_auth_manager(config: 'ImpulseConfig', env_config: 'EnvironmentConfig', http_prefix: str = "") -> UserAuthenticationManager:
     messenger_type = config.messenger.type
     client_id = env_config.auth_client_id.strip()
     client_secret = env_config.auth_client_secret.strip()
     allowed_user_ids = None
+    configured_users = _build_configured_users(config)
 
     if env_config.auth_whitelist_enabled:
         users = getattr(config.messenger, "users", {}) or {}
@@ -67,9 +89,15 @@ def build_auth_manager(config: 'ImpulseConfig', env_config: 'EnvironmentConfig',
         else:
             logger.warning("Auth disabled for Telegram: TELEGRAM_BOT_TOKEN is required")
 
+    default_redirect_path = http_prefix or "/"
+
     return UserAuthenticationManager(
         provider=provider,
         redirect_uri=build_auth_redirect_uri(config=config, http_prefix=http_prefix),
         cookie_secure=env_config.auth_cookie_secure,
         allowed_user_ids=allowed_user_ids,
+        default_redirect_path=default_redirect_path,
+        allowed_redirect_prefixes={default_redirect_path},
+        configured_users=configured_users,
+        session_store=FileSessionStore(root_dir=str(Path(env_config.data_path) / "sessions")),
     )

@@ -1,3 +1,4 @@
+import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Mapping, Optional, Set
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
@@ -8,7 +9,9 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from app.logging import logger
 from app.ui.authentication.models.auth_session import AuthSession
 from app.ui.authentication.models.auth_state import AuthState
+from app.ui.authentication.models.auth_user import AuthUser
 from app.ui.authentication.providers.base_provider import AuthenticationProvider, AuthenticationProviderError
+from app.ui.authentication.session_store import FileSessionStore
 
 
 class UserAuthenticationManager:
@@ -18,9 +21,13 @@ class UserAuthenticationManager:
         redirect_uri: str,
         session_cookie_name: str = "impulse_auth_session",
         state_ttl_seconds: int = 300,
-        session_ttl_seconds: int = 8 * 60 * 60,
+        session_ttl_seconds: int = 90 * 24 * 60 * 60,
         cookie_secure: bool = False,
         allowed_user_ids: Optional[Set[str]] = None,
+        default_redirect_path: str = "/",
+        allowed_redirect_prefixes: Optional[Set[str]] = None,
+        configured_users: Optional[Dict[str, AuthUser]] = None,
+        session_store: Optional[FileSessionStore] = None,
     ):
         self.provider = provider
         self.redirect_uri = redirect_uri
@@ -29,9 +36,15 @@ class UserAuthenticationManager:
         self.session_ttl_seconds = session_ttl_seconds
         self.cookie_secure = cookie_secure
         self.allowed_user_ids = {str(user_id) for user_id in (allowed_user_ids or set())}
+        self.default_redirect_path = self._coerce_default_redirect_path(default_redirect_path)
+        self.allowed_redirect_prefixes = self._coerce_allowed_redirect_prefixes(
+            allowed_redirect_prefixes,
+            self.default_redirect_path,
+        )
+        self._configured_users = {str(user_id): user for user_id, user in (configured_users or {}).items()}
+        self.session_store = session_store or FileSessionStore(root_dir="sessions")
 
         self._states: Dict[str, AuthState] = {}
-        self._sessions: Dict[str, AuthSession] = {}
 
     def start_auth(self, next_path: Optional[str] = None) -> RedirectResponse:
         safe_next_path = self._normalize_next_path(next_path)
@@ -87,17 +100,22 @@ class UserAuthenticationManager:
         if self.allowed_user_ids and str(user.id) not in self.allowed_user_ids:
             return self._build_error_redirect(auth_state.next_path, "not_allowed")
 
-        session_id = uuid4().hex
+        session_id = secrets.token_hex(32)
         now = self._now()
         expires_at = now + timedelta(seconds=self.session_ttl_seconds)
-        self._sessions[session_id] = AuthSession(
+        session = AuthSession(
             session_id=session_id,
-            user=user,
+            user_id=str(user.id),
             created_at=now,
             expires_at=expires_at,
         )
+        try:
+            self.session_store.save_session(session)
+        except Exception as exc:
+            logger.warning("Failed to save auth session", extra={"error": str(exc)})
+            return self._build_error_redirect(auth_state.next_path, "auth_failed")
 
-        response = RedirectResponse(url=auth_state.next_path, status_code=302)
+        response = self._build_local_redirect(auth_state.next_path)
         response.set_cookie(
             key=self.session_cookie_name,
             value=session_id,
@@ -113,11 +131,11 @@ class UserAuthenticationManager:
         session = self._get_session(session_id)
         if not session:
             return {"authenticated": False}
-        return {"authenticated": True, "user": session.user.model_dump()}
+        return {"authenticated": True, "user": self._resolve_user(session.user_id).model_dump()}
 
     def logout(self, session_id: Optional[str] = None) -> Response:
         if session_id:
-            self._sessions.pop(session_id, None)
+            self.session_store.delete_session(session_id)
 
         response = Response(status_code=204)
         response.delete_cookie(key=self.session_cookie_name, path="/")
@@ -160,12 +178,7 @@ class UserAuthenticationManager:
     def _get_session(self, session_id: Optional[str]) -> Optional[AuthSession]:
         if not session_id:
             return None
-
-        self._cleanup_sessions()
-        session = self._sessions.get(session_id)
-        if not session:
-            return None
-        return session
+        return self.session_store.load_session(session_id)
 
     def _cleanup_states(self) -> None:
         now = self._now()
@@ -174,43 +187,80 @@ class UserAuthenticationManager:
         for state in expired_states:
             self._states.pop(state, None)
 
-    def _cleanup_sessions(self) -> None:
-        now = self._now()
-        expired_sessions = [
-            session_id
-            for session_id, value in self._sessions.items()
-            if value.expires_at <= now
-        ]
-        for session_id in expired_sessions:
-            self._sessions.pop(session_id, None)
+    def _resolve_user(self, user_id: str) -> AuthUser:
+        configured = self._configured_users.get(str(user_id))
+        if configured:
+            return configured
+        return AuthUser(id=str(user_id), messenger=self.provider.name)
 
     @staticmethod
     def _now() -> datetime:
         return datetime.now(timezone.utc)
 
     def _normalize_next_path(self, next_path: Optional[str]) -> str:
-        if self._is_safe_local_path(next_path):
-            return next_path
-        return "/"
+        canonical = self._canonicalize_local_path(next_path)
+        if not canonical:
+            return self.default_redirect_path
+        if not self._is_allowed_redirect_path(canonical):
+            return self.default_redirect_path
+        return canonical
 
     @staticmethod
-    def _is_safe_local_path(path: Optional[str]) -> bool:
+    def _canonicalize_local_path(path: Optional[str]) -> Optional[str]:
         if not path or not path.startswith("/"):
-            return False
+            return None
         if path.startswith("//"):
-            return False
+            return None
         if "://" in path:
-            return False
+            return None
+        if any(char in path for char in ("\r", "\n", "\\")):
+            return None
 
         split = urlsplit(path)
         if split.scheme or split.netloc:
-            return False
-        return True
+            return None
+        normalized_path = split.path or "/"
+        if not normalized_path.startswith("/"):
+            return None
+        return urlunsplit(("", "", normalized_path, split.query, split.fragment))
 
     def _build_error_redirect(self, next_path: str, error_code: str) -> RedirectResponse:
         safe_path = self._normalize_next_path(next_path)
         location = self._append_query_param(safe_path, "auth_error", error_code)
-        return RedirectResponse(url=location, status_code=302)
+        return self._build_local_redirect(location)
+
+    def _build_local_redirect(self, next_path: str) -> RedirectResponse:
+        safe_path = self._normalize_next_path(next_path)
+        return RedirectResponse(url=safe_path, status_code=302)
+
+    def _is_allowed_redirect_path(self, path: str) -> bool:
+        path_only = urlsplit(path).path or "/"
+        for prefix in self.allowed_redirect_prefixes:
+            if prefix == "/":
+                return True
+            if path_only == prefix or path_only.startswith(f"{prefix}/"):
+                return True
+        return False
+
+    @staticmethod
+    def _coerce_default_redirect_path(path: str) -> str:
+        canonical = UserAuthenticationManager._canonicalize_local_path(path)
+        return canonical or "/"
+
+    @staticmethod
+    def _coerce_allowed_redirect_prefixes(
+        prefixes: Optional[Set[str]],
+        default_redirect_path: str,
+    ) -> Set[str]:
+        values = prefixes or {urlsplit(default_redirect_path).path or "/"}
+        normalized_prefixes: Set[str] = set()
+        for prefix in values:
+            canonical = UserAuthenticationManager._canonicalize_local_path(prefix)
+            if not canonical:
+                continue
+            path_only = (urlsplit(canonical).path or "/").rstrip("/") or "/"
+            normalized_prefixes.add(path_only)
+        return normalized_prefixes or {"/"}
 
     @staticmethod
     def _append_query_param(path: str, key: str, value: str) -> str:
