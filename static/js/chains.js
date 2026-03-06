@@ -1033,7 +1033,7 @@ async function initializeCalendars() {
                 minute: '2-digit',
                 hour12: false
             },
-            slotDuration: '00:15:00',
+            slotDuration: '00:30:00',
             slotLabelInterval: '01:00:00',
             editable: true,
             selectable: true,
