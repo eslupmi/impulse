@@ -514,6 +514,10 @@
     padding: 10px;
 }
 
+#calendar .fc-col-header-cell.fc-day-today .fc-col-header-cell-cushion {
+    color: var(--brand-secondary);
+}
+
 .fc .fc-daygrid-day-frame {
     min-height: 100px;
 }
