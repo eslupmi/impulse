@@ -120,25 +120,62 @@
     align-items: center;
 }
 
+#calendar-nav > div:last-child {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+
 .calendar-nav-btn {
-    background: var(--background-secondary) !important;
-    border: 1px solid var(--border-primary) !important;
+    background: transparent !important;
+    border: none !important;
     color: var(--text-primary) !important;
     font-weight: 500;
     padding: 3px 6px !important;
     cursor: pointer;
-    font-size: 11px !important;
+    font-size: 0 !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.calendar-nav-btn svg {
+    display: none;
+}
+
+#calendar-prev::before {
+    content: '';
+    display: inline-block;
+    width: 7px;
+    height: 12px;
+    background-color: #EBF7FC;
+    mask: url('data:image/svg+xml;utf8,<svg width="7" height="12" viewBox="0 0 7 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5.83301 0.833008L0.833008 5.83301L5.83301 10.833" stroke="black" stroke-width="1.66667" stroke-linecap="round" stroke-linejoin="round"/></svg>') no-repeat center;
+    -webkit-mask: url('data:image/svg+xml;utf8,<svg width="7" height="12" viewBox="0 0 7 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5.83301 0.833008L0.833008 5.83301L5.83301 10.833" stroke="black" stroke-width="1.66667" stroke-linecap="round" stroke-linejoin="round"/></svg>') no-repeat center;
+    mask-size: contain;
+    -webkit-mask-size: contain;
+}
+
+#calendar-next::before {
+    content: '';
+    display: inline-block;
+    width: 7px;
+    height: 12px;
+    background-color: #EBF7FC;
+    mask: url('data:image/svg+xml;utf8,<svg width="7" height="12" viewBox="0 0 7 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M0.833008 10.833L5.83301 5.83301L0.833008 0.833008" stroke="black" stroke-width="1.66667" stroke-linecap="round" stroke-linejoin="round"/></svg>') no-repeat center;
+    -webkit-mask: url('data:image/svg+xml;utf8,<svg width="7" height="12" viewBox="0 0 7 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M0.833008 10.833L5.83301 5.83301L0.833008 0.833008" stroke="black" stroke-width="1.66667" stroke-linecap="round" stroke-linejoin="round"/></svg>') no-repeat center;
+    mask-size: contain;
+    -webkit-mask-size: contain;
 }
 
 .calendar-nav-btn:hover {
-    background: var(--brand-primary-light) !important;
+    background: transparent !important;
 }
 
 .calendar-nav-btn:not(:disabled).calendar-nav-btn-active,
 .calendar-nav-btn:not(:disabled):active {
-    background: var(--brand-secondary) !important;
-    border-color: var(--brand-secondary) !important;
-    color: var(--text-inverse) !important;
+    background: transparent !important;
+    border: none !important;
 }
 
 #calendar {
@@ -190,6 +227,16 @@
     scrollbar-color: var(--neutral-500) var(--background-secondary);
 }
 
+#calendar .fc-scroller::-webkit-scrollbar-button {
+    display: none;
+    height: 0;
+    width: 0;
+}
+
+#calendar .fc-scroller {
+    scrollbar-width: thin;
+}
+
 #calendar .fc-scrollgrid-section-header .fc-scroller {
     overflow: hidden !important;
 }
@@ -235,16 +282,67 @@
 #month-calendar .fc-button {
     padding: 3px 6px !important;
     font-size: 11px !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: auto;
+    width: auto;
+}
+
+#month-calendar .fc-button svg {
+    display: block;
+}
+
+#month-calendar .fc-button-group {
+    display: flex;
+    gap: 4px;
+}
+
+#month-calendar .fc-prev-button,
+#month-calendar .fc-next-button {
+    font-size: 0 !important;
+    position: relative;
+}
+
+#month-calendar .fc-prev-button::before {
+    content: '';
+    display: inline-block;
+    width: 7px;
+    height: 12px;
+    background-color: #EBF7FC;
+    mask: url('data:image/svg+xml;utf8,<svg width="7" height="12" viewBox="0 0 7 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5.83301 0.833008L0.833008 5.83301L5.83301 10.833" stroke="black" stroke-width="1.66667" stroke-linecap="round" stroke-linejoin="round"/></svg>') no-repeat center;
+    -webkit-mask: url('data:image/svg+xml;utf8,<svg width="7" height="12" viewBox="0 0 7 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5.83301 0.833008L0.833008 5.83301L5.83301 10.833" stroke="black" stroke-width="1.66667" stroke-linecap="round" stroke-linejoin="round"/></svg>') no-repeat center;
+    mask-size: contain;
+    -webkit-mask-size: contain;
+}
+
+#month-calendar .fc-next-button::before {
+    content: '';
+    display: inline-block;
+    width: 7px;
+    height: 12px;
+    background-color: #EBF7FC;
+    mask: url('data:image/svg+xml;utf8,<svg width="7" height="12" viewBox="0 0 7 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M0.833008 10.833L5.83301 5.83301L0.833008 0.833008" stroke="black" stroke-width="1.66667" stroke-linecap="round" stroke-linejoin="round"/></svg>') no-repeat center;
+    -webkit-mask: url('data:image/svg+xml;utf8,<svg width="7" height="12" viewBox="0 0 7 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M0.833008 10.833L5.83301 5.83301L0.833008 0.833008" stroke="black" stroke-width="1.66667" stroke-linecap="round" stroke-linejoin="round"/></svg>') no-repeat center;
+    mask-size: contain;
+    -webkit-mask-size: contain;
 }
 
 #month-calendar .fc-daygrid-day-frame {
     min-height: 16px;
     padding: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 #month-calendar .fc-daygrid-day-number {
     padding: 2px;
     font-size: 11px;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 #month-calendar .fc-col-header-cell-cushion {
@@ -275,6 +373,7 @@
 
 #month-calendar .fc-col-header-cell {
     border: none !important;
+    background: transparent !important;
 }
 
 #month-calendar .fc-scrollgrid {
@@ -305,6 +404,12 @@
 
 #month-calendar .day-number {
     font-weight: 500;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
 }
 
 #month-calendar .fc-day-other {
@@ -363,22 +468,21 @@
 }
 
 .fc .fc-button {
-    background: var(--background-secondary) !important;
-    border: 1px solid var(--border-primary) !important;
+    background: transparent !important;
+    border: none !important;
     color: var(--text-primary) !important;
     font-weight: 500;
     padding: 6px 12px;
 }
 
 .fc .fc-button:hover {
-    background: var(--brand-primary-light) !important;
+    background: transparent !important;
 }
 
 .fc .fc-button-primary:not(:disabled).fc-button-active,
 .fc .fc-button-primary:not(:disabled):active {
-    background: var(--brand-secondary) !important;
-    border-color: var(--brand-secondary) !important;
-    color: var(--text-inverse) !important;
+    background: transparent !important;
+    border: none !important;
 }
 
 .fc .fc-daygrid-day {
@@ -391,8 +495,12 @@
 }
 
 .fc .fc-col-header-cell {
-    background: var(--background-secondary);
+    background: transparent;
     border-color: var(--border-primary);
+}
+
+#calendar .fc-col-header-cell {
+    background: transparent !important;
 }
 
 .fc .fc-col-header-cell-cushion {
@@ -518,7 +626,7 @@
 }
 
 .fc .fc-timegrid-slot {
-    height: 10px;
+    height: 1.5em !important;
 }
 
 .fc .fc-timegrid-slot-minor {
@@ -526,6 +634,7 @@
 }
 
 .fc .fc-timegrid-slot-label-cushion {
+    padding: 0; 
     color: var(--text-secondary);
 }
 
