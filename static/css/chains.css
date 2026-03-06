@@ -869,3 +869,9 @@
 .overlap-notification.hide {
     opacity: 0;
 }
+
+.fc .fc-scrollgrid-section-sticky > * {
+    background: transparent !important;
+    position: sticky;
+    z-index: 3;
+}
