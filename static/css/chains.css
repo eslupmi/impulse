@@ -489,6 +489,10 @@
     background: var(--background-primary);
 }
 
+#calendar .fc-day-today {
+    background: var(--background-primary) !important;
+}
+
 .fc .fc-daygrid-day-number {
     color: var(--text-primary);
     padding: 8px;
