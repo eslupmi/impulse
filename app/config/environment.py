@@ -43,7 +43,7 @@ class EnvironmentConfig(BaseModel):
         description="OAuth client secret for messenger auth"
     )
     auth_cookie_secure: bool = Field(
-        default_factory=lambda: _env_bool('AUTH_COOKIE_SECURE', False),
+        default_factory=lambda: _env_bool('AUTH_COOKIE_SECURE', True),
         description="Set auth cookie with Secure attribute"
     )
     auth_whitelist_enabled: bool = Field(
