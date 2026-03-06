@@ -467,7 +467,7 @@
 }
 
 @media (max-width: 768px) {
-    .auth-controls-wrapper {
+    .status-bar-right {
         bottom: 30px;
         right: 20px;
     }

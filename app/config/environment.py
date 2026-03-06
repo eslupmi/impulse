@@ -47,7 +47,7 @@ class EnvironmentConfig(BaseModel):
         description="Set auth cookie with Secure attribute"
     )
     auth_whitelist_enabled: bool = Field(
-        default_factory=lambda: _env_bool('AUTH_WHITELIST_ENABLED', False),
+        default_factory=lambda: _env_bool('AUTH_WHITELIST_ENABLED', True),
         description="Allow only users configured in impulse.yml messenger.users"
     )
     
