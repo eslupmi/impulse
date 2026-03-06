@@ -12,11 +12,11 @@ function getElements() {
 }
 
 function getNextPath() {
-    return `${window.location.pathname}${window.location.search}`;
+    return `${globalThis.location.pathname}${globalThis.location.search}`;
 }
 
 function setUiState(authenticated, userData) {
-    const {wrapper, username, loginBtn} = getElements();
+    const {wrapper, username} = getElements();
     if (!wrapper) {
         return;
     }
@@ -57,7 +57,7 @@ async function refreshAuthState() {
 async function handleLogin() {
     const baseUrl = getBaseUrl();
     const loginUrl = `${baseUrl}/auth/login?next=${encodeURIComponent(getNextPath())}`;
-    window.location.assign(loginUrl);
+    globalThis.location.assign(loginUrl);
 }
 
 async function handleLogout() {

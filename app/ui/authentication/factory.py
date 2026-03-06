@@ -41,46 +41,46 @@ def _build_configured_users(config: 'ImpulseConfig') -> dict[str, AuthUser]:
     return configured_users
 
 
-def build_auth_manager(config: 'ImpulseConfig', env_config: 'EnvironmentConfig', http_prefix: str = "") -> UserAuthenticationManager:
-    messenger_type = config.messenger.type
-    client_id = env_config.auth_client_id.strip()
-    client_secret = env_config.auth_client_secret.strip()
-    allowed_user_ids = None
-    configured_users = _build_configured_users(config)
-
-    if env_config.auth_whitelist_enabled:
-        users = getattr(config.messenger, "users", {}) or {}
-        allowed_user_ids = {str(user.id) for user in users.values() if hasattr(user, "id")}
-        logger.info(
-            "Auth whitelist enabled",
-            extra={"allowed_users_count": len(allowed_user_ids), "messenger_type": messenger_type.value},
-        )
-
-    provider = UnsupportedAuthenticationProvider()
-
+def _build_provider(messenger_type: MessengerType, client_id: str, client_secret: str, config: 'ImpulseConfig'):
     if messenger_type == MessengerType.SLACK:
         if client_id and client_secret:
-            provider = SlackAuthenticationProvider(client_id=client_id, client_secret=client_secret)
-        else:
-            logger.warning("Auth disabled for Slack: AUTH_CLIENT_ID and AUTH_CLIENT_SECRET are required")
+            return SlackAuthenticationProvider(client_id=client_id, client_secret=client_secret)
+        logger.warning("Auth disabled for Slack: AUTH_CLIENT_ID and AUTH_CLIENT_SECRET are required")
     elif messenger_type == MessengerType.MATTERMOST:
         mattermost_url = getattr(config.messenger, "address", "").strip()
         if client_id and client_secret and mattermost_url:
-            provider = MattermostAuthenticationProvider(
+            return MattermostAuthenticationProvider(
                 base_url=mattermost_url,
                 client_id=client_id,
                 client_secret=client_secret,
             )
-        else:
-            logger.warning(
-                "Auth disabled for Mattermost: AUTH_CLIENT_ID, AUTH_CLIENT_SECRET and messenger.address are required"
-            )
+        logger.warning(
+            "Auth disabled for Mattermost: AUTH_CLIENT_ID, AUTH_CLIENT_SECRET and messenger.address are required"
+        )
     elif messenger_type == MessengerType.TELEGRAM:
         if client_id and client_secret:
-            provider = TelegramAuthenticationProvider(client_id=client_id, client_secret=client_secret)
-        else:
-            logger.warning("Auth disabled for Telegram: AUTH_CLIENT_ID and AUTH_CLIENT_SECRET are required")
+            return TelegramAuthenticationProvider(client_id=client_id, client_secret=client_secret)
+        logger.warning("Auth disabled for Telegram: AUTH_CLIENT_ID and AUTH_CLIENT_SECRET are required")
+    return UnsupportedAuthenticationProvider()
 
+
+def _build_allowed_user_ids(config: 'ImpulseConfig', messenger_type: MessengerType) -> set[str] | None:
+    users = getattr(config.messenger, "users", {}) or {}
+    allowed_user_ids = {str(user.id) for user in users.values() if hasattr(user, "id")}
+    logger.info(
+        "Auth whitelist enabled",
+        extra={"allowed_users_count": len(allowed_user_ids), "messenger_type": messenger_type.value},
+    )
+    return allowed_user_ids
+
+
+def build_auth_manager(config: 'ImpulseConfig', env_config: 'EnvironmentConfig', http_prefix: str = "") -> UserAuthenticationManager:
+    messenger_type = config.messenger.type
+    client_id = env_config.auth_client_id.strip()
+    client_secret = env_config.auth_client_secret.strip()
+    configured_users = _build_configured_users(config)
+    allowed_user_ids = _build_allowed_user_ids(config, messenger_type) if env_config.auth_whitelist_enabled else None
+    provider = _build_provider(messenger_type, client_id, client_secret, config)
     default_redirect_path = http_prefix or "/"
 
     return UserAuthenticationManager(

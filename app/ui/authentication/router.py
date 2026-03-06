@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Annotated, Optional
 
 from fastapi import APIRouter, Query, Request
 
@@ -9,7 +9,7 @@ def create_auth_router(manager: UserAuthenticationManager) -> APIRouter:
     router = APIRouter()
 
     @router.get("/auth/login")
-    async def auth_login(next_path: Optional[str] = Query(None, alias="next")):
+    async def auth_login(next_path: Annotated[Optional[str], Query(alias="next")] = None):
         return manager.start_auth(next_path=next_path)
 
     @router.get("/auth/callback")
