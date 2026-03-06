@@ -202,6 +202,10 @@
     min-height: 300px;
 }
 
+#month-calendar * {
+    border: none !important;
+}
+
 #calendar .fc-scroller::-webkit-scrollbar {
     width: 8px;
     height: 8px;
