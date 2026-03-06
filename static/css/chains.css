@@ -423,7 +423,7 @@
 }
 
 #month-calendar .fc-day-today {
-    background: var(--brand-primary-light) !important;
+    background: transparent !important;
 }
 
 #month-calendar .fc-day-today .day-number {
