@@ -78,8 +78,6 @@
             <div class="chains-modal-header">
                 <h2>Managed Chains</h2>
                 <div class="chains-header-controls">
-                    <select id="timezone-select" class="timezone-select">
-                    </select>
                     <button class="chains-modal-close">&times;</button>
                 </div>
             </div>
@@ -88,10 +86,14 @@
                     <div id="calendar-container">
                         <div id="calendar-wrapper">
                             <div id="calendar-nav">
-                                <div id="week-number-display"></div>
-                                <div>
-                                    <button id="calendar-prev" class="calendar-nav-btn"></button>
-                                    <button id="calendar-next" class="calendar-nav-btn"></button>
+                                <select id="timezone-select" class="timezone-select">
+                                </select>
+                                <div class="calendar-nav-right">
+                                    <div id="week-number-display"></div>
+                                    <div>
+                                        <button id="calendar-prev" class="calendar-nav-btn"></button>
+                                        <button id="calendar-next" class="calendar-nav-btn"></button>
+                                    </div>
                                 </div>
                             </div>
                             <div id="calendar"></div>

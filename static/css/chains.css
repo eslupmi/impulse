@@ -62,7 +62,7 @@
     font-size: 14px;
     font-family: inherit;
     cursor: pointer;
-    margin-right: calc(12px + 1.2em);
+    margin-right: 12px;
 }
 
 .timezone-select:focus {
@@ -116,11 +116,17 @@
 #calendar-nav {
     display: flex;
     gap: 8px;
-    justify-content: space-between;
     align-items: center;
 }
 
-#calendar-nav > div:last-child {
+.calendar-nav-right {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-left: auto;
+}
+
+#calendar-nav > .calendar-nav-right > div:last-child {
     display: flex;
     gap: 4px;
     align-items: center;
@@ -271,8 +277,6 @@
     font-size: 14px;
     font-weight: 600;
     color: var(--text-primary);
-    margin-left: auto;
-    margin-right: 12px;
 }
 
 
