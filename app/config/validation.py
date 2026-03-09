@@ -218,6 +218,7 @@ class TaskManagementConfig(BaseModel):
 class BaseApplicationConfig(BaseModel):
     """Base messenger configuration with common fields"""
     type: MessengerType = Field(..., description="Application type")
+    impulse_address: Optional[str] = Field(None, description="Impulse callback address")
     admin_users: List[str] = Field(..., description="Admin users")
     user_groups: Optional[Dict[str, UserGroup]] = Field({}, description="User groups")
     chains: Optional[Dict[str, Any]] = Field({}, description="Chain definitions")
@@ -292,6 +293,16 @@ class BaseApplicationConfig(BaseModel):
         return validated_chains
 
 
+class AddressRequiredApplicationConfig(BaseApplicationConfig):
+    """Base for messenger types that require impulse_address"""
+
+    @model_validator(mode='after')
+    def validate_impulse_address_required(self):
+        if not self.impulse_address:
+            raise ValueError(f"messenger.impulse_address is required for {self.type.value}")
+        return self
+
+
 class SlackApplicationConfig(BaseApplicationConfig):
     """Slack messenger configuration"""
     type: Literal[MessengerType.SLACK] = Field(MessengerType.SLACK, description="Application type")
@@ -300,7 +311,7 @@ class SlackApplicationConfig(BaseApplicationConfig):
     users: Dict[str, SlackUser] = Field(..., description="User definitions")
 
 
-class MattermostApplicationConfig(BaseApplicationConfig):
+class MattermostApplicationConfig(AddressRequiredApplicationConfig):
     """Mattermost messenger configuration"""
     type: Literal[MessengerType.MATTERMOST] = Field(MessengerType.MATTERMOST, description="Application type")
     channels: Dict[str, MattermostChannel] = Field(..., description="Channel definitions")
@@ -308,15 +319,13 @@ class MattermostApplicationConfig(BaseApplicationConfig):
     users: Dict[str, MattermostUser] = Field(..., description="User definitions")
     address: str = Field(..., description="Mattermost server address")
     team: str = Field(..., description="Mattermost team name")
-    impulse_address: str = Field(..., description="Impulse callback address")
 
 
-class TelegramApplicationConfig(BaseApplicationConfig):
+class TelegramApplicationConfig(AddressRequiredApplicationConfig):
     """Telegram messenger configuration"""
     type: Literal[MessengerType.TELEGRAM] = Field(MessengerType.TELEGRAM, description="Application type")
     channels: Dict[str, TelegramChannel] = Field(..., description="Channel definitions")
     users: Dict[str, TelegramUser] = Field(..., description="User definitions")
-    impulse_address: str = Field(..., description="Impulse callback address")
     address: Optional[str] = Field(None, description="Telegram API address (optional)")
 
 
@@ -326,6 +335,7 @@ class NullApplicationConfig(BaseApplicationConfig):
     channels: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Channel definitions (not used)")
     users: Optional[Dict[str, Any]] = Field(default_factory=dict, description="User definitions (not used)")
     admin_users: List[str] = Field(default_factory=list, description="Admin users (not used)")
+    impulse_address: Optional[str] = Field(None, description="Impulse callback address (not used)")
 
     @field_validator('admin_users')
     @classmethod

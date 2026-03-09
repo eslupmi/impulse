@@ -491,11 +491,19 @@ strong {
     color: var(--offline-status-indicator);
 }
 
-.history-toggle-wrapper {
+.status-bar-right {
     position: fixed;
-    bottom: 7px;
-    right: 48px;
+    bottom: 4px;
+    right: 10px;
     z-index: 1000;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.history-toggle-wrapper {
+    display: flex;
+    align-items: center;
 }
 
 .history-toggle-btn {
@@ -544,11 +552,99 @@ strong {
     transition: all 0.3s ease;
 }
 
+.auth-controls-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    margin-left: 20px;
+}
+
+.auth-controls-wrapper.logged-in {
+    gap: 0;
+    height: 22px;
+    background: var(--neutral-100);
+    border-radius: 6px;
+    padding: 0 10px;
+}
+
+.auth-username {
+    display: none;
+    color: var(--text-primary);
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    font-weight: 400;
+    white-space: nowrap;
+    line-height: 20px;
+    user-select: none;
+}
+
+.auth-separator {
+    display: none;
+    color: var(--text-primary);
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 20px;
+    padding: 0 8px;
+    user-select: none;
+    opacity: 0.4;
+}
+
+.auth-login-btn {
+    cursor: pointer;
+    width: 57px;
+    height: 20px;
+    border: none;
+    border-radius: 4px;
+    padding: 0;
+    background: var(--brand-secondary);
+    color: #fff;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    font-weight: 400;
+    font-style: normal;
+    line-height: 20px;
+    letter-spacing: 0%;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.auth-login-btn:hover {
+    background: var(--brand-secondary-dark);
+}
+
+.auth-logout-btn {
+    display: none;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    color: var(--text-primary);
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 20px;
+    padding: 0;
+    transition: color 0.2s ease;
+    white-space: nowrap;
+}
+
+.auth-logout-btn:hover {
+    opacity: 0.7;
+}
+
+.auth-controls-wrapper.logged-in .auth-username,
+.auth-controls-wrapper.logged-in .auth-separator,
+.auth-controls-wrapper.logged-in .auth-logout-btn {
+    display: inline;
+}
+
+.auth-controls-wrapper.logged-in .auth-login-btn {
+    display: none;
+}
+
 .theme-toggle-wrapper {
-    position: fixed;
-    bottom: 7px;
-    right: 20px;
-    z-index: 1000;
+    display: flex;
+    align-items: center;
 }
 
 .theme-toggle-btn {
