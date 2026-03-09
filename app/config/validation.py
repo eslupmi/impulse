@@ -293,6 +293,16 @@ class BaseApplicationConfig(BaseModel):
         return validated_chains
 
 
+class AddressRequiredApplicationConfig(BaseApplicationConfig):
+    """Base for messenger types that require impulse_address"""
+
+    @model_validator(mode='after')
+    def validate_impulse_address_required(self):
+        if not self.impulse_address:
+            raise ValueError(f"messenger.impulse_address is required for {self.type.value}")
+        return self
+
+
 class SlackApplicationConfig(BaseApplicationConfig):
     """Slack messenger configuration"""
     type: Literal[MessengerType.SLACK] = Field(MessengerType.SLACK, description="Application type")
@@ -301,7 +311,7 @@ class SlackApplicationConfig(BaseApplicationConfig):
     users: Dict[str, SlackUser] = Field(..., description="User definitions")
 
 
-class MattermostApplicationConfig(BaseApplicationConfig):
+class MattermostApplicationConfig(AddressRequiredApplicationConfig):
     """Mattermost messenger configuration"""
     type: Literal[MessengerType.MATTERMOST] = Field(MessengerType.MATTERMOST, description="Application type")
     channels: Dict[str, MattermostChannel] = Field(..., description="Channel definitions")
@@ -311,7 +321,7 @@ class MattermostApplicationConfig(BaseApplicationConfig):
     team: str = Field(..., description="Mattermost team name")
 
 
-class TelegramApplicationConfig(BaseApplicationConfig):
+class TelegramApplicationConfig(AddressRequiredApplicationConfig):
     """Telegram messenger configuration"""
     type: Literal[MessengerType.TELEGRAM] = Field(MessengerType.TELEGRAM, description="Application type")
     channels: Dict[str, TelegramChannel] = Field(..., description="Channel definitions")
