@@ -42,6 +42,10 @@ class EnvironmentConfig(BaseModel):
         default_factory=lambda: os.getenv('AUTH_CLIENT_SECRET', ''),
         description="OAuth client secret for messenger auth"
     )
+    auth_redirect_url: str = Field(
+        default_factory=lambda: os.getenv('AUTH_REDIRECT_URL', ''),
+        description="Full redirect URL for OAuth callback (e.g., 'https://domain.com/auth/callback')"
+    )
     auth_cookie_secure: bool = Field(
         default_factory=lambda: _env_bool('AUTH_COOKIE_SECURE', True),
         description="Set auth cookie with Secure attribute"

@@ -15,11 +15,10 @@ if TYPE_CHECKING:
     from app.config.validation import ImpulseConfig
     from app.config.environment import EnvironmentConfig
 
-def build_auth_redirect_uri(config: 'ImpulseConfig', http_prefix: str = "") -> str:
+def build_auth_redirect_uri(env_config: 'EnvironmentConfig', http_prefix: str = "") -> str:
+    if env_config.auth_redirect_url:
+        return env_config.auth_redirect_url
     callback_path = f"{http_prefix}/auth/callback" if http_prefix else "/auth/callback"
-    impulse_address = getattr(config.messenger, "impulse_address", None)
-    if impulse_address:
-        return f"{impulse_address.rstrip('/')}{callback_path}"
     return callback_path
 
 
@@ -85,7 +84,7 @@ def build_auth_manager(config: 'ImpulseConfig', env_config: 'EnvironmentConfig',
 
     return UserAuthenticationManager(
         provider=provider,
-        redirect_uri=build_auth_redirect_uri(config=config, http_prefix=http_prefix),
+        redirect_uri=build_auth_redirect_uri(env_config=env_config, http_prefix=http_prefix),
         cookie_secure=env_config.auth_cookie_secure,
         allowed_user_ids=allowed_user_ids,
         default_redirect_path=default_redirect_path,

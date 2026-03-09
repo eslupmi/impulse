@@ -218,7 +218,7 @@ class TaskManagementConfig(BaseModel):
 class BaseApplicationConfig(BaseModel):
     """Base messenger configuration with common fields"""
     type: MessengerType = Field(..., description="Application type")
-    impulse_address: str = Field(..., description="Impulse callback address")
+    impulse_address: Optional[str] = Field(None, description="Impulse callback address")
     admin_users: List[str] = Field(..., description="Admin users")
     user_groups: Optional[Dict[str, UserGroup]] = Field({}, description="User groups")
     chains: Optional[Dict[str, Any]] = Field({}, description="Chain definitions")
