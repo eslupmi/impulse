@@ -4,8 +4,11 @@ import {loadFiltersFromURL, setupTableFiltering, updateZoomIcons} from "./filter
 import {setupSortingListener} from "./sorters.js";
 import {updateRelativeTimeSpans, updateRelativeTimeFieldsInResponsiveData} from "./formatters.js";
 import {ThemeManager} from "./theme.js";
+import {initAuthControls} from "./auth.js";
 import {ChainsManager} from "./chains.js";
 
+
+// **Initialize Everything**
 updateOnlineStatus(false);
 
 await initializeTable();
@@ -16,6 +19,7 @@ setupSortingListener();
 setupWebSocketEvents();
 initHistoryToggle();
 ThemeManager.init();
+await initAuthControls();
 ChainsManager.init();
 
 // Update zoom icons after table initialization and filters are loaded

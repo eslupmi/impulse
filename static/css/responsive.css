@@ -465,3 +465,16 @@
     mask-image: linear-gradient(to right, black 286px, transparent 100%);
     -webkit-mask-image: linear-gradient(to right, black 286px, transparent 100%);
 }
+
+@media (max-width: 768px) {
+    .status-bar-right {
+        bottom: 30px;
+        right: 20px;
+    }
+
+    .auth-username {
+        max-width: 100px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+}

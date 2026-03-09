@@ -875,7 +875,8 @@ def create_slack_config_data(
         channels: Optional[Dict[str, Dict[str, str]]] = None,
         users: Optional[Dict[str, Dict[str, str]]] = None,
         chains: Optional[Dict[str, Any]] = None,
-        ui_columns: Optional[List[Dict[str, str]]] = None
+        ui_columns: Optional[List[Dict[str, str]]] = None,
+        impulse_address: str = DEFAULT_IMPULSE_ADDRESS,
 ) -> Dict[str, Any]:
     """
     Create a standardized Slack configuration data for testing.
@@ -908,7 +909,8 @@ def create_slack_config_data(
             "channels": channels,
             "users": users,
             "template_files": {},
-            "chains": chains
+            "chains": chains,
+            "impulse_address": impulse_address,
         },
         "route": {
             "channel": "default",

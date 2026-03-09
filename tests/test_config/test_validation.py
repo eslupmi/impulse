@@ -51,7 +51,8 @@ class TestSlackApplicationConfig:
             admin_users=["admin1", "admin2"],
             channels={"default": {"id": "C123456789"}},
             users={"admin1": {"id": "U123456"}},
-            template_files={}
+            template_files={},
+            impulse_address="https://impulse.example.com",
         )
 
         assert config.type == MessengerType.SLACK
@@ -75,7 +76,8 @@ class TestSlackApplicationConfig:
             admin_users=["admin1"],
             channels={"default": {"id": "C123456789"}},
             users={"admin1": {"id": "U123456"}},
-            template_files=template_files
+            template_files=template_files,
+            impulse_address="https://impulse.example.com",
         )
 
         assert config.template_files.header == "slack_header.j2"
