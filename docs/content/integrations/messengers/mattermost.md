@@ -4,12 +4,12 @@
 
 1. Go to **menu (3×3 dots)** > **System Console** > **Integrations** > **OAuth 2.0 Applications**, click **Add OAuth 2.0 Application**:
     - set parameters:
-        - set "Is Trusted" to **Yes** [](check.md)
+        - set "Is Trusted" to **No** [](check.md)
         - set "Is Public Client" to **No**
         - set "Display Name" to **IMPulse OAuth**
         - set "Description" to **-**
         - set "Homepage" to the same as [messenger.impulse_address](../../config_file.md#messengerimpulse_address)
-        - set "Callback URLs" to the same as [messenger.impulse_address](../../config_file.md#messengerimpulse_address) plus "/auth/callback" (e.g. `https://impulse.bot/auth/callback`)
+        - set "Callback URLs" to the IMPulse URL (e.g. `https://<yourdomain>/auth/callback`)
     - press **Save**
     - use "Client ID" as ENV `AUTH_CLIENT_ID`
     - use "Client Secret" as ENV `AUTH_CLIENT_SECRET`

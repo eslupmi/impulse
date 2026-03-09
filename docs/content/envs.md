@@ -6,6 +6,7 @@ Environment variables are created in `.env` file for python installation or in `
 |-|-|-|-|
 | AUTH_CLIENT_ID | OAuth Client ID | | for [user authentication](../content/guides/user_authentication.md) |
 | AUTH_CLIENT_SECRET | OAuth Client Secret | | for [user authentication](../content/guides/user_authentication.md) |
+| AUTH_REDIRECT_URL | OAuth Redirect URL | | for [user authentication](../content/guides/user_authentication.md) |
 | CHAIN_PROVIDER_DAYS_TO_SYNC | How many days will be synced<br/>(for [cloud chain](config_file.md#cloud-chains)) | 7 | - |
 | CHAIN_PROVIDER_MAX_EVENTS | Maximum events which will be synced<br/>(for [cloud chain](config_file.md#cloud-chains)) | 10 | - |
 | CHAIN_PROVIDER_SYNC_INTERVAL_SECONDS | Sync interval, seconds<br/>(for [cloud chain](config_file.md#cloud-chains)) | 60 | - |

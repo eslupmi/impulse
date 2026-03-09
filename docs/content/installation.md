@@ -7,17 +7,20 @@
     - [Create](integrations/messengers/slack.md/#create-a-bot) an IMPulse bot
     - [Configure](integrations/messengers/slack.md/#configure-the-bot) the bot
     - [Configure](integrations/messengers/slack.md/#configure-channels) channels you use for incidents
+    - [Configure](integrations/messengers/slack.md/#authentication) UI authentication
 
 === "Mattermost"
 
     - [Create](integrations/messengers/mattermost.md/#create-a-bot) an IMPulse bot
     - [Configure](integrations/messengers/mattermost.md/#configure-the-bot) the bot
     - [Configure](integrations/messengers/mattermost.md/#configure-channels) channels you use for incidents
+    - [Configure](integrations/messengers/mattermost.md/#authentication) UI authentication
 
 === "Telegram"
     
     - [Create](integrations/messengers/telegram.md#create-a-bot) an IMPulse bot
     - [Configure](integrations/messengers/telegram.md#configure-groups) groups you use for incidents
+    - [Configure](integrations/messengers/telegram.md#authentication) UI authentication
 
 ## 2. Configure source of alerts
 
