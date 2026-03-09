@@ -599,7 +599,6 @@ strong {
     display: flex;
     align-items: center;
     gap: 0;
-    margin-left: 20px;
 }
 
 .auth-controls-wrapper.logged-in {
