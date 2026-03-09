@@ -9,7 +9,7 @@
         - set "Display Name" to **IMPulse OAuth**
         - set "Description" to **-**
         - set "Homepage" to the same as [messenger.impulse_address](../../config_file.md#messengerimpulse_address)
-        - set "Callback URLs" to the IMPulse URL (e.g. `https://<yourdomain>/auth/callback`)
+        - set "Callback URLs" to the IMPulse URL (e.g. `https://&lt;yourdomain&gt;/auth/callback`)
     - press **Save**
     - use "Client ID" as ENV `AUTH_CLIENT_ID`
     - use "Client Secret" as ENV `AUTH_CLIENT_SECRET`

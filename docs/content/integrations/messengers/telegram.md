@@ -12,7 +12,7 @@ In Telegram, although the configuration uses the term `channels`, they are actua
 3. In the **Web Login** section:
     - press **Switch to OpenID Connect Login** button, **Confirm**
     - press **Add an Allowed URL** button, **Add a Redirect URI**
-    - enter `https://<your_domain_name>/auth/callback` as a Redirect URI
+    - enter "https://&lt;your_domain_name&gt;/auth/callback" as a Redirect URI
     - use "Client ID" as ENV `AUTH_CLIENT_ID`
     - use "Client Secret" as ENV `AUTH_CLIENT_SECRET`
 
