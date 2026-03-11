@@ -1,6 +1,6 @@
 import secrets
 from datetime import datetime, timedelta, timezone
-from typing import Dict, Mapping, Optional, Set
+from typing import TYPE_CHECKING, Any, Dict, Mapping, Optional, Set
 from urllib.parse import urlsplit, urlunsplit
 from uuid import uuid4
 
@@ -12,6 +12,9 @@ from app.ui.authentication.models.auth_state import AuthState
 from app.ui.authentication.models.auth_user import AuthUser
 from app.ui.authentication.providers.base_provider import AuthenticationProvider, AuthenticationProviderError
 from app.ui.authentication.session_store import FileSessionStore
+
+if TYPE_CHECKING:
+    from app.im.user_store import UserStore
 
 
 class UserAuthenticationManager:
@@ -28,6 +31,7 @@ class UserAuthenticationManager:
         allowed_redirect_prefixes: Optional[Set[str]] = None,
         configured_users: Optional[Dict[str, AuthUser]] = None,
         session_store: Optional[FileSessionStore] = None,
+        user_store: Optional['UserStore'] = None,
     ):
         self.provider = provider
         self.redirect_uri = redirect_uri
@@ -43,6 +47,7 @@ class UserAuthenticationManager:
         )
         self._configured_users = {str(user_id): user for user_id, user in (configured_users or {}).items()}
         self.session_store = session_store or FileSessionStore(root_dir="sessions")
+        self._user_store = user_store
 
         self._states: Dict[str, AuthState] = {}
 
@@ -131,7 +136,9 @@ class UserAuthenticationManager:
         session = self._get_session(session_id)
         if not session:
             return {"authenticated": False}
-        return {"authenticated": True, "user": self._resolve_user(session.user_id).model_dump()}
+        auth_user = self._resolve_user(session.user_id)
+        user_data = self._enrich_from_user_store(auth_user)
+        return {"authenticated": True, "user": user_data}
 
     def logout(self, session_id: Optional[str] = None) -> Response:
         if session_id:
@@ -162,6 +169,18 @@ class UserAuthenticationManager:
         if configured:
             return configured
         return AuthUser(id=str(user_id), messenger=self.provider.name)
+
+    def _enrich_from_user_store(self, auth_user: AuthUser) -> Dict[str, Any]:
+        data = auth_user.model_dump()
+        if not self._user_store:
+            return data
+        stored = self._user_store.get(auth_user.id)
+        if not stored:
+            return data
+        for field in ("username", "full_name", "email", "timezone"):
+            if not data.get(field) and stored.get(field):
+                data[field] = stored[field]
+        return data
 
     @staticmethod
     def _now() -> datetime:
