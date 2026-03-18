@@ -892,6 +892,13 @@ function setSelectedChain(chainName) {
     localStorage.setItem('managed_chains_selected_chain', chainName);
 }
 
+function showCalendarContainer(show) {
+    const el = document.getElementById('calendar-container');
+    if (el) {
+        el.classList.toggle('chains-calendar-hidden', !show);
+    }
+}
+
 function updateChainSelector() {
     const selector = document.getElementById('chain-select');
     if (!selector) return;
@@ -1477,39 +1484,47 @@ export const ChainsManager = {
             }
             
             setTimeout(async () => {
-                console.log('Initializing calendars...');
                 await loadChainsConfig();
                 updateChainSelector();
                 updateTimezoneSelector();
-                await initializeCalendars();
-                console.log('After initializeCalendars, initialized =', initialized);
-                
-                setTimeout(() => {
-                    if (calendar) {
-                        calendar.updateSize();
-                    }
-                    if (monthCalendar) {
-                        monthCalendar.updateSize();
-                    }
-                }, 100);
+                if (getSelectedChain()) {
+                    showCalendarContainer(true);
+                    await initializeCalendars();
+                    setTimeout(() => {
+                        if (calendar) calendar.updateSize();
+                        if (monthCalendar) monthCalendar.updateSize();
+                    }, 100);
+                } else {
+                    showCalendarContainer(false);
+                }
             }, 200);
         });
 
         const chainSelect = document.getElementById('chain-select');
         if (chainSelect) {
             chainSelect.addEventListener('change', async (e) => {
-                setSelectedChain(e.target.value);
-                const chains = await loadChains();
-                const expandedChains = getExpandedChains(chains);
-                if (calendar) {
+                const value = e.target.value;
+                setSelectedChain(value);
+                if (!value) {
+                    showCalendarContainer(false);
+                    return;
+                }
+                showCalendarContainer(true);
+                if (!initialized || !calendar) {
+                    await initializeCalendars();
+                    setTimeout(() => {
+                        if (calendar) calendar.updateSize();
+                        if (monthCalendar) monthCalendar.updateSize();
+                    }, 100);
+                } else {
+                    const chains = await loadChains();
+                    const expandedChains = getExpandedChains(chains);
                     calendar.removeAllEventSources();
                     calendar.addEventSource(expandedChains);
-                }
-                if (monthCalendar) {
                     monthCalendar.removeAllEventSources();
                     monthCalendar.addEventSource(expandedChains);
+                    updateEventStyles();
                 }
-                updateEventStyles();
             });
         }
         

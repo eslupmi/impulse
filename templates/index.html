@@ -84,18 +84,18 @@
             <div class="chains-modal-header">
                 <h2>Managed Chains</h2>
                 <div class="chains-header-controls">
+                    <select id="chain-select" class="chain-select" title="Chain to display">
+                    </select>
+                    <select id="timezone-select" class="timezone-select">
+                    </select>
                     <button class="chains-modal-close">&times;</button>
                 </div>
             </div>
             <div class="chains-modal-body">
                 <div id="chains-wrapper">
-                    <div id="calendar-container">
+                    <div id="calendar-container" class="chains-calendar-hidden">
                         <div id="calendar-wrapper">
                             <div id="calendar-nav">
-                                <select id="chain-select" class="chain-select" title="Chain to display">
-                                </select>
-                                <select id="timezone-select" class="timezone-select">
-                                </select>
                                 <div class="calendar-nav-right">
                                     <div id="week-number-display"></div>
                                     <div>
