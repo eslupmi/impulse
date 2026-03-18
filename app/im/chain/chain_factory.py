@@ -16,6 +16,8 @@ class ChainFactory:
         Create and return a Chain, ScheduleChain or GoogleCalendarChain instance 
         based on the configuration.
         """
+        if isinstance(config, dict) and config.get('type') == 'managed':
+            return None
         if hasattr(config, 'type'):
             if config.type == ChainType.CLOUD and config.provider == 'google':
                 try:

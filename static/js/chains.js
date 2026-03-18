@@ -229,7 +229,7 @@ async function loadChains() {
 
     return new Promise((resolve) => {
         chainsPromiseResolve = resolve;
-        socket.send(JSON.stringify({event: "request_managed_chains"}));
+        socket.send(JSON.stringify({event: "request_managed_chains", chain_name: getSelectedChain()}));
 
         setTimeout(() => {
             if (chainsPromiseResolve === resolve) {
@@ -245,6 +245,10 @@ async function loadChains() {
 }
 
 async function saveChains(chains) {
+    if (!getSelectedChain()) {
+        showError('Select a chain first');
+        return;
+    }
     cachedChains = chains;
     const socket = getSocket();
     if (!socket || socket.readyState !== WebSocket.OPEN) {
@@ -254,7 +258,7 @@ async function saveChains(chains) {
 
     return new Promise((resolve) => {
         savePromiseResolve = resolve;
-        socket.send(JSON.stringify({event: "save_managed_chains", data: chains}));
+        socket.send(JSON.stringify({event: "save_managed_chains", chain_name: getSelectedChain(), data: chains}));
 
         setTimeout(() => {
             if (savePromiseResolve === resolve) {
@@ -1213,6 +1217,11 @@ async function initializeCalendars() {
             events: expandedChains,
 
             select: function(info) {
+                if (!getSelectedChain()) {
+                    showError('Select a chain first');
+                    calendar.unselect();
+                    return;
+                }
                 const overlapCount = countOverlappingEvents(info.start, info.end);
                 if (overlapCount >= 2) {
                     showOverlapError();
@@ -1488,8 +1497,19 @@ export const ChainsManager = {
 
         const chainSelect = document.getElementById('chain-select');
         if (chainSelect) {
-            chainSelect.addEventListener('change', (e) => {
+            chainSelect.addEventListener('change', async (e) => {
                 setSelectedChain(e.target.value);
+                const chains = await loadChains();
+                const expandedChains = getExpandedChains(chains);
+                if (calendar) {
+                    calendar.removeAllEventSources();
+                    calendar.addEventSource(expandedChains);
+                }
+                if (monthCalendar) {
+                    monthCalendar.removeAllEventSources();
+                    monthCalendar.addEventSource(expandedChains);
+                }
+                updateEventStyles();
             });
         }
         

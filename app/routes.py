@@ -104,6 +104,24 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None) -> APIRouter:
     async def get_ui_config():
         return get_all_ui_config()
 
+    @router.get("/chains_config")
+    async def get_chains_config():
+        config = get_config()
+        app = config.app
+        m = config.messenger
+        chains = m.chains if m.chains else {}
+        managed_chains = [n for n, c in chains.items() if isinstance(c, dict) and c.get("type") == "managed"]
+        return {
+            "users": list(m.users.keys()) if getattr(m, "users", None) else [],
+            "user_groups": list(m.user_groups.keys()) if getattr(m, "user_groups", None) else [],
+            "groups": list(m.groups.keys()) if getattr(m, "groups", None) else [],
+            "chains": list(chains.keys()),
+            "webhooks": list(app.webhooks.keys()) if getattr(app, "webhooks", None) else [],
+            "week_start": app.general.week_start if app.general else "Mon",
+            "timezone": app.general.timezone if app.general else "UTC",
+            "managed_chains": managed_chains,
+        }
+
     @router.post("/-/reload")
     async def post_reload(request: Request):
         if is_standby_mode(request.app.state):
@@ -151,11 +169,13 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None) -> APIRouter:
                     elif event_type == "ping":
                         await incident_ws.handle_ping(websocket)
                     elif event_type == "request_managed_chains":
-                        chains = managed_chains_store.load_chains()
+                        chain_name = message.get("chain_name", "")
+                        chains = managed_chains_store.load_chains(chain_name)
                         await websocket.send_text(json.dumps({"event": "managed_chains_data", "data": chains}))
                     elif event_type == "save_managed_chains":
+                        chain_name = message.get("chain_name", "")
                         chains = message.get("data", [])
-                        success = managed_chains_store.save_chains(chains)
+                        success = managed_chains_store.save_chains(chain_name, chains)
                         await websocket.send_text(json.dumps({"event": "managed_chains_saved", "success": success}))
 
                 except json.JSONDecodeError:

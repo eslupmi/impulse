@@ -9,9 +9,13 @@ from dateutil.rrule import rrulestr
 from app.logging import logger
 
 
+def _chain_name_to_filename(chain_name: str) -> str:
+    safe = "".join(c if c.isalnum() or c in "-_" else "_" for c in (chain_name or ""))
+    return (safe.strip("_") or "chain") + ".ics"
+
+
 class ManagedChainsStore:
     MANAGED_CHAINS_DIR = "data/managed_chains"
-    CALENDAR_FILENAME = "managed_chains.ics"
 
     def __init__(self):
         self._ensure_directory_exists()
@@ -21,16 +25,18 @@ class ManagedChainsStore:
             os.makedirs(self.MANAGED_CHAINS_DIR)
             logger.info("Created managed_chains directory", extra={"path": self.MANAGED_CHAINS_DIR})
 
-    @property
-    def _calendar_path(self) -> str:
-        return os.path.join(self.MANAGED_CHAINS_DIR, self.CALENDAR_FILENAME)
+    def _calendar_path(self, chain_name: str) -> str:
+        return os.path.join(self.MANAGED_CHAINS_DIR, _chain_name_to_filename(chain_name))
 
-    def load_chains(self) -> List[Dict[str, Any]]:
-        if not os.path.exists(self._calendar_path):
+    def load_chains(self, chain_name: str) -> List[Dict[str, Any]]:
+        if not chain_name:
+            return []
+        path = self._calendar_path(chain_name)
+        if not os.path.exists(path):
             return []
 
         try:
-            with open(self._calendar_path, "rb") as f:
+            with open(path, "rb") as f:
                 cal = Calendar.from_ical(f.read())
 
             chains = []
@@ -40,13 +46,16 @@ class ManagedChainsStore:
                     if chain:
                         chains.append(chain)
 
-            logger.debug("Loaded managed chains", extra={"count": len(chains)})
+            logger.debug("Loaded managed chains", extra={"chain": chain_name, "count": len(chains)})
             return chains
         except Exception as e:
-            logger.error("Failed to load managed chains", extra={"error": str(e)})
+            logger.error("Failed to load managed chains", extra={"error": str(e), "chain": chain_name})
             return []
 
-    def save_chains(self, chains: List[Dict[str, Any]]) -> bool:
+    def save_chains(self, chain_name: str, chains: List[Dict[str, Any]]) -> bool:
+        if not chain_name:
+            return False
+        path = self._calendar_path(chain_name)
         try:
             cal = Calendar()
             cal.add("prodid", "-//IMPulse Managed Chains//impulse.calendar//EN")
@@ -59,13 +68,13 @@ class ManagedChainsStore:
                 if event:
                     cal.add_component(event)
 
-            with open(self._calendar_path, "wb") as f:
+            with open(path, "wb") as f:
                 f.write(cal.to_ical())
 
-            logger.debug("Saved managed chains", extra={"count": len(chains)})
+            logger.debug("Saved managed chains", extra={"chain": chain_name, "count": len(chains)})
             return True
         except Exception as e:
-            logger.error("Failed to save managed chains", extra={"error": str(e)})
+            logger.error("Failed to save managed chains", extra={"error": str(e), "chain": chain_name})
             return False
 
     def _chain_to_ical_event(self, chain: Dict[str, Any]) -> Optional[Event]:
