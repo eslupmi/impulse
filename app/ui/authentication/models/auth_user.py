@@ -8,4 +8,5 @@ class AuthUser(BaseModel):
     username: Optional[str] = None
     full_name: Optional[str] = None
     email: Optional[str] = None
+    timezone: Optional[str] = None
     messenger: str

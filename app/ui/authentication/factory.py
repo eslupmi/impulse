@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING
 from pathlib import Path
 
 from app.config.validation import MessengerType
+from app.im.user_store import get_user_store
 from app.logging import logger
 from app.ui.authentication.manager import UserAuthenticationManager
 from app.ui.authentication.models.auth_user import AuthUser
@@ -91,4 +92,5 @@ def build_auth_manager(config: 'ImpulseConfig', env_config: 'EnvironmentConfig',
         allowed_redirect_prefixes={default_redirect_path},
         configured_users=configured_users,
         session_store=FileSessionStore(root_dir=str(Path(env_config.data_path) / "sessions")),
+        user_store=get_user_store(),
     )
