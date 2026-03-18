@@ -12,6 +12,7 @@ from app.metrics import generate_metrics_response
 from app.middleware import is_standby_mode, service_unavailable_response, STANDBY_MODE_MESSAGE
 from app.ui.table_config import get_all_ui_config
 from app.ui.websocket import incident_ws
+from app.im.chain.managed_chains_store import managed_chains_store
 
 
 def create_router(http_prefix: str, fastapi_app: FastAPI = None) -> APIRouter:
@@ -149,6 +150,13 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None) -> APIRouter:
                         await incident_ws.handle_request_data(websocket, websocket.app.state.incidents, show_full_table)
                     elif event_type == "ping":
                         await incident_ws.handle_ping(websocket)
+                    elif event_type == "request_managed_chains":
+                        chains = managed_chains_store.load_chains()
+                        await websocket.send_text(json.dumps({"event": "managed_chains_data", "data": chains}))
+                    elif event_type == "save_managed_chains":
+                        chains = message.get("data", [])
+                        success = managed_chains_store.save_chains(chains)
+                        await websocket.send_text(json.dumps({"event": "managed_chains_saved", "success": success}))
 
                 except json.JSONDecodeError:
                     logger.warning("Invalid WebSocket JSON", extra={'data': data})

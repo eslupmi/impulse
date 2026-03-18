@@ -164,6 +164,18 @@ function setupWebSocketEvents() {
                     handlePong();
                     break;
 
+                case "managed_chains_data":
+                    if (typeof window.handleManagedChainsData === 'function') {
+                        window.handleManagedChainsData(data);
+                    }
+                    break;
+
+                case "managed_chains_saved":
+                    if (typeof window.handleManagedChainsSaved === 'function') {
+                        window.handleManagedChainsSaved(message.success);
+                    }
+                    break;
+
                 default:
                     console.log('Unknown WebSocket event:', eventType);
             }
@@ -214,4 +226,8 @@ function initHistoryToggle() {
     }
 }
 
-export {setupWebSocketEvents, updateOnlineStatus, initHistoryToggle};
+function getSocket() {
+    return socket;
+}
+
+export {setupWebSocketEvents, updateOnlineStatus, initHistoryToggle, getSocket};

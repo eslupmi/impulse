@@ -1,9 +1,13 @@
+import {getSocket} from "./websocket.js";
+
 let calendar = null;
 let monthCalendar = null;
 let currentChainId = null;
 let chainsConfig = { users: [], user_groups: [], groups: [], chains: [], webhooks: [], week_start: "Mon", timezone: "UTC" };
 let initialized = false;
 let cachedChains = [];
+let chainsPromiseResolve = null;
+let savePromiseResolve = null;
 
 function getHttpPrefix() {
     const pathParts = window.location.pathname.split('/').filter(p => p);
@@ -198,37 +202,67 @@ function recalculatePriorities(chains) {
     });
 }
 
+window.handleManagedChainsData = function(data) {
+    if (chainsPromiseResolve) {
+        cachedChains = data;
+        cachedChains = recalculatePriorities(cachedChains);
+        chainsPromiseResolve(cachedChains);
+        chainsPromiseResolve = null;
+    }
+};
+
+window.handleManagedChainsSaved = function(success) {
+    if (savePromiseResolve) {
+        savePromiseResolve(success);
+        savePromiseResolve = null;
+    }
+};
+
 async function loadChains() {
-    try {
-        const response = await fetch(`${getHttpPrefix()}/managed_chains`);
-        if (response.ok) {
-            cachedChains = await response.json();
-            cachedChains = recalculatePriorities(cachedChains);
-            return cachedChains;
+    const socket = getSocket();
+    if (!socket || socket.readyState !== WebSocket.OPEN) {
+        if (cachedChains.length > 0) {
+            return recalculatePriorities(cachedChains);
         }
-    } catch (error) {
-        console.error('Failed to load managed chains:', error);
+        return cachedChains;
     }
-    if (cachedChains.length > 0) {
-        return recalculatePriorities(cachedChains);
-    }
-    return cachedChains;
+
+    return new Promise((resolve) => {
+        chainsPromiseResolve = resolve;
+        socket.send(JSON.stringify({event: "request_managed_chains"}));
+
+        setTimeout(() => {
+            if (chainsPromiseResolve === resolve) {
+                chainsPromiseResolve = null;
+                if (cachedChains.length > 0) {
+                    resolve(recalculatePriorities(cachedChains));
+                } else {
+                    resolve(cachedChains);
+                }
+            }
+        }, 5000);
+    });
 }
 
 async function saveChains(chains) {
     cachedChains = chains;
-    try {
-        const response = await fetch(`${getHttpPrefix()}/managed_chains`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(chains)
-        });
-        if (!response.ok) {
-            console.error('Failed to save managed chains');
-        }
-    } catch (error) {
-        console.error('Failed to save managed chains:', error);
+    const socket = getSocket();
+    if (!socket || socket.readyState !== WebSocket.OPEN) {
+        console.error('WebSocket not connected, cannot save managed chains');
+        return;
     }
+
+    return new Promise((resolve) => {
+        savePromiseResolve = resolve;
+        socket.send(JSON.stringify({event: "save_managed_chains", data: chains}));
+
+        setTimeout(() => {
+            if (savePromiseResolve === resolve) {
+                savePromiseResolve = null;
+                resolve(false);
+            }
+        }, 5000);
+    });
 }
 
 function generateId() {
@@ -846,6 +880,42 @@ function getEffectiveTimezone() {
     return 'UTC';
 }
 
+function getSelectedChain() {
+    return localStorage.getItem('managed_chains_selected_chain') || '';
+}
+
+function setSelectedChain(chainName) {
+    localStorage.setItem('managed_chains_selected_chain', chainName);
+}
+
+function updateChainSelector() {
+    const selector = document.getElementById('chain-select');
+    if (!selector) return;
+
+    selector.innerHTML = '';
+
+    const managedChains = chainsConfig.managed_chains || [];
+    const currentChain = getSelectedChain();
+
+    const emptyOption = document.createElement('option');
+    emptyOption.value = '';
+    emptyOption.textContent = 'Select chain';
+    if (!currentChain) {
+        emptyOption.selected = true;
+    }
+    selector.appendChild(emptyOption);
+
+    managedChains.forEach(chainName => {
+        const option = document.createElement('option');
+        option.value = chainName;
+        option.textContent = chainName;
+        if (currentChain === chainName) {
+            option.selected = true;
+        }
+        selector.appendChild(option);
+    });
+}
+
 function updateTimezoneSelector() {
     const selector = document.getElementById('timezone-select');
     if (!selector) return;
@@ -1400,6 +1470,7 @@ export const ChainsManager = {
             setTimeout(async () => {
                 console.log('Initializing calendars...');
                 await loadChainsConfig();
+                updateChainSelector();
                 updateTimezoneSelector();
                 await initializeCalendars();
                 console.log('After initializeCalendars, initialized =', initialized);
@@ -1414,6 +1485,13 @@ export const ChainsManager = {
                 }, 100);
             }, 200);
         });
+
+        const chainSelect = document.getElementById('chain-select');
+        if (chainSelect) {
+            chainSelect.addEventListener('change', (e) => {
+                setSelectedChain(e.target.value);
+            });
+        }
         
         const timezoneSelect = document.getElementById('timezone-select');
         if (timezoneSelect) {

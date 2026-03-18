@@ -53,6 +53,22 @@
     gap: 8px;
 }
 
+.chain-select {
+    padding: 6px 10px;
+    border: 1px solid var(--border-primary);
+    border-radius: 6px;
+    background: var(--background-secondary);
+    color: var(--text-primary);
+    font-size: 14px;
+    font-family: inherit;
+    cursor: pointer;
+}
+
+.chain-select:focus {
+    outline: none;
+    border-color: var(--brand-secondary);
+}
+
 .timezone-select {
     padding: 6px 10px;
     border: 1px solid var(--border-primary);
@@ -675,7 +691,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 2000;
+    z-index: 2100;
     opacity: 0;
     visibility: hidden;
 }
