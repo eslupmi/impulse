@@ -110,7 +110,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None) -> APIRouter:
             return messenger.users.get_assignable_users()
         return []
 
-    @router.post("/assign")
+    @router.post("/assign", responses={400: {"description": "Missing uniq_id or user_id"}, 404: {"description": "Incident not found"}})
     async def post_assign(request: Request):
         body = await request.json()
         uniq_id = body.get("uniq_id")

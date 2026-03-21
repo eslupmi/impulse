@@ -76,13 +76,13 @@ function userSelectorFormatter(cell) {
                 body: JSON.stringify({uniq_id: uniqId, user_id: selectedUserId}),
             });
 
-            if (!response.ok) {
-                console.error("Assignment failed:", response.status);
-                select.value = currentUserId || "";
-            } else {
+            if (response.ok) {
                 select.classList.add("has-value");
                 const emptyOpt = select.querySelector('option[value=""]');
                 if (emptyOpt) emptyOpt.remove();
+            } else {
+                console.error("Assignment failed:", response.status);
+                select.value = currentUserId || "";
             }
         } catch (error) {
             console.error("Assignment request failed:", error);
