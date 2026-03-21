@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Union, Optional, Dict
+from typing import Union, Optional, Dict, List
 
 
 class BaseUser(ABC):
@@ -66,6 +66,20 @@ class UserManager:
         if str_id in self._users:
             return self._users[str_id]
         return None
+
+    def get_assignable_users(self) -> List[Dict]:
+        """Return list of users available for assignment in the UI."""
+        config_id_to_name = {uid: name for name, uid in self._config_names.items()}
+        result = []
+        for user_id, user in self._users.items():
+            if not user.exists:
+                continue
+            result.append({
+                'user_id': str(user_id),
+                'full_name': user.full_name or user.name or str(user_id),
+                'config_name': config_id_to_name.get(user_id, ''),
+            })
+        return result
 
     def get_user_timezone(self, user_id: str) -> Optional[str]:
         user = self.get_user_by_id(user_id)

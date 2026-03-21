@@ -315,6 +315,8 @@ class Incident:
             'indicator': display_status,
             '_alerts_count': len(self.payload.get('alerts', [])),
             '_is_frozen': self.is_frozen(),
+            '_assigned_user_id': self.assigned_user_id or '',
+            '_assigned_fullname': self.assigned_fullname or '',
             '_responsive_data': {
                 'group_labels': group_labels,
                 'common_labels': filter_dict_keys(common_labels, group_labels),

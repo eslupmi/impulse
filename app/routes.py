@@ -103,6 +103,30 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None) -> APIRouter:
     async def get_ui_config():
         return get_all_ui_config()
 
+    @router.get("/assignment_users")
+    async def get_assignment_users(request: Request):
+        messenger = request.app.state.messenger
+        if messenger and messenger.users:
+            return messenger.users.get_assignable_users()
+        return []
+
+    @router.post("/assign")
+    async def post_assign(request: Request):
+        body = await request.json()
+        uniq_id = body.get("uniq_id")
+        user_id = body.get("user_id")
+        if not uniq_id or not user_id:
+            raise HTTPException(status_code=400, detail="uniq_id and user_id are required")
+
+        incident = request.app.state.incidents.get_by_uniq_id(uniq_id)
+        if incident is None:
+            raise HTTPException(status_code=404, detail="Incident not found")
+
+        messenger = request.app.state.messenger
+        queue = request.app.state.queue
+        assigned = await messenger.handle_ui_assignment(incident, user_id, queue)
+        return {"success": assigned}
+
     @router.post("/-/reload")
     async def post_reload(request: Request):
         if is_standby_mode(request.app.state):
