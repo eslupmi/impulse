@@ -930,6 +930,11 @@ strong {
     cursor: not-allowed;
 }
 
+.user-selector.readonly {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
 .user-selector option {
     background: var(--background-primary);
     color: var(--text-primary);

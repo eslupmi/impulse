@@ -1,4 +1,5 @@
 import {getBaseUrl} from "./utils.js";
+import {getIsAuthenticated, onAuthChange} from "./auth.js";
 
 let assignableUsers = [];
 
@@ -56,6 +57,21 @@ function userSelectorFormatter(cell) {
         select.classList.add("has-value");
     }
 
+    if (!getIsAuthenticated()) {
+        select.disabled = true;
+        select.classList.add("readonly");
+    }
+
+    onAuthChange((authenticated) => {
+        if (!authenticated) {
+            select.disabled = true;
+            select.classList.add("readonly");
+        } else {
+            select.disabled = false;
+            select.classList.remove("readonly");
+        }
+    });
+
     select.addEventListener("click", (e) => {
         e.stopPropagation();
     });
@@ -73,6 +89,7 @@ function userSelectorFormatter(cell) {
             const response = await fetch(`${baseUrl}/assign`, {
                 method: "POST",
                 headers: {"Content-Type": "application/json"},
+                credentials: "same-origin",
                 body: JSON.stringify({uniq_id: uniqId, user_id: selectedUserId}),
             });
 
