@@ -63,12 +63,12 @@ function userSelectorFormatter(cell) {
     }
 
     onAuthChange((authenticated) => {
-        if (!authenticated) {
-            select.disabled = true;
-            select.classList.add("readonly");
-        } else {
+        if (authenticated) {
             select.disabled = false;
             select.classList.remove("readonly");
+        } else {
+            select.disabled = true;
+            select.classList.add("readonly");
         }
     });
 
