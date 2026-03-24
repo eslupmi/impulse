@@ -1,5 +1,5 @@
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Optional, Any
 from pathlib import Path
 
@@ -51,6 +51,27 @@ class ManagedChainsStore:
         except Exception as e:
             logger.error("Failed to load managed chains", extra={"error": str(e), "chain": chain_name})
             return []
+
+    def get_steps_for_now(self, chain_name: str, now: Optional[datetime] = None) -> List[Dict[str, Any]]:
+        chains = self.load_chains(chain_name)
+        if not chains:
+            return []
+
+        now = now or datetime.now(timezone.utc)
+        if now.tzinfo is None:
+            now = now.replace(tzinfo=timezone.utc)
+
+        active = []
+        for chain in chains:
+            if self._is_chain_active_now(chain, now):
+                active.append(chain)
+
+        if not active:
+            return []
+
+        active.sort(key=lambda c: c.get("priority", 2), reverse=True)
+        steps = active[0].get("steps")
+        return steps if isinstance(steps, list) else []
 
     def save_chains(self, chain_name: str, chains: List[Dict[str, Any]]) -> bool:
         if not chain_name:
@@ -218,6 +239,49 @@ class ManagedChainsStore:
                 return datetime.strptime(dt_str, "%Y-%m-%dT%H:%M:%S.%f%z")
             except Exception:
                 return None
+
+    def _is_chain_active_now(self, chain: Dict[str, Any], now: datetime) -> bool:
+        start = self._parse_datetime(chain.get("start"))
+        if start is None:
+            return False
+        end = self._parse_datetime(chain.get("end")) or (start + timedelta(days=1))
+        repeat_end = self._parse_datetime(chain.get("repeatEnd")) if chain.get("repeatEnd") else None
+        repeat = chain.get("repeat")
+
+        if not repeat:
+            return start <= now < end
+
+        occurrence_start = start
+        occurrence_end = end
+        duration = end - start
+        while occurrence_start <= now:
+            if repeat_end and occurrence_end > repeat_end:
+                return False
+            if occurrence_start <= now < occurrence_end:
+                return True
+            occurrence_start = self._next_occurrence_start(start, occurrence_start, repeat)
+            occurrence_end = occurrence_start + duration
+        return False
+
+    @staticmethod
+    def _next_occurrence_start(base_start: datetime, current_start: datetime, repeat: str) -> datetime:
+        if repeat == "daily":
+            return current_start + timedelta(days=1)
+        if repeat == "weekly":
+            return current_start + timedelta(days=7)
+        if repeat == "monthly":
+            year = current_start.year + (1 if current_start.month == 12 else 0)
+            month = 1 if current_start.month == 12 else current_start.month + 1
+            day = min(base_start.day, [31, 29 if year % 4 == 0 and (year % 100 != 0 or year % 400 == 0) else 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1])
+            return current_start.replace(year=year, month=month, day=day)
+        if repeat == "yearly":
+            year = current_start.year + 1
+            day = base_start.day
+            month = base_start.month
+            if month == 2 and day == 29 and not (year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)):
+                day = 28
+            return current_start.replace(year=year, month=month, day=day)
+        return current_start + timedelta(days=1)
 
     def _repeat_to_rrule(self, repeat: str) -> Optional[Dict]:
         repeat_map = {
