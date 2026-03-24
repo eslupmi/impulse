@@ -29,6 +29,7 @@ function setUiState(authenticated, userData) {
         username.textContent = "";
         wrapper.classList.remove("logged-in");
     }
+
 }
 
 async function refreshAuthState() {
