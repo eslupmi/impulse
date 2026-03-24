@@ -342,7 +342,7 @@ function createStepElement(step = null, index = null) {
         });
         
         if (typeSelect.value === 'wait') {
-            valueInput.placeholder = '5m';
+            valueInput.placeholder = 'e.g. 5m';
         } else {
             valueInput.placeholder = 'Enter value';
         }
@@ -1043,6 +1043,36 @@ function updateCurrentWeekHighlight() {
     });
 }
 
+function bindCalendarNavButtons() {
+    const prevBtn = document.getElementById('calendar-prev');
+    const nextBtn = document.getElementById('calendar-next');
+    const todayBtn = document.getElementById('calendar-today');
+
+    if (prevBtn && !prevBtn.hasAttribute('data-listener-attached')) {
+        prevBtn.setAttribute('data-listener-attached', 'true');
+        prevBtn.addEventListener('click', () => {
+            calendar.prev();
+            setTimeout(() => updateWeekNumberDisplay(), 50);
+        });
+    }
+
+    if (nextBtn && !nextBtn.hasAttribute('data-listener-attached')) {
+        nextBtn.setAttribute('data-listener-attached', 'true');
+        nextBtn.addEventListener('click', () => {
+            calendar.next();
+            setTimeout(() => updateWeekNumberDisplay(), 50);
+        });
+    }
+
+    if (todayBtn && !todayBtn.hasAttribute('data-listener-attached')) {
+        todayBtn.setAttribute('data-listener-attached', 'true');
+        todayBtn.addEventListener('click', () => {
+            calendar.today();
+            setTimeout(() => updateWeekNumberDisplay(), 50);
+        });
+    }
+}
+
 async function initializeCalendars() {
     try {
         console.log('initializeCalendars called, initialized =', initialized);
@@ -1073,24 +1103,7 @@ async function initializeCalendars() {
             calendar.render();
             monthCalendar.render();
             
-            const prevBtn = document.getElementById('calendar-prev');
-            const nextBtn = document.getElementById('calendar-next');
-            
-            if (prevBtn && !prevBtn.hasAttribute('data-listener-attached')) {
-                prevBtn.setAttribute('data-listener-attached', 'true');
-                prevBtn.addEventListener('click', () => {
-                    calendar.prev();
-                    setTimeout(() => updateWeekNumberDisplay(), 50);
-                });
-            }
-            
-            if (nextBtn && !nextBtn.hasAttribute('data-listener-attached')) {
-                nextBtn.setAttribute('data-listener-attached', 'true');
-                nextBtn.addEventListener('click', () => {
-                    calendar.next();
-                    setTimeout(() => updateWeekNumberDisplay(), 50);
-                });
-            }
+            bindCalendarNavButtons();
             
             setTimeout(() => {
                 calendar.updateSize();
@@ -1415,24 +1428,7 @@ async function initializeCalendars() {
             updateEventStyles();
         }, 200);
         
-        const prevBtn = document.getElementById('calendar-prev');
-        const nextBtn = document.getElementById('calendar-next');
-        
-        if (prevBtn && !prevBtn.hasAttribute('data-listener-attached')) {
-            prevBtn.setAttribute('data-listener-attached', 'true');
-            prevBtn.addEventListener('click', () => {
-                calendar.prev();
-                setTimeout(() => updateWeekNumberDisplay(), 50);
-            });
-        }
-        
-        if (nextBtn && !nextBtn.hasAttribute('data-listener-attached')) {
-            nextBtn.setAttribute('data-listener-attached', 'true');
-            nextBtn.addEventListener('click', () => {
-                calendar.next();
-                setTimeout(() => updateWeekNumberDisplay(), 50);
-            });
-        }
+        bindCalendarNavButtons();
         
         setTimeout(() => {
             updateWeekNumberDisplay();
@@ -1555,6 +1551,12 @@ export const ChainsManager = {
 
         chainsModal.addEventListener('click', (e) => {
             if (e.target === chainsModal) {
+                chainsModal.classList.remove('visible');
+            }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && chainsModal.classList.contains('visible')) {
                 chainsModal.classList.remove('visible');
             }
         });

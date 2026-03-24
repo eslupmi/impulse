@@ -497,11 +497,23 @@ strong {
     color: var(--offline-status-indicator);
 }
 
-.bottom-controls {
+.app-footer {
     position: fixed;
-    bottom: 7px;
     right: 20px;
+    bottom: 0px;
     z-index: 1000;
+    height: 29px;
+    display: flex;
+    align-items: center;
+}
+
+.bottom-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.bottom-controls-right {
     display: flex;
     align-items: center;
     gap: 12px;

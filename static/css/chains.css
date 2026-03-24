@@ -137,6 +137,13 @@
     display: flex;
     gap: 8px;
     align-items: center;
+    min-height: 32px;
+    box-sizing: border-box;
+}
+
+.calendar-nav-left {
+    display: flex;
+    align-items: center;
 }
 
 .calendar-nav-right {
@@ -144,6 +151,23 @@
     gap: 8px;
     align-items: center;
     margin-left: auto;
+}
+
+.calendar-today-btn {
+    margin-left: 32px;
+    padding: 6px 10px;
+    border: 1px solid var(--border-primary);
+    border-radius: 6px;
+    background: var(--background-secondary);
+    color: var(--text-primary);
+    font-size: 14px;
+    font-family: inherit;
+    cursor: pointer;
+}
+
+.calendar-today-btn:focus {
+    outline: none;
+    border-color: var(--brand-secondary);
 }
 
 #calendar-nav > .calendar-nav-right > div:last-child {
@@ -302,7 +326,10 @@
 
 #month-calendar .fc-toolbar {
     font-size: 12px;
-    margin-bottom: 14px;
+    margin-bottom: 8px;
+    min-height: 32px;
+    box-sizing: border-box;
+    align-items: center;
 }
 
 #month-calendar .fc-toolbar-title {
