@@ -151,7 +151,7 @@ function prepareEventsForCalendar(chains) {
         if (Math.abs(timeDiff) < 1000) {
             const priority1 = a.extendedProps?.priority !== undefined ? a.extendedProps.priority : 2;
             const priority2 = b.extendedProps?.priority !== undefined ? b.extendedProps.priority : 2;
-            return priority2 - priority1;
+            return priority1 - priority2;
         }
         return timeDiff;
     });
@@ -171,7 +171,7 @@ function applyEventInset(element, event = null) {
     if (priority === 2) {
         element.style.setProperty('inset', '0px 10% 0px 0px', 'important');
     } else if (priority === 1) {
-        element.style.setProperty('inset', '0 0% 0 0%', 'important');
+        element.style.setProperty('inset', '0 0 0 10%', 'important');
     } else {
         element.style.setProperty('inset', '0 0 0 0', 'important');
     }
@@ -690,7 +690,7 @@ function openChainEditModal(chainData = null) {
         deleteBtn.classList.remove('hidden');
     } else {
         currentChainId = null;
-        modalTitle.textContent = 'New Chain';
+        modalTitle.textContent = 'New duty';
         startInput.value = '';
         endInput.value = '';
         repeatSelect.value = '';
@@ -723,6 +723,10 @@ async function saveChain() {
         if (lastStepType === 'wait') {
             steps = steps.slice(0, -1);
         }
+    }
+    if (steps.length === 0 || steps.every(step => Object.keys(step)[0] === 'wait')) {
+        showError('No steps added');
+        return;
     }
 
     if (!startStr) return;
@@ -1163,7 +1167,7 @@ async function initializeCalendars() {
                 if (Math.abs(time1 - time2) < 1000) {
                     const priority1 = event1.extendedProps?.priority !== undefined ? event1.extendedProps.priority : 2;
                     const priority2 = event2.extendedProps?.priority !== undefined ? event2.extendedProps.priority : 2;
-                    return priority2 - priority1;
+                    return priority1 - priority2;
                 }
                 return time1 - time2;
             },
@@ -1567,6 +1571,10 @@ export const ChainsManager = {
         });
 
         document.addEventListener('keydown', (e) => {
+            const chainModal = document.getElementById('chain-modal');
+            if (chainModal && chainModal.classList.contains('visible')) {
+                return;
+            }
             if (e.key === 'Escape' && chainsModal.classList.contains('visible')) {
                 chainsModal.classList.remove('visible');
             }
