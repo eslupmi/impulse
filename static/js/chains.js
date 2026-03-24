@@ -1137,6 +1137,7 @@ async function initializeCalendars() {
         calendar = new FullCalendar.Calendar(calendarEl, {
             initialView: 'timeGridWeek',
             headerToolbar: false,
+            nowIndicator: true,
             slotMinHeight: 60,
             scrollTimeReset: false,
             allDaySlot: false,

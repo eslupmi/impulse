@@ -698,6 +698,15 @@
     border-top: none;
 }
 
+#calendar .fc-timegrid-now-indicator-line {
+    border-color: var(--brand-secondary) !important;
+    border-width: 2px 0 0 !important;
+}
+
+#calendar .fc-timegrid-now-indicator-arrow {
+    display: none !important;
+}
+
 .fc .fc-timegrid-slot-label-cushion {
     padding: 0; 
     color: var(--text-secondary);
