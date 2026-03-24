@@ -725,7 +725,7 @@ async function saveChain() {
         }
     }
     if (steps.length === 0 || steps.every(step => Object.keys(step)[0] === 'wait')) {
-        showError('No steps added');
+        showError('No steps provided');
         return;
     }
 
