@@ -981,6 +981,9 @@ function updateTimezoneSelector() {
 
 async function updateCalendarTimezone() {
     if (!calendar || !monthCalendar) return;
+
+    const timegridScroller = document.querySelector('#calendar .fc-timegrid-body .fc-scroller');
+    const scrollTop = timegridScroller ? timegridScroller.scrollTop : 0;
     
     const timezone = getEffectiveTimezone();
     calendar.setOption('timeZone', timezone);
@@ -996,6 +999,12 @@ async function updateCalendarTimezone() {
     
     calendar.render();
     monthCalendar.render();
+
+    if (timegridScroller) {
+        requestAnimationFrame(() => {
+            timegridScroller.scrollTop = scrollTop;
+        });
+    }
 }
 
 function getWeekNumber(date) {
@@ -1129,6 +1138,7 @@ async function initializeCalendars() {
             initialView: 'timeGridWeek',
             headerToolbar: false,
             slotMinHeight: 60,
+            scrollTimeReset: false,
             allDaySlot: false,
             firstDay: firstDay,
             timeZone: timezone,
