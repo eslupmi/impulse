@@ -14,7 +14,7 @@ from app.ui.table_config import get_all_ui_config
 from app.ui.websocket import incident_ws
 
 
-def create_router(http_prefix: str, fastapi_app: FastAPI = None) -> APIRouter:
+def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=None) -> APIRouter:
     router = APIRouter(prefix=http_prefix)
 
     templates = None
@@ -102,6 +102,54 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None) -> APIRouter:
     @router.get("/ui_config")
     async def get_ui_config():
         return get_all_ui_config()
+
+    @router.get("/assignment_users")
+    async def get_assignment_users(request: Request):
+        messenger = request.app.state.messenger
+        if messenger and messenger.users:
+            return messenger.users.get_assignable_users()
+        return []
+
+    @router.post("/assign", responses={
+        400: {"description": "Missing uniq_id or user_id"},
+        401: {"description": "Authentication required"},
+        404: {"description": "Incident not found"},
+    })
+    async def post_assign(request: Request):
+        acting_user = None
+        if auth_manager:
+            session_id = request.cookies.get(auth_manager.session_cookie_name)
+            auth_result = auth_manager.get_current_user(session_id=session_id)
+            if not auth_result.get("authenticated"):
+                raise HTTPException(status_code=401, detail="Authentication required")
+            acting_user = auth_result.get("user", {})
+
+        body = await request.json()
+        uniq_id = body.get("uniq_id")
+        user_id = body.get("user_id")
+        if not uniq_id or not user_id:
+            raise HTTPException(status_code=400, detail="uniq_id and user_id are required")
+
+        incident = request.app.state.incidents.get_by_uniq_id(uniq_id)
+        if incident is None:
+            raise HTTPException(status_code=404, detail="Incident not found")
+
+        acting_name = (acting_user or {}).get("full_name") or (acting_user or {}).get("username") or "unknown"
+        acting_id = (acting_user or {}).get("id") or "unknown"
+        logger.info(
+            "UI assignment",
+            extra={
+                "uuid": incident.uuid,
+                "target_user_id": user_id,
+                "acting_user": acting_name,
+                "acting_user_id": acting_id,
+            },
+        )
+
+        messenger = request.app.state.messenger
+        queue = request.app.state.queue
+        assigned = await messenger.handle_ui_assignment(incident, user_id, queue)
+        return {"success": assigned}
 
     @router.post("/-/reload")
     async def post_reload(request: Request):

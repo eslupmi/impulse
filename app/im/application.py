@@ -160,6 +160,19 @@ class Application(ABC):
 
         return await self.task_management_integration.handle_button_press(incident, queue_)
 
+    async def handle_ui_assignment(self, incident, user_id, queue):
+        str_user_id = str(user_id)
+        if incident.assigned_user_id == str_user_id:
+            return False
+
+        await queue.delete_by_id(incident.uniq_id, delete_steps=True, delete_status=False)
+        self.fetch_and_assign_user_name(incident, str_user_id)
+        self.track_async_task(asyncio.create_task(self.post_assignment_notification(incident)))
+        incident.chain_enabled = False
+        incident.dump()
+        await self.update_incident_message(incident)
+        return True
+
     async def initialize_async(self):
         self.http = self._setup_http()
         if hasattr(self, '_get_public_url') and callable(getattr(self, '_get_public_url')):

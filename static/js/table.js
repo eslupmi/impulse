@@ -8,6 +8,7 @@ import {
 } from "./formatters.js";
 import {loadFiltersFromArrayToURL} from "./filters.js";
 import {initializeSorting} from "./sorters.js";
+import {initUserSelector, userSelectorFormatter} from "./user_selector.js";
 
 const relativeFields = [];
 
@@ -67,6 +68,8 @@ async function initializeTable() {
         setColorMap(colorsResponse);
         loadFiltersFromArrayToURL(filtersResponse);
 
+        await initUserSelector(baseUrl);
+
         const columns = [];
 
         // Add hidden column for responsive data
@@ -117,6 +120,20 @@ async function initializeTable() {
                 columLayout.resizable = false;
             }
             columns.push(columLayout);
+        });
+
+        // Add user assignment selector column
+        columns.push({
+            title: "",
+            field: "_assigned_user_id",
+            width: 150,
+            minWidth: 120,
+            hozAlign: "right",
+            resizable: false,
+            headerSort: false,
+            responsive: 0,
+            formatter: userSelectorFormatter,
+            cssClass: "unclickable-cell user-selector-column",
         });
 
         // Add the responsive collapse column at the end
