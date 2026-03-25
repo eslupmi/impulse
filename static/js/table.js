@@ -9,6 +9,7 @@ import {
 import {loadFiltersFromArrayToURL} from "./filters.js";
 import {initializeSorting} from "./sorters.js";
 import {initUserSelector, userSelectorFormatter} from "./user_selector.js";
+import {initActionButtons, actionButtonsFormatter} from "./action_buttons.js";
 
 const relativeFields = [];
 
@@ -67,6 +68,7 @@ async function initializeTable() {
 
         setColorMap(colorsResponse);
         loadFiltersFromArrayToURL(filtersResponse);
+        initActionButtons(uiConfigResponse);
 
         await initUserSelector(baseUrl);
 
@@ -122,12 +124,26 @@ async function initializeTable() {
             columns.push(columLayout);
         });
 
+        // Add action buttons column
+        columns.push({
+            title: "",
+            field: "_action_buttons",
+            width: 90,
+            minWidth: 80,
+            hozAlign: "right",
+            resizable: false,
+            headerSort: false,
+            responsive: 0,
+            formatter: actionButtonsFormatter,
+            cssClass: "unclickable-cell action-buttons-column",
+        });
+
         // Add user assignment selector column
         columns.push({
             title: "",
             field: "_assigned_user_id",
-            width: 150,
-            minWidth: 120,
+            width: 120,
+            minWidth: 100,
             hozAlign: "right",
             resizable: false,
             headerSort: false,

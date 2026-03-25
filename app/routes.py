@@ -110,19 +110,29 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
             return messenger.users.get_assignable_users()
         return []
 
+    def _get_acting_user(request: Request):
+        if not auth_manager:
+            return None
+        session_id = request.cookies.get(auth_manager.session_cookie_name)
+        auth_result = auth_manager.get_current_user(session_id=session_id)
+        if not auth_result.get("authenticated"):
+            raise HTTPException(status_code=401, detail="Authentication required")
+        return auth_result.get("user", {})
+
+    def _log_ui_action(action_name, incident, acting_user, **extra):
+        acting_name = (acting_user or {}).get("full_name") or (acting_user or {}).get("username") or "unknown"
+        acting_id = (acting_user or {}).get("id") or "unknown"
+        log_extra = {"uuid": incident.uuid, "acting_user": acting_name, "acting_user_id": acting_id}
+        log_extra.update(extra)
+        logger.info(f"UI {action_name}", extra=log_extra)
+
     @router.post("/assign", responses={
         400: {"description": "Missing uniq_id or user_id"},
         401: {"description": "Authentication required"},
         404: {"description": "Incident not found"},
     })
     async def post_assign(request: Request):
-        acting_user = None
-        if auth_manager:
-            session_id = request.cookies.get(auth_manager.session_cookie_name)
-            auth_result = auth_manager.get_current_user(session_id=session_id)
-            if not auth_result.get("authenticated"):
-                raise HTTPException(status_code=401, detail="Authentication required")
-            acting_user = auth_result.get("user", {})
+        acting_user = _get_acting_user(request)
 
         body = await request.json()
         uniq_id = body.get("uniq_id")
@@ -134,22 +144,130 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
         if incident is None:
             raise HTTPException(status_code=404, detail="Incident not found")
 
-        acting_name = (acting_user or {}).get("full_name") or (acting_user or {}).get("username") or "unknown"
-        acting_id = (acting_user or {}).get("id") or "unknown"
-        logger.info(
-            "UI assignment",
-            extra={
-                "uuid": incident.uuid,
-                "target_user_id": user_id,
-                "acting_user": acting_name,
-                "acting_user_id": acting_id,
-            },
-        )
+        _log_ui_action("assignment", incident, acting_user, target_user_id=user_id)
 
         messenger = request.app.state.messenger
         queue = request.app.state.queue
         assigned = await messenger.handle_ui_assignment(incident, user_id, queue)
         return {"success": assigned}
+
+    @router.post("/task", responses={
+        401: {"description": "Authentication required"},
+        404: {"description": "Incident not found"},
+        409: {"description": "Task already exists or creation in progress"},
+    })
+    async def post_task(request: Request):
+        acting_user = _get_acting_user(request)
+
+        body = await request.json()
+        uniq_id = body.get("uniq_id")
+        if not uniq_id:
+            raise HTTPException(status_code=400, detail="uniq_id is required")
+
+        incident = request.app.state.incidents.get_by_uniq_id(uniq_id)
+        if incident is None:
+            raise HTTPException(status_code=404, detail="Incident not found")
+
+        if incident.task_link or incident.task_creation_in_progress:
+            raise HTTPException(status_code=409, detail="Task already exists or creation in progress")
+
+        _log_ui_action("task", incident, acting_user)
+
+        messenger = request.app.state.messenger
+        queue = request.app.state.queue
+        result = await messenger.handle_task_button(incident, queue)
+        return {"success": True, "result": result}
+
+    @router.post("/freeze", responses={
+        400: {"description": "Missing uniq_id or freeze_option"},
+        401: {"description": "Authentication required"},
+        404: {"description": "Incident not found"},
+        409: {"description": "Incident already frozen"},
+    })
+    async def post_freeze(request: Request):
+        acting_user = _get_acting_user(request)
+
+        body = await request.json()
+        uniq_id = body.get("uniq_id")
+        freeze_option = body.get("freeze_option")
+        if not uniq_id or not freeze_option:
+            raise HTTPException(status_code=400, detail="uniq_id and freeze_option are required")
+
+        valid_options = ("tomorrow", "next_monday", "month", "6months")
+        if freeze_option not in valid_options:
+            raise HTTPException(status_code=400, detail=f"freeze_option must be one of {valid_options}")
+
+        incident = request.app.state.incidents.get_by_uniq_id(uniq_id)
+        if incident is None:
+            raise HTTPException(status_code=404, detail="Incident not found")
+
+        if incident.is_frozen():
+            raise HTTPException(status_code=409, detail="Incident is already frozen")
+
+        user_tz = (acting_user or {}).get("timezone")
+        _log_ui_action("freeze", incident, acting_user, freeze_option=freeze_option)
+
+        messenger = request.app.state.messenger
+        queue = request.app.state.queue
+        incidents = request.app.state.incidents
+        await messenger.handle_ui_freeze(incident, freeze_option, str((acting_user or {}).get("id", "")), incidents, queue, user_timezone=user_tz)
+        return {"success": True}
+
+    @router.post("/unfreeze", responses={
+        401: {"description": "Authentication required"},
+        404: {"description": "Incident not found"},
+        409: {"description": "Incident not frozen or frozen by inhibition"},
+    })
+    async def post_unfreeze(request: Request):
+        acting_user = _get_acting_user(request)
+
+        body = await request.json()
+        uniq_id = body.get("uniq_id")
+        if not uniq_id:
+            raise HTTPException(status_code=400, detail="uniq_id is required")
+
+        incident = request.app.state.incidents.get_by_uniq_id(uniq_id)
+        if incident is None:
+            raise HTTPException(status_code=404, detail="Incident not found")
+
+        if not incident.is_frozen():
+            raise HTTPException(status_code=409, detail="Incident is not frozen")
+
+        if incident.frozen_by_inhibition:
+            raise HTTPException(status_code=409, detail="Cannot unfreeze inhibited incident")
+
+        _log_ui_action("unfreeze", incident, acting_user)
+
+        messenger = request.app.state.messenger
+        queue = request.app.state.queue
+        await messenger.handle_ui_unfreeze(incident, queue)
+        return {"success": True}
+
+    @router.post("/release", responses={
+        401: {"description": "Authentication required"},
+        404: {"description": "Incident not found"},
+        409: {"description": "Incident not eligible for release"},
+    })
+    async def post_release(request: Request):
+        acting_user = _get_acting_user(request)
+
+        body = await request.json()
+        uniq_id = body.get("uniq_id")
+        if not uniq_id:
+            raise HTTPException(status_code=400, detail="uniq_id is required")
+
+        incident = request.app.state.incidents.get_by_uniq_id(uniq_id)
+        if incident is None:
+            raise HTTPException(status_code=404, detail="Incident not found")
+
+        if incident.status != "resolved" or not incident.assigned_user_id:
+            raise HTTPException(status_code=409, detail="Incident must be resolved and assigned to release")
+
+        _log_ui_action("release", incident, acting_user)
+
+        messenger = request.app.state.messenger
+        await messenger.handle_ui_release(incident)
+        return {"success": True}
 
     @router.post("/-/reload")
     async def post_reload(request: Request):
