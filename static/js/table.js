@@ -124,61 +124,56 @@ async function initializeTable() {
             columns.push(columLayout);
         });
 
-        // Add action buttons column
-        columns.push({
-            title: "",
-            field: "_action_buttons",
-            width: 90,
-            minWidth: 80,
-            hozAlign: "right",
-            resizable: false,
-            headerSort: false,
-            responsive: 0,
-            formatter: actionButtonsFormatter,
-            cssClass: "unclickable-cell action-buttons-column",
-        });
-
-        // Add user assignment selector column
-        columns.push({
-            title: "",
-            field: "_assigned_user_id",
-            width: 120,
-            minWidth: 100,
-            hozAlign: "right",
-            resizable: false,
-            headerSort: false,
-            responsive: 0,
-            formatter: userSelectorFormatter,
-            cssClass: "unclickable-cell user-selector-column",
-        });
-
-        // Add the responsive collapse column at the end
-        columns.push({
-            formatter: "responsiveCollapse",
-            width: 30,
-            minWidth: 30,
-            hozAlign: "center",
-            resizable: false,
-            headerSort: false,
-            responsive: 0,
-            title: "",
-            field: "_collapse",
-        });
-
-        // Add alerts count column
-        columns.push({
-            title: "",
-            field: "_alerts_count",
-            width: 30,
-            minWidth: 30,
-            maxWidth: 30,
-            hozAlign: "center",
-            resizable: false,
-            headerSort: false,
-            responsive: 0,
-            formatter: formatterMap["alerts_count"],
-            cssClass: "unclickable-cell alerts-count-column",
-        });
+        columns.push(
+            {
+                title: "",
+                field: "_action_buttons",
+                width: 90,
+                minWidth: 80,
+                hozAlign: "right",
+                resizable: false,
+                headerSort: false,
+                responsive: 0,
+                formatter: actionButtonsFormatter,
+                cssClass: "unclickable-cell action-buttons-column",
+            },
+            {
+                title: "",
+                field: "_assigned_user_id",
+                width: 120,
+                minWidth: 100,
+                hozAlign: "right",
+                resizable: false,
+                headerSort: false,
+                responsive: 0,
+                formatter: userSelectorFormatter,
+                cssClass: "unclickable-cell user-selector-column",
+            },
+            {
+                formatter: "responsiveCollapse",
+                width: 30,
+                minWidth: 30,
+                hozAlign: "center",
+                resizable: false,
+                headerSort: false,
+                responsive: 0,
+                title: "",
+                field: "_collapse",
+            },
+            {
+                title: "",
+                field: "_alerts_count",
+                width: 30,
+                minWidth: 30,
+                maxWidth: 30,
+                hozAlign: "center",
+                resizable: false,
+                headerSort: false,
+                responsive: 0,
+                formatter: formatterMap["alerts_count"],
+                cssClass: "unclickable-cell alerts-count-column",
+            },
+        );
 
         initializeSorting(columns, sortingResponse);
     } catch (error) {

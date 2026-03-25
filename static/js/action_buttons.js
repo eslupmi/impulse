@@ -51,7 +51,7 @@ function actionButtonsFormatter(cell) {
     container.className = "action-buttons-container";
 
     const data = cell.getData();
-    const info = (data._responsive_data || {}).incident_info || {};
+    const info = data._responsive_data?.incident_info ?? {};
     const isFrozen = data._is_frozen;
     const indicator = data.indicator;
     const assignedUserId = data._assigned_user_id;
@@ -163,16 +163,12 @@ function actionButtonsFormatter(cell) {
 
     onAuthChange((isAuth) => {
         buttons.forEach(btn => {
-            if (isAuth) {
-                if (btn.classList.contains("auth-disabled")) {
-                    btn.disabled = false;
-                    btn.classList.remove("auth-disabled");
-                }
-            } else {
-                if (!btn.classList.contains("active") || !btn.classList.contains("inhibited")) {
-                    btn.disabled = true;
-                    btn.classList.add("auth-disabled");
-                }
+            if (isAuth && btn.classList.contains("auth-disabled")) {
+                btn.disabled = false;
+                btn.classList.remove("auth-disabled");
+            } else if (!isAuth && !btn.classList.contains("active") && !btn.classList.contains("inhibited")) {
+                btn.disabled = true;
+                btn.classList.add("auth-disabled");
             }
         });
     });

@@ -14,6 +14,10 @@ from app.ui.table_config import get_all_ui_config
 from app.ui.websocket import incident_ws
 
 
+_MSG_INCIDENT_NOT_FOUND = "Incident not found"
+_MSG_UNIQ_ID_REQUIRED = "uniq_id is required"
+
+
 def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=None) -> APIRouter:
     router = APIRouter(prefix=http_prefix)
 
@@ -129,7 +133,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
     @router.post("/assign", responses={
         400: {"description": "Missing uniq_id or user_id"},
         401: {"description": "Authentication required"},
-        404: {"description": "Incident not found"},
+        404: {"description": _MSG_INCIDENT_NOT_FOUND},
     })
     async def post_assign(request: Request):
         acting_user = _get_acting_user(request)
@@ -142,7 +146,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
 
         incident = request.app.state.incidents.get_by_uniq_id(uniq_id)
         if incident is None:
-            raise HTTPException(status_code=404, detail="Incident not found")
+            raise HTTPException(status_code=404, detail=_MSG_INCIDENT_NOT_FOUND)
 
         _log_ui_action("assignment", incident, acting_user, target_user_id=user_id)
 
@@ -152,8 +156,9 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
         return {"success": assigned}
 
     @router.post("/task", responses={
+        400: {"description": _MSG_UNIQ_ID_REQUIRED},
         401: {"description": "Authentication required"},
-        404: {"description": "Incident not found"},
+        404: {"description": _MSG_INCIDENT_NOT_FOUND},
         409: {"description": "Task already exists or creation in progress"},
     })
     async def post_task(request: Request):
@@ -162,11 +167,11 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
         body = await request.json()
         uniq_id = body.get("uniq_id")
         if not uniq_id:
-            raise HTTPException(status_code=400, detail="uniq_id is required")
+            raise HTTPException(status_code=400, detail=_MSG_UNIQ_ID_REQUIRED)
 
         incident = request.app.state.incidents.get_by_uniq_id(uniq_id)
         if incident is None:
-            raise HTTPException(status_code=404, detail="Incident not found")
+            raise HTTPException(status_code=404, detail=_MSG_INCIDENT_NOT_FOUND)
 
         if incident.task_link or incident.task_creation_in_progress:
             raise HTTPException(status_code=409, detail="Task already exists or creation in progress")
@@ -181,7 +186,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
     @router.post("/freeze", responses={
         400: {"description": "Missing uniq_id or freeze_option"},
         401: {"description": "Authentication required"},
-        404: {"description": "Incident not found"},
+        404: {"description": _MSG_INCIDENT_NOT_FOUND},
         409: {"description": "Incident already frozen"},
     })
     async def post_freeze(request: Request):
@@ -199,7 +204,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
 
         incident = request.app.state.incidents.get_by_uniq_id(uniq_id)
         if incident is None:
-            raise HTTPException(status_code=404, detail="Incident not found")
+            raise HTTPException(status_code=404, detail=_MSG_INCIDENT_NOT_FOUND)
 
         if incident.is_frozen():
             raise HTTPException(status_code=409, detail="Incident is already frozen")
@@ -214,8 +219,9 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
         return {"success": True}
 
     @router.post("/unfreeze", responses={
+        400: {"description": _MSG_UNIQ_ID_REQUIRED},
         401: {"description": "Authentication required"},
-        404: {"description": "Incident not found"},
+        404: {"description": _MSG_INCIDENT_NOT_FOUND},
         409: {"description": "Incident not frozen or frozen by inhibition"},
     })
     async def post_unfreeze(request: Request):
@@ -224,11 +230,11 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
         body = await request.json()
         uniq_id = body.get("uniq_id")
         if not uniq_id:
-            raise HTTPException(status_code=400, detail="uniq_id is required")
+            raise HTTPException(status_code=400, detail=_MSG_UNIQ_ID_REQUIRED)
 
         incident = request.app.state.incidents.get_by_uniq_id(uniq_id)
         if incident is None:
-            raise HTTPException(status_code=404, detail="Incident not found")
+            raise HTTPException(status_code=404, detail=_MSG_INCIDENT_NOT_FOUND)
 
         if not incident.is_frozen():
             raise HTTPException(status_code=409, detail="Incident is not frozen")
@@ -244,8 +250,9 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
         return {"success": True}
 
     @router.post("/release", responses={
+        400: {"description": _MSG_UNIQ_ID_REQUIRED},
         401: {"description": "Authentication required"},
-        404: {"description": "Incident not found"},
+        404: {"description": _MSG_INCIDENT_NOT_FOUND},
         409: {"description": "Incident not eligible for release"},
     })
     async def post_release(request: Request):
@@ -254,11 +261,11 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
         body = await request.json()
         uniq_id = body.get("uniq_id")
         if not uniq_id:
-            raise HTTPException(status_code=400, detail="uniq_id is required")
+            raise HTTPException(status_code=400, detail=_MSG_UNIQ_ID_REQUIRED)
 
         incident = request.app.state.incidents.get_by_uniq_id(uniq_id)
         if incident is None:
-            raise HTTPException(status_code=404, detail="Incident not found")
+            raise HTTPException(status_code=404, detail=_MSG_INCIDENT_NOT_FOUND)
 
         if incident.status != "resolved" or not incident.assigned_user_id:
             raise HTTPException(status_code=409, detail="Incident must be resolved and assigned to release")
