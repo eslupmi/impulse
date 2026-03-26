@@ -317,6 +317,7 @@ class Incident:
             'indicator': display_status,
             '_alerts_count': len(self.payload.get('alerts', [])),
             '_is_frozen': self.is_frozen(),
+            '_action_state': f"{self.is_frozen()}|{self.status}|{self.assigned_user_id or ''}|{bool(self.task_link)}|{self.frozen_by_inhibition}",
             '_assigned_user_id': self.assigned_user_id or '',
             '_assigned_fullname': self.assigned_fullname or '',
             '_responsive_data': {

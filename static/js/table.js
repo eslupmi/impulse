@@ -127,7 +127,7 @@ async function initializeTable() {
         columns.push(
             {
                 title: "",
-                field: "_action_buttons",
+                field: "_action_state",
                 width: 90,
                 minWidth: 80,
                 hozAlign: "right",
