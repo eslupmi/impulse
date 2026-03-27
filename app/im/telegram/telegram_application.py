@@ -143,15 +143,14 @@ class TelegramApplication(Application):
             keyboard = self._build_freeze_menu_keyboard()
         else:
             keyboard = self._build_main_keyboard(incident)
-        return {
+        payload = {
             'chat_id': incident.channel_id,
             'message_id': message_id,
             'text': f'{self._format_tg_icon(status_icons)} {header}\n{body}',
             'parse_mode': 'HTML',
-            'reply_markup': {
-                'inline_keyboard': keyboard
-            }
         }
+        payload['reply_markup'] = {'inline_keyboard': keyboard}
+        return payload
 
     ### PRIVATE METHODS ###
 
@@ -173,6 +172,9 @@ class TelegramApplication(Application):
 
     @staticmethod
     def _build_main_keyboard(incident):
+        if incident.status == 'closed':
+            return []
+
         config_obj = get_config()
         env_config = get_environment_config()
 
@@ -229,21 +231,23 @@ class TelegramApplication(Application):
         env_config = get_environment_config()
         config_obj = get_config()
 
-        freeze_button = buttons['freeze']['inhibited'] if incident.frozen_by_inhibition else buttons['freeze']['inactive']
-        keyboard_row = [
-            buttons['chain']['takeit'],
-            freeze_button
-        ]
+        keyboard_row = []
+        if incident.status != 'closed':
+            freeze_button = buttons['freeze']['inhibited'] if incident.frozen_by_inhibition else buttons['freeze']['inactive']
+            keyboard_row = [
+                buttons['chain']['takeit'],
+                freeze_button
+            ]
 
-        if config_obj.app.task_management and env_config.task_management_enabled:
-            keyboard_row.append(buttons['task']['create'])
+            if config_obj.app.task_management and env_config.task_management_enabled:
+                keyboard_row.append(buttons['task']['create'])
 
         return {
             'chat_id': incident.channel_id,
             'text': f'{self._format_tg_icon(status_icons)} {header}\n{body}',
             'parse_mode': 'HTML',
             'reply_markup': {
-                'inline_keyboard': [keyboard_row]
+                'inline_keyboard': [keyboard_row] if keyboard_row else []
             }
         }
 

@@ -9,52 +9,61 @@ from app.time import format_freeze_expiration
 def get_incident_message_payload(incident, body, header, status_icons, tz_str):
     actions = _build_slack_actions(incident, tz_str)
     display_status = 'frozen' if incident.is_frozen() else incident.status
-    
+
+    attachments = [
+        {
+            'color': status_colors.get(display_status),
+            'text': body,
+            'mrkdwn_in': ['text'],
+        }
+    ]
+    if actions:
+        attachments.append({
+            'color': status_colors.get(display_status),
+            'text': '',
+            'callback_id': 'buttons',
+            'actions': actions
+        })
+
     payload = {
         'channel': incident.channel_id,
         'text': f'{status_icons} {header}',
-        'attachments': [
-            {
-                'color': status_colors.get(display_status),
-                'text': body,
-                'mrkdwn_in': ['text'],
-            },
-            {
-                'color': status_colors.get(display_status),
-                'text': '',
-                'callback_id': 'buttons',
-                'actions': actions
-            }
-        ]
+        'attachments': attachments
     }
     return payload
 
 def slack_get_update_payload(incident, body, header, status_icons, tz_str):
     actions = _build_slack_actions(incident, tz_str)
     display_status = 'frozen' if incident.is_frozen() else incident.status
-    
+
+    attachments = [
+        {
+            'color': status_colors.get(display_status),
+            'text': body,
+            'mrkdwn_in': ['text'],
+        }
+    ]
+    if actions:
+        attachments.append({
+            'color': status_colors.get(display_status),
+            'text': '',
+            "callback_id": "buttons",
+            "actions": actions,
+        })
+
     payload = {
         'channel': incident.channel_id,
         'text': f'{status_icons} {header}',
-        'attachments': [
-            {
-                'color': status_colors.get(display_status),
-                'text': body,
-                'mrkdwn_in': ['text'],
-            },
-            {
-                'color': status_colors.get(display_status),
-                'text': '',
-                "callback_id": "buttons",
-                "actions": actions,
-            },
-        ],
+        'attachments': attachments,
         'ts': incident.ts,
     }
     return payload
 
 
 def _build_slack_actions(incident, tz_str: str = "UTC"):
+    if incident.status == 'closed':
+        return []
+
     env_config = get_environment_config()
     config = get_config()
     chain_text, chain_style = chain_attrs(incident.chain_enabled, incident.status)
