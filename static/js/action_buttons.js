@@ -6,8 +6,6 @@ const PIN_ICON = `<svg width="12" height="12" viewBox="0 0 12 12" fill="none" xm
 const SNOWFLAKE_ICON = `<svg width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2.71784 4.98616L5.49463 6.5985L2.99341 8.05081L0 7.24869V8.284L2.33897 8.91069L1.70881 11.2625L2.60537 11.7801L3.35031 8.99994L5.99038 7.467V10.226L3.76609 12.4503L4.66266 12.9679L6.55288 11.0777L8.40084 12.9257L9.29744 12.408L6.99038 10.101V7.467L9.58419 8.97309L10.3428 11.8045L11.2394 11.2868L10.6028 8.91069L12.9904 8.27094V7.23566L9.975 8.04362L7.48613 6.5985L10.2506 4.99331L12.9904 5.72744V4.69216L10.8137 4.10894L11.4146 1.86616L10.5181 1.3485L9.77775 4.1115L6.99038 5.72997V2.60616L9.07891 0.517625L8.18234 0L6.45822 1.72413L4.76113 0.0270624L3.86456 0.544687L5.99038 2.6705V5.72997L3.15678 4.08466L2.43016 1.37287L1.53356 1.8905L2.128 4.10894L0 4.67912V5.71441L2.71784 4.98616Z" fill="currentColor"/></svg>
 `;
 
-const RELEASE_ICON = `<svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2 4L5 1M2 4L5 7M2 4H8C9.10457 4 10 4.89543 10 6V6C10 7.10457 9.10457 8 8 8H6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-
 const FREEZE_OPTIONS = [
     {label: "Tomorrow", value: "tomorrow"},
     {label: "Next Monday", value: "next_monday"},
@@ -51,10 +49,14 @@ function actionButtonsFormatter(cell) {
     container.className = "action-buttons-container";
 
     const data = cell.getData();
+    const indicator = data.indicator;
+
+    if (indicator === "closed" || indicator === "deleted") {
+        return container;
+    }
+
     const info = data._responsive_data?.incident_info ?? {};
     const isFrozen = data._is_frozen;
-    const indicator = data.indicator;
-    const assignedUserId = data._assigned_user_id;
     const taskLink = info.task_link;
     const frozenUntil = info.frozen_until;
     const frozenByInhibition = info.frozen_by_inhibition;
@@ -130,27 +132,6 @@ function actionButtonsFormatter(cell) {
         });
     }
     buttons.push(freezeBtn);
-
-    if (indicator === "resolved" && assignedUserId) {
-        const releaseBtn = createButton(RELEASE_ICON, "action-btn action-btn-release");
-        releaseBtn.title = "Release";
-        releaseBtn.addEventListener("click", async (e) => {
-            e.stopPropagation();
-            closeFreezePopup();
-            releaseBtn.disabled = true;
-            try {
-                const response = await postAction("/release", {uniq_id: uniqId});
-                if (!response.ok) {
-                    releaseBtn.disabled = false;
-                    logActionError("release", response.status);
-                }
-            } catch (err) {
-                releaseBtn.disabled = false;
-                console.error("Release request failed:", err);
-            }
-        });
-        buttons.push(releaseBtn);
-    }
 
     const authenticated = getIsAuthenticated();
     buttons.forEach(btn => {
