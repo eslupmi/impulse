@@ -1,4 +1,5 @@
 import {getSocket} from "./websocket.js";
+import {getBaseUrl} from "./utils.js";
 
 let calendar = null;
 let monthCalendar = null;
@@ -8,11 +9,6 @@ let initialized = false;
 let cachedChains = [];
 let chainsPromiseResolve = null;
 let savePromiseResolve = null;
-
-function getHttpPrefix() {
-    const pathParts = window.location.pathname.split('/').filter(p => p);
-    return pathParts.length > 1 ? '/' + pathParts[0] : '';
-}
 
 function expandRecurringEvents(chains, rangeStart, rangeEnd) {
     const expandedEvents = [];
@@ -342,7 +338,7 @@ function generateId() {
 
 async function loadChainsConfig() {
     try {
-        const response = await fetch(`${getHttpPrefix()}/chains_config`);
+        const response = await fetch(`${getBaseUrl()}/chains_config`);
         if (response.ok) {
             chainsConfig = await response.json();
         } else {
@@ -961,7 +957,12 @@ function updateChainSelector() {
     selector.innerHTML = '';
 
     const managedChains = chainsConfig.managed_chains || [];
-    const currentChain = getSelectedChain();
+    const savedChain = getSelectedChain();
+    const currentChain = managedChains.includes(savedChain) ? savedChain : '';
+
+    if (currentChain !== savedChain) {
+        setSelectedChain('');
+    }
 
     const emptyOption = document.createElement('option');
     emptyOption.value = '';
@@ -1539,14 +1540,15 @@ export const ChainsManager = {
 
         chainsToggle.addEventListener('click', async () => {
             chainsModal.classList.add('visible');
-            
+
+            await loadChainsConfig();
+
             if (typeof FullCalendar === 'undefined') {
                 console.error('FullCalendar is not loaded!');
                 return;
             }
-            
+
             setTimeout(async () => {
-                await loadChainsConfig();
                 updateChainSelector();
                 updateTimezoneSelector();
                 if (getSelectedChain()) {
