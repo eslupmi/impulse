@@ -635,7 +635,6 @@
 .fc-timegrid-event.fc-event-priority-1 {
     background: rgba(56, 173, 230, 0.2) !important;
     border: none !important;
-    inset: 0 0% 0 10% !important;
 }
 
 [data-theme="dark"] .fc-event-priority-1,

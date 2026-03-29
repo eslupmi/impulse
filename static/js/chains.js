@@ -167,9 +167,26 @@ function applyEventInset(element, event = null) {
     if (priority === 2) {
         element.style.setProperty('inset', '0px 10% 0px 0px', 'important');
     } else if (priority === 1) {
-        element.style.setProperty('inset', '0 0 0 10%', 'important');
+        element.style.setProperty('inset', '0 0 0 0%', 'important');
     } else {
         element.style.setProperty('inset', '0 0 0 0', 'important');
+    }
+}
+
+function applyEventOverlapOffset(element) {
+    if (!element) return;
+
+    const harness = element.closest('.fc-timegrid-event-harness');
+    if (!harness) return;
+
+    const left = parseFloat(harness.style.left);
+    const right = parseFloat(harness.style.right);
+
+    // FullCalendar positions the second overlapping event at 50%.
+    // Shift it to 10% while keeping it inside the slot.
+    if (Number.isFinite(left) && left > 10 && (!Number.isFinite(right) || right === 0)) {
+        harness.style.setProperty('left', '10%', 'important');
+        harness.style.setProperty('right', '0%', 'important');
     }
 }
 
@@ -181,6 +198,7 @@ function updateEventStyles() {
         events.forEach(event => {
             if (event.extendedProps?.isOccurrence) return;
             if (event.el) {
+                applyEventOverlapOffset(event.el);
                 applyEventInset(event.el, event);
             }
         });
@@ -249,6 +267,7 @@ function syncCalendarEventPriorities(chains, chainIds, preferredEvent = null) {
 
         event.setExtendedProp('priority', chain.priority ?? 2);
         if (event.el) {
+            applyEventOverlapOffset(event.el);
             applyEventInset(event.el, event);
         }
     }
@@ -259,6 +278,7 @@ function syncCalendarEventPriorities(chains, chainIds, preferredEvent = null) {
         if (preferredChain) {
             preferredEvent.setExtendedProp('priority', preferredChain.priority ?? 2);
             if (preferredEvent.el) {
+                applyEventOverlapOffset(preferredEvent.el);
                 applyEventInset(preferredEvent.el, preferredEvent);
             }
         }
@@ -1234,6 +1254,7 @@ async function initializeCalendars() {
                 el.classList.add(`fc-event-priority-${priority}`);
                 el.setAttribute('data-priority', priority.toString());
                 el.style.zIndex = 3 - priority;
+                applyEventOverlapOffset(el);
                 applyEventInset(el, arg.event);
                 
                 const isOriginal = arg.event.extendedProps?.isOriginal;
