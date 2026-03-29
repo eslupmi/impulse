@@ -1416,8 +1416,10 @@ async function initializeCalendars() {
                 for (let i = 1; i <= 2; i++) {
                     el.classList.remove(`fc-event-priority-${i}`);
                 }
+                el.classList.remove('fc-event-repeat-series', 'fc-event-regular-series');
                 
                 el.classList.add(`fc-event-priority-${priority}`);
+                el.classList.add(hasRepeat ? 'fc-event-repeat-series' : 'fc-event-regular-series');
                 el.setAttribute('data-priority', priority.toString());
                 el.style.zIndex = 3 - priority;
                 if (shouldApplyVisualShift(arg.event)) {
