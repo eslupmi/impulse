@@ -254,7 +254,7 @@ function updateEventStyles() {
 
 function recalculatePriorities(chains) {
     return chains.map(chain => {
-        const overlapping = findOverlappingChains(chains, chain.start, chain.end, chain.id);
+        const overlapping = findOverlappingChainsForChain(chains, chain, chain.id);
         const priority = calculateNewPriority(chain, overlapping);
         return {
             ...chain,
@@ -275,7 +275,7 @@ function recalculatePrioritiesForChainIds(chains, chainIds) {
             return chain;
         }
 
-        const overlapping = findOverlappingChains(chains, chain.start, chain.end, chain.id);
+        const overlapping = findOverlappingChainsForChain(chains, chain, chain.id);
         return {
             ...chain,
             priority: calculateNewPriority(chain, overlapping)
@@ -542,21 +542,117 @@ function formatStepsText(steps) {
 }
 
 function findOverlappingChains(chains, start, end, excludeId = null) {
-    const startDate = new Date(start);
-    const endDate = end ? new Date(end) : new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
-    
+    const candidateChain = {
+        start,
+        end: end || null,
+        repeat: null,
+        repeatEnd: null
+    };
+
+    return findOverlappingChainsForChain(chains, candidateChain, excludeId);
+}
+
+function findOverlappingChainsForChain(chains, candidateChain, excludeId = null) {
+    if (!candidateChain?.start) {
+        return [];
+    }
+
+    const normalizedCandidate = {
+        ...candidateChain,
+        end: candidateChain.end || null,
+        repeat: candidateChain.repeat || null,
+        repeatEnd: candidateChain.repeat ? (candidateChain.repeatEnd || null) : null
+    };
+
     return chains.filter(chain => {
         if (excludeId && chain.id === excludeId) return false;
         if (!chain.start) return false;
-        
-        const chainStart = new Date(chain.start);
-        const chainEnd = chain.end ? new Date(chain.end) : new Date(chainStart.getTime() + 24 * 60 * 60 * 1000);
-        
-        const timeOverlap = startDate < chainEnd && endDate > chainStart;
-        const sameDay = startDate.toDateString() === chainStart.toDateString();
-        
-        return timeOverlap && sameDay;
+
+        return doChainsOverlap(normalizedCandidate, chain);
     });
+}
+
+function doChainsOverlap(firstChain, secondChain) {
+    const firstStart = new Date(firstChain.start);
+    const firstEnd = firstChain.end ? new Date(firstChain.end) : new Date(firstStart.getTime() + 24 * 60 * 60 * 1000);
+    const secondStart = new Date(secondChain.start);
+    const secondEnd = secondChain.end ? new Date(secondChain.end) : new Date(secondStart.getTime() + 24 * 60 * 60 * 1000);
+
+    return doesChainOverlapRange(firstChain, secondStart, secondEnd) ||
+        doesChainOverlapRange(secondChain, firstStart, firstEnd);
+}
+
+function doesChainOverlapRange(chain, rangeStart, rangeEnd) {
+    const msPerDay = 24 * 60 * 60 * 1000;
+    const chainStart = new Date(chain.start);
+    const chainEnd = chain.end ? new Date(chain.end) : new Date(chainStart.getTime() + msPerDay);
+    const duration = chainEnd.getTime() - chainStart.getTime();
+
+    if (!chain.repeat) {
+        return rangeStart < chainEnd && rangeEnd > chainStart;
+    }
+
+    const repeatEndDate = chain.repeatEnd ? new Date(chain.repeatEnd) : null;
+    if (repeatEndDate && chainStart >= repeatEndDate) {
+        return false;
+    }
+
+    const occurrenceOverlaps = (occurrenceStart) => {
+        const occurrenceEnd = new Date(occurrenceStart.getTime() + duration);
+        if (repeatEndDate && occurrenceEnd > repeatEndDate) {
+            return false;
+        }
+        return rangeStart < occurrenceEnd && rangeEnd > occurrenceStart;
+    };
+
+    if (occurrenceOverlaps(chainStart)) {
+        return true;
+    }
+
+    let currentStart = new Date(chainStart);
+    const maxOccurrences = 520;
+
+    for (let i = 0; i < maxOccurrences; i++) {
+        let nextStart;
+
+        switch (chain.repeat) {
+            case 'daily':
+                nextStart = new Date(currentStart.getTime() + msPerDay);
+                break;
+            case 'weekly':
+                nextStart = new Date(currentStart.getTime() + 7 * msPerDay);
+                break;
+            case 'monthly':
+                nextStart = new Date(currentStart);
+                nextStart.setMonth(nextStart.getMonth() + 1);
+                break;
+            case 'yearly':
+                nextStart = new Date(currentStart);
+                nextStart.setFullYear(nextStart.getFullYear() + 1);
+                break;
+            default:
+                return rangeStart < chainEnd && rangeEnd > chainStart;
+        }
+
+        if (repeatEndDate) {
+            const nextEnd = new Date(nextStart.getTime() + duration);
+            if (nextEnd > repeatEndDate) {
+                break;
+            }
+        }
+
+        if (nextStart >= rangeEnd) {
+            break;
+        }
+
+        if (occurrenceOverlaps(nextStart)) {
+            return true;
+        }
+
+        currentStart = nextStart;
+    }
+
+    return false;
 }
 
 function calculateNewPriority(chain, overlappingChains) {
@@ -597,8 +693,7 @@ function findOverlappingEvents(event) {
         if (!timeOverlap) {
             return false;
         }
-        const sameDay = eventStart.toDateString() === evtStart.toDateString();
-        return sameDay;
+        return true;
     });
 }
 
@@ -627,8 +722,7 @@ function countOverlappingEvents(start, end, excludeEventId = null) {
         if (!timeOverlap) {
             return false;
         }
-        const sameDay = startDate.toDateString() === evtStart.toDateString();
-        return sameDay;
+        return true;
     }).length;
 }
 
@@ -706,7 +800,7 @@ async function updateEventPriority(droppedEvent) {
     }
     
     const droppedChain = chains[droppedChainIndex];
-    const previousOverlapping = findOverlappingChains(chains, droppedChain.start, droppedChain.end, droppedChain.id);
+    const previousOverlapping = findOverlappingChainsForChain(chains, droppedChain, droppedChain.id);
     const updatedDroppedChain = {
         ...droppedChain,
         start: droppedStart.toISOString(),
@@ -715,12 +809,7 @@ async function updateEventPriority(droppedEvent) {
 
     chains[droppedChainIndex] = updatedDroppedChain;
 
-    const newOverlapping = findOverlappingChains(
-        chains,
-        updatedDroppedChain.start,
-        updatedDroppedChain.end,
-        updatedDroppedChain.id
-    );
+    const newOverlapping = findOverlappingChainsForChain(chains, updatedDroppedChain, updatedDroppedChain.id);
     const impactedIds = [
         updatedDroppedChain.id,
         ...previousOverlapping.map(chain => chain.id),
@@ -759,20 +848,37 @@ function parseDateTime(dateStr) {
     ).toUTC().toISO();
 }
 
+function toggleRepeatUntilVisibility() {
+    const repeatSelect = document.getElementById('chain-repeat');
+    const untilGroup = document.getElementById('chain-until-group');
+    const untilInput = document.getElementById('chain-until');
+    const hasRepeat = !!repeatSelect?.value;
+
+    if (!untilGroup || !untilInput) return;
+
+    untilGroup.classList.toggle('hidden', !hasRepeat);
+    untilGroup.style.display = hasRepeat ? 'block' : 'none';
+    if (!hasRepeat) {
+        untilInput.value = '';
+    }
+}
+
 function openChainEditModal(chainData = null) {
     const modal = document.getElementById('chain-modal');
     const modalTitle = document.getElementById('modal-title');
     const startInput = document.getElementById('chain-start');
     const endInput = document.getElementById('chain-end');
     const repeatSelect = document.getElementById('chain-repeat');
+    const untilInput = document.getElementById('chain-until');
     const deleteBtn = document.getElementById('delete-chain-btn');
 
     if (chainData) {
         currentChainId = chainData.id;
-        modalTitle.textContent = 'Edit Chain';
+        modalTitle.textContent = 'Edit Duty';
         startInput.value = formatDateTime(chainData.start);
         endInput.value = chainData.end ? formatDateTime(chainData.end) : '';
         repeatSelect.value = chainData.repeat || '';
+        untilInput.value = chainData.repeatEnd ? formatDateTime(chainData.repeatEnd) : '';
         renderSteps(chainData.steps || []);
         deleteBtn.classList.remove('hidden');
     } else {
@@ -781,10 +887,12 @@ function openChainEditModal(chainData = null) {
         startInput.value = '';
         endInput.value = '';
         repeatSelect.value = '';
+        untilInput.value = '';
         renderSteps([]);
         deleteBtn.classList.add('hidden');
     }
-    
+
+    toggleRepeatUntilVisibility();
     modal.classList.add('visible');
 }
 
@@ -798,10 +906,12 @@ async function saveChain() {
     const startInput = document.getElementById('chain-start');
     const endInput = document.getElementById('chain-end');
     const repeatSelect = document.getElementById('chain-repeat');
+    const untilInput = document.getElementById('chain-until');
 
     const startStr = startInput.value.trim();
     const endStr = endInput.value.trim();
     const repeat = repeatSelect.value;
+    const untilStr = untilInput.value.trim();
     let steps = getSteps();
 
     if (steps.length > 0) {
@@ -822,10 +932,26 @@ async function saveChain() {
     if (!start) return;
 
     const end = endStr ? parseDateTime(endStr) : null;
+    const repeatEnd = repeat && untilStr ? parseDateTime(untilStr) : null;
+    if (repeat && untilStr && !repeatEnd) return;
+    if (repeatEnd) {
+        const minRepeatBoundary = new Date(end || start);
+        if (new Date(repeatEnd) < minRepeatBoundary) {
+            showError(`Until must be greater than or equal to ${end ? 'End' : 'Start'}`);
+            return;
+        }
+    }
     const chains = await loadChains();
 
     if (currentChainId) {
-        const overlapping = findOverlappingChains(chains, start, end, currentChainId);
+        const candidateChain = {
+            id: currentChainId,
+            start,
+            end: end || null,
+            repeat: repeat || null,
+            repeatEnd: repeat ? (repeatEnd || null) : null
+        };
+        const overlapping = findOverlappingChainsForChain(chains, candidateChain, currentChainId);
         if (overlapping.length >= 2) {
             showOverlapError();
             return;
@@ -842,18 +968,13 @@ async function saveChain() {
         const index = chains.findIndex(c => c.id === currentChainId);
         if (index !== -1) {
             const existingChain = chains[index];
-            const previousOverlapping = findOverlappingChains(
-                chains,
-                existingChain.start,
-                existingChain.end,
-                currentChainId
-            );
+            const previousOverlapping = findOverlappingChainsForChain(chains, existingChain, currentChainId);
             const updatedChain = {
                 ...chains[index],
                 start,
                 end: end || null,
                 repeat: repeat || null,
-                repeatEnd: existingChain.repeatEnd || null,
+                repeatEnd: repeat ? (repeatEnd || null) : null,
                 steps: steps.length > 0 ? steps : null
             };
             chains[index] = updatedChain;
@@ -876,7 +997,13 @@ async function saveChain() {
         closeChainEditModal();
         return;
     } else {
-        const overlapping = findOverlappingChains(chains, start, end);
+        const candidateChain = {
+            start,
+            end: end || null,
+            repeat: repeat || null,
+            repeatEnd: repeat ? (repeatEnd || null) : null
+        };
+        const overlapping = findOverlappingChainsForChain(chains, candidateChain);
         if (overlapping.length >= 2) {
             showOverlapError();
             return;
@@ -896,6 +1023,7 @@ async function saveChain() {
             start,
             end: end || null,
             repeat: repeat || null,
+            repeatEnd: repeat ? (repeatEnd || null) : null,
             steps: steps.length > 0 ? steps : null
         };
         const newPriority = calculateNewPriority(newChain, overlapping);
@@ -1567,10 +1695,13 @@ function setupChainEditModalListeners() {
     const deleteBtn = document.getElementById('delete-chain-btn');
     const addStepBtn = document.getElementById('add-step-btn');
     const stepsContainer = document.getElementById('steps-container');
+    const repeatSelect = document.getElementById('chain-repeat');
 
     closeBtn.addEventListener('click', closeChainEditModal);
     saveBtn.addEventListener('click', saveChain);
     deleteBtn.addEventListener('click', deleteChain);
+    repeatSelect.addEventListener('change', toggleRepeatUntilVisibility);
+    repeatSelect.addEventListener('input', toggleRepeatUntilVisibility);
     addStepBtn.addEventListener('click', () => {
         const existingSteps = stepsContainer.querySelectorAll('.step-item');
         const nextIndex = existingSteps.length;
