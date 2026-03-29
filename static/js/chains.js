@@ -332,7 +332,7 @@ function syncCalendarEventPriorities(chains, chainIds, preferredEvent = null) {
     }
 }
 
-window.handleManagedChainsData = function(data) {
+window.handleUiChainsData = function(data) {
     if (chainsPromiseResolve) {
         cachedChains = data;
         cachedChains = recalculatePriorities(cachedChains);
@@ -341,7 +341,7 @@ window.handleManagedChainsData = function(data) {
     }
 };
 
-window.handleManagedChainsSaved = function(success) {
+window.handleUiChainsSaved = function(success) {
     if (savePromiseResolve) {
         savePromiseResolve(success);
         savePromiseResolve = null;
@@ -359,7 +359,7 @@ async function loadChains() {
 
     return new Promise((resolve) => {
         chainsPromiseResolve = resolve;
-        socket.send(JSON.stringify({event: "request_managed_chains", chain_name: getSelectedChain()}));
+        socket.send(JSON.stringify({event: "request_ui_chains", chain_name: getSelectedChain()}));
 
         setTimeout(() => {
             if (chainsPromiseResolve === resolve) {
@@ -382,13 +382,13 @@ async function saveChains(chains) {
     cachedChains = chains;
     const socket = getSocket();
     if (!socket || socket.readyState !== WebSocket.OPEN) {
-        console.error('WebSocket not connected, cannot save managed chains');
+        console.error('WebSocket not connected, cannot save ui chains');
         return;
     }
 
     return new Promise((resolve) => {
         savePromiseResolve = resolve;
-        socket.send(JSON.stringify({event: "save_managed_chains", chain_name: getSelectedChain(), data: chains}));
+        socket.send(JSON.stringify({event: "save_ui_chains", chain_name: getSelectedChain(), data: chains}));
 
         setTimeout(() => {
             if (savePromiseResolve === resolve) {
@@ -1088,7 +1088,7 @@ function parseWeekStart(weekStart) {
 }
 
 function getTimezoneMode() {
-    const saved = localStorage.getItem('managed_chains_timezone_mode');
+    const saved = localStorage.getItem('ui_chains_timezone_mode');
     const userTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
     const configTz = chainsConfig.timezone;
     if (saved === 'user' || saved === 'config' || saved === 'utc') {
@@ -1104,7 +1104,7 @@ function getTimezoneMode() {
 }
 
 function setTimezoneMode(mode) {
-    localStorage.setItem('managed_chains_timezone_mode', mode);
+    localStorage.setItem('ui_chains_timezone_mode', mode);
 }
 
 function getEffectiveTimezone() {
@@ -1118,11 +1118,11 @@ function getEffectiveTimezone() {
 }
 
 function getSelectedChain() {
-    return localStorage.getItem('managed_chains_selected_chain') || '';
+    return localStorage.getItem('ui_chains_selected_chain') || '';
 }
 
 function setSelectedChain(chainName) {
-    localStorage.setItem('managed_chains_selected_chain', chainName);
+    localStorage.setItem('ui_chains_selected_chain', chainName);
 }
 
 function showCalendarContainer(show) {
@@ -1138,9 +1138,9 @@ function updateChainSelector() {
 
     selector.innerHTML = '';
 
-    const managedChains = chainsConfig.managed_chains || [];
+    const uiChains = chainsConfig.ui_chains || [];
     const savedChain = getSelectedChain();
-    const currentChain = managedChains.includes(savedChain) ? savedChain : '';
+    const currentChain = uiChains.includes(savedChain) ? savedChain : '';
 
     if (currentChain !== savedChain) {
         setSelectedChain('');
@@ -1154,7 +1154,7 @@ function updateChainSelector() {
     }
     selector.appendChild(emptyOption);
 
-    managedChains.forEach(chainName => {
+    uiChains.forEach(chainName => {
         const option = document.createElement('option');
         option.value = chainName;
         option.textContent = chainName;

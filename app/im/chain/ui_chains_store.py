@@ -14,19 +14,19 @@ def _chain_name_to_filename(chain_name: str) -> str:
     return (safe.strip("_") or "chain") + ".ics"
 
 
-class ManagedChainsStore:
-    MANAGED_CHAINS_DIR = "data/managed_chains"
+class UIChainsStore:
+    UI_CHAINS_DIR = "data/ui_chains"
 
     def __init__(self):
         self._ensure_directory_exists()
 
     def _ensure_directory_exists(self) -> None:
-        if not os.path.exists(self.MANAGED_CHAINS_DIR):
-            os.makedirs(self.MANAGED_CHAINS_DIR)
-            logger.info("Created managed_chains directory", extra={"path": self.MANAGED_CHAINS_DIR})
+        if not os.path.exists(self.UI_CHAINS_DIR):
+            os.makedirs(self.UI_CHAINS_DIR)
+            logger.info("Created ui_chains directory", extra={"path": self.UI_CHAINS_DIR})
 
     def _calendar_path(self, chain_name: str) -> str:
-        return os.path.join(self.MANAGED_CHAINS_DIR, _chain_name_to_filename(chain_name))
+        return os.path.join(self.UI_CHAINS_DIR, _chain_name_to_filename(chain_name))
 
     def load_chains(self, chain_name: str) -> List[Dict[str, Any]]:
         if not chain_name:
@@ -46,10 +46,10 @@ class ManagedChainsStore:
                     if chain:
                         chains.append(chain)
 
-            logger.debug("Loaded managed chains", extra={"chain": chain_name, "count": len(chains)})
+            logger.debug("Loaded ui chains", extra={"chain": chain_name, "count": len(chains)})
             return chains
         except Exception as e:
-            logger.error("Failed to load managed chains", extra={"error": str(e), "chain": chain_name})
+            logger.error("Failed to load ui chains", extra={"error": str(e), "chain": chain_name})
             return []
 
     def get_steps_for_now(self, chain_name: str, now: Optional[datetime] = None) -> List[Dict[str, Any]]:
@@ -79,7 +79,7 @@ class ManagedChainsStore:
         path = self._calendar_path(chain_name)
         try:
             cal = Calendar()
-            cal.add("prodid", "-//IMPulse Managed Chains//impulse.calendar//EN")
+            cal.add("prodid", "-//IMPulse//impulse.calendar//EN")
             cal.add("version", "2.0")
             cal.add("calscale", "GREGORIAN")
             cal.add("method", "PUBLISH")
@@ -92,10 +92,10 @@ class ManagedChainsStore:
             with open(path, "wb") as f:
                 f.write(cal.to_ical())
 
-            logger.debug("Saved managed chains", extra={"chain": chain_name, "count": len(chains)})
+            logger.debug("Saved ui chains", extra={"chain": chain_name, "count": len(chains)})
             return True
         except Exception as e:
-            logger.error("Failed to save managed chains", extra={"error": str(e), "chain": chain_name})
+            logger.error("Failed to save ui chains", extra={"error": str(e), "chain": chain_name})
             return False
 
     def _chain_to_ical_event(self, chain: Dict[str, Any]) -> Optional[Event]:
@@ -103,7 +103,7 @@ class ManagedChainsStore:
             event = Event()
 
             event.add("uid", chain.get("id", ""))
-            event.add("summary", chain.get("title", "Managed Chain"))
+            event.add("summary", chain.get("title", "UI Chain"))
 
             start = chain.get("start")
             if start:
@@ -324,4 +324,4 @@ class ManagedChainsStore:
         return None
 
 
-managed_chains_store = ManagedChainsStore()
+ui_chains_store = UIChainsStore()

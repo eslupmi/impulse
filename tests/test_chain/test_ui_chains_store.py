@@ -1,11 +1,11 @@
 from datetime import datetime, timezone
 from unittest.mock import patch
 
-from app.im.chain.managed_chains_store import ManagedChainsStore
+from app.im.chain.ui_chains_store import UIChainsStore
 
 
 def test_get_steps_for_now_prefers_priority_1():
-    store = ManagedChainsStore()
+    store = UIChainsStore()
     now = datetime(2026, 3, 29, 12, 0, tzinfo=timezone.utc)
     chains = [
         {

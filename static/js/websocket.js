@@ -164,15 +164,15 @@ function setupWebSocketEvents() {
                     handlePong();
                     break;
 
-                case "managed_chains_data":
-                    if (typeof window.handleManagedChainsData === 'function') {
-                        window.handleManagedChainsData(data);
+                case "ui_chains_data":
+                    if (typeof window.handleUiChainsData === 'function') {
+                        window.handleUiChainsData(data);
                     }
                     break;
 
-                case "managed_chains_saved":
-                    if (typeof window.handleManagedChainsSaved === 'function') {
-                        window.handleManagedChainsSaved(message.success);
+                case "ui_chains_saved":
+                    if (typeof window.handleUiChainsSaved === 'function') {
+                        window.handleUiChainsSaved(message.success);
                     }
                     break;
 

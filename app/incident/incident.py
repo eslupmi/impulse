@@ -13,7 +13,7 @@ from app.config.environment import get_environment_config
 from app.config.validation import MessengerType
 from app.im.application import Application
 from app.im.channel_manager import ChannelManager
-from app.im.chain.managed_chains_store import managed_chains_store
+from app.im.chain.ui_chains_store import ui_chains_store
 from app.logging import logger
 from app.queue.constants import QueueItemType
 from app.queue.queue import AsyncQueue
@@ -97,8 +97,8 @@ class Incident:
                 return
         else:
             chain_config = get_config().messenger.chains.get(chain_name) if get_config().messenger.chains else None
-            if isinstance(chain_config, dict) and chain_config.get("type") == "managed":
-                steps = managed_chains_store.get_steps_for_now(chain_name)
+            if isinstance(chain_config, dict) and chain_config.get("type") == "ui":
+                steps = ui_chains_store.get_steps_for_now(chain_name)
             else:
                 logger.warning("Chain not found", extra={'chain': chain_name})
                 return

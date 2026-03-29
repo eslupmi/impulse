@@ -20,7 +20,7 @@ class ChainType(str, Enum):
     """Supported chain types"""
     SCHEDULE = "schedule"
     CLOUD = "cloud"
-    MANAGED = "managed"
+    UI = "ui"
 
 
 class CloudProvider(str, Enum):
@@ -287,7 +287,7 @@ class BaseApplicationConfig(BaseModel):
                     if 'default_steps' in chain_config:
                         validate_chain_steps(chain_config['default_steps'])
 
-                elif chain_config.get('type') == 'managed':
+                elif chain_config.get('type') == 'ui':
                     validated_chains[chain_name] = chain_config
 
                 else:

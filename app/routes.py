@@ -12,7 +12,7 @@ from app.metrics import generate_metrics_response
 from app.middleware import is_standby_mode, service_unavailable_response, STANDBY_MODE_MESSAGE
 from app.ui.table_config import get_all_ui_config
 from app.ui.websocket import incident_ws
-from app.im.chain.managed_chains_store import managed_chains_store
+from app.im.chain.ui_chains_store import ui_chains_store
 
 
 def create_router(http_prefix: str, fastapi_app: FastAPI = None) -> APIRouter:
@@ -110,7 +110,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None) -> APIRouter:
         app = config.app
         m = config.messenger
         chains = m.chains if m.chains else {}
-        managed_chains = [n for n, c in chains.items() if isinstance(c, dict) and c.get("type") == "managed"]
+        ui_chains = [n for n, c in chains.items() if isinstance(c, dict) and c.get("type") == "ui"]
         return {
             "users": list(m.users.keys()) if getattr(m, "users", None) else [],
             "user_groups": list(m.user_groups.keys()) if getattr(m, "user_groups", None) else [],
@@ -119,7 +119,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None) -> APIRouter:
             "webhooks": list(app.webhooks.keys()) if getattr(app, "webhooks", None) else [],
             "week_start": app.general.week_start if app.general else "Mon",
             "timezone": app.general.timezone if app.general else "UTC",
-            "managed_chains": managed_chains,
+            "ui_chains": ui_chains,
         }
 
     @router.post("/-/reload")
@@ -168,15 +168,15 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None) -> APIRouter:
                         await incident_ws.handle_request_data(websocket, websocket.app.state.incidents, show_full_table)
                     elif event_type == "ping":
                         await incident_ws.handle_ping(websocket)
-                    elif event_type == "request_managed_chains":
+                    elif event_type == "request_ui_chains":
                         chain_name = message.get("chain_name", "")
-                        chains = managed_chains_store.load_chains(chain_name)
-                        await websocket.send_text(json.dumps({"event": "managed_chains_data", "data": chains}))
-                    elif event_type == "save_managed_chains":
+                        chains = ui_chains_store.load_chains(chain_name)
+                        await websocket.send_text(json.dumps({"event": "ui_chains_data", "data": chains}))
+                    elif event_type == "save_ui_chains":
                         chain_name = message.get("chain_name", "")
                         chains = message.get("data", [])
-                        success = managed_chains_store.save_chains(chain_name, chains)
-                        await websocket.send_text(json.dumps({"event": "managed_chains_saved", "success": success}))
+                        success = ui_chains_store.save_chains(chain_name, chains)
+                        await websocket.send_text(json.dumps({"event": "ui_chains_saved", "success": success}))
 
                 except json.JSONDecodeError:
                     logger.warning("Invalid WebSocket JSON", extra={'data': data})
