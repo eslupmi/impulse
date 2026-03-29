@@ -202,6 +202,73 @@ function recalculatePriorities(chains) {
     });
 }
 
+function recalculatePrioritiesForChainIds(chains, chainIds) {
+    const impactedIds = new Set(chainIds.filter(Boolean));
+
+    if (impactedIds.size === 0) {
+        return chains;
+    }
+
+    return chains.map(chain => {
+        if (!impactedIds.has(chain.id)) {
+            return chain;
+        }
+
+        const overlapping = findOverlappingChains(chains, chain.start, chain.end, chain.id);
+        return {
+            ...chain,
+            priority: calculateNewPriority(chain, overlapping)
+        };
+    });
+}
+
+function syncCalendarEventPriorities(chains, chainIds, preferredEvent = null) {
+    if (!calendar) {
+        return;
+    }
+
+    const impactedIds = new Set(chainIds.filter(Boolean));
+    if (preferredEvent) {
+        const preferredId = preferredEvent.extendedProps?.originalId || preferredEvent.id;
+        impactedIds.add(preferredId);
+    }
+
+    const chainById = new Map(chains.map(chain => [chain.id, chain]));
+    const allEvents = calendar.getEvents();
+
+    for (const event of allEvents) {
+        if (event.extendedProps?.isOccurrence) {
+            continue;
+        }
+
+        const originalId = event.extendedProps?.originalId || event.id;
+        if (!impactedIds.has(originalId)) {
+            continue;
+        }
+
+        const chain = chainById.get(originalId);
+        if (!chain) {
+            continue;
+        }
+
+        event.setExtendedProp('priority', chain.priority ?? 2);
+        if (event.el) {
+            applyEventInset(event.el, event);
+        }
+    }
+
+    if (preferredEvent) {
+        const preferredId = preferredEvent.extendedProps?.originalId || preferredEvent.id;
+        const preferredChain = chainById.get(preferredId);
+        if (preferredChain) {
+            preferredEvent.setExtendedProp('priority', preferredChain.priority ?? 2);
+            if (preferredEvent.el) {
+                applyEventInset(preferredEvent.el, preferredEvent);
+            }
+        }
+    }
+}
+
 window.handleManagedChainsData = function(data) {
     if (chainsPromiseResolve) {
         cachedChains = data;
@@ -578,22 +645,7 @@ function findFutureRepeatEvents(chains, start, excludeId = null) {
 async function updateEventPriority(droppedEvent) {
     const droppedStart = droppedEvent.start;
     const droppedEnd = droppedEvent.end;
-    
-    const allEvents = calendar.getEvents();
-    const overlappingEvents = allEvents.filter(evt => {
-        if (evt.id === droppedEvent.id || evt.extendedProps?.isOccurrence) {
-            return false;
-        }
-        const evtStart = evt.start;
-        const evtEnd = evt.end;
-        const timeOverlap = droppedStart < evtEnd && droppedEnd > evtStart;
-        if (!timeOverlap) {
-            return false;
-        }
-        const sameDay = droppedStart.toDateString() === evtStart.toDateString();
-        return sameDay;
-    });
-    
+
     const chains = await loadChains();
     const droppedOriginalId = droppedEvent.extendedProps?.originalId || droppedEvent.id;
     const droppedChainIndex = chains.findIndex(c => c.id === droppedOriginalId);
@@ -604,46 +656,31 @@ async function updateEventPriority(droppedEvent) {
     }
     
     const droppedChain = chains[droppedChainIndex];
-    
-    if (overlappingEvents.length === 0) {
-        droppedEvent.setExtendedProp('priority', 2);
-        droppedChain.priority = 2;
-        if (droppedEvent.el) {
-            applyEventInset(droppedEvent.el, droppedEvent);
-        }
-        await saveChains(chains);
-        return;
-    }
-    
-    const overlappingChains = overlappingEvents.map(evt => {
-        const originalId = evt.extendedProps?.originalId || evt.id;
-        return chains.find(c => c.id === originalId);
-    }).filter(c => c);
-    
-    const newPriority = calculateNewPriority(droppedChain, overlappingChains);
-    droppedEvent.setExtendedProp('priority', newPriority);
-    droppedChain.priority = newPriority;
-    
-    if (droppedEvent.el) {
-        applyEventInset(droppedEvent.el, droppedEvent);
-    }
-    
-    for (const overlappingEvent of overlappingEvents) {
-        const originalId = overlappingEvent.extendedProps?.originalId || overlappingEvent.id;
-        const overlappingChainIndex = chains.findIndex(c => c.id === originalId);
-        if (overlappingChainIndex !== -1) {
-            const overlappingChain = chains[overlappingChainIndex];
-            const otherOverlapping = [droppedChain, ...overlappingChains.filter(c => c.id !== originalId)];
-            const otherPriority = calculateNewPriority(overlappingChain, otherOverlapping);
-            overlappingEvent.setExtendedProp('priority', otherPriority);
-            overlappingChain.priority = otherPriority;
-            
-            if (overlappingEvent.el) {
-                applyEventInset(overlappingEvent.el, overlappingEvent);
-            }
-        }
-    }
-    
+    const previousOverlapping = findOverlappingChains(chains, droppedChain.start, droppedChain.end, droppedChain.id);
+    const updatedDroppedChain = {
+        ...droppedChain,
+        start: droppedStart.toISOString(),
+        end: droppedEnd ? droppedEnd.toISOString() : null
+    };
+
+    chains[droppedChainIndex] = updatedDroppedChain;
+
+    const newOverlapping = findOverlappingChains(
+        chains,
+        updatedDroppedChain.start,
+        updatedDroppedChain.end,
+        updatedDroppedChain.id
+    );
+    const impactedIds = [
+        updatedDroppedChain.id,
+        ...previousOverlapping.map(chain => chain.id),
+        ...newOverlapping.map(chain => chain.id)
+    ];
+
+    const updatedChains = recalculatePrioritiesForChainIds(chains, impactedIds);
+    syncCalendarEventPriorities(updatedChains, impactedIds, droppedEvent);
+
+    chains.splice(0, chains.length, ...updatedChains);
     await saveChains(chains);
 }
 
@@ -755,6 +792,12 @@ async function saveChain() {
         const index = chains.findIndex(c => c.id === currentChainId);
         if (index !== -1) {
             const existingChain = chains[index];
+            const previousOverlapping = findOverlappingChains(
+                chains,
+                existingChain.start,
+                existingChain.end,
+                currentChainId
+            );
             const updatedChain = {
                 ...chains[index],
                 start,
@@ -763,19 +806,14 @@ async function saveChain() {
                 repeatEnd: existingChain.repeatEnd || null,
                 steps: steps.length > 0 ? steps : null
             };
-            const priority = calculateNewPriority(updatedChain, overlapping);
-            updatedChain.priority = priority;
-            
-            for (const overlappingChain of overlapping) {
-                const overlappingIndex = chains.findIndex(c => c.id === overlappingChain.id);
-                if (overlappingIndex !== -1) {
-                    const otherOverlapping = [updatedChain, ...overlapping.filter(c => c.id !== overlappingChain.id)];
-                    const otherPriority = calculateNewPriority(overlappingChain, otherOverlapping);
-                    chains[overlappingIndex].priority = otherPriority;
-                }
-            }
-            
             chains[index] = updatedChain;
+            const impactedIds = [
+                currentChainId,
+                ...previousOverlapping.map(chain => chain.id),
+                ...overlapping.map(chain => chain.id)
+            ];
+            const recalculatedChains = recalculatePrioritiesForChainIds(chains, impactedIds);
+            chains.splice(0, chains.length, ...recalculatedChains);
         }
         
         await saveChains(chains);
