@@ -124,10 +124,14 @@ function prepareEventsForCalendar(chains) {
     return expanded.map((chain, index) => {
         const stepsText = formatStepsText(chain.steps);
         const priority = chain.priority !== undefined ? chain.priority : 2;
+        const isOccurrence = !!chain.isOccurrence;
         
         return {
             ...chain,
             title: stepsText || chain.title || '',
+            editable: !isOccurrence,
+            startEditable: !isOccurrence,
+            durationEditable: !isOccurrence,
             extendedProps: {
                 ...chain.extendedProps,
                 steps: chain.steps,
@@ -156,6 +160,10 @@ function prepareEventsForCalendar(chains) {
 
 function getExpandedChains(chains) {
     return prepareEventsForCalendar(chains);
+}
+
+function shouldApplyVisualShift(eventLike) {
+    return !eventLike?.extendedProps?.isOccurrence;
 }
 
 function applyEventInset(element, event = null) {
@@ -1284,8 +1292,10 @@ async function initializeCalendars() {
                 el.classList.add(`fc-event-priority-${priority}`);
                 el.setAttribute('data-priority', priority.toString());
                 el.style.zIndex = 3 - priority;
-                applyEventOverlapOffset(el);
-                applyEventInset(el, arg.event);
+                if (shouldApplyVisualShift(arg.event)) {
+                    applyEventOverlapOffset(el);
+                    applyEventInset(el, arg.event);
+                }
                 
                 const isOriginal = arg.event.extendedProps?.isOriginal;
                 if ((isOccurrence || isOriginal) && hasRepeat) {
