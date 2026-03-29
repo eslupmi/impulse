@@ -163,7 +163,7 @@ function getExpandedChains(chains) {
 }
 
 function shouldApplyVisualShift(eventLike) {
-    return !eventLike?.extendedProps?.isOccurrence;
+    return true;
 }
 
 function applyEventInset(element, event = null) {
