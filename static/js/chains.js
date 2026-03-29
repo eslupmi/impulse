@@ -152,7 +152,7 @@ function prepareEventsForCalendar(chains) {
         if (Math.abs(timeDiff) < 1000) {
             const priority1 = a.extendedProps?.priority !== undefined ? a.extendedProps.priority : 2;
             const priority2 = b.extendedProps?.priority !== undefined ? b.extendedProps.priority : 2;
-            return priority1 - priority2;
+            return priority2 - priority1;
         }
         return timeDiff;
     });
@@ -1392,7 +1392,7 @@ async function initializeCalendars() {
                 if (Math.abs(time1 - time2) < 1000) {
                     const priority1 = event1.extendedProps?.priority !== undefined ? event1.extendedProps.priority : 2;
                     const priority2 = event2.extendedProps?.priority !== undefined ? event2.extendedProps.priority : 2;
-                    return priority1 - priority2;
+                    return priority2 - priority1;
                 }
                 return time1 - time2;
             },
