@@ -3,6 +3,7 @@ import {getBaseUrl} from "./utils.js";
 
 let calendar = null;
 let monthCalendar = null;
+let eventOverlapObserver = null;
 let currentChainId = null;
 let chainsConfig = { users: [], user_groups: [], groups: [], chains: [], webhooks: [], week_start: "Mon", timezone: "UTC" };
 let initialized = false;
@@ -167,7 +168,7 @@ function applyEventInset(element, event = null) {
     if (priority === 2) {
         element.style.setProperty('inset', '0px 10% 0px 0px', 'important');
     } else if (priority === 1) {
-        element.style.setProperty('inset', '0 0 0 0%', 'important');
+        element.style.setProperty('inset', '0 0 0 10%', 'important');
     } else {
         element.style.setProperty('inset', '0 0 0 0', 'important');
     }
@@ -177,6 +178,10 @@ function applyEventOverlapOffset(element) {
     if (!element) return;
 
     const harness = element.closest('.fc-timegrid-event-harness');
+    applyHarnessOverlapOffset(harness);
+}
+
+function applyHarnessOverlapOffset(harness) {
     if (!harness) return;
 
     const left = parseFloat(harness.style.left);
@@ -185,9 +190,43 @@ function applyEventOverlapOffset(element) {
     // FullCalendar positions the second overlapping event at 50%.
     // Shift it to 10% while keeping it inside the slot.
     if (Number.isFinite(left) && left > 10 && (!Number.isFinite(right) || right === 0)) {
-        harness.style.setProperty('left', '10%', 'important');
+        harness.style.setProperty('left', '0%', 'important');
         harness.style.setProperty('right', '0%', 'important');
     }
+}
+
+function setupEventOverlapObserver(rootElement) {
+    if (eventOverlapObserver) {
+        eventOverlapObserver.disconnect();
+        eventOverlapObserver = null;
+    }
+
+    if (!rootElement || typeof MutationObserver === 'undefined') {
+        return;
+    }
+
+    eventOverlapObserver = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+            if (!(mutation.target instanceof HTMLElement)) {
+                return;
+            }
+
+            const target = mutation.target;
+            if (target.classList.contains('fc-timegrid-event-harness')) {
+                applyHarnessOverlapOffset(target);
+            }
+        });
+    });
+
+    eventOverlapObserver.observe(rootElement, {
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['style']
+    });
+
+    rootElement.querySelectorAll('.fc-timegrid-event-harness').forEach((harness) => {
+        applyHarnessOverlapOffset(harness);
+    });
 }
 
 function updateEventStyles() {
@@ -629,19 +668,6 @@ function showError(message) {
             }
         }, 300);
     }, 4000);
-}
-
-function findFutureSingleEvents(chains, start, excludeId = null) {
-    const startDate = new Date(start);
-    
-    return chains.filter(chain => {
-        if (excludeId && chain.id === excludeId) return false;
-        if (!chain.start) return false;
-        if (chain.repeat) return false;
-        
-        const chainStart = new Date(chain.start);
-        return chainStart >= startDate;
-    });
 }
 
 function findFutureRepeatEvents(chains, start, excludeId = null) {
@@ -1193,6 +1219,10 @@ async function initializeCalendars() {
         if (monthCalendar) {
             monthCalendar.destroy();
         }
+        if (eventOverlapObserver) {
+            eventOverlapObserver.disconnect();
+            eventOverlapObserver = null;
+        }
 
         const chains = await loadChains();
         const expandedChains = getExpandedChains(chains);
@@ -1496,6 +1526,7 @@ async function initializeCalendars() {
 
         calendar.render();
         monthCalendar.render();
+        setupEventOverlapObserver(calendarEl);
         
         setTimeout(() => {
             updateWeekNumberDisplay();
