@@ -69,7 +69,7 @@ class ManagedChainsStore:
         if not active:
             return []
 
-        active.sort(key=lambda c: c.get("priority", 2), reverse=True)
+        active.sort(key=lambda c: c.get("priority", 2))
         steps = active[0].get("steps")
         return steps if isinstance(steps, list) else []
 
