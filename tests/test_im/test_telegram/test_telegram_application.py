@@ -316,6 +316,44 @@ class TestTelegramApplication:
             assert result.status_code == 200
             mock_post.assert_called_once()
 
+    @pytest.mark.asyncio
+    async def test_buttons_handler_take_it_posts_assignment_notification(self, app_config, channels, users):
+        """Take It should post assignment notification for a new assignee."""
+        app = self.create_telegram_app(app_config, channels, users)
+        app.fetch_and_assign_user_name = Mock(side_effect=lambda incident, user_id, dump=True: setattr(incident, 'assigned_user_id', user_id))
+        app.track_async_task = Mock()
+        app.post_assignment_notification = AsyncMock()
+        app.update_incident_message = AsyncMock()
+        app._answer_callback = AsyncMock()
+
+        incident = create_mock_incident_for_handlers(ts="456/123")
+        incidents = create_mock_incidents_collection()
+        incidents.get_by_ts.return_value = incident
+        queue = create_mock_queue()
+        route = create_mock_route()
+
+        payload = {
+            "callback_query": {
+                "id": "test_callback_id",
+                "data": "start_chain",
+                "from": {"id": 123456},
+                "message": {
+                    "message_id": 123,
+                    "message_thread_id": 456,
+                }
+            }
+        }
+
+        with patch('app.im.telegram.telegram_application.asyncio.create_task', return_value="assignment-task") as mock_create_task:
+            result = await app.buttons_handler(payload, incidents, queue, route)
+
+        assert isinstance(result, JSONResponse)
+        assert result.status_code == 200
+        app.fetch_and_assign_user_name.assert_called_once_with(incident, 123456)
+        app.post_assignment_notification.assert_called_once_with(incident)
+        mock_create_task.assert_called_once()
+        app.track_async_task.assert_called_once_with("assignment-task")
+
     def test_create_topic_method(self, app_config, channels, users):
         """Test _create_topic method signature."""
         app = self.create_telegram_app(app_config, channels, users)

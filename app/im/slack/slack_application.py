@@ -98,7 +98,6 @@ class SlackApplication(Application):
                 if action['name'] == 'freeze':
                     await self._handle_freeze_button(action, incident_, user_id, incidents, queue_, user_tz)
                 if action['name'] == 'chain':
-                    self.fetch_and_assign_user_name(incident_, user_id)
                     await self._handle_chain_action(incident_, user_id, queue_)
                 elif action['name'] == 'task':
                     self._handle_task_action(incident_, user_id, queue_)
