@@ -899,9 +899,9 @@ strong {
     color: var(--text-secondary);
     font-family: inherit;
     font-size: 12px;
-    padding: 4px 22px 4px 8px;
+    padding: 4px 20px 4px 6px;
     cursor: pointer;
-    max-width: 140px;
+    max-width: 110px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -938,4 +938,102 @@ strong {
 .user-selector option {
     background: var(--background-primary);
     color: var(--text-primary);
+}
+
+/* Action buttons */
+.action-buttons-column {
+    overflow: visible !important;
+}
+
+.action-buttons-container {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+    height: 100%;
+}
+
+.action-btn {
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    margin: 0;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.15s ease, opacity 0.15s ease, background 0.15s ease;
+    position: relative;
+    flex-shrink: 0;
+}
+
+.action-btn svg {
+    width: 12px;
+    height: 12px;
+}
+
+.action-btn:hover:not(:disabled) {
+    color: var(--brand-secondary);
+    background: var(--neutral-100);
+}
+
+.action-btn.active {
+    color: var(--brand-secondary);
+}
+
+.action-btn.active:hover:not(:disabled) {
+    color: var(--brand-secondary-dark);
+}
+
+.action-btn.inhibited {
+    opacity: 0.4;
+    cursor: default;
+}
+
+.action-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.action-btn.active:disabled {
+    opacity: 0.7;
+    cursor: default;
+}
+
+.action-btn.auth-disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* Freeze popup */
+.freeze-popup {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 4px;
+    z-index: 1000;
+    background: var(--background-secondary);
+    border: 1px solid var(--border-secondary);
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    min-width: 140px;
+    padding: 4px 0;
+}
+
+.freeze-popup-option {
+    padding: 6px 12px;
+    font-size: 13px;
+    color: var(--text-primary);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.1s ease;
+}
+
+.freeze-popup-option:hover {
+    background: var(--table-row-hover);
+    color: var(--brand-secondary);
 }

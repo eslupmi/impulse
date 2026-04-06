@@ -4,8 +4,10 @@ from app.config.validation import InhibitRule, MessengerType
 from app.inhibition.rule import InhibitionRule
 from app.logging import logger
 
+from app.incident.incident import unfreeze_incident
+
 if TYPE_CHECKING:
-    from app.incident.incident import Incident, unfreeze_incident
+    from app.incident.incident import Incident
     from app.incident.incidents import Incidents
     from app.im.application import Application
     from app.queue.queue import AsyncQueue

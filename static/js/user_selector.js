@@ -18,6 +18,11 @@ function userSelectorFormatter(cell) {
     const container = document.createElement("div");
     container.className = "user-selector-container";
 
+    const indicator = cell.getData().indicator;
+    if (indicator === "closed" || indicator === "deleted") {
+        return container;
+    }
+
     const currentUserId = String(cell.getData()._assigned_user_id || "");
     const currentFullName = cell.getData()._assigned_fullname || "";
 

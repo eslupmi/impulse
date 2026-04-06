@@ -17,10 +17,11 @@ from app.integrations.jira_integration import JiraIntegration
 from app.jinja_template import JinjaTemplate
 from app.logging import logger
 from app.queue.constants import QueueItemType
+from app.incident.incident import unfreeze_incident
 from app.time import calculate_freeze_time
 
 if TYPE_CHECKING:
-    from app.incident.incident import Incident, unfreeze_incident
+    from app.incident.incident import Incident
     from app.queue.queue import AsyncQueue
 
 log_button_pressed = 'Button pressed'
@@ -172,6 +173,18 @@ class Application(ABC):
         incident.dump()
         await self.update_incident_message(incident)
         return True
+
+    async def handle_ui_freeze(self, incident, freeze_option, user_id, incidents, queue, user_timezone=None):
+        await self._handle_freeze_action(incident, freeze_option, user_id, incidents, queue, user_timezone=user_timezone)
+        await self.update_incident_message(incident)
+
+    async def handle_ui_unfreeze(self, incident, queue):
+        await self._handle_unfreeze_action(incident, '', queue)
+
+    async def handle_ui_release(self, incident):
+        incident.release()
+        self.track_async_task(asyncio.create_task(self.post_unassignment_notification(incident)))
+        await self.update_incident_message(incident)
 
     async def initialize_async(self):
         self.http = self._setup_http()
