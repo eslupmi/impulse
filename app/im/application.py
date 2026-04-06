@@ -232,7 +232,12 @@ class Application(ABC):
 
         try:
             header = self.header_template.form_message(incident.payload, incident)
-            fields = {'type': self.type.value, 'full_name': incident.assigned_fullname, 'id': incident.assigned_user_id}
+            fields = {
+                'type': self.type.value,
+                'full_name': incident.assigned_fullname,
+                'username': incident.assigned_user,
+                'id': incident.assigned_user_id
+            }
             text = JinjaTemplate(notification_assignment).form_notification(fields)
             if self.type == MessengerType.TELEGRAM:
                 message = text
