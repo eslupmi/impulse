@@ -85,6 +85,11 @@
     border-color: var(--brand-secondary);
 }
 
+.chains-modal select option {
+    background: var(--background-secondary);
+    color: var(--text-primary);
+}
+
 .chains-modal-close {
     background: none;
     border: none;
@@ -903,19 +908,60 @@
     flex: 1;
 }
 
+.step-controls .step-value-wrapper {
+    position: relative;
+    flex: 1;
+}
+
+.step-controls .step-value-wrapper .step-value {
+    width: 100%;
+}
+
+.step-value-options {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    max-height: 180px;
+    overflow-y: auto;
+    background: var(--background-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: 8px;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.25);
+    z-index: 2200;
+}
+
+.step-value-option {
+    padding: 10px 12px;
+    color: var(--text-primary);
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.step-value-option:hover {
+    background: var(--background-secondary);
+}
+
+.step-value-option.active {
+    background: var(--background-secondary);
+}
+
 .step-controls .btn-remove-step {
-    padding: 8px 12px;
-    background: var(--status-badge-firing);
-    color: white;
-    border: none;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    background: var(--background-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-primary);
     border-radius: 6px;
-    font-size: 12px;
+    font-size: 20px;
+    line-height: 1;
     cursor: pointer;
     flex-shrink: 0;
 }
 
 .step-controls .btn-remove-step:hover {
-    opacity: 0.9;
+    background: var(--brand-primary-light);
 }
 
 .hidden {

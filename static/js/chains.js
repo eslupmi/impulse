@@ -416,23 +416,6 @@ async function loadChainsConfig() {
     }
 }
 
-function getStepTypeOptions(stepType) {
-    switch (stepType) {
-        case 'user':
-            return chainsConfig.users;
-        case 'user_group':
-            return chainsConfig.user_groups;
-        case 'group':
-            return chainsConfig.groups;
-        case 'chain':
-            return chainsConfig.chains;
-        case 'wait':
-            return [];
-        default:
-            return [];
-    }
-}
-
 function createStepElement(step = null, index = null) {
     const stepDiv = document.createElement('div');
     stepDiv.className = 'step-item';
@@ -451,28 +434,90 @@ function createStepElement(step = null, index = null) {
                 ${waitOption}
                 <option value="chain" ${stepType === 'chain' ? 'selected' : ''}>chain</option>
             </select>
-            <input type="text" class="step-value" placeholder="Enter value" value="${stepValue}" list="step-options-${index !== null ? index : Date.now()}">
-            <datalist id="step-options-${index !== null ? index : Date.now()}"></datalist>
-            <button type="button" class="btn-remove-step">Remove</button>
+            <div class="step-value-wrapper">
+                <input type="text" class="step-value" placeholder="Enter value" value="${stepValue}" autocomplete="off">
+                <div class="step-value-options hidden"></div>
+            </div>
+            <button type="button" class="btn-remove-step" aria-label="Remove step">&times;</button>
         </div>
     `;
     
     const typeSelect = stepDiv.querySelector('.step-type');
     const valueInput = stepDiv.querySelector('.step-value');
-    const datalist = stepDiv.querySelector('datalist');
+    const optionsEl = stepDiv.querySelector('.step-value-options');
+    const valueWrapper = stepDiv.querySelector('.step-value-wrapper');
     const removeBtn = stepDiv.querySelector('.btn-remove-step');
+    let activeOptionIndex = -1;
+
+    function setActiveOption(index) {
+        const optionNodes = optionsEl.querySelectorAll('.step-value-option');
+        if (optionNodes.length === 0) {
+            activeOptionIndex = -1;
+            return;
+        }
+        const nextIndex = Math.max(0, Math.min(index, optionNodes.length - 1));
+        activeOptionIndex = nextIndex;
+        optionNodes.forEach((node, nodeIndex) => {
+            node.classList.toggle('active', nodeIndex === nextIndex);
+        });
+    }
+
+    function selectActiveOption() {
+        const optionNodes = optionsEl.querySelectorAll('.step-value-option');
+        if (activeOptionIndex < 0 || activeOptionIndex >= optionNodes.length) {
+            return;
+        }
+        valueInput.value = optionNodes[activeOptionIndex].textContent;
+        optionsEl.classList.add('hidden');
+    }
+
+    function getStepTypeOptions(stepTypeValue) {
+        switch (stepTypeValue) {
+            case 'user':
+                return chainsConfig.users;
+            case 'user_group':
+                return chainsConfig.user_groups;
+            case 'group':
+                return chainsConfig.groups;
+            case 'chain':
+                return chainsConfig.chains;
+            default:
+                return [];
+        }
+    }
+
+    function renderValueOptions(showAll = false) {
+        const options = [...getStepTypeOptions(typeSelect.value)].sort((a, b) => a.localeCompare(b));
+        const query = valueInput.value.trim().toLowerCase();
+        const filtered = showAll || !query
+            ? options
+            : options.filter(option => option.toLowerCase().includes(query));
+
+        optionsEl.innerHTML = '';
+        filtered.forEach(option => {
+            const optionEl = document.createElement('div');
+            optionEl.className = 'step-value-option';
+            optionEl.textContent = option;
+            optionEl.addEventListener('mousedown', (event) => {
+                event.preventDefault();
+                valueInput.value = option;
+                optionsEl.classList.add('hidden');
+            });
+            optionsEl.appendChild(optionEl);
+        });
+        activeOptionIndex = -1;
+
+        if (filtered.length > 0 && typeSelect.value !== 'wait') {
+            optionsEl.classList.remove('hidden');
+        } else {
+            optionsEl.classList.add('hidden');
+        }
+    }
     
     function updateOptions() {
-        const options = getStepTypeOptions(typeSelect.value);
-        datalist.innerHTML = '';
-        options.forEach(option => {
-            const optionEl = document.createElement('option');
-            optionEl.value = option;
-            datalist.appendChild(optionEl);
-        });
-        
         if (typeSelect.value === 'wait') {
             valueInput.placeholder = 'e.g. 5m';
+            optionsEl.classList.add('hidden');
         } else {
             valueInput.placeholder = 'Enter value';
         }
@@ -481,6 +526,51 @@ function createStepElement(step = null, index = null) {
     typeSelect.addEventListener('change', () => {
         valueInput.value = '';
         updateOptions();
+        renderValueOptions(true);
+    });
+    valueInput.addEventListener('focus', () => renderValueOptions(true));
+    valueInput.addEventListener('click', () => renderValueOptions(true));
+    valueInput.addEventListener('input', () => renderValueOptions(false));
+    valueInput.addEventListener('keydown', (event) => {
+        if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            if (optionsEl.classList.contains('hidden')) {
+                renderValueOptions(true);
+            }
+            setActiveOption(activeOptionIndex + 1);
+            return;
+        }
+        if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            if (optionsEl.classList.contains('hidden')) {
+                renderValueOptions(true);
+            }
+            if (activeOptionIndex < 0) {
+                const optionNodes = optionsEl.querySelectorAll('.step-value-option');
+                setActiveOption(optionNodes.length - 1);
+            } else {
+                setActiveOption(activeOptionIndex - 1);
+            }
+            return;
+        }
+        if (event.key === 'Enter') {
+            if (!optionsEl.classList.contains('hidden') && activeOptionIndex >= 0) {
+                event.preventDefault();
+                selectActiveOption();
+            }
+            return;
+        }
+        if (event.key === 'Escape') {
+            optionsEl.classList.add('hidden');
+        }
+    });
+    valueInput.addEventListener('blur', () => {
+        setTimeout(() => optionsEl.classList.add('hidden'), 100);
+    });
+    valueWrapper.addEventListener('mouseleave', () => {
+        if (document.activeElement !== valueInput) {
+            optionsEl.classList.add('hidden');
+        }
     });
     updateOptions();
     

@@ -274,7 +274,7 @@ function addFilterFromInput() {
 
     const parsedFilter = parseFilterString(query);
     if (!parsedFilter) {
-        alert("Invalid filter format. Use format like status=\"firing\".");
+        alert("Invalid filter format. Example: status=\"firing\".");
         return;
     }
 
