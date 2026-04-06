@@ -1,11 +1,10 @@
 import os
 from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Optional, Any
-from pathlib import Path
 
 from icalendar import Calendar, Event
-from dateutil.rrule import rrulestr
 
+from app.config.environment import get_environment_config
 from app.logging import logger
 
 
@@ -15,18 +14,18 @@ def _chain_name_to_filename(chain_name: str) -> str:
 
 
 class UIChainsStore:
-    UI_CHAINS_DIR = "data/ui_chains"
-
     def __init__(self):
+        env_config = get_environment_config()
+        self.ui_chains_dir = os.path.join(env_config.data_path, "ui_chains")
         self._ensure_directory_exists()
 
     def _ensure_directory_exists(self) -> None:
-        if not os.path.exists(self.UI_CHAINS_DIR):
-            os.makedirs(self.UI_CHAINS_DIR)
-            logger.info("Created ui_chains directory", extra={"path": self.UI_CHAINS_DIR})
+        if not os.path.exists(self.ui_chains_dir):
+            os.makedirs(self.ui_chains_dir)
+            logger.info("Created ui_chains directory", extra={"path": self.ui_chains_dir})
 
     def _calendar_path(self, chain_name: str) -> str:
-        return os.path.join(self.UI_CHAINS_DIR, _chain_name_to_filename(chain_name))
+        return os.path.join(self.ui_chains_dir, _chain_name_to_filename(chain_name))
 
     def load_chains(self, chain_name: str) -> List[Dict[str, Any]]:
         if not chain_name:
