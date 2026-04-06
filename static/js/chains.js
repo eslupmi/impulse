@@ -379,7 +379,9 @@ async function saveChains(chains) {
         showError('Select a chain first');
         return;
     }
-    cachedChains = chains;
+    const recalculatedChains = recalculatePriorities(chains);
+    chains.splice(0, chains.length, ...recalculatedChains);
+    cachedChains = recalculatedChains;
     const socket = getSocket();
     if (!socket || socket.readyState !== WebSocket.OPEN) {
         console.error('WebSocket not connected, cannot save ui chains');
@@ -388,7 +390,7 @@ async function saveChains(chains) {
 
     return new Promise((resolve) => {
         savePromiseResolve = resolve;
-        socket.send(JSON.stringify({event: "save_ui_chains", chain_name: getSelectedChain(), data: chains}));
+        socket.send(JSON.stringify({event: "save_ui_chains", chain_name: getSelectedChain(), data: recalculatedChains}));
 
         setTimeout(() => {
             if (savePromiseResolve === resolve) {
