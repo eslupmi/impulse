@@ -641,6 +641,13 @@
     border: none !important;
 }
 
+.fc-event-repeat-series .fc-event-title,
+.fc-timegrid-event.fc-event-repeat-series .fc-event-title,
+.fc-event-repeat-series .fc-event-time,
+.fc-timegrid-event.fc-event-repeat-series .fc-event-time {
+    color: var(--text-primary) !important;
+}
+
 .fc-event-regular-series.fc-event-priority-2,
 .fc-timegrid-event.fc-event-regular-series.fc-event-priority-2 {
     background: rgba(56, 173, 230, 0.1) !important;

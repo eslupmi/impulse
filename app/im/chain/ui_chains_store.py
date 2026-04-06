@@ -46,7 +46,7 @@ class UIChainsStore:
                         chains.append(chain)
 
             logger.debug("Loaded ui chains", extra={"chain": chain_name, "count": len(chains)})
-            return chains
+            return self.recalculate_priorities(chains)
         except Exception as e:
             logger.error("Failed to load ui chains", extra={"error": str(e), "chain": chain_name})
             return []
@@ -75,6 +75,7 @@ class UIChainsStore:
     def save_chains(self, chain_name: str, chains: List[Dict[str, Any]]) -> bool:
         if not chain_name:
             return False
+        chains = self.recalculate_priorities(chains)
         path = self._calendar_path(chain_name)
         try:
             cal = Calendar()
@@ -281,6 +282,96 @@ class UIChainsStore:
                 day = 28
             return current_start.replace(year=year, month=month, day=day)
         return current_start + timedelta(days=1)
+
+    def recalculate_priorities(self, chains: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        return [
+            {**c, "priority": self._calculate_new_priority(c, self._find_overlapping_chains_for_chain(chains, c, c.get("id")))}
+            for c in chains
+        ]
+
+    def _find_overlapping_chains_for_chain(
+        self, chains: List[Dict[str, Any]], candidate_chain: Dict[str, Any], exclude_id: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        if not candidate_chain.get("start"):
+            return []
+        normalized = {
+            **candidate_chain,
+            "end": candidate_chain.get("end"),
+            "repeat": candidate_chain.get("repeat") or None,
+            "repeatEnd": (candidate_chain.get("repeatEnd") or None) if candidate_chain.get("repeat") else None,
+        }
+        out = []
+        for chain in chains:
+            if exclude_id and chain.get("id") == exclude_id:
+                continue
+            if not chain.get("start"):
+                continue
+            if self._do_chains_overlap(normalized, chain):
+                out.append(chain)
+        return out
+
+    def _do_chains_overlap(self, first_chain: Dict[str, Any], second_chain: Dict[str, Any]) -> bool:
+        fs = self._parse_datetime(first_chain["start"])
+        ss = self._parse_datetime(second_chain["start"])
+        if fs is None or ss is None:
+            return False
+        fe = self._parse_datetime(first_chain.get("end")) if first_chain.get("end") else fs + timedelta(days=1)
+        se = self._parse_datetime(second_chain.get("end")) if second_chain.get("end") else ss + timedelta(days=1)
+        return self._does_chain_overlap_range(first_chain, ss, se) or self._does_chain_overlap_range(second_chain, fs, fe)
+
+    def _does_chain_overlap_range(
+        self, chain: Dict[str, Any], range_start: datetime, range_end: datetime
+    ) -> bool:
+        chain_start = self._parse_datetime(chain["start"])
+        if chain_start is None:
+            return False
+        chain_end = self._parse_datetime(chain.get("end")) if chain.get("end") else chain_start + timedelta(days=1)
+        duration = chain_end - chain_start
+        repeat = chain.get("repeat")
+        if not repeat:
+            return range_start < chain_end and range_end > chain_start
+        repeat_end = self._parse_datetime(chain["repeatEnd"]) if chain.get("repeatEnd") else None
+        if repeat_end and chain_start >= repeat_end:
+            return False
+
+        def occurrence_overlaps(occurrence_start: datetime) -> bool:
+            occurrence_end = occurrence_start + duration
+            if repeat_end and occurrence_end > repeat_end:
+                return False
+            return range_start < occurrence_end and range_end > occurrence_start
+
+        if occurrence_overlaps(chain_start):
+            return True
+        current_start = chain_start
+        max_occurrences = 520
+        base_start = chain_start
+        for _ in range(max_occurrences):
+            next_start = self._next_occurrence_start(base_start, current_start, repeat)
+            if repeat_end:
+                next_end = next_start + duration
+                if next_end > repeat_end:
+                    break
+            if next_start >= range_end:
+                break
+            if occurrence_overlaps(next_start):
+                return True
+            current_start = next_start
+        return False
+
+    @staticmethod
+    def _calculate_new_priority(chain: Dict[str, Any], overlapping_chains: List[Dict[str, Any]]) -> int:
+        if not overlapping_chains:
+            return 2
+        has_repeat = bool(chain.get("repeat"))
+        overlapping_has_repeat = any(c.get("repeat") for c in overlapping_chains)
+        if has_repeat or overlapping_has_repeat:
+            return 2 if has_repeat else 1
+        chain_id = chain.get("id") or ""
+        overlapping_ids = [c.get("id") or "" for c in overlapping_chains if c.get("id")]
+        if not overlapping_ids:
+            return 2
+        max_id = max(overlapping_ids)
+        return 1 if chain_id >= max_id else 2
 
     def _repeat_to_rrule(self, repeat: str) -> Optional[Dict]:
         repeat_map = {
