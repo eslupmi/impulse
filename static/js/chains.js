@@ -478,7 +478,10 @@ function createStepElement(step = null, index = null) {
         }
     }
     
-    typeSelect.addEventListener('change', updateOptions);
+    typeSelect.addEventListener('change', () => {
+        valueInput.value = '';
+        updateOptions();
+    });
     updateOptions();
     
     removeBtn.addEventListener('click', () => {
