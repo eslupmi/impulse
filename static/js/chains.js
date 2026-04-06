@@ -877,7 +877,7 @@ function openChainEditModal(chainData = null) {
 
     if (chainData) {
         currentChainId = chainData.id;
-        modalTitle.textContent = 'Edit Duty';
+        modalTitle.textContent = 'Edit shift';
         startInput.value = formatDateTime(chainData.start);
         endInput.value = chainData.end ? formatDateTime(chainData.end) : '';
         repeatSelect.value = chainData.repeat || '';
@@ -886,7 +886,7 @@ function openChainEditModal(chainData = null) {
         deleteBtn.classList.remove('hidden');
     } else {
         currentChainId = null;
-        modalTitle.textContent = 'New duty';
+        modalTitle.textContent = 'New shift';
         startInput.value = '';
         endInput.value = '';
         repeatSelect.value = '';
