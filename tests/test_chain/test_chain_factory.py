@@ -36,11 +36,8 @@ class TestChainFactory:
         config.type = ChainType.CLOUD
         config.provider = "microsoft"
 
-        with patch('app.im.chain.chain_factory.logger') as mock_logger:
-            result = ChainFactory._create_chain("test_chain", config)
-
-            mock_logger.error.assert_called_once()
-            assert result is None
+        with pytest.raises(ValueError, match="Unknown chain type 'cloud' for chain 'test_chain'"):
+            ChainFactory._create_chain("test_chain", config)
 
     def test_create_chain_with_unknown_chain_type(self):
         """Test _create_chain with unknown chain type."""
@@ -48,11 +45,8 @@ class TestChainFactory:
         config.type = Mock()
         config.type.value = "UNKNOWN_TYPE"
 
-        with patch('app.im.chain.chain_factory.logger') as mock_logger:
-            result = ChainFactory._create_chain("test_chain", config)
-
-            mock_logger.error.assert_called_once()
-            assert result is None
+        with pytest.raises(ValueError, match="Unknown chain type 'UNKNOWN_TYPE' for chain 'test_chain'"):
+            ChainFactory._create_chain("test_chain", config)
 
     def test_create_chain_with_schedule_chain_exception(self):
         """Test _create_chain with schedule chain creation exception."""
@@ -64,11 +58,8 @@ class TestChainFactory:
         with patch('app.im.chain.chain_factory.ScheduleChain') as mock_schedule_chain:
             mock_schedule_chain.side_effect = Exception("Schedule chain error")
 
-            with patch('app.im.chain.chain_factory.logger') as mock_logger:
-                result = ChainFactory._create_chain("test_chain", config)
-
-                mock_logger.error.assert_called_once()
-                assert result is None
+            with pytest.raises(Exception, match="Schedule chain error"):
+                ChainFactory._create_chain("test_chain", config)
 
     def test_create_chain_with_google_calendar_chain_exception(self):
         """Test _create_chain with Google Calendar chain creation exception."""
@@ -79,11 +70,8 @@ class TestChainFactory:
         with patch('app.im.chain.chain_factory.GoogleCalendarChain') as mock_google_chain:
             mock_google_chain.side_effect = Exception("Google Calendar chain error")
 
-            with patch('app.im.chain.chain_factory.logger') as mock_logger:
-                result = ChainFactory._create_chain("test_chain", config)
-
-                mock_logger.error.assert_called_once()
-                assert result is None
+            with pytest.raises(Exception, match="Google Calendar chain error"):
+                ChainFactory._create_chain("test_chain", config)
 
     def test_create_chain_with_google_calendar_chain_not_instance(self):
         """Test _create_chain with Google Calendar chain not being instance."""
@@ -120,11 +108,8 @@ class TestChainFactory:
         with patch('app.im.chain.chain_factory.Chain') as mock_chain:
             mock_chain.side_effect = Exception("Basic chain error")
 
-            with patch('app.im.chain.chain_factory.logger') as mock_logger:
-                result = ChainFactory._create_chain("test_chain", config)
-
-                mock_logger.error.assert_called_once()
-                assert result is None
+            with pytest.raises(Exception, match="Basic chain error"):
+                ChainFactory._create_chain("test_chain", config)
 
     def test_generate_with_empty_chains_dict(self):
         """Test generate with empty chains dictionary."""
@@ -189,7 +174,9 @@ class TestChainFactory:
                 result = ChainFactory.generate(chains_dict)
 
                 mock_logger.info.assert_called_once_with('Creating chains')
-                mock_logger.warning.assert_called_once_with("Skipping chain 'test_chain' due to creation failure")
+                mock_logger.warning.assert_called_once_with(
+                    "Skipping chain 'test_chain' because it is handled outside runtime chain creation"
+                )
                 assert result == {}
 
     def test_generate_with_mixed_success_and_failure(self):
@@ -209,7 +196,9 @@ class TestChainFactory:
                 result = ChainFactory.generate(chains_dict)
 
                 mock_logger.info.assert_called_once_with('Creating chains')
-                mock_logger.warning.assert_called_once_with("Skipping chain 'chain2' due to creation failure")
+                mock_logger.warning.assert_called_once_with(
+                    "Skipping chain 'chain2' because it is handled outside runtime chain creation"
+                )
                 assert result == {
                     "chain1": mock_chain1,
                     "chain3": mock_chain3
@@ -266,7 +255,9 @@ class TestChainFactory:
                 result = ChainFactory.generate(chains_dict)
 
                 mock_logger.info.assert_called_once_with('Creating chains')
-                mock_logger.warning.assert_called_once_with("Skipping chain 'test_chain' due to creation failure")
+                mock_logger.warning.assert_called_once_with(
+                    "Skipping chain 'test_chain' because it is handled outside runtime chain creation"
+                )
                 assert result == {}
 
     def test_generate_with_empty_chain_config(self):
@@ -334,11 +325,14 @@ class TestChainFactory:
         with patch.object(ChainFactory, '_create_chain') as mock_create_chain:
             mock_create_chain.side_effect = Exception("Chain creation error")
 
-            with patch('app.im.chain.chain_factory.logger'):
-                # The generate method doesn't catch exceptions from _create_chain
-                # So we expect the exception to propagate
-                with pytest.raises(Exception, match="Chain creation error"):
-                    ChainFactory.generate(chains_dict)
+            with patch('app.im.chain.chain_factory.logger') as mock_logger:
+                result = ChainFactory.generate(chains_dict)
+
+                mock_logger.exception.assert_called_once_with("Failed to create chain 'test_chain'")
+                mock_logger.warning.assert_called_once_with(
+                    "Skipping chain 'test_chain' due to creation failure: Chain creation error"
+                )
+                assert result == {}
 
     def test_generate_with_chain_creation_partial_exception(self):
         """Test generate with partial chain creation exception."""
@@ -353,8 +347,14 @@ class TestChainFactory:
             mock_chain3 = Mock()
             mock_create_chain.side_effect = [mock_chain1, Exception("Chain2 error"), mock_chain3]
 
-            with patch('app.im.chain.chain_factory.logger'):
-                # The generate method doesn't catch exceptions from _create_chain
-                # So we expect the exception to propagate
-                with pytest.raises(Exception, match="Chain2 error"):
-                    ChainFactory.generate(chains_dict)
+            with patch('app.im.chain.chain_factory.logger') as mock_logger:
+                result = ChainFactory.generate(chains_dict)
+
+                mock_logger.exception.assert_called_once_with("Failed to create chain 'chain2'")
+                mock_logger.warning.assert_called_once_with(
+                    "Skipping chain 'chain2' due to creation failure: Chain2 error"
+                )
+                assert result == {
+                    "chain1": mock_chain1,
+                    "chain3": mock_chain3
+                }
