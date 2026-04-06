@@ -930,3 +930,164 @@ strong {
 .frozen-row {
     opacity: 0.7;
 }
+
+/* User assignment selector */
+.user-selector-column {
+    overflow: visible !important;
+}
+
+.user-selector-container {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    height: 100%;
+}
+
+.user-selector {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background: transparent;
+    border: 1px solid var(--border-secondary);
+    border-radius: 4px;
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: 12px;
+    padding: 4px 20px 4px 6px;
+    cursor: pointer;
+    max-width: 110px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%2398A2B3' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 6px center;
+    transition: border-color 0.15s ease;
+}
+
+.user-selector:hover {
+    border-color: var(--brand-secondary);
+}
+
+.user-selector:focus {
+    outline: none;
+    border-color: var(--brand-secondary);
+}
+
+.user-selector.has-value {
+    color: var(--text-primary);
+    border-color: var(--brand-secondary-dark);
+}
+
+.user-selector:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.user-selector.readonly {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.user-selector option {
+    background: var(--background-primary);
+    color: var(--text-primary);
+}
+
+/* Action buttons */
+.action-buttons-column {
+    overflow: visible !important;
+}
+
+.action-buttons-container {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+    height: 100%;
+}
+
+.action-btn {
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    margin: 0;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.15s ease, opacity 0.15s ease, background 0.15s ease;
+    position: relative;
+    flex-shrink: 0;
+}
+
+.action-btn svg {
+    width: 12px;
+    height: 12px;
+}
+
+.action-btn:hover:not(:disabled) {
+    color: var(--brand-secondary);
+    background: var(--neutral-100);
+}
+
+.action-btn.active {
+    color: var(--brand-secondary);
+}
+
+.action-btn.active:hover:not(:disabled) {
+    color: var(--brand-secondary-dark);
+}
+
+.action-btn.inhibited {
+    opacity: 0.4;
+    cursor: default;
+}
+
+.action-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.action-btn.active:disabled {
+    opacity: 0.7;
+    cursor: default;
+}
+
+.action-btn.auth-disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* Freeze popup */
+.freeze-popup {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 4px;
+    z-index: 1000;
+    background: var(--background-secondary);
+    border: 1px solid var(--border-secondary);
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    min-width: 140px;
+    padding: 4px 0;
+}
+
+.freeze-popup-option {
+    padding: 6px 12px;
+    font-size: 13px;
+    color: var(--text-primary);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.1s ease;
+}
+
+.freeze-popup-option:hover {
+    background: var(--table-row-hover);
+    color: var(--brand-secondary);
+}

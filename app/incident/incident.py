@@ -4,23 +4,25 @@ import os
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, TYPE_CHECKING
 
 import yaml
 
 from app.config.config import get_config
 from app.config.environment import get_environment_config
 from app.config.validation import MessengerType
-from app.im.application import Application
 from app.im.channel_manager import ChannelManager
 from app.im.chain.ui_chains_store import ui_chains_store
 from app.logging import logger
 from app.queue.constants import QueueItemType
-from app.queue.queue import AsyncQueue
 from app.time import unix_sleep_to_timedelta
 from app.tools import NoAliasDumper
 from app.ui.websocket import incident_ws
 from app.utils import get_attr_by_key_chain, normalize_param, filter_dict_keys
+
+if TYPE_CHECKING:
+    from app.im.application import Application
+    from app.queue.queue import AsyncQueue
 
 
 @dataclass
@@ -317,6 +319,9 @@ class Incident:
             'indicator': display_status,
             '_alerts_count': len(self.payload.get('alerts', [])),
             '_is_frozen': self.is_frozen(),
+            '_action_state': f"{self.is_frozen()}|{self.status}|{self.assigned_user_id or ''}|{bool(self.task_link)}|{self.frozen_by_inhibition}",
+            '_assigned_user_id': self.assigned_user_id or '',
+            '_assigned_fullname': self.assigned_fullname or '',
             '_responsive_data': {
                 'group_labels': group_labels,
                 'common_labels': filter_dict_keys(common_labels, group_labels),
@@ -324,15 +329,12 @@ class Incident:
                 'incident_info': {
                     'status': self.status,
                     'frozen_until': normalize_param(self.frozen_until) if self.frozen_until else None,
-                    'is_frozen': self.is_frozen(),
+                    'frozen_by_inhibition': self.frozen_by_inhibition,
                     'created': normalize_param(self.created) if self.created else None,
                     'updated': normalize_param(self.updated) if self.updated else None,
                     'assigned_fullname': self.assigned_fullname if self.assigned_fullname else None,
-                    'channel_name': ChannelManager().get_channel_name_by_id(self.channel_id),
                     'link': self.link,
                     'task_link': self.task_link,
-                    'chain_enabled': self.chain_enabled,
-                    'has_chain': len(self.chain) > 0 if self.chain else False
                 },
                 'alerts': [
                     {

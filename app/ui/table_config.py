@@ -1,4 +1,5 @@
 from app.config.config import get_config
+from app.config.environment import get_environment_config
 
 
 def get_all_ui_config():
@@ -6,13 +7,18 @@ def get_all_ui_config():
     Get all UI configuration in a single response.
 
     Returns:
-        dict: Complete UI configuration including table config, sorting, colors, and filters.
+        dict: Complete UI configuration including table config, sorting, colors, filters, and features.
     """
+    config = get_config()
+    env_config = get_environment_config()
     return {
         'table_config': _get_incident_table_config(),
         'sorting': _get_incident_table_sorting(),
         'colors': _get_incident_table_colors(),
-        'filters': _get_incident_table_filters()
+        'filters': _get_incident_table_filters(),
+        'features': {
+            'task_management': bool(config.app.task_management and env_config.task_management_enabled),
+        },
     }
 
 

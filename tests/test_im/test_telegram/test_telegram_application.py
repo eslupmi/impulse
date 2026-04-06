@@ -213,6 +213,25 @@ class TestTelegramApplication:
 
         assert result == text
 
+    def test_closed_incident_update_payload_has_no_keyboard(self, app_config, channels, users):
+        """Closed incidents should not render inline buttons."""
+        app = self.create_telegram_app(app_config, channels, users)
+        incident = create_mock_incident_for_handlers(status="closed", ts="123456/789012")
+
+        with patch('app.im.telegram.telegram_application.get_config') as mock_get_config, \
+                patch('app.im.telegram.telegram_application.get_environment_config') as mock_get_env_config:
+            mock_get_config.return_value = Mock(
+                app=Mock(
+                    general=Mock(timezone="UTC"),
+                    task_management=False
+                )
+            )
+            mock_get_env_config.return_value = Mock(task_management_enabled=False)
+
+            payload = app.update_incident_payload(incident, "body", "header", "5408906741125490282")
+
+        assert payload['reply_markup']['inline_keyboard'] == []
+
     def test_get_user_details_method(self, app_config, channels, users):
         """Test get_user_details method signature."""
         app = self.create_telegram_app(app_config, channels, users)

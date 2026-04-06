@@ -28,6 +28,9 @@ class Incidents:
         uniq_id = self.active_map.get(uuid)
         return self.uniq_ids.get(uniq_id)
 
+    def get_by_uniq_id(self, uniq_id: str) -> Union[Incident, None]:
+        return self.uniq_ids.get(uniq_id)
+
     def get_by_ts(self, ts: str) -> Union[Incident, None]:
         for uuid_ in self.active_map.values():
             incident = self.uniq_ids.get(uuid_)

@@ -1,6 +1,7 @@
 import {getBaseUrl} from "./utils.js";
 
 let isAuthenticated = false;
+const authListeners = [];
 
 function getElements() {
     return {
@@ -52,9 +53,11 @@ async function refreshAuthState() {
         const payload = await response.json();
         isAuthenticated = Boolean(payload?.authenticated);
         setUiState(isAuthenticated, payload?.user);
+        authListeners.forEach(cb => cb(isAuthenticated));
     } catch {
         isAuthenticated = false;
         setUiState(false, null);
+        authListeners.forEach(cb => cb(false));
     }
 }
 
@@ -72,6 +75,7 @@ async function handleLogout() {
     });
     isAuthenticated = false;
     setUiState(false, null);
+    authListeners.forEach(cb => cb(false));
 }
 
 async function initAuthControls() {
@@ -86,4 +90,12 @@ async function initAuthControls() {
     await refreshAuthState();
 }
 
-export {initAuthControls};
+function getIsAuthenticated() {
+    return isAuthenticated;
+}
+
+function onAuthChange(callback) {
+    authListeners.push(callback);
+}
+
+export {initAuthControls, getIsAuthenticated, onAuthChange};
