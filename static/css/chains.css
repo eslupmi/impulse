@@ -267,14 +267,14 @@
 }
 
 #calendar .fc-scroller::-webkit-scrollbar-track {
-    background: var(--background-secondary);
+    background: transparent;
     border-radius: 4px;
 }
 
 #calendar .fc-scroller::-webkit-scrollbar-thumb {
     background: var(--neutral-500);
     border-radius: 4px;
-    border: 2px solid var(--background-secondary);
+    border: 2px solid transparent;
 }
 
 #calendar .fc-scroller::-webkit-scrollbar-thumb:hover {
@@ -283,13 +283,30 @@
 
 #calendar .fc-scroller {
     scrollbar-width: thin;
-    scrollbar-color: var(--neutral-500) var(--background-secondary);
+    scrollbar-color: var(--neutral-500) transparent;
 }
 
 #calendar .fc-scroller::-webkit-scrollbar-button {
     display: none;
     height: 0;
     width: 0;
+}
+
+[data-theme="dark"] #calendar .fc-scroller::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+[data-theme="dark"] #calendar .fc-scroller::-webkit-scrollbar-thumb {
+    background: #fff;
+    border: 2px solid transparent;
+}
+
+[data-theme="dark"] #calendar .fc-scroller::-webkit-scrollbar-thumb:hover {
+    background: #fff;
+}
+
+[data-theme="dark"] #calendar .fc-scroller {
+    scrollbar-color: #fff transparent;
 }
 
 #calendar .fc-scroller {
@@ -929,6 +946,29 @@
     border-radius: 8px;
     box-shadow: 0 10px 24px rgba(0, 0, 0, 0.25);
     z-index: 2200;
+}
+
+.step-value-options::-webkit-scrollbar {
+    width: 8px;
+}
+
+[data-theme="dark"] .step-value-options::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+[data-theme="dark"] .step-value-options::-webkit-scrollbar-thumb {
+    background: #fff;
+    border-radius: 4px;
+    border: 2px solid transparent;
+}
+
+[data-theme="dark"] .step-value-options::-webkit-scrollbar-thumb:hover {
+    background: #fff;
+}
+
+[data-theme="dark"] .step-value-options {
+    scrollbar-width: thin;
+    scrollbar-color: #fff transparent;
 }
 
 .step-value-option {
