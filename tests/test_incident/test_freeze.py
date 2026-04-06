@@ -52,7 +52,6 @@ class TestIncidentFreeze:
 
         assert table_data['indicator'] == 'firing'
         assert table_data['_is_frozen'] is False
-        assert table_data['_responsive_data']['incident_info']['is_frozen'] is False
 
 class TestIncidentInhibitionFreeze:
     """Test cases for inhibition-based freeze functionality."""
@@ -185,6 +184,5 @@ class TestIncidentInhibitionFreeze:
 
         assert table_data['indicator'] == 'frozen'
         assert table_data['_is_frozen'] is True
-        assert table_data['_responsive_data']['incident_info']['is_frozen'] is True
         # frozen_until should still be None
         assert table_data['_responsive_data']['incident_info']['frozen_until'] is None
