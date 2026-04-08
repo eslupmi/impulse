@@ -118,8 +118,4 @@ function userSelectorFormatter(cell) {
     return container;
 }
 
-function getAssignableUsers() {
-    return assignableUsers;
-}
-
-export {initUserSelector, userSelectorFormatter, getAssignableUsers};
+export {initUserSelector, userSelectorFormatter};

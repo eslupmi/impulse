@@ -637,17 +637,6 @@ function formatStepsText(steps) {
     return stepTexts.join('<br>');
 }
 
-function findOverlappingChains(chains, start, end, excludeId = null) {
-    const candidateChain = {
-        start,
-        end: end || null,
-        repeat: null,
-        repeatEnd: null
-    };
-
-    return findOverlappingChainsForChain(chains, candidateChain, excludeId);
-}
-
 function findOverlappingChainsForChain(chains, candidateChain, excludeId = null) {
     if (!candidateChain?.start) {
         return [];
@@ -772,25 +761,6 @@ function calculateNewPriority(chain, overlappingChains) {
     
     const maxId = overlappingIds.reduce((max, id) => id > max ? id : max, overlappingIds[0]);
     return chainId >= maxId ? 1 : 2;
-}
-
-function findOverlappingEvents(event) {
-    const eventStart = event.start;
-    const eventEnd = event.end;
-    
-    const allEvents = calendar.getEvents();
-    return allEvents.filter(evt => {
-        if (evt.id === event.id || evt.extendedProps?.isOccurrence) {
-            return false;
-        }
-        const evtStart = evt.start;
-        const evtEnd = evt.end;
-        const timeOverlap = eventStart < evtEnd && eventEnd > evtStart;
-        if (!timeOverlap) {
-            return false;
-        }
-        return true;
-    });
 }
 
 function countOverlappingEvents(start, end, excludeEventId = null) {

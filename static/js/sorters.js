@@ -93,4 +93,4 @@ function setupSortingListener() {
     });
 }
 
-export { initializeSorting, loadSortingFromURL, setupSortingListener };
+export { initializeSorting, setupSortingListener };

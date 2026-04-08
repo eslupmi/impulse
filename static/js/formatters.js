@@ -259,10 +259,6 @@ function formatAlertsCount(cell) {
     return circle;
 }
 
-function getColorMap() {
-    return columnColors;
-}
-
 function setColorMap(colors) {
     columnColors = colors;
 }
