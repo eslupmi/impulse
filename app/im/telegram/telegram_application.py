@@ -267,7 +267,7 @@ class TelegramApplication(Application):
                 logger.info('Button TAKE IT: user already assigned', extra={'uuid': incident_.uuid, 'user_id': user_id})
                 return JSONResponse(payload, status_code=200)
             logger.info('Button TAKE IT: assigning to user', extra={'uuid': incident_.uuid, 'user_id': user_id})
-            self.fetch_and_assign_user_name(incident_, user_id)
+            self.fetch_and_assign_user_name(incident_, user_id, dump=False)
             self.track_async_task(asyncio.create_task(self.post_assignment_notification(incident_)))
             incident_.chain_enabled = False
         else:

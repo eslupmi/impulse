@@ -62,7 +62,9 @@ class TestMattermostApplication:
             result = await app.buttons_handler(payload, incidents, queue, Mock())
 
         assert result.status_code == 200
-        app.fetch_and_assign_user_name.assert_called_once_with(incident, "U123")
+        app.fetch_and_assign_user_name.assert_called_once_with(incident, "U123", dump=False)
         app.post_assignment_notification.assert_called_once_with(incident)
         mock_create_task.assert_called_once()
         app.track_async_task.assert_called_once_with("assignment-task")
+        assert incident.chain_enabled is False
+        incident.dump.assert_called_once_with()

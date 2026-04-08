@@ -101,9 +101,7 @@ class SlackApplication(Application):
                     await self._handle_chain_action(incident_, user_id, queue_)
                 elif action['name'] == 'task':
                     self._handle_task_action(incident_, user_id, queue_)
-            body, header, status_icons = self.form_body_header_status_icons(incident_)
-            modified_message = slack_get_update_payload(incident_, body, header, status_icons, user_tz)
-            return JSONResponse(modified_message, status_code=200)
+            return self._build_button_response(incident_, user_tz)
 
     def update_incident_payload(self, incident, body, header, status_icons, user_tz):
         return slack_get_update_payload(incident, body, header, status_icons, user_tz)
@@ -135,6 +133,12 @@ class SlackApplication(Application):
     def _get_incident_message_payload(self, incident, body, header, status_icons):
         return get_incident_message_payload(incident, body, header, status_icons, None)
 
+    def _build_button_response(self, incident_, user_tz='UTC'):
+        incident_.dump()
+        body, header, status_icons = self.form_body_header_status_icons(incident_)
+        response_payload = slack_get_update_payload(incident_, body, header, status_icons, user_tz)
+        return JSONResponse(response_payload, status_code=200)
+
     async def _get_public_url(self, app_config: ApplicationConfig):
         response = await self.http.get(
             'https://slack.com/api/auth.test',
@@ -158,7 +162,7 @@ class SlackApplication(Application):
                 logger.info('Button pressed: user already assigned', extra={'incident': incident_.uuid, 'button': 'take_it', 'user_id': user_id})
             else:
                 logger.info('Button pressed: assigning to user', extra={'incident': incident_.uuid, 'button': 'take_it', 'user_id': user_id})
-                self.fetch_and_assign_user_name(incident_, user_id)
+                self.fetch_and_assign_user_name(incident_, user_id, dump=False)
                 self.track_async_task(asyncio.create_task(self.post_assignment_notification(incident_)))
             incident_.chain_enabled = False
         else:
