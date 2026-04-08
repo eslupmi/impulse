@@ -12,6 +12,7 @@ from app.config.config import get_config
 from app.config.environment import get_environment_config
 from app.config.validation import MessengerType
 from app.im.channel_manager import ChannelManager
+from app.im.chain.ui_chains_store import ui_chains_store
 from app.logging import logger
 from app.queue.constants import QueueItemType
 from app.time import unix_sleep_to_timedelta
@@ -88,20 +89,21 @@ class Incident:
         if chain_name is None:
             return
 
-        if chain_name not in chains.keys():
-            logger.warning("Chain not found", extra={'chain': chain_name})
-            return
-
-        chain = chains[chain_name]
-        if chain is None:
-            logger.warning("Chain is None. Check configuration", extra={'chain': chain_name})
-            return
-            
-        try:
-            steps = chain.steps
-        except AttributeError:
-            logger.error(f'Chain {chain_name} does not have steps attribute')
-            return
+        chain = chains.get(chain_name)
+        steps = None
+        if chain is not None:
+            try:
+                steps = chain.steps
+            except AttributeError:
+                logger.error(f'Chain {chain_name} does not have steps attribute')
+                return
+        else:
+            chain_config = get_config().messenger.chains.get(chain_name) if get_config().messenger.chains else None
+            if isinstance(chain_config, dict) and chain_config.get("type") == "ui":
+                steps = ui_chains_store.get_steps_for_now(chain_name)
+            else:
+                logger.warning("Chain not found", extra={'chain': chain_name})
+                return
             
         if not steps:
             logger.debug("Chain has no steps", extra={'chain': chain_name})

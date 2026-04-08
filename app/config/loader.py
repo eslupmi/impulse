@@ -5,7 +5,6 @@ import yaml
 from pydantic import ValidationError
 
 from app.config.validation import ImpulseConfig, validate_config
-from app.logging import logger
 
 
 class ConfigValidationError(Exception):

@@ -177,6 +177,12 @@ strong {
     padding-right: 24px;
 }
 
+.fc table {
+    border-collapse: collapse;
+    /* border-spacing: 0px; */
+    font-size: 1em;
+}
+
 /* Scrollable Filters Area */
 #scrollable-filters {
     position: relative;
@@ -491,6 +497,55 @@ strong {
     color: var(--offline-status-indicator);
 }
 
+.app-footer {
+    position: fixed;
+    right: 20px;
+    bottom: 0px;
+    z-index: 1000;
+    height: 29px;
+    display: flex;
+    align-items: center;
+}
+
+.bottom-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.bottom-controls-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.control-btn {
+    cursor: pointer;
+    width: 16px;
+    height: 16px;
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    padding: 0;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    color: var(--theme-icon-color);
+    text-decoration: none;
+}
+
+.control-btn:hover {
+    transform: scale(1.2);
+}
+
+.control-btn svg {
+    width: 16px;
+    height: 16px;
+    stroke: currentColor;
+}
+
 .status-bar-right {
     position: fixed;
     bottom: 4px;
@@ -556,7 +611,6 @@ strong {
     display: flex;
     align-items: center;
     gap: 0;
-    margin-left: 20px;
 }
 
 .auth-controls-wrapper.logged-in {

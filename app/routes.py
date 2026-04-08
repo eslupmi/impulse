@@ -12,6 +12,7 @@ from app.metrics import generate_metrics_response
 from app.middleware import is_standby_mode, service_unavailable_response, STANDBY_MODE_MESSAGE
 from app.ui.table_config import get_all_ui_config
 from app.ui.websocket import incident_ws
+from app.im.chain.ui_chains_store import ui_chains_store
 
 
 _MSG_INCIDENT_NOT_FOUND = "Incident not found"
@@ -107,12 +108,35 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
     async def get_ui_config():
         return get_all_ui_config()
 
-    @router.get("/assignment_users")
-    async def get_assignment_users(request: Request):
-        messenger = request.app.state.messenger
-        if messenger and messenger.users:
+    def _get_assignable_users(messenger):
+        if messenger and hasattr(messenger, 'users') and hasattr(messenger.users, 'get_assignable_users'):
             return messenger.users.get_assignable_users()
         return []
+
+    @router.get("/chains_config")
+    async def get_chains_config(request: Request):
+        config = get_config()
+        app = config.app
+        runtime_messenger = request.app.state.messenger
+        configured_messenger = config.messenger
+        runtime_chains = runtime_messenger.chains if getattr(runtime_messenger, "chains", None) else {}
+        configured_chains = configured_messenger.chains if getattr(configured_messenger, "chains", None) else {}
+        ui_chains = [n for n, c in configured_chains.items() if isinstance(c, dict) and c.get("type") == "ui"]
+        assignable_users = _get_assignable_users(runtime_messenger)
+        return {
+            "users": [user["config_name"] for user in assignable_users if user.get("config_name")],
+            "user_groups": list(runtime_messenger.user_groups.keys()) if getattr(runtime_messenger, "user_groups", None) else [],
+            "groups": list(runtime_messenger.groups.keys()) if getattr(runtime_messenger, "groups", None) else [],
+            "chains": list(runtime_chains.keys()),
+            "webhooks": list(app.webhooks.keys()) if getattr(app, "webhooks", None) else [],
+            "week_start": app.general.week_start if app.general else "Mon",
+            "timezone": app.general.timezone if app.general else "UTC",
+            "ui_chains": ui_chains,
+        }
+
+    @router.get("/assignment_users")
+    async def get_assignment_users(request: Request):
+        return _get_assignable_users(request.app.state.messenger)
 
     def _get_acting_user(request: Request):
         if not auth_manager:
@@ -322,6 +346,15 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
                         await incident_ws.handle_request_data(websocket, websocket.app.state.incidents, show_full_table)
                     elif event_type == "ping":
                         await incident_ws.handle_ping(websocket)
+                    elif event_type == "request_ui_chains":
+                        chain_name = message.get("chain_name", "")
+                        chains = ui_chains_store.load_chains(chain_name)
+                        await websocket.send_text(json.dumps({"event": "ui_chains_data", "data": chains}))
+                    elif event_type == "save_ui_chains":
+                        chain_name = message.get("chain_name", "")
+                        chains = message.get("data", [])
+                        success = ui_chains_store.save_chains(chain_name, chains)
+                        await websocket.send_text(json.dumps({"event": "ui_chains_saved", "success": success}))
 
                 except json.JSONDecodeError:
                     logger.warning("Invalid WebSocket JSON", extra={'data': data})

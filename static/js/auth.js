@@ -18,6 +18,7 @@ function getNextPath() {
 
 function setUiState(authenticated, userData) {
     const {wrapper, username} = getElements();
+    const chainsToggle = document.getElementById("chains-toggle");
     if (!wrapper) {
         return;
     }
@@ -26,10 +27,13 @@ function setUiState(authenticated, userData) {
         const displayName = userData.full_name || userData.username || userData.email || userData.id || "user";
         username.textContent = displayName;
         wrapper.classList.add("logged-in");
+        chainsToggle?.classList.remove("hidden");
     } else {
         username.textContent = "";
         wrapper.classList.remove("logged-in");
+        chainsToggle?.classList.add("hidden");
     }
+
 }
 
 async function refreshAuthState() {

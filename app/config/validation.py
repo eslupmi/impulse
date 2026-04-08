@@ -20,6 +20,7 @@ class ChainType(str, Enum):
     """Supported chain types"""
     SCHEDULE = "schedule"
     CLOUD = "cloud"
+    UI = "ui"
 
 
 class CloudProvider(str, Enum):
@@ -282,10 +283,12 @@ class BaseApplicationConfig(BaseModel):
                                 validate_chain_steps(schedule_entry['steps'])
 
                 elif chain_config.get('type') == 'cloud':
-                    # Cloud chain
                     validated_chains[chain_name] = CloudChain(**chain_config)
                     if 'default_steps' in chain_config:
                         validate_chain_steps(chain_config['default_steps'])
+
+                elif chain_config.get('type') == 'ui':
+                    validated_chains[chain_name] = chain_config
 
                 else:
                     raise ValueError(f"Unknown chain type for chain '{chain_name}': {chain_config.get('type')}")
