@@ -425,30 +425,31 @@ function createStepElement(step = null, index = null) {
     const stepType = step ? Object.keys(step)[0] : 'user';
     const stepValue = step ? step[stepType] : '';
     const isFirst = index === 0;
-    const waitOption = isFirst ? '' : `<option value="wait" ${stepType === 'wait' ? 'selected' : ''}>wait</option>`;
-    
+    const waitOption = isFirst ? '' : '<option value="wait">wait</option>';
     stepDiv.innerHTML = `
         <div class="step-controls">
             <select class="step-type">
-                <option value="user" ${stepType === 'user' ? 'selected' : ''}>user</option>
-                <option value="user_group" ${stepType === 'user_group' ? 'selected' : ''}>user_group</option>
-                <option value="group" ${stepType === 'group' ? 'selected' : ''}>group</option>
+                <option value="user">user</option>
+                <option value="user_group">user_group</option>
+                <option value="group">group</option>
                 ${waitOption}
-                <option value="chain" ${stepType === 'chain' ? 'selected' : ''}>chain</option>
+                <option value="chain">chain</option>
             </select>
             <div class="step-value-wrapper">
-                <input type="text" class="step-value" placeholder="Enter value" value="${stepValue}" autocomplete="off">
+                <input type="text" class="step-value" placeholder="Enter value" autocomplete="off">
                 <div class="step-value-options hidden"></div>
             </div>
             <button type="button" class="btn-remove-step" aria-label="Remove step">&times;</button>
         </div>
     `;
-    
     const typeSelect = stepDiv.querySelector('.step-type');
     const valueInput = stepDiv.querySelector('.step-value');
     const optionsEl = stepDiv.querySelector('.step-value-options');
     const valueWrapper = stepDiv.querySelector('.step-value-wrapper');
     const removeBtn = stepDiv.querySelector('.btn-remove-step');
+    typeSelect.value = stepType;
+    valueInput.value = stepValue;
+
     let activeOptionIndex = -1;
 
     function setActiveOption(index) {

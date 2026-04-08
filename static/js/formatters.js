@@ -211,6 +211,7 @@ function formatterWrapper(formatter) {
                 const link = document.createElement("a");
                 link.href = urlPrefix + cell.getData()[urlField];
                 link.target = target;
+                link.rel = "noopener noreferrer";
                 link.textContent = cell.getValue();
                 originalContent.appendChild(link);
             } else {
@@ -314,6 +315,7 @@ function createHeaderBlock(headerData) {
         const linkSpan = document.createElement('a');
         linkSpan.href = headerData.generatorURL;
         linkSpan.target = '_blank';
+        linkSpan.rel = 'noopener noreferrer';
         linkSpan.className = 'generator-link';
         linkSpan.innerHTML = LINK_ICON;
         headerDiv.appendChild(linkSpan);
@@ -496,14 +498,34 @@ function createSimpleCommonBlock(responsiveData) {
     if (info.link) {
         const linkSpan = document.createElement('span');
         linkSpan.className = 'info-item';
-        linkSpan.innerHTML = `<strong>link:</strong> <a href="${info.link}" target="_blank" class="incident-link">${LINK_ICON}</a>`;
+        const linkTitle = document.createElement('strong');
+        linkTitle.textContent = 'link:';
+        const link = document.createElement('a');
+        link.href = info.link;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.className = 'incident-link';
+        link.innerHTML = LINK_ICON;
+        linkSpan.appendChild(linkTitle);
+        linkSpan.append(' ');
+        linkSpan.appendChild(link);
         infoStack.appendChild(linkSpan);
     }
     
     if (info.task_link) {
         const taskLinkSpan = document.createElement('span');
         taskLinkSpan.className = 'info-item';
-        taskLinkSpan.innerHTML = `<strong>task:</strong> <a href="${info.task_link}" target="_blank" class="incident-link">${LINK_ICON}</a>`;
+        const taskTitle = document.createElement('strong');
+        taskTitle.textContent = 'task:';
+        const taskLink = document.createElement('a');
+        taskLink.href = info.task_link;
+        taskLink.target = '_blank';
+        taskLink.rel = 'noopener noreferrer';
+        taskLink.className = 'incident-link';
+        taskLink.innerHTML = LINK_ICON;
+        taskLinkSpan.appendChild(taskTitle);
+        taskLinkSpan.append(' ');
+        taskLinkSpan.appendChild(taskLink);
         infoStack.appendChild(taskLinkSpan);
     }
     
