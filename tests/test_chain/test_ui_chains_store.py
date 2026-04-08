@@ -1,23 +1,24 @@
 from datetime import datetime, timezone
+from pathlib import Path
 from unittest.mock import patch
 
 from app.im.chain.ui_chains_store import UIChainsStore
 
 
-def test_ui_chains_dir_uses_environment_data_path():
+def test_ui_chains_dir_uses_environment_data_path(tmp_path: Path):
     with patch("app.im.chain.ui_chains_store.get_environment_config") as mock_get_environment_config, \
             patch("app.im.chain.ui_chains_store.os.path.exists", return_value=True):
-        mock_get_environment_config.return_value.data_path = "/tmp/impulse-data"
+        mock_get_environment_config.return_value.data_path = str(tmp_path)
 
         store = UIChainsStore()
 
-    assert store.ui_chains_dir == "/tmp/impulse-data/ui_chains"
+    assert store.ui_chains_dir == str(tmp_path / "ui_chains")
 
 
-def test_get_steps_for_now_prefers_priority_1():
+def test_get_steps_for_now_prefers_priority_1(tmp_path: Path):
     with patch("app.im.chain.ui_chains_store.get_environment_config") as mock_get_environment_config, \
             patch("app.im.chain.ui_chains_store.os.path.exists", return_value=True):
-        mock_get_environment_config.return_value.data_path = "/tmp/impulse-data"
+        mock_get_environment_config.return_value.data_path = str(tmp_path)
         store = UIChainsStore()
 
     now = datetime(2026, 3, 29, 12, 0, tzinfo=timezone.utc)
@@ -42,10 +43,10 @@ def test_get_steps_for_now_prefers_priority_1():
         assert store.get_steps_for_now("test", now) == [{"user": "user1"}]
 
 
-def test_recalculate_priorities_single_over_daily_repeat():
+def test_recalculate_priorities_single_over_daily_repeat(tmp_path: Path):
     with patch("app.im.chain.ui_chains_store.get_environment_config") as mock_get_environment_config, \
             patch("app.im.chain.ui_chains_store.os.path.exists", return_value=True):
-        mock_get_environment_config.return_value.data_path = "/tmp/impulse-data"
+        mock_get_environment_config.return_value.data_path = str(tmp_path)
         store = UIChainsStore()
 
     chains = [

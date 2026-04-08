@@ -4,6 +4,7 @@ Unit tests for app.file_lock module.
 import asyncio
 import os
 import socket
+import tempfile
 import time
 from pathlib import Path
 from unittest.mock import Mock, patch, mock_open, MagicMock, AsyncMock
@@ -35,7 +36,7 @@ class TestFileLockInit:
     def test_init_with_different_data_paths(self):
         """Test initialization with different data paths."""
         test_paths = [
-            "/tmp/test",
+            str(Path(tempfile.gettempdir()) / "test"),
             "/var/lib/impulse",
             "./relative/path",
             "data"
