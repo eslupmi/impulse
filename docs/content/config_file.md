@@ -31,20 +31,20 @@ Below are all the configuration options supported by IMPulse.
 
 ### general.timezone
 
-- **description:** default timezone (used for [Freeze](concepts/buttons.md) delay)
+- **description:** default timezone (used for [Freeze](concepts/incident.md#freeze) delay)
 - **type:** string 
 - **default value:** UTC
 
 ### general.week_start
 
-- **description:** first day of the week (used for [Freeze](concepts/buttons.md) delay)
+- **description:** first day of the week (used for [Freeze](concepts/incident.md#freeze) delay)
 - **type:** string
 - **default value:** Mon
 - **allowed values:** 0 to 7 (like in [cron](https://en.wikipedia.org/wiki/Cron)) or "Sun", "Mon"...
 
 ### general.workday_start
 
-- **description:** time when workday starts (used for [Freeze](concepts/buttons.md) delay)
+- **description:** time when workday starts (used for [Freeze](concepts/incident.md#freeze) delay)
 - **type:** string ("23:59" format)
 - **default value:** "09:00"
 
@@ -89,28 +89,28 @@ Below are all the configuration options supported by IMPulse.
 
 #### incident.timeouts.firing
 
-- **description:** after this time, incident status changes from 'firing' to 'unknown' if no alerts appear
+- **description:** after this time, incident status changes from `firing` to `unknown` if no alerts appear
 - **type:** string
 - **default value:** 6h
 - **allowed values:** `wait` instruction [format](config_file.md/#messengerchains)
 
 #### incident.timeouts.unknown
 
-- **description:** after this time, incident status changes from 'unknown' to 'closed' if no alerts appear
+- **description:** after this time, incident status changes from `unknown` to `closed` if no alerts appear
 - **type:** string
 - **default value:** 6h
 - **allowed values:** `wait` instruction [format](config_file.md/#messengerchains)
 
 #### incident.timeouts.resolved
 
-- **description:** after this time, incident status changes from 'resolved' to 'closed' if no alerts appear
+- **description:** after this time, incident status changes from `resolved` to `closed` if no alerts appear
 - **type:** string
 - **default value:** 12h
 - **allowed values:** `wait` instruction [format](config_file.md/#messengerchains)
 
 #### incident.timeouts.closed
 
-- **description:** after this time, 'closed' incident will be deleted
+- **description:** after this time, `closed` incident will be deleted
 - **type:** string
 - **default value:** 90d
 - **allowed values:** `wait` instruction [format](config_file.md/#messengerchains)
@@ -721,7 +721,7 @@ Below are all the configuration options supported by IMPulse.
 
 ## task_management
 
-- **description:** task tracking system integration configuration (e.g., Jira). The `task_management:` block enables [**Task**](concepts/buttons.md) button.
+- **description:** task tracking system integration configuration (e.g., Jira). The `task_management:` block enables [**Task**](concepts/incident.md#task) button.
 - **type:** dict
 
 ### task_management.type *
@@ -951,7 +951,7 @@ Below are all the configuration options supported by IMPulse.
 
 ## webhooks
 
-- **description:** webhooks provide alternative notification options via HTTP POST requests to custom endpoints. See **INTEGRATIONS / External Notifications** menu for provider examples.
+- **description:** webhooks provide alternative notification options via HTTP POST requests to custom endpoints. See menu **INTEGRATIONS / External Notifications** menu for provider examples.
 - **type:** dict
 
 ### &lt;webhook&gt;.auth

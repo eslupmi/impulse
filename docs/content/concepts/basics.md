@@ -2,7 +2,7 @@
 
 IMPulse is installed between <abbr title="see menu INTEGRATIONS/Alert Sources">**alert source**</abbr> and a <abbr title="see menu INTEGRATIONS/Messengers">**messenger**</abbr> to create [Incidents](incident.md) entity.
 
-## Alertmanager Example
+## Alertmanager example
 
 ![None](../media/impulse.excalidraw.svg)
 

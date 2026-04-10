@@ -5,6 +5,17 @@
 
 In Telegram, although the configuration uses the term `channels`, they are actually implemented as groups with topics.
 
+## Authentication
+
+1. Open BotFather Mini App
+2. Select IMPulse bot -> Bot Settings
+3. In the **Web Login** section:
+    - press **Switch to OpenID Connect Login** button, **Confirm**
+    - press **Add an Allowed URL** button, **Add a Redirect URI**
+    - enter "https://&lt;your_domain_name&gt;/auth/callback" as a Redirect URI
+    - use "Client ID" as ENV `AUTH_CLIENT_ID`
+    - use "Client Secret" as ENV `AUTH_CLIENT_SECRET`
+
 ## Create a bot
 
 Follow this [instruction](https://core.telegram.org/bots/features#creating-a-new-bot). Save the bot token as the `TELEGRAM_BOT_TOKEN` environment variable (used in section 2.3 [here](../../installation.md#4-configure-impulse)).

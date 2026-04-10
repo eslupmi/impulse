@@ -2,10 +2,7 @@
 
 ## Group and repeat intervals
 
-!!! warning ""
-    Configure group and repeat intervals correctly to ensure IMPulse works properly (the explanation is [here](concepts/incident.md#unknown))
-
-Set the sum of `route.repeat_interval` and `route.group_interval` [Alertmanager's options](https://prometheus.io/docs/alerting/latest/configuration/) less than [`incident.timeouts.firing`](https://github.com/DiTsi/impulse/blob/develop/examples/impulse.slack.yml) (default `6h`):
+Set the sum of `route.repeat_interval` and `route.group_interval` Alertmanager's [options](https://prometheus.io/docs/alerting/latest/configuration/) less than [incident.timeouts.firing](config_file.md#incidenttimeoutsfiring) (the explanation is [here](concepts/incident.md#unknown)):
 
 ```yaml title="alertmanager.yml"
 route:

@@ -1,5 +1,16 @@
 # Slack
 
+## Authentication
+
+1. Use "https://&lt;your_domain&gt;/auth/callback" as ENV `AUTH_CLIENT_SECRET`
+2. Go to [Slack Apps](https://api.slack.com/apps), select IMPulse app
+3. In the **Basic Information** section:
+    - use "Client ID" as ENV `AUTH_CLIENT_ID`
+    - use "Client Secret" as ENV `AUTH_CLIENT_SECRET`
+4. In the **OAuth & Permissions** section:
+    - in **Redirect URLs** subsection add IMPulse URL
+    - press **Save URLs** button
+
 ## Create a bot
 
 1. Go to [Slack Apps](https://api.slack.com/apps) and click button **Create New App**.
@@ -10,7 +21,7 @@
 
 1. In the **Interactivity & Shortcuts** section:
     - enable "Interactivity"
-    - set the **Request URL** to `https://<your_domain>/app`
+    - set the **Request URL** to "https://&lt;your_domain&gt;/app"
 
 2. In the **OAuth & Permissions** section:
     - in **Scopes** subsection add these "Bot Token Scopes":
