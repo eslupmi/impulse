@@ -66,13 +66,13 @@ Below are all the configuration options supported by IMPulse.
 
 #### incident.notifications.new_firing
 
-- **description:** notification about new firing instances
+- **description:** notification about new **firing** instances
 - **type:** bool
 - **default value:** True
 
 #### incident.notifications.partial_resolved
 
-- **description:** nofitication about some resolved instances
+- **description:** nofitication about some **resolved** instances
 - **type:** bool
 - **default value:** True
 
@@ -89,28 +89,28 @@ Below are all the configuration options supported by IMPulse.
 
 #### incident.timeouts.firing
 
-- **description:** after this time, incident status changes from `firing` to `unknown` if no alerts appear
+- **description:** after this time, incident status changes from **firing** to **unknown** if no alerts appear
 - **type:** string
 - **default value:** 6h
 - **allowed values:** `wait` instruction [format](config_file.md/#messengerchains)
 
 #### incident.timeouts.unknown
 
-- **description:** after this time, incident status changes from `unknown` to `closed` if no alerts appear
+- **description:** after this time, incident status changes from **unknown** to **closed** if no alerts appear
 - **type:** string
 - **default value:** 6h
 - **allowed values:** `wait` instruction [format](config_file.md/#messengerchains)
 
 #### incident.timeouts.resolved
 
-- **description:** after this time, incident status changes from `resolved` to `closed` if no alerts appear
+- **description:** after this time, incident status changes from **resolved** to **closed** if no alerts appear
 - **type:** string
 - **default value:** 12h
 - **allowed values:** `wait` instruction [format](config_file.md/#messengerchains)
 
 #### incident.timeouts.closed
 
-- **description:** after this time, `closed` incident will be deleted
+- **description:** after this time, **closed** incident will be deleted
 - **type:** string
 - **default value:** 90d
 - **allowed values:** `wait` instruction [format](config_file.md/#messengerchains)

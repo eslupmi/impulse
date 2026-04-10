@@ -52,7 +52,7 @@
     
 4. We recommend configuring IMPulse channels for all `messenger.users` as follows:
     - select the channel in main list and press on it
-    - click the **View Info** icon (`i`) in the top right, click **Notifications Preferences**
+    - click the **View Info** icon (i) in the top right, click **Notifications Preferences**
     - in the "Notify me about..." choose "Mentions, direct messages, and keywords only"
     - click **Save**.
 

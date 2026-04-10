@@ -8,13 +8,13 @@ Currently, you can write your own templates for thread messages and for tasks in
 
 There are 3 templates that users can customize as needed (see [messages structure](incident.md#messages-structure)). These are:
 
-- `status icons`
-- `header`
-- `body`
+- **status icons**
+- **header**
+- **body**
 
 ### Default template
 
-The default `body` template supports 3 links:
+The default **body** template supports 3 links:
 
 - source - link points to Prometheus query
 - runbook - link for [runbook](#runbook)

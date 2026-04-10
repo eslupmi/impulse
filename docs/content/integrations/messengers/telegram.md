@@ -3,7 +3,7 @@
 !!! warning "Limitations"
     See [Messenger Comparison](../../concepts/messengers.md)
 
-In Telegram, although the configuration uses the term `channels`, they are actually implemented as groups with topics.
+In Telegram, although the configuration uses the term **channels**, they are actually implemented as groups with topics.
 
 ## Authentication
 

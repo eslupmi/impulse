@@ -17,7 +17,7 @@ Send a new alert for processing.
 
 **Requirements:**
 
-- Server must be in `primary` mode
+- Server must be in **primary** mode
 - Request body must contain valid JSON with alert data
 
 **Requirements:**
@@ -39,7 +39,7 @@ Server liveness check. Used for Kubernetes liveness probes to determine if the c
 
 **Responses:**
 
-- `200 OK` - Container is alive (returns 200 in both `primary` and `standby` modes)
+- `200 OK` - Container is alive (returns `200` in both **primary** and **standby** modes)
 
 ### HTTP `/readyz` [GET]
 
@@ -47,8 +47,8 @@ Server readiness check. Used for health checks and determining server state (see
 
 **Responses:**
 
-- `200 OK` - Server is ready and running in `primary` mode
-- `503 Service Unavailable` - Server is in `standby` mode or initializing
+- `200 OK` - Server is ready and running in **primary** mode
+- `503 Service Unavailable` - Server is in **standby** mode or initializing
 
 ### HTTP `/metrics` [GET]
 
@@ -68,5 +68,5 @@ WebSocket connection for receiving real-time incident updates.
 
 **Requirements:**
 
-- Server must be in `primary` mode (see [High Availability](ha.md))
-- Connection will be closed with code `1008` if server is in `standby` mode
+- Server must be in **primary** mode (see [High Availability](ha.md))
+- Connection will be closed with code `1008` if server is in **standby** mode

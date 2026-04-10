@@ -28,7 +28,7 @@ The footer can be divided into 3 parts:
 - on the left is an "online" / "offline" indicator to help you understand how current the information you're viewing is.
 - in the center is a page switcher
 - on the right are 2 buttons: 
-    - archive - for displaying historical data (incidents in [`closed` status](incident.md#closed))
+    - archive - for displaying historical data (incidents in [**closed** status](incident.md#closed))
     - theme switcher
 
 ## Features

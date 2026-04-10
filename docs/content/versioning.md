@@ -10,7 +10,7 @@ IMPulse uses version numbers like **`v1.0.2`** where:
 
 ## Upgrade
 
-For the major version upgrade (**`v1.6.0` -> `v2.0.0`**) you should follow `Upgrade instructions` in [CHANGELOG.md](https://github.com/DiTsi/impulse/blob/develop/CHANGELOG.md). Major version upgrades must be performed sequentially: to upgrade from **`v1.0.0`** to **`v3.0.0`**, you must first upgrade to **`v2.0.0`**.
+For the major version upgrade (`v1.6.0` -> `v2.0.0`) you should follow **Upgrade instructions** in [CHANGELOG.md](https://github.com/DiTsi/impulse/blob/develop/CHANGELOG.md). Major version upgrades must be performed sequentially: to upgrade from `v1.0.0` to `v3.0.0`, you must first upgrade to `v2.0.0`.
 
 Other upgrades can be done without manual operations.
 
