@@ -67,8 +67,8 @@ nav:
     - alertmanager.md
     - grafana.md
   - Messengers:
-    - integrations/messengers/mattermost.md
     - integrations/messengers/slack.md
+    - integrations/messengers/mattermost.md
     - integrations/messengers/telegram.md
   - Scheduling:
     - integrations/calendars/google.md
