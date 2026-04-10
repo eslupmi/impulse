@@ -14,4 +14,4 @@ Create contact point for IMPulse and use it in Grafana alerts
 
     - set **Name** to "IMPulse"
     - set **Integration** to "Webhook"
-    - set appropriate **URL** to connect to IMPulse (like "http://localhost:5000/")
+    - set appropriate **URL** to connect to IMPulse (like `http://localhost:5000/`)

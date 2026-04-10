@@ -604,19 +604,19 @@ Below are all the configuration options supported by IMPulse.
 
 - **description:** path to the custom template file that defines the format of `body`
 - **type:** string
-- **default value:** ./templates/[&lt;messenger.type&gt;](#messengertype)_body.j2
+- **default value:** `./templates/<messenger.type>_body.j2`
 
 #### messenger.template_files.header
 
 - **description:** path to the custom template file that defines the format of `header`
 - **type:** string
-- **default value:** ./templates/[&lt;messenger.type&gt;](#messengertype)_header.j2
+- **default value:** `./templates/<messenger.type>_header.j2`
 
 #### messenger.template_files.status_icons
 
 - **description:** path to the custom template file that defines the format of `status_icons`
 - **type:** string
-- **default value:** ./templates/[&lt;messenger.type&gt;](#messengertype)_status_icons.j2
+- **default value:** `./templates/<messenger.type>_status_icons.j2`
 
 ### messenger.type *
 
@@ -768,13 +768,13 @@ Below are all the configuration options supported by IMPulse.
 
 - **description:** path to the custom template file that defines the format of task summary
 - **type:** string
-- **default value:** ./templates/[&lt;task_management.type&gt;](#task_managementtype)_summary.j2
+- **default value:** `./templates/<task_management.type>_summary.j2`
 
 #### task_management.template_files.description
 
 - **description:** path to the custom template file that defines the format of task description
 - **type:** string
-- **default value:** ./templates/[&lt;task_management.type&gt;](#task_managementtype)_description.j2
+- **default value:** `./templates/<task_management.type>_description.j2`
 
 ## ui
 

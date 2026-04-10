@@ -92,4 +92,4 @@ To configure the host and port that IMPulse listens on, use the `LISTEN_HOST` an
 
 ## 6. Reverse proxy
 
-If you are using reverse proxy and need an HTTP prefix (e.g. `/impulse`), use the **HTTP_PREFIX** [environment variable](envs.md). Don't forget to update [impulse_address](config_file.md#messengerimpulse_address) to include the prefix.
+If you are using reverse proxy and need an HTTP prefix (e.g. `/impulse`), use the **HTTP_PREFIX** [environment variable](envs.md). Don't forget to update `impulse_address` to include the prefix.
