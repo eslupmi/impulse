@@ -543,7 +543,12 @@ strong {
 .control-btn svg {
     width: 16px;
     height: 16px;
+    display: block;
     stroke: currentColor;
+}
+
+.chains-icon {
+    transform: translateX(0.5px);
 }
 
 .status-bar-right {
@@ -601,9 +606,12 @@ strong {
 }
 
 .history-icon {
-    width: 14px;
-    height: 14px;
+    width: 16px;
+    height: 16px;
+    display: block;
+    stroke: var(--theme-icon-color);
     color: var(--theme-icon-color);
+    transform: translate(-2.5px, 0.5px);
     transition: all 0.3s ease;
 }
 
@@ -740,8 +748,8 @@ strong {
 }
 
 .theme-icon {
-    width: 16px;
-    height: 16px;
+    width: 17px;
+    height: 17px;
     stroke: var(--theme-icon-color);
     color: var(--theme-icon-color);
     transition: all 0.3s ease;

@@ -204,10 +204,10 @@ function toggleHistoryView() {
     if (button) {
         if (showFullTable) {
             button.classList.add('active');
-            button.title = 'Show active incidents only';
+            button.title = 'Hide archive';
         } else {
             button.classList.remove('active');
-            button.title = 'Show all incidents';
+            button.title = 'Show archive';
         }
     }
     
@@ -222,7 +222,7 @@ function initHistoryToggle() {
     const button = document.getElementById('history-toggle');
     if (button) {
         button.addEventListener('click', toggleHistoryView);
-        button.title = 'Show all incidents';
+        button.title = 'Show archive';
     }
 }
 
