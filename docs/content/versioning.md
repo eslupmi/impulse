@@ -16,6 +16,6 @@ Other upgrades can be done without manual operations.
 
 ### Docker
 
-1. See `impulse.yml` upgrade instructions in [CHANGELOG.md](https://github.com/DiTsi/impulse/blob/develop/CHANGELOG.md) (**for major version upgrade**).
+1. See `impulse.yml`[↰](config_file.md) upgrade instructions in [CHANGELOG.md](https://github.com/DiTsi/impulse/blob/develop/CHANGELOG.md) (**for major version upgrade**).
 2. Set the new tag in `docker-compose.yml`.
 3. Execute `docker compose up -d`.

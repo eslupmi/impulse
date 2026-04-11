@@ -28,8 +28,8 @@
 
     - Set properly [Group and repeat intervals](alertmanager.md/#group-and-repeat-intervals)
     - Configure IMPulse as [receiver](alertmanager.md/#receiver)
-    - Move [route](alertmanager.md/#routing) from Alertmanager to [impulse.yml](config_file.md/#route) 
-    - Move [inhibit_rules](alertmanager.md/#inhibition) from Alertmanager to [impulse.yml](config_file.md/#route) 
+    - Move [route](alertmanager.md/#routing) from Alertmanager to `impulse.yml`[↰](config_file.md#route) 
+    - Move [inhibit_rules](alertmanager.md/#inhibition) from Alertmanager to `impulse.yml`[↰](config_file.md#inhibit_rules) 
 
 === "Grafana"
 
@@ -88,8 +88,8 @@
     python -m main
     ```
 
-To configure the host and port that IMPulse listens on, use the `LISTEN_HOST` and `LISTEN_PORT` [environment variables](envs.md).
+To configure the host and port that IMPulse listens on, use the `LISTEN_HOST`[↰](envs.md) and `LISTEN_PORT`[↰](envs.md) environment variables.
 
 ## 6. Reverse proxy
 
-If you are using reverse proxy and need an HTTP prefix (e.g. `/impulse`), use the **HTTP_PREFIX** [environment variable](envs.md). Don't forget to update `impulse_address` to include the prefix.
+If you are using reverse proxy and need an HTTP prefix (e.g. `/impulse`), use the `HTTP_PREFIX`[↰](envs.md). Don't forget to update `messenger.impulse_address`[↰](config_file.md#messengerimpulse_address) to include the prefix.

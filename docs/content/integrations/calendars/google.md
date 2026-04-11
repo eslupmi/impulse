@@ -1,6 +1,6 @@
 # Google Calendar [↰](../../config_file.md#cloud-chains)
 
-Google Calendar can be used as a [cloud chain](../../config_file.md#cloud-chains). To enable it, you need to create a Google Cloud project and generate a service account key file named `key.json`, which will be used as [`GOOGLE_SERVICE_ACCOUNT_FILE`](../../envs.md).
+Google Calendar can be used as a [cloud chain](../../config_file.md#cloud-chains). To enable it, you need to create a Google Cloud project and generate a service account key file named `key.json`, which will be used as `GOOGLE_SERVICE_ACCOUNT_FILE`[↰](../../envs.md).
 
 ## Create project and get key.json
 
@@ -8,7 +8,7 @@ Google Calendar can be used as a [cloud chain](../../config_file.md#cloud-chains
 2. Navigate to **"APIs & Services"** and enable **"Google Calendar API"**
 3. Open **"Service Accounts"** and create a new service account
 4. In the newly created service account, go to the **"Keys"** tab, click **Add key** > **Create new key** > **JSON**. The `key.json` file will be downloaded automatically
-5. Move this file to the path specified in `GOOGLE_SERVICE_ACCOUNT_FILE` (`./key.json` by default)
+5. Move this file to the path specified in `GOOGLE_SERVICE_ACCOUNT_FILE`[↰](../../envs.md).
 
 ## Set up calendar access for your service account
 

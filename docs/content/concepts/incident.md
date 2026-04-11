@@ -96,17 +96,17 @@ Possible causes of **unknown** status:
     - network issues
 - **Repeat Interval** + **Group Interval** in alert source less or equal IMPulse's [incident.timeouts.firing](../config_file.md#incidenttimeoutsfiring)
 
-When an incident becomes **unknown** , IMPulse sends a warning message to `messenger.admin_users`.
+When an incident becomes **unknown** , IMPulse sends a warning message to `messenger.admin_users`[↰](../config_file.md#messengeradmin_users).
 
 ### **closed**
 
 <p align="center"><img src="../../media/slack_closed.excalidraw.svg" alt="" width="400"/></p>
 
-The **closed** status means the incident is **closed** and retained only for history and statistics. The retention period for a **closed** incident file is configured via `incident.timeouts.closed`. You can see **closed** incidents in the UI by clicking the [archive button](ui.md#elements).
+The **closed** status means the incident is **closed** and retained only for history and statistics. The retention period for a **closed** incident file is configured via `incident.timeouts.closed`[↰](../config_file.md#incidenttimeoutsclosed). You can see **closed** incidents in the UI by clicking the [archive button](ui.md#footer).
 
 There are two ways an Incident can be closed:
-- a **resolved** incident remains in that status for the duration of`incident.timeouts.resolved`
-- an **unknown** incident remains in that status for the duration of `incident.timeouts.unknown`
+- a **resolved** incident remains in that status for the duration of `incident.timeouts.resolved`[↰](../config_file.md#incidenttimeoutsresolved)
+- an **unknown** incident remains in that status for the duration of `incident.timeouts.unknown`[↰](../config_file.md#incidenttimeoutsunknown)
 
 ### **frozen**
 
@@ -121,7 +121,7 @@ An incident can be **frozen** two ways:
 
 ## Lifecycle
 
-IMPulse creates an Incident with the **firing** status and tracks it until the incident is deleted (after [`incident.timeouts.closed`](#closed)).
+IMPulse creates an Incident with the **firing** status and tracks it until the incident is deleted (after `incident.timeouts.closed`[↰](#closed)).
 
 Here is a visualization of the full incident lifecycle:
 

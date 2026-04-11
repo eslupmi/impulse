@@ -6,7 +6,7 @@ IMPulse is installed between <abbr title="see menu INTEGRATIONS/Alert Sources">*
 
 ![None](../media/impulse.excalidraw.svg)
 
-In this example, IMPulse receives alerts from Alertmanager and sends them to your messenger channel based on `messenger` and `route` configuration (see [Configuration File](../config_file.md)).
+In this example, IMPulse receives alerts from Alertmanager and sends them to your messenger channel based on the `messenger`[↰](../config_file.md#messenger) and `route`[↰](../config_file.md#route) configuration.
 
 Alertmanager sends alerts with one of two statuses: **firing** and **resolved**. Based on these statuses, IMPulse creates [Incidents](incident.md). The first Incident status is always **firing** when a problem occurs.
 

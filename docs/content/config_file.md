@@ -14,7 +14,7 @@
 }  
 </style>
 
-IMPulse uses a single configuration file `impulse.yml`. You can customize its location using the [CONFIG_PATH](envs.md) environment variable.
+IMPulse uses a single configuration file `impulse.yml`. You can customize its location using the `CONFIG_PATH`[↰](envs.md) environment variable.
 
 The configuration can be [reloaded](concepts/check.md) while IMPulse is running without requiring a restart.
     
@@ -176,7 +176,7 @@ Below are all the configuration options supported by IMPulse.
 
 ### messenger.admin_users *
 
-- **description:** IMPulse administrators (from `messenger.users`) notified of any warnings
+- **description:** IMPulse administrators (from `messenger.users`[↰](#messengerusers)) notified of any warnings
 - **type:** list
 
 ### messenger.channels *
@@ -219,14 +219,14 @@ Below are all the configuration options supported by IMPulse.
 
         Each chain contains a list of **steps**. There are 6 step types:
 
-        - `chain`
-        - [`group`](#messengergroups)
-        - [`user`](#messengerusers)
-        - [`user_group`](#messengeruser_groups)
+        - `chain`[↰](#messengerchains)
+        - `group`[↰](#messengergroups)
+        - `user`[↰](#messengerusers)
+        - `user_group`[↰](#messengeruser_groups)
         - `wait`
-        - [`webhook`](#webhooks)
+        - `webhook`[↰](#webhooks)
 
-        `chain` allows nesting any other chains. Nesting is supported to any depth.
+        `chain`[↰](#messengerchains) allows nesting any other chains. Nesting is supported to any depth.
 
         `wait`, which delays the execution of the next notification. Its format is similar to the [sleep](https://www.gnu.org/software/coreutils/manual/html_node/sleep-invocation.html) utility format, but it does not support floats or combined expressions like `1m 3s`. Valid units: `s` (seconds), `m` (minutes), `h` (hours), `d` (days).
 
@@ -637,7 +637,7 @@ Below are all the configuration options supported by IMPulse.
     !!! note ""
         Route configure messenger channels, where incidents will be created, and [chains](#messengerchains) to notify people by rules.
 
-        It is very similar to Alertmanager's [route](https://prometheus.io/docs/alerting/latest/configuration/#route). But has only four instructions: `routes`, `matchers`, `channel`, `chain`.
+        It is very similar to Alertmanager's [route](https://prometheus.io/docs/alerting/latest/configuration/#route). But has only four instructions: `routes`[↰](#routeroutes), `matchers`[↰](#routematchers), `channel`[↰](#messengerchannels), `chain`[↰](#messengerchains).
 
         Matchers use Python regular expressions instead of Alertmanager's syntax.
 

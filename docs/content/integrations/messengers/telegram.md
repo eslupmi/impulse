@@ -12,13 +12,13 @@ In Telegram, although the configuration uses the term **channels**, they are act
 3. In the **Web Login** section:
     - press **Switch to OpenID Connect Login** button, **Confirm**
     - press **Add an Allowed URL** button, **Add a Redirect URI**
-    - enter `https://<your_domain_name>/auth/callback` as a Redirect URI
-    - use "Client ID" as ENV `AUTH_CLIENT_ID`
-    - use "Client Secret" as ENV `AUTH_CLIENT_SECRET`
+    - enter [https://&lt;your_domain_name&gt;/auth/callback](https://&lt;your_domain_name&gt;/auth/callback) as a Redirect URI for `AUTH_REDIRECT_URL`[↰](../../envs.md)
+    - use "Client ID" as ENV `AUTH_CLIENT_ID`[↰](../../envs.md)
+    - use "Client Secret" as ENV `AUTH_CLIENT_SECRET`[↰](../../envs.md)
 
 ## Create a bot
 
-Follow this [instruction](https://core.telegram.org/bots/features#creating-a-new-bot). Save the bot token as the `TELEGRAM_BOT_TOKEN` environment variable (used in section 2.3 [here](../../installation.md#4-configure-impulse)).
+Follow this [instruction](https://core.telegram.org/bots/features#creating-a-new-bot). Save the bot token as the `TELEGRAM_BOT_TOKEN`[↰](../../envs.md) environment variable (used in section 2.3 [here](../../installation.md#4-configure-impulse)).
 
 ## Configure groups
 
@@ -31,18 +31,18 @@ Follow this [instruction](https://core.telegram.org/bots/features#creating-a-new
 
 3. Promote the bot to administrator, enable "Manage topics"
 
-4. All users from `messenger.admin_users` must be members of every group listed in the `route` block
+4. All users from `messenger.admin_users`[↰](../../config_file.md#messengeradmin_users) must be members of every group listed in the `route`[↰](../../config_file.md#route) block
 
-5. Add users from `messenger.chains` to their respective groups.
+5. Add users from `messenger.chains`[↰](../../config_file.md#messengerchains) to their respective groups.
        
-    For simplicity, you can add all users from `messenger.users` to all groups defined in the `route` block
+    For simplicity, you can add all users from `messenger.users`[↰](../../config_file.md#messengerusers) to all groups defined in the `route`[↰](../../config_file.md#route) block
 
 6. It is highly recommended to mute group notifications forever to reduce noise
 
 7. Get the group ID (using the `@myidbot` bot)
     - add `@myidbot` bot to group
     - go to the group's "General" topic and send the command: `/getgroupid@myidbot`
-    - use the returned group ID in the `messenger.channels` [configuration block](../../config_file.md#messengerchannels)
+    - use the returned group ID in the `messenger.channels`[↰](../../config_file.md#messengerchannels) [configuration block](../../config_file.md#messengerchannels)
     - you can remove `@myidbot` afterwards
 
 8. Make sure the IMPulse bot has permission to interact with users. If you see the log warning <b>"user &lt;username&gt; not found in Telegram and will not be notified"</b> - ask the user `<username>` to send a message to the bot. This usually resolves the issue.
