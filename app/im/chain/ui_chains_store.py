@@ -27,7 +27,7 @@ class UIChainsStore:
     def _calendar_path(self, chain_name: str) -> str:
         return os.path.join(self.ui_chains_dir, _chain_name_to_filename(chain_name))
 
-    def load_chains(self, chain_name: str) -> List[Dict[str, Any]]:
+    def load_shifts(self, chain_name: str) -> List[Dict[str, Any]]:
         if not chain_name:
             return []
         path = self._calendar_path(chain_name)
@@ -38,22 +38,22 @@ class UIChainsStore:
             with open(path, "rb") as f:
                 cal = Calendar.from_ical(f.read())
 
-            chains = []
+            shifts = []
             for component in cal.walk():
                 if component.name == "VEVENT":
-                    chain = self._ical_event_to_chain(component)
-                    if chain:
-                        chains.append(chain)
+                    shift = self._ical_event_to_chain(component)
+                    if shift:
+                        shifts.append(shift)
 
-            logger.debug("Loaded ui chains", extra={"chain": chain_name, "count": len(chains)})
-            return self.recalculate_priorities(chains)
+            logger.debug("Loaded ui chains", extra={"chain": chain_name, "count": len(shifts)})
+            return self.recalculate_priorities(shifts)
         except Exception as e:
             logger.error("Failed to load ui chains", extra={"error": str(e), "chain": chain_name})
             return []
 
     def get_steps_for_now(self, chain_name: str, now: Optional[datetime] = None) -> List[Dict[str, Any]]:
-        chains = self.load_chains(chain_name)
-        if not chains:
+        shifts = self.load_shifts(chain_name)
+        if not shifts:
             return []
 
         now = now or datetime.now(timezone.utc)
@@ -61,9 +61,9 @@ class UIChainsStore:
             now = now.replace(tzinfo=timezone.utc)
 
         active = []
-        for chain in chains:
-            if self._is_chain_active_now(chain, now):
-                active.append(chain)
+        for shift in shifts:
+            if self._is_chain_active_now(shift, now):
+                active.append(shift)
 
         if not active:
             return []
@@ -72,10 +72,10 @@ class UIChainsStore:
         steps = active[0].get("steps")
         return steps if isinstance(steps, list) else []
 
-    def save_chains(self, chain_name: str, chains: List[Dict[str, Any]]) -> bool:
+    def save_shifts(self, chain_name: str, shifts: List[Dict[str, Any]]) -> bool:
         if not chain_name:
             return False
-        chains = self.recalculate_priorities(chains)
+        shifts = self.recalculate_priorities(shifts)
         path = self._calendar_path(chain_name)
         try:
             cal = Calendar()
@@ -84,15 +84,15 @@ class UIChainsStore:
             cal.add("calscale", "GREGORIAN")
             cal.add("method", "PUBLISH")
 
-            for chain in chains:
-                event = self._chain_to_ical_event(chain)
+            for shift in shifts:
+                event = self._chain_to_ical_event(shift)
                 if event:
                     cal.add_component(event)
 
             with open(path, "wb") as f:
                 f.write(cal.to_ical())
 
-            logger.debug("Saved ui chains", extra={"chain": chain_name, "count": len(chains)})
+            logger.debug("Saved ui chains", extra={"chain": chain_name, "count": len(shifts)})
             return True
         except Exception as e:
             logger.error("Failed to save ui chains", extra={"error": str(e), "chain": chain_name})

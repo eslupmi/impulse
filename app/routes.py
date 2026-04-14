@@ -348,12 +348,12 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
                         await incident_ws.handle_ping(websocket)
                     elif event_type == "request_ui_chains":
                         chain_name = message.get("chain_name", "")
-                        chains = ui_chains_store.load_chains(chain_name)
-                        await websocket.send_text(json.dumps({"event": "ui_chains_data", "data": chains}))
+                        shifts = ui_chains_store.load_shifts(chain_name)
+                        await websocket.send_text(json.dumps({"event": "ui_chains_data", "data": shifts}))
                     elif event_type == "save_ui_chains":
                         chain_name = message.get("chain_name", "")
-                        chains = message.get("data", [])
-                        success = ui_chains_store.save_chains(chain_name, chains)
+                        shifts = message.get("data", [])
+                        success = ui_chains_store.save_shifts(chain_name, shifts)
                         await websocket.send_text(json.dumps({"event": "ui_chains_saved", "success": success}))
 
                 except json.JSONDecodeError:

@@ -39,7 +39,7 @@ def test_get_steps_for_now_prefers_priority_1(tmp_path: Path):
         },
     ]
 
-    with patch.object(store, "load_chains", return_value=chains):
+    with patch.object(store, "load_shifts", return_value=chains):
         assert store.get_steps_for_now("test", now) == [{"user": "user1"}]
 
 
