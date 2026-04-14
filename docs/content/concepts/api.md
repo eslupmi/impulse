@@ -5,7 +5,7 @@ IMPulse provides simple API and WebSocket endpoints for incident management and 
 !!! info
     All endpoints use the [HTTP_PREFIX](../envs.md) prefix if configured.
 
-## Requests
+## General endpoints
 
 ### HTTP `/` [GET]
 
@@ -33,23 +33,6 @@ Handle button interactions in messengers (Slack, Mattermost, Telegram).
 
 Get list of all incidents.
 
-### HTTP `/livez` [GET]
-
-Server liveness check. Used for Kubernetes liveness probes to determine if the container is alive.
-
-**Responses:**
-
-- `200 OK` - Container is alive (returns `200` in both **primary** and **standby** modes)
-
-### HTTP `/readyz` [GET]
-
-Server readiness check. Used for health checks and determining server state (see [High Availability](ha.md)).
-
-**Responses:**
-
-- `200 OK` - Server is ready and running in **primary** mode
-- `503 Service Unavailable` - Server is in **standby** mode or initializing
-
 ### HTTP `/metrics` [GET]
 
 Prometheus metrics endpoint. Returns metrics in Prometheus format for monitoring and observability.
@@ -70,3 +53,37 @@ WebSocket connection for receiving real-time incident updates.
 
 - Server must be in **primary** mode (see [High Availability](ha.md))
 - Connection will be closed with code `1008` if server is in **standby** mode
+
+
+## Service endpoints
+
+### HTTP `/livez` [GET]
+
+Server liveness check. Used for Kubernetes liveness probes to determine if the container is alive.
+
+**Responses:**
+
+- `200 OK` - Container is alive (returns `200` in both **primary** and **standby** modes)
+
+### HTTP `/readyz` [GET]
+
+Server readiness check. Used for health checks and determining server state (see [High Availability](ha.md)).
+
+**Responses:**
+
+- `200 OK` - Server is ready and running in **primary** mode
+- `503 Service Unavailable` - Server is in **standby** mode or initializing
+
+### HTTP `/-/reload` [POST]
+
+Reload server configuration without restart.
+
+**Requirements:**
+
+- Server must be in **primary** mode (returns `503` in **standby** mode)
+
+**Responses:**
+
+- `200 OK` - Configuration reloaded successfully
+- `400 Bad Request` - Configuration reload failed
+- `500 Internal Server Error` - Unexpected reload error

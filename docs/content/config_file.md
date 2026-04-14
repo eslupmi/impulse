@@ -496,6 +496,32 @@ Below are all the configuration options supported by IMPulse.
 - **type:** list
 - **allowed values:** simple chain [format](#simple-chains)
 
+#### &lt;ui chains&gt;
+
+- **description:** a chain managed from the UI.
+- **type:** dict
+- **details:**
+    
+    !!! note ""
+        Use UI chains for on-call rotations and quick shift updates without editing the config file.
+
+        A UI chain is declared in config and edited from the **ui chains** button in the web interface (see [Footer](concepts/ui.md#footer)).
+
+##### &lt;chain&gt;.type *
+
+- **description:** chain type
+- **type:** string
+- **allowed values:** `ui` for UI-managed chain
+
+- **examples:**
+
+    ```yaml
+    messenger:
+      chains:
+        oncall:
+          type: ui
+    ```
+
 ### messenger.groups
 
 - **impact:** `mattermost`, `slack` only

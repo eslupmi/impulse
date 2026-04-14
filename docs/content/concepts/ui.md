@@ -39,7 +39,14 @@ The footer can be divided into 3 parts:
 
 ### Columns
 
-Each incident is represented as a row of selected fields. On the left there is an indicator of the current [status](incident.md#statuses-and-their-colors), on the right - a button to expand the incident and an indicator of the number of alerts in it.
+Each incident is represented as a row of selected fields. On the left there is an indicator of the current [status](incident.md#statuses-and-their-colors), on the right:
+
+  - standard IMPulse buttons:
+    - task management
+    - freeze
+    - user assignment selector
+  - a button to expand the incident
+  - an indicator of the number of alerts in it.
 
 Columns are selected through [ui.columns](../config_file.md#uicolumns)
 

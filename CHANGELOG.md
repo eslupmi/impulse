@@ -1,5 +1,15 @@
 # Changelog
 
+## v3.5.0
+Changes:
+- Added [authentication](https://docs.impulse.bot/stable/guides/authentication/) for supported messengers
+- Added buttons for incidents to UI
+- Added [UI chains]()
+- Added `/-/reload` endpoint for reloading configuration
+- [Mattermost] Update body, header templates
+- Remove buttons for closed incidents
+- Fix bugs
+
 ## v3.4.1
 Changes:
 - [_Slack_, _Mattermost_] Fixed assignment notification [bug](https://github.com/eslupmi/impulse/issues/428)
