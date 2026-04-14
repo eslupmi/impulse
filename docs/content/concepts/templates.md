@@ -28,7 +28,7 @@ To resolve incidents faster, you can add documentation links to your alerts. To 
 - alert: InstanceDown
   expr: up == 0
   annotations:
-    runbook: https://yourdomain.confluence.com/alerts/InstanceDown
+    runbook: https://your_domain.confluence.com/alerts/InstanceDown
 ```
 
 IMPulse will display the runbook link in the incident view (see [body](incident.md#messages-structure)). You can change the format to a convenient one and [redefine](../config_file.md#messengertemplate_files) template files.
