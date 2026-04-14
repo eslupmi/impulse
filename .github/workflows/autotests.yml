@@ -12,6 +12,7 @@ jobs:
   autotests:
     runs-on: self-hosted
     strategy:
+      fail-fast: true
       matrix:
         include:
           - messenger_type: slack
@@ -85,7 +86,7 @@ jobs:
           source venv/bin/activate
           MESSENGER_TYPE="${{ matrix.messenger_type }}"
           MESSENGER_CLASS="${MESSENGER_TYPE^}"
-          pytest "tests/test_${{ matrix.messenger_type }}_application.py::Test${MESSENGER_CLASS}Application" -v -s
+          pytest --maxfail=1 --exitfirst -v -s "tests/test_${{ matrix.messenger_type }}_application.py::Test${MESSENGER_CLASS}Application"
 
       - name: Stop impulse container
         if: always()
