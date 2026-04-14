@@ -1,8 +1,6 @@
 # Authentication
 
-User authentication is performed through the [UI](../concepts/ui.md).
-
-IMPulse supports authentication through all available messengers.
+IMPulse supports authentication through all supported messengers.
 
 ## How to enable
 

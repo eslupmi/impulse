@@ -25,11 +25,15 @@ Table of current incidents
 ### Footer
 
 The footer can be divided into 3 parts:
+
 - on the left is an "online" / "offline" indicator to help you understand how current the information you're viewing is.
 - in the center is a page switcher
-- on the right are 2 buttons: 
-    - archive - for displaying historical data (incidents in [**closed** status](incident.md#closed))
-    - theme switcher
+- on the right are 4 buttons :
+
+    - **ui chains** (when authenticated)
+    - **theme switcher**
+    - **archive** - for displaying historical data (incidents in [closed](incident.md#closed) status)
+    - **login** (**logout**) (see [Authentication](../guides/authentication.md))
 
 ## Features
 
@@ -37,23 +41,23 @@ The footer can be divided into 3 parts:
 
 Each incident is represented as a row of selected fields. On the left there is an indicator of the current [status](incident.md#statuses-and-their-colors), on the right - a button to expand the incident and an indicator of the number of alerts in it.
 
-Columns are selected through [configuration](../config_file.md#uicolumns)
+Columns are selected through [ui.columns](../config_file.md#uicolumns)
 
 ### Sorting
 
-Default values are set in the [configuration file](../config_file.md#uisorting).
+Default values are set in the [ui.sorting](../config_file.md#uisorting).
 
 To change the sort order, click the corresponding key in the column header. If you need to select sorting by multiple columns, select several by holding the **Ctrl** key.
 
 ### Filters
 
-Alert labels and [column names](../config_file.md#columnname) can be used as filters. If a column name matches a label, the column name takes priority.
+Alert labels and [ui.&lt;column&gt;.name](../config_file.md#columnname) can be used as filters. If a column name matches a label, the column name takes priority.
 
-Default filters are set in the [configuration file](../config_file.md#uifilters).
+Default filters are set in the [ui.filters](../config_file.md#uifilters).
 
 Filters can be added using the filter [input field](#input-field) in the header or through the **+/-** buttons next to the table fields.
 
-#### Input Field
+#### Input field
 
 The filter input field supports Alertmanager-like expressions, including regex.
 
