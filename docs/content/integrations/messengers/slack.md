@@ -8,7 +8,7 @@
     - use "Client ID" as ENV `AUTH_CLIENT_ID`[↰](../../envs.md)
     - use "Client Secret" as ENV `AUTH_CLIENT_SECRET`[↰](../../envs.md)
 4. In the **OAuth & Permissions** section:
-    - in **Redirect URLs** subsection add IMPulse URL
+    - in **Redirect URLs** subsection add URI from `AUTH_REDIRECT_URL` [↰](../../envs.md) env
     - press **Save URLs** button
 
 ## Create a bot
