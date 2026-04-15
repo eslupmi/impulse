@@ -114,9 +114,6 @@ ui:  # user interface configuration
     - name: severity
       header: Severity
       value: payload.commonLabels.severity
-    - name: assigned
-      header: Assigned To
-      value: incident.assigned_fullname
   filters:  # defines the default filters applied in the user interface
     - severity=~"warning|critical"
   sorting:  # the default column sorting order
