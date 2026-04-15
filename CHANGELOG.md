@@ -2,13 +2,13 @@
 
 ## v3.5.0
 Changes:
-- Added [authentication](https://docs.impulse.bot/stable/guides/authentication/) for supported messengers
-- Added standard buttons for incidents to UI
-- Added [UI chains](https://docs.impulse.bot/stable/config_file/#ui-chains)
-- Added `/-/reload` endpoint for reloading configuration
-- [Mattermost] Update body, header templates
-- Remove buttons for closed incidents
-- Fix bugs
+- Added support for messenger [authentication](https://docs.impulse.bot/stable/guides/authentication/)
+- Added standard incident action buttons to the UI
+- Added support for [UI chains](https://docs.impulse.bot/stable/config_file/#ui-chains)
+- Added the `/-/reload` endpoint for configuration reload
+- [Mattermost] Updated header and body templates
+- Removed buttons for closed incidents
+- Fixed bugs
 
 ## v3.4.1
 Changes:
