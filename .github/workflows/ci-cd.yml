@@ -1,4 +1,4 @@
-name: develop
+name: ci-cd
 
 concurrency:
   group: ${{ github.ref }}
@@ -7,12 +7,14 @@ on:
   push:
     branches:
     - 'develop'
+    - 'master'
     tags:
     - 'v*'
 
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+
 jobs:
   tests:
     uses: ./.github/workflows/tests.yml
@@ -53,3 +55,11 @@ jobs:
         push: true
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
+
+  deploy:
+    needs: build-and-push-image
+    if: github.ref_name == 'develop' || github.ref_name == 'master'
+    uses: ./.github/workflows/deploy.yml
+    with:
+      deploy-path: ${{ github.ref_name == 'develop' && '/opt/impulse/dev' || '/opt/impulse/prod' }}
+    secrets: inherit
