@@ -2,7 +2,7 @@
 
 ## Authentication
 
-1. Use [https://&lt;your_domain&gt;/auth/callback](https://<your_domain>/auth/callback) as ENV `AUTH_REDIRECT_URL`[↰](../../envs.md)
+1. Use [https://&lt;impulse_domain&gt;/auth/callback](https://<impulse_domain>/auth/callback) as ENV `AUTH_REDIRECT_URL`[↰](../../envs.md)
 2. Go to [Slack Apps](https://api.slack.com/apps), select IMPulse app
 3. In the **Basic Information** section:
     - use "Client ID" as ENV `AUTH_CLIENT_ID`[↰](../../envs.md)
@@ -21,7 +21,7 @@
 
 1. In the **Interactivity & Shortcuts** section:
     - enable "Interactivity"
-    - set the **Request URL** to [https://&lt;your_domain&gt;/app](https://<your_domain>/app)
+    - set the **Request URL** to [https://&lt;impulse_domain&gt;/app](https://<impulse_domain>/app)
 
 2. In the **OAuth & Permissions** section:
     - in **Scopes** subsection add these "Bot Token Scopes":

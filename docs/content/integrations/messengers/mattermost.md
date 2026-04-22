@@ -2,7 +2,7 @@
 
 ## Authentication
 
-1. Use [https://&lt;your_domain&gt;/auth/callback](https://<your_domain>/auth/callback) as ENV `AUTH_REDIRECT_URL`[↰](../../envs.md)
+1. Use [https://&lt;impulse_domain&gt;/auth/callback](https://<impulse_domain>/auth/callback) as ENV `AUTH_REDIRECT_URL`[↰](../../envs.md)
 2. Go to **menu (3×3 dots)** > **System Console** > **Integrations** > **OAuth 2.0 Applications**, click **Add OAuth 2.0 Application**:
     - set parameters:
         - set "Is Trusted" to **No** [](check.md)

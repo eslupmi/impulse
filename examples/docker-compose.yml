@@ -4,7 +4,7 @@ services:
     environment:
       CONFIG_PATH: "/config"
       DATA_PATH: "/data"
-      # CORS_ALLOWED_ORIGINS: <your_domains>
+      # CORS_ALLOWED_ORIGINS: <impulse_domains>
 
       SLACK_BOT_USER_OAUTH_TOKEN: <slack_bot_user_oauth_token>
       SLACK_VERIFICATION_TOKEN: <slack_verification_token>

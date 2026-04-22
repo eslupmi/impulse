@@ -7,7 +7,7 @@ In Telegram, although the configuration uses the term **channels**, they are act
 
 ## Authentication
 
-1. Use [https://&lt;your_domain&gt;/auth/callback](https://<your_domain>/auth/callback) as ENV `AUTH_REDIRECT_URL`[↰](../../envs.md)
+1. Use [https://&lt;impulse_domain&gt;/auth/callback](https://<impulse_domain>/auth/callback) as ENV `AUTH_REDIRECT_URL`[↰](../../envs.md)
 1. Open BotFather Mini App
 2. Select IMPulse bot -> Login Widget
 3. In the **Login Widget** section:
