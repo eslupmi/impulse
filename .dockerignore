@@ -16,4 +16,4 @@ Dockerfile
 htmlcov
 key.json
 pytest.ini
-requirements.test.txt
+tests.requirements.txt
