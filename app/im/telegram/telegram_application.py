@@ -73,9 +73,13 @@ class TelegramApplication(Application):
 
     async def create_incident_message(self, incident, body, header, status_icons):
         topic_id = await self._create_topic(incident.channel_id, header, status_icons)
+        if topic_id is None:
+            return None
         payload = self._get_incident_message_payload(incident, body, header, status_icons)
         payload['message_thread_id'] = topic_id
         message_id = await self._send_create_incident_message(payload)
+        if message_id is None:
+            return None
         return f'{topic_id}/{message_id}'
 
     def create_group(self, config_name, group_details):
@@ -214,8 +218,19 @@ class TelegramApplication(Application):
                 json=payload,
                 headers=self.headers
             )
+            status = response.status
             response_json = await response.json()
             response.close()
+            if status != 200 or response_json.get('ok') is not True:
+                logger.warning(
+                    "Telegram topic creation failed",
+                    extra={
+                        'channel_id': channel_id,
+                        'status': status,
+                        'description': response_json.get('description'),
+                    },
+                )
+                return None
             return response_json.get('result', {}).get('message_thread_id')
         except aiohttp.ClientError as e:
             logger.error("Topic creation failed", extra={'error': str(e)})
@@ -323,8 +338,19 @@ class TelegramApplication(Application):
     async def _send_create_incident_message(self, payload):
         logger.debug('Create incident message')
         response = await self.http.post(self.post_message_url, headers=self.headers, json=payload)
+        status = response.status
         response_json = await response.json()
         response.close()
+        if status != 200 or response_json.get('ok') is not True:
+            logger.warning(
+                "Telegram incident message creation failed",
+                extra={
+                    'channel_id': payload.get('chat_id'),
+                    'status': status,
+                    'description': response_json.get('description'),
+                },
+            )
+            return None
         return response_json.get('result', {}).get(self.thread_id_key)
 
     async def _setup_webhook(self):

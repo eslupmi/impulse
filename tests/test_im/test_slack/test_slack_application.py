@@ -7,9 +7,10 @@ and provides Slack-specific functionality for incident management.
 from unittest.mock import Mock, AsyncMock, patch
 
 import pytest
+from app.config.validation import MessengerType
 from app.im.slack.slack_application import SlackApplication
 from app.im.slack.threads import slack_get_update_payload
-from tests.utils import create_mock_incident_for_handlers
+from tests.utils import create_mock_incident_for_handlers, create_mock_http_response
 
 
 class TestSlackApplication:
@@ -70,3 +71,54 @@ class TestSlackApplication:
         app.track_async_task.assert_called_once_with("assignment-task")
         assert incident.chain_enabled is False
         incident.dump.assert_called_once_with()
+
+    @pytest.mark.asyncio
+    async def test_send_create_incident_message_success(self):
+        """_send_create_incident_message returns ts on success."""
+        app = SlackApplication.__new__(SlackApplication)
+        app.type = MessengerType.SLACK
+        app.post_message_url = 'https://slack.com/api/chat.postMessage'
+        app.headers = {}
+        app.thread_id_key = 'ts'
+        mock_response = create_mock_http_response(status_code=200)
+        mock_response.json = AsyncMock(return_value={'ok': True, 'ts': '1700000000.000100'})
+        app.http = Mock()
+        app.http.post = AsyncMock(return_value=mock_response)
+
+        result = await app._send_create_incident_message({'channel': 'C1'})
+
+        assert result == '1700000000.000100'
+
+    @pytest.mark.asyncio
+    async def test_send_create_incident_message_not_ok_returns_none(self):
+        """Slack ok=False response must return None instead of the ts field."""
+        app = SlackApplication.__new__(SlackApplication)
+        app.type = MessengerType.SLACK
+        app.post_message_url = 'https://slack.com/api/chat.postMessage'
+        app.headers = {}
+        app.thread_id_key = 'ts'
+        mock_response = create_mock_http_response(status_code=200)
+        mock_response.json = AsyncMock(return_value={'ok': False, 'error': 'channel_not_found'})
+        app.http = Mock()
+        app.http.post = AsyncMock(return_value=mock_response)
+
+        result = await app._send_create_incident_message({'channel': 'C1'})
+
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_send_create_incident_message_http_error_returns_none(self):
+        """Non-2xx HTTP response returns None."""
+        app = SlackApplication.__new__(SlackApplication)
+        app.type = MessengerType.SLACK
+        app.post_message_url = 'https://slack.com/api/chat.postMessage'
+        app.headers = {}
+        app.thread_id_key = 'ts'
+        mock_response = create_mock_http_response(status_code=500)
+        mock_response.json = AsyncMock(return_value={'error': 'server_error'})
+        app.http = Mock()
+        app.http.post = AsyncMock(return_value=mock_response)
+
+        result = await app._send_create_incident_message({'channel': 'C1'})
+
+        assert result is None

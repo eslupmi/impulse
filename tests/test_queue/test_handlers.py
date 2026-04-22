@@ -153,6 +153,48 @@ class TestAlertHandler:
             mock_queue.update.assert_called_once()
 
     @pytest.mark.asyncio
+    async def test_handle_create_aborts_when_thread_creation_fails(
+        self, alert_handler, mock_incidents, mock_application, mock_queue, mock_inhibition_manager
+    ):
+        """If create_incident_message returns None, no incident is stored or scheduled."""
+        alert_payload = create_alert_payload(status="firing")
+        mock_incidents.get.return_value = None
+
+        mock_application.form_body_header_status_icons = Mock(return_value=("b", "h", "s"))
+        mock_application.create_incident_message = AsyncMock(return_value=None)
+
+        with patch('app.queue.handlers.alert_handler.get_config') as mock_get_config:
+            mock_get_config.return_value = create_mock_config()
+
+            await alert_handler.handle(alert_payload)
+
+        mock_application.create_incident_message.assert_awaited_once()
+        mock_incidents.add.assert_not_called()
+        mock_inhibition_manager.process_incident.assert_not_called()
+        mock_queue.put.assert_not_called()
+        mock_queue.recreate.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_handle_create_aborts_when_thread_id_is_none_none(
+        self, alert_handler, mock_incidents, mock_application, mock_queue, mock_inhibition_manager
+    ):
+        """Telegram-style 'None/None' id must be treated as failure."""
+        alert_payload = create_alert_payload(status="firing")
+        mock_incidents.get.return_value = None
+
+        mock_application.form_body_header_status_icons = Mock(return_value=("b", "h", "s"))
+        mock_application.create_incident_message = AsyncMock(return_value='None/None')
+
+        with patch('app.queue.handlers.alert_handler.get_config') as mock_get_config:
+            mock_get_config.return_value = create_mock_config()
+
+            await alert_handler.handle(alert_payload)
+
+        mock_incidents.add.assert_not_called()
+        mock_inhibition_manager.process_incident.assert_not_called()
+        mock_queue.put.assert_not_called()
+
+    @pytest.mark.asyncio
     async def test_handle_exception(self, alert_handler, mock_incidents):
         """Test handling exception during processing."""
         # Use utility function for alert payload
