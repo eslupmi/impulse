@@ -487,8 +487,33 @@ class Application(ABC):
 
     async def _send_create_incident_message(self, payload):
         response = await self.http.post(self.post_message_url, headers=self.headers, json=payload)
+        status = response.status
         response_json = await response.json()
         response.close()
+        if not 200 <= status < 300: # Mattermost
+            logger.warning(
+                "Incident message creation failed",
+                extra={
+                    'messenger': self.type.value,
+                    'channel_id': payload.get('channel_id') or payload.get('channel'),
+                    'status': status,
+                    'error': response_json.get('error') or response_json.get('message'),
+                    'body': response_json,
+                },
+            )
+            return None
+        if 'ok' in response_json and response_json.get('ok') is not True: # Slack
+            logger.warning(
+                "Incident message creation failed",
+                extra={
+                    'messenger': self.type.value,
+                    'channel_id': payload.get('channel_id') or payload.get('channel'),
+                    'status': status,
+                    'error': response_json.get('error'),
+                    'body': response_json,
+                },
+            )
+            return None
         return response_json.get(self.thread_id_key)
 
     def _setup_http(self) -> RateLimitedClient:

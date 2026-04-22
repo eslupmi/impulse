@@ -4,9 +4,10 @@ Unit tests for app.im.mattermost.mattermost_application module.
 from unittest.mock import Mock, AsyncMock, patch
 
 import pytest
+from app.config.validation import MessengerType
 from app.im.mattermost.mattermost_application import MattermostApplication
 from app.im.mattermost.threads import mattermost_get_update_payload
-from tests.utils import create_mock_incident_for_handlers
+from tests.utils import create_mock_incident_for_handlers, create_mock_http_response
 
 
 class TestMattermostApplication:
@@ -68,3 +69,41 @@ class TestMattermostApplication:
         app.track_async_task.assert_called_once_with("assignment-task")
         assert incident.chain_enabled is False
         incident.dump.assert_called_once_with()
+
+    @pytest.mark.asyncio
+    async def test_send_create_incident_message_success(self):
+        """_send_create_incident_message returns the thread id on success."""
+        app = MattermostApplication.__new__(MattermostApplication)
+        app.type = MessengerType.MATTERMOST
+        app.post_message_url = 'https://mm.example.com/api/v4/posts'
+        app.headers = {}
+        app.thread_id_key = 'id'
+        mock_response = create_mock_http_response(status_code=201)
+        mock_response.json = AsyncMock(return_value={'id': 'post_abc'})
+        app.http = Mock()
+        app.http.post = AsyncMock(return_value=mock_response)
+
+        result = await app._send_create_incident_message({'channel_id': 'c1'})
+
+        assert result == 'post_abc'
+
+    @pytest.mark.asyncio
+    async def test_send_create_incident_message_session_expired_returns_none(self):
+        """Mattermost session_expired error must not be used as thread id."""
+        app = MattermostApplication.__new__(MattermostApplication)
+        app.type = MessengerType.MATTERMOST
+        app.post_message_url = 'https://mm.example.com/api/v4/posts'
+        app.headers = {}
+        app.thread_id_key = 'id'
+        mock_response = create_mock_http_response(status_code=401)
+        mock_response.json = AsyncMock(return_value={
+            'id': 'api.context.session_expired.app_error',
+            'message': 'Invalid or expired session',
+            'status_code': 401,
+        })
+        app.http = Mock()
+        app.http.post = AsyncMock(return_value=mock_response)
+
+        result = await app._send_create_incident_message({'channel_id': 'c1'})
+
+        assert result is None

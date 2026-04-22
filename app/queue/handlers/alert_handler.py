@@ -73,14 +73,20 @@ class AlertHandler(BaseHandler):
             version=config.INCIDENT_ACTUAL_VERSION
         )
 
-        # Check inhibition before creating thread in messenger
-        self.incidents.add(incident_)
         will_be_inhibited = self.inhibition_manager.would_be_inhibited(incident_)
+        if will_be_inhibited:
+            incident_.frozen_by_inhibition = True
 
+        thread_id = await self._create_thread(incident_)
+        if thread_id is None:
+            logger.warning(
+                "Incident creation aborted: failed to create thread",
+                extra={'channel_id': incident_.channel_id, 'messenger': self.app.type.value},
+            )
+            return
+
+        self.incidents.add(incident_)
         await self.inhibition_manager.process_incident(incident_)
-
-        # Always create thread, but with frozen state if inhibited
-        await self._create_thread(incident_)
         incident_.dump()
 
         if will_be_inhibited:
@@ -171,6 +177,8 @@ class AlertHandler(BaseHandler):
     async def _create_thread(self, incident_):
         body, header, status_icons = self.app.form_body_header_status_icons(incident_)
         thread_id = await self.app.create_incident_message(incident_, body, header, status_icons)
+        if not thread_id or thread_id == 'None/None':
+            return None
         incident_.ts = thread_id
         incident_.link = incident_.generate_link(self.app.public_url)
         return thread_id
