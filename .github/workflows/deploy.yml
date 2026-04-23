@@ -6,11 +6,26 @@ on:
       deploy-path:
         required: true
         type: string
+    secrets:
+      HOST:
+        required: true
+      PORT:
+        required: true
+      USER:
+        required: true
+      SSH_KEY:
+        required: true
 
 jobs:
   deploy:
     runs-on: ubuntu-24.04
     steps:
+      - name: Debug secrets
+        run: |
+          echo "USER=${{ secrets.USER }}"
+          echo "SSH_KEY=${{ secrets.SSH_KEY }}"
+          echo "HOST=${{ secrets.HOST }}"
+          echo "PORT=${{ secrets.PORT }}"
       - name: Recreate IMPulse
         uses: appleboy/ssh-action@v1.0.3
         with:
