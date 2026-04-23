@@ -15,7 +15,7 @@ jobs:
         python-version: ${{ github.ref_type == 'tag' && fromJSON('["3.10","3.11","3.12","3.13"]') || fromJSON('["3.12"]') }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       
       - name: Create config from none example
         run: |
