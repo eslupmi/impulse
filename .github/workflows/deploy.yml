@@ -6,15 +6,6 @@ on:
       deploy-path:
         required: true
         type: string
-    secrets:
-      HOST:
-        required: true
-      PORT:
-        required: true
-      USER:
-        required: true
-      SSH_KEY:
-        required: true
 
 jobs:
   deploy:
