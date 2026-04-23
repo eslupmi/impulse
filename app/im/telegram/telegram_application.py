@@ -222,7 +222,7 @@ class TelegramApplication(Application):
             response_json = await response.json()
             response.close()
             if status != 200 or response_json.get('ok') is not True:
-                logger.warning(
+                logger.error(
                     "Telegram topic creation failed",
                     extra={
                         'channel_id': channel_id,
@@ -342,7 +342,7 @@ class TelegramApplication(Application):
         response_json = await response.json()
         response.close()
         if status != 200 or response_json.get('ok') is not True:
-            logger.warning(
+            logger.error(
                 "Telegram incident message creation failed",
                 extra={
                     'channel_id': payload.get('chat_id'),

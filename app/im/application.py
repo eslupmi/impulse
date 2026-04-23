@@ -491,7 +491,7 @@ class Application(ABC):
         response_json = await response.json()
         response.close()
         if not 200 <= status < 300: # Mattermost
-            logger.warning(
+            logger.error(
                 "Incident message creation failed",
                 extra={
                     'messenger': self.type.value,
@@ -503,7 +503,7 @@ class Application(ABC):
             )
             return None
         if 'ok' in response_json and response_json.get('ok') is not True: # Slack
-            logger.warning(
+            logger.error(
                 "Incident message creation failed",
                 extra={
                     'messenger': self.type.value,
