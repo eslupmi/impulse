@@ -57,6 +57,14 @@ jobs:
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
 
+  autotests:
+    needs: build-and-push-image
+    if: github.ref_name == 'develop' || github.ref_name == 'master'
+    uses: ./.github/workflows/autotests.yml
+    with:
+      branch: ${{ github.ref_name }}
+    secrets: inherit
+
   deploy:
     needs: build-and-push-image
     if: github.ref_name == 'develop' || github.ref_name == 'master'
