@@ -4,7 +4,7 @@ The interface provides multi-level sorting, filtering, and data coloring capabil
 
 The interface uses WebSocket for communication on the `/ws` path. If you use a reverse proxy, don't forget to properly forward the traffic.
 
-![None](https://github.com/eslupmi/site/blob/main/static/ui.png?raw=true)
+![None](https://github.com/eslupmi/site/blob/hugo/static/preview-dark.png?raw=true)
 
 ## Elements
 
