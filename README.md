@@ -6,7 +6,7 @@
 
 [![Sonar](https://sonarcloud.io/api/project_badges/measure?project=eslupmi_impulse&metric=alert_status&label=)](https://sonarcloud.io/dashboard?id=eslupmi_impulse)
 
-<div align="center"><img src="https://github.com/eslupmi/site/blob/main/static/ui.png?raw=true" width="700"></div>
+<div align="center"><img src="https://github.com/eslupmi/site/blob/main/static/preview-dark.png?raw=true" width="700"></div>
 
 Visit [docs.impulse.bot](https://docs.impulse.bot) for the full documentation.
 
