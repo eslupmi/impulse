@@ -1,5 +1,9 @@
 # Changelog
 
+## v3.5.1
+Changes:
+- [Mattermost] Added workaround for links rendering bug on mobile
+
 ## v3.5.0
 Changes:
 - Added support for messenger [authentication](https://docs.impulse.bot/stable/guides/authentication/)
