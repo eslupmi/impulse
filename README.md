@@ -6,7 +6,7 @@
 
 <!-- [![Sonar](https://sonarcloud.io/api/project_badges/measure?project=eslupmi_impulse&metric=alert_status&branch=master&label=)](https://sonarcloud.io/dashboard?id=eslupmi_impulse&branch=master) -->
 
-<div align="center"><img src="https://github.com/eslupmi/site/blob/main/static/preview.png?raw=true" width="700"></div>
+<div align="center"><img src="https://github.com/eslupmi/site/blob/main/static/preview.png?raw=true" width="960"></div>
 
 ## Quick Start
 
