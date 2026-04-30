@@ -114,10 +114,7 @@ class Incidents:
                     incident_config=incident_config
                 )
                 if incident_.messenger_type == config.messenger.type.value:
-                    if incident_.status != 'deleted' or incident_.is_frozen():
-                        incidents.add(incident_)
-                    else:
-                        os.remove(file_path)
+                    incidents.add(incident_)
                 else:
                     logger.warning(f'Skipping incident {filename}: messenger_type mismatch')
 

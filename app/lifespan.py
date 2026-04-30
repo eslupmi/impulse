@@ -71,6 +71,16 @@ async def create_main_objects(fastapi_app: FastAPI, reload=False):
             application=messenger,
             queue=queue
         )
+
+        deleted_incidents = [
+            incident for incident in incidents.uniq_ids.values()
+            if incident.status == 'deleted' and not (incident.is_frozen() and incident.frozen_until is not None)
+        ]
+        for incident in deleted_incidents:
+            await inhibition_manager.handle_closed(incident)
+            incidents.del_by_uniq_id(incident.uniq_id)
+            logger.info("Deleted incident", extra={'uuid': incident.uuid})
+
         inhibition_manager.restore_from_incidents()
         user_scheduler = UserUpdateScheduler(queue, messenger.type.value)
         messenger.configure_scheduler(user_scheduler)
