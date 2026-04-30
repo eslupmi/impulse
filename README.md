@@ -1,26 +1,12 @@
 <h1><img alt="IMPulse" src="logo.svg" width="50"> IMPulse</h1>
 
-[![Version](https://img.shields.io/github/v/release/eslupmi/impulse?sort=semver&label=&color=555&logo=github)](https://github.com/eslupmi/impulse/releases)
-[![Container](https://img.shields.io/badge/-ghcr.io%2Feslupmi%2Fimpulse-gray?logo=docker)](https://ghcr.io/eslupmi/impulse)
-[![Community Helm](https://img.shields.io/badge/-community-gray?style=flat&logo=helm)](https://artifacthub.io/packages/helm/impulse/impulse)
+ [![Website](https://img.shields.io/badge/website-impulse.bot-blue)](https://impulse.bot) [![Docs](https://img.shields.io/badge/docs-docs.impulse.bot-blue)](https://docs.impulse.bot)
 
-[![Sonar](https://sonarcloud.io/api/project_badges/measure?project=eslupmi_impulse&metric=alert_status&label=)](https://sonarcloud.io/dashboard?id=eslupmi_impulse)
+[![Container](https://img.shields.io/badge/docker-ghcr.io%2Feslupmi%2Fimpulse-blue?logo=docker)](https://ghcr.io/eslupmi/impulse) [![Community Helm](https://img.shields.io/badge/community-artifacthub.io-blue?style=flat&logo=helm)](https://artifacthub.io/packages/helm/impulse/impulse)
 
-<div align="center"><img src="https://github.com/eslupmi/site/blob/main/static/preview-dark.png?raw=true" width="700"></div>
+<!-- [![Sonar](https://sonarcloud.io/api/project_badges/measure?project=eslupmi_impulse&metric=alert_status&branch=master&label=)](https://sonarcloud.io/dashboard?id=eslupmi_impulse&branch=master) -->
 
-Visit [docs.impulse.bot](https://docs.impulse.bot) for the full documentation.
-
-## Features
-
-- Mattermost, Slack, Telegram integrations
-- Jira integration
-- [Freeze](https://docs.impulse.bot/latest/buttons/#freeze) mechanism to pause incident update and silence
-- Powerful [webhooks](https://docs.impulse.bot/stable/config_file/#webhooks) for Twilio, Instatus and other third-party integrations
-- [Incident lifecycle](https://docs.impulse.bot/stable/concepts/#lifecycle) reduces incidents chaos
-- Scheduling using providers like Google Calendar via [cloud chains](https://docs.impulse.bot/stable/config_file/#cloud-chain)
-- Support for [nested chains](https://docs.impulse.bot/stable/config_file/#nested-chain) with unlimited depth
-- Flexible [message structure](https://docs.impulse.bot/stable/concepts/#structure) you can modify
-- Customizable [UI](https://docs.impulse.bot/stable/ui) with multi-column sorting and advanced filtering capabilities
+<div align="center"><img src="https://github.com/eslupmi/site/blob/main/static/preview.png?raw=true" width="700"></div>
 
 ## Quick Start
 
