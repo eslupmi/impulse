@@ -82,8 +82,8 @@ class TestMainApplication:
             mock_webhooks = Mock()
             mock_generate_webhooks.return_value = mock_webhooks
 
-            # Setup mock incidents
             mock_incidents_instance = Mock()
+            mock_incidents_instance.uniq_ids = {}
             mock_incidents.return_value = mock_incidents_instance
 
             # Setup mock queue
