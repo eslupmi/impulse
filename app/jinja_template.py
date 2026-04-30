@@ -1,6 +1,15 @@
 from typing import Optional, TYPE_CHECKING
+from urllib.parse import quote
 
-from jinja2 import Template
+from jinja2 import Environment, select_autoescape
+
+
+def _urlencode_filter(value):
+    return quote(str(value), safe=":/?#[]@!$&'()*+,;=.-_~%")
+
+
+_jinja_env = Environment(autoescape=select_autoescape(default_for_string=True))
+_jinja_env.filters["urlencode"] = _urlencode_filter
 
 if TYPE_CHECKING:
     from app.incident.incident import Incident
@@ -15,18 +24,18 @@ class JinjaTemplate:
 
     def form_message(self, alert_state, incident: Optional['Incident'] = None):
         """Render a message template with alert state and incident data."""
-        template = Template(self.template)
+        template = _jinja_env.from_string(self.template)
         incident_data = incident.serialize() if incident else {}
         return template.render(payload=alert_state, incident=incident_data, incidents=self._incidents)
 
     def form_notification(self, fields):
         """Render a notification template with provided fields."""
-        template = Template(self.template)
+        template = _jinja_env.from_string(self.template)
         return template.render(fields=fields)
 
     def render(self, **kwargs):
         """Generic render method for any template with provided kwargs."""
-        template = Template(self.template)
+        template = _jinja_env.from_string(self.template)
         return template.render(**kwargs)
 
     @classmethod
