@@ -117,4 +117,4 @@ class TestJinjaTemplate:
         alert_state = {"message": "Test & <special> characters"}
         result = template.form_message(alert_state)
 
-        assert "Special: Test & <special> characters" in result
+        assert "Special: Test &amp; &lt;special&gt; characters" in result
