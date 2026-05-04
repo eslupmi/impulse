@@ -115,6 +115,7 @@ class UserAuthenticationManager:
             user_id=str(user.id),
             created_at=now,
             expires_at=expires_at,
+            cookie_path=self.cookie_path,
         )
         try:
             self.session_store.save_session(session)
@@ -145,7 +146,6 @@ class UserAuthenticationManager:
     def logout(self, session_id: Optional[str] = None) -> Response:
         if session_id:
             self.session_store.delete_session(session_id)
-
         response = Response(status_code=204)
         response.delete_cookie(key=self.session_cookie_name, path=self.cookie_path)
         return response

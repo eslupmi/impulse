@@ -126,15 +126,6 @@ class IncidentMigrator:
         return migrated_data
 
     @staticmethod
-    def _migrate_v0_4_to_v3_0_0(data: Dict) -> Dict:
-        migrated = data.copy()
-        migrated['payload'] = migrated.pop('last_state')
-        
-        config = get_config()
-        migrated['messenger_type'] = config.messenger.type.value
-        return migrated
-
-    @staticmethod
     def _to_aware_utc(value):
         if value is None:
             return None
@@ -143,6 +134,15 @@ class IncidentMigrator:
                 return value.replace(tzinfo=timezone.utc)
             return value.astimezone(timezone.utc)
         return value
+
+    @staticmethod
+    def _migrate_v0_4_to_v3_0_0(data: Dict) -> Dict:
+        migrated = data.copy()
+        migrated['payload'] = migrated.pop('last_state')
+        
+        config = get_config()
+        migrated['messenger_type'] = config.messenger.type.value
+        return migrated
 
     def _migrate_v3_0_0_to_v3_2_0(self, data: Dict) -> Dict:
         migrated = data.copy()

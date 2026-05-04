@@ -92,6 +92,9 @@ def build_auth_manager(config: 'ImpulseConfig', env_config: 'EnvironmentConfig',
         default_redirect_path=default_redirect_path,
         allowed_redirect_prefixes={default_redirect_path},
         configured_users=configured_users,
-        session_store=FileSessionStore(root_dir=str(Path(env_config.data_path) / "sessions")),
+        session_store=FileSessionStore(
+            root_dir=str(Path(env_config.data_path) / "sessions"),
+            default_cookie_path=http_prefix or "/",
+        ),
         user_store=get_user_store(),
     )

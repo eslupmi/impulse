@@ -8,3 +8,4 @@ class AuthSession(BaseModel):
     user_id: str
     created_at: datetime
     expires_at: datetime
+    cookie_path: str = "/"

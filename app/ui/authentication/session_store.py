@@ -14,8 +14,9 @@ _SESSION_ID_PATTERN = re.compile(r"^[a-f0-9]{64}$")
 
 
 class FileSessionStore:
-    def __init__(self, root_dir: str):
+    def __init__(self, root_dir: str, default_cookie_path: str = "/"):
         self.root_dir = Path(root_dir)
+        self.default_cookie_path = default_cookie_path
 
     def save_session(self, session: AuthSession) -> None:
         path = self._session_path(session.session_id)
@@ -49,6 +50,7 @@ class FileSessionStore:
             data = yaml.safe_load(raw) if raw.strip() else {}
             if not isinstance(data, dict):
                 return None
+            data["cookie_path"] = self.default_cookie_path
             session = AuthSession.model_validate(data)
         except Exception as exc:
             logger.warning("Failed to parse auth session file", extra={"path": str(path), "error": str(exc)})
