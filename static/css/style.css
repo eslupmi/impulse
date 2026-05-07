@@ -671,8 +671,16 @@ strong {
     white-space: nowrap;
 }
 
+[data-theme="dark"] .auth-login-btn {
+    background: var(--brand-color-11);
+}
+
 .auth-login-btn:hover {
-    background: var(--brand-secondary-dark);
+    background: var(--brand-color-9);
+}
+
+[data-theme="dark"] .auth-login-btn:hover {
+    background: var(--brand-color-15);
 }
 
 .auth-logout-btn {
