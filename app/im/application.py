@@ -5,6 +5,7 @@ from typing import Union, Dict, Optional, TYPE_CHECKING
 
 from app.config.config import get_config
 from app.config.validation import ApplicationConfig, MattermostUser, SlackUser, TelegramUser, MessengerType
+from app.extensions import dispatch_hook
 from app.http_client import RateLimitedClient
 from app.im.chain.chain_factory import ChainFactory
 from app.im.groups import Group
@@ -423,6 +424,10 @@ class Application(ABC):
         self.fetch_and_assign_user_name(incident_, user_id, dump=False)
         cached_user = self.users.get_user_by_id(user_id)
         incident_.freeze(freeze_time, cached_user)
+        dispatch_hook(
+            "incident.freeze_requested",
+            {"incident_id": incident_.uniq_id, "incident_uuid": incident_.uuid, "actor_id": user_id},
+        )
 
         await queue_.delete_by_id(incident_.uniq_id, delete_steps=True, delete_status=False)
         await queue_.put(freeze_time, QueueItemType.UNFREEZE, incident_.uniq_id)
@@ -430,12 +435,20 @@ class Application(ABC):
 
     def _handle_task_action(self, incident_, user_id, queue_):
         logger.info(log_button_pressed, extra={'uuid': incident_.uuid, 'button': 'task', 'user_id': user_id})
+        dispatch_hook(
+            "incident.task_requested",
+            {"incident_id": incident_.uniq_id, "incident_uuid": incident_.uuid, "actor_id": user_id},
+        )
         self.track_async_task(asyncio.create_task(self.handle_task_button(incident_, queue_)))
 
     async def _handle_unfreeze_action(self, incident_: 'Incident', user_id: str, queue_: 'AsyncQueue'):
         logger.info(log_button_pressed, extra={'uuid': incident_.uuid, 'button': 'unfreeze', 'user_id': user_id})
         await queue_.delete_by_id_and_type(incident_.uniq_id, QueueItemType.UNFREEZE)
         await unfreeze_incident(incident_, self, queue_)
+        dispatch_hook(
+            "incident.unfreeze_requested",
+            {"incident_id": incident_.uniq_id, "incident_uuid": incident_.uuid, "actor_id": user_id},
+        )
         await self.update_incident_message(incident_)
 
     @abstractmethod

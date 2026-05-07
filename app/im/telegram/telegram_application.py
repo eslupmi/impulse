@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 import aiohttp
 from fastapi.responses import JSONResponse
 
+from app.extensions import dispatch_hook
 from app.im.application import Application
 
 if TYPE_CHECKING:
@@ -283,12 +284,20 @@ class TelegramApplication(Application):
                 return JSONResponse(payload, status_code=200)
             logger.info('Button TAKE IT: assigning to user', extra={'uuid': incident_.uuid, 'user_id': user_id})
             self.fetch_and_assign_user_name(incident_, user_id, dump=False)
+            dispatch_hook(
+                "incident.assigned",
+                {"incident_id": incident_.uniq_id, "incident_uuid": incident_.uuid, "actor_id": user_id},
+            )
             self.track_async_task(asyncio.create_task(self.post_assignment_notification(incident_)))
             incident_.chain_enabled = False
         else:
             logger.info('Button pressed', extra={'uuid': incident_.uuid, 'button': 'release', 'user_id': user_id})
             self.track_async_task(asyncio.create_task(self.post_unassignment_notification(incident_)))
             incident_.release()
+            dispatch_hook(
+                "incident.released",
+                {"incident_id": incident_.uniq_id, "incident_uuid": incident_.uuid, "actor_id": user_id},
+            )
         return None
 
     async def _handle_freeze_actions(self, action, incident_, user_id, incidents, queue_, callback):

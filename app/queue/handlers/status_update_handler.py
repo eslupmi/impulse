@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 
+from app.extensions import dispatch_hook
 from app.logging import logger
 from app.queue.constants import QueueItemType
 from app.queue.handlers.base_handler import BaseHandler
@@ -25,6 +26,10 @@ class StatusUpdateHandler(BaseHandler):
 
         if status_updated:
             logger.info("Status updated", extra={'uuid': incident.uuid, 'status': new_status})
+            dispatch_hook(
+                "incident.status_changed",
+                {"incident_id": incident.uniq_id, "incident_uuid": incident.uuid},
+            )
 
         if incident.status == 'closed':
             await self.inhibition_manager.handle_closed(incident)

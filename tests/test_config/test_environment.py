@@ -31,6 +31,7 @@ class TestEnvironmentConfig:
         assert config.cors_allowed_origins == ["https://localhost:5000"]
         assert config.log_level == "INFO"
         assert config.http_prefix == ""
+        assert config.extensions == []
         assert config.listen_host == "0.0.0.0"
         assert config.listen_port == 5000
 
@@ -50,6 +51,7 @@ class TestEnvironmentConfig:
             'CORS_ALLOWED_ORIGINS': 'https://localhost:3000,https://app.example.com',
             'LOG_LEVEL': 'DEBUG',
             'HTTP_PREFIX': '/api/v1',
+            'EXTENSIONS': 'impulse_ee, audit_pack ',
             'LISTEN_HOST': '127.0.0.1',
             'LISTEN_PORT': '8080'
         }
@@ -70,6 +72,7 @@ class TestEnvironmentConfig:
         assert config.cors_allowed_origins == ['https://localhost:3000', 'https://app.example.com']
         assert config.log_level == 'DEBUG'
         assert config.http_prefix == '/api/v1'
+        assert config.extensions == ['impulse_ee', 'audit_pack']
         assert config.listen_host == '127.0.0.1'
         assert config.listen_port == 8080
 

@@ -7,6 +7,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from app.config.config import get_config, reload_config
+from app.extensions import dispatch_hook
 from app.logging import logger
 from app.metrics import generate_metrics_response
 from app.middleware import is_standby_mode, service_unavailable_response, STANDBY_MODE_MESSAGE
@@ -177,6 +178,15 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
         messenger = request.app.state.messenger
         queue = request.app.state.queue
         assigned = await messenger.handle_ui_assignment(incident, user_id, queue)
+        if assigned:
+            dispatch_hook(
+                "incident.assigned",
+                {
+                    "incident_id": incident.uniq_id,
+                    "incident_uuid": incident.uuid,
+                    "actor_id": (acting_user or {}).get("id"),
+                },
+            )
         return {"success": assigned}
 
     @router.post("/task", responses={
@@ -205,6 +215,14 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
         messenger = request.app.state.messenger
         queue = request.app.state.queue
         result = await messenger.handle_task_button(incident, queue)
+        dispatch_hook(
+            "incident.task_requested",
+            {
+                "incident_id": incident.uniq_id,
+                "incident_uuid": incident.uuid,
+                "actor_id": (acting_user or {}).get("id"),
+            },
+        )
         return {"success": True, "result": result}
 
     @router.post("/freeze", responses={
@@ -298,6 +316,14 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
 
         messenger = request.app.state.messenger
         await messenger.handle_ui_release(incident)
+        dispatch_hook(
+            "incident.released",
+            {
+                "incident_id": incident.uniq_id,
+                "incident_uuid": incident.uuid,
+                "actor_id": (acting_user or {}).get("id"),
+            },
+        )
         return {"success": True}
 
     @router.post("/-/reload")
