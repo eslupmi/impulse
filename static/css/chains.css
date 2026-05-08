@@ -66,7 +66,7 @@
 
 .chain-select:focus {
     outline: none;
-    border-color: var(--brand-secondary);
+    /* border-color: var(--brand-secondary); */
 }
 
 .timezone-select {
@@ -505,7 +505,7 @@
 }
 
 #month-calendar .fc-daygrid-day.current-week {
-    background: var(--brand-secondary-light) !important;
+    background: var(--calendar-table-borders) !important;
 }
 
 #month-calendar .fc-daygrid-day.current-week .day-number {
@@ -517,7 +517,7 @@
 }
 
 #month-calendar .fc-daygrid-week:hover {
-    background-color: var(--brand-secondary-light) !important;
+    background-color: var(--calendar-table-borders) !important;
     border: 2px solid var(--brand-secondary) !important;
     border-radius: 4px;
     margin: 2px 0;
@@ -718,7 +718,7 @@
 }
 
 .fc .fc-highlight {
-    background: var(--brand-secondary-light) !important;
+    background: var(--calendar-table-borders) !important;
 }
 
 .fc .fc-timegrid-slot {
@@ -900,13 +900,13 @@
 }
 
 .btn-secondary {
-    background: var(--background-secondary);
+    background: var(--button-background);
     color: var(--text-primary);
     border: 1px solid var(--border-primary);
 }
 
 .btn-secondary:hover {
-    background: var(--brand-primary-light);
+    background: var(--button-hover-background);
 }
 
 #steps-container {
@@ -1008,7 +1008,7 @@
 }
 
 .step-controls .btn-remove-step:hover {
-    background: var(--brand-primary-light);
+    background: var(--calendar-table-borders);
 }
 
 .hidden {

@@ -10,157 +10,153 @@
     --brand-color-6: #60BDEB;
     --brand-color-7: #38ADE6;
     --brand-color-8: #2D8AB8;
-    --brand-color-9: #2D8AB8;
-    --brand-color-10: #2D8AB8;
-    --brand-color-11: #22688A;
-    --brand-color-12: #16455C;
-    --brand-color-13: #113445;
-    --brand-color-14: #0B232E;
-    --brand-color-15: #061117;
-    --brand-color-16: #000000;
-
-    --brand-primary: #4A90E2;
-    --brand-primary-light: var(--brand-color-3);
-    --brand-primary-dark: #357ABD;
-    --brand-secondary: var(--brand-color-7);
-    --brand-secondary-light: var(--brand-color-3);
-    --brand-secondary-dark: var(--brand-color-14);
+    --brand-color-9: #22688A;
+    --brand-color-10: #16455C;
+    --brand-color-11: #113445;
+    --brand-color-12: #0B232E;
+    --brand-color-13: #061117;
+    --brand-color-14: #000000;
 
     /* Neutral Colors */
-    --neutral-100: #FFFFFF;
-    --neutral-200: #F2F4F7;
-    --neutral-300: #EBF7FC;
-    --neutral-400: #D0D5DD;
-    --neutral-500: #BCC0C7;
-    --neutral-600: #98A2B3;
-    --neutral-700: #667085;
-    --neutral-800: #475467;
-    --neutral-900: #344054;
-    --neutral-1000: #061117;
+    --neutral-25: #FCFCFD; /* 1000 */
+    --neutral-50: #F9FAFB; /* 900 */
+    --neutral-100: #F2F4F7; /* 800 */
+    --neutral-200: #E4E7EC; /* 700 */
+    --neutral-300: #D0D5DD; /* 600 */
+    --neutral-400: #98A2B3; /* 500 */
+    --neutral-500: #667085; /* 400 */
+    --neutral-600: #475467; /* 300 */
+    --neutral-700: #344054; /* 200 */
+    --neutral-800: #1D2939; /* 100 */
+    --neutral-900: #101828; /* 50 */
+    --neutral-1000: #061117; /* 25 */
+
+    --extra-color-1: #357ABD;
+    --extra-color-2: #48BDE6;
+    --extra-color-3: #03080B;
 
     /* Semantic Colors */
+    --brand-primary: var(--brand-color-7);
+    --brand-secondary-dark: var(--brand-color-14);
+    --brand-secondary: var(--brand-color-7);
+
+    /* Main Colors */
+    --background-primary: var(--brand-color-0);
+    --background-secondary: var(--brand-color-3);
+    --background-tertiary: var(--neutral-100);
+    --border-primary: var(--brand-color-3);
+    --border-secondary: var(--neutral-500);
+    --button-background: var(--brand-color-3);
+    --button-hover-background: var(--brand-color-4);
+    --calendar-table-borders: var(--brand-color-3);
+    --link-hover: var(--extra-color-1);
+    --link-primary: var(--brand-primary);
+    --scrollbar-thumb-hover: var(--neutral-600);
+    --scrollbar-thumb: var(--neutral-500);
+    --text-inverse: var(--neutral-100);
     --text-primary: var(--neutral-1000);
     --text-secondary: var(--neutral-700);
-    --text-inverse: var(--neutral-100);
-    --background-primary: var(--neutral-100);
-    --background-secondary: var(--brand-primary-light);
-    --background-tertiary: var(--neutral-200);
-    --border-primary: var(--brand-secondary-light);
-    --border-secondary: var(--neutral-500);
-    --link-primary: var(--brand-secondary);
-    --link-hover: var(--brand-primary-dark);
-    
-    /* Interactive States */
-    --hover-primary: var(--brand-primary-dark);
-    
-    /* Status Colors */
-    --status-error: #FF4444;
 
-    /* Status Badge Colors */
-    --status-badge-firing: #F04438;
-    --status-badge-resolved: #56C15E;
-    --status-badge-unknown: #C1A300;
-    --status-badge-closed: #969696;
-    --status-badge-frozen: #38ade6;
-    
-    /* Theme Icon Colors */
-    --theme-icon-color: #22688A;
-
-    /* Online Status Colors */
-    --online-status-indicator: var(--theme-icon-color);
-    --offline-status-indicator: #F04438;
-
-    --info-block-background: #E4E7EC;
-    
-    /* Search Icon Colors */
-    --search-icon-color: #38ADE6;
-    
-    /* Component-specific Colors */
-    --header-background: var(--brand-primary-light);
-    --header-text: var(--neutral-1000);
-    
-    --table-background: var(--neutral-100);
-    --table-row-hover: var(--neutral-200);
-    --table-border: var(--border-primary);
-    
-    --filter-badge: var(--brand-secondary-dark);
-    --filter-badge-hover: var(--brand-primary-dark);
+    /* Header Colors */
+    --filter-badge-close-hover: var(--extra-color-1);
+    --filter-badge-hover: var(--extra-color-1);
     --filter-badge-text: var(--neutral-1000);
-    --filter-badge-close-hover: var(--brand-primary-dark);
-    
-    --alerts-count-background: var(--theme-icon-color);
-    --alerts-count-text: var(--neutral-300);
+    --filter-badge: var(--brand-secondary-dark);
+    --header-text: var(--neutral-1000);
+    --search-icon-color: var(--brand-primary);
+
+    /* Table Colors */
+    --action-btn-hover-bg: var(--neutral-100);
     --alerts-count-circle-color: var(--theme-icon-color);
-    
-    --label-background: var(--neutral-400);
-    --label-text: var(--neutral-900);
-    --label-highlighted-background: var(--neutral-800);
-    --label-highlighted-text: var(--neutral-100);
-    
+    --alerts-count-text: var(--neutral-300);
     --annotation-border: var(--neutral-600);
     --annotation-text: var(--neutral-800);
-    --tooltip-background: var(--alerts-count-background);
- 
+    --incident-content-border-color: var(--neutral-300);
+    --info-block-background: #E4E7EC;
+    --label-background: var(--neutral-300);
+    --label-highlighted-background: var(--neutral-800);
+    --label-highlighted-text: var(--neutral-100);
+    --label-text: var(--neutral-900);
+    --status-badge-closed: #969696;
+    --status-badge-firing: #F04438;
+    --status-badge-frozen: #38ade6;
+    --status-badge-resolved: #56C15E;
+    --status-badge-unknown: #C1A300;
+    --status-error: #FF4444;
+    --table-background: var(--neutral-100);
+    --table-border: var(--border-primary);
+    --table-row-hover: var(--neutral-200);
+    --tooltip-background: var(--theme-icon-color);
+
+    /* Footer Colors */
+    --auth-logged-in-bg: var(--neutral-100);
     --footer-text: #606060;
+    --login-button-color: var(--brand-secondary);
+    --offline-status-indicator: #F04438;
+    --online-status-indicator: var(--brand-color-8);
+    --theme-icon-color: var(--brand-color-8);
 }
 
 /* Dark theme */
 [data-theme="dark"] {
-    /* Brand Colors - slightly adjusted for dark theme */
-    --brand-primary: #5A9FE2;
-    --brand-primary-light: #113445;
-    --brand-primary-dark: #4A8FD2;
-    --brand-secondary: #48BDE6;
-    --brand-secondary-light: #16455C;
-    --brand-secondary-dark: #22688A;
-
-    /* Neutral Colors - inverted and adjusted for dark theme */
-    --neutral-100: #061117;
-    --neutral-200: #131B1F;
-    --neutral-300: #344054;
-    --neutral-400: #2D2D2D;
-    --neutral-500: #333B40;
-    --neutral-600: #6D6D6D;
-    --neutral-700: #98A2B3;
-    --neutral-800: #EBF7FC;
-    --neutral-900: #F2F4F7;
-    --neutral-1000: #FFFFFF;
-
     /* Semantic Colors */
-    --text-primary: var(--neutral-800);
-    --background-tertiary: var(--neutral-100);
+    --brand-primary: var(--brand-color-7);
+    --brand-secondary-dark: var(--brand-color-9);
+    --brand-secondary: var(--extra-color-2);
 
-    /* Status Colors */
-    --status-error: #FF6666;
+    /* Main Colors */
+    --background-primary: var(--extra-color-3);
+    --background-secondary: var(--brand-color-12);
+    --background-tertiary: var(--neutral-800);
+    --border-primary: var(--brand-color-10);
+    --border-secondary: var(--neutral-400);
+    --button-background: var(--brand-color-11);
+    --button-hover-background: var(--brand-color-10);
+    --calendar-table-borders: var(--brand-color-10);
+    --link-hover: var(--extra-color-1);
+    --link-primary: var(--brand-primary);
+    --scrollbar-thumb-hover: var(--neutral-300);
+    --scrollbar-thumb: var(--neutral-400);
+    --text-inverse: var(--neutral-800);
+    --text-primary: var(--neutral-100);
+    --text-secondary: var(--neutral-200);
 
-    /* Status Badge Colors */
-    --status-badge-firing: #D14035;
-
-    /* Online Status Colors */
-    --online-status-indicator: #38ADE6;
-    --offline-status-indicator: #D14035;
-
-    --info-block-background: var(--neutral-200);
-
-    /* Theme Icon Colors */
-    --theme-icon-color: #EBF7FC;
-
-    /* Search Icon Colors */
-    --search-icon-color: #EBF7FC;
-
-    /* Component-specific Colors */
-    --header-text: var(--neutral-800);
+    /* Header Colors */
     --filter-badge-close-hover: var(--brand-secondary-dark);
+    --filter-badge-hover: var(--extra-color-1);
+    --filter-badge-text: var(--neutral-25);
+    --filter-badge: var(--brand-secondary-dark);
+    --header-text: var(--neutral-25);
+    --search-icon-color: var(--brand-color-1);
 
-    --alerts-count-background: var(--neutral-800);
-    --alerts-count-text: var(--neutral-800);
-    --alerts-count-circle-color: var(--alerts-count-text);
+    /* Table Colors */
+    --action-btn-hover-bg: var(--neutral-800);
+    --alerts-count-circle-color: var(--text-primary);
+    --alerts-count-text: var(--text-primary);
+    --annotation-border: var(--neutral-600);
+    --annotation-text: var(--neutral-100);
+    --incident-content-border-color: var(--neutral-700);
+    --info-block-background: var(--neutral-700);
+    --label-background: var(--neutral-600);
+    --label-highlighted-background: var(--neutral-200);
+    --label-highlighted-text: var(--neutral-800);
+    --label-text: var(--text-primary);
+    --status-badge-closed: #969696;
+    --status-badge-firing: #D14035;
+    --status-badge-frozen: #38ade6;
+    --status-badge-resolved: #56C15E;
+    --status-badge-unknown: #C1A300;
+    --status-error: #FF6666;
+    --table-background: var(--neutral-800);
+    --table-border: var(--border-primary);
+    --table-row-hover: var(--neutral-700);
+    --tooltip-background: var(--theme-icon-color);
 
-    --label-background: var(--neutral-300);
-    --label-text: var(--neutral-800);
-    --label-highlighted-background: var(--neutral-700);
-
-    --annotation-border: var(--neutral-300);
-
+    /* Footer Colors */
+    --auth-logged-in-bg: var(--neutral-800);
     --footer-text: var(--text-primary);
+    --login-button-color: var(--brand-color-9);
+    --offline-status-indicator: #D14035;
+    --online-status-indicator: var(--brand-primary);
+    --theme-icon-color: var(--brand-color-1);
 }

@@ -9,7 +9,7 @@
 
 /* Simple common block styles */
 .simple-common-block {
-    border-right: 1px solid var(--neutral-500);
+    border-right: 1px solid var(--incident-content-border-color);
     padding: 0 16px;
     width: 441px;
 }
@@ -295,7 +295,7 @@
     font-size: 14px;
     color: var(--text-secondary);
     margin-bottom: 20px;
-    border-bottom: 1.3px solid var(--border-secondary);
+    border-bottom: 1.3px solid var(--incident-content-border-color);
     justify-content: space-between;
     align-items: center;
     height: 20px;
