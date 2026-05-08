@@ -46,13 +46,13 @@ strong {
 }
 
 .tabulator .tabulator-tableholder::-webkit-scrollbar-thumb {
-    background: var(--neutral-500);
+    background: var(--scrollbar-thumb);
     border-radius: 4px;
     border: 2px solid var(--background-secondary);
 }
 
 .tabulator .tabulator-tableholder::-webkit-scrollbar-thumb:hover {
-    background: var(--neutral-600);
+    background: var(--scrollbar-thumb-hover);
 }
 
 .tabulator .tabulator-tableholder .tabulator-table {
@@ -100,7 +100,7 @@ strong {
 }
 
 .tabulator .tabulator-header {
-    background-color: var(--header-background) !important;
+    background-color: var(--background-secondary) !important;
     height: 32px !important;
     border-bottom: 0px solid var(--table-border) !important;
 }
@@ -109,7 +109,7 @@ strong {
     top: 0;
     z-index: 1;
     position: sticky;
-    background: var(--header-background) !important;
+    background: var(--background-secondary) !important;
     color: var(--header-text) !important;
     font-size: 16px !important;
     font-weight: 600 !important;
@@ -358,7 +358,6 @@ strong {
     gap: 6px;
     color: var(--filter-badge-text);
     font-size: 16px;
-    font-weight: 500;
     padding: 6px 8px 6px 8px;
     border-radius: 8px;
     cursor: pointer;
@@ -367,7 +366,7 @@ strong {
     transition: all 0.3s ease-in-out;
     white-space: nowrap;
     height: 30px;
-    border: 1.3px solid var(--brand-secondary);
+    border: 1.3px solid var(--brand-primary);
 }
 
 .cross {
@@ -465,7 +464,6 @@ strong {
     line-height: 1;
     padding-top: 3px;
 }
-
 
 .filter-controls {
     display: flex;
@@ -583,21 +581,6 @@ strong {
 
 .history-toggle-btn:hover {
     transform: scale(1.2);
-    border: none !important;
-    outline: none !important;
-    box-shadow: none !important;
-}
-
-.history-toggle-btn:active {
-    border: none !important;
-    outline: none !important;
-    box-shadow: none !important;
-}
-
-.history-toggle-btn:focus {
-    border: none !important;
-    outline: none !important;
-    box-shadow: none !important;
 }
 
 .history-toggle-btn.active .history-icon {
@@ -624,7 +607,7 @@ strong {
 .auth-controls-wrapper.logged-in {
     gap: 0;
     height: 22px;
-    background: var(--neutral-100);
+    background: var(--auth-logged-in-bg);
     border-radius: 6px;
     padding: 0 10px;
 }
@@ -659,7 +642,7 @@ strong {
     border: none;
     border-radius: 4px;
     padding: 0;
-    background: var(--brand-secondary);
+    background: var(--login-button-color);
     color: #fff;
     font-family: 'Inter', sans-serif;
     font-size: 14px;
@@ -671,16 +654,12 @@ strong {
     white-space: nowrap;
 }
 
-[data-theme="dark"] .auth-login-btn {
-    background: var(--brand-color-11);
-}
-
 .auth-login-btn:hover {
     background: var(--brand-color-9);
 }
 
 [data-theme="dark"] .auth-login-btn:hover {
-    background: var(--brand-color-15);
+    background: var(--brand-color-13);
 }
 
 .auth-logout-btn {
@@ -734,21 +713,6 @@ strong {
 
 .theme-toggle-btn:hover {
     transform: scale(1.2);
-    border: none !important;
-    outline: none !important;
-    box-shadow: none !important;
-}
-
-.theme-toggle-btn:active {
-    border: none !important;
-    outline: none !important;
-    box-shadow: none !important;
-}
-
-.theme-toggle-btn:focus {
-    border: none !important;
-    outline: none !important;
-    box-shadow: none !important;
 }
 
 .theme-toggle-btn:hover .theme-icon {
@@ -756,9 +720,6 @@ strong {
 }
 
 .theme-icon {
-    width: 17px;
-    height: 17px;
-    stroke: var(--theme-icon-color);
     color: var(--theme-icon-color);
     transition: all 0.3s ease;
 }
@@ -781,7 +742,7 @@ strong {
 
 .tabulator-footer {
     background-color: var(--background-secondary) !important;
-    border-top: 1px solid var(--table-border) !important;
+    border-top: 0px solid var(--border-primary) !important;
 }
 
 .tabulator-footer .tabulator-footer-contents {
@@ -822,11 +783,9 @@ strong {
 
 .tabulator-footer .tabulator-pages button.active {
     color: var(--brand-primary) !important;
-    background-color: transparent !important;
 }
 
 .tabulator-footer .tabulator-pages button:hover {
-    background-color: transparent !important;
     color: var(--brand-primary) !important;
 }
 
@@ -907,7 +866,6 @@ strong {
 
 
 .tabulator-footer button[data-page]:hover {
-    background: transparent !important;
     transform: scale(1.2);
 }
 
@@ -1048,7 +1006,7 @@ strong {
 
 .action-btn:hover:not(:disabled) {
     color: var(--brand-secondary);
-    background: var(--neutral-100);
+    background: var(--action-btn-hover-bg);
 }
 
 .action-btn.active {
