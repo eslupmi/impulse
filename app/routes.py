@@ -106,8 +106,14 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
         return request.app.state.incidents.serialize()
 
     @router.get("/ui_config")
-    async def get_ui_config():
-        return get_all_ui_config()
+    async def get_ui_config(request: Request):
+        ui_config = get_all_ui_config()
+        extension_host = getattr(request.app.state, "extension_host", None)
+        if extension_host and hasattr(extension_host, "get_frontend_extensions"):
+            ui_config["frontend_extensions"] = extension_host.get_frontend_extensions()
+        else:
+            ui_config["frontend_extensions"] = []
+        return ui_config
 
     def _get_assignable_users(messenger):
         if messenger and hasattr(messenger, 'users') and hasattr(messenger.users, 'get_assignable_users'):

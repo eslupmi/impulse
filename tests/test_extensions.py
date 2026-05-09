@@ -91,6 +91,21 @@ class TestExtensionHost:
         assert received == [{"incident_id": "incident-1"}]
         assert any(route.path == "/ext/ping" for route in fastapi_app.routes)
 
+    def test_frontend_extensions_are_returned_as_normalized_copies(self, extension_host):
+        """Test frontend extension manifests are exposed to the UI safely."""
+        manifest = {
+            "extension_id": "example.history",
+            "mount_point": "incident.row.dropdown.actions",
+            "script_url": "/ext/history.js",
+        }
+
+        extension_host.register_frontend_extension(manifest)
+        manifests = extension_host.get_frontend_extensions()
+        manifests[0]["extension_id"] = "mutated"
+
+        assert manifests[0]["mount_points"] == ["incident.row.dropdown.actions"]
+        assert extension_host.frontend_extensions[0]["extension_id"] == "example.history"
+
     def test_module_dispatch_hook_delegates_to_extension_host(self, monkeypatch, extension_host):
         """Test module-level dispatch_hook delegates to the active host."""
         received = []

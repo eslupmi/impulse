@@ -45,6 +45,17 @@ class ExtensionHost:
         self.frontend_extensions.append(manifest)
         logger.info("Registered frontend extension", extra={"extension_id": manifest.get("extension_id")})
 
+    def get_frontend_extensions(self) -> List[dict]:
+        """Return browser-facing frontend extension manifests."""
+        manifests = []
+        for manifest in self.frontend_extensions:
+            normalized = dict(manifest)
+            mount_point = normalized.get("mount_point")
+            if mount_point and "mount_points" not in normalized:
+                normalized["mount_points"] = [mount_point]
+            manifests.append(normalized)
+        return manifests
+
     @staticmethod
     def _schedule_callback(awaitable, event_name: str):
         try:

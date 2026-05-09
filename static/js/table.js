@@ -176,8 +176,10 @@ async function initializeTable() {
         );
 
         initializeSorting(columns, sortingResponse);
+        return uiConfigResponse;
     } catch (error) {
         console.error("Error initializing table:", error);
+        return {frontend_extensions: []};
     }
 }
 

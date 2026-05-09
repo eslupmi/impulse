@@ -6,12 +6,14 @@ import {updateRelativeTimeSpans, updateRelativeTimeFieldsInResponsiveData} from 
 import {ThemeManager} from "./theme.js";
 import {initAuthControls} from "./auth.js";
 import {ChainsManager} from "./chains.js";
+import {initializeFrontendExtensions} from "./extensions.js";
 
 
 // **Initialize Everything**
 updateOnlineStatus(false);
 
-await initializeTable();
+const uiConfig = await initializeTable();
+await initializeFrontendExtensions(uiConfig.frontend_extensions || []);
 
 loadFiltersFromURL();
 setupTableFiltering();
