@@ -59,10 +59,6 @@
     font-size: 14px;
 }
 
-.incident-link:hover {
-    color: var(--link-hover);
-}
-
 /* Labels and annotations sections */
 .labels-section,
 .annotations-section {
@@ -309,7 +305,6 @@
 
 .generator-link:hover {
     text-decoration: underline;
-    color: var(--link-hover);
 }
 
 .highlighted-labels {
@@ -396,7 +391,6 @@
     font-size: 14px;
     line-height: 1.4;
     opacity: 0;
-    transition: opacity 0.2s;
     pointer-events: none;
     bottom: calc(100% + 8px);
 }

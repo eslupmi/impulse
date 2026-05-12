@@ -1,7 +1,6 @@
 /* Zoom icon styles */
 .zoom-icon {
     cursor: pointer;
-    transition: transform 0.2s ease, opacity 0.2s ease;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -20,7 +19,7 @@
 }
 
 .zoom-icon:hover {
-    transform: scale(1.2);
+    filter: drop-shadow(0 0 6px var(--brand-glow));
 }
 
 .zoom-icon.hidden {

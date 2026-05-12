@@ -39,6 +39,7 @@
     --brand-primary: var(--brand-color-7);
     --brand-secondary-dark: var(--brand-color-14);
     --brand-secondary: var(--brand-color-7);
+    --brand-glow: rgba(255, 255, 255, 0.99);
 
     /* Main Colors */
     --background-primary: var(--brand-color-0);
@@ -48,11 +49,15 @@
     --border-secondary: var(--neutral-500);
     --button-background: var(--brand-color-3);
     --button-hover-background: var(--brand-color-4);
-    --calendar-table-borders: var(--brand-color-3);
+    --calendar-table-border: var(--neutral-400);
+    --calendar-table-borders: var(--neutral-600);
+    --chains-window-background: var(--neutral-100);
+    --current-week-background: var(--neutral-300);
     --link-hover: var(--extra-color-1);
     --link-primary: var(--brand-primary);
     --scrollbar-thumb-hover: var(--neutral-600);
     --scrollbar-thumb: var(--neutral-500);
+    --scrollbar-color: var(--neutral-500) transparent;
     --text-inverse: var(--neutral-100);
     --text-primary: var(--neutral-1000);
     --text-secondary: var(--neutral-700);
@@ -94,7 +99,7 @@
     --login-button-color: var(--brand-secondary);
     --offline-status-indicator: #F04438;
     --online-status-indicator: var(--brand-color-8);
-    --theme-icon-color: var(--brand-color-8);
+    --theme-icon-color: var(--neutral-600);
 }
 
 /* Dark theme */
@@ -103,6 +108,7 @@
     --brand-primary: var(--brand-color-7);
     --brand-secondary-dark: var(--brand-color-9);
     --brand-secondary: var(--extra-color-2);
+    --brand-glow: rgba(255, 255, 255, 0.99);
 
     /* Main Colors */
     --background-primary: var(--extra-color-3);
@@ -112,11 +118,15 @@
     --border-secondary: var(--neutral-400);
     --button-background: var(--brand-color-11);
     --button-hover-background: var(--brand-color-10);
+    --calendar-table-border: var(--neutral-700);
     --calendar-table-borders: var(--brand-color-10);
+    --chains-window-background: var(--background-secondary);
+    --current-week-background: var(--brand-color-10);
     --link-hover: var(--extra-color-1);
     --link-primary: var(--brand-primary);
     --scrollbar-thumb-hover: var(--neutral-300);
     --scrollbar-thumb: var(--neutral-400);
+    --scrollbar-color: var(--neutral-500);
     --text-inverse: var(--neutral-800);
     --text-primary: var(--neutral-100);
     --text-secondary: var(--neutral-200);
