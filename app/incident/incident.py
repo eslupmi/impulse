@@ -323,7 +323,6 @@ class Incident:
             '_assigned_user_id': self.assigned_user_id or '',
             '_assigned_fullname': self.assigned_fullname or '',
             '_responsive_data': {
-                'incident_id': self.uniq_id,
                 'group_labels': group_labels,
                 'common_labels': filter_dict_keys(common_labels, group_labels),
                 'common_annotations': common_annotations,

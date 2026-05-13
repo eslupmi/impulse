@@ -1,5 +1,4 @@
 import {ZOOM_IN_ICON, ZOOM_OUT_ICON, LINK_ICON} from "./constants.js";
-import {mountExtensionPoint} from "./extensions.js";
 
 let columnColors = {}; // Store color mappings
 
@@ -655,12 +654,6 @@ function responsiveLayoutCollapseFormatter(data) {
         alertsSection.appendChild(alertsWrapper);
         container.appendChild(alertsSection);
     }
-
-    mountExtensionPoint(
-        'incident.row.dropdown.actions',
-        container,
-        {incident_id: responsiveData.incident_id}
-    );
 
     return container;
 }
