@@ -2,6 +2,8 @@ const mountRegistry = new Map();
 const loadedScripts = new Set();
 const loadedStyles = new Set();
 
+/** OSS calls mountExtensionPoint("app.ready", document.body) after scripts load; extensions choose DOM targets. */
+
 function normalizeUrl(url) {
     if (!url) return null;
     if (/^https?:\/\//.test(url)) return url;

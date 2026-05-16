@@ -34,6 +34,16 @@ function setUiState(authenticated, userData) {
         chainsToggle?.classList.add("hidden");
     }
 
+    try {
+        window.dispatchEvent(
+            new CustomEvent("impulse-auth-changed", {
+                detail: {authenticated: Boolean(authenticated), user: userData ?? null},
+            }),
+        );
+    } catch (_) {
+        // ignore (e.g. non-browser tests)
+    }
+
 }
 
 async function refreshAuthState() {

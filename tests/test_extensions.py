@@ -54,12 +54,34 @@ class TestExtensionLoading:
             ],
         )
 
-        host = extensions.load_extensions(app=fastapi_app, env_config=env_config, config=object())
+        host = extensions.load_extensions(
+            app=fastapi_app, env_config=env_config, config=object(), auth_manager=None
+        )
 
         assert host is fastapi_app.state.extension_host
         assert len(loaded) == 1
         assert loaded[0][1]["data_root"] == "/tmp/impulse-data"
         assert loaded[0][1]["http_prefix"] == "/impulse"
+        assert loaded[0][1]["auth_manager"] is None
+
+    def test_load_extensions_passes_auth_manager_in_context(self, monkeypatch, fastapi_app, env_config):
+        loaded = []
+
+        def register_extension(host, context):
+            loaded.append(context)
+
+        monkeypatch.setattr(
+            extensions,
+            "entry_points",
+            lambda group: [_EntryPoint("enabled_ext", register_extension)],
+        )
+
+        auth = Mock()
+        extensions.load_extensions(
+            app=fastapi_app, env_config=env_config, config=object(), auth_manager=auth
+        )
+
+        assert loaded[0]["auth_manager"] is auth
 
 
 class TestExtensionHost:

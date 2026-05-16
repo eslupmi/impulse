@@ -79,7 +79,7 @@ class ExtensionHost:
             logger.warning("Async extension hook skipped because no event loop is available", extra={"event_name": event_name})
 
 
-def load_extensions(app: FastAPI, env_config, config) -> ExtensionHost:
+def load_extensions(app: FastAPI, env_config, config, auth_manager=None) -> ExtensionHost:
     """Load configured extension entry points from the impulse.extensions group."""
     global _extension_host
 
@@ -88,6 +88,7 @@ def load_extensions(app: FastAPI, env_config, config) -> ExtensionHost:
         "http_prefix": env_config.http_prefix,
         "config_path": env_config.config_path,
         "config": config,
+        "auth_manager": auth_manager,
     }
     host = ExtensionHost(app=app, context=context)
     _extension_host = host

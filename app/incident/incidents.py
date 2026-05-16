@@ -3,6 +3,7 @@ from typing import Dict, Union
 
 import yaml
 
+from app.extensions import dispatch_hook
 from app.config.config import get_config
 from app.config.environment import get_environment_config
 from app.incident.incident import Incident, IncidentConfig
@@ -61,6 +62,13 @@ class Incidents:
     def del_by_uniq_id(self, uniq_id: str):
         incident = self.uniq_ids.pop(uniq_id, None)
         if incident:
+            dispatch_hook(
+                "incident.deleted",
+                {
+                    "incident_id": incident.uniq_id,
+                    "incident_uuid": incident.uuid,
+                },
+            )
             self.remove_file(incident)
             # Schedule async websocket update
             import asyncio

@@ -177,6 +177,22 @@ class TestIncidents:
         assert len(incidents.uniq_ids) == initial_count
         mock_remove.assert_not_called()
 
+    @patch("app.incident.incidents.dispatch_hook")
+    def test_del_by_uniq_id_dispatches_deleted_hook_before_removal(
+        self, mock_dispatch, incidents
+    ):
+        """Extension hook incident.deleted fires with ids before file removal."""
+        incident = list(incidents.uniq_ids.values())[0]
+        uniq_id = incident.uniq_id
+        with patch("os.remove"):
+            incidents.del_by_uniq_id(uniq_id)
+
+        mock_dispatch.assert_called_once_with(
+            "incident.deleted",
+            {"incident_id": uniq_id, "incident_uuid": incident.uuid},
+        )
+        assert uniq_id not in incidents.uniq_ids
+
     def test_serialize(self, incidents):
         """Test serializing incidents."""
         serialized = incidents.serialize()
