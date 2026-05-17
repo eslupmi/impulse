@@ -235,8 +235,13 @@ function updateFilterLayout() {
 }
 
 // Add a new filter to the UI
+function scrollFiltersToEnd() {
+    const el = document.getElementById("filter-container");
+    el.scrollLeft = el.scrollWidth - el.clientWidth;
+}
+
 function addFilterUI(filter) {
-    const filterContainer = document.getElementById("filter-container");
+    const filterList = document.getElementById("filter-list");
 
     const filterElement = document.createElement("div");
     filterElement.classList.add("filter-badge");
@@ -251,7 +256,8 @@ function addFilterUI(filter) {
     removeButton.addEventListener("click", () => removeFilter(filter, filterElement));
     filterElement.appendChild(removeButton);
 
-    filterContainer.appendChild(filterElement);
+    filterList.appendChild(filterElement);
+    scrollFiltersToEnd();
     updateFilterLayout();
 }
 
@@ -335,8 +341,15 @@ function setupFilterContainerScroll() {
     });
 
     function updateArrowVisibility() {
-        const hasFilters = filterContainer.children.length > 0;
+        const filterList = document.getElementById("filter-list");
+        const hasFilters = filterList.children.length > 0;
         scrollableFilters.classList.toggle("has-filters", hasFilters);
+
+        const maxScroll = filterContainer.scrollWidth - filterContainer.clientWidth;
+        const atEnd = filterContainer.scrollLeft >= maxScroll - 2;
+        if (atEnd && maxScroll > 0) {
+            filterContainer.scrollLeft = maxScroll;
+        }
 
         const leftWrapper = document.querySelector(".arrow-wrapper.left");
         const rightWrapper = document.querySelector(".arrow-wrapper.right");
@@ -344,7 +357,7 @@ function setupFilterContainerScroll() {
         if (hasFilters) {
             leftWrapper.classList.toggle("visible", filterContainer.scrollLeft > 0);
 
-            const isAtEnd = Math.abs(filterContainer.scrollWidth - filterContainer.clientWidth - filterContainer.scrollLeft) < 2;
+            const isAtEnd = filterContainer.scrollLeft >= maxScroll - 2;
             rightWrapper.classList.toggle("visible", !isAtEnd);
         } else {
             leftWrapper.classList.remove("visible");
@@ -356,6 +369,8 @@ function setupFilterContainerScroll() {
 
     const observer = new MutationObserver(updateArrowVisibility);
     observer.observe(filterContainer, { childList: true, subtree: true });
+
+    new ResizeObserver(updateArrowVisibility).observe(filterContainer);
 
     updateArrowVisibility();
 }
