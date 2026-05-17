@@ -116,8 +116,8 @@
     --background-tertiary: var(--neutral-800);
     --border-primary: var(--brand-color-10);
     --border-secondary: var(--neutral-400);
-    --button-background: var(--brand-color-11);
-    --button-hover-background: var(--brand-color-10);
+    --button-background: var(--brand-color-10);
+    --button-hover-background: var(--brand-color-11);
     --calendar-table-border: var(--neutral-700);
     --calendar-table-borders: var(--brand-color-10);
     --chains-window-background: var(--background-secondary);
