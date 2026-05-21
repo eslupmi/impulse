@@ -5,7 +5,7 @@ from fastapi.responses import JSONResponse
 
 from app.config.environment import get_environment_config
 from app.config.validation import ApplicationConfig
-from app.extensions import dispatch_hook
+from app.extensions import dispatch_hook, incident_hook_payload
 from app.im.application import Application
 from app.im.slack.threads import get_incident_message_payload, slack_get_update_payload
 from app.im.slack.user import User
@@ -166,7 +166,7 @@ class SlackApplication(Application):
                 self.fetch_and_assign_user_name(incident_, user_id, dump=False)
                 dispatch_hook(
                     "incident.assigned",
-                    {"incident_id": incident_.uniq_id, "incident_uuid": incident_.uuid, "actor_id": user_id},
+                    incident_hook_payload(incident_.uniq_id, actor_id=user_id),
                 )
                 self.track_async_task(asyncio.create_task(self.post_assignment_notification(incident_)))
             incident_.chain_enabled = False
@@ -176,7 +176,7 @@ class SlackApplication(Application):
             incident_.release()
             dispatch_hook(
                 "incident.released",
-                {"incident_id": incident_.uniq_id, "incident_uuid": incident_.uuid, "actor_id": user_id},
+                incident_hook_payload(incident_.uniq_id, actor_id=user_id),
             )
 
     async def _handle_freeze_button(self, action, incident_, user_id, incidents, queue_, tz_str):

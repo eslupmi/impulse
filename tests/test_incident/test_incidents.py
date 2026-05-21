@@ -189,7 +189,7 @@ class TestIncidents:
 
         mock_dispatch.assert_called_once_with(
             "incident.deleted",
-            {"incident_id": uniq_id, "incident_uuid": incident.uuid},
+            {"uniq_id": uniq_id},
         )
         assert uniq_id not in incidents.uniq_ids
 

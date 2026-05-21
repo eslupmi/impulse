@@ -5,7 +5,7 @@ from typing import Union, Dict, Optional, TYPE_CHECKING
 
 from app.config.config import get_config
 from app.config.validation import ApplicationConfig, MattermostUser, SlackUser, TelegramUser, MessengerType
-from app.extensions import dispatch_hook
+from app.extensions import dispatch_hook, incident_hook_payload
 from app.http_client import RateLimitedClient
 from app.im.chain.chain_factory import ChainFactory
 from app.im.groups import Group
@@ -426,7 +426,7 @@ class Application(ABC):
         incident_.freeze(freeze_time, cached_user)
         dispatch_hook(
             "incident.freeze_requested",
-            {"incident_id": incident_.uniq_id, "incident_uuid": incident_.uuid, "actor_id": user_id},
+            incident_hook_payload(incident_.uniq_id, actor_id=user_id),
         )
 
         await queue_.delete_by_id(incident_.uniq_id, delete_steps=True, delete_status=False)
@@ -437,7 +437,7 @@ class Application(ABC):
         logger.info(log_button_pressed, extra={'uuid': incident_.uuid, 'button': 'task', 'user_id': user_id})
         dispatch_hook(
             "incident.task_requested",
-            {"incident_id": incident_.uniq_id, "incident_uuid": incident_.uuid, "actor_id": user_id},
+            incident_hook_payload(incident_.uniq_id, actor_id=user_id),
         )
         self.track_async_task(asyncio.create_task(self.handle_task_button(incident_, queue_)))
 
@@ -447,7 +447,7 @@ class Application(ABC):
         await unfreeze_incident(incident_, self, queue_)
         dispatch_hook(
             "incident.unfreeze_requested",
-            {"incident_id": incident_.uniq_id, "incident_uuid": incident_.uuid, "actor_id": user_id},
+            incident_hook_payload(incident_.uniq_id, actor_id=user_id),
         )
         await self.update_incident_message(incident_)
 

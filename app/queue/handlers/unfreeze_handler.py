@@ -1,5 +1,5 @@
 from app.incident.incident import unfreeze_incident
-from app.extensions import dispatch_hook
+from app.extensions import dispatch_hook, incident_hook_payload
 from app.logging import logger
 from app.queue.handlers.base_handler import BaseHandler
 
@@ -23,8 +23,5 @@ class UnfreezeHandler(BaseHandler):
             return
 
         await unfreeze_incident(incident, self.app, self.queue)
-        dispatch_hook(
-            "incident.auto_unfrozen",
-            {"incident_id": incident.uniq_id, "incident_uuid": incident.uuid},
-        )
+        dispatch_hook("incident.auto_unfrozen", incident_hook_payload(incident.uniq_id))
         await self.app.update_incident_message(incident)

@@ -108,9 +108,9 @@ class TestExtensionHost:
 
         extension_host.register_router(router)
         extension_host.register_hook("incident.created", received.append)
-        extension_host.dispatch_hook("incident.created", {"incident_id": "incident-1"})
+        extension_host.dispatch_hook("incident.created", {"uniq_id": "incident-1"})
 
-        assert received == [{"incident_id": "incident-1"}]
+        assert received == [{"uniq_id": "incident-1"}]
         assert any(route.path == "/ext/ping" for route in fastapi_app.routes)
 
     def test_frontend_extensions_are_returned_as_normalized_copies(self, extension_host):
@@ -136,8 +136,7 @@ class TestExtensionHost:
 
         extensions.dispatch_hook(
             "incident.status_changed",
-            {"incident_id": "occurrence-1", "incident_uuid": "group-1"},
+            {"uniq_id": "occurrence-1"},
         )
 
-        assert received[0]["incident_id"] == "occurrence-1"
-        assert received[0]["incident_uuid"] == "group-1"
+        assert received[0]["uniq_id"] == "occurrence-1"

@@ -7,7 +7,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from app.config.config import get_config, reload_config
-from app.extensions import dispatch_hook
+from app.extensions import dispatch_hook, incident_hook_payload
 from app.logging import logger
 from app.metrics import generate_metrics_response
 from app.middleware import is_standby_mode, service_unavailable_response, STANDBY_MODE_MESSAGE
@@ -187,11 +187,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
         if assigned:
             dispatch_hook(
                 "incident.assigned",
-                {
-                    "incident_id": incident.uniq_id,
-                    "incident_uuid": incident.uuid,
-                    "actor_id": (acting_user or {}).get("id"),
-                },
+                incident_hook_payload(incident.uniq_id, actor_id=(acting_user or {}).get("id")),
             )
         return {"success": assigned}
 
@@ -223,11 +219,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
         result = await messenger.handle_task_button(incident, queue)
         dispatch_hook(
             "incident.task_requested",
-            {
-                "incident_id": incident.uniq_id,
-                "incident_uuid": incident.uuid,
-                "actor_id": (acting_user or {}).get("id"),
-            },
+            incident_hook_payload(incident.uniq_id, actor_id=(acting_user or {}).get("id")),
         )
         return {"success": True, "result": result}
 
@@ -324,11 +316,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
         await messenger.handle_ui_release(incident)
         dispatch_hook(
             "incident.released",
-            {
-                "incident_id": incident.uniq_id,
-                "incident_uuid": incident.uuid,
-                "actor_id": (acting_user or {}).get("id"),
-            },
+            incident_hook_payload(incident.uniq_id, actor_id=(acting_user or {}).get("id")),
         )
         return {"success": True}
 

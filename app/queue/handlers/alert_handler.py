@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 from app.config.config import get_config
-from app.extensions import dispatch_hook
+from app.extensions import dispatch_hook, incident_hook_payload
 from app.im.template import update_alerts
 from app.incident.incident import IncidentConfig, Incident
 from app.jinja_template import JinjaTemplate
@@ -90,10 +90,7 @@ class AlertHandler(BaseHandler):
         await self.inhibition_manager.process_incident(incident_)
         incident_.dump()
 
-        dispatch_hook(
-            "incident.created",
-            {"incident_id": incident_.uniq_id, "incident_uuid": incident_.uuid},
-        )
+        dispatch_hook("incident.created", incident_hook_payload(incident_.uniq_id))
 
         if will_be_inhibited:
             logger.info("Incident created (inhibited)", extra={'uuid': incident_.uuid, 'link': incident_.link})
@@ -127,16 +124,10 @@ class AlertHandler(BaseHandler):
         await self._handle_inhibition_state_change(incident_, prev_status)
 
         if is_status_updated:
-            dispatch_hook(
-                "incident.status_changed",
-                {"incident_id": incident_.uniq_id, "incident_uuid": incident_.uuid},
-            )
+            dispatch_hook("incident.status_changed", incident_hook_payload(incident_.uniq_id))
 
         if is_state_updated:
-            dispatch_hook(
-                "incident.alert_changed",
-                {"incident_id": incident_.uniq_id, "incident_uuid": incident_.uuid},
-            )
+            dispatch_hook("incident.alert_changed", incident_hook_payload(incident_.uniq_id))
 
         if is_state_updated or is_status_updated:
             await self.app.update(

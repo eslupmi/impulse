@@ -1,7 +1,7 @@
 from typing import Dict, List, Set, TYPE_CHECKING
 
 from app.config.validation import InhibitRule, MessengerType
-from app.extensions import dispatch_hook
+from app.extensions import dispatch_hook, incident_hook_payload
 from app.inhibition.rule import InhibitionRule
 from app.logging import logger
 
@@ -170,15 +170,7 @@ class InhibitionManager:
         if source.uniq_id not in target.parents:
             target.parents.append(source.uniq_id)
         target.freeze_by_inhibition()
-        dispatch_hook(
-            "incident.inhibited",
-            {
-                "incident_id": target.uniq_id,
-                "incident_uuid": target.uuid,
-                "source_incident_id": source.uniq_id,
-                "source_incident_uuid": source.uuid,
-            },
-        )
+        dispatch_hook("incident.inhibited", incident_hook_payload(target.uniq_id))
         await self.queue.delete_by_id(target.uniq_id, delete_steps=True, delete_status=False)
         
         logger.info("Target frozen by inhibition",
@@ -222,8 +214,5 @@ class InhibitionManager:
         
         logger.info("Target has no more parents - scheduling unfreeze", extra={'uuid': target.uuid})
         await unfreeze_incident(target, self.application, self.queue)
-        dispatch_hook(
-            "incident.inhibition_released",
-            {"incident_id": target.uniq_id, "incident_uuid": target.uuid},
-        )
+        dispatch_hook("incident.inhibition_released", incident_hook_payload(target.uniq_id))
         await self.application.update_incident_message(target)

@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 import aiohttp
 from fastapi.responses import JSONResponse
 
-from app.extensions import dispatch_hook
+from app.extensions import dispatch_hook, incident_hook_payload
 from app.im.application import Application
 
 if TYPE_CHECKING:
@@ -286,7 +286,7 @@ class TelegramApplication(Application):
             self.fetch_and_assign_user_name(incident_, user_id, dump=False)
             dispatch_hook(
                 "incident.assigned",
-                {"incident_id": incident_.uniq_id, "incident_uuid": incident_.uuid, "actor_id": user_id},
+                incident_hook_payload(incident_.uniq_id, actor_id=user_id),
             )
             self.track_async_task(asyncio.create_task(self.post_assignment_notification(incident_)))
             incident_.chain_enabled = False
@@ -296,7 +296,7 @@ class TelegramApplication(Application):
             incident_.release()
             dispatch_hook(
                 "incident.released",
-                {"incident_id": incident_.uniq_id, "incident_uuid": incident_.uuid, "actor_id": user_id},
+                incident_hook_payload(incident_.uniq_id, actor_id=user_id),
             )
         return None
 

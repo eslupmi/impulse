@@ -120,6 +120,21 @@ def get_extension_host() -> Optional[ExtensionHost]:
     return _extension_host
 
 
+def incident_hook_payload(
+    uniq_id: str,
+    *,
+    actor_id: Any = None,
+    **extra: Any,
+) -> dict[str, Any]:
+    """Build a generic extension hook payload keyed by incident occurrence id."""
+    payload: dict[str, Any] = {"uniq_id": uniq_id}
+    if actor_id is not None:
+        payload["actor_id"] = actor_id
+    if extra:
+        payload.update(extra)
+    return payload
+
+
 def dispatch_hook(event_name: str, payload: Mapping[str, Any]):
     host = get_extension_host()
     if host is None:
