@@ -7,7 +7,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from app.config.config import get_config, reload_config
-from app.extensions import dispatch_hook, incident_hook_payload
+from app.modules import dispatch_hook, incident_hook_payload, ModuleMessageError
 from app.logging import logger
 from app.metrics import generate_metrics_response
 from app.middleware import is_standby_mode, service_unavailable_response, STANDBY_MODE_MESSAGE
@@ -18,6 +18,50 @@ from app.im.chain.ui_chains_store import ui_chains_store
 
 _MSG_INCIDENT_NOT_FOUND = "Incident not found"
 _MSG_UNIQ_ID_REQUIRED = "uniq_id is required"
+
+
+async def _handle_module_message(websocket: WebSocket, message: dict):
+    """Bridge a websocket ``module_message`` to a registered module handler.
+
+    Request contract (client -> server)::
+
+        {"event": "module_message", "module": "<name>", "hook": "<hook>",
+         "request_id": "<id>", "params": {...}}
+
+    Response contract (server -> client)::
+
+        {"event": "module_message", "module": ..., "hook": ..., "request_id": ...,
+         "ok": true, "data": {...}}                       # success
+        {"event": "module_message", ..., "ok": false,
+         "error": {"code": "...", "message": "..."}}      # failure
+    """
+    module_name = message.get("module")
+    hook_name = message.get("hook")
+    request_id = message.get("request_id")
+    params = message.get("params") or {}
+
+    response = {
+        "event": "module_message",
+        "module": module_name,
+        "hook": hook_name,
+        "request_id": request_id,
+    }
+
+    host = getattr(websocket.app.state, "module_host", None)
+    if host is None:
+        response.update({"ok": False, "error": {"code": "modules_unavailable", "message": "Module host is not initialised"}})
+    elif not module_name or not hook_name:
+        response.update({"ok": False, "error": {"code": "invalid_request", "message": "module and hook are required"}})
+    else:
+        try:
+            data = await host.dispatch_module_message(module_name, hook_name, params)
+            response.update({"ok": True, "data": data})
+        except ModuleMessageError as exc:
+            response.update({"ok": False, "error": {"code": exc.code, "message": exc.message}})
+        except Exception as exc:  # pragma: no cover - defensive guard
+            response.update({"ok": False, "error": {"code": "handler_error", "message": str(exc)}})
+
+    await websocket.send_text(json.dumps(response))
 
 
 def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=None) -> APIRouter:
@@ -108,11 +152,11 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
     @router.get("/ui_config")
     async def get_ui_config(request: Request):
         ui_config = get_all_ui_config()
-        extension_host = getattr(request.app.state, "extension_host", None)
-        if extension_host and hasattr(extension_host, "get_frontend_extensions"):
-            ui_config["frontend_extensions"] = extension_host.get_frontend_extensions()
+        module_host = getattr(request.app.state, "module_host", None)
+        if module_host and hasattr(module_host, "get_frontend_modules"):
+            ui_config["frontend_modules"] = module_host.get_frontend_modules()
         else:
-            ui_config["frontend_extensions"] = []
+            ui_config["frontend_modules"] = []
         return ui_config
 
     def _get_assignable_users(messenger):
@@ -375,6 +419,8 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
                         shifts = message.get("data", [])
                         success = ui_chains_store.save_shifts(chain_name, shifts)
                         await websocket.send_text(json.dumps({"event": "ui_chains_saved", "success": success}))
+                    elif event_type == "module_message":
+                        await _handle_module_message(websocket, message)
 
                 except json.JSONDecodeError:
                     logger.warning("Invalid WebSocket JSON", extra={'data': data})

@@ -3,7 +3,7 @@ from typing import Dict, Union
 
 import yaml
 
-from app.extensions import dispatch_hook, incident_hook_payload
+from app.modules import dispatch_hook, incident_hook_payload
 from app.config.config import get_config
 from app.config.environment import get_environment_config
 from app.incident.incident import Incident, IncidentConfig

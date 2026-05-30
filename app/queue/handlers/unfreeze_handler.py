@@ -1,5 +1,5 @@
 from app.incident.incident import unfreeze_incident
-from app.extensions import dispatch_hook, incident_hook_payload
+from app.modules import dispatch_hook, incident_hook_payload
 from app.logging import logger
 from app.queue.handlers.base_handler import BaseHandler
 

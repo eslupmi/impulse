@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from app.extensions import dispatch_hook, incident_hook_payload
+from app.modules import dispatch_hook, incident_hook_payload
 from app.logging import logger
 from app.queue.constants import QueueItemType
 from app.queue.handlers.base_handler import BaseHandler

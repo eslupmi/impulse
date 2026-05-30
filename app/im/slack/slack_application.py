@@ -5,7 +5,7 @@ from fastapi.responses import JSONResponse
 
 from app.config.environment import get_environment_config
 from app.config.validation import ApplicationConfig
-from app.extensions import dispatch_hook, incident_hook_payload
+from app.modules import dispatch_hook, incident_hook_payload
 from app.im.application import Application
 from app.im.slack.threads import get_incident_message_payload, slack_get_update_payload
 from app.im.slack.user import User

@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 import aiohttp
 from fastapi.responses import JSONResponse
 
-from app.extensions import dispatch_hook, incident_hook_payload
+from app.modules import dispatch_hook, incident_hook_payload
 from app.im.application import Application
 
 if TYPE_CHECKING:

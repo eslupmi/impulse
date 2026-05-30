@@ -1,7 +1,7 @@
 from typing import Dict, List, Set, TYPE_CHECKING
 
 from app.config.validation import InhibitRule, MessengerType
-from app.extensions import dispatch_hook, incident_hook_payload
+from app.modules import dispatch_hook, incident_hook_payload
 from app.inhibition.rule import InhibitionRule
 from app.logging import logger
 

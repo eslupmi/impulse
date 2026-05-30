@@ -179,7 +179,7 @@ async function initializeTable() {
         return uiConfigResponse;
     } catch (error) {
         console.error("Error initializing table:", error);
-        return {frontend_extensions: []};
+        return {frontend_modules: []};
     }
 }
 

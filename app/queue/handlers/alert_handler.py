@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 from app.config.config import get_config
-from app.extensions import dispatch_hook, incident_hook_payload
+from app.modules import dispatch_hook, incident_hook_payload
 from app.im.template import update_alerts
 from app.incident.incident import IncidentConfig, Incident
 from app.jinja_template import JinjaTemplate

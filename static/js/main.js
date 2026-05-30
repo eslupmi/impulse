@@ -6,16 +6,16 @@ import {updateRelativeTimeSpans, updateRelativeTimeFieldsInResponsiveData} from 
 import {ThemeManager} from "./theme.js";
 import {initAuthControls} from "./auth.js";
 import {ChainsManager} from "./chains.js";
-import {initializeFrontendExtensions, mountExtensionPoint} from "./extensions.js";
+import {initializeFrontendModules, mountModulePoint} from "./modules.js";
 
 
 // **Initialize Everything**
 updateOnlineStatus(false);
 
 const uiConfig = await initializeTable();
-await initializeFrontendExtensions(uiConfig.frontend_extensions || []);
+await initializeFrontendModules(uiConfig.frontend_modules || []);
 
-mountExtensionPoint("app.ready", document.body, {});
+mountModulePoint("app.ready", document.body, {});
 
 loadFiltersFromURL();
 setupTableFiltering();

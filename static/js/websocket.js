@@ -176,6 +176,12 @@ function setupWebSocketEvents() {
                     }
                     break;
 
+                case "module_message":
+                    if (window.ImpulseModules && typeof window.ImpulseModules._resolveModuleMessage === 'function') {
+                        window.ImpulseModules._resolveModuleMessage(message);
+                    }
+                    break;
+
                 default:
                     console.log('Unknown WebSocket event:', eventType);
             }

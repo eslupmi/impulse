@@ -78,9 +78,9 @@ class EnvironmentConfig(BaseModel):
         default_factory=lambda: os.getenv('CONFIG_PATH', './'),
         description="Path to configuration directory"
     )
-    extensions: List[str] = Field(
-        default_factory=lambda: [extension.strip() for extension in os.getenv('EXTENSIONS', '').split(',') if extension.strip()],
-        description="Comma-separated list of enabled extension entry point names"
+    modules: List[str] = Field(
+        default_factory=lambda: [module.strip() for module in os.getenv('MODULES', '').split(',') if module.strip()],
+        description="Comma-separated list of enabled module entry point names"
     )
     
     # Provider settings (for Google Calendar integration)
@@ -143,11 +143,11 @@ class EnvironmentConfig(BaseModel):
         """Clean up CORS origins by removing whitespace"""
         return [origin.strip() for origin in v if origin.strip()]
 
-    @field_validator('extensions')
+    @field_validator('modules')
     @classmethod
-    def validate_extensions(cls, v):
-        """Clean up configured extension entry point names."""
-        return [extension.strip() for extension in v if extension.strip()]
+    def validate_modules(cls, v):
+        """Clean up configured module entry point names."""
+        return [module.strip() for module in v if module.strip()]
     
     @field_validator('log_level')
     @classmethod

@@ -5,7 +5,7 @@ from typing import Union, Dict, Optional, TYPE_CHECKING
 
 from app.config.config import get_config
 from app.config.validation import ApplicationConfig, MattermostUser, SlackUser, TelegramUser, MessengerType
-from app.extensions import dispatch_hook, incident_hook_payload
+from app.modules import dispatch_hook, incident_hook_payload
 from app.http_client import RateLimitedClient
 from app.im.chain.chain_factory import ChainFactory
 from app.im.groups import Group
