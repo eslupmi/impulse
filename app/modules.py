@@ -3,6 +3,7 @@ from importlib.metadata import entry_points
 from typing import Any, Callable, Dict, List, Mapping, Optional
 
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 
 from app.logging import logger
 
@@ -102,13 +103,35 @@ class ModuleHost:
 
     # --- frontend modules ---------------------------------------------------
 
-    def register_frontend_module(self, module_name: str, manifest: dict):
+    def register_frontend_module(self, module_name: str, manifest: dict, assets_dir: str):
+        """Mount a module's static asset directory and derive its public URLs.
+
+        The module ships its JS/CSS as package data and only declares the
+        filenames (`script` / `style`); OSS serves them from a single
+        `StaticFiles` mount under `{http_prefix}/api/module/{module_name}/static`
+        and fills in `script_url` / `style_url` so the URLs are always
+        `http_prefix`-correct. The mount lives under the module's own
+        `api/module/{module_name}` namespace to avoid shadowing by the core
+        `{http_prefix}/static` mount (Starlette matches mounts in registration
+        order, longest-prefix is not preferred).
+        """
+        mount_path = f"{self.http_prefix}/api/module/{module_name}/static"
+        self.app.mount(
+            mount_path,
+            StaticFiles(directory=str(assets_dir)),
+            name=f"module-static-{module_name}",
+        )
+
         normalized = dict(manifest)
-        normalized.setdefault("module", module_name)
+        normalized["module"] = module_name
+        if normalized.get("script"):
+            normalized["script_url"] = f"{mount_path}/{normalized['script']}"
+        if normalized.get("style"):
+            normalized["style_url"] = f"{mount_path}/{normalized['style']}"
         self.frontend_modules.append(normalized)
         logger.info(
             "Registered frontend module",
-            extra={"module_name": module_name, "module_id": normalized.get("module_id")},
+            extra={"module_name": module_name, "module_id": normalized.get("module_id"), "mount": mount_path},
         )
 
     def get_frontend_modules(self) -> List[dict]:
@@ -167,8 +190,8 @@ class ModuleApi:
     def register_module_message_handler(self, hook_name: str, handler: MessageHandler):
         self._host.register_module_message_handler(self.module_name, hook_name, handler)
 
-    def register_frontend_module(self, manifest: dict):
-        self._host.register_frontend_module(self.module_name, manifest)
+    def register_frontend_module(self, manifest: dict, assets_dir: str):
+        self._host.register_frontend_module(self.module_name, manifest, assets_dir)
 
 
 def load_modules(app: FastAPI, env_config, config, auth_manager=None) -> ModuleHost:

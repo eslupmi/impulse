@@ -127,21 +127,58 @@ class TestModuleHost:
         host.register_router("impulse_ee", router)
         assert any(route.path == "/impulse/api/module/impulse_ee/ping" for route in fastapi_app.routes)
 
-    def test_frontend_modules_are_returned_as_normalized_copies(self, module_host):
-        """Frontend module manifests are exposed to the UI safely."""
+    def test_frontend_modules_mount_assets_and_derive_urls(self, fastapi_app, tmp_path):
+        """OSS mounts the module asset dir and derives script/style URLs."""
+        (tmp_path / "analytics.js").write_text("// js")
+        (tmp_path / "analytics.css").write_text("/* css */")
+        host = modules.ModuleHost(app=fastapi_app, context={"http_prefix": "/impulse"})
+
         manifest = {
-            "module_id": "impulse_ee.history",
+            "module_id": "impulse-ee.analytics",
             "mount_point": "incident.row.dropdown.actions",
-            "script_url": "/api/module/impulse_ee/history.js",
+            "script": "analytics.js",
+            "style": "analytics.css",
         }
 
-        module_host.register_frontend_module("impulse_ee", manifest)
-        manifests = module_host.get_frontend_modules()
+        host.register_frontend_module("impulse_ee", manifest, assets_dir=str(tmp_path))
+        manifests = host.get_frontend_modules()
         manifests[0]["module_id"] = "mutated"
 
-        assert manifests[0]["mount_points"] == ["incident.row.dropdown.actions"]
         assert manifests[0]["module"] == "impulse_ee"
-        assert module_host.frontend_modules[0]["module_id"] == "impulse_ee.history"
+        assert manifests[0]["mount_points"] == ["incident.row.dropdown.actions"]
+        assert manifests[0]["script_url"] == "/impulse/api/module/impulse_ee/static/analytics.js"
+        assert manifests[0]["style_url"] == "/impulse/api/module/impulse_ee/static/analytics.css"
+        assert host.frontend_modules[0]["module_id"] == "impulse-ee.analytics"
+        assert any(
+            getattr(route, "path", "") == "/impulse/api/module/impulse_ee/static"
+            for route in fastapi_app.routes
+        )
+
+    def test_frontend_assets_are_reachable_without_core_static_shadowing(self, fastapi_app, tmp_path):
+        """Module assets are served even when a core /static mount exists."""
+        from fastapi.staticfiles import StaticFiles
+        from fastapi.testclient import TestClient
+
+        core_static = tmp_path / "core"
+        core_static.mkdir()
+        (core_static / "app.js").write_text("// core")
+        fastapi_app.mount("/static", StaticFiles(directory=str(core_static)), name="static")
+
+        module_static = tmp_path / "module"
+        module_static.mkdir()
+        (module_static / "analytics.js").write_text("// analytics")
+        host = modules.ModuleHost(app=fastapi_app, context={"http_prefix": ""})
+        host.register_frontend_module(
+            "impulse_ee",
+            {"module_id": "impulse-ee.analytics", "version": 1, "script": "analytics.js"},
+            assets_dir=str(module_static),
+        )
+
+        client = TestClient(fastapi_app)
+        url = host.get_frontend_modules()[0]["script_url"]
+        resp = client.get(url)
+        assert resp.status_code == 200
+        assert resp.text == "// analytics"
 
     def test_module_message_handler_returns_data(self, module_host):
         module_host.register_module_message_handler(
