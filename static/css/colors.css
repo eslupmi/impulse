@@ -12,9 +12,8 @@
     --border-primary: #C3E6F7;
     --border-secondary: #667085;
     --button-bg: #C3E6F7;
-    --chains-window-bg: #F2F7FF;
-    --link-hover: #357ABD; /* not in standard color set */
-    --link-primary: #38ADE6;
+    --link-hover: #357ABD;
+    --link-primary: #070708;
     --scrollbar-thumb-hover: #475467;
     --scrollbar-thumb: #667085;
     --scrollbar-color: #667085 transparent;
@@ -22,8 +21,8 @@
     --fg-primary: #344054;
 
     /* Header Colors */
-    --filter-badge-close-hover: #357ABD; /* not in standard color set */
-    --filter-badge-hover: #357ABD; /* not in standard color set */
+    --filter-badge-close-hover: #357ABD;
+    --filter-badge-hover: #357ABD;
     --filter-badge-fg: #061117;
     --filter-badge: #061117;
     --header-fg: #344054;
@@ -34,11 +33,11 @@
     --alerts-count-circle-color: #22688A;
     --alerts-count-fg: #EDEFF2;
     --annotation-border: #475467;
-    --annotation-fg: #1D2939; /* not in standard color set */
+    --annotation-fg: #1D2939;
     --incident-content-border-color: #EDEFF2;
-    --info-block-bg: #E4E7EC; /* no base var */
+    --info-block-bg: #E4E7EC;
     --label-bg: #EDEFF2;
-    --label-highlighted-bg: #1D2939; /* not in standard color set */
+    --label-highlighted-bg: #1D2939;
     --label-highlighted-fg: #F2F7FF;
     --label-fg: #061117;
     --status-badge-closed: #969696;
@@ -46,24 +45,25 @@
     --status-badge-frozen: #38ADE6;
     --status-badge-resolved: #56C15E;
     --status-badge-unknown: #C1A300;
-    --status-error: #FF4444; /* no base var */
+    --status-error: #FF4444;
     --table-bg: #F2F7FF;
-    --table-border: var(--border-primary);
-    --table-row-hover: #E4E7EC; /* not in standard color set */
+    --table-border: #C3E6F7;
+    --table-row-hover: #E4E7EC;
     --tooltip-bg: #22688A;
 
     /* Footer Colors */
     --auth-logged-in-bg: #F2F7FF;
-    --footer-fg: #606060; /* no base var */
+    --footer-fg: #606060;
     --login-button-color: #38ADE6;
     --offline-status-indicator: #F04438;
     --online-status-indicator: #22688A;
     --theme-icon-color: #22688A;
 
     /* Calendar Colors */
+    --chains-window-bg: #F2F7FF;
     --calendar-table-border: #475467;
-    --calendar-today-fg: #FFFFFF;
-    --calendar-week-bg: #38ADE6;
+    --calendar-today-fg: #38ADE6;
+    --calendar-week-bg: #C3E6F7;
     --calendar-weeknumber-fg: #061117;
 }
 
@@ -71,34 +71,33 @@
 [data-theme="dark"] {
     --brand-primary: #38ADE6;
     --brand-secondary-dark: #EBF7FC;
-    --brand-secondary: #48BDE6; /* not in standard color set */
+    --brand-secondary: #48BDE6;
 
     /* Main Colors */
-    --bg-primary: #101010; /* not in standard color set */
+    --bg-primary: #03080B;
     --bg-secondary: #0B232E;
-    --bg-tertiary: #1D2939; /* not in standard color set */
+    --bg-tertiary: #1D2939;
     --border-primary: #16455C;
     --border-secondary: #98A2B3;
     --button-bg: #16455C;
-    --chains-window-bg: #0B232E;
-    --link-hover: #357ABD; /* not in standard color set */
+    --link-hover: #357ABD;
     --link-primary: #38ADE6;
     --scrollbar-thumb-hover: #38ADE6;
     --scrollbar-thumb: #98A2B3;
-    --scrollbar-color: #667085 transparent; /* not in standard color set */
-    --fg-inverse: #1D2939; /* not in standard color set */
+    --scrollbar-color: #98A2B3 transparent;
+    --fg-inverse: #1D2939;
     --fg-primary: #EBF7FC;
 
     /* Header Colors */
     --filter-badge-close-hover: #EBF7FC;
-    --filter-badge-hover: #357ABD; /* not in standard color set */
+    --filter-badge-hover: #357ABD;
     --filter-badge-fg: #EBF7FC;
     --filter-badge: #EBF7FC;
     --header-fg: #FFFFFF;
     --search-icon-color: #EBF7FC;
 
     /* Table Colors */
-    --action-btn-hover-bg: #1D2939; /* not in standard color set */
+    --action-btn-hover-bg: #1D2939;
     --alerts-count-circle-color: #EBF7FC;
     --alerts-count-fg: #EBF7FC;
     --annotation-border: #344054;
@@ -106,29 +105,30 @@
     --incident-content-border-color: #344054;
     --info-block-bg: #344054;
     --label-bg: #344054;
-    --label-highlighted-bg: #E4E7EC; /* not in standard color set */
-    --label-highlighted-fg: #1D2939; /* not in standard color set */
+    --label-highlighted-bg: #EBF7FC;
+    --label-highlighted-fg: #1D2939;
     --label-fg: #EBF7FC;
     --status-badge-closed: #969696;
     --status-badge-firing: #D14035;
     --status-badge-frozen: #38ADE6;
     --status-badge-resolved: #56C15E;
     --status-badge-unknown: #C1A300;
-    --status-error: #FF6666; /* no base var */
-    --table-bg: #1D2939; /* not in standard color set */
-    --table-border: var(--border-primary);
+    --status-error: #FF6666;
+    --table-bg: #1D2939;
+    --table-border: #16455C;
     --table-row-hover: #344054;
     --tooltip-bg: #EBF7FC;
 
     /* Footer Colors */
-    --auth-logged-in-bg: #1D2939; /* not in standard color set */
+    --auth-logged-in-bg: #1D2939;
     --footer-fg: #EBF7FC;
-    --login-button-color: #22688A; /* not in standard color set */
+    --login-button-color: #22688A;
     --offline-status-indicator: #D14035;
     --online-status-indicator: #38ADE6;
     --theme-icon-color: #EBF7FC;
 
     /* Calendar Colors */
+    --chains-window-bg: #0B232E;
     --calendar-table-border: #344054;
     --calendar-today-fg: #38ADE6;
     --calendar-week-bg: #16455C;
