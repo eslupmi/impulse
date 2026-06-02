@@ -19,8 +19,8 @@
 }
 
 .chains-modal-content {
-    background: var(--chains-window-background);
-    border-radius: 12px;
+    background: var(--chains-window-bg);
+    border-radius: var(--modal-border-radius);
     width: 95%;
     height: 90%;
     max-width: 1400px;
@@ -44,7 +44,7 @@
     margin: 0;
     font-size: 18px;
     font-weight: 600;
-    color: var(--text-primary);
+    color: var(--fg-primary);
 }
 
 .chains-header-controls {
@@ -58,8 +58,8 @@
     padding: 6px 10px;
     border: 1px solid var(--border-primary);
     border-radius: 8px;
-    background: var(--background-secondary);
-    color: var(--text-primary);
+    background: var(--button-bg);
+    color: var(--fg-primary);
     font-size: 14px;
     font-family: inherit;
     cursor: pointer;
@@ -74,15 +74,15 @@
 
 #chains-modal select option,
 #chain-modal select option {
-    background: var(--background-secondary);
-    color: var(--text-primary);
+    background: var(--bg-secondary);
+    color: var(--fg-primary);
 }
 
 .chains-modal-close {
     background: none;
     border: none;
     font-size: 24px;
-    color: var(--text-secondary);
+    color: var(--fg-primary);
     cursor: pointer;
     padding: 0;
     line-height: 1;
@@ -100,7 +100,7 @@
     height: 100%;
     padding: 20px;
     box-sizing: border-box;
-    background: var(--chains-window-background);
+    background: var(--chains-window-bg);
 }
 
 
@@ -147,8 +147,8 @@
     padding: 6px 10px;
     border: 0px solid var(--border-primary);
     border-radius: var(--button-border-radius);
-    background: var(--button-background);
-    color: var(--text-primary);
+    background: var(--button-bg);
+    color: var(--fg-primary);
     font-size: 14px;
     font-family: inherit;
     cursor: pointer;
@@ -163,7 +163,7 @@
 .calendar-nav-btn {
     background: transparent !important;
     border: none !important;
-    color: var(--text-primary) !important;
+    color: var(--fg-primary) !important;
     font-weight: 500;
     padding: 3px 6px !important;
     cursor: pointer;
@@ -183,7 +183,7 @@
     display: inline-block;
     width: 7px;
     height: 12px;
-    background-color: var(--text-primary);
+    background-color: var(--fg-primary);
     mask: url('data:image/svg+xml;utf8,<svg width="7" height="12" viewBox="0 0 7 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5.83301 0.833008L0.833008 5.83301L5.83301 10.833" stroke="black" stroke-width="1.66667" stroke-linecap="round" stroke-linejoin="round"/></svg>') no-repeat center;
     -webkit-mask: url('data:image/svg+xml;utf8,<svg width="7" height="12" viewBox="0 0 7 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5.83301 0.833008L0.833008 5.83301L5.83301 10.833" stroke="black" stroke-width="1.66667" stroke-linecap="round" stroke-linejoin="round"/></svg>') no-repeat center;
     mask-size: contain;
@@ -195,7 +195,7 @@
     display: inline-block;
     width: 7px;
     height: 12px;
-    background-color: var(--text-primary);
+    background-color: var(--fg-primary);
     mask: url('data:image/svg+xml;utf8,<svg width="7" height="12" viewBox="0 0 7 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M0.833008 10.833L5.83301 5.83301L0.833008 0.833008" stroke="black" stroke-width="1.66667" stroke-linecap="round" stroke-linejoin="round"/></svg>') no-repeat center;
     -webkit-mask: url('data:image/svg+xml;utf8,<svg width="7" height="12" viewBox="0 0 7 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M0.833008 10.833L5.83301 5.83301L0.833008 0.833008" stroke="black" stroke-width="1.66667" stroke-linecap="round" stroke-linejoin="round"/></svg>') no-repeat center;
     mask-size: contain;
@@ -212,7 +212,7 @@
     flex: 1;
     height: 100%;
     min-height: 500px;
-    background: var(--chains-window-background);
+    background: var(--chains-window-bg);
 }
 
 #calendar .fc {
@@ -231,7 +231,7 @@
     width: 280px;
     flex-shrink: 0;
     min-height: 300px;
-    background: var(--chains-window-background);
+    background: var(--chains-window-bg);
 }
 
 #month-calendar * {
@@ -249,7 +249,7 @@
 }
 
 #calendar .fc-scroller::-webkit-scrollbar-thumb {
-    background: var(--neutral-500);
+    background: var(--scrollbar-thumb);
     border-radius: 4px;
     border: 2px solid transparent;
 }
@@ -298,7 +298,7 @@
     width: 32px;
     text-align: center;
     font-size: 11px;
-    color: var(--text-secondary);
+    color: var(--fg-primary);
     opacity: 0.7;
     padding: 4px 2px;
     font-weight: 500;
@@ -311,7 +311,7 @@
 #week-number-display {
     font-size: 14px;
     font-weight: 600;
-    color: var(--text-primary);
+    color: var(--fg-primary);
 }
 
 
@@ -357,7 +357,7 @@
     display: inline-block;
     width: 7px;
     height: 12px;
-    background-color: var(--text-primary);
+    background-color: var(--fg-primary);
     mask: url('data:image/svg+xml;utf8,<svg width="7" height="12" viewBox="0 0 7 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5.83301 0.833008L0.833008 5.83301L5.83301 10.833" stroke="black" stroke-width="1.66667" stroke-linecap="round" stroke-linejoin="round"/></svg>') no-repeat center;
     -webkit-mask: url('data:image/svg+xml;utf8,<svg width="7" height="12" viewBox="0 0 7 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5.83301 0.833008L0.833008 5.83301L5.83301 10.833" stroke="black" stroke-width="1.66667" stroke-linecap="round" stroke-linejoin="round"/></svg>') no-repeat center;
     mask-size: contain;
@@ -369,7 +369,7 @@
     display: inline-block;
     width: 7px;
     height: 12px;
-    background-color: var(--text-primary);
+    background-color: var(--fg-primary);
     mask: url('data:image/svg+xml;utf8,<svg width="7" height="12" viewBox="0 0 7 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M0.833008 10.833L5.83301 5.83301L0.833008 0.833008" stroke="black" stroke-width="1.66667" stroke-linecap="round" stroke-linejoin="round"/></svg>') no-repeat center;
     -webkit-mask: url('data:image/svg+xml;utf8,<svg width="7" height="12" viewBox="0 0 7 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M0.833008 10.833L5.83301 5.83301L0.833008 0.833008" stroke="black" stroke-width="1.66667" stroke-linecap="round" stroke-linejoin="round"/></svg>') no-repeat center;
     mask-size: contain;
@@ -386,7 +386,7 @@
 
 #month-calendar .fc-daygrid-day-number {
     padding: 2px;
-    font-size: 11px;
+    font-size: 14px;
     text-align: center;
     display: flex;
     align-items: center;
@@ -440,14 +440,16 @@
     width: 24px;
     text-align: center;
     font-size: 10px;
-    color: var(--text-secondary);
+    color: var(--fg-primary);
     opacity: 0.7;
     padding: 2px;
 }
 
 .fc-daygrid-week-number {
     background-color: transparent !important;
-    font-size: 10px;
+    font-size: 12px;
+    color: var(--calendar-weeknumber-fg);
+    opacity: 50%;
 }
 
 #month-calendar .day-number {
@@ -469,16 +471,11 @@
 }
 
 #month-calendar .fc-day-today .day-number {
-    font-weight: 700;
-    color: var(--brand-secondary);
+    color: var(--calendar-today-fg);
 }
 
 #month-calendar .fc-daygrid-day.current-week {
-    background: var(--current-week-background) !important;
-}
-
-#month-calendar .fc-daygrid-day.current-week .day-number {
-    font-weight: 700;
+    background: var(--calendar-week-bg) !important;
 }
 
 #month-calendar .fc-daygrid-week {
@@ -499,11 +496,11 @@
 
 .fc {
     font-family: 'Inter', 'Regular', sans-serif;
-    background: var(--chains-window-background);
+    background: var(--chains-window-bg);
 }
 
 .fc .fc-toolbar-title {
-    color: var(--text-primary);
+    color: var(--fg-primary);
     font-size: 20px;
     font-weight: 600;
 }
@@ -511,7 +508,7 @@
 .fc .fc-button {
     background: transparent !important;
     border: none !important;
-    color: var(--text-primary) !important;
+    color: var(--fg-primary) !important;
     font-weight: 500;
     padding: 6px 12px;
 }
@@ -523,15 +520,15 @@
 }
 
 .fc .fc-daygrid-day {
-    background: var(--chains-window-background);
+    background: var(--chains-window-bg);
 }
 
 #calendar .fc-day-today {
-    background: var(--chains-window-background) !important;
+    background: var(--chains-window-bg) !important;
 }
 
 .fc .fc-daygrid-day-number {
-    color: var(--text-primary);
+    color: var(--fg-primary);
     padding: 8px;
 }
 
@@ -546,7 +543,7 @@
 
 .fc .fc-col-header-cell-cushion {
     font-size: 0.9em;
-    color: var(--text-primary);
+    color: var(--fg-primary);
     font-weight: 600;
     padding: 10px;
 }
@@ -603,7 +600,7 @@
 .fc-timegrid-event.fc-event-repeat-series .fc-event-title,
 .fc-event-repeat-series .fc-event-time,
 .fc-timegrid-event.fc-event-repeat-series .fc-event-time {
-    color: var(--text-primary) !important;
+    color: var(--fg-primary) !important;
 }
 
 .fc-event-regular-series.fc-event-priority-2,
@@ -616,7 +613,7 @@
 .fc-timegrid-event.fc-event-regular-series.fc-event-priority-1 .fc-event-title,
 .fc-event-regular-series.fc-event-priority-2 .fc-event-title,
 .fc-timegrid-event.fc-event-regular-series.fc-event-priority-2 .fc-event-title {
-    color: var(--text-primary) !important;
+    color: var(--fg-primary) !important;
 }
 
 .fc-event-regular-series.fc-event-priority-1,
@@ -668,7 +665,7 @@
 }
 
 .fc .fc-highlight {
-    background: var(--calendar-table-borders) !important;
+    background: var(--calendar-table-border) !important;
 }
 
 .fc .fc-timegrid-slot {
@@ -690,7 +687,7 @@
 
 .fc .fc-timegrid-slot-label-cushion {
     padding: 0; 
-    color: var(--text-secondary);
+    color: var(--fg-primary);
 }
 
 .fc .fc-timegrid-axis-cushion {
@@ -723,8 +720,8 @@
 }
 
 .modal-content {
-    background: var(--background-primary);
-    border-radius: 12px;
+    background: var(--bg-primary);
+    border-radius: var(--modal-border-radius);
     width: 100%;
     max-width: 480px;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
@@ -743,14 +740,14 @@
     margin: 0;
     font-size: 18px;
     font-weight: 600;
-    color: var(--text-primary);
+    color: var(--fg-primary);
 }
 
 .modal-close {
     background: none;
     border: none;
     font-size: 24px;
-    color: var(--text-secondary);
+    color: var(--fg-primary);
     cursor: pointer;
     padding: 0;
     line-height: 1;
@@ -773,7 +770,7 @@
     margin-bottom: 6px;
     font-size: 14px;
     font-weight: 500;
-    color: var(--text-primary);
+    color: var(--fg-primary);
 }
 
 .form-group input,
@@ -782,8 +779,8 @@
     padding: 10px 12px;
     border: 1px solid var(--border-primary);
     border-radius: 8px;
-    background: var(--background-secondary);
-    color: var(--text-primary);
+    background: var(--bg-secondary);
+    color: var(--fg-primary);
     font-size: 14px;
     font-family: inherit;
     box-sizing: border-box;
@@ -845,8 +842,8 @@
 }
 
 .btn-secondary {
-    background: var(--button-background);
-    color: var(--text-primary);
+    background: var(--button-bg);
+    color: var(--fg-primary);
     border: 1px solid var(--border-primary);
 }
 
@@ -885,7 +882,7 @@
     right: 0;
     max-height: 180px;
     overflow-y: auto;
-    background: var(--background-primary);
+    background: var(--bg-primary);
     border: 1px solid var(--border-primary);
     border-radius: 8px;
     box-shadow: 0 10px 24px rgba(0, 0, 0, 0.25);
@@ -913,21 +910,21 @@
 
 .step-value-option {
     padding: 10px 12px;
-    color: var(--text-primary);
+    color: var(--fg-primary);
     font-size: 14px;
     cursor: pointer;
 }
 
 .step-value-option.active {
-    background: var(--background-secondary);
+    background: var(--bg-secondary);
 }
 
 .step-controls .btn-remove-step {
     width: 36px;
     height: 36px;
     padding: 0;
-    background: var(--background-secondary);
-    color: var(--text-primary);
+    background: var(--bg-secondary);
+    color: var(--fg-primary);
     border: 1px solid var(--border-primary);
     border-radius: var(--button-border-radius);
     font-size: 20px;
