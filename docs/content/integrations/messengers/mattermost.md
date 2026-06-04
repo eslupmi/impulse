@@ -57,15 +57,23 @@
     - in the "Notify me about..." choose "Mentions, direct messages, and keywords only"
     - click **Save**.
 
-## Get group IDs
+## Get group ID
 
 ```bash
 MATTERMOST_URL="<your_mattermost_address>"
-MATTEMROST_TOKEN="<your_mattermost_bot_token>"
-curl -s -H "Authorization: Bearer $MATTEMROST_TOKEN" "$MATTERMOST_URL/api/v4/groups"
+MATTERMOST_ACCESS_TOKEN="<your_mattermost_bot_token>"
+curl -s -H "Authorization: Bearer $MATTERMOST_ACCESS_TOKEN" "$MATTERMOST_URL/api/v4/groups"
 ```
 
-### Get user's IDs
-MATTERMOST_URL="<your_mattermost_address>"
-MATTEMROST_TOKEN="<your_mattermost_bot_token>"
-curl -s -H "Authorization: Bearer $MATTEMROST_TOKEN" "$MATTERMOST_URL/api/v4/users/username/[username_without_@]"
+## Get user ID
+
+=== "System Console"
+    [Instruction](https://docs.mattermost.com/administration-guide/configure/user-management-configuration-settings.html#identify-a-user-s-id)
+
+=== "curl"
+
+    ```bash
+    MATTERMOST_URL="https://mattermost.impulse.bot"
+    MATTERMOST_ACCESS_TOKEN="mqfo4kxt3bgr9ydcj9k5wp4c6o"
+    curl -s -H "Authorization: Bearer $MATTERMOST_ACCESS_TOKEN" "$MATTERMOST_URL/api/v4/users/username/<username_without_@>" | jq .id
+    ```

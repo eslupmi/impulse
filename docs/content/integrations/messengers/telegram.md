@@ -47,3 +47,7 @@ Follow this [instruction](https://core.telegram.org/bots/features#creating-a-new
     - you can remove `@myidbot` afterwards
 
 8. Make sure the IMPulse bot has permission to interact with users. If you see the log warning <b>"user &lt;username&gt; not found in Telegram and will not be notified"</b> - ask the user `<username>` to send a message to the bot. This usually resolves the issue.
+
+## Get user ID
+
+Send command `/getid` to [myidbot](https://t.me/myidbot)
