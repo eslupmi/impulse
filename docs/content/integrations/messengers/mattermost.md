@@ -73,7 +73,7 @@ curl -s -H "Authorization: Bearer $MATTERMOST_ACCESS_TOKEN" "$MATTERMOST_URL/api
 === "curl"
 
     ```bash
-    MATTERMOST_URL="https://mattermost.impulse.bot"
-    MATTERMOST_ACCESS_TOKEN="mqfo4kxt3bgr9ydcj9k5wp4c6o"
+    MATTERMOST_URL="<your_mattermost_address>"
+    MATTERMOST_ACCESS_TOKEN="<your_mattermost_bot_token>"
     curl -s -H "Authorization: Bearer $MATTERMOST_ACCESS_TOKEN" "$MATTERMOST_URL/api/v4/users/username/<username_without_@>" | jq .id
     ```
