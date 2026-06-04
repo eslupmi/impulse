@@ -64,3 +64,8 @@ MATTERMOST_URL="<your_mattermost_address>"
 MATTEMROST_TOKEN="<your_mattermost_bot_token>"
 curl -s -H "Authorization: Bearer $MATTEMROST_TOKEN" "$MATTERMOST_URL/api/v4/groups"
 ```
+
+### Get user's IDs
+MATTERMOST_URL="<your_mattermost_address>"
+MATTEMROST_TOKEN="<your_mattermost_bot_token>"
+curl -s -H "Authorization: Bearer $MATTEMROST_TOKEN" "$MATTERMOST_URL/api/v4/users/username/[username_without_@]"
