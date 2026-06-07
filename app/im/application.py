@@ -411,6 +411,17 @@ class Application(ABC):
         config = get_config()
         return config.app.general.timezone
 
+    async def apply_time_freeze(
+            self, incident_: 'Incident', until: datetime, user, queue_: 'AsyncQueue',
+            notify: bool = True
+    ):
+        """Core time-based freeze used by manual freeze, maintenance and other auto sources."""
+        incident_.freeze(until, user)
+        await queue_.delete_by_id(incident_.uniq_id, delete_steps=True, delete_status=False)
+        await queue_.put(until, QueueItemType.UNFREEZE, incident_.uniq_id)
+        if notify:
+            self.track_async_task(asyncio.create_task(self._post_freeze_notification(incident_, until)))
+
     async def _handle_freeze_action(
             self, incident_: 'Incident', freeze_option: str, user_id: str, incidents, queue_: 'AsyncQueue',
             user_timezone: Optional[str] = None
@@ -422,17 +433,15 @@ class Application(ABC):
         freeze_time = calculate_freeze_time(freeze_option, config.app.general, timezone_str)
         self.fetch_and_assign_user_name(incident_, user_id, dump=False)
         cached_user = self.users.get_user_by_id(user_id)
-        incident_.freeze(freeze_time, cached_user)
-
-        await queue_.delete_by_id(incident_.uniq_id, delete_steps=True, delete_status=False)
-        await queue_.put(freeze_time, QueueItemType.UNFREEZE, incident_.uniq_id)
-        self.track_async_task(asyncio.create_task(self._post_freeze_notification(incident_, freeze_time)))
+        await self.apply_time_freeze(incident_, freeze_time, cached_user, queue_)
 
     def _handle_task_action(self, incident_, user_id, queue_):
         logger.info(log_button_pressed, extra={'uuid': incident_.uuid, 'button': 'task', 'user_id': user_id})
         self.track_async_task(asyncio.create_task(self.handle_task_button(incident_, queue_)))
 
     async def _handle_unfreeze_action(self, incident_: 'Incident', user_id: str, queue_: 'AsyncQueue'):
+        if not incident_.can_manual_unfreeze():
+            return
         logger.info(log_button_pressed, extra={'uuid': incident_.uuid, 'button': 'unfreeze', 'user_id': user_id})
         await queue_.delete_by_id_and_type(incident_.uniq_id, QueueItemType.UNFREEZE)
         await unfreeze_incident(incident_, self, queue_)

@@ -1,11 +1,16 @@
 import {getSocket} from "./websocket.js";
 import {getBaseUrl} from "./utils.js";
+import {
+    setTimezoneMode,
+    getEffectiveTimezone as effectiveTimezone,
+    syncTimezoneSelects,
+} from "./ui_timezone.js";
 
 let calendar = null;
 let monthCalendar = null;
 let eventOverlapObserver = null;
 let currentChainId = null;
-let chainsConfig = { users: [], user_groups: [], groups: [], chains: [], webhooks: [], week_start: "Mon", timezone: "UTC" };
+let chainsConfig = { users: [], user_groups: [], groups: [], chains: [], webhooks: [], week_start: "Mon", timezone: "UTC", messenger_type: "", user_timezone: null };
 let initialized = false;
 let cachedChains = [];
 let chainsPromiseResolve = null;
@@ -1153,34 +1158,8 @@ function parseWeekStart(weekStart) {
     return weekStartMap[weekStart] || 1;
 }
 
-function getTimezoneMode() {
-    const saved = localStorage.getItem('ui_chains_timezone_mode');
-    const userTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const configTz = chainsConfig.timezone;
-    if (saved === 'user' || saved === 'config' || saved === 'utc') {
-        return saved;
-    }
-    if (userTz && userTz !== 'UTC') {
-        return 'user';
-    }
-    if (configTz && configTz !== 'UTC') {
-        return 'config';
-    }
-    return 'utc';
-}
-
-function setTimezoneMode(mode) {
-    localStorage.setItem('ui_chains_timezone_mode', mode);
-}
-
 function getEffectiveTimezone() {
-    const mode = getTimezoneMode();
-    if (mode === 'user') {
-        return Intl.DateTimeFormat().resolvedOptions().timeZone;
-    } else if (mode === 'config') {
-        return chainsConfig.timezone || 'UTC';
-    }
-    return 'UTC';
+    return effectiveTimezone(chainsConfig.timezone, chainsConfig.user_timezone);
 }
 
 function getSelectedChain() {
@@ -1232,42 +1211,7 @@ function updateChainSelector() {
 }
 
 function updateTimezoneSelector() {
-    const selector = document.getElementById('timezone-select');
-    if (!selector) return;
-    
-    selector.innerHTML = '';
-    
-    const userTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const configTz = chainsConfig.timezone;
-    const currentMode = getTimezoneMode();
-    
-    if (userTz && userTz !== 'UTC') {
-        const option = document.createElement('option');
-        option.value = 'user';
-        option.textContent = `${userTz} (user)`;
-        if (currentMode === 'user') {
-            option.selected = true;
-        }
-        selector.appendChild(option);
-    }
-    
-    if (configTz && configTz !== 'UTC') {
-        const option = document.createElement('option');
-        option.value = 'config';
-        option.textContent = `${configTz} (config)`;
-        if (currentMode === 'config') {
-            option.selected = true;
-        }
-        selector.appendChild(option);
-    }
-    
-    const utcOption = document.createElement('option');
-    utcOption.value = 'utc';
-    utcOption.textContent = 'UTC';
-    if (currentMode === 'utc') {
-        utcOption.selected = true;
-    }
-    selector.appendChild(utcOption);
+    syncTimezoneSelects(chainsConfig.timezone, chainsConfig.messenger_type, chainsConfig.user_timezone);
 }
 
 async function updateCalendarTimezone() {
@@ -1857,6 +1801,7 @@ export const ChainsManager = {
         if (timezoneSelect) {
             timezoneSelect.addEventListener('change', async (e) => {
                 setTimezoneMode(e.target.value);
+                syncTimezoneSelects(chainsConfig.timezone, chainsConfig.messenger_type, chainsConfig.user_timezone);
                 await updateCalendarTimezone();
             });
         }

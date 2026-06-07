@@ -58,6 +58,7 @@ class Incident:
     closed: Optional[datetime] = field(default=None)
     frozen_until: Optional[datetime] = field(default=None)
     frozen_by_inhibition: bool = False
+    frozen_by_maintenance: bool = False
     chain_active_seconds: float = 0.0
     childs: List[str] = field(default_factory=list)  # Target incident uniq_ids that this incident inhibits
     parents: List[str] = field(default_factory=list)  # Source incident uniq_ids that inhibit this incident
@@ -132,12 +133,15 @@ class Incident:
 
     def freeze(self, until: datetime, user):
         """Freeze the incident until the specified datetime (preserves underlying status)
-        Assigns the user who froze the incident and disables chains"""
+        Assigns the user who froze the incident (when provided) and disables chains.
+        When user is None (auto-freeze sources like maintenance) assignee fields are kept."""
         self.accumulate_chain_time(self.updated)
         self.frozen_until = until
-        self.assigned_user_id = user.id
-        self.assigned_user = user.username
-        self.assigned_fullname = user.name
+        self.frozen_by_maintenance = user is None
+        if user is not None:
+            self.assigned_user_id = user.id
+            self.assigned_user = user.username
+            self.assigned_fullname = user.name
         self.chain_enabled = False
         self.dump()
         logger.info("Incident frozen", extra={'uuid': self.uuid, 'frozen_until': until})
@@ -146,6 +150,7 @@ class Incident:
         """Unfreeze the incident from all freeze types (time-based and inhibition)"""
         self.frozen_until = None
         self.frozen_by_inhibition = False
+        self.frozen_by_maintenance = False
         self.dump()
         logger.info("Incident unfrozen", extra={'uuid': self.uuid})
 
@@ -157,8 +162,14 @@ class Incident:
         logger.info("Incident frozen by inhibition", extra={'uuid': self.uuid})
 
     def is_frozen(self) -> bool:
-        """Check if the incident is currently frozen (by time-based freeze or inhibition)"""
-        return self.frozen_by_inhibition or self.frozen_until is not None
+        return self.frozen_by_inhibition or self.frozen_by_maintenance or self.frozen_until is not None
+
+    def can_manual_unfreeze(self) -> bool:
+        return (
+            self.frozen_until is not None
+            and not self.frozen_by_inhibition
+            and not self.frozen_by_maintenance
+        )
 
     def accumulate_chain_time(self, updated):
         """Accumulate chain active time from self.updated until now. Updates self.updated.
@@ -212,6 +223,7 @@ class Incident:
             version=content.get('version', config.INCIDENT_ACTUAL_VERSION),
             frozen_until=content.get('frozen_until', None),
             frozen_by_inhibition=content.get('frozen_by_inhibition', False),
+            frozen_by_maintenance=content.get('frozen_by_maintenance', False),
             chain_active_seconds=content.get('chain_active_seconds', 0.0),
             childs=content.get('childs', []),
             parents=content.get('parents', []),
@@ -252,6 +264,7 @@ class Incident:
             "task_link": self.task_link,
             "frozen_until": self.frozen_until,
             "frozen_by_inhibition": self.frozen_by_inhibition,
+            "frozen_by_maintenance": self.frozen_by_maintenance,
             "chain_active_seconds": self.chain_active_seconds,
             "childs": self.childs,
             "parents": self.parents,
@@ -296,6 +309,7 @@ class Incident:
             "uniq_id": self.uniq_id,
             "frozen_until": self.frozen_until,
             "frozen_by_inhibition": self.frozen_by_inhibition,
+            "frozen_by_maintenance": self.frozen_by_maintenance,
             "chain_active_seconds": self.chain_active_seconds,
             "childs": self.childs,
             "parents": self.parents,
@@ -330,6 +344,7 @@ class Incident:
                     'status': self.status,
                     'frozen_until': normalize_param(self.frozen_until) if self.frozen_until else None,
                     'frozen_by_inhibition': self.frozen_by_inhibition,
+                    'frozen_by_maintenance': self.frozen_by_maintenance,
                     'created': normalize_param(self.created) if self.created else None,
                     'updated': normalize_param(self.updated) if self.updated else None,
                     'assigned_fullname': self.assigned_fullname if self.assigned_fullname else None,
@@ -479,6 +494,12 @@ async def unfreeze_incident(incident: 'Incident', app: 'Application', queue: 'As
     is_inhibition_unfreeze = incident.frozen_by_inhibition
     incident_status = incident.status
     incident.unfreeze()
+
+    if incident.frozen_until is not None:
+        from app.maintenance.constants import MAINTENANCE_PARENT_SENTINEL
+        if MAINTENANCE_PARENT_SENTINEL in incident.parents:
+            incident.parents.remove(MAINTENANCE_PARENT_SENTINEL)
+            incident.dump()
 
     if not is_inhibition_unfreeze:
         app.track_async_task(asyncio.create_task(app.post_unfreeze_notification(incident)))

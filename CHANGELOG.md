@@ -1,5 +1,11 @@
 # Changelog
 
+## v3.6.0
+Changes:
+- Ability to edit existing matchers in UI
+- UI update
+- Added browser timezone for UI Chains and Maintenance
+
 ## v3.5.1
 Changes:
 - [Mattermost] Added workaround for links rendering bug on mobile

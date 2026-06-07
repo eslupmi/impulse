@@ -8,6 +8,8 @@ from fastapi.templating import Jinja2Templates
 
 from app.config.config import get_config, reload_config
 from app.logging import logger
+from app.maintenance.api import reconcile_maintenance, serialize_window, window_from_payload
+from app.maintenance.store import get_maintenance_store
 from app.metrics import generate_metrics_response
 from app.middleware import is_standby_mode, service_unavailable_response, STANDBY_MODE_MESSAGE
 from app.ui.table_config import get_all_ui_config
@@ -113,6 +115,24 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
             return messenger.users.get_assignable_users()
         return []
 
+    def _get_acting_user(request: Request):
+        if not auth_manager:
+            return None
+        session_id = request.cookies.get(auth_manager.session_cookie_name)
+        auth_result = auth_manager.get_current_user(session_id=session_id)
+        if not auth_result.get("authenticated"):
+            raise HTTPException(status_code=401, detail="Authentication required")
+        return auth_result.get("user", {})
+
+    def _get_acting_user_optional(request: Request):
+        if not auth_manager:
+            return None
+        session_id = request.cookies.get(auth_manager.session_cookie_name)
+        auth_result = auth_manager.get_current_user(session_id=session_id)
+        if not auth_result.get("authenticated"):
+            return None
+        return auth_result.get("user", {})
+
     @router.get("/chains_config")
     async def get_chains_config(request: Request):
         config = get_config()
@@ -123,6 +143,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
         configured_chains = configured_messenger.chains if getattr(configured_messenger, "chains", None) else {}
         ui_chains = [n for n, c in configured_chains.items() if isinstance(c, dict) and c.get("type") == "ui"]
         assignable_users = _get_assignable_users(runtime_messenger)
+        acting_user = _get_acting_user_optional(request)
         return {
             "users": [user["config_name"] for user in assignable_users if user.get("config_name")],
             "user_groups": list(runtime_messenger.user_groups.keys()) if getattr(runtime_messenger, "user_groups", None) else [],
@@ -131,21 +152,14 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
             "webhooks": list(app.webhooks.keys()) if getattr(app, "webhooks", None) else [],
             "week_start": app.general.week_start if app.general else "Mon",
             "timezone": app.general.timezone if app.general else "UTC",
+            "messenger_type": runtime_messenger.type.value,
+            "user_timezone": (acting_user or {}).get("timezone"),
             "ui_chains": ui_chains,
         }
 
     @router.get("/assignment_users")
     async def get_assignment_users(request: Request):
         return _get_assignable_users(request.app.state.messenger)
-
-    def _get_acting_user(request: Request):
-        if not auth_manager:
-            return None
-        session_id = request.cookies.get(auth_manager.session_cookie_name)
-        auth_result = auth_manager.get_current_user(session_id=session_id)
-        if not auth_result.get("authenticated"):
-            raise HTTPException(status_code=401, detail="Authentication required")
-        return auth_result.get("user", {})
 
     def _log_ui_action(action_name, incident, acting_user, **extra):
         acting_name = (acting_user or {}).get("full_name") or (acting_user or {}).get("username") or "unknown"
@@ -246,7 +260,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
         400: {"description": _MSG_UNIQ_ID_REQUIRED},
         401: {"description": "Authentication required"},
         404: {"description": _MSG_INCIDENT_NOT_FOUND},
-        409: {"description": "Incident not frozen or frozen by inhibition"},
+        409: {"description": "Incident not manually frozen"},
     })
     async def post_unfreeze(request: Request):
         acting_user = _get_acting_user(request)
@@ -260,11 +274,8 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
         if incident is None:
             raise HTTPException(status_code=404, detail=_MSG_INCIDENT_NOT_FOUND)
 
-        if not incident.is_frozen():
-            raise HTTPException(status_code=409, detail="Incident is not frozen")
-
-        if incident.frozen_by_inhibition:
-            raise HTTPException(status_code=409, detail="Cannot unfreeze inhibited incident")
+        if not incident.can_manual_unfreeze():
+            raise HTTPException(status_code=409, detail="Cannot unfreeze: not a manual freeze")
 
         _log_ui_action("unfreeze", incident, acting_user)
 
@@ -298,6 +309,52 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
 
         messenger = request.app.state.messenger
         await messenger.handle_ui_release(incident)
+        return {"success": True}
+
+    @router.get("/maintenance")
+    async def get_maintenance(request: Request):
+        store = get_maintenance_store()
+        return [serialize_window(w) for w in store.list()]
+
+    @router.post("/maintenance", responses={
+        400: {"description": "Invalid maintenance window"},
+    })
+    async def post_maintenance(request: Request):
+        acting_user = _get_acting_user_optional(request)
+        body = await request.json()
+        window = window_from_payload(body)
+        if acting_user:
+            window.created_by = (acting_user.get("username") or acting_user.get("full_name") or
+                                 str(acting_user.get("id") or "")) or None
+        store = get_maintenance_store()
+        store.upsert(window)
+        logger.info("Maintenance window created", extra={"id": window.id, "ends_at": window.ends_at})
+        await reconcile_maintenance(request)
+        return serialize_window(window)
+
+    @router.put("/maintenance/{window_id}", responses={
+        400: {"description": "Invalid maintenance window"},
+        404: {"description": "Maintenance window not found"},
+    })
+    async def put_maintenance(request: Request, window_id: str):
+        store = get_maintenance_store()
+        if store.get(window_id) is None:
+            raise HTTPException(status_code=404, detail="Maintenance window not found")
+        body = await request.json()
+        window = window_from_payload(body, window_id=window_id)
+        store.upsert(window)
+        logger.info("Maintenance window updated", extra={"id": window.id, "ends_at": window.ends_at})
+        await reconcile_maintenance(request)
+        return serialize_window(window)
+
+    @router.delete("/maintenance/{window_id}", responses={
+        404: {"description": "Maintenance window not found"},
+    })
+    async def delete_maintenance(request: Request, window_id: str):
+        store = get_maintenance_store()
+        if not store.delete(window_id):
+            raise HTTPException(status_code=404, detail="Maintenance window not found")
+        logger.info("Maintenance window deleted", extra={"id": window_id})
         return {"success": True}
 
     @router.post("/-/reload")

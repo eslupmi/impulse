@@ -1,0 +1,262 @@
+general:
+  week_start: Sun
+  workday_start: "10:00"
+  timezone: Europe/Moscow
+
+incident:  # incidents behavior options
+  notifications:  # incident notifications settings
+    # assignment: True  # enable/disable notifications about incident assignment changes
+    # new_firing: True  # notification about new firing instances
+    # partial_resolved: True  # nofitication about some resolved instances
+    status_update: True  # notification about incident status updates
+  timeouts:  # incident status timeouts (https://docs.impulse.bot/stable/concepts/#lifecycle)
+    firing: 10m  # after this time, incident status changes from 'firing' to 'unknown' if no alerts appear
+    unknown: 10m  # after this time, incident status changes from 'unknown' to 'closed' if no alerts appear
+    resolved: 1h  # after this time, incident status changes from 'resolved' to 'closed' if no alerts appear
+    closed: 5m  # after this time, incident will be removed
+
+# task_management:
+#   type: jira
+#   project_key: SCRUM
+#   template_files:
+# inhibit_rules:
+#   - source_matchers:
+#       - severity = "critical"
+#     target_matchers:
+#       - severity = "warning"
+#     equal:
+#       - service
+#   - source_matchers:
+#       - severity = "warning"
+#     target_matchers:
+#       - severity = "info"
+#     equal:
+#       - service
+
+messenger:
+  # type: slack
+  # channels:
+  #   test_def: {id: C07NSUK599T}
+  #   test_warn: {id: C06S1S6FUTD}
+  #   test_crit: {id: C07NSULGPTP}
+  #   test_info: {id: C07FNJVR553}
+  # groups:
+  #   group_1: {id: S0A3WML2S7P}
+  # users:
+  #   Dmitry Tsybus: {id: U06MD7YLR5M} # id: -1002435880649
+  #   dmitry: {id: U06MD7YLR5M}
+  #   valery: {id: U071ZMUTNR0}
+  #   Oleg: {id: U071ZMUTNR0}
+  #   # tests
+  #   user_defined: {id: U06MD7YLR5M} # id: "-1002435880649"
+  #   user_not_in_channel: {id: U071ZMUTNR0}
+  #   second_user_not_in_channel: {id: U071ZMUTNR0}
+  #   user_not_in_app: {id: D07ETF759M2}
+  #   user_not_in_app_2: {id: D07RFA459M2}
+
+  # type: mattermost
+  # impulse_address: https://unextradited-shona-undesirably.ngrok-free.dev
+  # address: https://mattermost.impulse.bot
+  # team: DTS
+  # channels:
+  #   test_def: {id: w8grktq58fgo9cjg8dqwe6rdxw}
+  #   test_warn: {id: bjaryoueitnk7m58s7p71z846h}
+  #   test_crit: {id: mkdeorznjfrs38tu6b18uw9jse}
+  #   test_info: {id: 7u8z9mmugtg1tjpmb8fbynxjta}
+  
+  # groups:
+  #   group_1: {id: ekh6i6p1h3fxtqi8c31j43q9ty}
+  # users:
+  #   Dmitry Tsybus: {id: ic8pft3ac7rjdk9exixp4kc7qy}
+  #   Oleg: {id: bajb315b9i8ytqghxu7nt78cdh}
+  #   dmitry: {id: ic8pft3ac7rjdk9exixp4kc7qy}
+  #   valery: {id: bajb315b9i8ytqghxu7nt78cdh}
+  #   # tests
+  #   user_defined: {id: ic8pft3ac7rjdk9exixp4kc7qy}
+  #   user_not_in_channel: {id: bajb315b9i8ytqghxu7nt78cdh}
+  #   second_user_not_in_channel: {id: bajb315b9i8ytqghxu7nt78cdh}
+  #   user_not_in_app: {id: 8cn68nse63yntopb6ocf11babe}
+  #   user_not_in_app_2: {id: 8cn68nse63yntopb5ocf11babe}
+
+  type: telegram
+  impulse_address: https://unextradited-shona-undesirably.ngrok-free.dev
+  channels:
+    test_def: {id: -1002456769782}
+    test_warn: {id: -1002359501113}
+    test_crit: {id: -1002469622732}
+    test_info: {id: -1002410142735}
+  users:
+    Dmitry Tsybus: {id: 169132457}
+    # dmitry: {id: 169132457}
+    # valery: {id: 247044204}
+    # # tests
+    # user_defined: {id: 169132457}
+    user_not_in_channel: {id: 247044204}
+    second_user_not_in_channel: {id: 247044204}
+    user_not_in_app: {id: 24704423737364}
+    user_not_in_app_2: {id: 7126387132876}
+
+  admin_users:
+    - Dmitry Tsybus
+  chains:
+    test_group:
+      # - user_group: one_user_not_in_app
+      # - user_group: both_users_not_in_app
+      # - group: group_1
+      - user: user_defined
+      - wait: 1m
+      - user: Dmitry Tsybus
+    test1:
+      type: ui
+    test2:
+      type: ui
+    google_calendar:
+      type: cloud
+      provider: google
+      calendar_id: a3df24d6b3bd55c14987c8c5b98535c74c81748671d1cf66490f353ba3116d70@group.calendar.google.com
+      default_steps:
+        - user: user_defined
+    user:
+      - user: Dmitry Tsybus
+    user_group:
+      - user_group: default
+      - wait: 3s
+      - user: oleg
+    user_test:
+      - user: user_defined
+      - wait: 10s
+      - user: user_not_in_channel
+      - wait: 10s
+      - user: user_not_in_app
+      - wait: 10s
+      - user: user_not_defined
+    user_group_test_1:
+      - user_group: default
+      - wait: 10s
+      - user_group: one_user_not_in_channel
+      - wait: 10s
+      - user_group: both_users_not_in_channel
+      - wait: 10s
+      - user_group: one_user_not_defined
+    user_group_test_2:
+      - user_group: both_users_not_defined
+      - wait: 10s
+      - user_group: one_user_not_in_app
+      - wait: 10s
+      - user_group: both_users_not_in_app
+    webhook_test:
+      - webhook: non_existing_domain
+      - wait: 10s
+      - webhook: ok
+      - wait: 10s
+      - webhook: status_code_404
+      - wait: 10s
+      - webhook: not_declared
+    complex:
+      - user: Dmitry Tsybus
+      - wait: 10s
+      - user: Dmitry Tsybus
+      - wait: 10s
+      - user: Dmitry Tsybus
+  user_groups:
+    default: {users: ["Dmitry Tsybus", "Dmitry Tsybus"]}
+    # tests
+    one_user_not_in_channel: { users: [ user_defined, user_not_in_channel]}
+    both_users_not_in_channel: { users: [ user_not_in_channel, second_user_not_in_channel]}
+    one_user_not_defined: {users: [user_defined, user_not_defined]}
+    both_users_not_defined: {users: [user_not_defined, user_not_defined_2]}
+    one_user_not_in_app: {users: [user_defined, user_not_in_app]}
+    both_users_not_in_app: {users: [user_not_in_app, user_not_in_app_2]}
+#     # summary: templates/jira_summary.j2
+
+#     description: templates/jira_description.j2
+
+route:
+  channel: "test_def"
+  chain: test_group
+  # routes:
+  # - matchers:
+  #   - job = "tests"
+  #   channel: "test_def"
+  #   routes:
+  #   - matchers:
+  #     - alertname =~ "routing.*"
+  #     channel: "test_def"
+  #     routes:
+  #     - matchers:
+  #       - severity = "critical"
+  #       channel: "test_crit"
+  #     - matchers:
+  #       - severity != "critical"
+  #       channel: "test_def"
+  #       routes:
+  #       - matchers:
+  #         - severity = "info"
+  #         channel: "test_info"
+  #       - matchers:
+  #         - severity = "warning"
+  #         channel: "test_warn"
+  #   - matchers:
+  #     - alertname = "notify_user"
+  #     channel: "test_def"
+  #     chain: user_test
+  #   - matchers:
+  #     - alertname = "notify_user_group_1"
+  #     channel: "test_def"
+  #     chain: user_group_test_1
+  #   - matchers:
+  #     - alertname = "notify_user_group_2"
+  #     channel: "test_def"
+  #     chain: user_group_test_2
+  #   - matchers:
+  #     - alertname = "notify_webhook"
+  #     channel: "test_def"
+  #     chain: webhook_test
+
+webhooks:
+  test:
+    url: http://webhook.impulse.bot/
+    data:
+      instances: "{{ incident.payload.alerts | map(attribute='labels.instance') | unique | join(', ') }}"
+  instatus:
+    url: https://api.instatus.com/v3/integrations/prometheus/cmh1lqgrn00f9p69ifz5lzfi2
+    json: '{{ payload }}'
+  non_existing_domain: {url: http://webhook3.impulse.bot/, data: {some_data: 'hello'}}
+  ok: {url: http://webhook.impulse.bot/ok, data: {some_data: 'hello'}}
+  status_code_404: {url: http://webhook.impulse.bot/404, data: {some_data: 'hello'}}
+
+ui:  # user interface configuration (https://docs.impulse.bot/stable/ui/)
+  colors:  # Color scheme for different values (https://docs.impulse.bot/stable/config_file/#uicolors)
+    severity:
+      critical: "#FF0000"
+      warning: "#FFA500"
+      info: "#00FF00"
+  columns:  # defines the columns that are used in the user interface (https://docs.impulse.bot/stable/config_file/#uicolumns)
+    - name: status  # unique identifier for the column, used for filtering and sorting
+      header: Status  # display name shown in the column header
+      visible: False  # whether the column is visible by default in the UI. Invisible columns can be used in search fields
+      value: incident.status  # data source variable (https://docs.impulse.bot/stable/config_file/#uicolumnsvalue)
+    - name: created
+      header: Created
+      type: datetime  # column data type that determines how the value is rendered (https://docs.impulse.bot/stable/config_file/#uicolumnstype)
+      value: incident.created
+    - name: alertname
+      header: Alertname
+      type: link
+      url: incident.link  # variable containing the required link (used with type: link)
+      value: payload.commonLabels.alertname
+    - name: service
+      header: Service
+      value: payload.commonLabels.service
+    - name: severity
+      header: Severity
+      value: payload.commonLabels.severity
+    - name: assigned
+      header: Assigned To
+      value: incident.assigned_fullname
+  filters:  # defines the default filters applied in the user interface (https://docs.impulse.bot/stable/config_file/#uifilters)
+    - severity=~"warning|critical"
+  sorting:  # the default column sorting order (https://docs.impulse.bot/stable/config_file/#uisorting)
+    - severity: desc
+      order: ["info", "warning", "critical"]
+    - created: desc

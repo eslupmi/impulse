@@ -93,6 +93,7 @@ class TestInhibitionManager:
         incident.parents = parents if parents is not None else []
         incident.childs = childs if childs is not None else []
         incident.frozen_by_inhibition = frozen_by_inhibition
+        incident.frozen_by_maintenance = False
         incident.is_frozen = Mock(return_value=frozen_by_inhibition)
         incident.freeze_by_inhibition = Mock()
         incident.dump = Mock()

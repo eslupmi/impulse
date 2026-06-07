@@ -15,6 +15,8 @@ from app.incident.incidents import Incidents
 from app.inhibition.manager import InhibitionManager
 from app.jinja_template import JinjaTemplate
 from app.logging import logger
+from app.maintenance.manager import MaintenanceManager
+from app.maintenance.store import get_maintenance_store
 from app.metrics import STATUS
 from app.queue.manager import AsyncQueueManager
 from app.queue.queue import AsyncQueue
@@ -72,15 +74,24 @@ async def create_main_objects(fastapi_app: FastAPI, reload=False):
             queue=queue
         )
         inhibition_manager.restore_from_incidents()
+        maintenance_manager = MaintenanceManager(
+            store=get_maintenance_store(),
+            incidents=incidents,
+            application=messenger,
+            queue=queue,
+        )
+        inhibition_manager.attach_maintenance_manager(maintenance_manager)
         user_scheduler = UserUpdateScheduler(queue, messenger.type.value)
         messenger.configure_scheduler(user_scheduler)
         await user_scheduler.schedule_all_stored()
-        queue_manager = AsyncQueueManager(queue, messenger, incidents, webhooks, route, inhibition_manager)
+        queue_manager = AsyncQueueManager(queue, messenger, incidents, webhooks, route, inhibition_manager, maintenance_manager)
+        await maintenance_manager.reconcile_on_startup()
 
         fastapi_app.state.queue_manager = queue_manager
         fastapi_app.state.incidents = incidents
         fastapi_app.state.queue = queue
         fastapi_app.state.inhibition_manager = inhibition_manager
+        fastapi_app.state.maintenance_manager = maintenance_manager
 
     fastapi_app.state.messenger = messenger
     fastapi_app.state.webhooks = webhooks
@@ -127,6 +138,7 @@ async def lifespan(fastapi_app: FastAPI):
     fastapi_app.state.queue_manager = None
     fastapi_app.state.queue = AsyncQueue()
     fastapi_app.state.inhibition_manager = None
+    fastapi_app.state.maintenance_manager = None
 
     if is_standby:
         logger.info("Another IMPulse instance is running, working as standby server")

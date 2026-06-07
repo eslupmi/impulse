@@ -192,10 +192,18 @@ class TelegramApplication(Application):
 
         if incident.frozen_by_inhibition:
             freeze_button = buttons['freeze']['inhibited']
-        elif incident.frozen_until:
+        elif incident.can_manual_unfreeze():
             telegram_tz = config_obj.app.general.timezone
             freeze_text = format_freeze_expiration(incident.frozen_until, telegram_tz)
             freeze_button = {'text': freeze_text, 'callback_data': 'freeze_menu'}
+        elif incident.frozen_until or incident.frozen_by_maintenance:
+            telegram_tz = config_obj.app.general.timezone
+            freeze_text = (
+                format_freeze_expiration(incident.frozen_until, telegram_tz)
+                if incident.frozen_until
+                else buttons['freeze']['inhibited']['text']
+            )
+            freeze_button = {'text': freeze_text, 'callback_data': 'noop'}
         else:
             freeze_button = buttons['freeze']['inactive']
         
@@ -293,7 +301,7 @@ class TelegramApplication(Application):
 
     async def _handle_freeze_actions(self, action, incident_, user_id, incidents, queue_, callback):
         if action == 'freeze_menu':
-            if incident_.is_frozen():
+            if incident_.can_manual_unfreeze():
                 await self._handle_unfreeze_action(incident_, user_id, queue_)
             else:
                 return await self._show_freeze_menu(incident_, callback)

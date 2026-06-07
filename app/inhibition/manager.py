@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from app.incident.incidents import Incidents
     from app.im.application import Application
     from app.queue.queue import AsyncQueue
+    from app.maintenance.manager import MaintenanceManager
 
 
 class InhibitionManager:
@@ -20,14 +21,18 @@ class InhibitionManager:
     Unlike AlertManager which just mutes alerts, Impulse freezes target incidents
     and tracks parent/child relationships.
     """
-    __slots__ = ['incidents', 'application', 'queue', 'rules', 'sources', 'targets']
+    __slots__ = ['incidents', 'application', 'queue', 'rules', 'sources', 'targets', 'maintenance_manager']
     
     def __init__(self, rules: List[InhibitRule], incidents: 'Incidents', application: 'Application', 
                  queue: 'AsyncQueue'):
         self.incidents = incidents
         self.application = application
         self.queue = queue
+        self.maintenance_manager: 'MaintenanceManager' = None
         self._init_rules(rules)
+
+    def attach_maintenance_manager(self, maintenance_manager: 'MaintenanceManager'):
+        self.maintenance_manager = maintenance_manager
     
     async def handle_closed(self, incident: 'Incident'):
         if not self.rules:
@@ -204,7 +209,9 @@ class InhibitionManager:
                 await self.application.update_incident_message(incident)
 
     async def _unfreeze_target_if_no_parents(self, target: 'Incident'):
-        if target.parents:
+        from app.maintenance.constants import MAINTENANCE_PARENT_SENTINEL
+        remaining_parents = [p for p in target.parents if p != MAINTENANCE_PARENT_SENTINEL]
+        if remaining_parents:
             return
         
         if not target.frozen_by_inhibition:
@@ -212,4 +219,6 @@ class InhibitionManager:
         
         logger.info("Target has no more parents - scheduling unfreeze", extra={'uuid': target.uuid})
         await unfreeze_incident(target, self.application, self.queue)
+        if self.maintenance_manager is not None:
+            await self.maintenance_manager.try_apply_time_freeze_if_window_still_active(target)
         await self.application.update_incident_message(target)

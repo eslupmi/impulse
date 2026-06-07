@@ -30,6 +30,19 @@ _{{ commonAnnotations.description }}_{% endif %}
     {{ k }}=`{{ v }}`
 {%- endfor -%}
 {% endif -%}
+{%- if incident.parents | length > 0 %}
+
+*Parent sources:*
+{%- for parent_id in incident.parents %}
+{%- if parent_id == "maintenance" %}
+    Maintenance
+{%- elif parent_id in incidents.uniq_ids %}
+    <{{ incidents.uniq_ids[parent_id].link }}|{{ incidents.uniq_ids[parent_id].payload.commonLabels.alertname }}>
+{%- else %}
+    {{ parent_id }}
+{%- endif %}
+{%- endfor -%}
+{% endif -%}
 {%- if incident.childs | length > 0 %}
 
 *Inhibited incidents:*

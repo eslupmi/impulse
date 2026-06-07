@@ -44,6 +44,7 @@ class TestIncidentFreeze:
     def test_incident_not_frozen_by_default(self, sample_incident):
         """Test that incidents are not frozen by default."""
         assert sample_incident.frozen_until is None
+        assert sample_incident.frozen_by_inhibition is False
         assert sample_incident.is_frozen() is False
 
     def test_unfrozen_incident_shows_actual_status(self, sample_incident):
@@ -52,6 +53,23 @@ class TestIncidentFreeze:
 
         assert table_data['indicator'] == 'firing'
         assert table_data['_is_frozen'] is False
+
+    def test_can_manual_unfreeze_manual_time_freeze(self, sample_incident):
+        until = datetime.now(timezone.utc) + timedelta(hours=1)
+        user = Mock(id="u1", username="alice", name="Alice")
+        with patch.object(sample_incident, "dump"):
+            sample_incident.freeze(until, user)
+        assert sample_incident.can_manual_unfreeze() is True
+
+    def test_can_manual_unfreeze_false_for_maintenance(self, sample_incident):
+        until = datetime.now(timezone.utc) + timedelta(hours=1)
+        with patch.object(sample_incident, "dump"):
+            sample_incident.freeze(until, user=None)
+        assert sample_incident.can_manual_unfreeze() is False
+
+    def test_can_manual_unfreeze_false_without_frozen_until(self, sample_incident):
+        sample_incident.frozen_by_maintenance = True
+        assert sample_incident.can_manual_unfreeze() is False
 
 class TestIncidentInhibitionFreeze:
     """Test cases for inhibition-based freeze functionality."""
@@ -84,6 +102,7 @@ class TestIncidentInhibitionFreeze:
     def test_incident_not_frozen_by_inhibition_by_default(self, sample_incident):
         """Test that incidents are not frozen by inhibition by default."""
         assert sample_incident.frozen_by_inhibition is False
+        assert sample_incident.frozen_by_maintenance is False
         assert sample_incident.parents == []
         assert sample_incident.childs == []
 
@@ -121,6 +140,7 @@ class TestIncidentInhibitionFreeze:
             sample_incident.unfreeze()
             
             assert sample_incident.frozen_by_inhibition is False
+            assert sample_incident.frozen_by_maintenance is False
             assert sample_incident.is_frozen() is False
 
     def test_unfreeze_from_inhibition_does_not_affect_chain_enabled(self, sample_incident):
@@ -144,6 +164,8 @@ class TestIncidentInhibitionFreeze:
         assert sample_incident.frozen_until is None
         assert sample_incident.frozen_by_inhibition is True
         assert sample_incident.is_frozen() is True
+        assert sample_incident.can_manual_unfreeze() is False
+        assert sample_incident.can_manual_unfreeze() is False
 
     def test_parents_and_childs_lists(self, sample_incident):
         """Test that parents and childs lists can be modified."""

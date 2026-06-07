@@ -799,7 +799,6 @@ class TestIncidentInhibitionFields:
 
         result = sample_incident.serialize()
 
-        assert 'frozen_by_inhibition' in result
         assert result['frozen_by_inhibition'] is True
         assert 'childs' in result
         assert result['childs'] == ["child-1", "child-2"]
@@ -830,7 +829,6 @@ class TestIncidentInhibitionFields:
         call_args = mock_yaml_dump.call_args
         dumped_data = call_args[0][0]
         
-        assert 'frozen_by_inhibition' in dumped_data
         assert dumped_data['frozen_by_inhibition'] is True
         assert 'childs' in dumped_data
         assert dumped_data['childs'] == ["child-1"]
@@ -878,12 +876,14 @@ class TestIncidentInhibitionFields:
 
         # Should use defaults
         assert incident.frozen_by_inhibition is False
+        assert incident.frozen_by_maintenance is False
         assert incident.childs == []
         assert incident.parents == []
 
     def test_default_inhibition_field_values(self, sample_incident):
         """Test that inhibition fields have correct default values."""
         assert sample_incident.frozen_by_inhibition is False
+        assert sample_incident.frozen_by_maintenance is False
         assert sample_incident.childs == []
         assert sample_incident.parents == []
         # Ensure they are mutable lists, not shared references

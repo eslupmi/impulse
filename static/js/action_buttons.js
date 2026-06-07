@@ -60,6 +60,8 @@ function actionButtonsFormatter(cell) {
     const taskLink = info.task_link;
     const frozenUntil = info.frozen_until;
     const frozenByInhibition = info.frozen_by_inhibition;
+    const frozenByMaintenance = info.frozen_by_maintenance;
+    const canManualUnfreeze = frozenUntil && !frozenByInhibition && !frozenByMaintenance;
     const uniqId = data.uniq_id;
 
     const buttons = [];
@@ -96,12 +98,16 @@ function actionButtonsFormatter(cell) {
     const freezeBtn = createButton(SNOWFLAKE_ICON, "action-btn action-btn-freeze");
     if (isFrozen) {
         freezeBtn.classList.add("active");
-        if (frozenByInhibition) {
+        if (!canManualUnfreeze) {
             freezeBtn.classList.add("inhibited");
-            freezeBtn.title = "Inhibited";
+            freezeBtn.title = frozenByInhibition
+                ? "Inhibited"
+                : frozenByMaintenance
+                    ? (frozenUntil ? `Maintenance until ${formatFrozenUntil(frozenUntil)}` : "Maintenance")
+                    : "Frozen";
             freezeBtn.disabled = true;
         } else {
-            freezeBtn.title = frozenUntil ? `Frozen until ${formatFrozenUntil(frozenUntil)}` : "Frozen";
+            freezeBtn.title = `Frozen until ${formatFrozenUntil(frozenUntil)}`;
             freezeBtn.addEventListener("click", async (e) => {
                 e.stopPropagation();
                 closeFreezePopup();

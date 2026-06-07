@@ -1,0 +1,395 @@
+.maintenance-modal-content {
+    position: relative;
+}
+
+.maintenance-layout {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+}
+
+.maintenance-list-wrap {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.maintenance-list {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    padding: 0 20px 16px;
+    box-sizing: border-box;
+}
+
+.maintenance-add-bar {
+    flex-shrink: 0;
+    display: flex;
+    justify-content: flex-end;
+    padding: 8px 20px 12px;
+}
+
+.maintenance-add-btn {
+    cursor: pointer;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 1px solid var(--border-primary);
+    border-radius: 6px;
+    background: var(--button-background);
+    color: var(--text-primary);
+    font-size: 20px;
+    line-height: 1;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.maintenance-add-btn:hover {
+    background: var(--button-hover-background);
+}
+
+.maintenance-row {
+    display: grid;
+    grid-template-columns: 17rem minmax(0, 1fr) minmax(0, 1fr) 2.5rem;
+    gap: 16px;
+    align-items: start;
+    padding: 16px 0;
+    border-bottom: 1px solid var(--border-primary);
+    color: var(--text-primary);
+}
+
+.maintenance-row-interval {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 8px;
+    min-width: 0;
+}
+
+.maintenance-row-interval-content {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.maintenance-row-date {
+    font-size: 22px;
+    font-weight: 400;
+    line-height: 1.2;
+    color: var(--text-primary);
+    white-space: nowrap;
+}
+
+.maintenance-row-time {
+    font-size: 14px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.maintenance-row-duration-inline {
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--text-secondary);
+}
+
+.maintenance-interval-edit-btn {
+    cursor: pointer;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 1px solid var(--border-primary);
+    border-radius: 6px;
+    background: var(--background-secondary);
+    color: var(--theme-icon-color, var(--text-primary));
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.maintenance-interval-edit-btn:hover {
+    border-color: var(--brand-secondary);
+}
+
+.maintenance-interval-edit-btn svg {
+    width: 14px;
+    height: 14px;
+    display: block;
+    stroke: currentColor;
+}
+
+.maintenance-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.maintenance-panel-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.maintenance-panel-box {
+    border: 1px solid var(--border-primary);
+    border-radius: 8px;
+    padding: 10px;
+    box-sizing: border-box;
+    min-height: 120px;
+}
+
+.maintenance-row-new {
+    background: var(--background-secondary);
+    margin: 0 -20px;
+    padding-left: 20px;
+    padding-right: 20px;
+}
+
+.maintenance-row-new .maintenance-panel-box {
+    background: var(--background-primary);
+}
+
+.maintenance-row:not(.maintenance-row-new) .maintenance-panel-label {
+    display: none;
+}
+
+.maintenance-row:not(.maintenance-row-new) .maintenance-panel-box {
+    border: none;
+    padding: 0;
+    min-height: auto;
+}
+
+.maintenance-row:not(.maintenance-row-new) .maintenance-row-actions {
+    padding-top: 0;
+}
+
+.maintenance-row-new .maintenance-matchers-wrap.maintenance-field-error .maintenance-panel-box,
+.maintenance-row-new .maintenance-comment-panel .maintenance-panel-box.maintenance-field-error {
+    border-color: #dc2626;
+}
+
+.maintenance-matchers-box {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    align-content: flex-start;
+    gap: 6px;
+    cursor: text;
+}
+
+.maintenance-row:not(.maintenance-row-new) .maintenance-matchers-box {
+    cursor: default;
+}
+
+.maintenance-matchers-badges {
+    display: contents;
+}
+
+.maintenance-matcher-inline-input {
+    flex: 1 1 8rem;
+    min-width: 6rem;
+    border: none;
+    background: transparent;
+    color: var(--text-primary);
+    font-size: 16px;
+    font-family: inherit;
+    padding: 6px 4px;
+    outline: none;
+}
+
+.maintenance-matcher-inline-input.maintenance-field-error::placeholder {
+    color: #dc2626;
+}
+
+.maintenance-comment-input {
+    width: 100%;
+    height: 100%;
+    min-height: 98px;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    color: var(--text-primary);
+    font-size: 14px;
+    line-height: 1.35;
+    font-family: inherit;
+    resize: none;
+    box-sizing: border-box;
+    outline: none;
+}
+
+.maintenance-comment-view {
+    font-size: 14px;
+    line-height: 1.35;
+    color: var(--text-primary);
+    white-space: pre-wrap;
+}
+
+.maintenance-row-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding-top: 24px;
+    width: 2.5rem;
+    justify-self: end;
+}
+
+.maintenance-row-save,
+.maintenance-row-cancel {
+    cursor: pointer;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.maintenance-row-save {
+    color: var(--brand-secondary);
+}
+
+.maintenance-row-save:hover,
+.maintenance-row-cancel:hover {
+    background: var(--background-secondary);
+}
+
+.maintenance-row-save.hidden,
+.maintenance-row-cancel.hidden {
+    display: none;
+}
+
+.maintenance-row-save svg,
+.maintenance-row-cancel svg,
+.maintenance-row-delete svg {
+    display: block;
+}
+
+.maintenance-row-cancel {
+    color: var(--text-secondary);
+}
+
+.maintenance-row-locked {
+    opacity: 0.55;
+    pointer-events: none;
+}
+
+.maintenance-row-delete {
+    cursor: pointer;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: #dc2626;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.7;
+}
+
+.maintenance-row-delete:hover {
+    background: var(--background-secondary);
+    opacity: 1;
+}
+
+.maintenance-row-edit {
+    cursor: pointer;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--theme-icon-color);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.maintenance-row-edit:hover {
+    background: var(--background-secondary);
+}
+
+.maintenance-row-edit svg {
+    display: block;
+}
+
+.maintenance-interval-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 50;
+    background: rgba(0, 0, 0, 0.4);
+    box-sizing: border-box;
+    padding: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.maintenance-interval-overlay.hidden {
+    display: none;
+}
+
+.maintenance-interval-dialog {
+    width: 100%;
+    height: 100%;
+    max-width: 1320px;
+    max-height: 100%;
+    background: var(--background-primary);
+    border-radius: 12px;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.35);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.maintenance-interval-header {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--border-primary);
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.maintenance-interval-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+}
+
+.maintenance-interval-close:hover {
+    color: var(--text-primary);
+}
+
+#maintenance-interval-mount {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    padding: 10px 14px 14px;
+}
+
+#maintenance-interval-mount .fc {
+    --fc-border-color: var(--border-primary);
+    --fc-page-bg-color: var(--background-primary);
+    --fc-neutral-bg-color: var(--background-secondary);
+}
