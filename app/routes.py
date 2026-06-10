@@ -352,8 +352,13 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
     })
     async def delete_maintenance(request: Request, window_id: str):
         store = get_maintenance_store()
-        if not store.delete(window_id):
+        window = store.get(window_id)
+        if window is None:
             raise HTTPException(status_code=404, detail="Maintenance window not found")
+        store.delete(window_id)
+        manager = getattr(request.app.state, "maintenance_manager", None)
+        if manager is not None:
+            await manager.reconcile_after_window_removed(window)
         logger.info("Maintenance window deleted", extra={"id": window_id})
         return {"success": True}
 

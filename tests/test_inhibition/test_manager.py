@@ -11,6 +11,7 @@ import pytest
 
 from app.inhibition.manager import InhibitionManager
 from app.config.validation import InhibitRule
+from app.incident.freeze import FreezeSource
 from tests.utils import create_alert_payload, create_mock_queue, create_mock_application
 
 
@@ -29,6 +30,7 @@ class TestInhibitionManager:
         """Create mock application."""
         app = create_mock_application()
         app.update_thread = AsyncMock()
+        app.update_incident_message = AsyncMock()
         app.body_template = Mock()
         app.body_template.form_message = Mock(return_value="body")
         app.header_template = Mock()
@@ -261,6 +263,58 @@ class TestInhibitionManager:
         assert "source-2" in target.parents
         # Unfreeze should NOT be scheduled (still has parents)
         mock_queue.put_first.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_handle_resolved_hands_off_to_active_maintenance_without_generic_unfreeze(
+        self, inhibition_manager, mock_incidents, mock_application
+    ):
+        """When maintenance still applies, releasing inhibition should not fully unfreeze."""
+        source = self._create_mock_incident("source-1", "critical", "api", childs=["target-1"])
+        target = self._create_mock_incident(
+            "target-1", "warning", "api",
+            parents=["source-1"],
+            frozen_by_inhibition=True
+        )
+
+        maintenance_manager = Mock()
+        maintenance_manager.reconcile_incident = AsyncMock()
+        inhibition_manager.attach_maintenance_manager(maintenance_manager)
+        mock_incidents.uniq_ids = {"source-1": source, "target-1": target}
+        inhibition_manager.sources[0].add("source-1")
+        inhibition_manager.targets[0].add("target-1")
+
+        with patch("app.inhibition.manager.remove_freeze_source", new_callable=AsyncMock) as remove_source:
+            await inhibition_manager.handle_resolved(source)
+
+        remove_source.assert_awaited_once_with(
+            target, mock_application, inhibition_manager.queue, source=FreezeSource.PARENT, notify=False
+        )
+        maintenance_manager.reconcile_incident.assert_awaited_once_with(target, update_message=False)
+        mock_application.update_incident_message.assert_awaited_once_with(target)
+
+    @pytest.mark.asyncio
+    async def test_handle_resolved_restores_when_no_freeze_sources_remain(
+        self, inhibition_manager, mock_incidents, mock_application
+    ):
+        """When inhibition was the last freeze source, release restores normal scheduling."""
+        source = self._create_mock_incident("source-1", "critical", "api", childs=["target-1"])
+        target = self._create_mock_incident(
+            "target-1", "warning", "api",
+            parents=["source-1"],
+            frozen_by_inhibition=True
+        )
+
+        mock_incidents.uniq_ids = {"source-1": source, "target-1": target}
+        inhibition_manager.sources[0].add("source-1")
+        inhibition_manager.targets[0].add("target-1")
+
+        with patch("app.inhibition.manager.remove_freeze_source", new_callable=AsyncMock) as remove_source:
+            await inhibition_manager.handle_resolved(source)
+
+        remove_source.assert_awaited_once_with(
+            target, mock_application, inhibition_manager.queue, source=FreezeSource.PARENT, notify=False
+        )
+        mock_application.update_incident_message.assert_awaited_once_with(target)
 
     @pytest.mark.asyncio
     async def test_handle_resolved_non_source_incident(self, inhibition_manager, mock_incidents):

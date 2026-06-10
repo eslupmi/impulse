@@ -13,6 +13,7 @@ from app.config.environment import get_environment_config
 from app.config.validation import MessengerType
 from app.im.channel_manager import ChannelManager
 from app.im.chain.ui_chains_store import ui_chains_store
+from app.incident.freeze import FreezeSource, MAINTENANCE_PARENT_SENTINEL
 from app.logging import logger
 from app.queue.constants import QueueItemType
 from app.time import unix_sleep_to_timedelta
@@ -147,22 +148,47 @@ class Incident:
         logger.info("Incident frozen", extra={'uuid': self.uuid, 'frozen_until': until})
 
     def unfreeze(self):
-        """Unfreeze the incident from all freeze types (time-based and inhibition)"""
+        """Clear all freeze sources."""
         self.frozen_until = None
-        self.frozen_by_inhibition = False
-        self.frozen_by_maintenance = False
+        self.parents = []
+        self.recalculate_freeze_flags()
         self.dump()
         logger.info("Incident unfrozen", extra={'uuid': self.uuid})
+
+    def clear_time_freeze(self):
+        """Clear only time-based freeze state, preserving parent-based freezes."""
+        self.frozen_until = None
+        self.recalculate_freeze_flags()
+        self.dump()
+        logger.info("Incident time freeze cleared", extra={'uuid': self.uuid})
+
+    def remove_freeze_parent(self, parent: str):
+        if parent in self.parents:
+            self.parents.remove(parent)
+            self.recalculate_freeze_flags()
+            self.dump()
+            logger.info("Incident freeze parent removed", extra={'uuid': self.uuid, 'parent': parent})
+
+    def recalculate_freeze_flags(self):
+        self.frozen_by_maintenance = MAINTENANCE_PARENT_SENTINEL in self.parents
+        self.frozen_by_inhibition = any(parent != MAINTENANCE_PARENT_SENTINEL for parent in self.parents)
+
+    def set_maintenance_parent(self):
+        if MAINTENANCE_PARENT_SENTINEL not in self.parents:
+            self.parents.append(MAINTENANCE_PARENT_SENTINEL)
+        self.recalculate_freeze_flags()
+        self.dump()
 
     def freeze_by_inhibition(self):
         """Freeze the incident due to inhibition (no assignee, no expiration time)"""
         self.accumulate_chain_time(self.updated)
+        self.recalculate_freeze_flags()
         self.frozen_by_inhibition = True
         self.dump()
         logger.info("Incident frozen by inhibition", extra={'uuid': self.uuid})
 
     def is_frozen(self) -> bool:
-        return self.frozen_by_inhibition or self.frozen_by_maintenance or self.frozen_until is not None
+        return self.frozen_until is not None or len(self.parents) > 0
 
     def can_manual_unfreeze(self) -> bool:
         return (
@@ -333,7 +359,7 @@ class Incident:
             'indicator': display_status,
             '_alerts_count': len(self.payload.get('alerts', [])),
             '_is_frozen': self.is_frozen(),
-            '_action_state': f"{self.is_frozen()}|{self.status}|{self.assigned_user_id or ''}|{bool(self.task_link)}|{self.frozen_by_inhibition}",
+            '_action_state': f"{self.is_frozen()}|{self.status}|{self.assigned_user_id or ''}|{bool(self.task_link)}|{self.frozen_by_inhibition}|{self.frozen_by_maintenance}",
             '_assigned_user_id': self.assigned_user_id or '',
             '_assigned_fullname': self.assigned_fullname or '',
             '_responsive_data': {
@@ -487,24 +513,70 @@ class Incident:
 
 
 async def unfreeze_incident(incident: 'Incident', app: 'Application', queue: 'AsyncQueue'):
-    if not incident.is_frozen():
+    await remove_freeze_source(incident, app, queue, source=FreezeSource.ALL, notify=True)
+
+
+async def remove_freeze_source(
+    incident: 'Incident',
+    app: 'Application',
+    queue: 'AsyncQueue',
+    source: FreezeSource,
+    parent: Optional[str] = None,
+    notify: bool = False,
+):
+    if not incident.is_frozen() and source not in (FreezeSource.PARENT, FreezeSource.MAINTENANCE):
         logger.info(f'Incident {incident.uuid} is not frozen, skipping unfreeze')
         return
 
-    is_inhibition_unfreeze = incident.frozen_by_inhibition
     incident_status = incident.status
-    incident.unfreeze()
-
-    if incident.frozen_until is not None:
-        from app.maintenance.constants import MAINTENANCE_PARENT_SENTINEL
-        if MAINTENANCE_PARENT_SENTINEL in incident.parents:
-            incident.parents.remove(MAINTENANCE_PARENT_SENTINEL)
+    if source == FreezeSource.TIME:
+        incident.clear_time_freeze()
+    elif source == FreezeSource.PARENT:
+        if parent:
+            incident.remove_freeze_parent(parent)
+        else:
+            incident.recalculate_freeze_flags()
             incident.dump()
+    elif source == FreezeSource.MAINTENANCE:
+        if incident.frozen_by_maintenance or MAINTENANCE_PARENT_SENTINEL in incident.parents:
+            incident.frozen_until = None
+        if MAINTENANCE_PARENT_SENTINEL in incident.parents:
+            incident.remove_freeze_parent(MAINTENANCE_PARENT_SENTINEL)
+        else:
+            incident.recalculate_freeze_flags()
+            incident.dump()
+    else:
+        incident.unfreeze()
 
-    if not is_inhibition_unfreeze:
+    await sync_after_freeze_change(incident, app, queue, incident_status, notify=notify)
+
+
+async def sync_after_freeze_change(
+    incident: 'Incident',
+    app: 'Application',
+    queue: 'AsyncQueue',
+    incident_status: Optional[str] = None,
+    notify: bool = False
+):
+    if incident.is_frozen():
+        await queue.delete_by_id(incident.uniq_id, delete_steps=True, delete_status=False)
+        return
+
+    if notify:
         app.track_async_task(asyncio.create_task(app.post_unfreeze_notification(incident)))
 
+    incident_status = incident_status or incident.status
     await queue.put_first(datetime.now(timezone.utc), QueueItemType.STATUS_CHECK, incident.uniq_id)
     await queue.recreate(incident.status, incident.uniq_id, incident.get_chain(), incident.chain_active_seconds)
     if incident_status != 'deleted':
         await queue.put(incident.status_update_datetime, QueueItemType.UPDATE_STATUS, incident.uniq_id)
+
+
+async def restore_after_unfreeze(
+    incident: 'Incident',
+    app: 'Application',
+    queue: 'AsyncQueue',
+    incident_status: Optional[str] = None,
+    notify: bool = False
+):
+    await sync_after_freeze_change(incident, app, queue, incident_status, notify)

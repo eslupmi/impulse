@@ -95,7 +95,25 @@ def _build_mattermost_actions(incident, user_timezone='UTC'):
         }
     }]
     
-    if incident.frozen_by_inhibition:
+    if incident.frozen_by_maintenance:
+        freeze_text = (
+            format_freeze_expiration(incident.frozen_until, user_timezone)
+            if incident.frozen_until
+            else 'Maintenance'
+        )
+        actions.append({
+            "id": "freeze",
+            "type": "button",
+            "name": freeze_text,
+            "style": buttons['freeze']['inhibited']['style'],
+            "integration": {
+                "url": f"{config.messenger.impulse_address}/app",
+                "context": {
+                    "action": "noop"
+                }
+            }
+        })
+    elif incident.frozen_by_inhibition:
         actions.append({
             "id": "freeze",
             "type": "button",
@@ -122,12 +140,8 @@ def _build_mattermost_actions(incident, user_timezone='UTC'):
                 }
             }
         })
-    elif incident.frozen_until or incident.frozen_by_maintenance:
-        freeze_text = (
-            format_freeze_expiration(incident.frozen_until, user_timezone)
-            if incident.frozen_until
-            else buttons['freeze']['inhibited']['text']
-        )
+    elif incident.frozen_until:
+        freeze_text = format_freeze_expiration(incident.frozen_until, user_timezone)
         actions.append({
             "id": "freeze",
             "type": "button",

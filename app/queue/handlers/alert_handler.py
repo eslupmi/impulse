@@ -78,13 +78,11 @@ class AlertHandler(BaseHandler):
         )
 
         will_match_maintenance = self.maintenance_manager.would_match_active_window(incident_)
-        will_be_inhibited = False
+        will_be_inhibited = self.inhibition_manager.would_be_inhibited(incident_)
+        if will_be_inhibited:
+            incident_.frozen_by_inhibition = True
         if will_match_maintenance:
             incident_.frozen_by_maintenance = True
-        else:
-            will_be_inhibited = self.inhibition_manager.would_be_inhibited(incident_)
-            if will_be_inhibited:
-                incident_.frozen_by_inhibition = True
 
         thread_id = await self._create_thread(incident_)
         if thread_id is None:
@@ -95,9 +93,8 @@ class AlertHandler(BaseHandler):
             return
 
         self.incidents.add(incident_)
+        await self.inhibition_manager.process_incident(incident_)
         await self.maintenance_manager.process_incident(incident_)
-        if not will_match_maintenance:
-            await self.inhibition_manager.process_incident(incident_)
         incident_.dump()
 
         if will_match_maintenance:
@@ -164,7 +161,7 @@ class AlertHandler(BaseHandler):
             await self.inhibition_manager.handle_resolved(incident_)
         elif incident_.status == 'firing' and prev_status != 'firing':
             await self.inhibition_manager.process_incident(incident_)
-            await self.maintenance_manager.process_incident(incident_) #!
+            await self.maintenance_manager.process_incident(incident_)
 
     async def _notify_new_fire_alert(self, incident_, new_alerts_f, new_alerts_r, uuid_):
         """

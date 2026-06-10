@@ -53,7 +53,7 @@ class MaintenanceWindow:
         return self._compiled
 
     def is_active(self, now: datetime) -> bool:
-        return self.starts_at <= now <= self.ends_at
+        return self.starts_at <= now < self.ends_at
 
     def matches_incident(self, incident) -> bool:
         if not self._compiled:

@@ -72,7 +72,7 @@ class TestAlertHandler:
         manager = Mock()
         manager.process_incident = AsyncMock()
         manager.would_match_active_window = Mock(return_value=False)
-        manager.try_apply_time_freeze_if_window_still_active = AsyncMock()
+        manager.reconcile_incident = AsyncMock()
         manager.reconcile_active_incidents = AsyncMock()
         return manager
 

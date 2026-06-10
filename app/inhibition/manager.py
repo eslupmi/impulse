@@ -2,9 +2,10 @@ from typing import Dict, List, Set, TYPE_CHECKING
 
 from app.config.validation import InhibitRule, MessengerType
 from app.inhibition.rule import InhibitionRule
+from app.incident.freeze import FreezeSource
 from app.logging import logger
 
-from app.incident.incident import unfreeze_incident
+from app.incident.incident import remove_freeze_source
 
 if TYPE_CHECKING:
     from app.incident.incident import Incident
@@ -209,7 +210,7 @@ class InhibitionManager:
                 await self.application.update_incident_message(incident)
 
     async def _unfreeze_target_if_no_parents(self, target: 'Incident'):
-        from app.maintenance.constants import MAINTENANCE_PARENT_SENTINEL
+        from app.incident.freeze import MAINTENANCE_PARENT_SENTINEL
         remaining_parents = [p for p in target.parents if p != MAINTENANCE_PARENT_SENTINEL]
         if remaining_parents:
             return
@@ -217,8 +218,8 @@ class InhibitionManager:
         if not target.frozen_by_inhibition:
             return
         
-        logger.info("Target has no more parents - scheduling unfreeze", extra={'uuid': target.uuid})
-        await unfreeze_incident(target, self.application, self.queue)
+        logger.info("Target has no more parents - releasing inhibition", extra={'uuid': target.uuid})
+        await remove_freeze_source(target, self.application, self.queue, source=FreezeSource.PARENT, notify=False)
         if self.maintenance_manager is not None:
-            await self.maintenance_manager.try_apply_time_freeze_if_window_still_active(target)
+            await self.maintenance_manager.reconcile_incident(target, update_message=False)
         await self.application.update_incident_message(target)

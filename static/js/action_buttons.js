@@ -100,10 +100,10 @@ function actionButtonsFormatter(cell) {
         freezeBtn.classList.add("active");
         if (!canManualUnfreeze) {
             freezeBtn.classList.add("inhibited");
-            freezeBtn.title = frozenByInhibition
-                ? "Inhibited"
-                : frozenByMaintenance
-                    ? (frozenUntil ? `Maintenance until ${formatFrozenUntil(frozenUntil)}` : "Maintenance")
+            freezeBtn.title = frozenByMaintenance
+                ? (frozenUntil ? `Maintenance until ${formatFrozenUntil(frozenUntil)}` : "Maintenance")
+                : frozenByInhibition
+                    ? "Inhibited"
                     : "Frozen";
             freezeBtn.disabled = true;
         } else {

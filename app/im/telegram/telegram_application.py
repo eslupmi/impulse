@@ -190,19 +190,23 @@ class TelegramApplication(Application):
             else:
                 chain_button = buttons['chain']['assigned']
 
-        if incident.frozen_by_inhibition:
+        if incident.frozen_by_maintenance:
+            telegram_tz = config_obj.app.general.timezone
+            freeze_text = (
+                format_freeze_expiration(incident.frozen_until, telegram_tz)
+                if incident.frozen_until
+                else 'Maintenance'
+            )
+            freeze_button = {'text': freeze_text, 'callback_data': 'noop'}
+        elif incident.frozen_by_inhibition:
             freeze_button = buttons['freeze']['inhibited']
         elif incident.can_manual_unfreeze():
             telegram_tz = config_obj.app.general.timezone
             freeze_text = format_freeze_expiration(incident.frozen_until, telegram_tz)
             freeze_button = {'text': freeze_text, 'callback_data': 'freeze_menu'}
-        elif incident.frozen_until or incident.frozen_by_maintenance:
+        elif incident.frozen_until:
             telegram_tz = config_obj.app.general.timezone
-            freeze_text = (
-                format_freeze_expiration(incident.frozen_until, telegram_tz)
-                if incident.frozen_until
-                else buttons['freeze']['inhibited']['text']
-            )
+            freeze_text = format_freeze_expiration(incident.frozen_until, telegram_tz)
             freeze_button = {'text': freeze_text, 'callback_data': 'noop'}
         else:
             freeze_button = buttons['freeze']['inactive']
@@ -256,7 +260,12 @@ class TelegramApplication(Application):
 
         keyboard_row = []
         if incident.status != 'closed':
-            freeze_button = buttons['freeze']['inhibited'] if incident.frozen_by_inhibition else buttons['freeze']['inactive']
+            if incident.frozen_by_maintenance:
+                freeze_button = {'text': 'Maintenance', 'callback_data': 'noop'}
+            elif incident.frozen_by_inhibition:
+                freeze_button = buttons['freeze']['inhibited']
+            else:
+                freeze_button = buttons['freeze']['inactive']
             keyboard_row = [
                 buttons['chain']['takeit'],
                 freeze_button

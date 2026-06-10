@@ -27,7 +27,7 @@ class AsyncQueueManager:
         self.status_check_handler = StatusCheckHandler(self.queue, application, incidents, inhibition_manager)
         self.message_update_handler = MessageUpdateHandler(self.queue, application, incidents)
         self.alert_handler = AlertHandler(self.queue, application, incidents, route_, inhibition_manager, maintenance_manager)
-        self.unfreeze_handler = UnfreezeHandler(self.queue, application, incidents)
+        self.unfreeze_handler = UnfreezeHandler(self.queue, application, incidents, maintenance_manager)
         self.user_update_handler = UserUpdateHandler(self.queue, application, incidents)
         self._running = False
         self._task = None
