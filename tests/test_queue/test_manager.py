@@ -6,6 +6,7 @@ from unittest.mock import Mock, AsyncMock, patch
 import pytest
 
 from app.queue.manager import AsyncQueueManager
+from app.incident.freeze import FreezeSource
 from tests.utils import (
     create_mock_queue, create_mock_application, create_mock_incidents_collection,
     create_mock_route, create_mock_webhooks_collection, create_alert_payload,
@@ -182,6 +183,21 @@ class TestAsyncQueueManager:
         await queue_manager.queue_handle_once()
 
         queue_manager.step_handler.handle.assert_called_once_with('incident123', '0')
+
+    @pytest.mark.asyncio
+    async def test_queue_handle_once_unfreeze_item(self, queue_manager, mock_queue):
+        """Test handling unfreeze with source data."""
+        mock_queue.get_next_ready_item.return_value = (
+            'unfreeze', 'incident123', None, FreezeSource.MAINTENANCE.value
+        )
+        queue_manager.unfreeze_handler = Mock()
+        queue_manager.unfreeze_handler.handle = AsyncMock()
+
+        await queue_manager.queue_handle_once()
+
+        queue_manager.unfreeze_handler.handle.assert_awaited_once_with(
+            'incident123', FreezeSource.MAINTENANCE.value
+        )
 
     @pytest.mark.asyncio
     async def test_queue_handle_once_unknown_item_type(self, queue_manager, mock_queue):

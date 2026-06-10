@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from app.incident.freeze import MAINTENANCE_PARENT_SENTINEL
+from app.incident.freeze import FreezeSource, MAINTENANCE_PARENT_SENTINEL
 from app.maintenance.manager import MaintenanceManager
 from app.maintenance.models import MaintenanceWindow
 from app.incident.incident import Incident, IncidentConfig
@@ -68,7 +68,7 @@ class TestMaintenanceManager:
 
         assert MAINTENANCE_PARENT_SENTINEL in incident.parents
         application.apply_time_freeze.assert_awaited_once_with(
-            incident, window.ends_at, user=None, queue_=manager.queue
+            incident, window.ends_at, user=None, queue_=manager.queue, source=FreezeSource.MAINTENANCE
         )
 
     @pytest.mark.asyncio
@@ -106,12 +106,30 @@ class TestMaintenanceManager:
         incident.parents = [MAINTENANCE_PARENT_SENTINEL]
         incident.frozen_by_maintenance = True
         incident.frozen_until = datetime.now(timezone.utc) + timedelta(hours=1)
+        incident.frozen_until_source = FreezeSource.MAINTENANCE.value
         incident.ts = "123.456"
 
         await manager.reconcile_incident(incident)
 
         assert MAINTENANCE_PARENT_SENTINEL not in incident.parents
         assert incident.frozen_until is None
+
+    @pytest.mark.asyncio
+    async def test_reconcile_preserves_manual_freeze_when_maintenance_deleted(self, maintenance_setup):
+        manager, store, application, _ = maintenance_setup
+        store.list.return_value = []
+        incident = _incident()
+        manual_until = datetime.now(timezone.utc) + timedelta(hours=1)
+        incident.parents = [MAINTENANCE_PARENT_SENTINEL]
+        incident.frozen_by_maintenance = False
+        incident.frozen_until = manual_until
+        incident.frozen_until_source = FreezeSource.TIME.value
+        incident.ts = "123.456"
+
+        await manager.reconcile_incident(incident)
+
+        assert MAINTENANCE_PARENT_SENTINEL not in incident.parents
+        assert incident.frozen_until == manual_until
 
     @pytest.mark.asyncio
     async def test_reconcile_schedules_maintenance_when_window_matches(self, maintenance_setup):
@@ -125,6 +143,7 @@ class TestMaintenanceManager:
 
         assert MAINTENANCE_PARENT_SENTINEL in incident.parents
         assert incident.frozen_until == window.ends_at
+        assert incident.frozen_until_source == FreezeSource.MAINTENANCE.value
         application.apply_time_freeze.assert_not_called()
 
     @pytest.mark.asyncio
@@ -156,10 +175,16 @@ class TestMaintenanceManager:
         await manager.reconcile_incident(incident)
 
         assert incident.frozen_until == window.ends_at
+        assert incident.frozen_until_source == FreezeSource.MAINTENANCE.value
         assert incident.frozen_by_maintenance is True
         assert MAINTENANCE_PARENT_SENTINEL in incident.parents
         application.apply_time_freeze.assert_not_called()
-        manager.queue.put.assert_awaited_once_with(window.ends_at, QueueItemType.UNFREEZE, incident.uniq_id)
+        manager.queue.put.assert_awaited_once_with(
+            window.ends_at,
+            QueueItemType.UNFREEZE,
+            incident.uniq_id,
+            data=FreezeSource.MAINTENANCE.value,
+        )
         application.update_incident_message.assert_awaited_once_with(incident)
 
     @pytest.mark.asyncio

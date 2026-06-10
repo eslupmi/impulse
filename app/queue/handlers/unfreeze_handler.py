@@ -20,7 +20,7 @@ class UnfreezeHandler(BaseHandler):
         super().__init__(queue, application, incidents)
         self.maintenance_manager = maintenance_manager
 
-    async def handle(self, uniq_id: str):
+    async def handle(self, uniq_id: str, source: str):
         """
         Handle unfreeze for an incident
 
@@ -31,6 +31,18 @@ class UnfreezeHandler(BaseHandler):
             logger.warning(f'Incident with uniq_id {uniq_id} not found for unfreeze')
             return
 
-        await remove_freeze_source(incident, self.app, self.queue, source=FreezeSource.TIME, notify=True)
+        freeze_source = FreezeSource(source)
+        if incident.frozen_until_source != freeze_source.value:
+            logger.info(
+                "Ignoring stale unfreeze event",
+                extra={
+                    'uuid': incident.uuid,
+                    'event_source': freeze_source.value,
+                    'active_source': incident.frozen_until_source,
+                },
+            )
+            return
+
+        await remove_freeze_source(incident, self.app, self.queue, source=freeze_source, notify=True)
         await self.maintenance_manager.reconcile_incident(incident, update_message=False)
         await self.app.update_incident_message(incident)

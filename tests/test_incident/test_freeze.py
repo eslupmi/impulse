@@ -10,6 +10,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from app.incident.incident import Incident, IncidentConfig
+from app.incident.freeze import FreezeSource
 from tests.utils import create_alert_payload
 
 
@@ -58,13 +59,14 @@ class TestIncidentFreeze:
         until = datetime.now(timezone.utc) + timedelta(hours=1)
         user = Mock(id="u1", username="alice", name="Alice")
         with patch.object(sample_incident, "dump"):
-            sample_incident.freeze(until, user)
+            sample_incident.freeze(until, user, FreezeSource.TIME)
         assert sample_incident.can_manual_unfreeze() is True
 
     def test_can_manual_unfreeze_false_for_maintenance(self, sample_incident):
         until = datetime.now(timezone.utc) + timedelta(hours=1)
+        sample_incident.parents = ["maintenance"]
         with patch.object(sample_incident, "dump"):
-            sample_incident.freeze(until, user=None)
+            sample_incident.freeze(until, user=None, source=FreezeSource.MAINTENANCE)
         assert sample_incident.can_manual_unfreeze() is False
 
     def test_can_manual_unfreeze_false_without_frozen_until(self, sample_incident):

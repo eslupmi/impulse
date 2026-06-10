@@ -47,8 +47,8 @@ class AsyncQueueManager:
     async def handle_step(self, uniq_id: str, identifier: str):
         await self.step_handler.handle(uniq_id, identifier)
 
-    async def handle_unfreeze(self, uniq_id: str):
-        await self.unfreeze_handler.handle(uniq_id)
+    async def handle_unfreeze(self, uniq_id: str, data: str):
+        await self.unfreeze_handler.handle(uniq_id, data)
 
     async def handle_user_update(self, user_id: str):
         await self.user_update_handler.handle(user_id)
@@ -70,7 +70,7 @@ class AsyncQueueManager:
             elif type_ == QueueItemType.ALERT:
                 await self.handle_alert(data)
             elif type_ == QueueItemType.UNFREEZE:
-                await self.handle_unfreeze(uniq_id)
+                await self.handle_unfreeze(uniq_id, data)
             elif type_ == QueueItemType.UPDATE_USER:
                 await self.handle_user_update(identifier)
         except Exception as e:

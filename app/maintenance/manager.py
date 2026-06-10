@@ -75,7 +75,9 @@ class MaintenanceManager:
             )
             return
 
-        await self.application.apply_time_freeze(incident, window.ends_at, user=None, queue_=self.queue)
+        await self.application.apply_time_freeze(
+            incident, window.ends_at, user=None, queue_=self.queue, source=FreezeSource.MAINTENANCE
+        )
         logger.info(
             "Maintenance time freeze applied",
             extra={"uuid": incident.uuid, "window_id": window.id, "until": window.ends_at},
@@ -97,11 +99,17 @@ class MaintenanceManager:
         incident.set_maintenance_parent()
         if not was_frozen or had_maintenance:
             incident.frozen_until = window.ends_at
+            incident.frozen_until_source = FreezeSource.MAINTENANCE.value
             incident.chain_enabled = False
             incident.dump()
 
             await self.queue.delete_by_id_and_type(incident.uniq_id, QueueItemType.UNFREEZE)
-            await self.queue.put(window.ends_at, QueueItemType.UNFREEZE, incident.uniq_id)
+            await self.queue.put(
+                window.ends_at,
+                QueueItemType.UNFREEZE,
+                incident.uniq_id,
+                data=FreezeSource.MAINTENANCE.value,
+            )
 
             logger.info(
                 "Maintenance time freeze scheduled",

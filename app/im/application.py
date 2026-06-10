@@ -17,6 +17,7 @@ from app.integrations.jira_integration import JiraIntegration
 from app.jinja_template import JinjaTemplate
 from app.logging import logger
 from app.queue.constants import QueueItemType
+from app.incident.freeze import FreezeSource
 from app.incident.incident import unfreeze_incident
 from app.time import calculate_freeze_time
 
@@ -413,12 +414,12 @@ class Application(ABC):
 
     async def apply_time_freeze(
             self, incident_: 'Incident', until: datetime, user, queue_: 'AsyncQueue',
-            notify: bool = True
+            source: FreezeSource, notify: bool = True
     ):
         """Core time-based freeze used by manual freeze, maintenance and other auto sources."""
-        incident_.freeze(until, user)
+        incident_.freeze(until, user, source)
         await queue_.delete_by_id(incident_.uniq_id, delete_steps=True, delete_status=False)
-        await queue_.put(until, QueueItemType.UNFREEZE, incident_.uniq_id)
+        await queue_.put(until, QueueItemType.UNFREEZE, incident_.uniq_id, data=source.value)
         if notify:
             self.track_async_task(asyncio.create_task(self._post_freeze_notification(incident_, until)))
 
@@ -433,7 +434,7 @@ class Application(ABC):
         freeze_time = calculate_freeze_time(freeze_option, config.app.general, timezone_str)
         self.fetch_and_assign_user_name(incident_, user_id, dump=False)
         cached_user = self.users.get_user_by_id(user_id)
-        await self.apply_time_freeze(incident_, freeze_time, cached_user, queue_)
+        await self.apply_time_freeze(incident_, freeze_time, cached_user, queue_, source=FreezeSource.TIME)
 
     def _handle_task_action(self, incident_, user_id, queue_):
         logger.info(log_button_pressed, extra={'uuid': incident_.uuid, 'button': 'task', 'user_id': user_id})

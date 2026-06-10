@@ -88,7 +88,7 @@ class TestUnfreezeHandler:
         mock_incidents.uniq_ids = {}
 
         # Should not raise an error, just return early
-        await unfreeze_handler.handle(incident_uniq_id)
+        await unfreeze_handler.handle(incident_uniq_id, FreezeSource.TIME.value)
 
         # Should NOT call any methods
         mock_application.post_thread.assert_not_called()
@@ -101,11 +101,12 @@ class TestUnfreezeHandler:
         """Scheduled unfreeze clears time source and lets maintenance recalculate parents."""
         incident = create_mock_incident_for_handlers()
         incident.uniq_id = "test-uniq-id"
+        incident.frozen_until_source = FreezeSource.TIME.value
         incident.ts = "1.2"
         mock_incidents.uniq_ids = {incident.uniq_id: incident}
 
         with patch("app.queue.handlers.unfreeze_handler.remove_freeze_source", new_callable=AsyncMock) as remove_source:
-            await unfreeze_handler.handle(incident.uniq_id)
+            await unfreeze_handler.handle(incident.uniq_id, FreezeSource.TIME.value)
 
         remove_source.assert_awaited_once_with(
             incident, unfreeze_handler.app, unfreeze_handler.queue, source=FreezeSource.TIME, notify=True
@@ -124,14 +125,34 @@ class TestUnfreezeHandler:
             frozen_by_maintenance=True,
         )
         incident.uniq_id = "test-uniq-id"
+        incident.frozen_until_source = FreezeSource.TIME.value
         mock_incidents.uniq_ids = {incident.uniq_id: incident}
 
         with patch("app.queue.handlers.unfreeze_handler.remove_freeze_source", new_callable=AsyncMock) as remove_source:
-            await unfreeze_handler.handle(incident.uniq_id)
+            await unfreeze_handler.handle(incident.uniq_id, FreezeSource.TIME.value)
 
         remove_source.assert_awaited_once_with(
             incident, unfreeze_handler.app, unfreeze_handler.queue, source=FreezeSource.TIME, notify=True
         )
         mock_maintenance_manager.reconcile_incident.assert_awaited_once_with(incident, update_message=False)
         unfreeze_handler.app.update_incident_message.assert_awaited_once_with(incident)
+
+    @pytest.mark.asyncio
+    async def test_handle_ignores_stale_unfreeze_source(
+        self, unfreeze_handler, mock_incidents, mock_maintenance_manager
+    ):
+        """A stale maintenance UNFREEZE must not clear a current manual freeze."""
+        incident = create_mock_incident_for_handlers(
+            frozen_until=datetime.now(timezone.utc) + timedelta(minutes=5),
+        )
+        incident.uniq_id = "test-uniq-id"
+        incident.frozen_until_source = FreezeSource.TIME.value
+        mock_incidents.uniq_ids = {incident.uniq_id: incident}
+
+        with patch("app.queue.handlers.unfreeze_handler.remove_freeze_source", new_callable=AsyncMock) as remove_source:
+            await unfreeze_handler.handle(incident.uniq_id, FreezeSource.MAINTENANCE.value)
+
+        remove_source.assert_not_called()
+        mock_maintenance_manager.reconcile_incident.assert_not_called()
+        unfreeze_handler.app.update_incident_message.assert_not_called()
 

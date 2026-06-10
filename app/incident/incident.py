@@ -58,6 +58,7 @@ class Incident:
     task_creation_in_progress: bool = False
     closed: Optional[datetime] = field(default=None)
     frozen_until: Optional[datetime] = field(default=None)
+    frozen_until_source: Optional[str] = field(default=None)
     frozen_by_inhibition: bool = False
     frozen_by_maintenance: bool = False
     chain_active_seconds: float = 0.0
@@ -132,13 +133,13 @@ class Incident:
         self.chain_enabled = True
         self.dump()
 
-    def freeze(self, until: datetime, user):
+    def freeze(self, until: datetime, user, source: FreezeSource):
         """Freeze the incident until the specified datetime (preserves underlying status)
         Assigns the user who froze the incident (when provided) and disables chains.
         When user is None (auto-freeze sources like maintenance) assignee fields are kept."""
         self.accumulate_chain_time(self.updated)
         self.frozen_until = until
-        self.frozen_by_maintenance = user is None
+        self.frozen_until_source = source.value
         if user is not None:
             self.assigned_user_id = user.id
             self.assigned_user = user.username
@@ -150,6 +151,7 @@ class Incident:
     def unfreeze(self):
         """Clear all freeze sources."""
         self.frozen_until = None
+        self.frozen_until_source = None
         self.parents = []
         self.recalculate_freeze_flags()
         self.dump()
@@ -158,6 +160,7 @@ class Incident:
     def clear_time_freeze(self):
         """Clear only time-based freeze state, preserving parent-based freezes."""
         self.frozen_until = None
+        self.frozen_until_source = None
         self.recalculate_freeze_flags()
         self.dump()
         logger.info("Incident time freeze cleared", extra={'uuid': self.uuid})
@@ -248,6 +251,7 @@ class Incident:
             uniq_id=content.get('uniq_id', ''),
             version=content.get('version', config.INCIDENT_ACTUAL_VERSION),
             frozen_until=content.get('frozen_until', None),
+            frozen_until_source=content.get('frozen_until_source', None),
             frozen_by_inhibition=content.get('frozen_by_inhibition', False),
             frozen_by_maintenance=content.get('frozen_by_maintenance', False),
             chain_active_seconds=content.get('chain_active_seconds', 0.0),
@@ -289,6 +293,7 @@ class Incident:
             "version": self.version,
             "task_link": self.task_link,
             "frozen_until": self.frozen_until,
+            "frozen_until_source": self.frozen_until_source,
             "frozen_by_inhibition": self.frozen_by_inhibition,
             "frozen_by_maintenance": self.frozen_by_maintenance,
             "chain_active_seconds": self.chain_active_seconds,
@@ -334,6 +339,7 @@ class Incident:
             "uuid": self.uuid,
             "uniq_id": self.uniq_id,
             "frozen_until": self.frozen_until,
+            "frozen_until_source": self.frozen_until_source,
             "frozen_by_inhibition": self.frozen_by_inhibition,
             "frozen_by_maintenance": self.frozen_by_maintenance,
             "chain_active_seconds": self.chain_active_seconds,
@@ -538,8 +544,9 @@ async def remove_freeze_source(
             incident.recalculate_freeze_flags()
             incident.dump()
     elif source == FreezeSource.MAINTENANCE:
-        if incident.frozen_by_maintenance or MAINTENANCE_PARENT_SENTINEL in incident.parents:
+        if incident.frozen_until_source == FreezeSource.MAINTENANCE.value:
             incident.frozen_until = None
+            incident.frozen_until_source = None
         if MAINTENANCE_PARENT_SENTINEL in incident.parents:
             incident.remove_freeze_parent(MAINTENANCE_PARENT_SENTINEL)
         else:
