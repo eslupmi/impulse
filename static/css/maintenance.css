@@ -1,3 +1,30 @@
+.maintenance-control-btn {
+    position: relative;
+    overflow: visible;
+}
+
+.maintenance-active-count {
+    position: absolute;
+    top: -7px;
+    right: -9px;
+    min-width: 14px;
+    height: 14px;
+    padding: 0 3px;
+    border-radius: 7px;
+    background: var(--status-badge-frozen);
+    color: #fff;
+    font-size: 9px;
+    font-weight: 700;
+    line-height: 14px;
+    text-align: center;
+    box-sizing: border-box;
+    pointer-events: none;
+}
+
+.maintenance-active-count.hidden {
+    display: none;
+}
+
 .maintenance-modal-content {
     position: relative;
 }
@@ -69,12 +96,16 @@
     align-items: flex-start;
     gap: 8px;
     min-width: 0;
+    overflow: hidden;
 }
 
 .maintenance-row-interval-content {
     display: flex;
     flex-direction: column;
     gap: 4px;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
 }
 
 .maintenance-row-date {
@@ -83,17 +114,35 @@
     line-height: 1.2;
     color: var(--text-primary);
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .maintenance-row-time {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
     font-size: 14px;
     color: var(--text-secondary);
+    min-width: 0;
+}
+
+.maintenance-row-time-end {
+    justify-content: flex-end;
+}
+
+.maintenance-row-time-date {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
 }
 
-.maintenance-row-duration-inline {
+.maintenance-row-duration {
+    flex-shrink: 0;
     font-size: 14px;
-    font-weight: 400;
     color: var(--text-secondary);
 }
 

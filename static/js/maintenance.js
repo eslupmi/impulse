@@ -1,5 +1,6 @@
 import {getBaseUrl} from "./utils.js";
 import {createEditableFilterBadge, validateAndFormatFilter} from "./filters.js";
+import {getIsAuthenticated, onAuthChange} from "./auth.js";
 import {
     setTimezoneMode,
     getEffectiveTimezone,
@@ -14,6 +15,9 @@ let pickerTargetId = null;
 let configTimezone = "UTC";
 let messengerType = "";
 let userTimezone = null;
+let activeIndicatorTimer = null;
+
+const ACTIVE_INDICATOR_POLL_MS = 60000;
 
 const CAL_BTN_SVG =
     '<svg width="16" height="16" viewBox="0 0 13 15" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9.16667 0.5V3.16667M3.83333 0.5V3.16667M0.5 5.83333H12.5M1.83333 1.83333H11.1667C11.903 1.83333 12.5 2.43029 12.5 3.16667V12.5C12.5 13.2364 11.903 13.8333 11.1667 13.8333H1.83333C1.09695 13.8333 0.5 13.2364 0.5 12.5V3.16667C0.5 2.43029 1.09695 1.83333 1.83333 1.83333Z" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -32,6 +36,69 @@ const DELETE_BTN_SVG =
 
 function getTz() {
     return getEffectiveTimezone(configTimezone, userTimezone);
+}
+
+function isMaintenanceWindowActive(startsAt, endsAt, now = new Date()) {
+    const start = startsAt instanceof Date ? startsAt : new Date(startsAt);
+    const end = endsAt instanceof Date ? endsAt : new Date(endsAt);
+    return start.getTime() <= now.getTime() && now.getTime() < end.getTime();
+}
+
+function countActiveMaintenanceWindows(windows, now = new Date()) {
+    return windows.filter((window) => {
+        const start = window.starts_at ?? window.start;
+        const end = window.ends_at ?? new Date(window.start.getTime() + window.durationMs);
+        return isMaintenanceWindowActive(start, end, now);
+    }).length;
+}
+
+function setActiveIndicatorCount(count) {
+    const badge = document.getElementById("maintenance-active-count");
+    const toggle = document.getElementById("maintenance-toggle");
+    if (!badge || !toggle) return;
+    if (count > 0) {
+        badge.textContent = String(count);
+        badge.classList.remove("hidden");
+        toggle.title = count === 1
+            ? "Maintenance (1 active window)"
+            : `Maintenance (${count} active windows)`;
+    } else {
+        badge.textContent = "";
+        badge.classList.add("hidden");
+        toggle.title = "Maintenance";
+    }
+}
+
+function refreshActiveIndicatorFromRows() {
+    if (!getIsAuthenticated()) {
+        setActiveIndicatorCount(0);
+        return;
+    }
+    const savedRows = rows.filter((row) => row.serverId);
+    setActiveIndicatorCount(countActiveMaintenanceWindows(savedRows.map((row) => ({
+        start: row.start,
+        ends_at: new Date(row.start.getTime() + row.durationMs),
+    }))));
+}
+
+async function refreshActiveIndicator() {
+    if (!getIsAuthenticated()) {
+        setActiveIndicatorCount(0);
+        return;
+    }
+    try {
+        const data = await apiList();
+        setActiveIndicatorCount(countActiveMaintenanceWindows(data));
+    } catch (e) {
+        console.warn("Failed to refresh maintenance active indicator", e);
+    }
+}
+
+function startActiveIndicatorPolling() {
+    if (activeIndicatorTimer !== null) return;
+    activeIndicatorTimer = setInterval(() => {
+        refreshActiveIndicator();
+    }, ACTIVE_INDICATOR_POLL_MS);
 }
 
 function dtInTz(d) {
@@ -87,32 +154,40 @@ function formatDurationMs(ms) {
     return `${h}h ${m}m`;
 }
 
-function appendDurationInline(el, durationMs) {
+function buildDurationSpan(durationMs) {
     const span = document.createElement("span");
-    span.className = "maintenance-row-duration-inline";
-    span.textContent = ` (${formatDurationMs(durationMs)})`;
-    el.appendChild(span);
+    span.className = "maintenance-row-duration";
+    span.textContent = `(${formatDurationMs(durationMs)})`;
+    return span;
+}
+
+function buildSecondaryLine(dateText, durationMs) {
+    const line = document.createElement("div");
+    line.className = "maintenance-row-time";
+    if (dateText) {
+        const date = document.createElement("span");
+        date.className = "maintenance-row-time-date";
+        date.textContent = dateText;
+        line.appendChild(date);
+    } else {
+        line.classList.add("maintenance-row-time-end");
+    }
+    line.appendChild(buildDurationSpan(durationMs));
+    return line;
 }
 
 function buildIntervalContent(row) {
     const wrap = document.createElement("div");
     wrap.className = "maintenance-row-interval-content";
     const timeRange = formatRowTimeRange(row.start, row.durationMs);
+    const primary = document.createElement("div");
+    primary.className = "maintenance-row-date";
     if (isWithinWeek(row.start)) {
-        const primary = document.createElement("div");
-        primary.className = "maintenance-row-date";
-        primary.append(`${getDayLabel(row.start)}, ${timeRange}`);
-        appendDurationInline(primary, row.durationMs);
-        const secondary = document.createElement("div");
-        secondary.className = "maintenance-row-time";
-        secondary.textContent = formatShortDate(row.start);
-        wrap.append(primary, secondary);
+        primary.textContent = `${getDayLabel(row.start)}, ${timeRange}`;
+        wrap.append(primary, buildSecondaryLine(formatShortDate(row.start), row.durationMs));
     } else {
-        const primary = document.createElement("div");
-        primary.className = "maintenance-row-date";
-        primary.append(`${formatShortDate(row.start)}, ${timeRange}`);
-        appendDurationInline(primary, row.durationMs);
-        wrap.appendChild(primary);
+        primary.textContent = `${formatShortDate(row.start)}, ${timeRange}`;
+        wrap.append(primary, buildSecondaryLine("", row.durationMs));
     }
     return wrap;
 }
@@ -228,8 +303,9 @@ async function apiDelete(id) {
         method: "DELETE",
         credentials: "same-origin",
     });
-    if (res.status === 401) return;
+    if (res.status === 401) return false;
     if (!res.ok && res.status !== 404) throw new Error(`DELETE /maintenance/${id} failed: ${res.status}`);
+    return true;
 }
 
 async function saveRow(row) {
@@ -248,22 +324,54 @@ async function saveRow(row) {
         row.editing = false;
         delete row._snapshot;
         renderRows();
+        refreshActiveIndicatorFromRows();
     } catch (e) {
         console.warn("Failed to save maintenance row", e);
     }
 }
 
+function restoreDeletedRow(snapshot) {
+    rows.push({
+        localId: snapshot.localId,
+        serverId: snapshot.serverId,
+        start: snapshot.start,
+        durationMs: snapshot.durationMs,
+        matchers: snapshot.matchers,
+        comment: snapshot.comment,
+        dirty: false,
+        editing: false,
+    });
+    renderRows();
+    refreshActiveIndicatorFromRows();
+}
+
 async function deleteRow(row) {
-    if (row.serverId) {
-        try {
-            await apiDelete(row.serverId);
-        } catch (e) {
-            console.warn("Failed to delete maintenance row", e);
-            return;
-        }
-    }
+    const snapshot = {
+        ...snapshotRow(row),
+        localId: row.localId,
+        serverId: row.serverId,
+    };
+    const serverId = row.serverId;
+
     rows = rows.filter((r) => r !== row);
     renderRows();
+    refreshActiveIndicatorFromRows();
+
+    if (!serverId) {
+        return;
+    }
+
+    try {
+        const deleted = await apiDelete(serverId);
+        if (!deleted) {
+            restoreDeletedRow(snapshot);
+            showDeleteFailedWarning();
+        }
+    } catch (e) {
+        console.warn("Failed to delete maintenance row", e);
+        restoreDeletedRow(snapshot);
+        showDeleteFailedWarning();
+    }
 }
 
 function snapshotRow(row) {
@@ -530,7 +638,10 @@ function renderRows() {
                 bDelete.className = "maintenance-row-delete";
                 bDelete.title = "Delete";
                 bDelete.innerHTML = DELETE_BTN_SVG;
-                bDelete.addEventListener("click", () => deleteRow(row));
+                bDelete.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    deleteRow(row);
+                });
                 actions.appendChild(bDelete);
             }
         } else if (!active && row.serverId) {
@@ -675,10 +786,10 @@ function hasUnsavedMaintenance() {
     return rows.some((r) => r.dirty);
 }
 
-function showUnsavedChangesWarning() {
+function showTransientNotification(message) {
     const notification = document.createElement("div");
     notification.className = "overlap-notification";
-    notification.textContent = "Unsaved changes";
+    notification.textContent = message;
     document.body.appendChild(notification);
     setTimeout(() => notification.classList.add("show"), 10);
     setTimeout(() => {
@@ -686,6 +797,14 @@ function showUnsavedChangesWarning() {
         notification.classList.add("hide");
         setTimeout(() => notification.remove(), 300);
     }, 4000);
+}
+
+function showUnsavedChangesWarning() {
+    showTransientNotification("Unsaved changes");
+}
+
+function showDeleteFailedWarning() {
+    showTransientNotification("Failed to delete maintenance window");
 }
 
 function closeMaintenanceModal() {
@@ -710,6 +829,7 @@ async function openMaintenanceModal() {
     modal.classList.add("visible");
     await loadRows();
     renderRows();
+    refreshActiveIndicatorFromRows();
 }
 
 export const MaintenanceManager = {
@@ -771,6 +891,18 @@ export const MaintenanceManager = {
             }
             tryCloseMaintenanceModal();
         });
+        onAuthChange((authenticated) => {
+            if (authenticated) {
+                refreshActiveIndicator();
+                startActiveIndicatorPolling();
+            } else {
+                setActiveIndicatorCount(0);
+            }
+        });
+        if (getIsAuthenticated()) {
+            refreshActiveIndicator();
+            startActiveIndicatorPolling();
+        }
         this.initialized = true;
     },
 };
