@@ -18,7 +18,8 @@ TEST_NOW = datetime(2026, 6, 9, 12, 0, 0, tzinfo=timezone.utc)
 
 
 def _incident(**label_overrides):
-    payload = create_alert_payload(status="firing", alertname="TestAlert", **label_overrides)
+    alertname = label_overrides.pop("alertname", "TestAlert")
+    payload = create_alert_payload(status="firing", alertname=alertname, **label_overrides)
     return Incident(
         payload=payload,
         status="firing",
@@ -51,7 +52,10 @@ def maintenance_setup():
     application.update_incident_message = AsyncMock()
     queue = Mock()
     queue.delete_by_id_and_type = AsyncMock()
+    queue.delete_by_id = AsyncMock()
     queue.put = AsyncMock()
+    queue.put_first = AsyncMock()
+    queue.recreate = AsyncMock()
     manager = MaintenanceManager(store, incidents, application, queue, now=lambda: TEST_NOW)
     return manager, store, application, queue
 
@@ -76,7 +80,8 @@ class TestMaintenanceManager:
         manager, store, application, _ = maintenance_setup
         store.list.return_value = [_window()]
         incident = _incident()
-        incident.frozen_by_inhibition = True
+        incident.parents.append("source-uniq-id")
+        incident.recalculate_freeze_flags()
 
         await manager.process_incident(incident)
 
