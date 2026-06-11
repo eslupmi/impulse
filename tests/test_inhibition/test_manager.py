@@ -11,7 +11,7 @@ import pytest
 
 from app.inhibition.manager import InhibitionManager
 from app.config.validation import InhibitRule
-from app.incident.freeze import FreezeSource
+from app.incident.freeze import FreezeSource, MAINTENANCE_PARENT_SENTINEL
 from tests.utils import create_alert_payload, create_mock_queue, create_mock_application
 
 
@@ -96,7 +96,15 @@ class TestInhibitionManager:
         incident.childs = childs if childs is not None else []
         incident.frozen_by_inhibition = frozen_by_inhibition
         incident.frozen_by_maintenance = False
-        incident.is_frozen = Mock(return_value=frozen_by_inhibition)
+
+        def remove_freeze_parent(parent):
+            if parent in incident.parents:
+                incident.parents.remove(parent)
+
+        incident.remove_freeze_parent = Mock(side_effect=remove_freeze_parent)
+        incident.is_frozen = Mock(
+            side_effect=lambda: incident.frozen_until is not None or len(incident.parents) > 0
+        )
         incident.freeze_by_inhibition = Mock()
         incident.dump = Mock()
         return incident
@@ -268,11 +276,11 @@ class TestInhibitionManager:
     async def test_handle_resolved_hands_off_to_active_maintenance_without_generic_unfreeze(
         self, inhibition_manager, mock_incidents, mock_application
     ):
-        """When maintenance still applies, releasing inhibition should not fully unfreeze."""
+        """When maintenance still applies, releasing inhibition should reconcile, not generic unfreeze."""
         source = self._create_mock_incident("source-1", "critical", "api", childs=["target-1"])
         target = self._create_mock_incident(
             "target-1", "warning", "api",
-            parents=["source-1"],
+            parents=["source-1", MAINTENANCE_PARENT_SENTINEL],
             frozen_by_inhibition=True
         )
 
@@ -286,9 +294,7 @@ class TestInhibitionManager:
         with patch("app.inhibition.manager.remove_freeze_source", new_callable=AsyncMock) as remove_source:
             await inhibition_manager.handle_resolved(source)
 
-        remove_source.assert_awaited_once_with(
-            target, mock_application, inhibition_manager.queue, source=FreezeSource.PARENT, notify=False
-        )
+        remove_source.assert_not_called()
         maintenance_manager.reconcile_incident.assert_awaited_once_with(target, update_message=False)
         mock_application.update_incident_message.assert_awaited_once_with(target)
 

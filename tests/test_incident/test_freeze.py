@@ -79,7 +79,8 @@ class TestIncidentFreeze:
         assert sample_incident.can_manual_unfreeze() is False
 
     def test_can_manual_unfreeze_false_without_frozen_until(self, sample_incident):
-        sample_incident.frozen_by_maintenance = True
+        with patch.object(sample_incident, "dump"):
+            sample_incident.set_maintenance_parent()
         assert sample_incident.can_manual_unfreeze() is False
 
 class TestIncidentInhibitionFreeze:

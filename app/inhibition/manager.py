@@ -126,8 +126,7 @@ class InhibitionManager:
                 continue
             
             if source.uniq_id in target.parents:
-                target.parents.remove(source.uniq_id)
-                target.dump()
+                target.remove_freeze_parent(source.uniq_id)
                 logger.debug("Removed parent from target",
                            extra={'source_uuid': source.uuid, 'target_uuid': target.uuid})
             
@@ -211,15 +210,25 @@ class InhibitionManager:
 
     async def _unfreeze_target_if_no_parents(self, target: 'Incident'):
         from app.incident.freeze import MAINTENANCE_PARENT_SENTINEL
-        remaining_parents = [p for p in target.parents if p != MAINTENANCE_PARENT_SENTINEL]
-        if remaining_parents:
+        remaining_inhibition_parents = [
+            parent for parent in target.parents if parent != MAINTENANCE_PARENT_SENTINEL
+        ]
+        if remaining_inhibition_parents:
             return
-        
-        if not target.frozen_by_inhibition:
+
+        if MAINTENANCE_PARENT_SENTINEL in target.parents:
+            logger.info(
+                "Inhibition released; reconciling maintenance",
+                extra={'uuid': target.uuid},
+            )
+            if self.maintenance_manager is not None:
+                await self.maintenance_manager.reconcile_incident(target, update_message=False)
+            await self.application.update_incident_message(target)
             return
-        
-        logger.info("Target has no more parents - releasing inhibition", extra={'uuid': target.uuid})
-        await remove_freeze_source(target, self.application, self.queue, source=FreezeSource.PARENT, notify=False)
-        if self.maintenance_manager is not None:
-            await self.maintenance_manager.reconcile_incident(target, update_message=False)
-        await self.application.update_incident_message(target)
+
+        if not target.is_frozen():
+            logger.info("Target has no more parents - releasing inhibition", extra={'uuid': target.uuid})
+            await remove_freeze_source(
+                target, self.application, self.queue, source=FreezeSource.PARENT, notify=False
+            )
+            await self.application.update_incident_message(target)

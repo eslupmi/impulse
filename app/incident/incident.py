@@ -183,10 +183,9 @@ class Incident:
         self.dump()
 
     def freeze_by_inhibition(self):
-        """Freeze the incident due to inhibition (no assignee, no expiration time)"""
+        """Sync inhibition freeze side effects after caller records source uniq_id in parents."""
         self.accumulate_chain_time(self.updated)
         self.recalculate_freeze_flags()
-        self.frozen_by_inhibition = True
         self.dump()
         logger.info("Incident frozen by inhibition", extra={'uuid': self.uuid})
 
@@ -196,8 +195,8 @@ class Incident:
     def can_manual_unfreeze(self) -> bool:
         return (
             self.frozen_until is not None
-            and not self.frozen_by_inhibition
-            and not self.frozen_by_maintenance
+            and self.frozen_until_source == FreezeSource.TIME.value
+            and len(self.parents) == 0
         )
 
     def accumulate_chain_time(self, updated):
@@ -261,6 +260,7 @@ class Incident:
         incident_.ts = content.get('ts')
         incident_.link = incident_.generate_link(incident_config.application_url)
         incident_.task_link = content.get('task_link', '')
+        incident_.recalculate_freeze_flags()
         return incident_
 
     def get_current_filename(self) -> str:

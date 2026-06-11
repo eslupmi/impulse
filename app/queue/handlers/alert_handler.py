@@ -79,10 +79,6 @@ class AlertHandler(BaseHandler):
 
         will_match_maintenance = self.maintenance_manager.would_match_active_window(incident_)
         will_be_inhibited = self.inhibition_manager.would_be_inhibited(incident_)
-        if will_be_inhibited:
-            incident_.frozen_by_inhibition = True
-        if will_match_maintenance:
-            incident_.frozen_by_maintenance = True
 
         thread_id = await self._create_thread(incident_)
         if thread_id is None:
