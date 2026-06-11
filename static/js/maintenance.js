@@ -46,8 +46,8 @@ function isMaintenanceWindowActive(startsAt, endsAt, now = new Date()) {
 
 function countActiveMaintenanceWindows(windows, now = new Date()) {
     return windows.filter((window) => {
-        const start = window.starts_at ?? window.start;
-        const end = window.ends_at ?? new Date(window.start.getTime() + window.durationMs);
+        const start = new Date(window.starts_at);
+        const end = new Date(window.ends_at);
         return isMaintenanceWindowActive(start, end, now);
     }).length;
 }
@@ -55,7 +55,6 @@ function countActiveMaintenanceWindows(windows, now = new Date()) {
 function setActiveIndicatorCount(count) {
     const badge = document.getElementById("maintenance-active-count");
     const toggle = document.getElementById("maintenance-toggle");
-    if (!badge || !toggle) return;
     if (count > 0) {
         badge.textContent = String(count);
         badge.classList.remove("hidden");
@@ -76,7 +75,7 @@ function refreshActiveIndicatorFromRows() {
     }
     const savedRows = rows.filter((row) => row.serverId);
     setActiveIndicatorCount(countActiveMaintenanceWindows(savedRows.map((row) => ({
-        start: row.start,
+        starts_at: row.start,
         ends_at: new Date(row.start.getTime() + row.durationMs),
     }))));
 }
@@ -102,37 +101,28 @@ function startActiveIndicatorPolling() {
 }
 
 function dtInTz(d) {
-    if (typeof luxon === "undefined") return null;
     return luxon.DateTime.fromJSDate(d, {zone: "utc"}).setZone(getTz());
 }
 
 function daysFromToday(d) {
     const dt = dtInTz(d);
     const now = dtInTz(new Date());
-    if (!dt || !now) return null;
     return Math.round(dt.startOf("day").diff(now.startOf("day"), "days").days);
 }
 
 function formatShortDate(d) {
-    const dt = dtInTz(d);
-    if (dt) return dt.toFormat("MMM d");
-    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    return `${months[d.getMonth()]} ${d.getDate()}`;
+    return dtInTz(d).toFormat("MMM d");
 }
 
 function getDayLabel(d) {
     const days = daysFromToday(d);
     if (days === 0) return "Today";
     if (days === 1) return "Tomorrow";
-    const dt = dtInTz(d);
-    if (dt) return dt.toFormat("ccc");
-    const daysArr = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    return daysArr[d.getDay()];
+    return dtInTz(d).toFormat("ccc");
 }
 
 function isWithinWeek(d) {
     const days = daysFromToday(d);
-    if (days === null) return false;
     return days >= 0 && days <= 7;
 }
 
@@ -140,9 +130,7 @@ function formatRowTimeRange(start, durationMs) {
     const end = new Date(start.getTime() + durationMs);
     const s = dtInTz(start);
     const e = dtInTz(end);
-    if (s && e) return `${s.toFormat("HH:mm")} - ${e.toFormat("HH:mm")}`;
-    const pad = (n) => String(n).padStart(2, "0");
-    return `${pad(start.getHours())}:${pad(start.getMinutes())} - ${pad(end.getHours())}:${pad(end.getMinutes())}`;
+    return `${s.toFormat("HH:mm")} - ${e.toFormat("HH:mm")}`;
 }
 
 function formatDurationMs(ms) {
@@ -233,7 +221,7 @@ async function loadChainsConfig() {
 function rowFromServer(data) {
     const start = new Date(data.starts_at);
     const end = new Date(data.ends_at);
-    const matchers = Array.isArray(data.matchers) ? [...data.matchers] : [];
+    const matchers = [...data.matchers];
     return {
         localId: `m-${++rowSeq}`,
         serverId: data.id,
@@ -445,10 +433,7 @@ function destroyIntervalCalendar() {
 }
 
 function scrollTimeFromDate(d) {
-    const dt = dtInTz(d);
-    if (dt) return dt.toFormat("HH:mm:ss");
-    const pad = (n) => String(n).padStart(2, "0");
-    return `${pad(d.getHours())}:${pad(d.getMinutes())}:00`;
+    return dtInTz(d).toFormat("HH:mm:ss");
 }
 
 function syncMatcherPlaceholder(row, input) {
@@ -709,10 +694,8 @@ function applyIntervalSelection(start, durationMs) {
 }
 
 function openIntervalPickerUi(initialStart, initialDurationMs) {
-    if (typeof FullCalendar === "undefined") return;
     const overlay = document.getElementById("maintenance-interval-overlay");
     const mount = document.getElementById("maintenance-interval-mount");
-    if (!overlay || !mount) return;
     overlay.classList.remove("hidden");
     destroyIntervalCalendar();
     intervalCalendar = new FullCalendar.Calendar(mount, {
@@ -848,16 +831,14 @@ export const MaintenanceManager = {
 
         toggle.addEventListener("click", () => openMaintenanceModal());
 
-        if (tzSelect) {
-            tzSelect.addEventListener("change", (e) => {
-                setTimezoneMode(e.target.value);
-                syncTimezoneSelects(configTimezone, messengerType, userTimezone);
-                renderRows();
-                if (intervalCalendar) {
-                    intervalCalendar.setOption("timeZone", getTz());
-                }
-            });
-        }
+        tzSelect.addEventListener("change", (e) => {
+            setTimezoneMode(e.target.value);
+            syncTimezoneSelects(configTimezone, messengerType, userTimezone);
+            renderRows();
+            if (intervalCalendar) {
+                intervalCalendar.setOption("timeZone", getTz());
+            }
+        });
 
         closeBtn.addEventListener("click", () => tryCloseMaintenanceModal());
         modal.addEventListener("click", (e) => {

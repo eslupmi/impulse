@@ -85,7 +85,7 @@ async def create_main_objects(fastapi_app: FastAPI, reload=False):
         messenger.configure_scheduler(user_scheduler)
         await user_scheduler.schedule_all_stored()
         queue_manager = AsyncQueueManager(queue, messenger, incidents, webhooks, route, inhibition_manager, maintenance_manager)
-        await maintenance_manager.reconcile_on_startup()
+        await maintenance_manager.reconcile_all()
 
         fastapi_app.state.queue_manager = queue_manager
         fastapi_app.state.incidents = incidents

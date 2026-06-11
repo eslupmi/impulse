@@ -60,7 +60,7 @@ class TestAsyncQueueManager:
         manager.process_incident = AsyncMock()
         manager.would_match_active_window = Mock(return_value=False)
         manager.reconcile_incident = AsyncMock()
-        manager.reconcile_active_incidents = AsyncMock()
+        manager.reconcile_all = AsyncMock()
         return manager
 
     @pytest.fixture

@@ -6,34 +6,6 @@ from typing import List, Optional
 from app.route.matcher import Matcher
 
 
-def split_matcher_clauses(s: str) -> List[str]:
-    """Split a comma-separated matcher string respecting quoted values."""
-    parts: List[str] = []
-    buf: List[str] = []
-    in_quote = False
-    quote_char = ""
-    for ch in s or "":
-        if in_quote:
-            buf.append(ch)
-            if ch == quote_char:
-                in_quote = False
-        elif ch in ('"', "'"):
-            in_quote = True
-            quote_char = ch
-            buf.append(ch)
-        elif ch == ",":
-            part = "".join(buf).strip()
-            if part:
-                parts.append(part)
-            buf = []
-        else:
-            buf.append(ch)
-    last = "".join(buf).strip()
-    if last:
-        parts.append(last)
-    return parts
-
-
 @dataclass
 class MaintenanceWindow:
     starts_at: datetime

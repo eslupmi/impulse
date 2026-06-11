@@ -128,7 +128,7 @@ class MaintenanceManager:
                 continue
             await self.reconcile_incident(incident)
 
-    async def reconcile_on_startup(self):
+    async def reconcile_all(self):
         for uniq_id in list(self.incidents.uniq_ids.keys()):
             incident = self.incidents.uniq_ids.get(uniq_id)
             if incident is None or incident.status in ("closed", "deleted"):
@@ -137,6 +137,3 @@ class MaintenanceManager:
                 await self.reconcile_incident(incident)
             elif MAINTENANCE_PARENT_SENTINEL in incident.parents or incident.frozen_by_maintenance:
                 await self.reconcile_incident(incident)
-
-    async def reconcile_active_incidents(self):
-        await self.reconcile_on_startup()
