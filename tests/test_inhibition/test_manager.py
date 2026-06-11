@@ -92,10 +92,12 @@ class TestInhibitionManager:
         incident.chain_enabled = True
         incident.frozen_until = None
         incident.task_link = ""
-        incident.parents = parents if parents is not None else []
+        incident.parents = list(parents) if parents is not None else []
         incident.childs = childs if childs is not None else []
-        incident.frozen_by_inhibition = frozen_by_inhibition
-        incident.frozen_by_maintenance = False
+        if frozen_by_inhibition and not any(
+            parent != MAINTENANCE_PARENT_SENTINEL for parent in incident.parents
+        ):
+            incident.parents.append("inhibition-source")
 
         def remove_freeze_parent(parent):
             if parent in incident.parents:

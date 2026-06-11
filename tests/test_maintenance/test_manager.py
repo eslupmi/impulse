@@ -81,7 +81,6 @@ class TestMaintenanceManager:
         store.list.return_value = [_window()]
         incident = _incident()
         incident.parents.append("source-uniq-id")
-        incident.recalculate_freeze_flags()
 
         await manager.process_incident(incident)
 
@@ -95,7 +94,6 @@ class TestMaintenanceManager:
         store.list.return_value = []
         incident = _incident()
         incident.parents = [MAINTENANCE_PARENT_SENTINEL]
-        incident.frozen_by_maintenance = True
 
         await manager.reconcile_incident(incident)
 
@@ -109,7 +107,6 @@ class TestMaintenanceManager:
         store.list.return_value = []
         incident = _incident()
         incident.parents = [MAINTENANCE_PARENT_SENTINEL]
-        incident.frozen_by_maintenance = True
         incident.frozen_until = datetime.now(timezone.utc) + timedelta(hours=1)
         incident.frozen_until_source = FreezeSource.MAINTENANCE.value
         incident.ts = "123.456"
@@ -126,7 +123,6 @@ class TestMaintenanceManager:
         incident = _incident()
         manual_until = datetime.now(timezone.utc) + timedelta(hours=1)
         incident.parents = [MAINTENANCE_PARENT_SENTINEL]
-        incident.frozen_by_maintenance = False
         incident.frozen_until = manual_until
         incident.frozen_until_source = FreezeSource.TIME.value
         incident.ts = "123.456"
@@ -157,10 +153,8 @@ class TestMaintenanceManager:
         removed = _window(matchers=['alertname = "OtherAlert"'])
         matching = _incident()
         matching.parents = [MAINTENANCE_PARENT_SENTINEL]
-        matching.frozen_by_maintenance = True
         other = _incident(alertname="OtherAlert")
         other.parents = [MAINTENANCE_PARENT_SENTINEL]
-        other.frozen_by_maintenance = True
         manager.incidents.uniq_ids = {"a": matching, "b": other}
         store.list.return_value = []
 

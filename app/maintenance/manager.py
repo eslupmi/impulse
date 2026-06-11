@@ -94,7 +94,7 @@ class MaintenanceManager:
                 await self.application.update_incident_message(incident)
             return
 
-        had_maintenance = incident.frozen_by_maintenance or MAINTENANCE_PARENT_SENTINEL in incident.parents
+        had_maintenance = MAINTENANCE_PARENT_SENTINEL in incident.parents
         was_frozen = incident.is_frozen()
         incident.set_maintenance_parent()
         if not was_frozen or had_maintenance:
@@ -135,5 +135,5 @@ class MaintenanceManager:
                 continue
             if self.would_match_active_window(incident):
                 await self.reconcile_incident(incident)
-            elif MAINTENANCE_PARENT_SENTINEL in incident.parents or incident.frozen_by_maintenance:
+            elif MAINTENANCE_PARENT_SENTINEL in incident.parents:
                 await self.reconcile_incident(incident)

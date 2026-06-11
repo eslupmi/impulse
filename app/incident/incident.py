@@ -59,8 +59,6 @@ class Incident:
     closed: Optional[datetime] = field(default=None)
     frozen_until: Optional[datetime] = field(default=None)
     frozen_until_source: Optional[str] = field(default=None)
-    frozen_by_inhibition: bool = False
-    frozen_by_maintenance: bool = False
     chain_active_seconds: float = 0.0
     childs: List[str] = field(default_factory=list)  # Target incident uniq_ids that this incident inhibits
     parents: List[str] = field(default_factory=list)  # Source incident uniq_ids that inhibit this incident
@@ -78,6 +76,14 @@ class Incident:
         self.uuid = self.gen_uuid(self.payload.get('groupLabels'))
         if not self.uniq_id:
             self.uniq_id = self.gen_uniq_id(self.payload.get('groupLabels'), self.created)
+
+    @property
+    def frozen_by_maintenance(self) -> bool:
+        return MAINTENANCE_PARENT_SENTINEL in self.parents
+
+    @property
+    def frozen_by_inhibition(self) -> bool:
+        return any(parent != MAINTENANCE_PARENT_SENTINEL for parent in self.parents)
 
     def generate_link(self, public_url) -> str:
         if self.config.application_type == MessengerType.SLACK:
@@ -153,7 +159,6 @@ class Incident:
         self.frozen_until = None
         self.frozen_until_source = None
         self.parents = []
-        self.recalculate_freeze_flags()
         self.dump()
         logger.info("Incident unfrozen", extra={'uuid': self.uuid})
 
@@ -161,31 +166,23 @@ class Incident:
         """Clear only time-based freeze state, preserving parent-based freezes."""
         self.frozen_until = None
         self.frozen_until_source = None
-        self.recalculate_freeze_flags()
         self.dump()
         logger.info("Incident time freeze cleared", extra={'uuid': self.uuid})
 
     def remove_freeze_parent(self, parent: str):
         if parent in self.parents:
             self.parents.remove(parent)
-            self.recalculate_freeze_flags()
             self.dump()
             logger.info("Incident freeze parent removed", extra={'uuid': self.uuid, 'parent': parent})
-
-    def recalculate_freeze_flags(self):
-        self.frozen_by_maintenance = MAINTENANCE_PARENT_SENTINEL in self.parents
-        self.frozen_by_inhibition = any(parent != MAINTENANCE_PARENT_SENTINEL for parent in self.parents)
 
     def set_maintenance_parent(self):
         if MAINTENANCE_PARENT_SENTINEL not in self.parents:
             self.parents.append(MAINTENANCE_PARENT_SENTINEL)
-        self.recalculate_freeze_flags()
         self.dump()
 
     def freeze_by_inhibition(self):
         """Sync inhibition freeze side effects after caller records source uniq_id in parents."""
         self.accumulate_chain_time(self.updated)
-        self.recalculate_freeze_flags()
         self.dump()
         logger.info("Incident frozen by inhibition", extra={'uuid': self.uuid})
 
@@ -251,8 +248,6 @@ class Incident:
             version=content.get('version', config.INCIDENT_ACTUAL_VERSION),
             frozen_until=content.get('frozen_until', None),
             frozen_until_source=content.get('frozen_until_source', None),
-            frozen_by_inhibition=content.get('frozen_by_inhibition', False),
-            frozen_by_maintenance=content.get('frozen_by_maintenance', False),
             chain_active_seconds=content.get('chain_active_seconds', 0.0),
             childs=content.get('childs', []),
             parents=content.get('parents', []),
@@ -260,7 +255,6 @@ class Incident:
         incident_.ts = content.get('ts')
         incident_.link = incident_.generate_link(incident_config.application_url)
         incident_.task_link = content.get('task_link', '')
-        incident_.recalculate_freeze_flags()
         return incident_
 
     def get_current_filename(self) -> str:
@@ -294,8 +288,6 @@ class Incident:
             "task_link": self.task_link,
             "frozen_until": self.frozen_until,
             "frozen_until_source": self.frozen_until_source,
-            "frozen_by_inhibition": self.frozen_by_inhibition,
-            "frozen_by_maintenance": self.frozen_by_maintenance,
             "chain_active_seconds": self.chain_active_seconds,
             "childs": self.childs,
             "parents": self.parents,
@@ -541,7 +533,6 @@ async def remove_freeze_source(
         if parent:
             incident.remove_freeze_parent(parent)
         else:
-            incident.recalculate_freeze_flags()
             incident.dump()
     elif source == FreezeSource.MAINTENANCE:
         if incident.frozen_until_source == FreezeSource.MAINTENANCE.value:
@@ -550,7 +541,6 @@ async def remove_freeze_source(
         if MAINTENANCE_PARENT_SENTINEL in incident.parents:
             incident.remove_freeze_parent(MAINTENANCE_PARENT_SENTINEL)
         else:
-            incident.recalculate_freeze_flags()
             incident.dump()
     else:
         incident.unfreeze()
