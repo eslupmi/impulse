@@ -120,7 +120,7 @@ class MaintenanceManager:
             await self.application.update_incident_message(incident)
 
     async def reconcile_after_window_removed(self, removed_window: MaintenanceWindow):
-        for uniq_id in list(self.incidents.uniq_ids.keys()):
+        for uniq_id in self.incidents.uniq_ids.keys():
             incident = self.incidents.uniq_ids.get(uniq_id)
             if incident is None or incident.status in ("closed", "deleted"):
                 continue
@@ -129,11 +129,9 @@ class MaintenanceManager:
             await self.reconcile_incident(incident)
 
     async def reconcile_all(self):
-        for uniq_id in list(self.incidents.uniq_ids.keys()):
+        for uniq_id in self.incidents.uniq_ids.keys():
             incident = self.incidents.uniq_ids.get(uniq_id)
             if incident is None or incident.status in ("closed", "deleted"):
                 continue
-            if self.would_match_active_window(incident):
-                await self.reconcile_incident(incident)
-            elif MAINTENANCE_PARENT_SENTINEL in incident.parents:
+            if self.would_match_active_window(incident) or MAINTENANCE_PARENT_SENTINEL in incident.parents:
                 await self.reconcile_incident(incident)

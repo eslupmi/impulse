@@ -103,7 +103,7 @@ class TestMaintenanceManager:
 
     @pytest.mark.asyncio
     async def test_reconcile_removes_maintenance_source_when_no_other_window(self, maintenance_setup):
-        manager, store, application, _ = maintenance_setup
+        manager, store, _, _ = maintenance_setup
         store.list.return_value = []
         incident = _incident()
         incident.parents = [MAINTENANCE_PARENT_SENTINEL]
@@ -118,7 +118,7 @@ class TestMaintenanceManager:
 
     @pytest.mark.asyncio
     async def test_reconcile_preserves_manual_freeze_when_maintenance_deleted(self, maintenance_setup):
-        manager, store, application, _ = maintenance_setup
+        manager, store, _, _ = maintenance_setup
         store.list.return_value = []
         incident = _incident()
         manual_until = datetime.now(timezone.utc) + timedelta(hours=1)
@@ -149,7 +149,7 @@ class TestMaintenanceManager:
 
     @pytest.mark.asyncio
     async def test_reconcile_after_window_removed_only_affects_matching_incidents(self, maintenance_setup):
-        manager, store, application, _ = maintenance_setup
+        manager, store, _, _ = maintenance_setup
         removed = _window(matchers=['alertname = "OtherAlert"'])
         matching = _incident()
         matching.parents = [MAINTENANCE_PARENT_SENTINEL]

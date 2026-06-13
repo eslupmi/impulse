@@ -570,6 +570,102 @@ function buildCommentPanel(row, editable) {
     return panel;
 }
 
+function buildRowInterval(row, editing) {
+    const interval = document.createElement("div");
+    interval.className = "maintenance-row-interval";
+    const intervalContent = buildIntervalContent(row);
+    if (editing) {
+        const bCal = document.createElement("button");
+        bCal.type = "button";
+        bCal.className = "maintenance-interval-edit-btn";
+        bCal.title = "Edit interval";
+        bCal.innerHTML = CAL_BTN_SVG;
+        bCal.addEventListener("click", () => openIntervalPickerEdit(row.localId));
+        interval.append(bCal, intervalContent);
+    } else {
+        interval.appendChild(intervalContent);
+    }
+    return interval;
+}
+
+function buildEditingRowActions(row) {
+    const actions = document.createElement("div");
+    actions.className = "maintenance-row-actions";
+
+    const bCancel = document.createElement("button");
+    bCancel.type = "button";
+    bCancel.className = "maintenance-row-cancel";
+    bCancel.title = "Cancel";
+    bCancel.innerHTML = CANCEL_BTN_SVG;
+    bCancel.classList.toggle("hidden", !row.dirty);
+    bCancel.addEventListener("click", () => discardRow(row));
+
+    const bSave = document.createElement("button");
+    bSave.type = "button";
+    bSave.className = "maintenance-row-save";
+    bSave.title = "Save";
+    bSave.innerHTML = SAVE_BTN_SVG;
+    bSave.classList.toggle("hidden", !row.dirty);
+    bSave.addEventListener("click", () => saveRow(row));
+    actions.append(bCancel, bSave);
+
+    if (row.serverId) {
+        const bDelete = document.createElement("button");
+        bDelete.type = "button";
+        bDelete.className = "maintenance-row-delete";
+        bDelete.title = "Delete";
+        bDelete.innerHTML = DELETE_BTN_SVG;
+        bDelete.addEventListener("click", (e) => {
+            e.stopPropagation();
+            deleteRow(row);
+        });
+        actions.appendChild(bDelete);
+    }
+    return actions;
+}
+
+function buildViewRowActions(row, active) {
+    const actions = document.createElement("div");
+    actions.className = "maintenance-row-actions";
+    if (active || !row.serverId) {
+        return actions;
+    }
+
+    const bEdit = document.createElement("button");
+    bEdit.type = "button";
+    bEdit.className = "maintenance-row-edit";
+    bEdit.title = "Edit";
+    bEdit.innerHTML = EDIT_BTN_SVG;
+    bEdit.addEventListener("click", (e) => {
+        e.stopPropagation();
+        for (const r of rows) r.editing = false;
+        row._snapshot = snapshotRow(row);
+        row.editing = true;
+        row.dirty = false;
+        renderRows();
+    });
+    actions.appendChild(bEdit);
+    return actions;
+}
+
+function buildMaintenanceRowElement(row, active) {
+    const editing = isRowEditing(row);
+    const el = document.createElement("div");
+    el.className = "maintenance-row"
+        + (editing ? " maintenance-row-new" : "")
+        + (active && active !== row ? " maintenance-row-locked" : "");
+    el.dataset.rowId = row.localId;
+
+    const actions = editing ? buildEditingRowActions(row) : buildViewRowActions(row, active);
+    el.append(
+        buildRowInterval(row, editing),
+        buildMatchersPanel(row, editing),
+        buildCommentPanel(row, editing),
+        actions,
+    );
+    return el;
+}
+
 function renderRows() {
     const list = document.getElementById("maintenance-rows");
     if (!list) return;
@@ -577,76 +673,7 @@ function renderRows() {
     const sorted = [...rows].sort((a, b) => a.start.getTime() - b.start.getTime());
     const active = getActiveRow();
     for (const row of sorted) {
-        const editing = isRowEditing(row);
-        const el = document.createElement("div");
-        el.className = "maintenance-row"
-            + (editing ? " maintenance-row-new" : "")
-            + (active && active !== row ? " maintenance-row-locked" : "");
-        el.dataset.rowId = row.localId;
-
-        const interval = document.createElement("div");
-        interval.className = "maintenance-row-interval";
-        const intervalContent = buildIntervalContent(row);
-        if (editing) {
-            const bCal = document.createElement("button");
-            bCal.type = "button";
-            bCal.className = "maintenance-interval-edit-btn";
-            bCal.title = "Edit interval";
-            bCal.innerHTML = CAL_BTN_SVG;
-            bCal.addEventListener("click", () => openIntervalPickerEdit(row.localId));
-            interval.append(bCal, intervalContent);
-        } else {
-            interval.appendChild(intervalContent);
-        }
-
-        const actions = document.createElement("div");
-        actions.className = "maintenance-row-actions";
-        if (editing) {
-            const bCancel = document.createElement("button");
-            bCancel.type = "button";
-            bCancel.className = "maintenance-row-cancel";
-            bCancel.title = "Cancel";
-            bCancel.innerHTML = CANCEL_BTN_SVG;
-            bCancel.classList.toggle("hidden", !row.dirty);
-            bCancel.addEventListener("click", () => discardRow(row));
-            const bSave = document.createElement("button");
-            bSave.type = "button";
-            bSave.className = "maintenance-row-save";
-            bSave.title = "Save";
-            bSave.innerHTML = SAVE_BTN_SVG;
-            bSave.classList.toggle("hidden", !row.dirty);
-            bSave.addEventListener("click", () => saveRow(row));
-            actions.append(bCancel, bSave);
-            if (row.serverId) {
-                const bDelete = document.createElement("button");
-                bDelete.type = "button";
-                bDelete.className = "maintenance-row-delete";
-                bDelete.title = "Delete";
-                bDelete.innerHTML = DELETE_BTN_SVG;
-                bDelete.addEventListener("click", (e) => {
-                    e.stopPropagation();
-                    deleteRow(row);
-                });
-                actions.appendChild(bDelete);
-            }
-        } else if (!active && row.serverId) {
-            const bEdit = document.createElement("button");
-            bEdit.type = "button";
-            bEdit.className = "maintenance-row-edit";
-            bEdit.title = "Edit";
-            bEdit.innerHTML = EDIT_BTN_SVG;
-            bEdit.addEventListener("click", (e) => {
-                e.stopPropagation();
-                for (const r of rows) r.editing = false;
-                row._snapshot = snapshotRow(row);
-                row.editing = true;
-                row.dirty = false;
-                renderRows();
-            });
-            actions.appendChild(bEdit);
-        }
-
-        el.append(interval, buildMatchersPanel(row, editing), buildCommentPanel(row, editing), actions);
+        const el = buildMaintenanceRowElement(row, active);
         list.appendChild(el);
 
         if (!row.serverId) {

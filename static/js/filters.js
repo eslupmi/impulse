@@ -383,7 +383,7 @@ function addFilterFromInput() {
         return;
     }
 
-    let {field, operator, value} = parsedFilter;
+    let {operator, value} = parsedFilter;
 
     if ((operator === "=~" || operator === "!~") && !isValidRegex(value)) {
         showFilterError(`Invalid regex: ${value}`);
