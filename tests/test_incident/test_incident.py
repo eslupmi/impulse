@@ -798,6 +798,7 @@ class TestIncidentInhibitionFields:
 
         result = sample_incident.serialize()
 
+        assert result['is_frozen'] is True
         assert result['frozen_by_inhibition'] is True
         assert 'childs' in result
         assert result['childs'] == ["child-1", "child-2"]
@@ -840,11 +841,10 @@ class TestIncidentInhibitionFields:
         self, mock_yaml_load, mock_file_open, mock_get_config, 
         incident_config, mock_unified_config
     ):
-        """Test that load derives freeze flags from parents, ignoring legacy YAML flags."""
+        """Test that load derives freeze flags from parents."""
         mock_get_config.return_value = mock_unified_config
 
         mock_incident_data = create_mock_incident_data()
-        mock_incident_data['frozen_by_inhibition'] = True
         mock_incident_data['childs'] = ["child-1", "child-2"]
         mock_incident_data['parents'] = ["parent-1"]
         mock_yaml_load.return_value = mock_incident_data
@@ -853,6 +853,7 @@ class TestIncidentInhibitionFields:
 
         assert incident.frozen_by_inhibition is True
         assert incident.frozen_by_maintenance is False
+        assert incident.is_frozen() is True
         assert incident.childs == ["child-1", "child-2"]
         assert incident.parents == ["parent-1"]
 

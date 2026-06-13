@@ -332,6 +332,7 @@ class Incident:
             "uniq_id": self.uniq_id,
             "frozen_until": self.frozen_until,
             "frozen_until_source": self.frozen_until_source,
+            "is_frozen": self.is_frozen(),
             "frozen_by_inhibition": self.frozen_by_inhibition,
             "frozen_by_maintenance": self.frozen_by_maintenance,
             "chain_active_seconds": self.chain_active_seconds,

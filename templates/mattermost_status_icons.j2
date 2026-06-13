@@ -1,4 +1,4 @@
-{%- if incident.frozen_until or incident.parents | length > 0 -%}
+{%- if incident.is_frozen -%}
 :snowflake:
 {%- else -%}
 {%- set status = incident.status -%}
