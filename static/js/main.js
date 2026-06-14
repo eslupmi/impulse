@@ -20,9 +20,9 @@ setupSortingListener();
 setupWebSocketEvents();
 initHistoryToggle();
 ThemeManager.init();
-await initAuthControls();
-ChainsManager.init();
 MaintenanceManager.init();
+ChainsManager.init();
+await initAuthControls();
 
 // Update zoom icons after table initialization and filters are loaded
 setTimeout(() => {

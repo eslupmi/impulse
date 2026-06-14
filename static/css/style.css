@@ -542,6 +542,10 @@ strong {
     gap: 12px;
 }
 
+.privileged-footer-controls {
+    display: contents;
+}
+
 .control-btn {
     cursor: pointer;
     width: 16px;

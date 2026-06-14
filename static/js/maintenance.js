@@ -100,6 +100,63 @@ function startActiveIndicatorPolling() {
     }, ACTIVE_INDICATOR_POLL_MS);
 }
 
+function stopActiveIndicatorPolling() {
+    if (activeIndicatorTimer === null) return;
+    clearInterval(activeIndicatorTimer);
+    activeIndicatorTimer = null;
+}
+
+const MAINTENANCE_TOGGLE_HTML =
+    '<svg class="maintenance-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">' +
+    '<path d="M4.5 2.5H2.5V4.5M2.5 4.5L10.5 12.5M10.5 12.5H12.5V10.5" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>' +
+    '</svg>' +
+    '<span id="maintenance-active-count" class="maintenance-active-count hidden" aria-hidden="true"></span>';
+
+let footerToggleClickHandler = null;
+
+function getPrivilegedFooterControlsContainer() {
+    return document.getElementById("privileged-footer-controls");
+}
+
+function mountFooterToggle() {
+    if (document.getElementById("maintenance-toggle")) {
+        return;
+    }
+    const container = getPrivilegedFooterControlsContainer();
+    if (!container) {
+        return;
+    }
+    const toggle = document.createElement("button");
+    toggle.id = "maintenance-toggle";
+    toggle.className = "control-btn maintenance-control-btn";
+    toggle.title = "Maintenance";
+    toggle.type = "button";
+    toggle.innerHTML = MAINTENANCE_TOGGLE_HTML;
+    footerToggleClickHandler = () => {
+        if (!getIsAuthenticated()) {
+            return;
+        }
+        openMaintenanceModal();
+    };
+    toggle.addEventListener("click", footerToggleClickHandler);
+    container.appendChild(toggle);
+}
+
+function unmountFooterToggle() {
+    stopActiveIndicatorPolling();
+    closeMaintenanceModal();
+    setActiveIndicatorCount(0);
+    const toggle = document.getElementById("maintenance-toggle");
+    if (!toggle) {
+        return;
+    }
+    if (footerToggleClickHandler) {
+        toggle.removeEventListener("click", footerToggleClickHandler);
+        footerToggleClickHandler = null;
+    }
+    toggle.remove();
+}
+
 function dtInTz(d) {
     return luxon.DateTime.fromJSDate(d, {zone: "utc"}).setZone(getTz());
 }
@@ -832,6 +889,9 @@ function tryCloseMaintenanceModal() {
 }
 
 async function openMaintenanceModal() {
+    if (!getIsAuthenticated()) {
+        return;
+    }
     const modal = document.getElementById("maintenance-modal");
     if (!modal) return;
     await loadChainsConfig();
@@ -848,15 +908,12 @@ export const MaintenanceManager = {
     init() {
         if (this.initialized) return;
         const modal = document.getElementById("maintenance-modal");
-        const toggle = document.getElementById("maintenance-toggle");
         const closeBtn = modal?.querySelector(".maintenance-modal-close");
         const addBtn = document.getElementById("maintenance-add-row");
         const intervalClose = document.getElementById("maintenance-interval-close");
         const intervalOverlay = document.getElementById("maintenance-interval-overlay");
         const tzSelect = document.getElementById("maintenance-timezone-select");
-        if (!modal || !toggle || !closeBtn || !addBtn || !intervalClose || !intervalOverlay || !tzSelect) return;
-
-        toggle.addEventListener("click", () => openMaintenanceModal());
+        if (!modal || !closeBtn || !addBtn || !intervalClose || !intervalOverlay || !tzSelect) return;
 
         tzSelect.addEventListener("change", (e) => {
             setTimezoneMode(e.target.value);
@@ -901,13 +958,15 @@ export const MaintenanceManager = {
         });
         onAuthChange((authenticated) => {
             if (authenticated) {
+                mountFooterToggle();
                 refreshActiveIndicator();
                 startActiveIndicatorPolling();
             } else {
-                setActiveIndicatorCount(0);
+                unmountFooterToggle();
             }
         });
         if (getIsAuthenticated()) {
+            mountFooterToggle();
             refreshActiveIndicator();
             startActiveIndicatorPolling();
         }

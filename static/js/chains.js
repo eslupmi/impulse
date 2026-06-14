@@ -1,5 +1,6 @@
 import {getSocket} from "./websocket.js";
 import {getBaseUrl} from "./utils.js";
+import {getIsAuthenticated, onAuthChange} from "./auth.js";
 import {
     setTimezoneMode,
     getEffectiveTimezone as effectiveTimezone,
@@ -352,6 +353,103 @@ window.handleUiChainsSaved = function(success) {
         savePromiseResolve = null;
     }
 };
+
+window.handleUiChainsError = function() {
+    if (chainsPromiseResolve) {
+        chainsPromiseResolve([]);
+        chainsPromiseResolve = null;
+    }
+    if (savePromiseResolve) {
+        savePromiseResolve(false);
+        savePromiseResolve = null;
+    }
+};
+
+const CHAINS_TOGGLE_HTML =
+    '<svg class="chains-icon" width="16" height="16" viewBox="0 0 13 15" fill="none" xmlns="http://www.w3.org/2000/svg">' +
+    '<path d="M9.16667 0.5V3.16667M3.83333 0.5V3.16667M0.5 5.83333H12.5M1.83333 1.83333H11.1667C11.903 1.83333 12.5 2.43029 12.5 3.16667V12.5C12.5 13.2364 11.903 13.8333 11.1667 13.8333H1.83333C1.09695 13.8333 0.5 13.2364 0.5 12.5V3.16667C0.5 2.43029 1.09695 1.83333 1.83333 1.83333Z" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/>' +
+    '</svg>';
+
+let footerToggleClickHandler = null;
+
+function getPrivilegedFooterControlsContainer() {
+    return document.getElementById("privileged-footer-controls");
+}
+
+function closeChainsModal() {
+    const chainsModal = document.getElementById("chains-modal");
+    chainsModal?.classList.remove("visible");
+}
+
+function mountFooterToggle() {
+    if (document.getElementById("chains-toggle")) {
+        return;
+    }
+    const container = getPrivilegedFooterControlsContainer();
+    if (!container) {
+        return;
+    }
+    const toggle = document.createElement("button");
+    toggle.id = "chains-toggle";
+    toggle.className = "control-btn";
+    toggle.title = "UI Chains";
+    toggle.type = "button";
+    toggle.innerHTML = CHAINS_TOGGLE_HTML;
+    footerToggleClickHandler = () => {
+        if (!getIsAuthenticated()) {
+            return;
+        }
+        openChainsModal();
+    };
+    toggle.addEventListener("click", footerToggleClickHandler);
+    container.appendChild(toggle);
+}
+
+function unmountFooterToggle() {
+    closeChainsModal();
+    const toggle = document.getElementById("chains-toggle");
+    if (!toggle) {
+        return;
+    }
+    if (footerToggleClickHandler) {
+        toggle.removeEventListener("click", footerToggleClickHandler);
+        footerToggleClickHandler = null;
+    }
+    toggle.remove();
+}
+
+async function openChainsModal() {
+    if (!getIsAuthenticated()) {
+        return;
+    }
+    const chainsModal = document.getElementById("chains-modal");
+    if (!chainsModal) {
+        return;
+    }
+    chainsModal.classList.add("visible");
+
+    await loadChainsConfig();
+
+    if (typeof FullCalendar === "undefined") {
+        console.error("FullCalendar is not loaded!");
+        return;
+    }
+
+    setTimeout(async () => {
+        updateChainSelector();
+        updateTimezoneSelector();
+        if (getSelectedChain()) {
+            showCalendarContainer(true);
+            await initializeCalendars();
+            setTimeout(() => {
+                if (calendar) calendar.updateSize();
+                if (monthCalendar) monthCalendar.updateSize();
+            }, 100);
+        } else {
+            showCalendarContainer(false);
+        }
+    }, 200);
+}
 
 async function loadChains() {
     const socket = getSocket();
@@ -1740,34 +1838,8 @@ export const ChainsManager = {
         if (this.initialized) return;
         
         const chainsModal = document.getElementById('chains-modal');
-        const chainsToggle = document.getElementById('chains-toggle');
-        const chainsCloseBtn = chainsModal.querySelector('.chains-modal-close');
-
-        chainsToggle.addEventListener('click', async () => {
-            chainsModal.classList.add('visible');
-
-            await loadChainsConfig();
-
-            if (typeof FullCalendar === 'undefined') {
-                console.error('FullCalendar is not loaded!');
-                return;
-            }
-
-            setTimeout(async () => {
-                updateChainSelector();
-                updateTimezoneSelector();
-                if (getSelectedChain()) {
-                    showCalendarContainer(true);
-                    await initializeCalendars();
-                    setTimeout(() => {
-                        if (calendar) calendar.updateSize();
-                        if (monthCalendar) monthCalendar.updateSize();
-                    }, 100);
-                } else {
-                    showCalendarContainer(false);
-                }
-            }, 200);
-        });
+        const chainsCloseBtn = chainsModal?.querySelector('.chains-modal-close');
+        if (!chainsModal || !chainsCloseBtn) return;
 
         const chainSelect = document.getElementById('chain-select');
         if (chainSelect) {
@@ -1807,12 +1879,12 @@ export const ChainsManager = {
         }
 
         chainsCloseBtn.addEventListener('click', () => {
-            chainsModal.classList.remove('visible');
+            closeChainsModal();
         });
 
         chainsModal.addEventListener('click', (e) => {
             if (e.target === chainsModal) {
-                chainsModal.classList.remove('visible');
+                closeChainsModal();
             }
         });
 
@@ -1822,11 +1894,21 @@ export const ChainsManager = {
                 return;
             }
             if (e.key === 'Escape' && chainsModal.classList.contains('visible')) {
-                chainsModal.classList.remove('visible');
+                closeChainsModal();
             }
         });
 
         setupChainEditModalListeners();
+        onAuthChange((authenticated) => {
+            if (authenticated) {
+                mountFooterToggle();
+            } else {
+                unmountFooterToggle();
+            }
+        });
+        if (getIsAuthenticated()) {
+            mountFooterToggle();
+        }
         this.initialized = true;
     }
 };

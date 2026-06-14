@@ -124,16 +124,18 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
             raise HTTPException(status_code=401, detail="Authentication required")
         return auth_result.get("user", {})
 
-    def _get_acting_user_optional(request: Request):
+    def _get_acting_user_from_websocket(websocket: WebSocket):
         if not auth_manager:
             return None
-        session_id = request.cookies.get(auth_manager.session_cookie_name)
+        session_id = websocket.cookies.get(auth_manager.session_cookie_name)
         auth_result = auth_manager.get_current_user(session_id=session_id)
         if not auth_result.get("authenticated"):
             return None
         return auth_result.get("user", {})
 
-    @router.get("/chains_config")
+    @router.get("/chains_config", responses={
+        401: {"description": "Authentication required"},
+    })
     async def get_chains_config(request: Request):
         config = get_config()
         app = config.app
@@ -143,7 +145,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
         configured_chains = configured_messenger.chains if getattr(configured_messenger, "chains", None) else {}
         ui_chains = [n for n, c in configured_chains.items() if isinstance(c, dict) and c.get("type") == "ui"]
         assignable_users = _get_assignable_users(runtime_messenger)
-        acting_user = _get_acting_user_optional(request)
+        acting_user = _get_acting_user(request)
         return {
             "users": [user["config_name"] for user in assignable_users if user.get("config_name")],
             "user_groups": list(runtime_messenger.user_groups.keys()) if getattr(runtime_messenger, "user_groups", None) else [],
@@ -311,16 +313,20 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
         await messenger.handle_ui_release(incident)
         return {"success": True}
 
-    @router.get("/maintenance")
+    @router.get("/maintenance", responses={
+        401: {"description": "Authentication required"},
+    })
     async def get_maintenance(request: Request):
+        _get_acting_user(request)
         store = get_maintenance_store()
         return [serialize_window(w) for w in store.list()]
 
     @router.post("/maintenance", responses={
         400: {"description": "Invalid maintenance window"},
+        401: {"description": "Authentication required"},
     })
     async def post_maintenance(request: Request):
-        acting_user = _get_acting_user_optional(request)
+        acting_user = _get_acting_user(request)
         body = await request.json()
         window = window_from_payload(body)
         if acting_user:
@@ -334,9 +340,11 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
 
     @router.put("/maintenance/{window_id}", responses={
         400: {"description": "Invalid maintenance window"},
+        401: {"description": "Authentication required"},
         404: {"description": "Maintenance window not found"},
     })
     async def put_maintenance(request: Request, window_id: str):
+        _get_acting_user(request)
         store = get_maintenance_store()
         if store.get(window_id) is None:
             raise HTTPException(status_code=404, detail="Maintenance window not found")
@@ -348,9 +356,11 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
         return serialize_window(window)
 
     @router.delete("/maintenance/{window_id}", responses={
+        401: {"description": "Authentication required"},
         404: {"description": "Maintenance window not found"},
     })
     async def delete_maintenance(request: Request, window_id: str):
+        _get_acting_user(request)
         store = get_maintenance_store()
         window = store.get(window_id)
         if window is None:
@@ -407,14 +417,27 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
                     elif event_type == "ping":
                         await incident_ws.handle_ping(websocket)
                     elif event_type == "request_ui_chains":
-                        chain_name = message.get("chain_name", "")
-                        shifts = ui_chains_store.load_shifts(chain_name)
-                        await websocket.send_text(json.dumps({"event": "ui_chains_data", "data": shifts}))
+                        if auth_manager and _get_acting_user_from_websocket(websocket) is None:
+                            await websocket.send_text(json.dumps({
+                                "event": "ui_chains_error",
+                                "detail": "Authentication required",
+                            }))
+                        else:
+                            chain_name = message.get("chain_name", "")
+                            shifts = ui_chains_store.load_shifts(chain_name)
+                            await websocket.send_text(json.dumps({"event": "ui_chains_data", "data": shifts}))
                     elif event_type == "save_ui_chains":
-                        chain_name = message.get("chain_name", "")
-                        shifts = message.get("data", [])
-                        success = ui_chains_store.save_shifts(chain_name, shifts)
-                        await websocket.send_text(json.dumps({"event": "ui_chains_saved", "success": success}))
+                        if auth_manager and _get_acting_user_from_websocket(websocket) is None:
+                            await websocket.send_text(json.dumps({
+                                "event": "ui_chains_saved",
+                                "success": False,
+                                "detail": "Authentication required",
+                            }))
+                        else:
+                            chain_name = message.get("chain_name", "")
+                            shifts = message.get("data", [])
+                            success = ui_chains_store.save_shifts(chain_name, shifts)
+                            await websocket.send_text(json.dumps({"event": "ui_chains_saved", "success": success}))
 
                 except json.JSONDecodeError:
                     logger.warning("Invalid WebSocket JSON", extra={'data': data})

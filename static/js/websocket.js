@@ -176,6 +176,12 @@ function setupWebSocketEvents() {
                     }
                     break;
 
+                case "ui_chains_error":
+                    if (typeof window.handleUiChainsError === 'function') {
+                        window.handleUiChainsError(message.detail);
+                    }
+                    break;
+
                 default:
                     console.log('Unknown WebSocket event:', eventType);
             }
