@@ -338,7 +338,7 @@ function syncCalendarEventPriorities(chains, chainIds, preferredEvent = null) {
     }
 }
 
-window.handleUiChainsData = function(data) {
+globalThis.handleUiChainsData = function(data) {
     if (chainsPromiseResolve) {
         cachedChains = data;
         cachedChains = recalculatePriorities(cachedChains);
@@ -347,14 +347,14 @@ window.handleUiChainsData = function(data) {
     }
 };
 
-window.handleUiChainsSaved = function(success) {
+globalThis.handleUiChainsSaved = function(success) {
     if (savePromiseResolve) {
         savePromiseResolve(success);
         savePromiseResolve = null;
     }
 };
 
-window.handleUiChainsError = function() {
+globalThis.handleUiChainsError = function() {
     if (chainsPromiseResolve) {
         chainsPromiseResolve([]);
         chainsPromiseResolve = null;

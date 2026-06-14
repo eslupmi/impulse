@@ -19,6 +19,7 @@ from app.im.chain.ui_chains_store import ui_chains_store
 
 _MSG_INCIDENT_NOT_FOUND = "Incident not found"
 _MSG_UNIQ_ID_REQUIRED = "uniq_id is required"
+_MSG_AUTHENTICATION_REQUIRED = "Authentication required"
 
 
 def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=None) -> APIRouter:
@@ -121,7 +122,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
         session_id = request.cookies.get(auth_manager.session_cookie_name)
         auth_result = auth_manager.get_current_user(session_id=session_id)
         if not auth_result.get("authenticated"):
-            raise HTTPException(status_code=401, detail="Authentication required")
+            raise HTTPException(status_code=401, detail=_MSG_AUTHENTICATION_REQUIRED)
         return auth_result.get("user", {})
 
     def _get_acting_user_from_websocket(websocket: WebSocket):
@@ -134,7 +135,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
         return auth_result.get("user", {})
 
     @router.get("/chains_config", responses={
-        401: {"description": "Authentication required"},
+        401: {"description": _MSG_AUTHENTICATION_REQUIRED},
     })
     async def get_chains_config(request: Request):
         config = get_config()
@@ -172,7 +173,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
 
     @router.post("/assign", responses={
         400: {"description": "Missing uniq_id or user_id"},
-        401: {"description": "Authentication required"},
+        401: {"description": _MSG_AUTHENTICATION_REQUIRED},
         404: {"description": _MSG_INCIDENT_NOT_FOUND},
     })
     async def post_assign(request: Request):
@@ -197,7 +198,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
 
     @router.post("/task", responses={
         400: {"description": _MSG_UNIQ_ID_REQUIRED},
-        401: {"description": "Authentication required"},
+        401: {"description": _MSG_AUTHENTICATION_REQUIRED},
         404: {"description": _MSG_INCIDENT_NOT_FOUND},
         409: {"description": "Task already exists or creation in progress"},
     })
@@ -225,7 +226,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
 
     @router.post("/freeze", responses={
         400: {"description": "Missing uniq_id or freeze_option"},
-        401: {"description": "Authentication required"},
+        401: {"description": _MSG_AUTHENTICATION_REQUIRED},
         404: {"description": _MSG_INCIDENT_NOT_FOUND},
         409: {"description": "Incident already frozen"},
     })
@@ -260,7 +261,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
 
     @router.post("/unfreeze", responses={
         400: {"description": _MSG_UNIQ_ID_REQUIRED},
-        401: {"description": "Authentication required"},
+        401: {"description": _MSG_AUTHENTICATION_REQUIRED},
         404: {"description": _MSG_INCIDENT_NOT_FOUND},
         409: {"description": "Incident not manually frozen"},
     })
@@ -288,7 +289,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
 
     @router.post("/release", responses={
         400: {"description": _MSG_UNIQ_ID_REQUIRED},
-        401: {"description": "Authentication required"},
+        401: {"description": _MSG_AUTHENTICATION_REQUIRED},
         404: {"description": _MSG_INCIDENT_NOT_FOUND},
         409: {"description": "Incident not eligible for release"},
     })
@@ -314,7 +315,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
         return {"success": True}
 
     @router.get("/maintenance", responses={
-        401: {"description": "Authentication required"},
+        401: {"description": _MSG_AUTHENTICATION_REQUIRED},
     })
     async def get_maintenance(request: Request):
         _get_acting_user(request)
@@ -323,7 +324,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
 
     @router.post("/maintenance", responses={
         400: {"description": "Invalid maintenance window"},
-        401: {"description": "Authentication required"},
+        401: {"description": _MSG_AUTHENTICATION_REQUIRED},
     })
     async def post_maintenance(request: Request):
         acting_user = _get_acting_user(request)
@@ -340,7 +341,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
 
     @router.put("/maintenance/{window_id}", responses={
         400: {"description": "Invalid maintenance window"},
-        401: {"description": "Authentication required"},
+        401: {"description": _MSG_AUTHENTICATION_REQUIRED},
         404: {"description": "Maintenance window not found"},
     })
     async def put_maintenance(request: Request, window_id: str):
@@ -356,7 +357,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
         return serialize_window(window)
 
     @router.delete("/maintenance/{window_id}", responses={
-        401: {"description": "Authentication required"},
+        401: {"description": _MSG_AUTHENTICATION_REQUIRED},
         404: {"description": "Maintenance window not found"},
     })
     async def delete_maintenance(request: Request, window_id: str):
@@ -420,7 +421,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
                         if auth_manager and _get_acting_user_from_websocket(websocket) is None:
                             await websocket.send_text(json.dumps({
                                 "event": "ui_chains_error",
-                                "detail": "Authentication required",
+                                "detail": _MSG_AUTHENTICATION_REQUIRED,
                             }))
                         else:
                             chain_name = message.get("chain_name", "")
@@ -431,7 +432,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
                             await websocket.send_text(json.dumps({
                                 "event": "ui_chains_saved",
                                 "success": False,
-                                "detail": "Authentication required",
+                                "detail": _MSG_AUTHENTICATION_REQUIRED,
                             }))
                         else:
                             chain_name = message.get("chain_name", "")

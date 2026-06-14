@@ -165,20 +165,20 @@ function setupWebSocketEvents() {
                     break;
 
                 case "ui_chains_data":
-                    if (typeof window.handleUiChainsData === 'function') {
-                        window.handleUiChainsData(data);
+                    if (typeof globalThis.handleUiChainsData === 'function') {
+                        globalThis.handleUiChainsData(data);
                     }
                     break;
 
                 case "ui_chains_saved":
-                    if (typeof window.handleUiChainsSaved === 'function') {
-                        window.handleUiChainsSaved(message.success);
+                    if (typeof globalThis.handleUiChainsSaved === 'function') {
+                        globalThis.handleUiChainsSaved(message.success);
                     }
                     break;
 
                 case "ui_chains_error":
-                    if (typeof window.handleUiChainsError === 'function') {
-                        window.handleUiChainsError(message.detail);
+                    if (typeof globalThis.handleUiChainsError === 'function') {
+                        globalThis.handleUiChainsError(message.detail);
                     }
                     break;
 
