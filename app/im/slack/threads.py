@@ -106,14 +106,6 @@ def _build_slack_actions(incident, tz_str: str = "UTC"):
             "text": freeze_text,
             "style": 'primary',
         })
-    elif incident.frozen_until:
-        freeze_text = format_freeze_expiration(incident.frozen_until, tz_str)
-        actions.append({
-            "name": 'freeze',
-            "type": 'button',
-            "text": freeze_text,
-            "style": buttons['freeze']['inhibited']['style'],
-        })
     else:
         freeze_text = buttons['freeze']['inactive']['text']
         freeze_options = [

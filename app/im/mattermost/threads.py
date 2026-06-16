@@ -140,20 +140,6 @@ def _build_mattermost_actions(incident, user_timezone='UTC'):
                 }
             }
         })
-    elif incident.frozen_until:
-        freeze_text = format_freeze_expiration(incident.frozen_until, user_timezone)
-        actions.append({
-            "id": "freeze",
-            "type": "button",
-            "name": freeze_text,
-            "style": buttons['freeze']['inhibited']['style'],
-            "integration": {
-                "url": f"{config.messenger.impulse_address}/app",
-                "context": {
-                    "action": "noop"
-                }
-            }
-        })
     else:
         freeze_text = buttons['freeze']['inactive']['text']
         freeze_options = [
