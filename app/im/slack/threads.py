@@ -79,14 +79,26 @@ def _build_slack_actions(incident, tz_str: str = "UTC"):
         }
     ]
     
-    if incident.frozen_by_inhibition:
+    if incident.frozen_by_maintenance:
+        freeze_text = (
+            format_freeze_expiration(incident.frozen_until, tz_str)
+            if incident.frozen_until
+            else 'Maintenance'
+        )
+        actions.append({
+            "name": 'freeze',
+            "type": 'button',
+            "text": freeze_text,
+            "style": buttons['freeze']['inhibited']['style'],
+        })
+    elif incident.frozen_by_inhibition:
         actions.append({
             "name": 'freeze',
             "type": 'button',
             "text": buttons['freeze']['inhibited']['text'],
             "style": buttons['freeze']['inhibited']['style'],
         })
-    elif incident.frozen_until:
+    elif incident.can_manual_unfreeze():
         freeze_text = format_freeze_expiration(incident.frozen_until, tz_str)
         actions.append({
             "name": 'freeze',

@@ -1,11 +1,17 @@
 import {getSocket} from "./websocket.js";
 import {getBaseUrl} from "./utils.js";
+import {getIsAuthenticated, onAuthChange} from "./auth.js";
+import {
+    setTimezoneMode,
+    getEffectiveTimezone as effectiveTimezone,
+    syncTimezoneSelects,
+} from "./ui_timezone.js";
 
 let calendar = null;
 let monthCalendar = null;
 let eventOverlapObserver = null;
 let currentChainId = null;
-let chainsConfig = { users: [], user_groups: [], groups: [], chains: [], webhooks: [], week_start: "Mon", timezone: "UTC" };
+let chainsConfig = { users: [], user_groups: [], groups: [], chains: [], webhooks: [], week_start: "Mon", timezone: "UTC", messenger_type: "", user_timezone: null };
 let initialized = false;
 let cachedChains = [];
 let chainsPromiseResolve = null;
@@ -332,7 +338,7 @@ function syncCalendarEventPriorities(chains, chainIds, preferredEvent = null) {
     }
 }
 
-window.handleUiChainsData = function(data) {
+globalThis.handleUiChainsData = function(data) {
     if (chainsPromiseResolve) {
         cachedChains = data;
         cachedChains = recalculatePriorities(cachedChains);
@@ -341,12 +347,109 @@ window.handleUiChainsData = function(data) {
     }
 };
 
-window.handleUiChainsSaved = function(success) {
+globalThis.handleUiChainsSaved = function(success) {
     if (savePromiseResolve) {
         savePromiseResolve(success);
         savePromiseResolve = null;
     }
 };
+
+globalThis.handleUiChainsError = function() {
+    if (chainsPromiseResolve) {
+        chainsPromiseResolve([]);
+        chainsPromiseResolve = null;
+    }
+    if (savePromiseResolve) {
+        savePromiseResolve(false);
+        savePromiseResolve = null;
+    }
+};
+
+const CHAINS_TOGGLE_HTML =
+    '<svg class="chains-icon" width="16" height="16" viewBox="0 0 13 15" fill="none" xmlns="http://www.w3.org/2000/svg">' +
+    '<path d="M9.16667 0.5V3.16667M3.83333 0.5V3.16667M0.5 5.83333H12.5M1.83333 1.83333H11.1667C11.903 1.83333 12.5 2.43029 12.5 3.16667V12.5C12.5 13.2364 11.903 13.8333 11.1667 13.8333H1.83333C1.09695 13.8333 0.5 13.2364 0.5 12.5V3.16667C0.5 2.43029 1.09695 1.83333 1.83333 1.83333Z" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/>' +
+    '</svg>';
+
+let footerToggleClickHandler = null;
+
+function getPrivilegedFooterControlsContainer() {
+    return document.getElementById("privileged-footer-controls");
+}
+
+function closeChainsModal() {
+    const chainsModal = document.getElementById("chains-modal");
+    chainsModal?.classList.remove("visible");
+}
+
+function mountFooterToggle() {
+    if (document.getElementById("chains-toggle")) {
+        return;
+    }
+    const container = getPrivilegedFooterControlsContainer();
+    if (!container) {
+        return;
+    }
+    const toggle = document.createElement("button");
+    toggle.id = "chains-toggle";
+    toggle.className = "control-btn";
+    toggle.title = "UI Chains";
+    toggle.type = "button";
+    toggle.innerHTML = CHAINS_TOGGLE_HTML;
+    footerToggleClickHandler = () => {
+        if (!getIsAuthenticated()) {
+            return;
+        }
+        openChainsModal();
+    };
+    toggle.addEventListener("click", footerToggleClickHandler);
+    container.appendChild(toggle);
+}
+
+function unmountFooterToggle() {
+    closeChainsModal();
+    const toggle = document.getElementById("chains-toggle");
+    if (!toggle) {
+        return;
+    }
+    if (footerToggleClickHandler) {
+        toggle.removeEventListener("click", footerToggleClickHandler);
+        footerToggleClickHandler = null;
+    }
+    toggle.remove();
+}
+
+async function openChainsModal() {
+    if (!getIsAuthenticated()) {
+        return;
+    }
+    const chainsModal = document.getElementById("chains-modal");
+    if (!chainsModal) {
+        return;
+    }
+    chainsModal.classList.add("visible");
+
+    await loadChainsConfig();
+
+    if (typeof FullCalendar === "undefined") {
+        console.error("FullCalendar is not loaded!");
+        return;
+    }
+
+    setTimeout(async () => {
+        updateChainSelector();
+        updateTimezoneSelector();
+        if (getSelectedChain()) {
+            showCalendarContainer(true);
+            await initializeCalendars();
+            setTimeout(() => {
+                if (calendar) calendar.updateSize();
+                if (monthCalendar) monthCalendar.updateSize();
+            }, 100);
+        } else {
+            showCalendarContainer(false);
+        }
+    }, 200);
+}
 
 async function loadChains() {
     const socket = getSocket();
@@ -1153,34 +1256,8 @@ function parseWeekStart(weekStart) {
     return weekStartMap[weekStart] || 1;
 }
 
-function getTimezoneMode() {
-    const saved = localStorage.getItem('ui_chains_timezone_mode');
-    const userTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const configTz = chainsConfig.timezone;
-    if (saved === 'user' || saved === 'config' || saved === 'utc') {
-        return saved;
-    }
-    if (userTz && userTz !== 'UTC') {
-        return 'user';
-    }
-    if (configTz && configTz !== 'UTC') {
-        return 'config';
-    }
-    return 'utc';
-}
-
-function setTimezoneMode(mode) {
-    localStorage.setItem('ui_chains_timezone_mode', mode);
-}
-
 function getEffectiveTimezone() {
-    const mode = getTimezoneMode();
-    if (mode === 'user') {
-        return Intl.DateTimeFormat().resolvedOptions().timeZone;
-    } else if (mode === 'config') {
-        return chainsConfig.timezone || 'UTC';
-    }
-    return 'UTC';
+    return effectiveTimezone(chainsConfig.timezone, chainsConfig.user_timezone);
 }
 
 function getSelectedChain() {
@@ -1232,42 +1309,7 @@ function updateChainSelector() {
 }
 
 function updateTimezoneSelector() {
-    const selector = document.getElementById('timezone-select');
-    if (!selector) return;
-    
-    selector.innerHTML = '';
-    
-    const userTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const configTz = chainsConfig.timezone;
-    const currentMode = getTimezoneMode();
-    
-    if (userTz && userTz !== 'UTC') {
-        const option = document.createElement('option');
-        option.value = 'user';
-        option.textContent = `${userTz} (user)`;
-        if (currentMode === 'user') {
-            option.selected = true;
-        }
-        selector.appendChild(option);
-    }
-    
-    if (configTz && configTz !== 'UTC') {
-        const option = document.createElement('option');
-        option.value = 'config';
-        option.textContent = `${configTz} (config)`;
-        if (currentMode === 'config') {
-            option.selected = true;
-        }
-        selector.appendChild(option);
-    }
-    
-    const utcOption = document.createElement('option');
-    utcOption.value = 'utc';
-    utcOption.textContent = 'UTC';
-    if (currentMode === 'utc') {
-        utcOption.selected = true;
-    }
-    selector.appendChild(utcOption);
+    syncTimezoneSelects(chainsConfig.timezone, chainsConfig.messenger_type, chainsConfig.user_timezone);
 }
 
 async function updateCalendarTimezone() {
@@ -1796,34 +1838,8 @@ export const ChainsManager = {
         if (this.initialized) return;
         
         const chainsModal = document.getElementById('chains-modal');
-        const chainsToggle = document.getElementById('chains-toggle');
-        const chainsCloseBtn = chainsModal.querySelector('.chains-modal-close');
-
-        chainsToggle.addEventListener('click', async () => {
-            chainsModal.classList.add('visible');
-
-            await loadChainsConfig();
-
-            if (typeof FullCalendar === 'undefined') {
-                console.error('FullCalendar is not loaded!');
-                return;
-            }
-
-            setTimeout(async () => {
-                updateChainSelector();
-                updateTimezoneSelector();
-                if (getSelectedChain()) {
-                    showCalendarContainer(true);
-                    await initializeCalendars();
-                    setTimeout(() => {
-                        if (calendar) calendar.updateSize();
-                        if (monthCalendar) monthCalendar.updateSize();
-                    }, 100);
-                } else {
-                    showCalendarContainer(false);
-                }
-            }, 200);
-        });
+        const chainsCloseBtn = chainsModal?.querySelector('.chains-modal-close');
+        if (!chainsModal || !chainsCloseBtn) return;
 
         const chainSelect = document.getElementById('chain-select');
         if (chainSelect) {
@@ -1857,17 +1873,18 @@ export const ChainsManager = {
         if (timezoneSelect) {
             timezoneSelect.addEventListener('change', async (e) => {
                 setTimezoneMode(e.target.value);
+                syncTimezoneSelects(chainsConfig.timezone, chainsConfig.messenger_type, chainsConfig.user_timezone);
                 await updateCalendarTimezone();
             });
         }
 
         chainsCloseBtn.addEventListener('click', () => {
-            chainsModal.classList.remove('visible');
+            closeChainsModal();
         });
 
         chainsModal.addEventListener('click', (e) => {
             if (e.target === chainsModal) {
-                chainsModal.classList.remove('visible');
+                closeChainsModal();
             }
         });
 
@@ -1877,11 +1894,21 @@ export const ChainsManager = {
                 return;
             }
             if (e.key === 'Escape' && chainsModal.classList.contains('visible')) {
-                chainsModal.classList.remove('visible');
+                closeChainsModal();
             }
         });
 
         setupChainEditModalListeners();
+        onAuthChange((authenticated) => {
+            if (authenticated) {
+                mountFooterToggle();
+            } else {
+                unmountFooterToggle();
+            }
+        });
+        if (getIsAuthenticated()) {
+            mountFooterToggle();
+        }
         this.initialized = true;
     }
 };

@@ -336,7 +336,7 @@ def create_mock_config(
 
     mock_config = Mock()
     mock_config.incidents_path = incidents_path
-    mock_config.INCIDENT_ACTUAL_VERSION = "v3.4.0"
+    mock_config.INCIDENT_ACTUAL_VERSION = "v3.6.0"
 
     # Mock incident config
     mock_incident_config = Mock()
@@ -419,7 +419,7 @@ def create_mock_incident_data(
     test_datetime = create_test_datetime()
 
     return {
-        'version': 'v3.4.0',
+        'version': 'v3.5.0',
         'status': status,
         'channel_id': channel_id,
         'payload': {'alertname': 'TestAlert', 'severity': 'critical'},
@@ -604,6 +604,7 @@ def create_mock_incident_for_handlers(
         status_enabled: bool = True,
         frozen_until: Optional[datetime] = None,
         frozen_by_inhibition: bool = False,
+        frozen_by_maintenance: bool = False,
         update_state_return: tuple = (True, True),
         update_status_return: bool = True
 ) -> Mock:
@@ -620,7 +621,8 @@ def create_mock_incident_for_handlers(
         chain_enabled: Whether chain is enabled
         status_enabled: Whether status updates are enabled
         frozen_until: Freeze expiration datetime
-        frozen_by_inhibition: Whether frozen by inhibition rule
+        frozen_by_inhibition: Frozen by inhibition rule
+        frozen_by_maintenance: Frozen by maintenance window
         update_state_return: Return value for update_state method
         update_status_return: Return value for update_status method
         
@@ -643,6 +645,8 @@ def create_mock_incident_for_handlers(
     incident.status_enabled = status_enabled
     incident.frozen_until = frozen_until
     incident.frozen_by_inhibition = frozen_by_inhibition
+    incident.frozen_by_maintenance = frozen_by_maintenance
+    incident.is_frozen = Mock(return_value=frozen_by_inhibition or frozen_by_maintenance or frozen_until is not None)
     incident.status_update_datetime = create_test_datetime()
     incident.next_status = {
         'firing': 'unknown',
@@ -654,7 +658,6 @@ def create_mock_incident_for_handlers(
     incident.update_state = Mock(return_value=update_state_return)
     incident.is_new_firing_alerts_added = Mock(return_value=False)
     incident.is_some_firing_alerts_removed = Mock(return_value=False)
-    incident.is_frozen = Mock(return_value=False)
     incident.get_chain = Mock(return_value=chain)
     incident.chain_update = Mock()
     incident.dump = Mock()

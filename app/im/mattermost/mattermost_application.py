@@ -36,7 +36,7 @@ class MattermostApplication(Application):
                     return early_return
             elif action == 'task':
                 self._handle_task_action(incident_, user_id, queue_)
-            elif action == 'unfreeze':
+            elif action == 'unfreeze' and incident_.can_manual_unfreeze():
                 await self._handle_unfreeze_action(incident_, user_id, queue_)
             else:
                 selected_option = context.get('selected_option')

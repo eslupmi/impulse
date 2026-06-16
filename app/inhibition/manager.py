@@ -2,15 +2,17 @@ from typing import Dict, List, Set, TYPE_CHECKING
 
 from app.config.validation import InhibitRule, MessengerType
 from app.inhibition.rule import InhibitionRule
+from app.incident.freeze import FreezeSource
 from app.logging import logger
 
-from app.incident.incident import unfreeze_incident
+from app.incident.incident import remove_freeze_source
 
 if TYPE_CHECKING:
     from app.incident.incident import Incident
     from app.incident.incidents import Incidents
     from app.im.application import Application
     from app.queue.queue import AsyncQueue
+    from app.maintenance.manager import MaintenanceManager
 
 
 class InhibitionManager:
@@ -20,14 +22,18 @@ class InhibitionManager:
     Unlike AlertManager which just mutes alerts, Impulse freezes target incidents
     and tracks parent/child relationships.
     """
-    __slots__ = ['incidents', 'application', 'queue', 'rules', 'sources', 'targets']
+    __slots__ = ['incidents', 'application', 'queue', 'rules', 'sources', 'targets', 'maintenance_manager']
     
     def __init__(self, rules: List[InhibitRule], incidents: 'Incidents', application: 'Application', 
                  queue: 'AsyncQueue'):
         self.incidents = incidents
         self.application = application
         self.queue = queue
+        self.maintenance_manager: 'MaintenanceManager' = None
         self._init_rules(rules)
+
+    def attach_maintenance_manager(self, maintenance_manager: 'MaintenanceManager'):
+        self.maintenance_manager = maintenance_manager
     
     async def handle_closed(self, incident: 'Incident'):
         if not self.rules:
@@ -120,8 +126,7 @@ class InhibitionManager:
                 continue
             
             if source.uniq_id in target.parents:
-                target.parents.remove(source.uniq_id)
-                target.dump()
+                target.remove_freeze_parent(source.uniq_id)
                 logger.debug("Removed parent from target",
                            extra={'source_uuid': source.uuid, 'target_uuid': target.uuid})
             
@@ -204,12 +209,26 @@ class InhibitionManager:
                 await self.application.update_incident_message(incident)
 
     async def _unfreeze_target_if_no_parents(self, target: 'Incident'):
-        if target.parents:
+        from app.incident.freeze import MAINTENANCE_PARENT_SENTINEL
+        remaining_inhibition_parents = [
+            parent for parent in target.parents if parent != MAINTENANCE_PARENT_SENTINEL
+        ]
+        if remaining_inhibition_parents:
             return
-        
-        if not target.frozen_by_inhibition:
+
+        if MAINTENANCE_PARENT_SENTINEL in target.parents:
+            logger.info(
+                "Inhibition released; reconciling maintenance",
+                extra={'uuid': target.uuid},
+            )
+            if self.maintenance_manager is not None:
+                await self.maintenance_manager.reconcile_incident(target, update_message=False)
+            await self.application.update_incident_message(target)
             return
-        
-        logger.info("Target has no more parents - scheduling unfreeze", extra={'uuid': target.uuid})
-        await unfreeze_incident(target, self.application, self.queue)
-        await self.application.update_incident_message(target)
+
+        if not target.is_frozen():
+            logger.info("Target has no more parents - releasing inhibition", extra={'uuid': target.uuid})
+            await remove_freeze_source(
+                target, self.application, self.queue, source=FreezeSource.PARENT, notify=False
+            )
+            await self.application.update_incident_message(target)

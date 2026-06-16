@@ -234,22 +234,127 @@ function updateFilterLayout() {
     }
 }
 
+function formatFilterClause(parsed) {
+    let {field, operator, value} = parsed;
+    value = value.replace(/^(?:["'])|(?:["'])$/g, "");
+    return symbolicOperators.has(operator) ? `${field}${operator}"${value}"` : `${field} ${operator} ${value}`;
+}
+
+function validateAndFormatFilter(query) {
+    const q = query.trim();
+    if (!q) return null;
+    const parsed = parseFilterString(q);
+    if (!parsed || !validateMatcherClause(q).ok) return null;
+    return formatFilterClause(parsed);
+}
+
+function createEditableFilterBadge({value, onChange, onRemove, onBadgeClick}) {
+    let current = value;
+    const badge = document.createElement("div");
+    badge.className = "filter-badge";
+
+    const text = document.createElement("span");
+    text.className = "filter-badge-text";
+    text.textContent = current;
+    text.title = "Click to edit";
+
+    const removeButton = document.createElement("span");
+    removeButton.className = "cross";
+
+    const endEdit = () => {
+        badge.classList.remove("is-editing");
+        const input = badge.querySelector(".filter-badge-edit-input");
+        if (input) {
+            input.replaceWith(text);
+        }
+        text.textContent = current;
+    };
+
+    const startEdit = () => {
+        if (badge.classList.contains("is-editing")) return;
+        badge.classList.add("is-editing");
+        const input = document.createElement("input");
+        input.type = "text";
+        input.className = "filter-badge-edit-input";
+        input.value = current;
+        text.replaceWith(input);
+        input.focus();
+        input.select();
+
+        input.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                const formatted = validateAndFormatFilter(input.value);
+                if (!formatted) {
+                    input.classList.add("filter-badge-edit-error");
+                    return;
+                }
+                if (formatted === current) {
+                    endEdit();
+                    return;
+                }
+                if (onChange(formatted, current) === false) {
+                    input.classList.add("filter-badge-edit-error");
+                    return;
+                }
+                current = formatted;
+                endEdit();
+            } else if (e.key === "Escape") {
+                e.preventDefault();
+                endEdit();
+            }
+        });
+        input.addEventListener("blur", () => {
+            if (!badge.classList.contains("is-editing")) return;
+            const formatted = validateAndFormatFilter(input.value);
+            if (!formatted) {
+                endEdit();
+                return;
+            }
+            if (formatted !== current && onChange(formatted, current) !== false) {
+                current = formatted;
+            }
+            endEdit();
+        });
+        input.addEventListener("input", () => input.classList.remove("filter-badge-edit-error"));
+    };
+
+    text.addEventListener("click", (e) => {
+        e.stopPropagation();
+        startEdit();
+    });
+    if (onBadgeClick) {
+        badge.addEventListener("click", onBadgeClick);
+    }
+    removeButton.addEventListener("click", (e) => {
+        e.stopPropagation();
+        onRemove(current);
+    });
+
+    badge.appendChild(text);
+    badge.appendChild(removeButton);
+    return badge;
+}
+
 // Add a new filter to the UI
 function addFilterUI(filter) {
     const filterContainer = document.getElementById("filter-container");
 
-    const filterElement = document.createElement("div");
-    filterElement.classList.add("filter-badge");
-
-    const filterText = document.createElement("span");
-    filterText.innerText = filter;
-    filterElement.appendChild(filterText);
-
-    const removeButton = document.createElement("span");
-    removeButton.classList.add("cross");
-    removeButton.innerText = "";
-    removeButton.addEventListener("click", () => removeFilter(filter, filterElement));
-    filterElement.appendChild(removeButton);
+    const filterElement = createEditableFilterBadge({
+        value: filter,
+        onChange: (newFilter, oldFilter) => {
+            let filters = getCurrentFilters();
+            const idx = filters.indexOf(oldFilter);
+            if (idx === -1) return false;
+            if (filters.includes(newFilter) && newFilter !== oldFilter) return false;
+            filters[idx] = newFilter;
+            updateFiltersInURL(filters);
+            applyFilters();
+            showFilterError(null);
+            return true;
+        },
+        onRemove: (f) => removeFilter(f, filterElement),
+    });
 
     filterContainer.appendChild(filterElement);
     updateFilterLayout();
@@ -278,14 +383,14 @@ function addFilterFromInput() {
         return;
     }
 
-    let {field, operator, value} = parsedFilter;
+    let {operator, value} = parsedFilter;
 
     if ((operator === "=~" || operator === "!~") && !isValidRegex(value)) {
         showFilterError(`Invalid regex: ${value}`);
         return;
     }
 
-    const formattedFilter = symbolicOperators.has(operator) ? `${field}${operator}${value}` : `${field} ${operator} ${value}`;
+    const formattedFilter = formatFilterClause(parsedFilter);
 
     let filters = getCurrentFilters();
 
@@ -381,11 +486,11 @@ export function setupTableFiltering() {
 function updateFilterBadgeUI(existingFilter, newFilter) {
     const filterElements = document.querySelectorAll(".filter-badge");
     const filterElement = Array.from(filterElements).find(badge => {
-        return badge.querySelector("span")?.innerText === existingFilter;
+        return badge.querySelector(".filter-badge-text")?.textContent === existingFilter;
     });
     
     if (filterElement) {
-        const textSpan = filterElement.querySelector("span");
+        const textSpan = filterElement.querySelector(".filter-badge-text");
         if (textSpan) {
             textSpan.innerText = newFilter;
         }
@@ -489,4 +594,35 @@ function updateZoomIcons() {
     });
 }
 
-export {loadFiltersFromArrayToURL, loadFiltersFromURL, updateZoomIcons}
+function validateMatcherClause(clause) {
+    const q = clause.trim();
+    if (!q) return {ok: true};
+    const parsed = parseFilterString(q);
+    if (!parsed) return {ok: false};
+    let {operator, value} = parsed;
+    value = value.replace(/^(?:["'])|(?:["'])$/g, "");
+    if ((operator === "=~" || operator === "!~") && !isValidRegex(value)) {
+        return {ok: false};
+    }
+    return {ok: true};
+}
+
+function validateMatchersCommaSeparated(s) {
+    if (!String(s).trim()) return {ok: true};
+    const parts = String(s).split(",").map((p) => p.trim()).filter(Boolean);
+    for (const p of parts) {
+        if (!validateMatcherClause(p).ok) return {ok: false};
+    }
+    return {ok: true};
+}
+
+export {
+    loadFiltersFromArrayToURL,
+    loadFiltersFromURL,
+    updateZoomIcons,
+    validateMatchersCommaSeparated,
+    parseFilterString,
+    validateMatcherClause,
+    createEditableFilterBadge,
+    validateAndFormatFilter,
+}

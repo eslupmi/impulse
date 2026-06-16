@@ -29,7 +29,7 @@ def mattermost_get_button_update_payload(incident, body, header, status_icons, u
 
 def mattermost_get_create_thread_payload(incident, body, header, status_icons):
     actions = _build_mattermost_actions(incident)
-    display_status = 'frozen' if incident.frozen_by_inhibition else incident.status
+    display_status = 'frozen' if incident.is_frozen() else incident.status
 
     attachment = {
         'fallback': 'test',
@@ -50,7 +50,7 @@ def mattermost_get_create_thread_payload(incident, body, header, status_icons):
 
 def mattermost_get_update_payload(incident, body, header, status_icons, tz_str):
     actions = _build_mattermost_actions(incident, tz_str)
-    display_status = 'frozen' if (incident.frozen_until or incident.frozen_by_inhibition) else incident.status
+    display_status = 'frozen' if incident.is_frozen() else incident.status
 
     attachment = {
         'fallback': 'test',
@@ -95,7 +95,25 @@ def _build_mattermost_actions(incident, user_timezone='UTC'):
         }
     }]
     
-    if incident.frozen_by_inhibition:
+    if incident.frozen_by_maintenance:
+        freeze_text = (
+            format_freeze_expiration(incident.frozen_until, user_timezone)
+            if incident.frozen_until
+            else 'Maintenance'
+        )
+        actions.append({
+            "id": "freeze",
+            "type": "button",
+            "name": freeze_text,
+            "style": buttons['freeze']['inhibited']['style'],
+            "integration": {
+                "url": f"{config.messenger.impulse_address}/app",
+                "context": {
+                    "action": "noop"
+                }
+            }
+        })
+    elif incident.frozen_by_inhibition:
         actions.append({
             "id": "freeze",
             "type": "button",
@@ -108,7 +126,7 @@ def _build_mattermost_actions(incident, user_timezone='UTC'):
                 }
             }
         })
-    elif incident.frozen_until:
+    elif incident.can_manual_unfreeze():
         freeze_text = format_freeze_expiration(incident.frozen_until, user_timezone)
         actions.append({
             "id": "freeze",

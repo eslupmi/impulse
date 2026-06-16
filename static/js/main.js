@@ -6,6 +6,7 @@ import {updateRelativeTimeSpans, updateRelativeTimeFieldsInResponsiveData} from 
 import {ThemeManager} from "./theme.js";
 import {initAuthControls} from "./auth.js";
 import {ChainsManager} from "./chains.js";
+import {MaintenanceManager} from "./maintenance.js";
 
 
 // **Initialize Everything**
@@ -19,8 +20,9 @@ setupSortingListener();
 setupWebSocketEvents();
 initHistoryToggle();
 ThemeManager.init();
-await initAuthControls();
+MaintenanceManager.init();
 ChainsManager.init();
+await initAuthControls();
 
 // Update zoom icons after table initialization and filters are loaded
 setTimeout(() => {

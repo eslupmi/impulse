@@ -16,7 +16,7 @@ class UnifiedConfig:
     def __init__(self, app: ImpulseConfig):
         self.app = app
 
-        self.INCIDENT_ACTUAL_VERSION = 'v3.4.0'
+        self.INCIDENT_ACTUAL_VERSION = 'v3.6.0'
         self.check_updates = True
 
     @property
