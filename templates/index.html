@@ -41,6 +41,7 @@
             </div>
             <div class="filter-controls">
                 <div class="filter-input-wrapper">
+                    <label for="filter-input" class="hidden-text">Filters</label>
                     <input id="filter-input" type="text" placeholder='e.g. severity=~"critical|warning"'>
                     <button id="add-filter-btn">
                         <svg width="16" height="16" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -89,8 +90,10 @@
             <div class="chains-modal-header">
                 <h2>UI Chains</h2>
                 <div class="chains-header-controls">
+                    <label for="chain-select", class="hidden-text">Chain</label>
                     <select id="chain-select" class="chain-select" title="Chain to display">
                     </select>
+                    <label for="timezone-select", class="hidden-text">Timezone</label>
                     <select id="timezone-select" class="timezone-select">
                     </select>
                     <button class="chains-modal-close">&times;</button>
@@ -125,6 +128,7 @@
             <div class="chains-modal-header">
                 <h2>Maintenance</h2>
                 <div class="chains-header-controls">
+                    <label for="maintenance-timezone-select", class="hidden-text">Timezone</label>
                     <select id="maintenance-timezone-select" class="timezone-select" title="Timezone"></select>
                     <button class="chains-modal-close maintenance-modal-close">&times;</button>
                 </div>
