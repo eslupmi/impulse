@@ -1064,10 +1064,7 @@ function toggleRepeatUntilVisibility() {
 function openChainEditModal(chainData = null) {
     const modal = document.getElementById('chain-modal');
     const modalTitle = document.getElementById('modal-title');
-    const startInput = document.getElementById('chain-start');
-    const endInput = document.getElementById('chain-end');
-    const repeatSelect = document.getElementById('chain-repeat');
-    const untilInput = document.getElementById('chain-until');
+    const { startInput, endInput, repeatSelect, untilInput } = getChainModalInputs();
     const deleteBtn = document.getElementById('delete-chain-btn');
 
     if (chainData) {
@@ -1094,6 +1091,53 @@ function openChainEditModal(chainData = null) {
     modal.classList.add('visible');
 }
 
+function getChainModalInputs() {
+    return {
+        startInput: document.getElementById('chain-start'),
+        endInput: document.getElementById('chain-end'),
+        repeatSelect: document.getElementById('chain-repeat'),
+        untilInput: document.getElementById('chain-until'),
+    };
+}
+
+function refreshCalendarEvents(expandedChains) {
+    if (calendar) {
+        calendar.removeAllEvents();
+        calendar.addEventSource(expandedChains);
+    }
+    if (monthCalendar) {
+        monthCalendar.removeAllEvents();
+        monthCalendar.addEventSource(expandedChains);
+    }
+    updateEventStyles();
+}
+
+async function handleEventTimeChange(info) {
+    if (info.event.extendedProps?.isOccurrence) {
+        info.revert();
+        return;
+    }
+
+    const originalId = info.event.extendedProps?.originalId || info.event.id;
+    const overlapCount = countOverlappingEvents(info.event.start, info.event.end, originalId);
+    if (overlapCount >= 2) {
+        showOverlapError();
+        info.revert();
+        return;
+    }
+
+    await updateEventPriority(info.event);
+
+    const chains = await loadChains();
+    const index = chains.findIndex(c => c.id === originalId);
+    if (index !== -1) {
+        chains[index].start = info.event.start.toISOString();
+        chains[index].end = info.event.end ? info.event.end.toISOString() : null;
+        chains[index].priority = info.event.extendedProps?.priority ?? 2;
+        await persistChainsAndRerender(chains);
+    }
+}
+
 function closeChainEditModal() {
     const modal = document.getElementById('chain-modal');
     modal.classList.remove('visible');
@@ -1102,12 +1146,7 @@ function closeChainEditModal() {
 
 async function persistChainsAndRerender(chains) {
     await saveChains(chains);
-    const expandedChains = getExpandedChains(chains);
-    calendar.removeAllEvents();
-    calendar.addEventSource(expandedChains);
-    monthCalendar.removeAllEvents();
-    monthCalendar.addEventSource(expandedChains);
-    updateEventStyles();
+    refreshCalendarEvents(getExpandedChains(chains));
 }
 
 function stripTrailingWaitSteps(steps) {
@@ -1142,10 +1181,7 @@ function validateRepeatEndBoundary(repeat, untilStr, start, end) {
 }
 
 function validateChainInput() {
-    const startInput = document.getElementById('chain-start');
-    const endInput = document.getElementById('chain-end');
-    const repeatSelect = document.getElementById('chain-repeat');
-    const untilInput = document.getElementById('chain-until');
+    const { startInput, endInput, repeatSelect, untilInput } = getChainModalInputs();
 
     const startStr = startInput.value.trim();
     const endStr = endInput.value.trim();
@@ -1285,17 +1321,7 @@ async function deleteChain() {
     try {
         const chains = await loadChains();
         const filtered = chains.filter(c => c.id !== currentChainId);
-        await saveChains(filtered);
-        const expandedChains = getExpandedChains(filtered);
-        if (calendar) {
-            calendar.removeAllEvents();
-            calendar.addEventSource(expandedChains);
-        }
-        if (monthCalendar) {
-            monthCalendar.removeAllEvents();
-            monthCalendar.addEventSource(expandedChains);
-        }
-        updateEventStyles();
+        await persistChainsAndRerender(filtered);
         closeChainEditModal();
     } catch (error) {
         console.error('Failed to delete chain:', error);
@@ -1382,12 +1408,7 @@ async function updateCalendarTimezone() {
     monthCalendar.setOption('timeZone', timezone);
     
     const chains = await loadChains();
-    const expandedChains = getExpandedChains(chains);
-    calendar.removeAllEvents();
-    calendar.addEventSource(expandedChains);
-    monthCalendar.removeAllEvents();
-    monthCalendar.addEventSource(expandedChains);
-    updateEventStyles();
+    refreshCalendarEvents(getExpandedChains(chains));
     
     calendar.render();
     monthCalendar.render();
@@ -1522,6 +1543,15 @@ function styleMountedEvent(el, event) {
     }
 }
 
+function getSharedCalendarOptions(firstDay, timezone) {
+    return {
+        firstDay: firstDay,
+        timeZone: timezone,
+        weekNumbers: true,
+        weekNumberCalculation: 'ISO',
+    };
+}
+
 function buildMainCalendarOptions(expandedChains, firstDay, timezone) {
     return {
         initialView: 'timeGridWeek',
@@ -1530,10 +1560,7 @@ function buildMainCalendarOptions(expandedChains, firstDay, timezone) {
         slotMinHeight: 60,
         scrollTimeReset: false,
         allDaySlot: false,
-        firstDay: firstDay,
-        timeZone: timezone,
-        weekNumbers: true,
-        weekNumberCalculation: 'ISO',
+        ...getSharedCalendarOptions(firstDay, timezone),
         dayHeaderFormat: { weekday: 'short', day: 'numeric', omitCommas: false },
         slotLabelFormat: {
             hour: '2-digit',
@@ -1632,56 +1659,9 @@ function buildMainCalendarOptions(expandedChains, firstDay, timezone) {
             }
         },
 
-        eventDrop: async function(info) {
-            if (info.event.extendedProps?.isOccurrence) {
-                info.revert();
-                return;
-            }
-            
-            const originalId = info.event.extendedProps?.originalId || info.event.id;
-            const overlapCount = countOverlappingEvents(info.event.start, info.event.end, originalId);
-            if (overlapCount >= 2) {
-                showOverlapError();
-                info.revert();
-                return;
-            }
-            
-            await updateEventPriority(info.event);
-            
-            const chains = await loadChains();
-            const index = chains.findIndex(c => c.id === originalId);
-            if (index !== -1) {
-                chains[index].start = info.event.start.toISOString();
-                chains[index].end = info.event.end ? info.event.end.toISOString() : null;
-                chains[index].priority = info.event.extendedProps?.priority ?? 2;
-                await persistChainsAndRerender(chains);
-            }
-        },
+        eventDrop: handleEventTimeChange,
 
-        eventResize: async function(info) {
-            if (info.event.extendedProps?.isOccurrence) {
-                info.revert();
-                return;
-            }
-            
-            const originalId = info.event.extendedProps?.originalId || info.event.id;
-            const overlapCount = countOverlappingEvents(info.event.start, info.event.end, originalId);
-            if (overlapCount >= 2) {
-                showOverlapError();
-                info.revert();
-                return;
-            }
-            
-            await updateEventPriority(info.event);
-            const chains = await loadChains();
-            const index = chains.findIndex(c => c.id === originalId);
-            if (index !== -1) {
-                chains[index].start = info.event.start.toISOString();
-                chains[index].end = info.event.end ? info.event.end.toISOString() : null;
-                chains[index].priority = info.event.extendedProps?.priority ?? 2;
-                await persistChainsAndRerender(chains);
-            }
-        },
+        eventResize: handleEventTimeChange,
 
         datesSet: function() {
             updateWeekNumberDisplay();
@@ -1704,13 +1684,10 @@ function buildMonthCalendarOptions(expandedChains, firstDay, timezone) {
             center: '',
             right: 'prev,next'
         },
-        firstDay: firstDay,
-        timeZone: timezone,
+        ...getSharedCalendarOptions(firstDay, timezone),
         height: 'auto',
         fixedWeekCount: false,
         showNonCurrentDates: false,
-        weekNumbers: true,
-        weekNumberCalculation: 'ISO',
         events: expandedChains,
 
         dateClick: function(info) {
