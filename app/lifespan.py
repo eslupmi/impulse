@@ -22,6 +22,7 @@ from app.queue.manager import AsyncQueueManager
 from app.queue.queue import AsyncQueue
 from app.route import generate_route
 from app.webhook import generate_webhooks
+from app.im.chain.ui_chains_store import ui_chains_store
 
 
 async def _initialize_primary_server(fastapi_app: FastAPI, file_lock: FileLock) -> bool:
@@ -86,6 +87,7 @@ async def create_main_objects(fastapi_app: FastAPI, reload=False):
         await user_scheduler.schedule_all_stored()
         queue_manager = AsyncQueueManager(queue, messenger, incidents, webhooks, route, inhibition_manager, maintenance_manager)
         await maintenance_manager.reconcile_all()
+        ui_chains_store.prune_all()
 
         fastapi_app.state.queue_manager = queue_manager
         fastapi_app.state.incidents = incidents
