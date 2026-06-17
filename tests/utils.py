@@ -1195,7 +1195,7 @@ def create_error_context_manager(error):
         async def __aenter__(self):
             raise error
         async def __aexit__(self, exc_type, exc_val, exc_tb):
-            pass
+            return False
     return ErrorContextManager()
 
 

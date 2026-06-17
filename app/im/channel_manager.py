@@ -26,39 +26,42 @@ class ChannelManager:
         channel_data = self._channels.get(channel_id)
         return channel_data['name'] if channel_data else None
     
+    @staticmethod
+    def _resolve_channel_entry(
+        channel: str,
+        channels_config: Dict[str, Union[SlackChannel, MattermostChannel, TelegramChannel, Dict]],
+        default_channel: str,
+    ) -> Dict:
+        if channel not in channels_config:
+            logger.warning('Channel not defined', extra={'channel': channel})
+            default_channel_obj = channels_config.get(default_channel)
+            if default_channel_obj:
+                return {'id': ChannelManager._get_channel_id(default_channel_obj)}
+            logger.error('Default channel not found in configuration', extra={'channel': default_channel})
+            return {'id': default_channel}
+
+        channel_obj = channels_config[channel]
+        channel_id = ChannelManager._get_channel_id(channel_obj)
+        if channel_id is None:
+            logger.warning('Channel has no `id`. Using default channel instead', extra={'channel': channel})
+            default_channel_obj = channels_config.get(default_channel)
+            if default_channel_obj:
+                return {'id': ChannelManager._get_channel_id(default_channel_obj)}
+            logger.error('Default channel not found in configuration', extra={'channel': default_channel})
+            return {'id': channel}
+
+        channel_dict = {'id': channel_id}
+        if hasattr(channel_obj, 'name') and getattr(channel_obj, 'name', None):
+            channel_dict['name'] = channel_obj.name
+        return channel_dict
+
     def initialize(self, channels_list: List[str], channels_config: Dict[str, Union[SlackChannel, MattermostChannel, TelegramChannel, Dict]], default_channel: str) -> Dict[str, Dict]:
         logger.debug('Checking all channels defined')
-        
-        channels_dict = {}
-        
-        for channel in channels_list:
-            if channel not in channels_config:
-                logger.warning('Channel not defined', extra={'channel': channel})
-                default_channel_obj = channels_config.get(default_channel)
-                if default_channel_obj:
-                    default_id = self._get_channel_id(default_channel_obj)
-                    channels_dict[channel] = {'id': default_id}
-                else:
-                    logger.error('Default channel not found in configuration', extra={'channel': default_channel})
-                    channels_dict[channel] = {'id': default_channel}
-            else:
-                channel_obj = channels_config[channel]
-                channel_id = self._get_channel_id(channel_obj)
-                
-                if channel_id is None:
-                    logger.warning('Channel has no `id`. Using default channel instead', extra={'channel': channel})
-                    default_channel_obj = channels_config.get(default_channel)
-                    if default_channel_obj:
-                        default_id = self._get_channel_id(default_channel_obj)
-                        channels_dict[channel] = {'id': default_id}
-                    else:
-                        logger.error('Default channel not found in configuration', extra={'channel': default_channel})
-                        channels_dict[channel] = {'id': channel}
-                else:
-                    channel_dict = {'id': channel_id}
-                    if hasattr(channel_obj, 'name') and getattr(channel_obj, 'name', None):
-                        channel_dict['name'] = channel_obj.name
-                    channels_dict[channel] = channel_dict
+
+        channels_dict = {
+            channel: self._resolve_channel_entry(channel, channels_config, default_channel)
+            for channel in channels_list
+        }
         
         self._channels.clear()
         for channel_name, channel_data in channels_dict.items():

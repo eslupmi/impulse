@@ -131,8 +131,7 @@ class TestAsyncQueueManager:
         await queue_manager.stop_processing()
 
         assert queue_manager._running is False
-        # The task should be cancelled but not None (this is the actual behavior)
-        assert queue_manager._task.cancelled()
+        assert queue_manager._task is None
 
     @pytest.mark.asyncio
     async def test_stop_processing_not_running(self, queue_manager):
@@ -310,21 +309,15 @@ class TestAsyncQueueManager:
 
     @pytest.mark.asyncio
     async def test_stop_processing_with_task_cancellation(self, queue_manager):
-        """Test stop_processing with task cancellation."""
+        """Test stop_processing waits for the queue loop to exit cooperatively."""
 
-        # Create a mock task using our utility function
         mock_task = create_mock_async_task()
         queue_manager._task = mock_task
         queue_manager._running = True
 
-        try:
-            result = await queue_manager.stop_processing()
+        result = await queue_manager.stop_processing()
 
-            assert result is None
-            assert queue_manager._running is False
-            # The task should be cancelled but not None (this is the actual behavior)
-            assert queue_manager._task.cancelled()
-        finally:
-            # Ensure cleanup
-            queue_manager._task = None
-            queue_manager._running = False
+        assert result is None
+        assert queue_manager._running is False
+        assert queue_manager._task is None
+        assert not mock_task.cancelled()

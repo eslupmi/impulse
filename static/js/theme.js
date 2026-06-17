@@ -37,7 +37,7 @@ export const ThemeManager = {
 
     // Toggle theme
     toggleTheme() {
-        const currentTheme = document.documentElement.getAttribute('data-theme');
+        const currentTheme = document.documentElement.dataset.theme;
         const newTheme = currentTheme === this.DARK ? this.LIGHT : this.DARK;
         this.setTheme(newTheme);
     }

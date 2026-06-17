@@ -45,39 +45,40 @@ class ScheduleChain:
                 return entry.steps
         return []
 
+    def _match_shift_window(
+        self, start_day_expr: str, start_day_values: List, start_time: str,
+        duration: Optional[str], current_time: datetime, is_day_match: bool
+    ) -> Optional[bool]:
+        duration_ = self._get_duration(duration)
+        if not (start_time and duration_):
+            return None
+        if is_day_match:
+            return self._within_shift_time(start_time, duration_, current_time)
+        shift_start, shift_end = self._get_shift_time(start_time, duration_, current_time)
+        days_difference = self.calculate_days_difference(shift_start, shift_end)
+        if days_difference < 1:
+            return False
+        for i in range(days_difference + 1):
+            check_time = current_time - timedelta(days=i)
+            if self._match_day_condition(start_day_expr, start_day_values, check_time):
+                if self._within_shift_time(start_time, duration_, check_time):
+                    return True
+        return False
+
     def _match_conditions(self, matcher: ScheduleMatcherExpression, current_time: datetime) -> bool:
         """
         Check each condition in the list against the current date and time.
         """
-        start_day_expr = matcher.start_day_expr
-        start_day_values = matcher.start_day_values
-        start_time = matcher.start_time
-        duration = matcher.duration
-
-        duration_ = self._get_duration(duration)
-        is_day_match = self._match_day_condition(start_day_expr, start_day_values, current_time)
-
-        if start_time and duration_:
-            if is_day_match:
-                if self._within_shift_time(start_time, duration_, current_time):
-                    return True
-                else:
-                    return False
-            else:
-                shift_start, shift_end = self._get_shift_time(start_time, duration_, current_time)
-                days_difference = self.calculate_days_difference(shift_start, shift_end)
-                if days_difference < 1:
-                    return False
-                else:
-                    for i in range(days_difference + 1):
-                        check_time = current_time - timedelta(days=i)
-                        if self._match_day_condition(start_day_expr, start_day_values, check_time):
-                            return self._within_shift_time(start_time, duration_, check_time)
-
-        if is_day_match:
-            return True
-
-        return False
+        is_day_match = self._match_day_condition(
+            matcher.start_day_expr, matcher.start_day_values, current_time
+        )
+        shift_result = self._match_shift_window(
+            matcher.start_day_expr, matcher.start_day_values,
+            matcher.start_time, matcher.duration, current_time, is_day_match
+        )
+        if shift_result is not None:
+            return shift_result
+        return is_day_match
 
     def _match_day_condition(self, start_day_expr: str, start_day_values: List, current_time: datetime) -> bool:
         """
@@ -118,7 +119,7 @@ class ScheduleChain:
         return shift_start <= datetime.now(self.tz) < shift_end
 
     @staticmethod
-    def _get_duration(duration: str) -> Optional[str]:
+    def _get_duration(duration: Optional[str]) -> Optional[str]:
         """
         Get the duration from the condition.
         """
