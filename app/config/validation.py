@@ -216,6 +216,51 @@ class TaskManagementConfig(BaseModel):
     )
 
 
+def _validate_step_reference(step_, users, user_groups, groups, chains):
+    if 'user' in step_ and step_['user'] and users and step_['user'] not in users:
+        raise ValueError(f"User '{step_['user']}' in chain not found in users")
+    if 'user_group' in step_ and step_['user_group'] and user_groups and step_['user_group'] not in user_groups:
+        raise ValueError(f"User group '{step_['user_group']}' in chain not found in user_groups")
+    if 'group' in step_ and step_['group'] and groups and step_['group'] not in groups:
+        raise ValueError(f"Group '{step_['group']}' in chain not found in groups")
+    if 'chain' in step_ and step_['chain'] and step_['chain'] not in chains:
+        raise ValueError(f"Nested chain '{step_['chain']}' not found in chains")
+
+
+def _validate_chain_steps(steps, users, user_groups, groups, chains):
+    if not isinstance(steps, list):
+        return
+    for step_ in steps:
+        if isinstance(step_, dict):
+            _validate_step_reference(step_, users, user_groups, groups, chains)
+
+
+def _validate_simple_chain(chain_config, users, user_groups, groups, chains):
+    validated_steps = [SimpleChainStep(**step) for step in chain_config]
+    _validate_chain_steps(chain_config, users, user_groups, groups, chains)
+    return validated_steps
+
+
+def _validate_schedule_chain(chain_config, users, user_groups, groups, chains):
+    validated = ScheduleChain(**chain_config)
+    if 'schedule' in chain_config:
+        for schedule_entry in chain_config['schedule']:
+            if isinstance(schedule_entry, dict) and 'steps' in schedule_entry:
+                _validate_chain_steps(schedule_entry['steps'], users, user_groups, groups, chains)
+    return validated
+
+
+def _validate_cloud_chain(chain_config, users, user_groups, groups, chains):
+    validated = CloudChain(**chain_config)
+    if 'default_steps' in chain_config:
+        _validate_chain_steps(chain_config['default_steps'], users, user_groups, groups, chains)
+    return validated
+
+
+def _validate_ui_chain(chain_config):
+    return chain_config
+
+
 class BaseApplicationConfig(BaseModel):
     """Base messenger configuration with common fields"""
     type: MessengerType = Field(..., description="Application type")
@@ -247,51 +292,27 @@ class BaseApplicationConfig(BaseModel):
         user_groups = info.data.get('user_groups', {})
         groups = info.data.get('groups', {})
 
-        def validate_chain_steps(steps):
-            if not isinstance(steps, list):
-                return
-            for step_ in steps:
-                if isinstance(step_, dict):
-                    if 'user' in step_ and step_['user'] and users and step_['user'] not in users:
-                        raise ValueError(f"User '{step_['user']}' in chain not found in users")
-                    if 'user_group' in step_ and step_['user_group'] and user_groups and step_[
-                        'user_group'] not in user_groups:
-                        raise ValueError(f"User group '{step_['user_group']}' in chain not found in user_groups")
-                    if 'group' in step_ and step_['group'] and groups and step_['group'] not in groups:
-                        raise ValueError(f"Group '{step_['group']}' in chain not found in groups")
-                    if 'chain' in step_ and step_['chain'] and step_['chain'] not in v:
-                        raise ValueError(f"Nested chain '{step_['chain']}' not found in chains")
-
         validated_chains = {}
 
         for chain_name, chain_config in v.items():
             if isinstance(chain_config, list):
-                # Simple chain - validate steps
-                validated_steps = []
-                for step in chain_config:
-                    validated_steps.append(SimpleChainStep(**step))
-                validated_chains[chain_name] = validated_steps
-                validate_chain_steps(chain_config)
-
+                validated_chains[chain_name] = _validate_simple_chain(
+                    chain_config, users, user_groups, groups, v
+                )
             elif isinstance(chain_config, dict):
-                if chain_config.get('type') == 'schedule':
-                    # Schedule chain
-                    validated_chains[chain_name] = ScheduleChain(**chain_config)
-                    if 'schedule' in chain_config:
-                        for schedule_entry in chain_config['schedule']:
-                            if isinstance(schedule_entry, dict) and 'steps' in schedule_entry:
-                                validate_chain_steps(schedule_entry['steps'])
-
-                elif chain_config.get('type') == 'cloud':
-                    validated_chains[chain_name] = CloudChain(**chain_config)
-                    if 'default_steps' in chain_config:
-                        validate_chain_steps(chain_config['default_steps'])
-
-                elif chain_config.get('type') == 'ui':
-                    validated_chains[chain_name] = chain_config
-
+                chain_type = chain_config.get('type')
+                if chain_type == 'schedule':
+                    validated_chains[chain_name] = _validate_schedule_chain(
+                        chain_config, users, user_groups, groups, v
+                    )
+                elif chain_type == 'cloud':
+                    validated_chains[chain_name] = _validate_cloud_chain(
+                        chain_config, users, user_groups, groups, v
+                    )
+                elif chain_type == 'ui':
+                    validated_chains[chain_name] = _validate_ui_chain(chain_config)
                 else:
-                    raise ValueError(f"Unknown chain type for chain '{chain_name}': {chain_config.get('type')}")
+                    raise ValueError(f"Unknown chain type for chain '{chain_name}': {chain_type}")
 
         return validated_chains
 

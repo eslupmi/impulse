@@ -1,4 +1,5 @@
 import os
+import json
 from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Optional, Any
 
@@ -11,6 +12,79 @@ from app.logging import logger
 def _chain_name_to_filename(chain_name: str) -> str:
     safe = "".join(c if c.isalnum() or c in "-_" else "_" for c in (chain_name or ""))
     return (safe.strip("_") or "chain") + ".ics"
+
+
+def _days_in_month(year: int, month: int) -> int:
+    return [31, 29 if year % 4 == 0 and (year % 100 != 0 or year % 400 == 0) else 28,
+            31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1]
+
+
+def _next_monthly(base_start: datetime, current_start: datetime) -> datetime:
+    year = current_start.year + (1 if current_start.month == 12 else 0)
+    month = 1 if current_start.month == 12 else current_start.month + 1
+    day = min(base_start.day, _days_in_month(year, month))
+    return current_start.replace(year=year, month=month, day=day)
+
+
+def _next_yearly(base_start: datetime, current_start: datetime) -> datetime:
+    year = current_start.year + 1
+    day = base_start.day
+    month = base_start.month
+    if month == 2 and day == 29 and not (year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)):
+        day = 28
+    return current_start.replace(year=year, month=month, day=day)
+
+
+def _next_occurrence_start(base_start: datetime, current_start: datetime, repeat: str) -> datetime:
+    if repeat == "daily":
+        return current_start + timedelta(days=1)
+    if repeat == "weekly":
+        return current_start + timedelta(days=7)
+    if repeat == "monthly":
+        return _next_monthly(base_start, current_start)
+    if repeat == "yearly":
+        return _next_yearly(base_start, current_start)
+    return current_start + timedelta(days=1)
+
+
+def _ical_dt_to_iso(dt) -> str:
+    if hasattr(dt, 'isoformat'):
+        iso_str = dt.isoformat()
+        if not iso_str.endswith('Z') and '+' not in iso_str and '-' not in iso_str[-6:]:
+            iso_str += 'Z'
+        return iso_str
+    return str(dt)
+
+
+def _parse_steps_description(description) -> Optional[List[Dict[str, Any]]]:
+    if not description:
+        return None
+    try:
+        return json.loads(str(description))
+    except json.JSONDecodeError:
+        return None
+
+
+def _parse_x_priority(x_priority) -> Optional[int]:
+    if not x_priority:
+        return None
+    try:
+        return int(str(x_priority))
+    except (ValueError, TypeError):
+        return None
+
+
+def _occurrence_overlaps_range(
+    occurrence_start: datetime,
+    duration: timedelta,
+    repeat_end: Optional[datetime],
+    range_start: datetime,
+    range_end: datetime,
+) -> bool:
+    occurrence_end = occurrence_start + duration
+    if repeat_end and occurrence_end > repeat_end:
+        return False
+    return range_start < occurrence_end and range_end > occurrence_start
 
 
 class UIChainsStore:
@@ -133,7 +207,6 @@ class UIChainsStore:
 
             steps = chain.get("steps")
             if steps:
-                import json
                 event.add("description", json.dumps(steps))
 
             priority = chain.get("priority")
@@ -162,24 +235,12 @@ class UIChainsStore:
             dtstart = event.get("dtstart")
             if dtstart:
                 dt = dtstart.dt if hasattr(dtstart, "dt") else dtstart
-                if hasattr(dt, 'isoformat'):
-                    iso_str = dt.isoformat()
-                    if not iso_str.endswith('Z') and '+' not in iso_str and '-' not in iso_str[-6:]:
-                        iso_str += 'Z'
-                    chain["start"] = iso_str
-                else:
-                    chain["start"] = str(dt)
+                chain["start"] = _ical_dt_to_iso(dt)
 
             dtend = event.get("dtend")
             if dtend:
                 dt = dtend.dt if hasattr(dtend, "dt") else dtend
-                if hasattr(dt, 'isoformat'):
-                    iso_str = dt.isoformat()
-                    if not iso_str.endswith('Z') and '+' not in iso_str and '-' not in iso_str[-6:]:
-                        iso_str += 'Z'
-                    chain["end"] = iso_str
-                else:
-                    chain["end"] = str(dt)
+                chain["end"] = _ical_dt_to_iso(dt)
             else:
                 chain["end"] = None
 
@@ -192,34 +253,12 @@ class UIChainsStore:
             x_repeat_end = event.get("x-repeat-end")
             if x_repeat_end:
                 dt = x_repeat_end.dt if hasattr(x_repeat_end, "dt") else x_repeat_end
-                if hasattr(dt, 'isoformat'):
-                    iso_str = dt.isoformat()
-                    if not iso_str.endswith('Z') and '+' not in iso_str and '-' not in iso_str[-6:]:
-                        iso_str += 'Z'
-                    chain["repeatEnd"] = iso_str
-                else:
-                    chain["repeatEnd"] = str(dt)
+                chain["repeatEnd"] = _ical_dt_to_iso(dt)
             else:
                 chain["repeatEnd"] = None
 
-            description = event.get("description")
-            if description:
-                import json
-                try:
-                    chain["steps"] = json.loads(str(description))
-                except json.JSONDecodeError:
-                    chain["steps"] = None
-            else:
-                chain["steps"] = None
-
-            x_priority = event.get("x-priority")
-            if x_priority:
-                try:
-                    chain["priority"] = int(str(x_priority))
-                except (ValueError, TypeError):
-                    chain["priority"] = None
-            else:
-                chain["priority"] = None
+            chain["steps"] = _parse_steps_description(event.get("description"))
+            chain["priority"] = _parse_x_priority(event.get("x-priority"))
 
             return chain
         except Exception as e:
@@ -265,23 +304,7 @@ class UIChainsStore:
 
     @staticmethod
     def _next_occurrence_start(base_start: datetime, current_start: datetime, repeat: str) -> datetime:
-        if repeat == "daily":
-            return current_start + timedelta(days=1)
-        if repeat == "weekly":
-            return current_start + timedelta(days=7)
-        if repeat == "monthly":
-            year = current_start.year + (1 if current_start.month == 12 else 0)
-            month = 1 if current_start.month == 12 else current_start.month + 1
-            day = min(base_start.day, [31, 29 if year % 4 == 0 and (year % 100 != 0 or year % 400 == 0) else 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1])
-            return current_start.replace(year=year, month=month, day=day)
-        if repeat == "yearly":
-            year = current_start.year + 1
-            day = base_start.day
-            month = base_start.month
-            if month == 2 and day == 29 and not (year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)):
-                day = 28
-            return current_start.replace(year=year, month=month, day=day)
-        return current_start + timedelta(days=1)
+        return _next_occurrence_start(base_start, current_start, repeat)
 
     def recalculate_priorities(self, chains: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         return [
@@ -334,26 +357,20 @@ class UIChainsStore:
         if repeat_end and chain_start >= repeat_end:
             return False
 
-        def occurrence_overlaps(occurrence_start: datetime) -> bool:
-            occurrence_end = occurrence_start + duration
-            if repeat_end and occurrence_end > repeat_end:
-                return False
-            return range_start < occurrence_end and range_end > occurrence_start
-
-        if occurrence_overlaps(chain_start):
+        if _occurrence_overlaps_range(chain_start, duration, repeat_end, range_start, range_end):
             return True
         current_start = chain_start
         max_occurrences = 520
         base_start = chain_start
         for _ in range(max_occurrences):
-            next_start = self._next_occurrence_start(base_start, current_start, repeat)
+            next_start = _next_occurrence_start(base_start, current_start, repeat)
             if repeat_end:
                 next_end = next_start + duration
                 if next_end > repeat_end:
                     break
             if next_start >= range_end:
                 break
-            if occurrence_overlaps(next_start):
+            if _occurrence_overlaps_range(next_start, duration, repeat_end, range_start, range_end):
                 return True
             current_start = next_start
         return False

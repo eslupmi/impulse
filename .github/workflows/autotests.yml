@@ -50,6 +50,7 @@ jobs:
           SLACK_BOT_USER_OAUTH_TOKEN: ${{ secrets.AUTOTESTS_SLACK_BOT_USER_OAUTH_TOKEN }}
           MATTERMOST_ACCESS_TOKEN: ${{ secrets.AUTOTESTS_MATTERMOST_ACCESS_TOKEN }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.AUTOTESTS_TELEGRAM_BOT_TOKEN }}
+          IMPULSE_IMAGE_TAG: ${{ inputs.branch }}
         run: |
           docker run -d --pull always --rm --name impulse-autotests-${{ matrix.messenger_type }} \
             -p ${{ matrix.port }}:5000 \
@@ -59,7 +60,7 @@ jobs:
             -e MATTERMOST_ACCESS_TOKEN="$MATTERMOST_ACCESS_TOKEN" \
             -e TELEGRAM_BOT_TOKEN="$TELEGRAM_BOT_TOKEN" \
             -e CONFIG_PATH="/config" \
-            ghcr.io/eslupmi/impulse:${{ inputs.branch }}
+            ghcr.io/eslupmi/impulse:"${IMPULSE_IMAGE_TAG}"
 
       - name: Wait 60 seconds for impulse container to be ready
         run: |
