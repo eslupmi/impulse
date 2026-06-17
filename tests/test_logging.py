@@ -17,22 +17,19 @@ from app.logging import (
 )
 
 
-def _find_filtered_stream_handlers(logger):
-    stdout_handler = None
-    stderr_handler = None
+def _find_stream_handler_with_filter(logger, stream, filter_type):
     for handler in logger.handlers:
-        if isinstance(handler, logging.StreamHandler):
-            if handler.stream == sys.stdout:
-                for filter_obj in handler.filters:
-                    if isinstance(filter_obj, InfoFilter):
-                        stdout_handler = handler
-                        break
-            elif handler.stream == sys.stderr:
-                for filter_obj in handler.filters:
-                    if isinstance(filter_obj, ErrorFilter):
-                        stderr_handler = handler
-                        break
-    return stdout_handler, stderr_handler
+        if isinstance(handler, logging.StreamHandler) and handler.stream == stream:
+            if any(isinstance(filter_obj, filter_type) for filter_obj in handler.filters):
+                return handler
+    return None
+
+
+def _find_filtered_stream_handlers(logger):
+    return (
+        _find_stream_handler_with_filter(logger, sys.stdout, InfoFilter),
+        _find_stream_handler_with_filter(logger, sys.stderr, ErrorFilter),
+    )
 
 
 class TestJSONFormatter:

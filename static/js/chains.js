@@ -233,7 +233,7 @@ function shouldApplyVisualShift(eventLike) {
 function applyEventInset(element, event = null) {
     if (!element) return;
     
-    const priority = event?.extendedProps?.priority ?? (parseInt(element.dataset.priority) || 2);
+    const priority = event?.extendedProps?.priority ?? (Number.parseInt(element.dataset.priority) || 2);
     
     if (priority === 2) {
         element.style.setProperty('inset', '0px 10% 0px 0px', 'important');
@@ -1110,6 +1110,37 @@ async function persistChainsAndRerender(chains) {
     updateEventStyles();
 }
 
+function stripTrailingWaitSteps(steps) {
+    if (steps.length === 0) {
+        return steps;
+    }
+    const lastStepType = Object.keys(steps[steps.length - 1])[0];
+    if (lastStepType === 'wait') {
+        return steps.slice(0, -1);
+    }
+    return steps;
+}
+
+function hasActionableSteps(steps) {
+    return steps.length > 0 && !steps.every(step => Object.keys(step)[0] === 'wait');
+}
+
+function validateRepeatEndBoundary(repeat, untilStr, start, end) {
+    if (!repeat || !untilStr) {
+        return null;
+    }
+    const repeatEnd = parseDateTime(untilStr);
+    if (!repeatEnd) {
+        return null;
+    }
+    const minRepeatBoundary = new Date(end || start);
+    if (new Date(repeatEnd) < minRepeatBoundary) {
+        showError(`Until must be greater than or equal to ${end ? 'End' : 'Start'}`);
+        return null;
+    }
+    return repeatEnd;
+}
+
 function validateChainInput() {
     const startInput = document.getElementById('chain-start');
     const endInput = document.getElementById('chain-end');
@@ -1120,16 +1151,9 @@ function validateChainInput() {
     const endStr = endInput.value.trim();
     const repeat = repeatSelect.value;
     const untilStr = untilInput.value.trim();
-    let steps = getSteps();
+    let steps = stripTrailingWaitSteps(getSteps());
 
-    if (steps.length > 0) {
-        const lastStep = steps[steps.length - 1];
-        const lastStepType = Object.keys(lastStep)[0];
-        if (lastStepType === 'wait') {
-            steps = steps.slice(0, -1);
-        }
-    }
-    if (steps.length === 0 || steps.every(step => Object.keys(step)[0] === 'wait')) {
+    if (!hasActionableSteps(steps)) {
         showError('No steps provided');
         return null;
     }
@@ -1140,15 +1164,8 @@ function validateChainInput() {
     if (!start) return null;
 
     const end = endStr ? parseDateTime(endStr) : null;
-    const repeatEnd = repeat && untilStr ? parseDateTime(untilStr) : null;
-    if (repeat && untilStr && !repeatEnd) return null;
-    if (repeatEnd) {
-        const minRepeatBoundary = new Date(end || start);
-        if (new Date(repeatEnd) < minRepeatBoundary) {
-            showError(`Until must be greater than or equal to ${end ? 'End' : 'Start'}`);
-            return null;
-        }
-    }
+    const repeatEnd = validateRepeatEndBoundary(repeat, untilStr, start, end);
+    if (repeat && untilStr && repeatEnd === null) return null;
 
     return {
         start,
