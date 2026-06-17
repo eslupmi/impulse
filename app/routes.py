@@ -425,6 +425,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
                             }))
                         else:
                             chain_name = message.get("chain_name", "")
+                            ui_chains_store.prune_expired_shifts(chain_name)
                             shifts = ui_chains_store.load_shifts(chain_name)
                             await websocket.send_text(json.dumps({"event": "ui_chains_data", "data": shifts}))
                     elif event_type == "save_ui_chains":
