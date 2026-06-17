@@ -97,8 +97,7 @@ class AsyncQueueManager:
             try:
                 await self._task
             except asyncio.CancelledError:
-                # Expected when cancelling the task, suppress the exception
-                pass
+                raise
         logger.info("Stopped queue")
 
     async def _process_queue_loop(self):
@@ -107,7 +106,7 @@ class AsyncQueueManager:
                 await self.queue_handle_once()
                 await asyncio.sleep(0.1)
             except asyncio.CancelledError:
-                break
+                raise
             except Exception as e:
                 logger.error(f"Error in queue processing loop: {e}")
                 await asyncio.sleep(1)

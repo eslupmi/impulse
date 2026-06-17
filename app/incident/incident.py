@@ -4,7 +4,7 @@ import os
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import List, Dict, Optional, TYPE_CHECKING
+from typing import ClassVar, List, Dict, Optional, TYPE_CHECKING
 
 import yaml
 
@@ -63,7 +63,7 @@ class Incident:
     childs: List[str] = field(default_factory=list)  # Target incident uniq_ids that this incident inhibits
     parents: List[str] = field(default_factory=list)  # Source incident uniq_ids that inhibit this incident
 
-    next_status = {
+    next_status: ClassVar[dict[str, str]] = {
         'firing': 'unknown',
         'unknown': 'closed',
         'resolved': 'closed',
@@ -94,25 +94,27 @@ class Incident:
             return f'https://t.me/c/{str(self.channel_id)[4:]}/{self.ts}'
         return ''
 
+    def _resolve_chain_steps(self, chains, chain_name):
+        chain = chains.get(chain_name)
+        if chain is not None:
+            try:
+                return chain.steps
+            except AttributeError:
+                logger.error(f'Chain {chain_name} does not have steps attribute')
+                return None
+        chain_config = get_config().messenger.chains.get(chain_name) if get_config().messenger.chains else None
+        if isinstance(chain_config, dict) and chain_config.get("type") == "ui":
+            return ui_chains_store.get_steps_for_now(chain_name)
+        logger.warning("Chain not found", extra={'chain': chain_name})
+        return None
+
     def generate_chain(self, chains, chain_name=None):
         if chain_name is None:
             return
 
-        chain = chains.get(chain_name)
-        steps = None
-        if chain is not None:
-            try:
-                steps = chain.steps
-            except AttributeError:
-                logger.error(f'Chain {chain_name} does not have steps attribute')
-                return
-        else:
-            chain_config = get_config().messenger.chains.get(chain_name) if get_config().messenger.chains else None
-            if isinstance(chain_config, dict) and chain_config.get("type") == "ui":
-                steps = ui_chains_store.get_steps_for_now(chain_name)
-            else:
-                logger.warning("Chain not found", extra={'chain': chain_name})
-                return
+        steps = self._resolve_chain_steps(chains, chain_name)
+        if steps is None:
+            return
             
         if not steps:
             logger.debug("Chain has no steps", extra={'chain': chain_name})
@@ -303,7 +305,7 @@ class Incident:
         try:
             loop = asyncio.get_event_loop()
             if loop.is_running():
-                asyncio.create_task(incident_ws.update_row(self))
+                _ws_task = asyncio.create_task(incident_ws.update_row(self))
         except RuntimeError:
             # No event loop running, skip websocket update
             pass

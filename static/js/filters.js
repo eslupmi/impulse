@@ -30,6 +30,69 @@ function isValidRegex(pattern) {
     }
 }
 
+function matchLabelValue(labelValue, searchValue, operator) {
+    const labelStr = String(labelValue).toLowerCase();
+    switch (operator) {
+        case "=":
+            return labelStr === searchValue;
+        case "!=":
+            return labelStr !== searchValue;
+        case "=~":
+            try {
+                return new RegExp(searchValue, "i").test(labelStr);
+            } catch (e) {
+                return false;
+            }
+        case "!~":
+            try {
+                return !new RegExp(searchValue, "i").test(labelStr);
+            } catch (e) {
+                return false;
+            }
+        default:
+            return false;
+    }
+}
+
+function addTableFilterFromParsed(parsedFilter) {
+    let {field, operator, value} = parsedFilter;
+    value = value.replace(/^(?:["'])|(?:["'])$/g, '');
+
+    const columnExists = table.getColumns().some(col => col.getField() === field);
+
+    if (!columnExists) {
+        if (operator === "=~" || operator === "!~") {
+            if (!isValidRegex(value)) {
+                showFilterError(`Invalid regex: ${value}`);
+                return false;
+            }
+        }
+        table.addFilter(customResponsiveDataFilter, {field, operator, value});
+        return true;
+    }
+    if (operator === "=~" || operator === "!~") {
+        if (!isValidRegex(value)) {
+            showFilterError(`Invalid regex: ${value}`);
+            return false;
+        }
+
+        const anchoredRegex = `^${value}$`;
+
+        if (operator === "=~") {
+            table.addFilter(field, "regex", anchoredRegex);
+        } else {
+            table.addFilter(customNegativeRegexFilter, {field: field, value: anchoredRegex});
+        }
+        return true;
+    }
+    if (tabulatorOperators[operator]) {
+        table.addFilter(field, tabulatorOperators[operator], value);
+        return true;
+    }
+    console.warn(`Unsupported filter operator: ${operator}`);
+    return true;
+}
+
 // Show or hide filter error
 function showFilterError(message) {
     const errorDiv = document.getElementById("filter-error");
@@ -61,40 +124,14 @@ function customResponsiveDataFilter(rowData, parameters) {
     const { field, value, operator } = parameters;
     const searchValue = value.toLowerCase();
 
-    const labelMatches = (labelValue) => {
-        const labelStr = String(labelValue).toLowerCase();
-        switch (operator) {
-            case "=":
-                return labelStr === searchValue;
-            case "!=":
-                return labelStr !== searchValue;
-            case "=~":
-                try {
-                    const regex = new RegExp(searchValue, "i");
-                    return regex.test(labelStr);
-                } catch (e) {
-                    return false;
-                }
-            case "!~":
-                try {
-                    const regex = new RegExp(searchValue, "i");
-                    return !regex.test(labelStr);
-                } catch (e) {
-                    return false;
-                }
-            default:
-                return false;
-        }
-    };
-
     if (responsiveData.group_labels && responsiveData.group_labels[field]) {
-        if (labelMatches(responsiveData.group_labels[field])) {
+        if (matchLabelValue(responsiveData.group_labels[field], searchValue, operator)) {
             return true;
         }
     }
 
     if (responsiveData.common_labels && responsiveData.common_labels[field]) {
-        if (labelMatches(responsiveData.common_labels[field])) {
+        if (matchLabelValue(responsiveData.common_labels[field], searchValue, operator)) {
             return true;
         }
     }
@@ -102,7 +139,7 @@ function customResponsiveDataFilter(rowData, parameters) {
     if (responsiveData.alerts) {
         for (const alert of responsiveData.alerts) {
             if (alert.labels && alert.labels[field]) {
-                if (labelMatches(alert.labels[field])) {
+                if (matchLabelValue(alert.labels[field], searchValue, operator)) {
                     return true;
                 }
             }
@@ -184,38 +221,7 @@ function applyFilters() {
     filters.forEach(filter => {
         const parsedFilter = parseFilterString(filter);
         if (parsedFilter) {
-            let {field, operator, value} = parsedFilter;
-
-            value = value.replace(/^(?:["'])|(?:["'])$/g, '');
-
-            const columnExists = table.getColumns().some(col => col.getField() === field);
-
-            if (!columnExists) {
-                if (operator === "=~" || operator === "!~") {
-                    if (!isValidRegex(value)) {
-                        showFilterError(`Invalid regex: ${value}`);
-                        return;
-                    }
-                }
-                table.addFilter(customResponsiveDataFilter, {field, operator, value});
-            } else if (operator === "=~" || operator === "!~") {
-                if (!isValidRegex(value)) {
-                    showFilterError(`Invalid regex: ${value}`);
-                    return;
-                }
-
-                const anchoredRegex = `^${value}$`;
-
-                if (operator === "=~") {
-                    table.addFilter(field, "regex", anchoredRegex);
-                } else {
-                    table.addFilter(customNegativeRegexFilter, {field: field, value: anchoredRegex});
-                }
-            } else if (tabulatorOperators[operator]) {
-                table.addFilter(field, tabulatorOperators[operator], value);
-            } else {
-                console.warn(`Unsupported filter operator: ${operator}`);
-            }
+            addTableFilterFromParsed(parsedFilter);
         }
     });
 

@@ -17,6 +17,24 @@ from app.logging import (
 )
 
 
+def _find_filtered_stream_handlers(logger):
+    stdout_handler = None
+    stderr_handler = None
+    for handler in logger.handlers:
+        if isinstance(handler, logging.StreamHandler):
+            if handler.stream == sys.stdout:
+                for filter_obj in handler.filters:
+                    if isinstance(filter_obj, InfoFilter):
+                        stdout_handler = handler
+                        break
+            elif handler.stream == sys.stderr:
+                for filter_obj in handler.filters:
+                    if isinstance(filter_obj, ErrorFilter):
+                        stderr_handler = handler
+                        break
+    return stdout_handler, stderr_handler
+
+
 class TestJSONFormatter:
     """Test cases for JSONFormatter class."""
 
@@ -189,20 +207,7 @@ class TestCreateLogger:
         assert len(logger.handlers) == 2
         
         # Find our handlers
-        stdout_handler = None
-        stderr_handler = None
-        for handler in logger.handlers:
-            if isinstance(handler, logging.StreamHandler):
-                if handler.stream == sys.stdout:
-                    for filter_obj in handler.filters:
-                        if isinstance(filter_obj, InfoFilter):
-                            stdout_handler = handler
-                            break
-                elif handler.stream == sys.stderr:
-                    for filter_obj in handler.filters:
-                        if isinstance(filter_obj, ErrorFilter):
-                            stderr_handler = handler
-                            break
+        stdout_handler, stderr_handler = _find_filtered_stream_handlers(logger)
         
         assert stdout_handler is not None
         assert stderr_handler is not None
@@ -361,25 +366,12 @@ class TestCreateLogger:
         assert len(logger.handlers) == 2
 
         # Find our handlers and check formatters
-        found_stdout = False
-        found_stderr = False
-        for handler in logger.handlers:
-            if isinstance(handler, logging.StreamHandler):
-                if handler.stream == sys.stdout:
-                    for filter_obj in handler.filters:
-                        if isinstance(filter_obj, InfoFilter):
-                            assert isinstance(handler.formatter, JSONFormatter)
-                            found_stdout = True
-                            break
-                elif handler.stream == sys.stderr:
-                    for filter_obj in handler.filters:
-                        if isinstance(filter_obj, ErrorFilter):
-                            assert isinstance(handler.formatter, JSONFormatter)
-                            found_stderr = True
-                            break
+        stdout_handler, stderr_handler = _find_filtered_stream_handlers(logger)
         
-        assert found_stdout
-        assert found_stderr
+        assert stdout_handler is not None
+        assert stderr_handler is not None
+        assert isinstance(stdout_handler.formatter, JSONFormatter)
+        assert isinstance(stderr_handler.formatter, JSONFormatter)
 
     def test_create_logger_different_names(self):
         """Test create_logger with different names creates separate loggers."""
@@ -449,20 +441,7 @@ class TestCreateLogger:
         assert len(logger.handlers) == 2
         
         # Find stdout and stderr handlers
-        stdout_handler = None
-        stderr_handler = None
-        for handler in logger.handlers:
-            if isinstance(handler, logging.StreamHandler):
-                if handler.stream == sys.stdout:
-                    for filter_obj in handler.filters:
-                        if isinstance(filter_obj, InfoFilter):
-                            stdout_handler = handler
-                            break
-                elif handler.stream == sys.stderr:
-                    for filter_obj in handler.filters:
-                        if isinstance(filter_obj, ErrorFilter):
-                            stderr_handler = handler
-                            break
+        stdout_handler, stderr_handler = _find_filtered_stream_handlers(logger)
         
         assert stdout_handler is not None, "stdout handler with InfoFilter not found"
         assert stderr_handler is not None, "stderr handler with ErrorFilter not found"
