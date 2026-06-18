@@ -1,7 +1,7 @@
 import asyncio
 import datetime
 import json
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 from zoneinfo import ZoneInfo
 
 import jwt
@@ -252,7 +252,7 @@ class GoogleCalendarChain(ScheduleChain):
             return []
 
     @staticmethod
-    def _parse_steps_from_description(description: str) -> List[Dict[str, str]]:
+    def _parse_steps_from_description(description: Optional[str]) -> List[Dict[str, str]]:
         """Parse steps from event description."""
         if not description:
             return []

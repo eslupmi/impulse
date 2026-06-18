@@ -70,3 +70,7 @@ To copy group ID:
 - Click it to open
 - Press **"..." (More actions)** button
 - **Copy group ID** button
+
+## Get user ID
+
+[Instruction](https://www.workast.com/help/article/how-to-find-a-slack-user-id/)

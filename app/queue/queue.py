@@ -99,7 +99,12 @@ class AsyncQueue:
 
         for uniq_id, incident in incidents.uniq_ids.items():
             if incident.is_frozen() and incident.frozen_until:
-                await queue.put(incident.frozen_until, QueueItemType.UNFREEZE, uniq_id)
+                await queue.put(
+                    incident.frozen_until,
+                    QueueItemType.UNFREEZE,
+                    uniq_id,
+                    data=incident.frozen_until_source
+                )
             elif not incident.is_frozen():
                 await queue.recreate(incident.status, uniq_id, incident.get_chain(), incident.chain_active_seconds)
             if incident.status != 'deleted':

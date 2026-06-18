@@ -5,6 +5,7 @@ from unittest.mock import Mock, patch, mock_open
 
 import pytest
 
+from app.incident.freeze import FreezeSource
 from app.incident.migrator import IncidentMigrator
 from tests.utils import create_mock_config, create_alert_payload
 
@@ -25,6 +26,7 @@ class TestIncidentMigrator:
         assert 'v0.4_to_v3.0.0' in migrator._migration_methods
         assert 'v3.0.0_to_v3.2.0' in migrator._migration_methods
         assert 'v3.2.0_to_v3.4.0' in migrator._migration_methods
+        assert 'v3.4.0_to_v3.6.0' in migrator._migration_methods
 
     def test_migrate_file_success(self, migrator):
         """Test successful file migration."""
@@ -50,7 +52,7 @@ class TestIncidentMigrator:
             mock_config = create_mock_config(messenger_type="slack")
             mock_get_config.return_value = mock_config
 
-            migrator.migrate_file('/test/incident.yml', incident_data, 'v0.4', 'v3.4.0')
+            migrator.migrate_file('/test/incident.yml', incident_data, 'v0.4', 'v3.6.0')
 
             mock_file.assert_called_once_with('/test/incident.yml', 'w')
             mock_yaml_dump.assert_called_once()
@@ -58,12 +60,12 @@ class TestIncidentMigrator:
             # Check that the migrated data has the correct structure
             call_args = mock_yaml_dump.call_args[0]
             migrated_data = call_args[0]
-            assert migrated_data['version'] == 'v3.4.0'
+            assert migrated_data['version'] == 'v3.6.0'
             assert migrated_data['payload'] == incident_data['last_state']
             assert migrated_data['messenger_type'] == 'slack'
 
-    def test_migrate_data_v0_4_to_v3_4_0(self, migrator):
-        """Test migrating data from v0.4 to v3.4.0 (chained)."""
+    def test_migrate_data_v0_4_to_v3_6_0(self, migrator):
+        """Test migrating data from v0.4 to v3.6.0 (chained)."""
         # Use utility function for alert payload
         alert_payload = create_alert_payload(
             status="firing",
@@ -85,9 +87,9 @@ class TestIncidentMigrator:
             mock_config = create_mock_config(messenger_type="slack")
             mock_get_config.return_value = mock_config
 
-            result = migrator._migrate_data(incident_data, 'v0.4', 'v3.4.0')
+            result = migrator._migrate_data(incident_data, 'v0.4', 'v3.6.0')
 
-            assert result['version'] == 'v3.4.0'
+            assert result['version'] == 'v3.6.0'
             assert result['payload'] == incident_data['last_state']
             assert result['messenger_type'] == 'slack'
             assert result['status'] == 'firing'
@@ -110,9 +112,9 @@ class TestIncidentMigrator:
 
     def test_get_migration_path(self, migrator):
         """Test getting migration path between versions."""
-        path = migrator._get_migration_path('v0.4', 'v3.4.0')
+        path = migrator._get_migration_path('v0.4', 'v3.6.0')
 
-        assert path == ['v0.4', 'v3.0.0', 'v3.2.0', 'v3.4.0']
+        assert path == ['v0.4', 'v3.0.0', 'v3.2.0', 'v3.4.0', 'v3.6.0']
 
     def test_apply_single_migration(self, migrator):
         """Test applying a single migration step."""
@@ -224,6 +226,41 @@ class TestIncidentMigrator:
             assert result['status'] == 'firing'
             assert result['channel_id'] == 'C123456789'
 
+    def test_migrate_v3_4_0_to_v3_6_0_sets_time_source_for_old_manual_freeze(self, migrator):
+        from datetime import datetime, timezone
+
+        frozen_until = datetime.now(timezone.utc)
+        incident_data = {
+            'status': 'firing',
+            'frozen_until': frozen_until,
+        }
+
+        result = migrator._migrate_v3_4_0_to_v3_6_0(incident_data)
+
+        assert result['frozen_until'] == frozen_until
+        assert result['frozen_until_source'] == FreezeSource.TIME.value
+
+    def test_migrate_v3_4_0_to_v3_6_0_preserves_existing_source(self, migrator):
+        incident_data = {
+            'status': 'firing',
+            'frozen_until': None,
+            'frozen_until_source': FreezeSource.MAINTENANCE.value,
+        }
+
+        result = migrator._migrate_v3_4_0_to_v3_6_0(incident_data)
+
+        assert result['frozen_until_source'] == FreezeSource.MAINTENANCE.value
+
+    def test_migrate_v3_4_0_to_v3_6_0_sets_empty_source_for_non_time_freeze(self, migrator):
+        incident_data = {
+            'status': 'firing',
+            'parents': ['parent-incident'],
+        }
+
+        result = migrator._migrate_v3_4_0_to_v3_6_0(incident_data)
+
+        assert result['frozen_until_source'] is None
+
     def test_migrate_file_with_logging(self, migrator):
         """Test that migrate_file logs appropriate messages."""
         # Use utility function for alert payload
@@ -248,9 +285,9 @@ class TestIncidentMigrator:
             mock_config = create_mock_config(messenger_type="slack")
             mock_get_config.return_value = mock_config
 
-            migrator.migrate_file('/test/incident.yml', incident_data, 'v0.4', 'v3.4.0')
+            migrator.migrate_file('/test/incident.yml', incident_data, 'v0.4', 'v3.6.0')
 
             # Check that logging was called
             assert mock_logger.info.call_count == 2
-            mock_logger.info.assert_any_call('Migrating incident.yml from v0.4 to v3.4.0')
+            mock_logger.info.assert_any_call('Migrating incident.yml from v0.4 to v3.6.0')
             mock_logger.info.assert_any_call('Successfully migrated incident.yml')

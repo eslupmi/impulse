@@ -44,6 +44,100 @@ function formatFrozenUntil(isoString) {
     return date.toLocaleDateString("en-US", {month: "short", day: "numeric"});
 }
 
+function getInhibitedFreezeTitle(frozenByMaintenance, frozenByInhibition, frozenUntil) {
+    if (frozenByMaintenance) {
+        if (frozenUntil) {
+            return `Maintenance until ${formatFrozenUntil(frozenUntil)}`;
+        }
+        return "Maintenance";
+    }
+    if (frozenByInhibition) {
+        return "Inhibited";
+    }
+    return "Frozen";
+}
+
+function createTaskButton(uniqId, taskLink) {
+    const pinBtn = createButton(PIN_ICON, "action-btn action-btn-pin");
+    if (taskLink) {
+        pinBtn.classList.add("active");
+        pinBtn.disabled = true;
+        pinBtn.title = "Task created";
+        return pinBtn;
+    }
+
+    pinBtn.title = "Create task";
+    pinBtn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        closeFreezePopup();
+        pinBtn.disabled = true;
+        try {
+            const response = await postAction("/task", {uniq_id: uniqId});
+            if (response.ok) {
+                pinBtn.classList.add("active");
+            } else {
+                pinBtn.disabled = false;
+                logActionError("task", response.status);
+            }
+        } catch (err) {
+            pinBtn.disabled = false;
+            console.error("Task request failed:", err);
+        }
+    });
+    return pinBtn;
+}
+
+function configureFreezeButton(freezeBtn, {isFrozen, canManualUnfreeze, frozenUntil, frozenByInhibition, frozenByMaintenance, uniqId}) {
+    if (!isFrozen) {
+        freezeBtn.title = "Freeze";
+        freezeBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            if (activeFreezePopup) {
+                closeFreezePopup();
+                return;
+            }
+            showFreezePopup(freezeBtn, uniqId);
+        });
+        return;
+    }
+
+    freezeBtn.classList.add("active");
+    if (canManualUnfreeze) {
+        freezeBtn.title = `Frozen until ${formatFrozenUntil(frozenUntil)}`;
+        freezeBtn.addEventListener("click", async (e) => {
+            e.stopPropagation();
+            closeFreezePopup();
+            freezeBtn.disabled = true;
+            try {
+                const response = await postAction("/unfreeze", {uniq_id: uniqId});
+                if (response.ok) {
+                    freezeBtn.classList.remove("active");
+                } else {
+                    logActionError("unfreeze", response.status);
+                }
+            } catch (err) {
+                console.error("Unfreeze request failed:", err);
+            } finally {
+                freezeBtn.disabled = false;
+            }
+        });
+        return;
+    }
+
+    freezeBtn.classList.add("inhibited");
+    freezeBtn.title = getInhibitedFreezeTitle(frozenByMaintenance, frozenByInhibition, frozenUntil);
+    freezeBtn.disabled = true;
+}
+
+function applyAuthStateToButtons(buttons, authenticated) {
+    buttons.forEach(btn => {
+        if (!authenticated && !btn.disabled) {
+            btn.disabled = true;
+            btn.classList.add("auth-disabled");
+        }
+    });
+}
+
 function actionButtonsFormatter(cell) {
     const container = document.createElement("div");
     container.className = "action-buttons-container";
@@ -60,87 +154,29 @@ function actionButtonsFormatter(cell) {
     const taskLink = info.task_link;
     const frozenUntil = info.frozen_until;
     const frozenByInhibition = info.frozen_by_inhibition;
+    const frozenByMaintenance = info.frozen_by_maintenance;
+    const canManualUnfreeze = frozenUntil && !frozenByInhibition && !frozenByMaintenance;
     const uniqId = data.uniq_id;
 
     const buttons = [];
 
     if (featureFlags.task_management) {
-        const pinBtn = createButton(PIN_ICON, "action-btn action-btn-pin");
-        if (taskLink) {
-            pinBtn.classList.add("active");
-            pinBtn.disabled = true;
-            pinBtn.title = "Task created";
-        } else {
-            pinBtn.title = "Create task";
-            pinBtn.addEventListener("click", async (e) => {
-                e.stopPropagation();
-                closeFreezePopup();
-                pinBtn.disabled = true;
-                try {
-                    const response = await postAction("/task", {uniq_id: uniqId});
-                    if (response.ok) {
-                        pinBtn.classList.add("active");
-                    } else {
-                        pinBtn.disabled = false;
-                        logActionError("task", response.status);
-                    }
-                } catch (err) {
-                    pinBtn.disabled = false;
-                    console.error("Task request failed:", err);
-                }
-            });
-        }
-        buttons.push(pinBtn);
+        buttons.push(createTaskButton(uniqId, taskLink));
     }
 
     const freezeBtn = createButton(SNOWFLAKE_ICON, "action-btn action-btn-freeze");
-    if (isFrozen) {
-        freezeBtn.classList.add("active");
-        if (frozenByInhibition) {
-            freezeBtn.classList.add("inhibited");
-            freezeBtn.title = "Inhibited";
-            freezeBtn.disabled = true;
-        } else {
-            freezeBtn.title = frozenUntil ? `Frozen until ${formatFrozenUntil(frozenUntil)}` : "Frozen";
-            freezeBtn.addEventListener("click", async (e) => {
-                e.stopPropagation();
-                closeFreezePopup();
-                freezeBtn.disabled = true;
-                try {
-                    const response = await postAction("/unfreeze", {uniq_id: uniqId});
-                    if (response.ok) {
-                        freezeBtn.classList.remove("active");
-                    } else {
-                        logActionError("unfreeze", response.status);
-                    }
-                } catch (err) {
-                    console.error("Unfreeze request failed:", err);
-                } finally {
-                    freezeBtn.disabled = false;
-                }
-            });
-        }
-    } else {
-        freezeBtn.title = "Freeze";
-        freezeBtn.addEventListener("click", (e) => {
-            e.stopPropagation();
-            if (activeFreezePopup) {
-                closeFreezePopup();
-                return;
-            }
-            showFreezePopup(freezeBtn, uniqId);
-        });
-    }
+    configureFreezeButton(freezeBtn, {
+        isFrozen,
+        canManualUnfreeze,
+        frozenUntil,
+        frozenByInhibition,
+        frozenByMaintenance,
+        uniqId,
+    });
     buttons.push(freezeBtn);
 
-    const authenticated = getIsAuthenticated();
-    buttons.forEach(btn => {
-        if (!authenticated && !btn.disabled) {
-            btn.disabled = true;
-            btn.classList.add("auth-disabled");
-        }
-        container.appendChild(btn);
-    });
+    applyAuthStateToButtons(buttons, getIsAuthenticated());
+    buttons.forEach(btn => container.appendChild(btn));
 
     onAuthChange((isAuth) => {
         buttons.forEach(btn => {

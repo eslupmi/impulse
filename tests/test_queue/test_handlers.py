@@ -67,13 +67,23 @@ class TestAlertHandler:
         return manager
 
     @pytest.fixture
-    def alert_handler(self, mock_queue, mock_application, mock_incidents, mock_route, mock_inhibition_manager):
-        """Create AlertHandler instance for testing."""
-        return AlertHandler(mock_queue, mock_application, mock_incidents, mock_route, mock_inhibition_manager)
+    def mock_maintenance_manager(self):
+        """Create mock maintenance manager."""
+        manager = Mock()
+        manager.process_incident = AsyncMock()
+        manager.would_match_active_window = Mock(return_value=False)
+        manager.reconcile_incident = AsyncMock()
+        manager.reconcile_all = AsyncMock()
+        return manager
 
-    def test_alert_handler_initialization(self, mock_queue, mock_application, mock_incidents, mock_route, mock_inhibition_manager):
+    @pytest.fixture
+    def alert_handler(self, mock_queue, mock_application, mock_incidents, mock_route, mock_inhibition_manager, mock_maintenance_manager):
+        """Create AlertHandler instance for testing."""
+        return AlertHandler(mock_queue, mock_application, mock_incidents, mock_route, mock_inhibition_manager, mock_maintenance_manager)
+
+    def test_alert_handler_initialization(self, mock_queue, mock_application, mock_incidents, mock_route, mock_inhibition_manager, mock_maintenance_manager):
         """Test AlertHandler initialization."""
-        handler = AlertHandler(mock_queue, mock_application, mock_incidents, mock_route, mock_inhibition_manager)
+        handler = AlertHandler(mock_queue, mock_application, mock_incidents, mock_route, mock_inhibition_manager, mock_maintenance_manager)
 
         assert handler.queue == mock_queue
         assert handler.app == mock_application

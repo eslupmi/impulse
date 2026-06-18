@@ -6,6 +6,7 @@ from unittest.mock import Mock, AsyncMock, patch
 import pytest
 
 from app.queue.manager import AsyncQueueManager
+from app.incident.freeze import FreezeSource
 from tests.utils import (
     create_mock_queue, create_mock_application, create_mock_incidents_collection,
     create_mock_route, create_mock_webhooks_collection, create_alert_payload,
@@ -53,9 +54,19 @@ class TestAsyncQueueManager:
         return manager
 
     @pytest.fixture
-    def queue_manager(self, mock_queue, mock_application, mock_incidents, mock_webhooks, mock_route, mock_inhibition_manager):
+    def mock_maintenance_manager(self):
+        """Create mock maintenance manager for testing."""
+        manager = Mock()
+        manager.process_incident = AsyncMock()
+        manager.would_match_active_window = Mock(return_value=False)
+        manager.reconcile_incident = AsyncMock()
+        manager.reconcile_all = AsyncMock()
+        return manager
+
+    @pytest.fixture
+    def queue_manager(self, mock_queue, mock_application, mock_incidents, mock_webhooks, mock_route, mock_inhibition_manager, mock_maintenance_manager):
         """Create AsyncQueueManager instance for testing."""
-        manager = AsyncQueueManager(mock_queue, mock_application, mock_incidents, mock_webhooks, mock_route, mock_inhibition_manager)
+        manager = AsyncQueueManager(mock_queue, mock_application, mock_incidents, mock_webhooks, mock_route, mock_inhibition_manager, mock_maintenance_manager)
 
         # Replace handlers with mocks to avoid read-only attribute issues
         class AwaitableMock(Mock):
@@ -71,15 +82,16 @@ class TestAsyncQueueManager:
 
         return manager
 
-    def test_initialization(self, mock_queue, mock_application, mock_incidents, mock_webhooks, mock_route, mock_inhibition_manager):
+    def test_initialization(self, mock_queue, mock_application, mock_incidents, mock_webhooks, mock_route, mock_inhibition_manager, mock_maintenance_manager):
         """Test AsyncQueueManager initialization."""
-        manager = AsyncQueueManager(mock_queue, mock_application, mock_incidents, mock_webhooks, mock_route, mock_inhibition_manager)
+        manager = AsyncQueueManager(mock_queue, mock_application, mock_incidents, mock_webhooks, mock_route, mock_inhibition_manager, mock_maintenance_manager)
 
         assert manager.queue == mock_queue
         assert manager.step_handler is not None
         assert manager.status_update_handler is not None
         assert manager.alert_handler is not None
         assert manager.inhibition_manager == mock_inhibition_manager
+        assert manager.maintenance_manager == mock_maintenance_manager
         assert manager._running is False
         assert manager._task is None
 
@@ -119,8 +131,7 @@ class TestAsyncQueueManager:
         await queue_manager.stop_processing()
 
         assert queue_manager._running is False
-        # The task should be cancelled but not None (this is the actual behavior)
-        assert queue_manager._task.cancelled()
+        assert queue_manager._task is None
 
     @pytest.mark.asyncio
     async def test_stop_processing_not_running(self, queue_manager):
@@ -171,6 +182,21 @@ class TestAsyncQueueManager:
         await queue_manager.queue_handle_once()
 
         queue_manager.step_handler.handle.assert_called_once_with('incident123', '0')
+
+    @pytest.mark.asyncio
+    async def test_queue_handle_once_unfreeze_item(self, queue_manager, mock_queue):
+        """Test handling unfreeze with source data."""
+        mock_queue.get_next_ready_item.return_value = (
+            'unfreeze', 'incident123', None, FreezeSource.MAINTENANCE.value
+        )
+        queue_manager.unfreeze_handler = Mock()
+        queue_manager.unfreeze_handler.handle = AsyncMock()
+
+        await queue_manager.queue_handle_once()
+
+        queue_manager.unfreeze_handler.handle.assert_awaited_once_with(
+            'incident123', FreezeSource.MAINTENANCE.value
+        )
 
     @pytest.mark.asyncio
     async def test_queue_handle_once_unknown_item_type(self, queue_manager, mock_queue):
@@ -283,21 +309,15 @@ class TestAsyncQueueManager:
 
     @pytest.mark.asyncio
     async def test_stop_processing_with_task_cancellation(self, queue_manager):
-        """Test stop_processing with task cancellation."""
+        """Test stop_processing waits for the queue loop to exit cooperatively."""
 
-        # Create a mock task using our utility function
         mock_task = create_mock_async_task()
         queue_manager._task = mock_task
         queue_manager._running = True
 
-        try:
-            result = await queue_manager.stop_processing()
+        result = await queue_manager.stop_processing()
 
-            assert result is None
-            assert queue_manager._running is False
-            # The task should be cancelled but not None (this is the actual behavior)
-            assert queue_manager._task.cancelled()
-        finally:
-            # Ensure cleanup
-            queue_manager._task = None
-            queue_manager._running = False
+        assert result is None
+        assert queue_manager._running is False
+        assert queue_manager._task is None
+        assert not mock_task.cancelled()

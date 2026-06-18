@@ -1,15 +1,106 @@
 import {getSocket} from "./websocket.js";
 import {getBaseUrl} from "./utils.js";
+import {getIsAuthenticated, onAuthChange} from "./auth.js";
+import {
+    setTimezoneMode,
+    getEffectiveTimezone as effectiveTimezone,
+    syncTimezoneSelects,
+} from "./ui_timezone.js";
 
 let calendar = null;
 let monthCalendar = null;
 let eventOverlapObserver = null;
 let currentChainId = null;
-let chainsConfig = { users: [], user_groups: [], groups: [], chains: [], webhooks: [], week_start: "Mon", timezone: "UTC" };
+let chainsConfig = { users: [], user_groups: [], groups: [], chains: [], webhooks: [], week_start: "Mon", timezone: "UTC", messenger_type: "", user_timezone: null };
 let initialized = false;
 let cachedChains = [];
 let chainsPromiseResolve = null;
 let savePromiseResolve = null;
+
+function getRepeatIntervalDays(repeat) {
+    switch (repeat) {
+        case 'daily': return 1;
+        case 'weekly': return 7;
+        case 'monthly': return 30;
+        case 'yearly': return 365;
+        default: return null;
+    }
+}
+
+function daysInMonth(year, month) {
+    return new Date(year, month, 0).getDate();
+}
+
+function getNextMonthly(baseStart, currentStart) {
+    const year = currentStart.getMonth() === 11 ? currentStart.getFullYear() + 1 : currentStart.getFullYear();
+    const month = currentStart.getMonth() === 11 ? 0 : currentStart.getMonth() + 1;
+    const day = Math.min(baseStart.getDate(), daysInMonth(year, month + 1));
+    return new Date(year, month, day,
+        currentStart.getHours(), currentStart.getMinutes(), currentStart.getSeconds(), currentStart.getMilliseconds());
+}
+
+function getNextYearly(baseStart, currentStart) {
+    const year = currentStart.getFullYear() + 1;
+    let day = baseStart.getDate();
+    const month = baseStart.getMonth();
+    const isLeap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+    if (month === 1 && day === 29 && !isLeap) {
+        day = 28;
+    }
+    return new Date(year, month, day,
+        currentStart.getHours(), currentStart.getMinutes(), currentStart.getSeconds(), currentStart.getMilliseconds());
+}
+
+function getNextOccurrenceStart(baseStart, currentStart, repeat) {
+    const msPerDay = 24 * 60 * 60 * 1000;
+    switch (repeat) {
+        case 'daily':
+            return new Date(currentStart.getTime() + msPerDay);
+        case 'weekly':
+            return new Date(currentStart.getTime() + 7 * msPerDay);
+        case 'monthly':
+            return getNextMonthly(baseStart, currentStart);
+        case 'yearly':
+            return getNextYearly(baseStart, currentStart);
+        default:
+            return new Date(currentStart.getTime() + msPerDay);
+    }
+}
+
+function advanceRepeatStart(chain, startDate, currentStart, intervalDays, msPerDay) {
+    if (chain.repeat === 'monthly') {
+        const nextStart = new Date(startDate);
+        nextStart.setMonth(nextStart.getMonth() + Math.floor((currentStart.getTime() - startDate.getTime()) / (30 * msPerDay)) + 1);
+        return nextStart;
+    }
+    if (chain.repeat === 'yearly') {
+        const nextStart = new Date(startDate);
+        nextStart.setFullYear(nextStart.getFullYear() + Math.floor((currentStart.getTime() - startDate.getTime()) / (365 * msPerDay)) + 1);
+        return nextStart;
+    }
+    return new Date(currentStart.getTime() + intervalDays * msPerDay);
+}
+
+function pushOriginalIfInRange(chain, startDate, endDate, repeatEndDate, msPerDay, expandedEvents) {
+    if (!repeatEndDate || (endDate ? endDate <= repeatEndDate : startDate <= repeatEndDate)) {
+        const originalEvent = { ...chain, isOriginal: true };
+        if (repeatEndDate) {
+            const originalEnd = endDate ? endDate : new Date(startDate.getTime() + msPerDay);
+            if (Math.abs(originalEnd.getTime() - repeatEndDate.getTime()) < msPerDay) {
+                originalEvent.isLastOccurrence = true;
+            }
+        }
+        expandedEvents.push(originalEvent);
+    }
+}
+
+function occurrenceOverlapsRange(occurrenceStart, duration, repeatEndDate, rangeStart, rangeEnd) {
+    const occurrenceEnd = new Date(occurrenceStart.getTime() + duration);
+    if (repeatEndDate && occurrenceEnd > repeatEndDate) {
+        return false;
+    }
+    return rangeStart < occurrenceEnd && rangeEnd > occurrenceStart;
+}
 
 function expandRecurringEvents(chains, rangeStart, rangeEnd) {
     const expandedEvents = [];
@@ -28,30 +119,13 @@ function expandRecurringEvents(chains, rangeStart, rangeEnd) {
         const originalBgColor = chain.backgroundColor;
         const originalBorderColor = chain.borderColor;
         
-        let intervalDays;
-        switch (chain.repeat) {
-            case 'daily': intervalDays = 1; break;
-            case 'weekly': intervalDays = 7; break;
-            case 'monthly': intervalDays = 30; break;
-            case 'yearly': intervalDays = 365; break;
-            default: 
-                expandedEvents.push(chain);
-                return;
+        const intervalDays = getRepeatIntervalDays(chain.repeat);
+        if (intervalDays === null) {
+            expandedEvents.push(chain);
+            return;
         }
         
-        if (!repeatEndDate || (endDate ? endDate <= repeatEndDate : startDate <= repeatEndDate)) {
-            const originalEvent = {
-                ...chain,
-                isOriginal: true
-            };
-            if (repeatEndDate) {
-                const originalEnd = endDate ? endDate : new Date(startDate.getTime() + msPerDay);
-                if (Math.abs(originalEnd.getTime() - repeatEndDate.getTime()) < msPerDay) {
-                    originalEvent.isLastOccurrence = true;
-                }
-            }
-            expandedEvents.push(originalEvent);
-        }
+        pushOriginalIfInRange(chain, startDate, endDate, repeatEndDate, msPerDay, expandedEvents);
         
         let currentStart = new Date(startDate.getTime() + intervalDays * msPerDay);
         const maxOccurrences = 52;
@@ -81,17 +155,7 @@ function expandRecurringEvents(chains, rangeStart, rangeEnd) {
                 expandedEvents.push(occurrence);
             }
             
-            let nextStart;
-            if (chain.repeat === 'monthly') {
-                nextStart = new Date(startDate);
-                nextStart.setMonth(nextStart.getMonth() + Math.floor((currentStart.getTime() - startDate.getTime()) / (30 * msPerDay)) + 1);
-            } else if (chain.repeat === 'yearly') {
-                nextStart = new Date(startDate);
-                nextStart.setFullYear(nextStart.getFullYear() + Math.floor((currentStart.getTime() - startDate.getTime()) / (365 * msPerDay)) + 1);
-            } else {
-                nextStart = new Date(currentStart.getTime() + intervalDays * msPerDay);
-            }
-            
+            const nextStart = advanceRepeatStart(chain, startDate, currentStart, intervalDays, msPerDay);
             const nextEnd = endDate ? new Date(nextStart.getTime() + duration) : new Date(nextStart.getTime() + msPerDay);
             if (repeatEndDate && (nextStart > effectiveRangeEnd || nextEnd > repeatEndDate)) {
                 if (lastOccurrence) {
@@ -123,7 +187,7 @@ function prepareEventsForCalendar(chains) {
     
     return expanded.map((chain, index) => {
         const stepsText = formatStepsText(chain.steps);
-        const priority = chain.priority !== undefined ? chain.priority : 2;
+        const priority = chain.priority ?? 2;
         const isOccurrence = !!chain.isOccurrence;
         
         return {
@@ -150,8 +214,8 @@ function prepareEventsForCalendar(chains) {
     }).sort((a, b) => {
         const timeDiff = new Date(a.start) - new Date(b.start);
         if (Math.abs(timeDiff) < 1000) {
-            const priority1 = a.extendedProps?.priority !== undefined ? a.extendedProps.priority : 2;
-            const priority2 = b.extendedProps?.priority !== undefined ? b.extendedProps.priority : 2;
+            const priority1 = a.extendedProps?.priority ?? 2;
+            const priority2 = b.extendedProps?.priority ?? 2;
             return priority2 - priority1;
         }
         return timeDiff;
@@ -169,9 +233,7 @@ function shouldApplyVisualShift(eventLike) {
 function applyEventInset(element, event = null) {
     if (!element) return;
     
-    const priority = event?.extendedProps?.priority !== undefined 
-        ? event.extendedProps.priority 
-        : parseInt(element.getAttribute('data-priority')) || 2;
+    const priority = event?.extendedProps?.priority ?? (Number.parseInt(element.dataset.priority) || 2);
     
     if (priority === 2) {
         element.style.setProperty('inset', '0px 10% 0px 0px', 'important');
@@ -283,6 +345,14 @@ function recalculatePrioritiesForChainIds(chains, chainIds) {
     });
 }
 
+function applyPriorityToEvent(event, chain) {
+    event.setExtendedProp('priority', chain.priority ?? 2);
+    if (event.el) {
+        applyEventOverlapOffset(event.el);
+        applyEventInset(event.el, event);
+    }
+}
+
 function syncCalendarEventPriorities(chains, chainIds, preferredEvent = null) {
     if (!calendar) {
         return;
@@ -312,27 +382,19 @@ function syncCalendarEventPriorities(chains, chainIds, preferredEvent = null) {
             continue;
         }
 
-        event.setExtendedProp('priority', chain.priority ?? 2);
-        if (event.el) {
-            applyEventOverlapOffset(event.el);
-            applyEventInset(event.el, event);
-        }
+        applyPriorityToEvent(event, chain);
     }
 
     if (preferredEvent) {
         const preferredId = preferredEvent.extendedProps?.originalId || preferredEvent.id;
         const preferredChain = chainById.get(preferredId);
         if (preferredChain) {
-            preferredEvent.setExtendedProp('priority', preferredChain.priority ?? 2);
-            if (preferredEvent.el) {
-                applyEventOverlapOffset(preferredEvent.el);
-                applyEventInset(preferredEvent.el, preferredEvent);
-            }
+            applyPriorityToEvent(preferredEvent, preferredChain);
         }
     }
 }
 
-window.handleUiChainsData = function(data) {
+globalThis.handleUiChainsData = function(data) {
     if (chainsPromiseResolve) {
         cachedChains = data;
         cachedChains = recalculatePriorities(cachedChains);
@@ -341,12 +403,109 @@ window.handleUiChainsData = function(data) {
     }
 };
 
-window.handleUiChainsSaved = function(success) {
+globalThis.handleUiChainsSaved = function(success) {
     if (savePromiseResolve) {
         savePromiseResolve(success);
         savePromiseResolve = null;
     }
 };
+
+globalThis.handleUiChainsError = function() {
+    if (chainsPromiseResolve) {
+        chainsPromiseResolve([]);
+        chainsPromiseResolve = null;
+    }
+    if (savePromiseResolve) {
+        savePromiseResolve(false);
+        savePromiseResolve = null;
+    }
+};
+
+const CHAINS_TOGGLE_HTML =
+    '<svg class="chains-icon" width="16" height="16" viewBox="0 0 13 15" fill="none" xmlns="http://www.w3.org/2000/svg">' +
+    '<path d="M9.16667 0.5V3.16667M3.83333 0.5V3.16667M0.5 5.83333H12.5M1.83333 1.83333H11.1667C11.903 1.83333 12.5 2.43029 12.5 3.16667V12.5C12.5 13.2364 11.903 13.8333 11.1667 13.8333H1.83333C1.09695 13.8333 0.5 13.2364 0.5 12.5V3.16667C0.5 2.43029 1.09695 1.83333 1.83333 1.83333Z" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/>' +
+    '</svg>';
+
+let footerToggleClickHandler = null;
+
+function getPrivilegedFooterControlsContainer() {
+    return document.getElementById("privileged-footer-controls");
+}
+
+function closeChainsModal() {
+    const chainsModal = document.getElementById("chains-modal");
+    chainsModal?.classList.remove("visible");
+}
+
+function mountFooterToggle() {
+    if (document.getElementById("chains-toggle")) {
+        return;
+    }
+    const container = getPrivilegedFooterControlsContainer();
+    if (!container) {
+        return;
+    }
+    const toggle = document.createElement("button");
+    toggle.id = "chains-toggle";
+    toggle.className = "control-btn";
+    toggle.title = "UI Chains";
+    toggle.type = "button";
+    toggle.innerHTML = CHAINS_TOGGLE_HTML;
+    footerToggleClickHandler = () => {
+        if (!getIsAuthenticated()) {
+            return;
+        }
+        openChainsModal();
+    };
+    toggle.addEventListener("click", footerToggleClickHandler);
+    container.appendChild(toggle);
+}
+
+function unmountFooterToggle() {
+    closeChainsModal();
+    const toggle = document.getElementById("chains-toggle");
+    if (!toggle) {
+        return;
+    }
+    if (footerToggleClickHandler) {
+        toggle.removeEventListener("click", footerToggleClickHandler);
+        footerToggleClickHandler = null;
+    }
+    toggle.remove();
+}
+
+async function openChainsModal() {
+    if (!getIsAuthenticated()) {
+        return;
+    }
+    const chainsModal = document.getElementById("chains-modal");
+    if (!chainsModal) {
+        return;
+    }
+    chainsModal.classList.add("visible");
+
+    await loadChainsConfig();
+
+    if (typeof FullCalendar === "undefined") {
+        console.error("FullCalendar is not loaded!");
+        return;
+    }
+
+    setTimeout(async () => {
+        updateChainSelector();
+        updateTimezoneSelector();
+        if (getSelectedChain()) {
+            showCalendarContainer(true);
+            await initializeCalendars();
+            setTimeout(() => {
+                if (calendar) calendar.updateSize();
+                if (monthCalendar) monthCalendar.updateSize();
+            }, 100);
+        } else {
+            showCalendarContainer(false);
+        }
+    }, 200);
+}
 
 async function loadChains() {
     const socket = getSocket();
@@ -682,15 +841,7 @@ function doesChainOverlapRange(chain, rangeStart, rangeEnd) {
         return false;
     }
 
-    const occurrenceOverlaps = (occurrenceStart) => {
-        const occurrenceEnd = new Date(occurrenceStart.getTime() + duration);
-        if (repeatEndDate && occurrenceEnd > repeatEndDate) {
-            return false;
-        }
-        return rangeStart < occurrenceEnd && rangeEnd > occurrenceStart;
-    };
-
-    if (occurrenceOverlaps(chainStart)) {
+    if (occurrenceOverlapsRange(chainStart, duration, repeatEndDate, rangeStart, rangeEnd)) {
         return true;
     }
 
@@ -698,26 +849,7 @@ function doesChainOverlapRange(chain, rangeStart, rangeEnd) {
     const maxOccurrences = 520;
 
     for (let i = 0; i < maxOccurrences; i++) {
-        let nextStart;
-
-        switch (chain.repeat) {
-            case 'daily':
-                nextStart = new Date(currentStart.getTime() + msPerDay);
-                break;
-            case 'weekly':
-                nextStart = new Date(currentStart.getTime() + 7 * msPerDay);
-                break;
-            case 'monthly':
-                nextStart = new Date(currentStart);
-                nextStart.setMonth(nextStart.getMonth() + 1);
-                break;
-            case 'yearly':
-                nextStart = new Date(currentStart);
-                nextStart.setFullYear(nextStart.getFullYear() + 1);
-                break;
-            default:
-                return rangeStart < chainEnd && rangeEnd > chainStart;
-        }
+        const nextStart = getNextOccurrenceStart(chainStart, currentStart, chain.repeat);
 
         if (repeatEndDate) {
             const nextEnd = new Date(nextStart.getTime() + duration);
@@ -730,7 +862,7 @@ function doesChainOverlapRange(chain, rangeStart, rangeEnd) {
             break;
         }
 
-        if (occurrenceOverlaps(nextStart)) {
+        if (occurrenceOverlapsRange(nextStart, duration, repeatEndDate, rangeStart, rangeEnd)) {
             return true;
         }
 
@@ -932,10 +1064,7 @@ function toggleRepeatUntilVisibility() {
 function openChainEditModal(chainData = null) {
     const modal = document.getElementById('chain-modal');
     const modalTitle = document.getElementById('modal-title');
-    const startInput = document.getElementById('chain-start');
-    const endInput = document.getElementById('chain-end');
-    const repeatSelect = document.getElementById('chain-repeat');
-    const untilInput = document.getElementById('chain-until');
+    const { startInput, endInput, repeatSelect, untilInput } = getChainModalInputs();
     const deleteBtn = document.getElementById('delete-chain-btn');
 
     if (chainData) {
@@ -962,51 +1091,132 @@ function openChainEditModal(chainData = null) {
     modal.classList.add('visible');
 }
 
+function getChainModalInputs() {
+    return {
+        startInput: document.getElementById('chain-start'),
+        endInput: document.getElementById('chain-end'),
+        repeatSelect: document.getElementById('chain-repeat'),
+        untilInput: document.getElementById('chain-until'),
+    };
+}
+
+function refreshCalendarEvents(expandedChains) {
+    if (calendar) {
+        calendar.removeAllEvents();
+        calendar.addEventSource(expandedChains);
+    }
+    if (monthCalendar) {
+        monthCalendar.removeAllEvents();
+        monthCalendar.addEventSource(expandedChains);
+    }
+    updateEventStyles();
+}
+
+async function handleEventTimeChange(info) {
+    if (info.event.extendedProps?.isOccurrence) {
+        info.revert();
+        return;
+    }
+
+    const originalId = info.event.extendedProps?.originalId || info.event.id;
+    const overlapCount = countOverlappingEvents(info.event.start, info.event.end, originalId);
+    if (overlapCount >= 2) {
+        showOverlapError();
+        info.revert();
+        return;
+    }
+
+    await updateEventPriority(info.event);
+
+    const chains = await loadChains();
+    const index = chains.findIndex(c => c.id === originalId);
+    if (index !== -1) {
+        chains[index].start = info.event.start.toISOString();
+        chains[index].end = info.event.end ? info.event.end.toISOString() : null;
+        chains[index].priority = info.event.extendedProps?.priority ?? 2;
+        await persistChainsAndRerender(chains);
+    }
+}
+
 function closeChainEditModal() {
     const modal = document.getElementById('chain-modal');
     modal.classList.remove('visible');
     currentChainId = null;
 }
 
-async function saveChain() {
-    const startInput = document.getElementById('chain-start');
-    const endInput = document.getElementById('chain-end');
-    const repeatSelect = document.getElementById('chain-repeat');
-    const untilInput = document.getElementById('chain-until');
+async function persistChainsAndRerender(chains) {
+    await saveChains(chains);
+    refreshCalendarEvents(getExpandedChains(chains));
+}
+
+function stripTrailingWaitSteps(steps) {
+    if (steps.length === 0) {
+        return steps;
+    }
+    const lastStepType = Object.keys(steps[steps.length - 1])[0];
+    if (lastStepType === 'wait') {
+        return steps.slice(0, -1);
+    }
+    return steps;
+}
+
+function hasActionableSteps(steps) {
+    return steps.length > 0 && !steps.every(step => Object.keys(step)[0] === 'wait');
+}
+
+function validateRepeatEndBoundary(repeat, untilStr, start, end) {
+    if (!repeat || !untilStr) {
+        return null;
+    }
+    const repeatEnd = parseDateTime(untilStr);
+    if (!repeatEnd) {
+        return null;
+    }
+    const minRepeatBoundary = new Date(end || start);
+    if (new Date(repeatEnd) < minRepeatBoundary) {
+        showError(`Until must be greater than or equal to ${end ? 'End' : 'Start'}`);
+        return null;
+    }
+    return repeatEnd;
+}
+
+function validateChainInput() {
+    const { startInput, endInput, repeatSelect, untilInput } = getChainModalInputs();
 
     const startStr = startInput.value.trim();
     const endStr = endInput.value.trim();
     const repeat = repeatSelect.value;
     const untilStr = untilInput.value.trim();
-    let steps = getSteps();
+    let steps = stripTrailingWaitSteps(getSteps());
 
-    if (steps.length > 0) {
-        const lastStep = steps[steps.length - 1];
-        const lastStepType = Object.keys(lastStep)[0];
-        if (lastStepType === 'wait') {
-            steps = steps.slice(0, -1);
-        }
-    }
-    if (steps.length === 0 || steps.every(step => Object.keys(step)[0] === 'wait')) {
+    if (!hasActionableSteps(steps)) {
         showError('No steps provided');
-        return;
+        return null;
     }
 
-    if (!startStr) return;
+    if (!startStr) return null;
 
     const start = parseDateTime(startStr);
-    if (!start) return;
+    if (!start) return null;
 
     const end = endStr ? parseDateTime(endStr) : null;
-    const repeatEnd = repeat && untilStr ? parseDateTime(untilStr) : null;
-    if (repeat && untilStr && !repeatEnd) return;
-    if (repeatEnd) {
-        const minRepeatBoundary = new Date(end || start);
-        if (new Date(repeatEnd) < minRepeatBoundary) {
-            showError(`Until must be greater than or equal to ${end ? 'End' : 'Start'}`);
-            return;
-        }
-    }
+    const repeatEnd = validateRepeatEndBoundary(repeat, untilStr, start, end);
+    if (repeat && untilStr && repeatEnd === null) return null;
+
+    return {
+        start,
+        end,
+        repeat: repeat || null,
+        repeatEnd: repeat ? (repeatEnd || null) : null,
+        steps: steps.length > 0 ? steps : null,
+    };
+}
+
+async function saveChain() {
+    const input = validateChainInput();
+    if (!input) return;
+
+    const { start, end, repeat, repeatEnd, steps } = input;
     const chains = await loadChains();
 
     if (currentChainId) {
@@ -1053,13 +1263,7 @@ async function saveChain() {
             chains.splice(0, chains.length, ...recalculatedChains);
         }
         
-        await saveChains(chains);
-        const expandedChains = getExpandedChains(chains);
-        calendar.removeAllEvents();
-        calendar.addEventSource(expandedChains);
-        monthCalendar.removeAllEvents();
-        monthCalendar.addEventSource(expandedChains);
-        updateEventStyles();
+        await persistChainsAndRerender(chains);
         closeChainEditModal();
         return;
     } else {
@@ -1107,13 +1311,7 @@ async function saveChain() {
         chains.push(newChain);
     }
 
-    await saveChains(chains);
-    const expandedChains = getExpandedChains(chains);
-    calendar.removeAllEvents();
-    calendar.addEventSource(expandedChains);
-    monthCalendar.removeAllEvents();
-    monthCalendar.addEventSource(expandedChains);
-    updateEventStyles();
+    await persistChainsAndRerender(chains);
     closeChainEditModal();
 }
 
@@ -1123,17 +1321,7 @@ async function deleteChain() {
     try {
         const chains = await loadChains();
         const filtered = chains.filter(c => c.id !== currentChainId);
-        await saveChains(filtered);
-        const expandedChains = getExpandedChains(filtered);
-        if (calendar) {
-            calendar.removeAllEvents();
-            calendar.addEventSource(expandedChains);
-        }
-        if (monthCalendar) {
-            monthCalendar.removeAllEvents();
-            monthCalendar.addEventSource(expandedChains);
-        }
-        updateEventStyles();
+        await persistChainsAndRerender(filtered);
         closeChainEditModal();
     } catch (error) {
         console.error('Failed to delete chain:', error);
@@ -1153,34 +1341,8 @@ function parseWeekStart(weekStart) {
     return weekStartMap[weekStart] || 1;
 }
 
-function getTimezoneMode() {
-    const saved = localStorage.getItem('ui_chains_timezone_mode');
-    const userTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const configTz = chainsConfig.timezone;
-    if (saved === 'user' || saved === 'config' || saved === 'utc') {
-        return saved;
-    }
-    if (userTz && userTz !== 'UTC') {
-        return 'user';
-    }
-    if (configTz && configTz !== 'UTC') {
-        return 'config';
-    }
-    return 'utc';
-}
-
-function setTimezoneMode(mode) {
-    localStorage.setItem('ui_chains_timezone_mode', mode);
-}
-
 function getEffectiveTimezone() {
-    const mode = getTimezoneMode();
-    if (mode === 'user') {
-        return Intl.DateTimeFormat().resolvedOptions().timeZone;
-    } else if (mode === 'config') {
-        return chainsConfig.timezone || 'UTC';
-    }
-    return 'UTC';
+    return effectiveTimezone(chainsConfig.timezone, chainsConfig.user_timezone);
 }
 
 function getSelectedChain() {
@@ -1232,42 +1394,7 @@ function updateChainSelector() {
 }
 
 function updateTimezoneSelector() {
-    const selector = document.getElementById('timezone-select');
-    if (!selector) return;
-    
-    selector.innerHTML = '';
-    
-    const userTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const configTz = chainsConfig.timezone;
-    const currentMode = getTimezoneMode();
-    
-    if (userTz && userTz !== 'UTC') {
-        const option = document.createElement('option');
-        option.value = 'user';
-        option.textContent = `${userTz} (user)`;
-        if (currentMode === 'user') {
-            option.selected = true;
-        }
-        selector.appendChild(option);
-    }
-    
-    if (configTz && configTz !== 'UTC') {
-        const option = document.createElement('option');
-        option.value = 'config';
-        option.textContent = `${configTz} (config)`;
-        if (currentMode === 'config') {
-            option.selected = true;
-        }
-        selector.appendChild(option);
-    }
-    
-    const utcOption = document.createElement('option');
-    utcOption.value = 'utc';
-    utcOption.textContent = 'UTC';
-    if (currentMode === 'utc') {
-        utcOption.selected = true;
-    }
-    selector.appendChild(utcOption);
+    syncTimezoneSelects(chainsConfig.timezone, chainsConfig.messenger_type, chainsConfig.user_timezone);
 }
 
 async function updateCalendarTimezone() {
@@ -1281,12 +1408,7 @@ async function updateCalendarTimezone() {
     monthCalendar.setOption('timeZone', timezone);
     
     const chains = await loadChains();
-    const expandedChains = getExpandedChains(chains);
-    calendar.removeAllEvents();
-    calendar.addEventSource(expandedChains);
-    monthCalendar.removeAllEvents();
-    monthCalendar.addEventSource(expandedChains);
-    updateEventStyles();
+    refreshCalendarEvents(getExpandedChains(chains));
     
     calendar.render();
     monthCalendar.render();
@@ -1330,7 +1452,7 @@ function updateCurrentWeekHighlight() {
     
     const dayCells = monthCalendar.el.querySelectorAll('.fc-daygrid-day:not(.fc-day-other)');
     dayCells.forEach(cell => {
-        const dateStr = cell.getAttribute('data-date');
+        const dateStr = cell.dataset.date;
         if (!dateStr) return;
         
         const cellDate = new Date(dateStr + 'T00:00:00');
@@ -1343,34 +1465,278 @@ function updateCurrentWeekHighlight() {
     });
 }
 
+function attachNavListener(btn, handler) {
+    if (btn && !btn.dataset.listenerAttached) {
+        btn.dataset.listenerAttached = 'true';
+        btn.addEventListener('click', handler);
+    }
+}
+
+async function setRepeatEndFromEvent(event, isLastOccurrence) {
+    const originalId = event.extendedProps?.originalId || event.id;
+    const chains = await loadChains();
+    const index = chains.findIndex(c => c.id === originalId);
+    if (index === -1) {
+        return;
+    }
+    if (isLastOccurrence) {
+        chains[index].repeatEnd = null;
+    } else {
+        const eventEnd = event.end || new Date(event.start.getTime() + 24 * 60 * 60 * 1000);
+        chains[index].repeatEnd = eventEnd.toISOString();
+    }
+    await persistChainsAndRerender(chains);
+}
+
+function mountRepeatEndButton(el, event) {
+    if (el.querySelector('.fc-event-repeat-end-btn')) {
+        return;
+    }
+
+    const isLastOccurrence = event.extendedProps?.isLastOccurrence;
+    const repeatEndBtn = document.createElement('button');
+    repeatEndBtn.className = 'fc-event-repeat-end-btn';
+    if (isLastOccurrence) {
+        repeatEndBtn.classList.add('active');
+    }
+    repeatEndBtn.innerHTML = 'End';
+    repeatEndBtn.title = isLastOccurrence ? 'Remove repeat end' : 'Set repeat end after this event';
+
+    repeatEndBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        await setRepeatEndFromEvent(event, isLastOccurrence);
+    });
+
+    if (isLastOccurrence) {
+        repeatEndBtn.style.display = 'block';
+    } else {
+        repeatEndBtn.style.display = 'none';
+        el.addEventListener('mouseenter', () => {
+            repeatEndBtn.style.setProperty('display', 'block', 'important');
+        });
+        el.addEventListener('mouseleave', () => {
+            repeatEndBtn.style.setProperty('display', 'none', 'important');
+        });
+    }
+
+    const eventMain = el.querySelector('.fc-event-main') || el;
+    eventMain.appendChild(repeatEndBtn);
+}
+
+function styleMountedEvent(el, event) {
+    const hasRepeat = event.extendedProps?.repeat;
+    const priority = event.extendedProps?.priority ?? 2;
+
+    for (let i = 1; i <= 2; i++) {
+        el.classList.remove(`fc-event-priority-${i}`);
+    }
+    el.classList.remove('fc-event-repeat-series', 'fc-event-regular-series');
+
+    el.classList.add(`fc-event-priority-${priority}`);
+    el.classList.add(hasRepeat ? 'fc-event-repeat-series' : 'fc-event-regular-series');
+    el.dataset.priority = priority.toString();
+    el.style.zIndex = 3 - priority;
+    if (shouldApplyVisualShift(event)) {
+        applyEventOverlapOffset(el);
+        applyEventInset(el, event);
+    }
+}
+
+function getSharedCalendarOptions(firstDay, timezone) {
+    return {
+        firstDay: firstDay,
+        timeZone: timezone,
+        weekNumbers: true,
+        weekNumberCalculation: 'ISO',
+    };
+}
+
+function buildMainCalendarOptions(expandedChains, firstDay, timezone) {
+    return {
+        initialView: 'timeGridWeek',
+        headerToolbar: false,
+        nowIndicator: true,
+        slotMinHeight: 60,
+        scrollTimeReset: false,
+        allDaySlot: false,
+        ...getSharedCalendarOptions(firstDay, timezone),
+        dayHeaderFormat: { weekday: 'short', day: 'numeric', omitCommas: false },
+        slotLabelFormat: {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+        },
+        slotDuration: '00:30:00',
+        slotLabelInterval: '01:00:00',
+        editable: true,
+        selectable: true,
+        selectMirror: true,
+        dayMaxEvents: true,
+        eventOrder: function(event1, event2) {
+            const time1 = new Date(event1.start).getTime();
+            const time2 = new Date(event2.start).getTime();
+            if (Math.abs(time1 - time2) < 1000) {
+                const priority1 = event1.extendedProps?.priority ?? 2;
+                const priority2 = event2.extendedProps?.priority ?? 2;
+                return priority2 - priority1;
+            }
+            return time1 - time2;
+        },
+        eventContent: function(arg) {
+            const steps = arg.event.extendedProps?.steps;
+            const stepsText = formatStepsText(steps);
+            if (stepsText) {
+                return {
+                    html: `<div class="fc-event-title" style="line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${stepsText}</div>`
+                };
+            }
+            return { html: '' };
+        },
+        eventDidMount: function(arg) {
+            const el = arg.el;
+            const isOccurrence = arg.event.extendedProps?.isOccurrence;
+            const hasRepeat = arg.event.extendedProps?.repeat;
+            const isOriginal = arg.event.extendedProps?.isOriginal;
+
+            styleMountedEvent(el, arg.event);
+
+            if ((isOccurrence || isOriginal) && hasRepeat) {
+                setTimeout(() => mountRepeatEndButton(el, arg.event), 10);
+            }
+        },
+        eventTimeFormat: {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+        },
+        displayEventTime: false,
+        events: expandedChains,
+
+        select: function(info) {
+            if (!getSelectedChain()) {
+                showError('Select a chain first');
+                calendar.unselect();
+                return;
+            }
+            const overlapCount = countOverlappingEvents(info.start, info.end);
+            if (overlapCount >= 2) {
+                showOverlapError();
+                calendar.unselect();
+                return;
+            }
+            openChainEditModal();
+            document.getElementById('chain-start').value = formatDateTime(info.start);
+            if (info.end) {
+                document.getElementById('chain-end').value = formatDateTime(info.end);
+            }
+            calendar.unselect();
+        },
+
+        eventClick: async function(info) {
+            const originalId = info.event.extendedProps?.originalId || info.event.id;
+            const chains = await loadChains();
+            const originalChain = chains.find(c => c.id === originalId);
+            
+            if (originalChain) {
+                openChainEditModal({
+                    id: originalChain.id,
+                    start: originalChain.start,
+                    end: originalChain.end,
+                    repeat: originalChain.repeat,
+                    repeatEnd: originalChain.repeatEnd,
+                    steps: originalChain.steps
+                });
+            } else {
+                openChainEditModal({
+                    id: info.event.id,
+                    start: info.event.start,
+                    end: info.event.end,
+                    repeat: info.event.extendedProps?.repeat,
+                    repeatEnd: info.event.extendedProps?.repeatEnd,
+                    steps: info.event.extendedProps?.steps
+                });
+            }
+        },
+
+        eventDrop: handleEventTimeChange,
+
+        eventResize: handleEventTimeChange,
+
+        datesSet: function() {
+            updateWeekNumberDisplay();
+            if (monthCalendar) {
+                monthCalendar.gotoDate(calendar.view.activeStart);
+                monthCalendar.render();
+                setTimeout(() => {
+                    updateCurrentWeekHighlight();
+                }, 100);
+            }
+        }
+    };
+}
+
+function buildMonthCalendarOptions(expandedChains, firstDay, timezone) {
+    return {
+        initialView: 'dayGridMonth',
+        headerToolbar: {
+            left: 'title',
+            center: '',
+            right: 'prev,next'
+        },
+        ...getSharedCalendarOptions(firstDay, timezone),
+        height: 'auto',
+        fixedWeekCount: false,
+        showNonCurrentDates: false,
+        events: expandedChains,
+
+        dateClick: function(info) {
+            calendar.gotoDate(info.dateStr);
+        },
+
+        dayCellContent: function(info) {
+            const dayNum = info.dayNumberText;
+            return {
+                html: `<div class="day-number">${dayNum}</div>`
+            };
+        },
+
+        dayCellDidMount: function(info) {
+            const cellDate = new Date(info.date);
+            cellDate.setHours(0, 0, 0, 0);
+            const weekStart = new Date(calendar.view.activeStart);
+            weekStart.setHours(0, 0, 0, 0);
+            const weekEnd = new Date(calendar.view.activeEnd);
+            weekEnd.setHours(0, 0, 0, 0);
+            
+            if (cellDate >= weekStart && cellDate < weekEnd) {
+                info.el.classList.add('current-week');
+            } else {
+                info.el.classList.remove('current-week');
+            }
+        },
+
+        datesSet: function() {
+            setTimeout(() => {
+                updateCurrentWeekHighlight();
+            }, 50);
+        }
+    };
+}
+
 function bindCalendarNavButtons() {
-    const prevBtn = document.getElementById('calendar-prev');
-    const nextBtn = document.getElementById('calendar-next');
-    const todayBtn = document.getElementById('calendar-today');
-
-    if (prevBtn && !prevBtn.hasAttribute('data-listener-attached')) {
-        prevBtn.setAttribute('data-listener-attached', 'true');
-        prevBtn.addEventListener('click', () => {
-            calendar.prev();
-            setTimeout(() => updateWeekNumberDisplay(), 50);
-        });
-    }
-
-    if (nextBtn && !nextBtn.hasAttribute('data-listener-attached')) {
-        nextBtn.setAttribute('data-listener-attached', 'true');
-        nextBtn.addEventListener('click', () => {
-            calendar.next();
-            setTimeout(() => updateWeekNumberDisplay(), 50);
-        });
-    }
-
-    if (todayBtn && !todayBtn.hasAttribute('data-listener-attached')) {
-        todayBtn.setAttribute('data-listener-attached', 'true');
-        todayBtn.addEventListener('click', () => {
-            calendar.today();
-            setTimeout(() => updateWeekNumberDisplay(), 50);
-        });
-    }
+    attachNavListener(document.getElementById('calendar-prev'), () => {
+        calendar.prev();
+        setTimeout(() => updateWeekNumberDisplay(), 50);
+    });
+    attachNavListener(document.getElementById('calendar-next'), () => {
+        calendar.next();
+        setTimeout(() => updateWeekNumberDisplay(), 50);
+    });
+    attachNavListener(document.getElementById('calendar-today'), () => {
+        calendar.today();
+        setTimeout(() => updateWeekNumberDisplay(), 50);
+    });
 }
 
 async function initializeCalendars() {
@@ -1429,306 +1795,9 @@ async function initializeCalendars() {
         const chains = await loadChains();
         const expandedChains = getExpandedChains(chains);
         
-        calendar = new FullCalendar.Calendar(calendarEl, {
-            initialView: 'timeGridWeek',
-            headerToolbar: false,
-            nowIndicator: true,
-            slotMinHeight: 60,
-            scrollTimeReset: false,
-            allDaySlot: false,
-            firstDay: firstDay,
-            timeZone: timezone,
-            weekNumbers: true,
-            weekNumberCalculation: 'ISO',
-            dayHeaderFormat: { weekday: 'short', day: 'numeric', omitCommas: false },
-            slotLabelFormat: {
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: false
-            },
-            slotDuration: '00:30:00',
-            slotLabelInterval: '01:00:00',
-            editable: true,
-            selectable: true,
-            selectMirror: true,
-            dayMaxEvents: true,
-            eventOrder: function(event1, event2) {
-                const time1 = new Date(event1.start).getTime();
-                const time2 = new Date(event2.start).getTime();
-                if (Math.abs(time1 - time2) < 1000) {
-                    const priority1 = event1.extendedProps?.priority !== undefined ? event1.extendedProps.priority : 2;
-                    const priority2 = event2.extendedProps?.priority !== undefined ? event2.extendedProps.priority : 2;
-                    return priority2 - priority1;
-                }
-                return time1 - time2;
-            },
-            eventContent: function(arg) {
-                const steps = arg.event.extendedProps?.steps;
-                const stepsText = formatStepsText(steps);
-                if (stepsText) {
-                    return {
-                        html: `<div class="fc-event-title" style="line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${stepsText}</div>`
-                    };
-                }
-                return { html: '' };
-            },
-            eventDidMount: function(arg) {
-                const el = arg.el;
-                const isOccurrence = arg.event.extendedProps?.isOccurrence;
-                const hasRepeat = arg.event.extendedProps?.repeat;
-                
-                const priority = arg.event.extendedProps?.priority !== undefined ? arg.event.extendedProps.priority : 2;
-                
-                for (let i = 1; i <= 2; i++) {
-                    el.classList.remove(`fc-event-priority-${i}`);
-                }
-                el.classList.remove('fc-event-repeat-series', 'fc-event-regular-series');
-                
-                el.classList.add(`fc-event-priority-${priority}`);
-                el.classList.add(hasRepeat ? 'fc-event-repeat-series' : 'fc-event-regular-series');
-                el.setAttribute('data-priority', priority.toString());
-                el.style.zIndex = 3 - priority;
-                if (shouldApplyVisualShift(arg.event)) {
-                    applyEventOverlapOffset(el);
-                    applyEventInset(el, arg.event);
-                }
-                
-                const isOriginal = arg.event.extendedProps?.isOriginal;
-                if ((isOccurrence || isOriginal) && hasRepeat) {
-                    setTimeout(() => {
-                        if (el.querySelector('.fc-event-repeat-end-btn')) {
-                            return;
-                        }
-                        
-                        const isLastOccurrence = arg.event.extendedProps?.isLastOccurrence;
-                        const repeatEndBtn = document.createElement('button');
-                        repeatEndBtn.className = 'fc-event-repeat-end-btn';
-                        if (isLastOccurrence) {
-                            repeatEndBtn.classList.add('active');
-                        }
-                        repeatEndBtn.innerHTML = 'End';
-                        repeatEndBtn.title = isLastOccurrence ? 'Remove repeat end' : 'Set repeat end after this event';
-                        
-                        repeatEndBtn.addEventListener('click', async (e) => {
-                            e.stopPropagation();
-                            e.preventDefault();
-                            const originalId = arg.event.extendedProps?.originalId || arg.event.id;
-                            
-                            const chains = await loadChains();
-                            const index = chains.findIndex(c => c.id === originalId);
-                            
-                            if (index !== -1) {
-                                if (isLastOccurrence) {
-                                    chains[index].repeatEnd = null;
-                                } else {
-                                    const eventEnd = arg.event.end || new Date(arg.event.start.getTime() + 24 * 60 * 60 * 1000);
-                                    chains[index].repeatEnd = eventEnd.toISOString();
-                                }
-                                await saveChains(chains);
-                                const expandedChains = getExpandedChains(chains);
-                                calendar.removeAllEvents();
-                                calendar.addEventSource(expandedChains);
-                                monthCalendar.removeAllEvents();
-                                monthCalendar.addEventSource(expandedChains);
-                                updateEventStyles();
-                            }
-                        });
-                        
-                        if (isLastOccurrence) {
-                            repeatEndBtn.style.display = 'block';
-                        } else {
-                            repeatEndBtn.style.display = 'none';
-                            el.addEventListener('mouseenter', () => {
-                                repeatEndBtn.style.setProperty('display', 'block', 'important');
-                            });
-                            
-                        el.addEventListener('mouseleave', () => {
-                            repeatEndBtn.style.setProperty('display', 'none', 'important');
-                        });
-                        }
-                        
-                        const eventMain = el.querySelector('.fc-event-main') || el;
-                        eventMain.appendChild(repeatEndBtn);
-                    }, 10);
-                }
-            },
-            eventTimeFormat: {
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: false
-            },
-            displayEventTime: false,
-            events: expandedChains,
+        calendar = new FullCalendar.Calendar(calendarEl, buildMainCalendarOptions(expandedChains, firstDay, timezone));
 
-            select: function(info) {
-                if (!getSelectedChain()) {
-                    showError('Select a chain first');
-                    calendar.unselect();
-                    return;
-                }
-                const overlapCount = countOverlappingEvents(info.start, info.end);
-                if (overlapCount >= 2) {
-                    showOverlapError();
-                    calendar.unselect();
-                    return;
-                }
-                openChainEditModal();
-                document.getElementById('chain-start').value = formatDateTime(info.start);
-                if (info.end) {
-                    document.getElementById('chain-end').value = formatDateTime(info.end);
-                }
-                calendar.unselect();
-            },
-
-            eventClick: async function(info) {
-                const originalId = info.event.extendedProps?.originalId || info.event.id;
-                const chains = await loadChains();
-                const originalChain = chains.find(c => c.id === originalId);
-                
-                if (originalChain) {
-                    openChainEditModal({
-                        id: originalChain.id,
-                        start: originalChain.start,
-                        end: originalChain.end,
-                        repeat: originalChain.repeat,
-                        repeatEnd: originalChain.repeatEnd,
-                        steps: originalChain.steps
-                    });
-                } else {
-                    openChainEditModal({
-                        id: info.event.id,
-                        start: info.event.start,
-                        end: info.event.end,
-                        repeat: info.event.extendedProps?.repeat,
-                        repeatEnd: info.event.extendedProps?.repeatEnd,
-                        steps: info.event.extendedProps?.steps
-                    });
-                }
-            },
-
-            eventDrop: async function(info) {
-                if (info.event.extendedProps?.isOccurrence) {
-                    info.revert();
-                    return;
-                }
-                
-                const originalId = info.event.extendedProps?.originalId || info.event.id;
-                const overlapCount = countOverlappingEvents(info.event.start, info.event.end, originalId);
-                if (overlapCount >= 2) {
-                    showOverlapError();
-                    info.revert();
-                    return;
-                }
-                
-                await updateEventPriority(info.event);
-                
-                const chains = await loadChains();
-                const index = chains.findIndex(c => c.id === originalId);
-                if (index !== -1) {
-                    chains[index].start = info.event.start.toISOString();
-                    chains[index].end = info.event.end ? info.event.end.toISOString() : null;
-                    chains[index].priority = info.event.extendedProps?.priority !== undefined ? info.event.extendedProps.priority : 2;
-                    await saveChains(chains);
-                    const expandedChains = getExpandedChains(chains);
-                    calendar.removeAllEvents();
-                    calendar.addEventSource(expandedChains);
-                    monthCalendar.removeAllEvents();
-                    monthCalendar.addEventSource(expandedChains);
-                    updateEventStyles();
-                }
-            },
-
-            eventResize: async function(info) {
-                if (info.event.extendedProps?.isOccurrence) {
-                    info.revert();
-                    return;
-                }
-                
-                const originalId = info.event.extendedProps?.originalId || info.event.id;
-                const overlapCount = countOverlappingEvents(info.event.start, info.event.end, originalId);
-                if (overlapCount >= 2) {
-                    showOverlapError();
-                    info.revert();
-                    return;
-                }
-                
-                await updateEventPriority(info.event);
-                const chains = await loadChains();
-                const index = chains.findIndex(c => c.id === originalId);
-                if (index !== -1) {
-                    chains[index].start = info.event.start.toISOString();
-                    chains[index].end = info.event.end ? info.event.end.toISOString() : null;
-                    chains[index].priority = info.event.extendedProps?.priority !== undefined ? info.event.extendedProps.priority : 2;
-                    await saveChains(chains);
-                    const expandedChains = getExpandedChains(chains);
-                    calendar.removeAllEvents();
-                    calendar.addEventSource(expandedChains);
-                    monthCalendar.removeAllEvents();
-                    monthCalendar.addEventSource(expandedChains);
-                    updateEventStyles();
-                }
-            },
-
-            datesSet: function() {
-                updateWeekNumberDisplay();
-                if (monthCalendar) {
-                    monthCalendar.gotoDate(calendar.view.activeStart);
-                    monthCalendar.render();
-                    setTimeout(() => {
-                        updateCurrentWeekHighlight();
-                    }, 100);
-                }
-            }
-        });
-
-        monthCalendar = new FullCalendar.Calendar(monthCalendarEl, {
-        initialView: 'dayGridMonth',
-        headerToolbar: {
-            left: 'title',
-            center: '',
-            right: 'prev,next'
-        },
-        firstDay: firstDay,
-        timeZone: timezone,
-        height: 'auto',
-        fixedWeekCount: false,
-        showNonCurrentDates: false,
-        weekNumbers: true,
-        weekNumberCalculation: 'ISO',
-        events: expandedChains,
-
-        dateClick: function(info) {
-            calendar.gotoDate(info.dateStr);
-        },
-
-        dayCellContent: function(info) {
-            const dayNum = info.dayNumberText;
-            return {
-                html: `<div class="day-number">${dayNum}</div>`
-            };
-        },
-
-        dayCellDidMount: function(info) {
-            const cellDate = new Date(info.date);
-            cellDate.setHours(0, 0, 0, 0);
-            const weekStart = new Date(calendar.view.activeStart);
-            weekStart.setHours(0, 0, 0, 0);
-            const weekEnd = new Date(calendar.view.activeEnd);
-            weekEnd.setHours(0, 0, 0, 0);
-            
-            if (cellDate >= weekStart && cellDate < weekEnd) {
-                info.el.classList.add('current-week');
-            } else {
-                info.el.classList.remove('current-week');
-            }
-        },
-
-        datesSet: function() {
-            setTimeout(() => {
-                updateCurrentWeekHighlight();
-            }, 50);
-        }
-        });
+        monthCalendar = new FullCalendar.Calendar(monthCalendarEl, buildMonthCalendarOptions(expandedChains, firstDay, timezone));
 
         calendar.render();
         monthCalendar.render();
@@ -1796,34 +1865,8 @@ export const ChainsManager = {
         if (this.initialized) return;
         
         const chainsModal = document.getElementById('chains-modal');
-        const chainsToggle = document.getElementById('chains-toggle');
-        const chainsCloseBtn = chainsModal.querySelector('.chains-modal-close');
-
-        chainsToggle.addEventListener('click', async () => {
-            chainsModal.classList.add('visible');
-
-            await loadChainsConfig();
-
-            if (typeof FullCalendar === 'undefined') {
-                console.error('FullCalendar is not loaded!');
-                return;
-            }
-
-            setTimeout(async () => {
-                updateChainSelector();
-                updateTimezoneSelector();
-                if (getSelectedChain()) {
-                    showCalendarContainer(true);
-                    await initializeCalendars();
-                    setTimeout(() => {
-                        if (calendar) calendar.updateSize();
-                        if (monthCalendar) monthCalendar.updateSize();
-                    }, 100);
-                } else {
-                    showCalendarContainer(false);
-                }
-            }, 200);
-        });
+        const chainsCloseBtn = chainsModal?.querySelector('.chains-modal-close');
+        if (!chainsModal || !chainsCloseBtn) return;
 
         const chainSelect = document.getElementById('chain-select');
         if (chainSelect) {
@@ -1857,17 +1900,18 @@ export const ChainsManager = {
         if (timezoneSelect) {
             timezoneSelect.addEventListener('change', async (e) => {
                 setTimezoneMode(e.target.value);
+                syncTimezoneSelects(chainsConfig.timezone, chainsConfig.messenger_type, chainsConfig.user_timezone);
                 await updateCalendarTimezone();
             });
         }
 
         chainsCloseBtn.addEventListener('click', () => {
-            chainsModal.classList.remove('visible');
+            closeChainsModal();
         });
 
         chainsModal.addEventListener('click', (e) => {
             if (e.target === chainsModal) {
-                chainsModal.classList.remove('visible');
+                closeChainsModal();
             }
         });
 
@@ -1877,11 +1921,21 @@ export const ChainsManager = {
                 return;
             }
             if (e.key === 'Escape' && chainsModal.classList.contains('visible')) {
-                chainsModal.classList.remove('visible');
+                closeChainsModal();
             }
         });
 
         setupChainEditModalListeners();
+        onAuthChange((authenticated) => {
+            if (authenticated) {
+                mountFooterToggle();
+            } else {
+                unmountFooterToggle();
+            }
+        });
+        if (getIsAuthenticated()) {
+            mountFooterToggle();
+        }
         this.initialized = true;
     }
 };
