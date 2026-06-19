@@ -5,6 +5,8 @@
     width: 100%;
     height: 100%;
     background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -20,7 +22,7 @@
 
 .chains-modal-content {
     background: var(--chains-window-bg);
-    border-radius: var(--modal-border-radius);
+    border-radius: 12px;
     width: 95%;
     height: 90%;
     max-width: 1400px;
@@ -35,9 +37,21 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 16px 24px;
-    border-bottom: 1px solid var(--border-primary);
+    height: 48px;
+    padding: 0 20px;
     flex-shrink: 0;
+    position: relative;
+    box-sizing: border-box;
+}
+
+.chains-modal-header::after {
+    content: "";
+    position: absolute;
+    left: 20px;
+    right: 20px;
+    bottom: 0;
+    height: 1px;
+    background: var(--border-primary);
 }
 
 .chains-modal-header h2 {
@@ -53,11 +67,16 @@
     gap: 8px;
 }
 
-#chains-modal select,
-#chain-modal select {
-    padding: 6px 10px;
-    border: 1px solid var(--border-primary);
-    border-radius: 8px;
+.chains-header-controls select,
+.chains-header-controls .calendar-today-btn {
+    height: 24px;
+    padding: 0 10px;
+    box-sizing: border-box;
+}
+
+#chains-modal select {
+    border: 1.5px solid var(--select-option-fg);
+    border-radius: 4px;
     background: var(--button-bg);
     color: var(--fg-primary);
     font-size: 14px;
@@ -66,7 +85,22 @@
     box-sizing: border-box;
 }
 
-#chains-modal select:focus,
+#chain-modal select {
+    padding: 10px 12px;
+    border: 1px solid var(--border-primary);
+    border-radius: 8px;
+    background: var(--input-bg);
+    color: var(--fg-primary);
+    font-size: 14px;
+    font-family: inherit;
+    cursor: pointer;
+    box-sizing: border-box;
+}
+
+#chains-modal select:focus {
+    outline: none;
+}
+
 #chain-modal select:focus {
     outline: none;
     border-color: var(--brand-secondary);
@@ -74,19 +108,26 @@
 
 #chains-modal select option,
 #chain-modal select option {
-    background: var(--bg-secondary);
+    background: var(--select-option-bg);
     color: var(--fg-primary);
 }
 
 .chains-modal-close {
     background: none;
     border: none;
-    font-size: 24px;
     color: var(--fg-primary);
     cursor: pointer;
     padding: 0;
-    line-height: 1;
     margin-left: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 12px;
+    height: 12px;
+}
+
+.chains-modal-close svg {
+    display: block;
 }
 
 .chains-modal-body {
@@ -130,11 +171,6 @@
     box-sizing: border-box;
 }
 
-.calendar-nav-left {
-    display: flex;
-    align-items: center;
-}
-
 .calendar-nav-right {
     display: flex;
     gap: 8px;
@@ -143,10 +179,9 @@
 }
 
 .calendar-today-btn {
-    margin-left: 32px;
     padding: 6px 10px;
-    border: 0px solid var(--border-primary);
-    border-radius: var(--button-border-radius);
+    border: 1.5px solid var(--select-option-fg);
+    border-radius: 4px;
     background: var(--button-bg);
     color: var(--fg-primary);
     font-size: 14px;
@@ -212,7 +247,7 @@
     flex: 1;
     height: 100%;
     min-height: 500px;
-    background: var(--chains-window-bg);
+    background: var(--calendar-table-bg);
 }
 
 #calendar .fc {
@@ -244,42 +279,25 @@
 }
 
 #calendar .fc-scroller::-webkit-scrollbar-track {
-    background: transparent;
+    background: var(--calendar-timegrid-bg);
     border-radius: 4px;
 }
 
 #calendar .fc-scroller::-webkit-scrollbar-thumb {
-    background: var(--scrollbar-thumb);
+    background: var(--calendar-scrollbar-thumb);
     border-radius: 4px;
-    border: 2px solid transparent;
+    border: 2px solid var(--calendar-timegrid-bg);
 }
 
 #calendar .fc-scroller {
     scrollbar-width: thin;
-    scrollbar-color: var(--scrollbar-color);
+    scrollbar-color: var(--calendar-scrollbar-color);
 }
 
 #calendar .fc-scroller::-webkit-scrollbar-button {
     display: none;
     height: 0;
     width: 0;
-}
-
-[data-theme="dark"] #calendar .fc-scroller::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-[data-theme="dark"] #calendar .fc-scroller::-webkit-scrollbar-thumb {
-    background: #fff;
-    border: 2px solid transparent;
-}
-
-[data-theme="dark"] #calendar .fc-scroller {
-    scrollbar-color: var(--scrollbar-color);
-}
-
-#calendar .fc-scroller {
-    scrollbar-width: thin;
 }
 
 #calendar .fc-scrollgrid-section-header .fc-scroller {
@@ -382,6 +400,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    max-height: 32px;
 }
 
 #month-calendar .fc-daygrid-day-number {
@@ -450,6 +469,7 @@
     font-size: 12px;
     color: var(--calendar-weeknumber-fg);
     opacity: 50%;
+    padding-right: 10px !important;
 }
 
 #month-calendar .day-number {
@@ -549,7 +569,7 @@
 }
 
 #calendar .fc-col-header-cell.fc-day-today .fc-col-header-cell-cushion {
-    color: var(--brand-secondary);
+    color: var(--calendar-today-fg);
 }
 
 .fc .fc-daygrid-day-frame {
@@ -584,15 +604,19 @@
 
 .fc .fc-event-main {
     position: relative;
+    border-color: var(--brand-primary);
 }
 
 .fc .fc-timegrid-event {
     overflow: hidden;
+    border-radius: 12px;
+    border-width: 1.5px;
+    border-color: var(--brand-primary);
 }
 
 .fc-event-repeat-series,
 .fc-timegrid-event.fc-event-repeat-series {
-    background: rgba(56, 173, 230, 0.1) !important;
+    /*background: rgba(56, 173, 230, 0.1) !important;*/
     border: none !important;
 }
 
@@ -605,7 +629,7 @@
 
 .fc-event-regular-series.fc-event-priority-2,
 .fc-timegrid-event.fc-event-regular-series.fc-event-priority-2 {
-    background: rgba(56, 173, 230, 0.1) !important;
+    /*background: rgba(56, 173, 230, 0.1) !important;*/
     inset: 0px 10% 0px 0px !important;
 }
 
@@ -631,7 +655,7 @@
     border: none;
     color: white;
     padding: 4px 8px;
-    border-radius: var(--button-border-radius);
+    border-radius: 4px;
     cursor: pointer;
     font-size: 11px;
     font-weight: 600;
@@ -668,6 +692,18 @@
     background: var(--calendar-table-border) !important;
 }
 
+.fc-timegrid-axis-frame,
+.fc-timegrid-slot.fc-timegrid-slot-label.fc-scrollgrid-shrink,
+.fc-timegrid-slot.fc-timegrid-slot-label.fc-timegrid-slot-minor,
+.fc-scrollgrid-sync-inner {
+    background-color: var(--calendar-timegrid-bg);
+}
+
+.fc-daygrid-week-number {
+    /*transform: translateX(-9px) !important;*/
+    transform: translateY(-8px) !important;
+}
+
 .fc .fc-timegrid-slot {
     height: 1.5em !important;
 }
@@ -686,7 +722,7 @@
 }
 
 .fc .fc-timegrid-slot-label-cushion {
-    padding: 0; 
+    padding: 0;
     color: var(--fg-primary);
 }
 
@@ -706,6 +742,8 @@
     width: 100%;
     height: 100%;
     background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -721,7 +759,7 @@
 
 .modal-content {
     background: var(--bg-primary);
-    border-radius: var(--modal-border-radius);
+    border-radius: 12px;
     width: 100%;
     max-width: 480px;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
@@ -779,7 +817,7 @@
     padding: 10px 12px;
     border: 1px solid var(--border-primary);
     border-radius: 8px;
-    background: var(--bg-secondary);
+    background: var(--input-bg);
     color: var(--fg-primary);
     font-size: 14px;
     font-family: inherit;
@@ -813,7 +851,7 @@
 .btn {
     padding: 10px 20px;
     border: none;
-    border-radius: var(--button-border-radius);
+    border-radius: 4px;
     font-size: 14px;
     font-weight: 500;
     cursor: pointer;
@@ -822,6 +860,9 @@
 .btn-primary {
     background: var(--brand-secondary);
     color: white;
+    padding: 0px 15px;
+    border-radius: 8px;
+    height: 32px;
 }
 
 .btn-primary:hover {
@@ -844,7 +885,10 @@
 .btn-secondary {
     background: var(--button-bg);
     color: var(--fg-primary);
-    border: 1px solid var(--border-primary);
+    border: 1.5px solid var(--brand-primary);
+    border-radius: 8px;
+    padding: 0px 15px;
+    height: 32px;
 }
 
 #steps-container {
@@ -861,7 +905,10 @@
     align-items: center;
 }
 
-.step-controls .step-type,
+.step-controls .step-type {
+    flex: 0.4;
+}
+
 .step-controls .step-value {
     flex: 1;
 }
@@ -916,20 +963,14 @@
 }
 
 .step-value-option.active {
-    background: var(--bg-secondary);
+    background: var(--menu-option-active-bg);
 }
 
 .step-controls .btn-remove-step {
     width: 36px;
     height: 36px;
-    padding: 0;
-    background: var(--bg-secondary);
-    color: var(--fg-primary);
-    border: 1px solid var(--border-primary);
-    border-radius: var(--button-border-radius);
-    font-size: 20px;
-    line-height: 1;
-    cursor: pointer;
+    margin-left: 0;
+    background: transparent;
     flex-shrink: 0;
 }
 

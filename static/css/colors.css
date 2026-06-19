@@ -1,18 +1,16 @@
 /* Base theme (light) */
 :root {
-    /* Semantic Colors */
-    --brand-primary: #38ADE6;
-    --brand-secondary-dark: #061117;
-    --brand-secondary: #38ADE6;
+    --brand-primary: #3293C3;
+    --brand-secondary: #3D94E9;
 
     /* Main Colors */
-    --bg-primary: #F2F7FF;
-    --bg-secondary: #D7EFFA;
-    --bg-tertiary: #F2F7FF;
-    --border-primary: #C3E6F7;
-    --border-secondary: #667085;
-    --button-bg: #C3E6F7;
-    --link-hover: #357ABD;
+    --bg-primary: #FFFFFF;
+    --bg-header: #E8E9EA;
+    --input-bg: #F2F2F2;
+    --border-primary: #CFCFCF;
+    --border-secondary: #B0B5C0;
+    --button-bg: #F2F2F2;
+    --link-hover: #38ADE6;
     --link-primary: #070708;
     --scrollbar-thumb-hover: #475467;
     --scrollbar-thumb: #667085;
@@ -22,115 +20,146 @@
 
     /* Header Colors */
     --filter-badge-close-hover: #357ABD;
-    --filter-badge-hover: #357ABD;
     --filter-badge-fg: #061117;
     --filter-badge: #061117;
     --header-fg: #344054;
-    --search-icon-color: #38ADE6;
+    --search-icon-color: #252E33;
+    --filter-scroll-arrow-bg: #F2F2F2;
 
     /* Table Colors */
+    --user-selector-border: #B0B5C0;
+    --incident-opened: #F5F5F5;
     --action-btn-hover-bg: #F2F7FF;
-    --alerts-count-circle-color: #22688A;
+    --alerts-count-circle-color: #B0B5C0;
+    --alerts-count-circle-text: #252E33;
+    --user-selector-fg: #252E33;
     --alerts-count-fg: #EDEFF2;
     --annotation-border: #475467;
     --annotation-fg: #1D2939;
-    --incident-content-border-color: #EDEFF2;
-    --info-block-bg: #E4E7EC;
-    --label-bg: #EDEFF2;
+    --incident-content-border-color: #CFCFCF;
+    --info-block-bg: #EAEAEA;
+    --label-bg: #CFCFCF;
     --label-highlighted-bg: #1D2939;
     --label-highlighted-fg: #F2F7FF;
-    --label-fg: #061117;
+    --label-fg: #11161C;
     --status-badge-closed: #969696;
-    --status-badge-firing: #F04438;
+    --status-badge-firing: #EF5247;
     --status-badge-frozen: #38ADE6;
-    --status-badge-resolved: #56C15E;
-    --status-badge-unknown: #C1A300;
+    --status-badge-resolved: #23C040;
+    --status-badge-unknown: #D9CD4A;
     --status-error: #FF4444;
-    --table-bg: #F2F7FF;
-    --table-border: #C3E6F7;
+    --table-border: #CFCFCF;
+    --table-header-bg: #E8E9EA;
     --table-row-hover: #E4E7EC;
+    --scrollbar-track-bg: #F2F2F2;
+    --popup-bg: #F2F2F2;
     --tooltip-bg: #22688A;
 
     /* Footer Colors */
-    --auth-logged-in-bg: #F2F7FF;
-    --footer-fg: #606060;
-    --login-button-color: #38ADE6;
+    --auth-button-bg: #E8E9EA;
+    --footer-fg: #252E33;
+    --footer-bg: #E8E9EA;
+    --login-button-color: #3293C3;
     --offline-status-indicator: #F04438;
     --online-status-indicator: #22688A;
-    --theme-icon-color: #22688A;
+    --theme-icon-color: #252E33;
 
     /* Calendar Colors */
-    --chains-window-bg: #F2F7FF;
-    --calendar-table-border: #475467;
-    --calendar-today-fg: #38ADE6;
-    --calendar-week-bg: #C3E6F7;
-    --calendar-weeknumber-fg: #061117;
+    --chains-window-bg: #F2F2F2;
+    --calendar-table-bg: #FFFFFF;
+    --calendar-table-border: #CFCFCF;
+    --calendar-today-fg: #3293C3;
+    --calendar-week-bg: #E0E0E0;
+    --calendar-timegrid-bg: #F2F2F2;
+    --calendar-scrollbar-thumb: #3293C3;
+    --calendar-scrollbar-color: #3293C3 var(--calendar-timegrid-bg);
+    --calendar-weeknumber-fg: #3293C3;
+    --select-option-fg: #3293C3;
+    --select-option-bg: #F2F2F2;
+    --menu-option-active-bg: #F2F2F2;
+    --icon-button-bg: #F2F2F2;
+    --calendar-shift-bg: #CFCFCF;
 }
 
 /* Dark theme */
 [data-theme="dark"] {
     --brand-primary: #38ADE6;
-    --brand-secondary-dark: #EBF7FC;
     --brand-secondary: #48BDE6;
 
     /* Main Colors */
-    --bg-primary: #03080B;
-    --bg-secondary: #0B232E;
-    --bg-tertiary: #1D2939;
-    --border-primary: #16455C;
+    --bg-primary: #0B0B0B;
+    --bg-header: #161A1C;
+    --input-bg: #161A1C;
+    --border-primary: #333B40;
     --border-secondary: #98A2B3;
-    --button-bg: #16455C;
+    --button-bg: #161A1C;
     --link-hover: #357ABD;
     --link-primary: #38ADE6;
     --scrollbar-thumb-hover: #38ADE6;
     --scrollbar-thumb: #98A2B3;
     --scrollbar-color: #98A2B3 transparent;
     --fg-inverse: #1D2939;
-    --fg-primary: #EBF7FC;
+    --fg-primary: #DFE0E2;
 
     /* Header Colors */
     --filter-badge-close-hover: #EBF7FC;
-    --filter-badge-hover: #357ABD;
     --filter-badge-fg: #EBF7FC;
     --filter-badge: #EBF7FC;
-    --header-fg: #FFFFFF;
+    --header-fg: #DFE0E2;
     --search-icon-color: #EBF7FC;
+    --filter-scroll-arrow-bg: #161A1C;
 
     /* Table Colors */
+    --user-selector-border: #555555;
+    --incident-opened: #1C1F20;
     --action-btn-hover-bg: #1D2939;
-    --alerts-count-circle-color: #EBF7FC;
+    --alerts-count-circle-color: #555555;
+    --alerts-count-circle-text: #DFE0E2;
+    --user-selector-fg: #DFE0E2;
     --alerts-count-fg: #EBF7FC;
     --annotation-border: #344054;
     --annotation-fg: #EBF7FC;
-    --incident-content-border-color: #344054;
-    --info-block-bg: #344054;
-    --label-bg: #344054;
+    --incident-content-border-color: #333B40;
+    --info-block-bg: #0A0B0B;
+    --label-bg: #42444B;
     --label-highlighted-bg: #EBF7FC;
     --label-highlighted-fg: #1D2939;
     --label-fg: #EBF7FC;
     --status-badge-closed: #969696;
-    --status-badge-firing: #D14035;
+    --status-badge-firing: #E43F32;
     --status-badge-frozen: #38ADE6;
-    --status-badge-resolved: #56C15E;
-    --status-badge-unknown: #C1A300;
+    --status-badge-resolved: #37C177;
+    --status-badge-unknown: #ADA014;
     --status-error: #FF6666;
-    --table-bg: #1D2939;
-    --table-border: #16455C;
+    --table-border: #2E2E2F;
+    --table-header-bg: #161A1C;
     --table-row-hover: #344054;
+    --scrollbar-track-bg: #161A1C;
+    --popup-bg: #161A1C;
     --tooltip-bg: #EBF7FC;
 
     /* Footer Colors */
-    --auth-logged-in-bg: #1D2939;
-    --footer-fg: #EBF7FC;
-    --login-button-color: #22688A;
+    --auth-button-bg: #161A1C;
+    --footer-fg: #DFE0E2;
+    --footer-bg: #161A1C;
+    --login-button-color: #38ADE6;
     --offline-status-indicator: #D14035;
     --online-status-indicator: #38ADE6;
     --theme-icon-color: #EBF7FC;
 
     /* Calendar Colors */
-    --chains-window-bg: #0B232E;
+    --chains-window-bg: #161A1C;
+    --calendar-table-bg: #0A0B0B;
     --calendar-table-border: #344054;
     --calendar-today-fg: #38ADE6;
-    --calendar-week-bg: #16455C;
+    --calendar-week-bg: #0A0B0B;
+    --calendar-timegrid-bg: #161A1C;
+    --calendar-scrollbar-thumb: #38ADE6;
+    --calendar-scrollbar-color: #38ADE6 var(--calendar-timegrid-bg);
     --calendar-weeknumber-fg: #EBF7FC;
+    --select-option-fg: #38ADE6;
+    --select-option-bg: #161A1C;
+    --menu-option-active-bg: #161A1C;
+    --icon-button-bg: #161A1C;
+    --calendar-shift-bg: #1C1E1F;
 }
