@@ -68,10 +68,20 @@
 }
 
 .chains-header-controls select,
-.chains-header-controls .calendar-today-btn {
+.chains-header-controls .calendar-today-btn,
+.chains-header-controls .timezone-select-widget {
     height: 24px;
     padding: 0 10px;
     box-sizing: border-box;
+}
+
+.chains-header-controls .timezone-select-widget {
+    padding: 0;
+}
+
+.chains-header-controls .timezone-select-trigger {
+    height: 24px;
+    padding: 0 8px 0 10px;
 }
 
 :is(#chains-modal, #maintenance-modal) select {
@@ -83,6 +93,137 @@
     font-family: inherit;
     cursor: pointer;
     box-sizing: border-box;
+}
+
+.timezone-select-widget {
+    position: relative;
+    display: inline-block;
+    min-width: 168px;
+}
+
+.timezone-select-native {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+.timezone-select-trigger {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    min-width: 168px;
+    height: 24px;
+    padding: 0 8px 0 10px;
+    border: 1.5px solid var(--select-option-fg);
+    border-radius: 4px;
+    background: var(--button-bg);
+    color: var(--fg-primary);
+    font-size: 14px;
+    font-family: inherit;
+    cursor: pointer;
+    box-sizing: border-box;
+}
+
+.timezone-select-trigger:focus {
+    outline: none;
+}
+
+.timezone-select-trigger-content {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.timezone-select-trigger-content .timezone-select-name {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 14px;
+    line-height: 24px;
+}
+
+.timezone-select-option-body {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    min-width: 0;
+    width: 100%;
+}
+
+.timezone-select-option-body--single {
+    justify-content: center;
+}
+
+.timezone-select-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    width: 100%;
+    text-align: left;
+    font-size: 14px;
+    line-height: 1.2;
+}
+
+.timezone-select-source {
+    font-size: 11px;
+    line-height: 1.1;
+    color: var(--border-secondary);
+}
+
+.timezone-select-chevron {
+    flex-shrink: 0;
+    width: 0;
+    height: 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 5px solid var(--brand-secondary);
+}
+
+.timezone-select-menu {
+    position: absolute;
+    top: calc(100% + 2px);
+    left: 0;
+    right: 0;
+    z-index: 2100;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    border: 1.5px solid var(--select-option-fg);
+    border-radius: 4px;
+    background: var(--button-bg);
+    color: var(--fg-primary);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+    overflow: hidden;
+}
+
+.timezone-select-option {
+    padding: 5px 10px;
+    cursor: pointer;
+    color: var(--fg-primary);
+}
+
+.timezone-select-option-body--single .timezone-select-name {
+    line-height: 1.4;
+}
+
+.timezone-select-option + .timezone-select-option {
+    border-top: 1px solid var(--border-primary);
+}
+
+.timezone-select-option:hover,
+.timezone-select-option.selected {
+    background: var(--select-option-bg);
+    color: var(--fg-primary);
+}
+
+.timezone-select-option .timezone-select-name {
+    color: inherit;
 }
 
 #chain-modal select {

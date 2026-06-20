@@ -1,10 +1,19 @@
 const STORAGE_KEY = "ui_chains_timezone_mode";
 
+const SOURCE_LABELS = {
+    user: "messenger",
+    browser: "browser",
+    config: "config",
+    utc: null,
+};
+
 const timezoneConfig = {
     configTimezone: "UTC",
     messengerType: "",
     userTimezone: null,
 };
+
+let documentClickAttached = false;
 
 function resolveUserTimezone(userTimezone) {
     return userTimezone || null;
@@ -69,28 +78,176 @@ function getTimezoneOptions(configTimezone = "UTC", messengerType = "", userTime
     const browserTz = getBrowserTimezone();
     const currentMode = getTimezoneMode(configTimezone, userTimezone);
     if (userTz && userTz !== "UTC") {
-        options.push({value: "user", label: userTz, selected: currentMode === "user"});
+        options.push({
+            value: "user",
+            label: userTz,
+            sourceLabel: SOURCE_LABELS.user,
+            selected: currentMode === "user",
+        });
     }
     if (browserTz && browserTz !== "UTC") {
-        options.push({value: "browser", label: browserTz, selected: currentMode === "browser"});
+        options.push({
+            value: "browser",
+            label: browserTz,
+            sourceLabel: SOURCE_LABELS.browser,
+            selected: currentMode === "browser",
+        });
     }
     if (configTimezone && configTimezone !== "UTC") {
-        options.push({value: "config", label: configTimezone, selected: currentMode === "config"});
+        options.push({
+            value: "config",
+            label: configTimezone,
+            sourceLabel: SOURCE_LABELS.config,
+            selected: currentMode === "config",
+        });
     }
-    options.push({value: "utc", label: "UTC", selected: currentMode === "utc"});
+    options.push({
+        value: "utc",
+        label: "UTC",
+        sourceLabel: SOURCE_LABELS.utc,
+        selected: currentMode === "utc",
+    });
     return options;
 }
 
-export function fillTimezoneSelect(selector, configTimezone = "UTC", messengerType = "", userTimezone = null) {
-    if (!selector) return;
+function fillTriggerContent(container, option) {
+    container.replaceChildren();
+    const name = document.createElement("span");
+    name.className = "timezone-select-name";
+    name.textContent = option.label;
+    container.appendChild(name);
+}
+
+function fillDropdownOption(container, option) {
+    container.replaceChildren();
+    const body = document.createElement("div");
+    body.className = "timezone-select-option-body";
+    if (!option.sourceLabel) {
+        body.classList.add("timezone-select-option-body--single");
+    }
+    if (option.sourceLabel) {
+        const source = document.createElement("span");
+        source.className = "timezone-select-source";
+        source.textContent = option.sourceLabel;
+        body.appendChild(source);
+    }
+    const name = document.createElement("span");
+    name.className = "timezone-select-name";
+    name.textContent = option.label;
+    body.appendChild(name);
+    container.appendChild(body);
+}
+
+function closeAllTimezoneMenus() {
+    for (const menu of document.querySelectorAll(".timezone-select-menu")) {
+        menu.hidden = true;
+    }
+    for (const trigger of document.querySelectorAll(".timezone-select-trigger")) {
+        trigger.setAttribute("aria-expanded", "false");
+    }
+}
+
+function attachTimezoneDocumentClose() {
+    if (documentClickAttached) {
+        return;
+    }
+    documentClickAttached = true;
+    document.addEventListener("click", closeAllTimezoneMenus);
+}
+
+function ensureTimezoneSelectWidget(selectEl) {
+    const existing = selectEl.closest(".timezone-select-widget");
+    if (existing) {
+        return existing;
+    }
+
+    const widget = document.createElement("div");
+    widget.className = "timezone-select-widget";
+    selectEl.parentNode.insertBefore(widget, selectEl);
+    widget.appendChild(selectEl);
+
+    selectEl.classList.add("timezone-select-native");
+    selectEl.tabIndex = -1;
+    selectEl.setAttribute("aria-hidden", "true");
+
+    const trigger = document.createElement("button");
+    trigger.type = "button";
+    trigger.className = "timezone-select-trigger";
+    trigger.setAttribute("aria-haspopup", "listbox");
+    trigger.setAttribute("aria-expanded", "false");
+
+    const triggerContent = document.createElement("span");
+    triggerContent.className = "timezone-select-trigger-content";
+    trigger.appendChild(triggerContent);
+
+    const chevron = document.createElement("span");
+    chevron.className = "timezone-select-chevron";
+    chevron.setAttribute("aria-hidden", "true");
+    trigger.appendChild(chevron);
+
+    const menu = document.createElement("ul");
+    menu.className = "timezone-select-menu";
+    menu.setAttribute("role", "listbox");
+    menu.hidden = true;
+
+    widget.appendChild(trigger);
+    widget.appendChild(menu);
+
+    trigger.addEventListener("click", (event) => {
+        event.stopPropagation();
+        const willOpen = menu.hidden;
+        closeAllTimezoneMenus();
+        menu.hidden = !willOpen;
+        trigger.setAttribute("aria-expanded", willOpen ? "true" : "false");
+    });
+
+    return widget;
+}
+
+function fillTimezoneSelect(selector, configTimezone = "UTC", messengerType = "", userTimezone = null) {
+    if (!selector) {
+        return;
+    }
     const options = getTimezoneOptions(configTimezone, messengerType, userTimezone);
+    const widget = ensureTimezoneSelectWidget(selector);
+    const trigger = widget.querySelector(".timezone-select-trigger");
+    const triggerContent = widget.querySelector(".timezone-select-trigger-content");
+    const menu = widget.querySelector(".timezone-select-menu");
+    const selected = options.find((option) => option.selected) || options[0];
+
     selector.innerHTML = "";
-    for (const opt of options) {
-        const option = document.createElement("option");
-        option.value = opt.value;
-        option.textContent = opt.label;
-        if (opt.selected) option.selected = true;
-        selector.appendChild(option);
+    for (const option of options) {
+        const nativeOption = document.createElement("option");
+        nativeOption.value = option.value;
+        nativeOption.textContent = option.label;
+        if (option.selected) {
+            nativeOption.selected = true;
+        }
+        selector.appendChild(nativeOption);
+    }
+
+    fillTriggerContent(triggerContent, selected);
+    trigger.setAttribute("aria-label", `Timezone: ${selected.label}`);
+
+    menu.replaceChildren();
+    for (const option of options) {
+        const item = document.createElement("li");
+        item.className = "timezone-select-option";
+        if (option.selected) {
+            item.classList.add("selected");
+            item.setAttribute("aria-selected", "true");
+        } else {
+            item.setAttribute("aria-selected", "false");
+        }
+        item.setAttribute("role", "option");
+        item.dataset.value = option.value;
+        fillDropdownOption(item, option);
+        item.addEventListener("click", (event) => {
+            event.stopPropagation();
+            closeAllTimezoneMenus();
+            applyTimezoneModeChange(option.value);
+        });
+        menu.appendChild(item);
     }
 }
 
@@ -155,16 +312,12 @@ export function captureCalendarViewAnchor(calendarApi) {
 }
 
 export function initTimezoneSelectHandlers() {
-    for (const id of ["timezone-select", "maintenance-timezone-select"]) {
-        const select = document.getElementById(id);
-        if (!select || select.dataset.timezoneHandlerAttached) {
-            continue;
-        }
-        select.dataset.timezoneHandlerAttached = "1";
-        select.addEventListener("change", (event) => {
-            applyTimezoneModeChange(event.target.value);
-        });
-    }
+    attachTimezoneDocumentClose();
+    syncTimezoneSelects(
+        timezoneConfig.configTimezone,
+        timezoneConfig.messengerType,
+        timezoneConfig.userTimezone,
+    );
 }
 
 export function reformatDateTimeValue(value, previousTimezone, configTimezone, userTimezone) {
