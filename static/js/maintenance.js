@@ -5,8 +5,10 @@ import {createEditableFilterBadge, validateAndFormatFilter} from "./filters.js";
 import {getIsAuthenticated, onAuthChange} from "./auth.js";
 import {
     captureCalendarViewAnchor,
+    formatDateTime,
     getEffectiveTimezone,
     onTimezoneChange,
+    parseDateTime,
     reformatDateTimeInput,
     syncTimezoneSelects,
     updateTimezoneConfig,
@@ -198,7 +200,7 @@ globalThis.handleMaintenanceError = function(detail) {
 
 async function loadWindows() {
     const socket = getSocket();
-    if (!socket || socket.readyState !== WebSocket.OPEN) {
+    if (socket?.readyState !== WebSocket.OPEN) {
         return cachedWindows;
     }
     return new Promise((resolve) => {
@@ -216,7 +218,7 @@ async function loadWindows() {
 async function saveWindows(windows) {
     cachedWindows = windows;
     const socket = getSocket();
-    if (!socket || socket.readyState !== WebSocket.OPEN) {
+    if (socket?.readyState !== WebSocket.OPEN) {
         console.error("WebSocket not connected, cannot save maintenance windows");
         return false;
     }
@@ -230,31 +232,6 @@ async function saveWindows(windows) {
             }
         }, 5000);
     });
-}
-
-function formatDateTime(date) {
-    const timezone = getTz();
-    const pad = (n) => n.toString().padStart(2, "0");
-    if (typeof luxon === "undefined") {
-        const d = new Date(date);
-        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}, ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-    }
-    const dt = luxon.DateTime.fromISO(new Date(date).toISOString(), {zone: "utc"}).setZone(timezone);
-    return `${dt.year}-${pad(dt.month)}-${pad(dt.day)}, ${pad(dt.hour)}:${pad(dt.minute)}`;
-}
-
-function parseDateTime(dateStr) {
-    const match = dateStr.match(/(\d{4})-(\d{2})-(\d{2}),\s*(\d{2}):(\d{2})/);
-    if (!match) return null;
-    const [, year, month, day, hour, minute] = match;
-    const timezone = getTz();
-    if (typeof luxon === "undefined") {
-        return new Date(+year, +month - 1, +day, +hour, +minute).toISOString();
-    }
-    return luxon.DateTime.fromObject(
-        {year: +year, month: +month, day: +day, hour: +hour, minute: +minute, second: 0},
-        {zone: timezone},
-    ).toUTC().toISO();
 }
 
 function windowsToEvents(windows) {
@@ -352,9 +329,9 @@ function buildMainCalendarOptions(events, firstDay, timezone) {
             pendingSelectStart = info.start;
             pendingSelectEnd = info.end;
             openWindowModal();
-            document.getElementById("maintenance-window-start").value = formatDateTime(info.start);
+            document.getElementById("maintenance-window-start").value = formatDateTime(info.start, getTz());
             if (info.end) {
-                document.getElementById("maintenance-window-end").value = formatDateTime(info.end);
+                document.getElementById("maintenance-window-end").value = formatDateTime(info.end, getTz());
             }
             calendar.unselect();
         },
@@ -491,8 +468,8 @@ function openWindowModal(windowData = null) {
     if (windowData) {
         currentWindowId = windowData.id;
         title.textContent = "Edit maintenance";
-        startInput.value = formatDateTime(windowData.start);
-        endInput.value = windowData.end ? formatDateTime(windowData.end) : "";
+        startInput.value = formatDateTime(windowData.start, getTz());
+        endInput.value = windowData.end ? formatDateTime(windowData.end, getTz()) : "";
         commentInput.value = windowData.comment || "";
         modalMatchers = [...(windowData.matchers || [])];
         deleteBtn.classList.remove("hidden");
@@ -530,8 +507,8 @@ function validateWindowModalInput() {
         showNotification("Start and end are required");
         return null;
     }
-    const start = parseDateTime(startStr);
-    const end = parseDateTime(endStr);
+    const start = parseDateTime(startStr, getTz());
+    const end = parseDateTime(endStr, getTz());
     if (!start || !end) {
         showNotification("Invalid date format");
         return null;

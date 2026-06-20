@@ -351,6 +351,29 @@ export function initTimezoneSelectHandlers() {
     );
 }
 
+export function formatDateTime(date, timezone) {
+    const pad = (n) => n.toString().padStart(2, "0");
+    if (typeof luxon === "undefined") {
+        const d = new Date(date);
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}, ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+    const dt = luxon.DateTime.fromISO(new Date(date).toISOString(), {zone: "utc"}).setZone(timezone);
+    return `${dt.year}-${pad(dt.month)}-${pad(dt.day)}, ${pad(dt.hour)}:${pad(dt.minute)}`;
+}
+
+export function parseDateTime(dateStr, timezone) {
+    const match = dateStr.match(/(\d{4})-(\d{2})-(\d{2}),\s*(\d{2}):(\d{2})/);
+    if (!match) return null;
+    const [, year, month, day, hour, minute] = match;
+    if (typeof luxon === "undefined") {
+        return new Date(+year, +month - 1, +day, +hour, +minute).toISOString();
+    }
+    return luxon.DateTime.fromObject(
+        {year: +year, month: +month, day: +day, hour: +hour, minute: +minute, second: 0},
+        {zone: timezone},
+    ).toUTC().toISO();
+}
+
 export function reformatDateTimeValue(value, previousTimezone, configTimezone, userTimezone) {
     const match = value.trim().match(/(\d{4})-(\d{2})-(\d{2}),\s*(\d{2}):(\d{2})/);
     if (!match) {

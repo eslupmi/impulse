@@ -4,8 +4,10 @@ import {attachNavListener, getSharedCalendarOptions, updateMonthCalendarWeekHigh
 import {getIsAuthenticated, onAuthChange} from "./auth.js";
 import {
     captureCalendarViewAnchor,
+    formatDateTime,
     getEffectiveTimezone as effectiveTimezone,
     onTimezoneChange,
+    parseDateTime,
     reformatDateTimeInput,
     syncTimezoneSelects,
     updateTimezoneConfig,
@@ -1029,31 +1031,6 @@ async function updateEventPriority(droppedEvent) {
     await saveChains(chains);
 }
 
-function formatDateTime(date) {
-    const timezone = getEffectiveTimezone();
-    const pad = (n) => n.toString().padStart(2, '0');
-    if (typeof luxon === 'undefined') {
-        const d = new Date(date);
-        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}, ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-    }
-    const dt = luxon.DateTime.fromISO(new Date(date).toISOString(), { zone: 'utc' }).setZone(timezone);
-    return `${dt.year}-${pad(dt.month)}-${pad(dt.day)}, ${pad(dt.hour)}:${pad(dt.minute)}`;
-}
-
-function parseDateTime(dateStr) {
-    const match = dateStr.match(/(\d{4})-(\d{2})-(\d{2}),\s*(\d{2}):(\d{2})/);
-    if (!match) return null;
-    const [, year, month, day, hour, minute] = match;
-    const timezone = getEffectiveTimezone();
-    if (typeof luxon === 'undefined') {
-        return new Date(+year, +month - 1, +day, +hour, +minute).toISOString();
-    }
-    return luxon.DateTime.fromObject(
-        { year: +year, month: +month, day: +day, hour: +hour, minute: +minute, second: 0 },
-        { zone: timezone }
-    ).toUTC().toISO();
-}
-
 function toggleRepeatUntilVisibility() {
     const repeatSelect = document.getElementById('chain-repeat');
     const untilGroup = document.getElementById('chain-until-group');
@@ -1078,10 +1055,10 @@ function openChainEditModal(chainData = null) {
     if (chainData) {
         currentChainId = chainData.id;
         modalTitle.textContent = 'Edit shift';
-        startInput.value = formatDateTime(chainData.start);
-        endInput.value = chainData.end ? formatDateTime(chainData.end) : '';
+        startInput.value = formatDateTime(chainData.start, getEffectiveTimezone());
+        endInput.value = chainData.end ? formatDateTime(chainData.end, getEffectiveTimezone()) : '';
         repeatSelect.value = chainData.repeat || '';
-        untilInput.value = chainData.repeatEnd ? formatDateTime(chainData.repeatEnd) : '';
+        untilInput.value = chainData.repeatEnd ? formatDateTime(chainData.repeatEnd, getEffectiveTimezone()) : '';
         renderSteps(chainData.steps || []);
         deleteBtn.classList.remove('hidden');
     } else {
@@ -1176,7 +1153,7 @@ function validateRepeatEndBoundary(repeat, untilStr, start, end) {
     if (!repeat || !untilStr) {
         return null;
     }
-    const repeatEnd = parseDateTime(untilStr);
+    const repeatEnd = parseDateTime(untilStr, getEffectiveTimezone());
     if (!repeatEnd) {
         return null;
     }
@@ -1204,10 +1181,10 @@ function validateChainInput() {
 
     if (!startStr) return null;
 
-    const start = parseDateTime(startStr);
+    const start = parseDateTime(startStr, getEffectiveTimezone());
     if (!start) return null;
 
-    const end = endStr ? parseDateTime(endStr) : null;
+    const end = endStr ? parseDateTime(endStr, getEffectiveTimezone()) : null;
     const repeatEnd = validateRepeatEndBoundary(repeat, untilStr, start, end);
     if (repeat && untilStr && repeatEnd === null) return null;
 
@@ -1636,9 +1613,9 @@ function buildMainCalendarOptions(expandedChains, firstDay, timezone) {
                 return;
             }
             openChainEditModal();
-            document.getElementById('chain-start').value = formatDateTime(info.start);
+            document.getElementById('chain-start').value = formatDateTime(info.start, getEffectiveTimezone());
             if (info.end) {
-                document.getElementById('chain-end').value = formatDateTime(info.end);
+                document.getElementById('chain-end').value = formatDateTime(info.end, getEffectiveTimezone());
             }
             calendar.unselect();
         },
