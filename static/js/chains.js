@@ -1,5 +1,5 @@
 import {getSocket} from "./websocket.js";
-import {getBaseUrl} from "./utils.js";
+import {getBaseUrl, parseWeekStart} from "./utils.js";
 import {getIsAuthenticated, onAuthChange} from "./auth.js";
 import {
     setTimezoneMode,
@@ -565,16 +565,11 @@ function generateId() {
 }
 
 async function loadChainsConfig() {
-    try {
-        const response = await fetch(`${getBaseUrl()}/chains_config`);
-        if (response.ok) {
-            chainsConfig = await response.json();
-        } else {
-            console.error('Failed to load chains config, status:', response.status);
-        }
-    } catch (error) {
-        console.error('Failed to load chains config:', error);
+    const response = await fetch(`${getBaseUrl()}/chains_config`, {credentials: "same-origin"});
+    if (!response.ok) {
+        throw new Error(`Failed to load chains config, status: ${response.status}`);
     }
+    chainsConfig = await response.json();
 }
 
 function createStepElement(step = null, index = null) {
@@ -1328,19 +1323,6 @@ async function deleteChain() {
     }
 }
 
-function parseWeekStart(weekStart) {
-    const weekStartMap = {
-        'Mon': 1, '1': 1,
-        'Tue': 2, '2': 2,
-        'Wed': 3, '3': 3,
-        'Thu': 4, '4': 4,
-        'Fri': 5, '5': 5,
-        'Sat': 6, '6': 6,
-        'Sun': 0, '0': 0, '7': 0
-    };
-    return weekStartMap[weekStart] || 1;
-}
-
 function getEffectiveTimezone() {
     return effectiveTimezone(chainsConfig.timezone, chainsConfig.user_timezone);
 }
@@ -1403,7 +1385,6 @@ function applySharedCalendarOptions() {
     for (const cal of [calendar, monthCalendar]) {
         cal.setOption('firstDay', firstDay);
         cal.setOption('timeZone', timezone);
-        cal.setOption('weekNumberCalculation', 'local');
     }
 }
 
@@ -1543,7 +1524,6 @@ function getSharedCalendarOptions(firstDay, timezone) {
         firstDay: firstDay,
         timeZone: timezone,
         weekNumbers: true,
-        weekNumberCalculation: 'local',
     };
 }
 

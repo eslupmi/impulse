@@ -1,4 +1,4 @@
-import {getBaseUrl} from "./utils.js";
+import {getBaseUrl, parseWeekStart} from "./utils.js";
 import {createEditableFilterBadge, validateAndFormatFilter} from "./filters.js";
 import {getIsAuthenticated, onAuthChange} from "./auth.js";
 import {
@@ -13,6 +13,7 @@ let rowSeq = 0;
 let pickerMode = null;
 let pickerTargetId = null;
 let configTimezone = "UTC";
+let configWeekStart = "Mon";
 let messengerType = "";
 let userTimezone = null;
 let activeIndicatorTimer = null;
@@ -262,17 +263,15 @@ function commitParsedRowInputs(row, parsed) {
 }
 
 async function loadChainsConfig() {
-    try {
-        const res = await fetch(`${getBaseUrl()}/chains_config`, {credentials: "same-origin"});
-        if (res.ok) {
-            const data = await res.json();
-            configTimezone = data.timezone || "UTC";
-            messengerType = data.messenger_type || "";
-            userTimezone = data.user_timezone || null;
-        }
-    } catch (e) {
-        console.warn("Failed to load chains config for maintenance timezone", e);
+    const res = await fetch(`${getBaseUrl()}/chains_config`, {credentials: "same-origin"});
+    if (!res.ok) {
+        throw new Error(`Failed to load chains config, status: ${res.status}`);
     }
+    const data = await res.json();
+    configTimezone = data.timezone;
+    configWeekStart = data.week_start;
+    messengerType = data.messenger_type;
+    userTimezone = data.user_timezone;
 }
 
 function rowFromServer(data) {
@@ -786,7 +785,7 @@ function openIntervalPickerUi(initialStart, initialDurationMs) {
         initialView: "timeGridWeek",
         initialDate: initialStart,
         headerToolbar: {left: "title", center: "", right: "today prev,next"},
-        firstDay: 1,
+        firstDay: parseWeekStart(configWeekStart),
         height: "100%",
         scrollTime: scrollTimeFromDate(initialStart),
         scrollTimeReset: false,
@@ -806,7 +805,6 @@ function openIntervalPickerUi(initialStart, initialDurationMs) {
             hour12: false,
         },
         weekNumbers: true,
-        weekNumberCalculation: "ISO",
         events: [],
         select(info) {
             const ms = info.end.getTime() - info.start.getTime();
