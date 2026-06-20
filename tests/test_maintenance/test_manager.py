@@ -198,3 +198,16 @@ class TestMaintenanceManager:
 
         assert MAINTENANCE_PARENT_SENTINEL not in incident.parents
         application.update_incident_message.assert_awaited_once_with(incident)
+
+    @pytest.mark.asyncio
+    async def test_reconcile_all_includes_maintenance_time_freeze_without_sentinel(self, maintenance_setup):
+        manager, store, _, _ = maintenance_setup
+        store.list.return_value = []
+        incident = _incident()
+        incident.frozen_until = datetime.now(timezone.utc) + timedelta(hours=1)
+        incident.frozen_until_source = FreezeSource.MAINTENANCE.value
+        manager.incidents.uniq_ids = {"a": incident}
+
+        await manager.reconcile_all()
+
+        assert incident.frozen_until is None

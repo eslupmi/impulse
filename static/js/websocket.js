@@ -182,6 +182,24 @@ function setupWebSocketEvents() {
                     }
                     break;
 
+                case "maintenance_data":
+                    if (typeof globalThis.handleMaintenanceData === 'function') {
+                        globalThis.handleMaintenanceData(data);
+                    }
+                    break;
+
+                case "maintenance_saved":
+                    if (typeof globalThis.handleMaintenanceSaved === 'function') {
+                        globalThis.handleMaintenanceSaved(message.success);
+                    }
+                    break;
+
+                case "maintenance_error":
+                    if (typeof globalThis.handleMaintenanceError === 'function') {
+                        globalThis.handleMaintenanceError(message.detail);
+                    }
+                    break;
+
                 default:
                     console.log('Unknown WebSocket event:', eventType);
             }

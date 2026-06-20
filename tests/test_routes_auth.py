@@ -1,11 +1,10 @@
-from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
+from datetime import datetime, timedelta, timezone
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from app.maintenance.models import MaintenanceWindow
 from app.routes import create_router
 
 
@@ -49,14 +48,16 @@ def _mock_auth_manager(*, authenticated: bool):
 MATCHER = 'alertname = "Test"'
 
 
-def _maintenance_payload():
+def _maintenance_ws_payload():
     start = datetime.now(timezone.utc).replace(microsecond=0)
-    return {
+    end = start + timedelta(hours=1)
+    return [{
+        "id": "w1",
         "start": start.isoformat(),
-        "durationMs": 3_600_000,
+        "end": end.isoformat(),
         "matchers": [MATCHER],
         "comment": "planned work",
-    }
+    }]
 
 
 @pytest.fixture
@@ -84,6 +85,7 @@ def _build_app(config, messenger, auth_manager):
     app.state.is_standby = False
     app.state.maintenance_manager = Mock()
     app.state.maintenance_manager.reconcile_after_window_removed = AsyncMock()
+    app.state.maintenance_manager.reconcile_all = AsyncMock()
     app.include_router(create_router("", auth_manager=auth_manager))
     return app
 
@@ -112,70 +114,98 @@ class TestPrivilegedRoutesRequireAuth:
         assert response.status_code == 200
         assert response.json()["ui_chains"] == ["primary"]
 
-    def test_get_maintenance_returns_401_when_unauthenticated(self, unauthenticated_client):
-        with patch("app.routes.get_maintenance_store") as mock_store:
-            mock_store.return_value.list.return_value = []
-            response = unauthenticated_client.get("/maintenance")
-        assert response.status_code == 401
 
-    def test_get_maintenance_returns_200_when_authenticated(self, authenticated_client):
-        window = MaintenanceWindow(
-            starts_at=datetime.now(timezone.utc),
-            ends_at=datetime.now(timezone.utc) + timedelta(hours=1),
-            matchers=[MATCHER],
-            comment="work",
-        )
-        with patch("app.routes.get_maintenance_store") as mock_store:
-            mock_store.return_value.list.return_value = [window]
-            response = authenticated_client.get("/maintenance")
-        assert response.status_code == 200
-        assert len(response.json()) == 1
+class TestMaintenanceWebsocketAuth:
+    def test_save_maintenance_rejected_when_unauthenticated(self, config, messenger):
+        auth_manager = _mock_auth_manager(authenticated=False)
+        app = _build_app(config, messenger, auth_manager)
+        with patch("app.routes.get_config", return_value=config), \
+                patch("app.routes.get_maintenance_store") as mock_store:
+            with TestClient(app) as client:
+                with client.websocket_connect("/ws") as ws:
+                    ws.send_json({
+                        "event": "save_maintenance",
+                        "data": _maintenance_ws_payload(),
+                    })
+                    message = ws.receive_json()
+            mock_store.return_value.save_windows.assert_not_called()
+        assert message == {
+            "event": "maintenance_saved",
+            "success": False,
+            "detail": "Authentication required",
+        }
 
-    def test_post_maintenance_returns_401_when_unauthenticated(self, unauthenticated_client):
-        response = unauthenticated_client.post("/maintenance", json=_maintenance_payload())
-        assert response.status_code == 401
+    def test_request_maintenance_rejected_when_unauthenticated(self, config, messenger):
+        auth_manager = _mock_auth_manager(authenticated=False)
+        app = _build_app(config, messenger, auth_manager)
+        with patch("app.routes.get_config", return_value=config), \
+                patch("app.routes.get_maintenance_store") as mock_store:
+            with TestClient(app) as client:
+                with client.websocket_connect("/ws") as ws:
+                    ws.send_json({"event": "request_maintenance"})
+                    message = ws.receive_json()
+            mock_store.return_value.load_windows.assert_not_called()
+        assert message == {
+            "event": "maintenance_error",
+            "detail": "Authentication required",
+        }
 
-    def test_post_maintenance_returns_200_when_authenticated(self, authenticated_client):
-        store = Mock()
-        with patch("app.routes.get_maintenance_store", return_value=store), \
-                patch("app.routes.reconcile_maintenance", new_callable=AsyncMock):
-            response = authenticated_client.post("/maintenance", json=_maintenance_payload())
-        assert response.status_code == 200
-        store.upsert.assert_called_once()
-        saved_window = store.upsert.call_args[0][0]
-        assert saved_window.created_by == "alice"
+    def test_save_maintenance_allowed_when_authenticated(self, config, messenger):
+        auth_manager = _mock_auth_manager(authenticated=True)
+        app = _build_app(config, messenger, auth_manager)
+        with patch("app.routes.get_config", return_value=config), \
+                patch("app.routes.get_maintenance_store") as mock_store, \
+                patch("app.routes.merge_and_validate_save") as mock_validate:
+            mock_store.return_value.load_windows.return_value = []
+            mock_store.return_value.save_windows.return_value = True
+            mock_validate.return_value = _maintenance_ws_payload()
+            with TestClient(app, cookies={SESSION_COOKIE: "valid-session"}) as client:
+                with client.websocket_connect("/ws") as ws:
+                    ws.send_json({
+                        "event": "save_maintenance",
+                        "data": _maintenance_ws_payload(),
+                    })
+                    message = ws.receive_json()
+            mock_store.return_value.save_windows.assert_called_once()
+            app.state.maintenance_manager.reconcile_after_window_removed.assert_not_called()
+            app.state.maintenance_manager.reconcile_all.assert_awaited_once()
+        assert message == {"event": "maintenance_saved", "success": True}
 
-    def test_put_maintenance_returns_401_when_unauthenticated(self, unauthenticated_client):
-        response = unauthenticated_client.put("/maintenance/w1", json=_maintenance_payload())
-        assert response.status_code == 401
+    def test_save_maintenance_reconciles_removed_windows(self, config, messenger):
+        auth_manager = _mock_auth_manager(authenticated=True)
+        app = _build_app(config, messenger, auth_manager)
+        existing = _maintenance_ws_payload()
+        with patch("app.routes.get_config", return_value=config), \
+                patch("app.routes.get_maintenance_store") as mock_store, \
+                patch("app.routes.merge_and_validate_save") as mock_validate:
+            mock_store.return_value.load_windows.return_value = existing
+            mock_store.return_value.save_windows.return_value = True
+            mock_validate.return_value = []
+            with TestClient(app, cookies={SESSION_COOKIE: "valid-session"}) as client:
+                with client.websocket_connect("/ws") as ws:
+                    ws.send_json({
+                        "event": "save_maintenance",
+                        "data": [],
+                    })
+                    message = ws.receive_json()
+            removed_window = app.state.maintenance_manager.reconcile_after_window_removed.await_args.args[0]
+            assert removed_window.matchers == existing[0]["matchers"]
+        assert message == {"event": "maintenance_saved", "success": True}
 
-    def test_put_maintenance_returns_200_when_authenticated(self, authenticated_client):
-        store = Mock()
-        store.get.return_value = Mock()
-        with patch("app.routes.get_maintenance_store", return_value=store), \
-                patch("app.routes.reconcile_maintenance", new_callable=AsyncMock):
-            response = authenticated_client.put("/maintenance/w1", json=_maintenance_payload())
-        assert response.status_code == 200
-        store.upsert.assert_called_once()
-
-    def test_delete_maintenance_returns_401_when_unauthenticated(self, unauthenticated_client):
-        response = unauthenticated_client.delete("/maintenance/w1")
-        assert response.status_code == 401
-
-    def test_delete_maintenance_returns_200_when_authenticated(self, authenticated_client):
-        window = MaintenanceWindow(
-            id="w1",
-            starts_at=datetime.now(timezone.utc),
-            ends_at=datetime.now(timezone.utc) + timedelta(hours=1),
-            matchers=[MATCHER],
-            comment="work",
-        )
-        store = Mock()
-        store.get.return_value = window
-        with patch("app.routes.get_maintenance_store", return_value=store):
-            response = authenticated_client.delete("/maintenance/w1")
-        assert response.status_code == 200
-        store.delete.assert_called_once_with("w1")
+    def test_request_maintenance_allowed_when_authenticated(self, config, messenger):
+        auth_manager = _mock_auth_manager(authenticated=True)
+        app = _build_app(config, messenger, auth_manager)
+        payload = _maintenance_ws_payload()
+        with patch("app.routes.get_config", return_value=config), \
+                patch("app.routes.get_maintenance_store") as mock_store:
+            mock_store.return_value.load_windows.return_value = payload
+            with TestClient(app, cookies={SESSION_COOKIE: "valid-session"}) as client:
+                with client.websocket_connect("/ws") as ws:
+                    ws.send_json({"event": "request_maintenance"})
+                    message = ws.receive_json()
+            mock_store.return_value.prune_expired_windows.assert_called_once()
+            mock_store.return_value.load_windows.assert_called_once()
+        assert message == {"event": "maintenance_data", "data": payload}
 
 
 class TestUiChainsWebsocketAuth:

@@ -128,10 +128,17 @@ class MaintenanceManager:
                 continue
             await self.reconcile_incident(incident)
 
+    def _needs_maintenance_reconcile(self, incident: "Incident") -> bool:
+        return (
+            self.would_match_active_window(incident)
+            or MAINTENANCE_PARENT_SENTINEL in incident.parents
+            or incident.frozen_until_source == FreezeSource.MAINTENANCE.value
+        )
+
     async def reconcile_all(self):
         for uniq_id in self.incidents.uniq_ids.keys():
             incident = self.incidents.uniq_ids.get(uniq_id)
             if incident is None or incident.status in ("closed", "deleted"):
                 continue
-            if self.would_match_active_window(incident) or MAINTENANCE_PARENT_SENTINEL in incident.parents:
+            if self._needs_maintenance_reconcile(incident):
                 await self.reconcile_incident(incident)

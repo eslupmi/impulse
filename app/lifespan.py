@@ -88,6 +88,7 @@ async def create_main_objects(fastapi_app: FastAPI, reload=False):
         queue_manager = AsyncQueueManager(queue, messenger, incidents, webhooks, route, inhibition_manager, maintenance_manager)
         await maintenance_manager.reconcile_all()
         ui_chains_store.prune_all()
+        get_maintenance_store().prune_expired_windows()
 
         fastapi_app.state.queue_manager = queue_manager
         fastapi_app.state.incidents = incidents

@@ -1,9 +1,10 @@
 @import "colors.css";
-@import "size.css";
 
 :root {
     --chain-event-bg: var(--calendar-shift-bg);
     --chain-event-border: var(--brand-primary);
+    --maintenance-event-bg: var(--calendar-shift-bg);
+    --maintenance-event-border: var(--brand-primary);
 }
 
 /* General Styling */

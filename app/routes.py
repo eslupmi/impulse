@@ -8,7 +8,8 @@ from fastapi.templating import Jinja2Templates
 
 from app.config.config import get_config, reload_config
 from app.logging import logger
-from app.maintenance.api import reconcile_maintenance, serialize_window, window_from_payload
+from app.maintenance.api import merge_and_validate_save, removed_windows
+from app.maintenance.models import MaintenanceWindow
 from app.maintenance.store import get_maintenance_store
 from app.metrics import generate_metrics_response
 from app.middleware import is_standby_mode, service_unavailable_response, STANDBY_MODE_MESSAGE
@@ -314,63 +315,6 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
         await messenger.handle_ui_release(incident)
         return {"success": True}
 
-    @router.get("/maintenance", responses={
-        401: {"description": _MSG_AUTHENTICATION_REQUIRED},
-    })
-    async def get_maintenance(request: Request):
-        _get_acting_user(request)
-        store = get_maintenance_store()
-        return [serialize_window(w) for w in store.list()]
-
-    @router.post("/maintenance", responses={
-        400: {"description": "Invalid maintenance window"},
-        401: {"description": _MSG_AUTHENTICATION_REQUIRED},
-    })
-    async def post_maintenance(request: Request):
-        acting_user = _get_acting_user(request)
-        body = await request.json()
-        window = window_from_payload(body)
-        if acting_user:
-            window.created_by = (acting_user.get("username") or acting_user.get("full_name") or
-                                 str(acting_user.get("id") or "")) or None
-        store = get_maintenance_store()
-        store.upsert(window)
-        logger.info("Maintenance window created", extra={"id": window.id, "ends_at": window.ends_at})
-        await reconcile_maintenance(request)
-        return serialize_window(window)
-
-    @router.put("/maintenance/{window_id}", responses={
-        400: {"description": "Invalid maintenance window"},
-        401: {"description": _MSG_AUTHENTICATION_REQUIRED},
-        404: {"description": "Maintenance window not found"},
-    })
-    async def put_maintenance(request: Request, window_id: str):
-        _get_acting_user(request)
-        store = get_maintenance_store()
-        if store.get(window_id) is None:
-            raise HTTPException(status_code=404, detail="Maintenance window not found")
-        body = await request.json()
-        window = window_from_payload(body, window_id=window_id)
-        store.upsert(window)
-        logger.info("Maintenance window updated", extra={"id": window.id, "ends_at": window.ends_at})
-        await reconcile_maintenance(request)
-        return serialize_window(window)
-
-    @router.delete("/maintenance/{window_id}", responses={
-        401: {"description": _MSG_AUTHENTICATION_REQUIRED},
-        404: {"description": "Maintenance window not found"},
-    })
-    async def delete_maintenance(request: Request, window_id: str):
-        _get_acting_user(request)
-        store = get_maintenance_store()
-        window = store.get(window_id)
-        if window is None:
-            raise HTTPException(status_code=404, detail="Maintenance window not found")
-        store.delete(window_id)
-        await request.app.state.maintenance_manager.reconcile_after_window_removed(window)
-        logger.info("Maintenance window deleted", extra={"id": window_id})
-        return {"success": True}
-
     @router.post("/-/reload")
     async def post_reload(request: Request):
         if is_standby_mode(request.app.state):
@@ -440,6 +384,50 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
                             shifts = message.get("data", [])
                             success = ui_chains_store.save_shifts(chain_name, shifts)
                             await websocket.send_text(json.dumps({"event": "ui_chains_saved", "success": success}))
+                    elif event_type == "request_maintenance":
+                        if auth_manager and _get_acting_user_from_websocket(websocket) is None:
+                            await websocket.send_text(json.dumps({
+                                "event": "maintenance_error",
+                                "detail": _MSG_AUTHENTICATION_REQUIRED,
+                            }))
+                        else:
+                            store = get_maintenance_store()
+                            store.prune_expired_windows()
+                            windows = store.load_windows()
+                            await websocket.send_text(json.dumps({"event": "maintenance_data", "data": windows}))
+                    elif event_type == "save_maintenance":
+                        if auth_manager and _get_acting_user_from_websocket(websocket) is None:
+                            await websocket.send_text(json.dumps({
+                                "event": "maintenance_saved",
+                                "success": False,
+                                "detail": _MSG_AUTHENTICATION_REQUIRED,
+                            }))
+                        else:
+                            acting_user = _get_acting_user_from_websocket(websocket)
+                            windows_payload = message.get("data", [])
+                            try:
+                                windows = merge_and_validate_save(windows_payload, acting_user)
+                            except HTTPException as exc:
+                                await websocket.send_text(json.dumps({
+                                    "event": "maintenance_saved",
+                                    "success": False,
+                                    "detail": exc.detail,
+                                }))
+                            else:
+                                store = get_maintenance_store()
+                                existing = store.load_windows()
+                                deleted = removed_windows(existing, windows)
+                                success = store.save_windows(windows)
+                                if success:
+                                    maintenance_manager = websocket.app.state.maintenance_manager
+                                    for window_dict in deleted:
+                                        removed_window = MaintenanceWindow.from_window_dict(window_dict)
+                                        await maintenance_manager.reconcile_after_window_removed(removed_window)
+                                    await maintenance_manager.reconcile_all()
+                                await websocket.send_text(json.dumps({
+                                    "event": "maintenance_saved",
+                                    "success": success,
+                                }))
 
                 except json.JSONDecodeError:
                     logger.warning("Invalid WebSocket JSON", extra={'data': data})

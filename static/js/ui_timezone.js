@@ -1,5 +1,11 @@
 const STORAGE_KEY = "ui_chains_timezone_mode";
 
+const timezoneConfig = {
+    configTimezone: "UTC",
+    messengerType: "",
+    userTimezone: null,
+};
+
 function resolveUserTimezone(userTimezone) {
     return userTimezone || null;
 }
@@ -91,4 +97,97 @@ export function fillTimezoneSelect(selector, configTimezone = "UTC", messengerTy
 export function syncTimezoneSelects(configTimezone = "UTC", messengerType = "", userTimezone = null) {
     fillTimezoneSelect(document.getElementById("timezone-select"), configTimezone, messengerType, userTimezone);
     fillTimezoneSelect(document.getElementById("maintenance-timezone-select"), configTimezone, messengerType, userTimezone);
+}
+
+const timezoneChangeListeners = new Set();
+
+export function onTimezoneChange(callback) {
+    timezoneChangeListeners.add(callback);
+    return () => timezoneChangeListeners.delete(callback);
+}
+
+function notifyTimezoneChange(context) {
+    for (const callback of timezoneChangeListeners) {
+        Promise.resolve(callback(context)).catch((error) => {
+            console.error("Timezone change handler failed", error);
+        });
+    }
+}
+
+export function updateTimezoneConfig({configTimezone, messengerType, userTimezone}) {
+    if (configTimezone !== undefined) {
+        timezoneConfig.configTimezone = configTimezone;
+    }
+    if (messengerType !== undefined) {
+        timezoneConfig.messengerType = messengerType;
+    }
+    if (userTimezone !== undefined) {
+        timezoneConfig.userTimezone = userTimezone;
+    }
+}
+
+export function getTimezoneConfig() {
+    return timezoneConfig;
+}
+
+export function applyTimezoneModeChange(mode) {
+    const {configTimezone, messengerType, userTimezone} = timezoneConfig;
+    const previousTimezone = getEffectiveTimezone(configTimezone, userTimezone);
+    setTimezoneMode(mode);
+    syncTimezoneSelects(configTimezone, messengerType, userTimezone);
+    notifyTimezoneChange({previousTimezone, configTimezone, userTimezone});
+}
+
+export function captureCalendarViewAnchor(calendarApi) {
+    if (!calendarApi?.view) {
+        return null;
+    }
+    const timeZone = calendarApi.getOption("timeZone") || "local";
+    const activeStart = calendarApi.view.activeStart;
+    if (typeof luxon === "undefined") {
+        const year = activeStart.getFullYear();
+        const month = String(activeStart.getMonth() + 1).padStart(2, "0");
+        const day = String(activeStart.getDate()).padStart(2, "0");
+        return `${year}-${month}-${day}`;
+    }
+    const zone = timeZone === "local" ? undefined : timeZone;
+    return luxon.DateTime.fromJSDate(activeStart, zone ? {zone} : undefined).toFormat("yyyy-MM-dd");
+}
+
+export function initTimezoneSelectHandlers() {
+    for (const id of ["timezone-select", "maintenance-timezone-select"]) {
+        const select = document.getElementById(id);
+        if (!select || select.dataset.timezoneHandlerAttached) {
+            continue;
+        }
+        select.dataset.timezoneHandlerAttached = "1";
+        select.addEventListener("change", (event) => {
+            applyTimezoneModeChange(event.target.value);
+        });
+    }
+}
+
+export function reformatDateTimeValue(value, previousTimezone, configTimezone, userTimezone) {
+    const match = value.trim().match(/(\d{4})-(\d{2})-(\d{2}),\s*(\d{2}):(\d{2})/);
+    if (!match) {
+        return value;
+    }
+    const [, year, month, day, hour, minute] = match;
+    if (typeof luxon === "undefined") {
+        return value;
+    }
+    const utc = luxon.DateTime.fromObject(
+        {year: +year, month: +month, day: +day, hour: +hour, minute: +minute, second: 0},
+        {zone: previousTimezone},
+    ).toUTC();
+    const dt = utc.setZone(getEffectiveTimezone(configTimezone, userTimezone));
+    const pad = (n) => n.toString().padStart(2, "0");
+    return `${dt.year}-${pad(dt.month)}-${pad(dt.day)}, ${pad(dt.hour)}:${pad(dt.minute)}`;
+}
+
+export function reformatDateTimeInput(input, previousTimezone, configTimezone, userTimezone) {
+    if (!input?.value.trim()) {
+        return;
+    }
+    input.value = reformatDateTimeValue(input.value, previousTimezone, configTimezone, userTimezone);
 }

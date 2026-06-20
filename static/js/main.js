@@ -7,6 +7,7 @@ import {ThemeManager} from "./theme.js";
 import {initAuthControls} from "./auth.js";
 import {ChainsManager} from "./chains.js";
 import {MaintenanceManager} from "./maintenance.js";
+import {initTimezoneSelectHandlers} from "./ui_timezone.js";
 
 
 // **Initialize Everything**
@@ -22,6 +23,7 @@ initHistoryToggle();
 ThemeManager.init();
 MaintenanceManager.init();
 ChainsManager.init();
+initTimezoneSelectHandlers();
 await initAuthControls();
 
 // Update zoom icons after table initialization and filters are loaded

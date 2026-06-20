@@ -2,9 +2,12 @@ import {getSocket} from "./websocket.js";
 import {getBaseUrl, parseWeekStart} from "./utils.js";
 import {getIsAuthenticated, onAuthChange} from "./auth.js";
 import {
-    setTimezoneMode,
+    captureCalendarViewAnchor,
     getEffectiveTimezone as effectiveTimezone,
+    onTimezoneChange,
+    reformatDateTimeInput,
     syncTimezoneSelects,
+    updateTimezoneConfig,
 } from "./ui_timezone.js";
 
 let calendar = null;
@@ -570,6 +573,11 @@ async function loadChainsConfig() {
         throw new Error(`Failed to load chains config, status: ${response.status}`);
     }
     chainsConfig = await response.json();
+    updateTimezoneConfig({
+        configTimezone: chainsConfig.timezone,
+        messengerType: chainsConfig.messenger_type,
+        userTimezone: chainsConfig.user_timezone,
+    });
 }
 
 function createStepElement(step = null, index = null) {
@@ -1396,23 +1404,75 @@ function applySharedCalendarOptions() {
     }
 }
 
+function refreshChainModalDateTimes({previousTimezone, configTimezone, userTimezone}) {
+    const modal = document.getElementById('chain-modal');
+    if (!modal?.classList.contains('visible')) {
+        return;
+    }
+    reformatDateTimeInput(document.getElementById('chain-start'), previousTimezone, configTimezone, userTimezone);
+    reformatDateTimeInput(document.getElementById('chain-end'), previousTimezone, configTimezone, userTimezone);
+    reformatDateTimeInput(document.getElementById('chain-until'), previousTimezone, configTimezone, userTimezone);
+}
+
 async function updateCalendarTimezone() {
+    const modal = document.getElementById('chains-modal');
+    if (!modal?.classList.contains('visible') || !initialized || !calendar || !monthCalendar) {
+        return;
+    }
+
+    const calendarEl = document.getElementById('calendar');
+    const monthCalendarEl = document.getElementById('month-calendar');
+    if (!calendarEl || !monthCalendarEl) {
+        return;
+    }
+
     const timegridScroller = document.querySelector('#calendar .fc-timegrid-body .fc-scroller');
     const scrollTop = timegridScroller ? timegridScroller.scrollTop : 0;
-    
-    applySharedCalendarOptions();
-    
+    const anchorDate = captureCalendarViewAnchor(calendar);
+    const firstDay = parseWeekStart(chainsConfig.week_start);
+    const timezone = getEffectiveTimezone();
+
+    if (eventOverlapObserver) {
+        eventOverlapObserver.disconnect();
+        eventOverlapObserver = null;
+    }
+
+    calendar.destroy();
+    monthCalendar.destroy();
+
     const chains = await loadChains();
-    refreshCalendarEvents(getExpandedChains(chains));
-    
+    const expandedChains = getExpandedChains(chains);
+
+    const calendarOptions = buildMainCalendarOptions(expandedChains, firstDay, timezone);
+    const monthOptions = buildMonthCalendarOptions(expandedChains, firstDay, timezone);
+    if (anchorDate) {
+        calendarOptions.initialDate = anchorDate;
+        monthOptions.initialDate = anchorDate;
+    }
+
+    calendar = new FullCalendar.Calendar(calendarEl, calendarOptions);
+    monthCalendar = new FullCalendar.Calendar(monthCalendarEl, monthOptions);
     calendar.render();
     monthCalendar.render();
+    setupEventOverlapObserver(calendarEl);
 
-    if (timegridScroller) {
-        requestAnimationFrame(() => {
-            timegridScroller.scrollTop = scrollTop;
-        });
+    if (anchorDate) {
+        calendar.gotoDate(anchorDate);
+        monthCalendar.gotoDate(anchorDate);
     }
+
+    bindCalendarNavButtons();
+    updateWeekNumberDisplay();
+    updateCurrentWeekHighlight();
+    updateEventStyles();
+
+    setTimeout(() => {
+        calendar.updateSize();
+        monthCalendar.updateSize();
+        if (timegridScroller) {
+            timegridScroller.scrollTop = scrollTop;
+        }
+    }, 50);
 }
 
 function updateWeekNumberDisplay() {
@@ -1877,16 +1937,10 @@ export const ChainsManager = {
             });
         }
         
-        const timezoneSelect = document.getElementById('timezone-select');
-        if (timezoneSelect) {
-            timezoneSelect.addEventListener('change', async (e) => {
-                setTimezoneMode(e.target.value);
-                syncTimezoneSelects(chainsConfig.timezone, chainsConfig.messenger_type, chainsConfig.user_timezone);
-                if (calendar && monthCalendar) {
-                    await updateCalendarTimezone();
-                }
-            });
-        }
+        onTimezoneChange(async (context) => {
+            refreshChainModalDateTimes(context);
+            await updateCalendarTimezone();
+        });
 
         chainsCloseBtn.addEventListener('click', () => {
             closeChainsModal();

@@ -32,6 +32,27 @@ class MaintenanceWindow:
             return False
         return all(m.matches(incident.payload) for m in self._compiled)
 
+    def to_window_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "start": self.starts_at.isoformat(),
+            "end": self.ends_at.isoformat(),
+            "matchers": list(self.matchers),
+            "comment": self.comment,
+            "created_by": self.created_by,
+        }
+
+    @classmethod
+    def from_window_dict(cls, data: dict) -> "MaintenanceWindow":
+        return cls(
+            starts_at=_parse_iso(data["start"]),
+            ends_at=_parse_iso(data["end"]),
+            matchers=list(data.get("matchers", [])),
+            comment=data.get("comment", ""),
+            created_by=data.get("created_by"),
+            id=data.get("id") or str(uuid.uuid4()),
+        )
+
     def to_dict(self) -> dict:
         return {
             "id": self.id,
@@ -44,6 +65,8 @@ class MaintenanceWindow:
 
     @classmethod
     def from_dict(cls, data: dict) -> "MaintenanceWindow":
+        if "start" in data and "end" in data:
+            return cls.from_window_dict(data)
         return cls(
             starts_at=_parse_iso(data["starts_at"]),
             ends_at=_parse_iso(data["ends_at"]),
