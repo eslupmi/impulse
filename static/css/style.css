@@ -624,7 +624,6 @@ strong {
     align-items: center;
     gap: 0;
     background: var(--auth-button-bg);
-    border: 1.5px solid var(--login-button-color);
 }
 
 .auth-controls-wrapper.logged-in {
@@ -903,6 +902,7 @@ strong {
 
 .user-selector-container {
     display: flex;
+    height: 32px;
     align-items: center;
     justify-content: flex-end;
 }
@@ -919,7 +919,7 @@ strong {
     font-size: 12px;
     padding: 4px 20px 4px 6px;
     cursor: pointer;
-    max-width: 110px;
+    width: 100%;
     white-space: nowrap;
     /*overflow: hidden;*/
     /*text-overflow: ellipsis;*/
