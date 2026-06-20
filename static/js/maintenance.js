@@ -1,5 +1,6 @@
 import {getSocket} from "./websocket.js";
 import {getBaseUrl, parseWeekStart} from "./utils.js";
+import {attachNavListener, getSharedCalendarOptions, updateMonthCalendarWeekHighlight} from "./calendar_shared.js";
 import {createEditableFilterBadge, validateAndFormatFilter} from "./filters.js";
 import {getIsAuthenticated, onAuthChange} from "./auth.js";
 import {
@@ -299,25 +300,7 @@ function updateWeekNumberDisplay() {
 }
 
 function updateCurrentWeekHighlight() {
-    if (!calendar || !monthCalendar) return;
-    const weekStart = new Date(calendar.view.activeStart);
-    weekStart.setHours(0, 0, 0, 0);
-    const weekEnd = new Date(calendar.view.activeEnd);
-    weekEnd.setHours(0, 0, 0, 0);
-    monthCalendar.el.querySelectorAll(".fc-daygrid-day:not(.fc-day-other)").forEach((cell) => {
-        const dateStr = cell.dataset.date;
-        if (!dateStr) return;
-        const cellDate = new Date(`${dateStr}T00:00:00`);
-        cellDate.setHours(0, 0, 0, 0);
-        cell.classList.toggle("current-week", cellDate >= weekStart && cellDate < weekEnd);
-    });
-}
-
-function attachNavListener(btn, handler) {
-    if (btn && !btn.dataset.listenerAttached) {
-        btn.dataset.listenerAttached = "true";
-        btn.addEventListener("click", handler);
-    }
+    updateMonthCalendarWeekHighlight(calendar, monthCalendar);
 }
 
 function bindCalendarNavButtons() {
@@ -333,14 +316,6 @@ function bindCalendarNavButtons() {
         calendar.today();
         setTimeout(updateWeekNumberDisplay, 50);
     });
-}
-
-function getSharedCalendarOptions(firstDay, timezone) {
-    return {
-        firstDay,
-        timeZone: timezone,
-        weekNumbers: true,
-    };
 }
 
 function buildMainCalendarOptions(events, firstDay, timezone) {
@@ -389,7 +364,7 @@ function buildMainCalendarOptions(events, firstDay, timezone) {
             openWindowModal({
                 id: info.event.id,
                 start: info.event.start.toISOString(),
-                end: info.event.end ? info.event.end.toISOString() : null,
+                end: info.event.end?.toISOString() ?? null,
                 matchers: props.matchers || [],
                 comment: props.comment || "",
                 created_by: props.created_by || null,
@@ -425,15 +400,6 @@ function buildMonthCalendarOptions(events, firstDay, timezone) {
         dayCellContent(info) {
             return {html: `<div class="day-number">${info.dayNumberText}</div>`};
         },
-        dayCellDidMount(info) {
-            const cellDate = new Date(info.date);
-            cellDate.setHours(0, 0, 0, 0);
-            const weekStart = new Date(calendar.view.activeStart);
-            weekStart.setHours(0, 0, 0, 0);
-            const weekEnd = new Date(calendar.view.activeEnd);
-            weekEnd.setHours(0, 0, 0, 0);
-            info.el.classList.toggle("current-week", cellDate >= weekStart && cellDate < weekEnd);
-        },
         datesSet() {
             setTimeout(updateCurrentWeekHighlight, 50);
         },
@@ -450,7 +416,7 @@ async function handleEventTimeChange(info) {
     windows[index] = {
         ...windows[index],
         start: info.event.start.toISOString(),
-        end: info.event.end ? info.event.end.toISOString() : windows[index].end,
+        end: info.event.end?.toISOString() ?? windows[index].end,
     };
     const saved = await saveWindows(windows);
     if (!saved) {

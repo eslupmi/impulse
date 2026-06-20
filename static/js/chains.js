@@ -1,5 +1,6 @@
 import {getSocket} from "./websocket.js";
 import {getBaseUrl, parseWeekStart} from "./utils.js";
+import {attachNavListener, getSharedCalendarOptions, updateMonthCalendarWeekHighlight} from "./calendar_shared.js";
 import {getIsAuthenticated, onAuthChange} from "./auth.js";
 import {
     captureCalendarViewAnchor,
@@ -1487,33 +1488,7 @@ function updateWeekNumberDisplay() {
 }
 
 function updateCurrentWeekHighlight() {
-    if (!calendar || !monthCalendar) return;
-    
-    const weekStart = new Date(calendar.view.activeStart);
-    weekStart.setHours(0, 0, 0, 0);
-    const weekEnd = new Date(calendar.view.activeEnd);
-    weekEnd.setHours(0, 0, 0, 0);
-    
-    const dayCells = monthCalendar.el.querySelectorAll('.fc-daygrid-day:not(.fc-day-other)');
-    dayCells.forEach(cell => {
-        const dateStr = cell.dataset.date;
-        if (!dateStr) return;
-        
-        const cellDate = new Date(dateStr + 'T00:00:00');
-        cellDate.setHours(0, 0, 0, 0);
-        if (cellDate >= weekStart && cellDate < weekEnd) {
-            cell.classList.add('current-week');
-        } else {
-            cell.classList.remove('current-week');
-        }
-    });
-}
-
-function attachNavListener(btn, handler) {
-    if (btn && !btn.dataset.listenerAttached) {
-        btn.dataset.listenerAttached = 'true';
-        btn.addEventListener('click', handler);
-    }
+    updateMonthCalendarWeekHighlight(calendar, monthCalendar);
 }
 
 async function setRepeatEndFromEvent(event, isLastOccurrence) {
@@ -1585,14 +1560,6 @@ function styleMountedEvent(el, event) {
         applyEventOverlapOffset(el);
         applyEventInset(el, event);
     }
-}
-
-function getSharedCalendarOptions(firstDay, timezone) {
-    return {
-        firstDay: firstDay,
-        timeZone: timezone,
-        weekNumbers: true,
-    };
 }
 
 function buildMainCalendarOptions(expandedChains, firstDay, timezone) {
@@ -1742,21 +1709,6 @@ function buildMonthCalendarOptions(expandedChains, firstDay, timezone) {
             return {
                 html: `<div class="day-number">${dayNum}</div>`
             };
-        },
-
-        dayCellDidMount: function(info) {
-            const cellDate = new Date(info.date);
-            cellDate.setHours(0, 0, 0, 0);
-            const weekStart = new Date(calendar.view.activeStart);
-            weekStart.setHours(0, 0, 0, 0);
-            const weekEnd = new Date(calendar.view.activeEnd);
-            weekEnd.setHours(0, 0, 0, 0);
-            
-            if (cellDate >= weekStart && cellDate < weekEnd) {
-                info.el.classList.add('current-week');
-            } else {
-                info.el.classList.remove('current-week');
-            }
         },
 
         datesSet: function() {

@@ -173,6 +173,7 @@
     width: auto;
     overflow: visible;
     text-overflow: clip;
+    color: inherit;
 }
 
 .timezone-select-source {
@@ -232,10 +233,6 @@
 .timezone-select-option.selected {
     background: var(--select-option-bg);
     color: var(--fg-primary);
-}
-
-.timezone-select-option .timezone-select-name {
-    color: inherit;
 }
 
 #chain-modal select {
@@ -582,11 +579,6 @@
     display: none !important;
 }
 
-:is(#month-calendar, #maintenance-month-calendar) .fc-daygrid-day-frame {
-    /* position: relative; */
-    padding: 2px;
-}
-
 :is(#month-calendar, #maintenance-month-calendar) .fc-daygrid-day {
     border: none !important;
 }
@@ -606,6 +598,7 @@
 
 :is(#month-calendar, #maintenance-month-calendar) .fc-daygrid-week {
     border: none !important;
+    cursor: pointer;
 }
 
 :is(#month-calendar, #maintenance-month-calendar) .fc-week-number {
@@ -649,10 +642,6 @@
 
 :is(#month-calendar, #maintenance-month-calendar) .fc-daygrid-day.current-week {
     background: var(--calendar-week-bg) !important;
-}
-
-:is(#month-calendar, #maintenance-month-calendar) .fc-daygrid-week {
-    cursor: pointer;
 }
 
 :is(#calendar, #maintenance-calendar) .fc-header-toolbar {
