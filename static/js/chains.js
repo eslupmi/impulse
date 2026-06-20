@@ -1,10 +1,16 @@
 import {getSocket} from "./websocket.js";
 import {getBaseUrl, parseWeekStart} from "./utils.js";
+import {attachNavListener, getSharedCalendarOptions, updateMonthCalendarWeekHighlight} from "./calendar_shared.js";
 import {getIsAuthenticated, onAuthChange} from "./auth.js";
 import {
-    setTimezoneMode,
+    captureCalendarViewAnchor,
+    formatDateTime,
     getEffectiveTimezone as effectiveTimezone,
+    onTimezoneChange,
+    parseDateTime,
+    reformatDateTimeInput,
     syncTimezoneSelects,
+    updateTimezoneConfig,
 } from "./ui_timezone.js";
 
 let calendar = null;
@@ -570,6 +576,11 @@ async function loadChainsConfig() {
         throw new Error(`Failed to load chains config, status: ${response.status}`);
     }
     chainsConfig = await response.json();
+    updateTimezoneConfig({
+        configTimezone: chainsConfig.timezone,
+        messengerType: chainsConfig.messenger_type,
+        userTimezone: chainsConfig.user_timezone,
+    });
 }
 
 function createStepElement(step = null, index = null) {
@@ -1020,31 +1031,6 @@ async function updateEventPriority(droppedEvent) {
     await saveChains(chains);
 }
 
-function formatDateTime(date) {
-    const timezone = getEffectiveTimezone();
-    const pad = (n) => n.toString().padStart(2, '0');
-    if (typeof luxon === 'undefined') {
-        const d = new Date(date);
-        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}, ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-    }
-    const dt = luxon.DateTime.fromISO(new Date(date).toISOString(), { zone: 'utc' }).setZone(timezone);
-    return `${dt.year}-${pad(dt.month)}-${pad(dt.day)}, ${pad(dt.hour)}:${pad(dt.minute)}`;
-}
-
-function parseDateTime(dateStr) {
-    const match = dateStr.match(/(\d{4})-(\d{2})-(\d{2}),\s*(\d{2}):(\d{2})/);
-    if (!match) return null;
-    const [, year, month, day, hour, minute] = match;
-    const timezone = getEffectiveTimezone();
-    if (typeof luxon === 'undefined') {
-        return new Date(+year, +month - 1, +day, +hour, +minute).toISOString();
-    }
-    return luxon.DateTime.fromObject(
-        { year: +year, month: +month, day: +day, hour: +hour, minute: +minute, second: 0 },
-        { zone: timezone }
-    ).toUTC().toISO();
-}
-
 function toggleRepeatUntilVisibility() {
     const repeatSelect = document.getElementById('chain-repeat');
     const untilGroup = document.getElementById('chain-until-group');
@@ -1069,10 +1055,10 @@ function openChainEditModal(chainData = null) {
     if (chainData) {
         currentChainId = chainData.id;
         modalTitle.textContent = 'Edit shift';
-        startInput.value = formatDateTime(chainData.start);
-        endInput.value = chainData.end ? formatDateTime(chainData.end) : '';
+        startInput.value = formatDateTime(chainData.start, getEffectiveTimezone());
+        endInput.value = chainData.end ? formatDateTime(chainData.end, getEffectiveTimezone()) : '';
         repeatSelect.value = chainData.repeat || '';
-        untilInput.value = chainData.repeatEnd ? formatDateTime(chainData.repeatEnd) : '';
+        untilInput.value = chainData.repeatEnd ? formatDateTime(chainData.repeatEnd, getEffectiveTimezone()) : '';
         renderSteps(chainData.steps || []);
         deleteBtn.classList.remove('hidden');
     } else {
@@ -1167,7 +1153,7 @@ function validateRepeatEndBoundary(repeat, untilStr, start, end) {
     if (!repeat || !untilStr) {
         return null;
     }
-    const repeatEnd = parseDateTime(untilStr);
+    const repeatEnd = parseDateTime(untilStr, getEffectiveTimezone());
     if (!repeatEnd) {
         return null;
     }
@@ -1195,10 +1181,10 @@ function validateChainInput() {
 
     if (!startStr) return null;
 
-    const start = parseDateTime(startStr);
+    const start = parseDateTime(startStr, getEffectiveTimezone());
     if (!start) return null;
 
-    const end = endStr ? parseDateTime(endStr) : null;
+    const end = endStr ? parseDateTime(endStr, getEffectiveTimezone()) : null;
     const repeatEnd = validateRepeatEndBoundary(repeat, untilStr, start, end);
     if (repeat && untilStr && repeatEnd === null) return null;
 
@@ -1396,23 +1382,75 @@ function applySharedCalendarOptions() {
     }
 }
 
+function refreshChainModalDateTimes({previousTimezone, configTimezone, userTimezone}) {
+    const modal = document.getElementById('chain-modal');
+    if (!modal?.classList.contains('visible')) {
+        return;
+    }
+    reformatDateTimeInput(document.getElementById('chain-start'), previousTimezone, configTimezone, userTimezone);
+    reformatDateTimeInput(document.getElementById('chain-end'), previousTimezone, configTimezone, userTimezone);
+    reformatDateTimeInput(document.getElementById('chain-until'), previousTimezone, configTimezone, userTimezone);
+}
+
 async function updateCalendarTimezone() {
+    const modal = document.getElementById('chains-modal');
+    if (!modal?.classList.contains('visible') || !initialized || !calendar || !monthCalendar) {
+        return;
+    }
+
+    const calendarEl = document.getElementById('calendar');
+    const monthCalendarEl = document.getElementById('month-calendar');
+    if (!calendarEl || !monthCalendarEl) {
+        return;
+    }
+
     const timegridScroller = document.querySelector('#calendar .fc-timegrid-body .fc-scroller');
     const scrollTop = timegridScroller ? timegridScroller.scrollTop : 0;
-    
-    applySharedCalendarOptions();
-    
+    const anchorDate = captureCalendarViewAnchor(calendar);
+    const firstDay = parseWeekStart(chainsConfig.week_start);
+    const timezone = getEffectiveTimezone();
+
+    if (eventOverlapObserver) {
+        eventOverlapObserver.disconnect();
+        eventOverlapObserver = null;
+    }
+
+    calendar.destroy();
+    monthCalendar.destroy();
+
     const chains = await loadChains();
-    refreshCalendarEvents(getExpandedChains(chains));
-    
+    const expandedChains = getExpandedChains(chains);
+
+    const calendarOptions = buildMainCalendarOptions(expandedChains, firstDay, timezone);
+    const monthOptions = buildMonthCalendarOptions(expandedChains, firstDay, timezone);
+    if (anchorDate) {
+        calendarOptions.initialDate = anchorDate;
+        monthOptions.initialDate = anchorDate;
+    }
+
+    calendar = new FullCalendar.Calendar(calendarEl, calendarOptions);
+    monthCalendar = new FullCalendar.Calendar(monthCalendarEl, monthOptions);
     calendar.render();
     monthCalendar.render();
+    setupEventOverlapObserver(calendarEl);
 
-    if (timegridScroller) {
-        requestAnimationFrame(() => {
-            timegridScroller.scrollTop = scrollTop;
-        });
+    if (anchorDate) {
+        calendar.gotoDate(anchorDate);
+        monthCalendar.gotoDate(anchorDate);
     }
+
+    bindCalendarNavButtons();
+    updateWeekNumberDisplay();
+    updateCurrentWeekHighlight();
+    updateEventStyles();
+
+    setTimeout(() => {
+        calendar.updateSize();
+        monthCalendar.updateSize();
+        if (timegridScroller) {
+            timegridScroller.scrollTop = scrollTop;
+        }
+    }, 50);
 }
 
 function updateWeekNumberDisplay() {
@@ -1427,33 +1465,7 @@ function updateWeekNumberDisplay() {
 }
 
 function updateCurrentWeekHighlight() {
-    if (!calendar || !monthCalendar) return;
-    
-    const weekStart = new Date(calendar.view.activeStart);
-    weekStart.setHours(0, 0, 0, 0);
-    const weekEnd = new Date(calendar.view.activeEnd);
-    weekEnd.setHours(0, 0, 0, 0);
-    
-    const dayCells = monthCalendar.el.querySelectorAll('.fc-daygrid-day:not(.fc-day-other)');
-    dayCells.forEach(cell => {
-        const dateStr = cell.dataset.date;
-        if (!dateStr) return;
-        
-        const cellDate = new Date(dateStr + 'T00:00:00');
-        cellDate.setHours(0, 0, 0, 0);
-        if (cellDate >= weekStart && cellDate < weekEnd) {
-            cell.classList.add('current-week');
-        } else {
-            cell.classList.remove('current-week');
-        }
-    });
-}
-
-function attachNavListener(btn, handler) {
-    if (btn && !btn.dataset.listenerAttached) {
-        btn.dataset.listenerAttached = 'true';
-        btn.addEventListener('click', handler);
-    }
+    updateMonthCalendarWeekHighlight(calendar, monthCalendar);
 }
 
 async function setRepeatEndFromEvent(event, isLastOccurrence) {
@@ -1525,14 +1537,6 @@ function styleMountedEvent(el, event) {
         applyEventOverlapOffset(el);
         applyEventInset(el, event);
     }
-}
-
-function getSharedCalendarOptions(firstDay, timezone) {
-    return {
-        firstDay: firstDay,
-        timeZone: timezone,
-        weekNumbers: true,
-    };
 }
 
 function buildMainCalendarOptions(expandedChains, firstDay, timezone) {
@@ -1609,9 +1613,9 @@ function buildMainCalendarOptions(expandedChains, firstDay, timezone) {
                 return;
             }
             openChainEditModal();
-            document.getElementById('chain-start').value = formatDateTime(info.start);
+            document.getElementById('chain-start').value = formatDateTime(info.start, getEffectiveTimezone());
             if (info.end) {
-                document.getElementById('chain-end').value = formatDateTime(info.end);
+                document.getElementById('chain-end').value = formatDateTime(info.end, getEffectiveTimezone());
             }
             calendar.unselect();
         },
@@ -1682,21 +1686,6 @@ function buildMonthCalendarOptions(expandedChains, firstDay, timezone) {
             return {
                 html: `<div class="day-number">${dayNum}</div>`
             };
-        },
-
-        dayCellDidMount: function(info) {
-            const cellDate = new Date(info.date);
-            cellDate.setHours(0, 0, 0, 0);
-            const weekStart = new Date(calendar.view.activeStart);
-            weekStart.setHours(0, 0, 0, 0);
-            const weekEnd = new Date(calendar.view.activeEnd);
-            weekEnd.setHours(0, 0, 0, 0);
-            
-            if (cellDate >= weekStart && cellDate < weekEnd) {
-                info.el.classList.add('current-week');
-            } else {
-                info.el.classList.remove('current-week');
-            }
         },
 
         datesSet: function() {
@@ -1877,16 +1866,10 @@ export const ChainsManager = {
             });
         }
         
-        const timezoneSelect = document.getElementById('timezone-select');
-        if (timezoneSelect) {
-            timezoneSelect.addEventListener('change', async (e) => {
-                setTimezoneMode(e.target.value);
-                syncTimezoneSelects(chainsConfig.timezone, chainsConfig.messenger_type, chainsConfig.user_timezone);
-                if (calendar && monthCalendar) {
-                    await updateCalendarTimezone();
-                }
-            });
-        }
+        onTimezoneChange(async (context) => {
+            refreshChainModalDateTimes(context);
+            await updateCalendarTimezone();
+        });
 
         chainsCloseBtn.addEventListener('click', () => {
             closeChainsModal();

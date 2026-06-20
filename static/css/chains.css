@@ -68,13 +68,23 @@
 }
 
 .chains-header-controls select,
-.chains-header-controls .calendar-today-btn {
+.chains-header-controls .calendar-today-btn,
+.chains-header-controls .timezone-select-widget {
     height: 24px;
     padding: 0 10px;
     box-sizing: border-box;
 }
 
-#chains-modal select {
+.chains-header-controls .timezone-select-widget {
+    padding: 0;
+}
+
+.chains-header-controls .timezone-select-trigger {
+    height: 24px;
+    padding: 0 8px 0 10px;
+}
+
+:is(#chains-modal, #maintenance-modal) select {
     border: 1.5px solid var(--select-option-fg);
     border-radius: 4px;
     background: var(--button-bg);
@@ -83,6 +93,146 @@
     font-family: inherit;
     cursor: pointer;
     box-sizing: border-box;
+}
+
+.timezone-select-widget {
+    position: relative;
+    display: inline-block;
+    width: fit-content;
+    max-width: 100%;
+}
+
+.timezone-select-native {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+.timezone-select-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    width: auto;
+    max-width: 100%;
+    height: 24px;
+    padding: 0 8px 0 10px;
+    border: 1.5px solid var(--select-option-fg);
+    border-radius: 4px;
+    background: var(--button-bg);
+    color: var(--fg-primary);
+    font-size: 14px;
+    font-family: inherit;
+    cursor: pointer;
+    box-sizing: border-box;
+}
+
+.timezone-select-trigger:focus {
+    outline: none;
+}
+
+.timezone-select-trigger-content {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.timezone-select-trigger-content .timezone-select-name {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 14px;
+    line-height: 24px;
+}
+
+.timezone-select-option-body {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    width: max-content;
+    min-width: 100%;
+    box-sizing: border-box;
+}
+
+.timezone-select-option-body--single {
+    justify-content: center;
+}
+
+.timezone-select-name {
+    text-align: left;
+    font-size: 14px;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+.timezone-select-option .timezone-select-name {
+    width: auto;
+    overflow: visible;
+    text-overflow: clip;
+    color: inherit;
+}
+
+.timezone-select-source {
+    font-size: 11px;
+    line-height: 1.1;
+    color: var(--border-secondary);
+    white-space: nowrap;
+}
+
+.timezone-select-chevron {
+    flex-shrink: 0;
+    width: 0;
+    height: 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 5px solid var(--brand-secondary);
+}
+
+.timezone-select-menu {
+    position: absolute;
+    top: calc(100% + 2px);
+    right: 0;
+    left: auto;
+    z-index: 2100;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    border: 1.5px solid var(--select-option-fg);
+    border-radius: 4px;
+    background: var(--button-bg);
+    color: var(--fg-primary);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+    overflow: hidden;
+    width: max-content;
+    min-width: 100%;
+    box-sizing: border-box;
+}
+
+.timezone-select-option {
+    padding: 5px 10px;
+    cursor: pointer;
+    color: var(--fg-primary);
+    width: max-content;
+    min-width: 100%;
+    box-sizing: border-box;
+}
+
+.timezone-select-option-body--single .timezone-select-name {
+    line-height: 1.4;
+}
+
+.timezone-select-option + .timezone-select-option {
+    border-top: 1px solid var(--border-primary);
+}
+
+.timezone-select-option:hover,
+.timezone-select-option.selected {
+    background: var(--select-option-bg);
+    color: var(--fg-primary);
 }
 
 #chain-modal select {
@@ -97,7 +247,7 @@
     box-sizing: border-box;
 }
 
-#chains-modal select:focus {
+:is(#chains-modal, #maintenance-modal) select:focus {
     outline: none;
 }
 
@@ -106,7 +256,7 @@
     border-color: var(--brand-secondary);
 }
 
-#chains-modal select option,
+:is(#chains-modal, #maintenance-modal) select option,
 #chain-modal select option {
     background: var(--select-option-bg);
     color: var(--fg-primary);
@@ -135,7 +285,7 @@
     overflow: hidden;
 }
 
-#chains-wrapper {
+:is(#chains-wrapper, #maintenance-wrapper) {
     display: flex;
     flex-direction: column;
     height: 100%;
@@ -145,14 +295,14 @@
 }
 
 
-#calendar-container {
+:is(#calendar-container, #maintenance-calendar-container) {
     flex: 1;
     display: flex;
     gap: 20px;
     overflow: hidden;
 }
 
-#calendar-wrapper {
+:is(#calendar-wrapper, #maintenance-calendar-wrapper) {
     flex: 1;
     display: flex;
     flex-direction: column;
@@ -163,7 +313,7 @@
     display: none !important;
 }
 
-#calendar-nav {
+:is(#calendar-nav, #maintenance-calendar-nav) {
     display: flex;
     gap: 8px;
     align-items: center;
@@ -189,7 +339,7 @@
     cursor: pointer;
 }
 
-#calendar-nav > .calendar-nav-right > div:last-child {
+:is(#calendar-nav, #maintenance-calendar-nav) > .calendar-nav-right > div:last-child {
     display: flex;
     gap: 4px;
     align-items: center;
@@ -213,7 +363,7 @@
     display: none;
 }
 
-#calendar-prev::before {
+:is(#calendar-prev, #maintenance-calendar-prev)::before {
     content: '';
     display: inline-block;
     width: 7px;
@@ -225,7 +375,7 @@
     -webkit-mask-size: contain;
 }
 
-#calendar-next::before {
+:is(#calendar-next, #maintenance-calendar-next)::before {
     content: '';
     display: inline-block;
     width: 7px;
@@ -243,76 +393,76 @@
     border: none !important;
 }
 
-#calendar {
+:is(#calendar, #maintenance-calendar) {
     flex: 1;
     height: 100%;
     min-height: 500px;
     background: var(--calendar-table-bg);
 }
 
-#calendar .fc {
+:is(#calendar, #maintenance-calendar) .fc {
     height: 100% !important;
 }
 
-#calendar .fc-view-harness {
+:is(#calendar, #maintenance-calendar) .fc-view-harness {
     height: 100% !important;
 }
 
-#calendar .fc-view-harness-active {
+:is(#calendar, #maintenance-calendar) .fc-view-harness-active {
     height: 100% !important;
 }
 
-#month-calendar {
+:is(#month-calendar, #maintenance-month-calendar) {
     width: 280px;
     flex-shrink: 0;
     min-height: 300px;
     background: var(--chains-window-bg);
 }
 
-#month-calendar * {
+:is(#month-calendar, #maintenance-month-calendar) * {
     border: none !important;
 }
 
-#calendar .fc-scroller::-webkit-scrollbar {
+:is(#calendar, #maintenance-calendar) .fc-scroller::-webkit-scrollbar {
     width: 8px;
     height: 8px;
 }
 
-#calendar .fc-scroller::-webkit-scrollbar-track {
+:is(#calendar, #maintenance-calendar) .fc-scroller::-webkit-scrollbar-track {
     background: var(--calendar-timegrid-bg);
     border-radius: 4px;
 }
 
-#calendar .fc-scroller::-webkit-scrollbar-thumb {
+:is(#calendar, #maintenance-calendar) .fc-scroller::-webkit-scrollbar-thumb {
     background: var(--calendar-scrollbar-thumb);
     border-radius: 4px;
     border: 2px solid var(--calendar-timegrid-bg);
 }
 
-#calendar .fc-scroller {
+:is(#calendar, #maintenance-calendar) .fc-scroller {
     scrollbar-width: thin;
     scrollbar-color: var(--calendar-scrollbar-color);
 }
 
-#calendar .fc-scroller::-webkit-scrollbar-button {
+:is(#calendar, #maintenance-calendar) .fc-scroller::-webkit-scrollbar-button {
     display: none;
     height: 0;
     width: 0;
 }
 
-#calendar .fc-scrollgrid-section-header .fc-scroller {
+:is(#calendar, #maintenance-calendar) .fc-scrollgrid-section-header .fc-scroller {
     overflow: hidden !important;
 }
 
-#calendar .fc-scrollgrid-section-header .fc-scroller::-webkit-scrollbar {
+:is(#calendar, #maintenance-calendar) .fc-scrollgrid-section-header .fc-scroller::-webkit-scrollbar {
     display: none;
 }
 
-#calendar .fc-scrollgrid-section-header {
+:is(#calendar, #maintenance-calendar) .fc-scrollgrid-section-header {
     overflow: hidden !important;
 }
 
-#calendar .fc-week-number {
+:is(#calendar, #maintenance-calendar) .fc-week-number {
     width: 32px;
     text-align: center;
     font-size: 11px;
@@ -322,18 +472,18 @@
     font-weight: 500;
 }
 
-#calendar .fc-timegrid-week-number {
+:is(#calendar, #maintenance-calendar) .fc-timegrid-week-number {
     display: none !important;
 }
 
-#week-number-display {
+:is(#week-number-display, #maintenance-week-number-display) {
     font-size: 14px;
     font-weight: 600;
     color: var(--fg-primary);
 }
 
 
-#month-calendar .fc-toolbar {
+:is(#month-calendar, #maintenance-month-calendar) .fc-toolbar {
     font-size: 12px;
     margin-bottom: 8px;
     min-height: 32px;
@@ -341,11 +491,11 @@
     align-items: center;
 }
 
-#month-calendar .fc-toolbar-title {
+:is(#month-calendar, #maintenance-month-calendar) .fc-toolbar-title {
     font-size: 14px;
 }
 
-#month-calendar .fc-button {
+:is(#month-calendar, #maintenance-month-calendar) .fc-button {
     padding: 3px 6px !important;
     font-size: 11px !important;
     display: flex;
@@ -355,22 +505,22 @@
     width: auto;
 }
 
-#month-calendar .fc-button svg {
+:is(#month-calendar, #maintenance-month-calendar) .fc-button svg {
     display: block;
 }
 
-#month-calendar .fc-button-group {
+:is(#month-calendar, #maintenance-month-calendar) .fc-button-group {
     display: flex;
     gap: 4px;
 }
 
-#month-calendar .fc-prev-button,
-#month-calendar .fc-next-button {
+:is(#month-calendar, #maintenance-month-calendar) .fc-prev-button,
+:is(#month-calendar, #maintenance-month-calendar) .fc-next-button {
     font-size: 0 !important;
     position: relative;
 }
 
-#month-calendar .fc-prev-button::before {
+:is(#month-calendar, #maintenance-month-calendar) .fc-prev-button::before {
     content: '';
     display: inline-block;
     width: 7px;
@@ -382,7 +532,7 @@
     -webkit-mask-size: contain;
 }
 
-#month-calendar .fc-next-button::before {
+:is(#month-calendar, #maintenance-month-calendar) .fc-next-button::before {
     content: '';
     display: inline-block;
     width: 7px;
@@ -394,7 +544,7 @@
     -webkit-mask-size: contain;
 }
 
-#month-calendar .fc-daygrid-day-frame {
+:is(#month-calendar, #maintenance-month-calendar) .fc-daygrid-day-frame {
     min-height: 16px;
     padding: 2px;
     display: flex;
@@ -403,7 +553,7 @@
     max-height: 32px;
 }
 
-#month-calendar .fc-daygrid-day-number {
+:is(#month-calendar, #maintenance-month-calendar) .fc-daygrid-day-number {
     padding: 2px;
     font-size: 14px;
     text-align: center;
@@ -412,50 +562,46 @@
     justify-content: center;
 }
 
-#month-calendar .fc-col-header-cell-cushion {
+:is(#month-calendar, #maintenance-month-calendar) .fc-col-header-cell-cushion {
     padding: 4px 2px;
     font-size: 0.9em;
 }
 
-#month-calendar .fc-event {
+:is(#month-calendar, #maintenance-month-calendar) .fc-event {
     display: none !important;
 }
 
-#month-calendar .fc-daygrid-event-dot {
+:is(#month-calendar, #maintenance-month-calendar) .fc-daygrid-event-dot {
     display: none !important;
 }
 
-#month-calendar .fc-daygrid-more-link {
+:is(#month-calendar, #maintenance-month-calendar) .fc-daygrid-more-link {
     display: none !important;
 }
 
-#month-calendar .fc-daygrid-day-frame {
-    /* position: relative; */
-    padding: 2px;
-}
-
-#month-calendar .fc-daygrid-day {
+:is(#month-calendar, #maintenance-month-calendar) .fc-daygrid-day {
     border: none !important;
 }
 
-#month-calendar .fc-col-header-cell {
+:is(#month-calendar, #maintenance-month-calendar) .fc-col-header-cell {
     border: none !important;
     background: transparent !important;
 }
 
-#month-calendar .fc-scrollgrid {
+:is(#month-calendar, #maintenance-month-calendar) .fc-scrollgrid {
     border: none !important;
 }
 
-#month-calendar .fc-scrollgrid-section {
+:is(#month-calendar, #maintenance-month-calendar) .fc-scrollgrid-section {
     border: none !important;
 }
 
-#month-calendar .fc-daygrid-week {
+:is(#month-calendar, #maintenance-month-calendar) .fc-daygrid-week {
     border: none !important;
+    cursor: pointer;
 }
 
-#month-calendar .fc-week-number {
+:is(#month-calendar, #maintenance-month-calendar) .fc-week-number {
     width: 24px;
     text-align: center;
     font-size: 10px;
@@ -472,7 +618,7 @@
     padding-right: 10px !important;
 }
 
-#month-calendar .day-number {
+:is(#month-calendar, #maintenance-month-calendar) .day-number {
     font-weight: 500;
     text-align: center;
     display: flex;
@@ -482,35 +628,31 @@
     height: 100%;
 }
 
-#month-calendar .fc-day-other {
+:is(#month-calendar, #maintenance-month-calendar) .fc-day-other {
     display: none;
 }
 
-#month-calendar .fc-day-today {
+:is(#month-calendar, #maintenance-month-calendar) .fc-day-today {
     background: transparent !important;
 }
 
-#month-calendar .fc-day-today .day-number {
+:is(#month-calendar, #maintenance-month-calendar) .fc-day-today .day-number {
     color: var(--calendar-today-fg);
 }
 
-#month-calendar .fc-daygrid-day.current-week {
+:is(#month-calendar, #maintenance-month-calendar) .fc-daygrid-day.current-week {
     background: var(--calendar-week-bg) !important;
 }
 
-#month-calendar .fc-daygrid-week {
-    cursor: pointer;
-}
-
-#calendar .fc-header-toolbar {
+:is(#calendar, #maintenance-calendar) .fc-header-toolbar {
     display: none;
 }
 
-#calendar .fc-all-day-cell {
+:is(#calendar, #maintenance-calendar) .fc-all-day-cell {
     display: none;
 }
 
-#calendar .fc-timegrid-slot-label {
+:is(#calendar, #maintenance-calendar) .fc-timegrid-slot-label {
     font-size: 12px;
 }
 
@@ -543,7 +685,7 @@
     background: var(--chains-window-bg);
 }
 
-#calendar .fc-day-today {
+:is(#calendar, #maintenance-calendar) .fc-day-today {
     background: var(--chains-window-bg) !important;
 }
 
@@ -557,7 +699,7 @@
     border-color: var(--calendar-table-border);
 }
 
-#calendar .fc-col-header-cell {
+:is(#calendar, #maintenance-calendar) .fc-col-header-cell {
     background: transparent !important;
 }
 
@@ -568,7 +710,7 @@
     padding: 10px;
 }
 
-#calendar .fc-col-header-cell.fc-day-today .fc-col-header-cell-cushion {
+:is(#calendar, #maintenance-calendar) .fc-col-header-cell.fc-day-today .fc-col-header-cell-cushion {
     color: var(--calendar-today-fg);
 }
 
@@ -584,11 +726,11 @@
     border: none !important;
 }
 
-#calendar .fc-scrollgrid {
+:is(#calendar, #maintenance-calendar) .fc-scrollgrid {
     border: none !important;
 }
 
-#calendar .fc-scrollgrid-section {
+:is(#calendar, #maintenance-calendar) .fc-scrollgrid-section {
     border: none !important;
 }
 
@@ -712,12 +854,12 @@
     border-top: none;
 }
 
-#calendar .fc-timegrid-now-indicator-line {
+:is(#calendar, #maintenance-calendar) .fc-timegrid-now-indicator-line {
     border-color: var(--brand-secondary) !important;
     border-width: 2px 0 0 !important;
 }
 
-#calendar .fc-timegrid-now-indicator-arrow {
+:is(#calendar, #maintenance-calendar) .fc-timegrid-now-indicator-arrow {
     display: none !important;
 }
 
