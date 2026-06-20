@@ -147,6 +147,33 @@ function closeAllTimezoneMenus() {
     }
 }
 
+function syncTimezoneMenuWidth(widget) {
+    const menu = widget.querySelector(".timezone-select-menu");
+    const trigger = widget.querySelector(".timezone-select-trigger");
+    if (!menu || !trigger || menu.children.length === 0) {
+        return;
+    }
+
+    menu.style.minWidth = "";
+
+    const wasHidden = menu.hidden;
+    const previousVisibility = menu.style.visibility;
+    menu.hidden = false;
+    menu.style.visibility = "hidden";
+    menu.style.pointerEvents = "none";
+
+    let maxOptionWidth = 0;
+    for (const option of menu.children) {
+        maxOptionWidth = Math.max(maxOptionWidth, option.offsetWidth);
+    }
+
+    menu.hidden = wasHidden;
+    menu.style.visibility = previousVisibility;
+    menu.style.pointerEvents = "";
+
+    menu.style.minWidth = `${Math.max(maxOptionWidth, trigger.offsetWidth)}px`;
+}
+
 function attachTimezoneDocumentClose() {
     if (documentClickAttached) {
         return;
@@ -197,6 +224,9 @@ function ensureTimezoneSelectWidget(selectEl) {
         event.stopPropagation();
         const willOpen = menu.hidden;
         closeAllTimezoneMenus();
+        if (willOpen) {
+            syncTimezoneMenuWidth(widget);
+        }
         menu.hidden = !willOpen;
         trigger.setAttribute("aria-expanded", willOpen ? "true" : "false");
     });
@@ -249,6 +279,7 @@ function fillTimezoneSelect(selector, configTimezone = "UTC", messengerType = ""
         });
         menu.appendChild(item);
     }
+    syncTimezoneMenuWidth(widget);
 }
 
 export function syncTimezoneSelects(configTimezone = "UTC", messengerType = "", userTimezone = null) {
