@@ -1397,15 +1397,21 @@ function updateTimezoneSelector() {
     syncTimezoneSelects(chainsConfig.timezone, chainsConfig.messenger_type, chainsConfig.user_timezone);
 }
 
-async function updateCalendarTimezone() {
-    if (!calendar || !monthCalendar) return;
+function applySharedCalendarOptions() {
+    const firstDay = parseWeekStart(chainsConfig.week_start);
+    const timezone = getEffectiveTimezone();
+    for (const cal of [calendar, monthCalendar]) {
+        cal.setOption('firstDay', firstDay);
+        cal.setOption('timeZone', timezone);
+        cal.setOption('weekNumberCalculation', 'local');
+    }
+}
 
+async function updateCalendarTimezone() {
     const timegridScroller = document.querySelector('#calendar .fc-timegrid-body .fc-scroller');
     const scrollTop = timegridScroller ? timegridScroller.scrollTop : 0;
     
-    const timezone = getEffectiveTimezone();
-    calendar.setOption('timeZone', timezone);
-    monthCalendar.setOption('timeZone', timezone);
+    applySharedCalendarOptions();
     
     const chains = await loadChains();
     refreshCalendarEvents(getExpandedChains(chains));
@@ -1420,21 +1426,10 @@ async function updateCalendarTimezone() {
     }
 }
 
-function getWeekNumber(date) {
-    const d = new Date(date);
-    d.setHours(0, 0, 0, 0);
-    d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
-    const week1 = new Date(d.getFullYear(), 0, 4);
-    week1.setHours(0, 0, 0, 0);
-    week1.setDate(week1.getDate() + 3 - (week1.getDay() + 6) % 7);
-    return 1 + Math.round(((d.getTime() - week1.getTime()) / 86400000) / 7);
-}
-
 function updateWeekNumberDisplay() {
     if (!calendar) return;
     
-    const weekStart = calendar.view.currentStart;
-    const weekNumber = getWeekNumber(weekStart);
+    const weekNumber = calendar.view.dateEnv.computeWeekNumber(calendar.view.currentStart);
     const weekNumberDisplay = document.getElementById('week-number-display');
     
     if (weekNumberDisplay) {
@@ -1548,7 +1543,7 @@ function getSharedCalendarOptions(firstDay, timezone) {
         firstDay: firstDay,
         timeZone: timezone,
         weekNumbers: true,
-        weekNumberCalculation: 'ISO',
+        weekNumberCalculation: 'local',
     };
 }
 
@@ -1763,9 +1758,7 @@ async function initializeCalendars() {
         if (initialized && calendar && monthCalendar) {
             console.log('Calendars already initialized, re-rendering');
             updateTimezoneSelector();
-            const timezone = getEffectiveTimezone();
-            calendar.setOption('timeZone', timezone);
-            monthCalendar.setOption('timeZone', timezone);
+            applySharedCalendarOptions();
             calendar.render();
             monthCalendar.render();
             
@@ -1901,7 +1894,9 @@ export const ChainsManager = {
             timezoneSelect.addEventListener('change', async (e) => {
                 setTimezoneMode(e.target.value);
                 syncTimezoneSelects(chainsConfig.timezone, chainsConfig.messenger_type, chainsConfig.user_timezone);
-                await updateCalendarTimezone();
+                if (calendar && monthCalendar) {
+                    await updateCalendarTimezone();
+                }
             });
         }
 
