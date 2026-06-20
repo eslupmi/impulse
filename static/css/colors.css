@@ -1,162 +1,165 @@
 /* Base theme (light) */
 :root {
-    /* Brand Colors */
-    --brand-color-0: #FFFFFF;
-    --brand-color-1: #EBF7FD;
-    --brand-color-2: #D7EFFA;
-    --brand-color-3: #C3E6F8;
-    --brand-color-4: #AFDEF5;
-    --brand-color-5: #88CEF0;
-    --brand-color-6: #60BDEB;
-    --brand-color-7: #38ADE6;
-    --brand-color-8: #2D8AB8;
-    --brand-color-9: #22688A;
-    --brand-color-10: #16455C;
-    --brand-color-11: #113445;
-    --brand-color-12: #0B232E;
-    --brand-color-13: #061117;
-    --brand-color-14: #000000;
-
-    /* Neutral Colors */
-    --neutral-25: #FCFCFD; /* 1000 */
-    --neutral-50: #F9FAFB; /* 900 */
-    --neutral-100: #F2F4F7; /* 800 */
-    --neutral-200: #E4E7EC; /* 700 */
-    --neutral-300: #D0D5DD; /* 600 */
-    --neutral-400: #98A2B3; /* 500 */
-    --neutral-500: #667085; /* 400 */
-    --neutral-600: #475467; /* 300 */
-    --neutral-700: #344054; /* 200 */
-    --neutral-800: #1D2939; /* 100 */
-    --neutral-900: #101828; /* 50 */
-    --neutral-1000: #061117; /* 25 */
-
-    --extra-color-1: #357ABD;
-    --extra-color-2: #48BDE6;
-    --extra-color-3: #03080B;
-
-    /* Semantic Colors */
-    --brand-primary: var(--brand-color-7);
-    --brand-secondary-dark: var(--brand-color-14);
-    --brand-secondary: var(--brand-color-7);
+    --brand-primary: #3293C3;
+    --brand-secondary: #3D94E9;
 
     /* Main Colors */
-    --background-primary: var(--brand-color-0);
-    --background-secondary: var(--brand-color-3);
-    --background-tertiary: var(--neutral-100);
-    --border-primary: var(--brand-color-3);
-    --border-secondary: var(--neutral-500);
-    --button-background: var(--brand-color-3);
-    --button-hover-background: var(--brand-color-4);
-    --calendar-table-borders: var(--brand-color-3);
-    --link-hover: var(--extra-color-1);
-    --link-primary: var(--brand-primary);
-    --scrollbar-thumb-hover: var(--neutral-600);
-    --scrollbar-thumb: var(--neutral-500);
-    --text-inverse: var(--neutral-100);
-    --text-primary: var(--neutral-1000);
-    --text-secondary: var(--neutral-700);
+    --bg-primary: #FFFFFF;
+    --bg-header: #E8E9EA;
+    --input-bg: #F2F2F2;
+    --border-primary: #CFCFCF;
+    --border-secondary: #B0B5C0;
+    --button-bg: #F2F2F2;
+    --link-hover: #38ADE6;
+    --link-primary: #070708;
+    --scrollbar-thumb-hover: #475467;
+    --scrollbar-thumb: #667085;
+    --scrollbar-color: #667085 transparent;
+    --fg-inverse: #F2F7FF;
+    --fg-primary: #344054;
 
     /* Header Colors */
-    --filter-badge-close-hover: var(--extra-color-1);
-    --filter-badge-hover: var(--extra-color-1);
-    --filter-badge-text: var(--neutral-1000);
-    --filter-badge: var(--brand-secondary-dark);
-    --header-text: var(--neutral-1000);
-    --search-icon-color: var(--brand-primary);
+    --filter-badge-close-hover: #357ABD;
+    --filter-badge-fg: #061117;
+    --filter-badge: #061117;
+    --header-fg: #344054;
+    --search-icon-color: #252E33;
+    --filter-scroll-arrow-bg: #F2F2F2;
 
     /* Table Colors */
-    --action-btn-hover-bg: var(--neutral-100);
-    --alerts-count-circle-color: var(--theme-icon-color);
-    --alerts-count-text: var(--neutral-300);
-    --annotation-border: var(--neutral-600);
-    --annotation-text: var(--neutral-800);
-    --incident-content-border-color: var(--neutral-300);
-    --info-block-background: #E4E7EC;
-    --label-background: var(--neutral-300);
-    --label-highlighted-background: var(--neutral-800);
-    --label-highlighted-text: var(--neutral-100);
-    --label-text: var(--neutral-900);
+    --user-selector-border: #B0B5C0;
+    --incident-opened: #F5F5F5;
+    --action-btn-hover-bg: #F2F7FF;
+    --alerts-count-circle-color: #B0B5C0;
+    --alerts-count-circle-text: #252E33;
+    --user-selector-fg: #252E33;
+    --alerts-count-fg: #EDEFF2;
+    --annotation-border: #475467;
+    --annotation-fg: #1D2939;
+    --incident-content-border-color: #CFCFCF;
+    --info-block-bg: #EAEAEA;
+    --label-bg: #CFCFCF;
+    --label-highlighted-bg: #1D2939;
+    --label-highlighted-fg: #F2F7FF;
+    --label-fg: #11161C;
     --status-badge-closed: #969696;
-    --status-badge-firing: #F04438;
-    --status-badge-frozen: #38ade6;
-    --status-badge-resolved: #56C15E;
-    --status-badge-unknown: #C1A300;
+    --status-badge-firing: #EF5247;
+    --status-badge-frozen: #38ADE6;
+    --status-badge-resolved: #23C040;
+    --status-badge-unknown: #D9CD4A;
     --status-error: #FF4444;
-    --table-background: var(--neutral-100);
-    --table-border: var(--border-primary);
-    --table-row-hover: var(--neutral-200);
-    --tooltip-background: var(--theme-icon-color);
+    --table-border: #CFCFCF;
+    --table-header-bg: #E8E9EA;
+    --table-row-hover: #E4E7EC;
+    --scrollbar-track-bg: #F2F2F2;
+    --popup-bg: #F2F2F2;
+    --tooltip-bg: #22688A;
 
     /* Footer Colors */
-    --auth-logged-in-bg: var(--neutral-100);
-    --footer-text: #606060;
-    --login-button-color: var(--brand-secondary);
+    --auth-button-bg: #E8E9EA;
+    --footer-fg: #252E33;
+    --footer-bg: #E8E9EA;
+    --login-button-color: #3293C3;
     --offline-status-indicator: #F04438;
-    --online-status-indicator: var(--brand-color-8);
-    --theme-icon-color: var(--brand-color-8);
+    --online-status-indicator: #22688A;
+    --theme-icon-color: #252E33;
+
+    /* Calendar Colors */
+    --chains-window-bg: #F2F2F2;
+    --calendar-table-bg: #FFFFFF;
+    --calendar-table-border: #CFCFCF;
+    --calendar-today-fg: #3293C3;
+    --calendar-week-bg: #E0E0E0;
+    --calendar-timegrid-bg: #F2F2F2;
+    --calendar-scrollbar-thumb: #3293C3;
+    --calendar-scrollbar-color: #3293C3 var(--calendar-timegrid-bg);
+    --calendar-weeknumber-fg: #3293C3;
+    --select-option-fg: #3293C3;
+    --select-option-bg: #F2F2F2;
+    --menu-option-active-bg: #F2F2F2;
+    --icon-button-bg: #F2F2F2;
+    --calendar-shift-bg: #CFCFCF;
 }
 
 /* Dark theme */
 [data-theme="dark"] {
-    /* Semantic Colors */
-    --brand-primary: var(--brand-color-7);
-    --brand-secondary-dark: var(--brand-color-9);
-    --brand-secondary: var(--extra-color-2);
+    --brand-primary: #38ADE6;
+    --brand-secondary: #48BDE6;
 
     /* Main Colors */
-    --background-primary: var(--extra-color-3);
-    --background-secondary: var(--brand-color-12);
-    --background-tertiary: var(--neutral-800);
-    --border-primary: var(--brand-color-10);
-    --border-secondary: var(--neutral-400);
-    --button-background: var(--brand-color-11);
-    --button-hover-background: var(--brand-color-10);
-    --calendar-table-borders: var(--brand-color-10);
-    --link-hover: var(--extra-color-1);
-    --link-primary: var(--brand-primary);
-    --scrollbar-thumb-hover: var(--neutral-300);
-    --scrollbar-thumb: var(--neutral-400);
-    --text-inverse: var(--neutral-800);
-    --text-primary: var(--neutral-100);
-    --text-secondary: var(--neutral-200);
+    --bg-primary: #0B0B0B;
+    --bg-header: #161A1C;
+    --input-bg: #161A1C;
+    --border-primary: #333B40;
+    --border-secondary: #98A2B3;
+    --button-bg: #161A1C;
+    --link-hover: #357ABD;
+    --link-primary: #38ADE6;
+    --scrollbar-thumb-hover: #38ADE6;
+    --scrollbar-thumb: #98A2B3;
+    --scrollbar-color: #98A2B3 transparent;
+    --fg-inverse: #1D2939;
+    --fg-primary: #DFE0E2;
 
     /* Header Colors */
-    --filter-badge-close-hover: var(--brand-secondary-dark);
-    --filter-badge-hover: var(--extra-color-1);
-    --filter-badge-text: var(--neutral-25);
-    --filter-badge: var(--brand-secondary-dark);
-    --header-text: var(--neutral-25);
-    --search-icon-color: var(--brand-color-1);
+    --filter-badge-close-hover: #EBF7FC;
+    --filter-badge-fg: #EBF7FC;
+    --filter-badge: #EBF7FC;
+    --header-fg: #DFE0E2;
+    --search-icon-color: #EBF7FC;
+    --filter-scroll-arrow-bg: #161A1C;
 
     /* Table Colors */
-    --action-btn-hover-bg: var(--neutral-800);
-    --alerts-count-circle-color: var(--text-primary);
-    --alerts-count-text: var(--text-primary);
-    --annotation-border: var(--neutral-600);
-    --annotation-text: var(--neutral-100);
-    --incident-content-border-color: var(--neutral-700);
-    --info-block-background: var(--neutral-700);
-    --label-background: var(--neutral-600);
-    --label-highlighted-background: var(--neutral-200);
-    --label-highlighted-text: var(--neutral-800);
-    --label-text: var(--text-primary);
+    --user-selector-border: #555555;
+    --incident-opened: #1C1F20;
+    --action-btn-hover-bg: #1D2939;
+    --alerts-count-circle-color: #555555;
+    --alerts-count-circle-text: #DFE0E2;
+    --user-selector-fg: #DFE0E2;
+    --alerts-count-fg: #EBF7FC;
+    --annotation-border: #344054;
+    --annotation-fg: #EBF7FC;
+    --incident-content-border-color: #333B40;
+    --info-block-bg: #0A0B0B;
+    --label-bg: #42444B;
+    --label-highlighted-bg: #EBF7FC;
+    --label-highlighted-fg: #1D2939;
+    --label-fg: #EBF7FC;
     --status-badge-closed: #969696;
-    --status-badge-firing: #D14035;
-    --status-badge-frozen: #38ade6;
-    --status-badge-resolved: #56C15E;
-    --status-badge-unknown: #C1A300;
+    --status-badge-firing: #E43F32;
+    --status-badge-frozen: #38ADE6;
+    --status-badge-resolved: #37C177;
+    --status-badge-unknown: #ADA014;
     --status-error: #FF6666;
-    --table-background: var(--neutral-800);
-    --table-border: var(--border-primary);
-    --table-row-hover: var(--neutral-700);
-    --tooltip-background: var(--theme-icon-color);
+    --table-border: #2E2E2F;
+    --table-header-bg: #161A1C;
+    --table-row-hover: #344054;
+    --scrollbar-track-bg: #161A1C;
+    --popup-bg: #161A1C;
+    --tooltip-bg: #EBF7FC;
 
     /* Footer Colors */
-    --auth-logged-in-bg: var(--neutral-800);
-    --footer-text: var(--text-primary);
-    --login-button-color: var(--brand-color-9);
+    --auth-button-bg: #161A1C;
+    --footer-fg: #DFE0E2;
+    --footer-bg: #161A1C;
+    --login-button-color: #38ADE6;
     --offline-status-indicator: #D14035;
-    --online-status-indicator: var(--brand-primary);
-    --theme-icon-color: var(--brand-color-1);
+    --online-status-indicator: #38ADE6;
+    --theme-icon-color: #EBF7FC;
+
+    /* Calendar Colors */
+    --chains-window-bg: #161A1C;
+    --calendar-table-bg: #0A0B0B;
+    --calendar-table-border: #344054;
+    --calendar-today-fg: #38ADE6;
+    --calendar-week-bg: #0A0B0B;
+    --calendar-timegrid-bg: #161A1C;
+    --calendar-scrollbar-thumb: #38ADE6;
+    --calendar-scrollbar-color: #38ADE6 var(--calendar-timegrid-bg);
+    --calendar-weeknumber-fg: #EBF7FC;
+    --select-option-fg: #38ADE6;
+    --select-option-bg: #161A1C;
+    --menu-option-active-bg: #161A1C;
+    --icon-button-bg: #161A1C;
+    --calendar-shift-bg: #1C1E1F;
 }

@@ -4,7 +4,7 @@
     display: flex;
     flex-direction: row;
     gap: 16px;
-    background: var(--background-tertiary);
+    background: var(--incident-opened);
 }
 
 /* Simple common block styles */
@@ -22,7 +22,7 @@
     gap: 10px;
     margin-bottom: 20px;
     font-size: 14px;
-    color: var(--text-primary);
+    color: var(--fg-primary);
     flex-direction: column;
 }
 
@@ -49,7 +49,7 @@
 }
 
 .status-value.closed {
-    color: var(--text-secondary);
+    color: var(--fg-primary);
     font-weight: 600;
 }
 
@@ -57,10 +57,6 @@
     color: var(--link-primary);
     text-decoration: none;
     font-size: 14px;
-}
-
-.incident-link:hover {
-    color: var(--link-hover);
 }
 
 /* Labels and annotations sections */
@@ -85,7 +81,7 @@
 
 .section-header {
     font-size: 14px;
-    color: var(--text-primary);
+    color: var(--fg-primary);
     margin-bottom: 3px;
     align-content: center;
 }
@@ -95,13 +91,13 @@
     padding: 4px 8px;
     border-radius: 4px;
     font-size: 14px;
-    background-color: var(--label-background);
-    color: var(--label-text);
+    background-color: var(--label-bg);
+    color: var(--label-fg);
 }
 
 .label-pill.group-label {
-    background-color: var(--label-background);
-    color: var(--label-text);
+    background-color: var(--label-bg);
+    color: var(--label-fg);
     font-weight: 500;
 }
 
@@ -112,7 +108,7 @@
     font-size: 14px;
     border: 1.3px solid var(--annotation-border);
     background-color: transparent;
-    color: var(--annotation-text);
+    color: var(--annotation-fg);
     max-width: 400px;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -129,7 +125,7 @@
 .alerts-label {
     font-size: 14px;
     font-weight: 400;
-    color: var(--text-primary);
+    color: var(--fg-primary);
     margin-bottom: 4px;
 }
 
@@ -147,7 +143,7 @@
     font-size: 16px;
     font-weight: 600;
     margin: 0 0 10px 0;
-    color: var(--text-primary);
+    color: var(--fg-primary);
 }
 
 .collapse-content {
@@ -159,7 +155,7 @@
 }
 
 .collapse-item strong {
-    color: var(--text-secondary);
+    color: var(--fg-primary);
     margin-right: 5px;
 }
 
@@ -171,12 +167,12 @@
 }
 
 .label-item {
-    background-color: var(--background-tertiary);
+    background-color: var(--label-bg);
     border: 1px solid var(--border-secondary);
     border-radius: 4px;
     padding: 4px 8px;
     font-size: 14px;
-    color: var(--text-primary);
+    color: var(--fg-primary);
     display: inline-block;
 }
 
@@ -184,7 +180,7 @@
 .tabulator-responsive-collapse {
     border-top: 1px solid var(--border-secondary);
     border-bottom: 1px solid var(--border-secondary);
-    background-color: var(--background-tertiary);
+    background-color: var(--incident-opened);
     margin-top: -1px;
     position: relative;
     overflow: visible !important;
@@ -216,8 +212,8 @@
     left: 50%;
     width: 10px;
     height: 10px;
-    border-left: 2px solid var(--text-primary);
-    border-top: 2px solid var(--text-primary);
+    border-left: 2px solid var(--fg-primary);
+    border-top: 2px solid var(--fg-primary);
     transform: translate(-50%, -50%) rotate(-135deg);
 }
 
@@ -231,7 +227,7 @@
 }
 
 .info-block {
-    background-color: var(--info-block-background);
+    background-color: var(--info-block-bg);
     border-radius: 8px;
     padding-bottom: 20px;
     padding-left: 8px;
@@ -271,29 +267,25 @@
 
 .status-badge.firing {
     background-color: var(--status-badge-firing);
-    color: var(--text-inverse);
 }
 
 .status-badge.resolved {
     background-color: var(--status-badge-resolved);
-    color: var(--text-inverse);
 }
 
 .status-badge.unknown {
     background-color: var(--status-badge-unknown);
-    color: var(--text-inverse);
 }
 
 .status-badge.closed {
     background-color: var(--status-badge-closed);
-    color: var(--text-inverse);
 }
 
 .alert-header {
     display: flex;
     gap: 16px;
     font-size: 14px;
-    color: var(--text-secondary);
+    color: var(--fg-primary);
     margin-bottom: 20px;
     border-bottom: 1.3px solid var(--incident-content-border-color);
     justify-content: space-between;
@@ -309,7 +301,6 @@
 
 .generator-link:hover {
     text-decoration: underline;
-    color: var(--link-hover);
 }
 
 .highlighted-labels {
@@ -320,14 +311,14 @@
     display: inline-block;
     padding: 4px 8px;
     border-radius: 4px;
-    background: var(--label-background);
+    background: var(--label-bg);
     font-size: 14px;
-    color: var(--label-text);
+    color: var(--label-fg);
 }
 
 .label.highlighted {
-    background: var(--label-highlighted-background);
-    color: var(--label-highlighted-text);
+    background: var(--label-highlighted-bg);
+    color: var(--label-highlighted-fg);
     font-weight: 500;
 }
 
@@ -351,7 +342,7 @@
     -moz-user-select: text;
     -ms-user-select: text;
     position: relative;
-    color: var(--annotation-text);
+    color: var(--annotation-fg);
     line-height: 1.2;
     vertical-align: middle;
 }
@@ -383,8 +374,8 @@
 
 .tooltip-text {
     visibility: hidden;
-    background-color: var(--tooltip-background);
-    color: var(--text-inverse);
+    background-color: var(--tooltip-bg);
+    color: var(--fg-inverse);
     text-align: left;
     padding: 8px;
     border-radius: 4px;
@@ -396,9 +387,12 @@
     font-size: 14px;
     line-height: 1.4;
     opacity: 0;
-    transition: opacity 0.2s;
     pointer-events: none;
     bottom: calc(100% + 8px);
+    user-select: text;
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
 }
 
 /* Add invisible bridge between wrapper and tooltip */

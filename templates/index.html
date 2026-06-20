@@ -30,7 +30,7 @@
                         </svg>
                     </button>
                 </div>
-                <div id="filter-container"></div>
+                <div id="filter-container"><div id="filter-list"></div></div>
                 <div class="arrow-wrapper right">
                     <button class="scroll-arrow right">
                         <svg width="8" height="14" viewBox="0 0 8 14" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -71,14 +71,14 @@
                 </button>
                 <button id="history-toggle" class="history-toggle-btn" title="Show all incidents">
                     <svg class="history-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M2.33301 1.6665V4.99984H5.66634" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/>
-                        <path d="M2.72634 8.6665C3.05574 10.0512 3.83984 11.2858 4.95327 12.1721C6.06669 13.0584 7.44511 13.5445 8.86826 13.5528C10.2914 13.5611 11.6753 13.091 12.799 12.2178C13.9227 11.3446 14.7211 10.1191 15.0667 8.73834C15.4122 7.35755 15.2854 5.90018 14.7061 4.60023C14.1268 3.30028 13.1289 2.23029 11.8707 1.56195C10.6124 0.893611 9.16631 0.665649 7.76396 0.914686C6.36161 1.16372 5.08295 1.8755 4.13301 2.93984L2.33301 4.99984" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M3.03301 1.2665V4.59984H6.36634" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M2.72634 8.6665C3.05574 10.0512 3.83984 11.2858 4.95327 12.1721C6.06669 13.0584 7.44511 13.5445 8.86826 13.5528C10.2914 13.5611 11.6753 13.091 12.799 12.2178C13.9227 11.3446 14.7211 10.1191 15.0667 8.73834C15.4122 7.35755 15.2854 5.90018 14.7061 4.60023C14.1268 3.30028 13.1289 2.23029 11.8707 1.56195C10.6124 0.893611 9.16631 0.665649 7.76396 0.914686C6.36161 1.16372 5.08295 1.8755 4.13301 2.93984L3.03301 4.59984" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/>
                         <path d="M7.99967 4.6665V7.99984L10.6663 9.33317" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
                 </button>
                 <div class="auth-controls-wrapper" id="auth-controls">
                     <span id="auth-username" class="auth-username"></span>
-                    <span id="auth-separator" class="auth-separator">|</span>
+                    <span id="auth-separator" class="auth-separator" aria-hidden="true"></span>
                     <button id="auth-login-btn" class="auth-login-btn">Login</button>
                     <button id="auth-logout-btn" class="auth-logout-btn">Logout</button>
                 </div>
@@ -91,12 +91,17 @@
                 <h2>UI Chains</h2>
                 <div class="chains-header-controls">
                     <label for="chain-select", class="hidden-text">Chain</label>
+                    <button id="calendar-today" class="calendar-today-btn" hidden>today</button>
                     <select id="chain-select" class="chain-select" title="Chain to display">
                     </select>
                     <label for="timezone-select", class="hidden-text">Timezone</label>
                     <select id="timezone-select" class="timezone-select">
                     </select>
-                    <button class="chains-modal-close">&times;</button>
+                    <button class="chains-modal-close" type="button" aria-label="Close">
+                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                            <path d="M1 1L11 11M11 1L1 11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </button>
                 </div>
             </div>
             <div class="chains-modal-body">
@@ -104,9 +109,6 @@
                     <div id="calendar-container" class="chains-calendar-hidden">
                         <div id="calendar-wrapper">
                             <div id="calendar-nav">
-                                <div class="calendar-nav-left">
-                                    <button id="calendar-today" class="calendar-today-btn">today</button>
-                                </div>
                                 <div class="calendar-nav-right">
                                     <div id="week-number-display"></div>
                                     <div>

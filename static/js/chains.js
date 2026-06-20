@@ -208,8 +208,8 @@ function prepareEventsForCalendar(chains) {
                 isLastOccurrence: chain.isLastOccurrence
             },
             display: 'block',
-            backgroundColor: chain.backgroundColor || '#3b82f6',
-            borderColor: chain.borderColor || '#2563eb'
+            backgroundColor: chain.backgroundColor || getComputedStyle(document.documentElement).getPropertyValue('--chain-event-bg').trim(),
+            borderColor: chain.borderColor || getComputedStyle(document.documentElement).getPropertyValue('--chain-event-border').trim()
         };
     }).sort((a, b) => {
         const timeDiff = new Date(a.start) - new Date(b.start);
@@ -593,7 +593,11 @@ function createStepElement(step = null, index = null) {
                 <input type="text" class="step-value" placeholder="Enter value" autocomplete="off">
                 <div class="step-value-options hidden"></div>
             </div>
-            <button type="button" class="btn-remove-step" aria-label="Remove step">&times;</button>
+            <button type="button" class="btn-remove-step chains-modal-close" aria-label="Remove step">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path d="M1 1L11 11M11 1L1 11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+            </button>
         </div>
     `;
     const typeSelect = stepDiv.querySelector('.step-type');
@@ -1339,6 +1343,10 @@ function showCalendarContainer(show) {
     const el = document.getElementById('calendar-container');
     if (el) {
         el.classList.toggle('chains-calendar-hidden', !show);
+    }
+    const todayBtn = document.getElementById('calendar-today');
+    if (todayBtn) {
+        todayBtn.hidden = !show;
     }
 }
 

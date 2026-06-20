@@ -2,7 +2,7 @@
 
 ## v3.6.0
 Changes:
-- Ability to edit existing matchers in UI
+- Filters became editable
 - UI update
 - Added browser timezone for UI Chains and Maintenance
 

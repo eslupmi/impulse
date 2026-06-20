@@ -1,7 +1,6 @@
 /* Zoom icon styles */
 .zoom-icon {
     cursor: pointer;
-    transition: transform 0.2s ease, opacity 0.2s ease;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -10,17 +9,13 @@
     border-radius: 50%;
     flex-shrink: 0;
     opacity: 0;
-    color: var(--text-secondary);
+    color: var(--fg-primary);
     margin-left: 5px;
 }
 
 /* Change from row hover to cell hover */
 .tabulator-cell:hover .zoom-icon {
     opacity: 1;
-}
-
-.zoom-icon:hover {
-    transform: scale(1.2);
 }
 
 .zoom-icon.hidden {
@@ -40,5 +35,5 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     margin-right: 5px;
-    color: var(--text-primary);
+    color: var(--fg-primary);
 }
