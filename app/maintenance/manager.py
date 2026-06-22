@@ -73,6 +73,8 @@ class MaintenanceManager:
                 "Maintenance source recorded on frozen incident",
                 extra={"uuid": incident.uuid, "window_id": window.id, "until": window.ends_at},
             )
+            if incident.ts:
+                await self.application.update_incident_message(incident)
             return
 
         await self.application.apply_time_freeze(
@@ -82,6 +84,8 @@ class MaintenanceManager:
             "Maintenance time freeze applied",
             extra={"uuid": incident.uuid, "window_id": window.id, "until": window.ends_at},
         )
+        if incident.ts:
+            await self.application.update_incident_message(incident)
 
     async def reconcile_incident(self, incident: "Incident", update_message: bool = True):
         """Recalculate this incident's maintenance source and time-freeze schedule."""

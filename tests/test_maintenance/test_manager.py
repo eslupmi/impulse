@@ -74,6 +74,23 @@ class TestMaintenanceManager:
         application.apply_time_freeze.assert_awaited_once_with(
             incident, window.ends_at, user=None, queue_=manager.queue, source=FreezeSource.MAINTENANCE
         )
+        application.update_incident_message.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_process_incident_updates_posted_message_after_freeze(self, maintenance_setup):
+        manager, store, application, _ = maintenance_setup
+        window = _window()
+        store.list.return_value = [window]
+        incident = _incident()
+        incident.ts = "1.2"
+
+        await manager.process_incident(incident)
+
+        assert MAINTENANCE_PARENT_SENTINEL in incident.parents
+        application.apply_time_freeze.assert_awaited_once_with(
+            incident, window.ends_at, user=None, queue_=manager.queue, source=FreezeSource.MAINTENANCE
+        )
+        application.update_incident_message.assert_awaited_once_with(incident)
 
     @pytest.mark.asyncio
     async def test_process_incident_defers_when_inhibition_holds(self, maintenance_setup):
@@ -87,6 +104,24 @@ class TestMaintenanceManager:
         assert MAINTENANCE_PARENT_SENTINEL in incident.parents
         assert incident.frozen_by_maintenance is True
         application.apply_time_freeze.assert_not_called()
+        application.update_incident_message.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_process_incident_updates_posted_message_when_recording_maintenance_on_frozen_incident(
+        self, maintenance_setup
+    ):
+        manager, store, application, _ = maintenance_setup
+        store.list.return_value = [_window()]
+        incident = _incident()
+        incident.parents.append("source-uniq-id")
+        incident.ts = "1.2"
+
+        await manager.process_incident(incident)
+
+        assert MAINTENANCE_PARENT_SENTINEL in incident.parents
+        assert incident.frozen_by_maintenance is True
+        application.apply_time_freeze.assert_not_called()
+        application.update_incident_message.assert_awaited_once_with(incident)
 
     @pytest.mark.asyncio
     async def test_reconcile_clears_sentinel_when_no_active_window(self, maintenance_setup):
