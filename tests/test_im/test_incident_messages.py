@@ -14,7 +14,10 @@ TEMPLATES_DIR = Path(__file__).resolve().parents[2] / "templates"
 
 
 def _config(task_management=False):
-    return SimpleNamespace(app=SimpleNamespace(task_management=task_management))
+    return SimpleNamespace(
+        app=SimpleNamespace(task_management=task_management),
+        messenger=SimpleNamespace(impulse_address="https://impulse.test"),
+    )
 
 
 def _env(task_management_enabled=False):
