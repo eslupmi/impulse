@@ -424,6 +424,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
                                         removed_window = MaintenanceWindow.from_window_dict(window_dict)
                                         await maintenance_manager.reconcile_after_window_removed(removed_window)
                                     await maintenance_manager.reconcile_all()
+                                    await maintenance_manager.schedule_window_starts()
                                 await websocket.send_text(json.dumps({
                                     "event": "maintenance_saved",
                                     "success": success,

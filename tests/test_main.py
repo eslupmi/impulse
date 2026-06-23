@@ -49,6 +49,7 @@ class TestMainApplication:
 
             mock_maintenance_manager = Mock()
             mock_maintenance_manager.reconcile_all = AsyncMock()
+            mock_maintenance_manager.schedule_window_starts = AsyncMock()
             mock_maintenance_manager_class.return_value = mock_maintenance_manager
             
             # Setup mock config

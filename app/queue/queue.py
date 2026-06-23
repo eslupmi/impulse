@@ -26,6 +26,16 @@ class AsyncQueue:
         async with self._lock:
             self._delete_by_id_and_type_internal(uniq_id, type_)
 
+    async def delete_by_id_type_and_data(self, uniq_id: str, type_: str, data: Any):
+        """Delete items by incident uniq_id, type, and payload data."""
+        async with self._lock:
+            self._delete_by_id_type_and_data_internal(uniq_id, type_, data)
+
+    async def delete_by_type(self, type_: str):
+        """Delete all items of a specific type."""
+        async with self._lock:
+            self._delete_by_type_internal(type_)
+
     async def get_first_item_datetime(self) -> Optional[datetime]:
         """Get datetime of the next item that's ready to be processed (if any)."""
         async with self._lock:
@@ -154,6 +164,17 @@ class AsyncQueue:
             item for item in self._items
             if not (item.uniq_id == uniq_id and item.type == type_)
         ]
+
+    def _delete_by_id_type_and_data_internal(self, uniq_id: str, type_: str, data: Any):
+        """Internal delete by id, type, and data method that doesn't acquire lock."""
+        self._items = [
+            item for item in self._items
+            if not (item.uniq_id == uniq_id and item.type == type_ and item.data == data)
+        ]
+
+    def _delete_by_type_internal(self, type_: str):
+        """Internal delete by type method that doesn't acquire lock."""
+        self._items = [item for item in self._items if item.type != type_]
 
     def _insert_item_sorted(self, new_item: QueueItem):
         """Insert item in sorted order by datetime"""

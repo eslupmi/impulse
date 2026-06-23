@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import Callable, List, Optional, TYPE_CHECKING
+from typing import Callable, List, Optional, TYPE_CHECKING, Tuple
 
 from app.logging import logger
 from app.maintenance.models import MaintenanceWindow
@@ -40,85 +40,134 @@ class MaintenanceManager:
         self.queue = queue
         self._now = now or (lambda: datetime.now(timezone.utc))
 
-    def _active_sorted(self, now: Optional[datetime] = None) -> List[MaintenanceWindow]:
-        now = now or self._now()
-        active = [w for w in self.store.list() if w.is_active(now)]
+    def _first_matching_window_with_coverage_end(
+        self, incident: "Incident", require_future_end: bool = False
+    ) -> Optional[Tuple[MaintenanceWindow, datetime]]:
+        now = self._now()
+        windows = self.store.list()
+        active = [w for w in windows if w.is_active(now)]
         active.sort(key=lambda w: (w.starts_at, w.ends_at, w.id))
-        return active
+        for window in active:
+            if require_future_end and window.ends_at <= now:
+                continue
+            if window.matches_incident(incident):
+                return window, self._continuous_matching_end(incident, window, windows)
+        return None
 
     def _first_matching_window(
         self, incident: "Incident", require_future_end: bool = False
     ) -> Optional[MaintenanceWindow]:
-        now = self._now()
-        for window in self._active_sorted(now):
-            if require_future_end and window.ends_at <= now:
-                continue
-            if window.matches_incident(incident):
-                return window
-        return None
+        match = self._first_matching_window_with_coverage_end(incident, require_future_end)
+        return match[0] if match else None
+
+    @staticmethod
+    def _continuous_matching_end(
+        incident: "Incident", initial_window: MaintenanceWindow, windows: List[MaintenanceWindow]
+    ) -> datetime:
+        coverage_end = initial_window.ends_at
+        candidates = sorted(windows, key=lambda w: (w.starts_at, w.ends_at, w.id))
+
+        extended = True
+        while extended:
+            extended = False
+            for window in candidates:
+                if window.ends_at <= coverage_end:
+                    continue
+                if window.starts_at > coverage_end:
+                    continue
+                if not window.matches_incident(incident):
+                    continue
+                coverage_end = window.ends_at
+                extended = True
+
+        return coverage_end
 
     def would_match_active_window(self, incident: "Incident") -> bool:
         return self._first_matching_window(incident) is not None
 
+    async def schedule_window_starts(self):
+        now = self._now()
+        await self.queue.delete_by_type(QueueItemType.MAINTENANCE_START)
+        for window in self.store.list():
+            if window.starts_at > now:
+                await self.queue.put(
+                    window.starts_at,
+                    QueueItemType.MAINTENANCE_START,
+                    identifier=window.id,
+                )
+
+    async def handle_window_start(self, _window_id: Optional[str]):
+        await self.reconcile_all()
+
     async def process_incident(self, incident: "Incident"):
-        window = self._first_matching_window(incident)
-        if window is None:
+        match = self._first_matching_window_with_coverage_end(incident)
+        if match is None:
             return
+        window, coverage_end = match
 
         was_frozen = incident.is_frozen()
         incident.set_maintenance_parent()
 
         if was_frozen:
+            await self._schedule_maintenance_freeze(incident, coverage_end)
             logger.info(
                 "Maintenance source recorded on frozen incident",
-                extra={"uuid": incident.uuid, "window_id": window.id, "until": window.ends_at},
+                extra={"uuid": incident.uuid, "window_id": window.id, "until": coverage_end},
             )
             if incident.ts:
                 await self.application.update_incident_message(incident)
             return
 
         await self.application.apply_time_freeze(
-            incident, window.ends_at, user=None, queue_=self.queue, source=FreezeSource.MAINTENANCE
+            incident, coverage_end, user=None, queue_=self.queue, source=FreezeSource.MAINTENANCE
         )
         logger.info(
             "Maintenance time freeze applied",
-            extra={"uuid": incident.uuid, "window_id": window.id, "until": window.ends_at},
+            extra={"uuid": incident.uuid, "window_id": window.id, "until": coverage_end},
         )
         if incident.ts:
             await self.application.update_incident_message(incident)
 
-    async def reconcile_incident(self, incident: "Incident", update_message: bool = True):
+    async def _schedule_maintenance_freeze(self, incident: "Incident", coverage_end: datetime):
+        if incident.frozen_until_source in (None, FreezeSource.MAINTENANCE.value):
+            incident.frozen_until = coverage_end
+            incident.frozen_until_source = FreezeSource.MAINTENANCE.value
+        incident.chain_enabled = False
+        incident.dump()
+
+        await self.queue.delete_by_id_type_and_data(
+            incident.uniq_id,
+            QueueItemType.UNFREEZE,
+            FreezeSource.MAINTENANCE.value,
+        )
+        await self.queue.put(
+            coverage_end,
+            QueueItemType.UNFREEZE,
+            incident.uniq_id,
+            data=FreezeSource.MAINTENANCE.value,
+        )
+
+    async def reconcile_incident(
+        self, incident: "Incident", update_message: bool = True, notify_removed: bool = False
+    ):
         """Recalculate this incident's maintenance source and time-freeze schedule."""
-        window = self._first_matching_window(incident, require_future_end=True)
-        if window is None:
+        match = self._first_matching_window_with_coverage_end(incident, require_future_end=True)
+        if match is None:
             await remove_freeze_source(
-                incident, self.application, self.queue, source=FreezeSource.MAINTENANCE, notify=False
+                incident, self.application, self.queue, source=FreezeSource.MAINTENANCE, notify=notify_removed
             )
             if update_message and incident.ts:
                 await self.application.update_incident_message(incident)
             return
+        window, coverage_end = match
 
-        had_maintenance = MAINTENANCE_PARENT_SENTINEL in incident.parents
-        was_frozen = incident.is_frozen()
         incident.set_maintenance_parent()
-        if not was_frozen or had_maintenance:
-            incident.frozen_until = window.ends_at
-            incident.frozen_until_source = FreezeSource.MAINTENANCE.value
-            incident.chain_enabled = False
-            incident.dump()
+        await self._schedule_maintenance_freeze(incident, coverage_end)
 
-            await self.queue.delete_by_id_and_type(incident.uniq_id, QueueItemType.UNFREEZE)
-            await self.queue.put(
-                window.ends_at,
-                QueueItemType.UNFREEZE,
-                incident.uniq_id,
-                data=FreezeSource.MAINTENANCE.value,
-            )
-
-            logger.info(
-                "Maintenance time freeze scheduled",
-                extra={"uuid": incident.uuid, "window_id": window.id, "until": window.ends_at},
-            )
+        logger.info(
+            "Maintenance time freeze scheduled",
+            extra={"uuid": incident.uuid, "window_id": window.id, "until": coverage_end},
+        )
 
         if update_message and incident.ts:
             await self.application.update_incident_message(incident)

@@ -525,7 +525,7 @@ async def remove_freeze_source(
     parent: Optional[str] = None,
     notify: bool = False,
 ):
-    if not incident.is_frozen() and source not in (FreezeSource.PARENT, FreezeSource.MAINTENANCE):
+    if not incident.is_frozen() and source != FreezeSource.PARENT:
         logger.info(f'Incident {incident.uuid} is not frozen, skipping unfreeze')
         return
 

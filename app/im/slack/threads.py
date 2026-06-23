@@ -80,11 +80,7 @@ def _build_slack_actions(incident, tz_str: str = "UTC"):
     ]
     
     if incident.frozen_by_maintenance:
-        freeze_text = (
-            format_freeze_expiration(incident.frozen_until, tz_str)
-            if incident.frozen_until
-            else 'Maintenance'
-        )
+        freeze_text = 'Maintenance'
         actions.append({
             "name": 'freeze',
             "type": 'button',

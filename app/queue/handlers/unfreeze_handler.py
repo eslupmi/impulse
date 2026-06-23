@@ -32,7 +32,11 @@ class UnfreezeHandler(BaseHandler):
             return
 
         freeze_source = FreezeSource(source)
-        if incident.frozen_until_source != freeze_source.value:
+        if freeze_source == FreezeSource.MAINTENANCE:
+            source_active = incident.frozen_by_maintenance
+        else:
+            source_active = incident.frozen_until_source == freeze_source.value
+        if not source_active:
             logger.info(
                 "Ignoring stale unfreeze event",
                 extra={

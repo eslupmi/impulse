@@ -5,11 +5,11 @@ This module tests the freeze/unfreeze functionality added to the Incident class,
 including freezing incidents, automatic unfreezing, and freeze state checks.
 """
 from datetime import datetime, timezone, timedelta
-from unittest.mock import Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-from app.incident.incident import Incident, IncidentConfig
+from app.incident.incident import Incident, IncidentConfig, remove_freeze_source
 from app.incident.freeze import FreezeSource
 from tests.utils import create_alert_payload
 
@@ -82,6 +82,30 @@ class TestIncidentFreeze:
         with patch.object(sample_incident, "dump"):
             sample_incident.set_maintenance_parent()
         assert sample_incident.can_manual_unfreeze() is False
+
+    @pytest.mark.asyncio
+    async def test_parent_unfreeze_restores_after_last_parent_already_removed(self, sample_incident):
+        """Inhibition cleanup removes the parent first, then calls this to restore queues."""
+        assert sample_incident.is_frozen() is False
+        app = Mock()
+        queue = Mock()
+
+        with patch("app.incident.incident.sync_after_freeze_change", new_callable=AsyncMock) as sync_after_change:
+            await remove_freeze_source(
+                sample_incident,
+                app,
+                queue,
+                source=FreezeSource.PARENT,
+                notify=False,
+            )
+
+        sync_after_change.assert_awaited_once_with(
+            sample_incident,
+            app,
+            queue,
+            "firing",
+            notify=False,
+        )
 
 class TestIncidentInhibitionFreeze:
     """Test cases for inhibition-based freeze functionality."""

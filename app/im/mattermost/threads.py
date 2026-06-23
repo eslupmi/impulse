@@ -96,11 +96,7 @@ def _build_mattermost_actions(incident, user_timezone='UTC'):
     }]
     
     if incident.frozen_by_maintenance:
-        freeze_text = (
-            format_freeze_expiration(incident.frozen_until, user_timezone)
-            if incident.frozen_until
-            else 'Maintenance'
-        )
+        freeze_text = 'Maintenance'
         actions.append({
             "id": "freeze",
             "type": "button",

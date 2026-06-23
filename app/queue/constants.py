@@ -10,6 +10,7 @@ class QueueItemType:
     ALERT = 'alert'
     UNFREEZE = 'unfreeze'
     UPDATE_USER = 'update_user'
+    MAINTENANCE_START = 'maintenance_start'
 
 
 USER_UPDATE_GAP_SECONDS = {

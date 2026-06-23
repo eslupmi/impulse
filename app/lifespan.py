@@ -87,6 +87,7 @@ async def create_main_objects(fastapi_app: FastAPI, reload=False):
         await user_scheduler.schedule_all_stored()
         queue_manager = AsyncQueueManager(queue, messenger, incidents, webhooks, route, inhibition_manager, maintenance_manager)
         await maintenance_manager.reconcile_all()
+        await maintenance_manager.schedule_window_starts()
         ui_chains_store.prune_all()
         get_maintenance_store().prune_expired_windows()
 
