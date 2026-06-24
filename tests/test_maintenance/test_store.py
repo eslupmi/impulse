@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
@@ -92,6 +92,34 @@ def test_prune_expired_windows(tmp_path: Path):
         assert removed == 1
         assert len(store.load_windows()) == 1
         assert store.load_windows()[0]["id"] == "recent"
+    finally:
+        mock_config.stop()
+
+
+def test_save_retains_recently_ended_windows_until_closed_timeout(tmp_path: Path):
+    store = _make_store(tmp_path)
+    mock_config = _mock_closed_retention("7d")
+    now = datetime.now(timezone.utc)
+    try:
+        recent = {
+            "id": "recent-ended",
+            "start": (now - timedelta(days=1, hours=2)).isoformat(),
+            "end": (now - timedelta(days=1)).isoformat(),
+            "matchers": ['alertname="A"'],
+            "comment": "recent maintenance",
+        }
+        old = {
+            "id": "old-ended",
+            "start": (now - timedelta(days=8, hours=2)).isoformat(),
+            "end": (now - timedelta(days=8)).isoformat(),
+            "matchers": ['alertname="B"'],
+            "comment": "old maintenance",
+        }
+
+        assert store.save_windows([recent, old]) is True
+
+        loaded = store.load_windows()
+        assert [window["id"] for window in loaded] == ["recent-ended"]
     finally:
         mock_config.stop()
 

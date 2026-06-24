@@ -86,6 +86,7 @@ def _build_app(config, messenger, auth_manager):
     app.state.maintenance_manager = Mock()
     app.state.maintenance_manager.reconcile_after_window_removed = AsyncMock()
     app.state.maintenance_manager.reconcile_all = AsyncMock()
+    app.state.maintenance_manager.schedule_window_starts = AsyncMock()
     app.include_router(create_router("", auth_manager=auth_manager))
     return app
 
@@ -169,6 +170,7 @@ class TestMaintenanceWebsocketAuth:
             mock_store.return_value.save_windows.assert_called_once()
             app.state.maintenance_manager.reconcile_after_window_removed.assert_not_called()
             app.state.maintenance_manager.reconcile_all.assert_awaited_once()
+            app.state.maintenance_manager.schedule_window_starts.assert_awaited_once()
         assert message == {"event": "maintenance_saved", "success": True}
 
     def test_save_maintenance_reconciles_removed_windows(self, config, messenger):

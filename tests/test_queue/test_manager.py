@@ -61,6 +61,7 @@ class TestAsyncQueueManager:
         manager.would_match_active_window = Mock(return_value=False)
         manager.reconcile_incident = AsyncMock()
         manager.reconcile_all = AsyncMock()
+        manager.handle_window_start = AsyncMock()
         return manager
 
     @pytest.fixture
@@ -197,6 +198,15 @@ class TestAsyncQueueManager:
         queue_manager.unfreeze_handler.handle.assert_awaited_once_with(
             'incident123', FreezeSource.MAINTENANCE.value
         )
+
+    @pytest.mark.asyncio
+    async def test_queue_handle_once_maintenance_start_item(self, queue_manager, mock_queue, mock_maintenance_manager):
+        """Test handling maintenance window start."""
+        mock_queue.get_next_ready_item.return_value = ('maintenance_start', None, 'window-1', None)
+
+        await queue_manager.queue_handle_once()
+
+        mock_maintenance_manager.handle_window_start.assert_awaited_once_with('window-1')
 
     @pytest.mark.asyncio
     async def test_queue_handle_once_unknown_item_type(self, queue_manager, mock_queue):
