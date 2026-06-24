@@ -18,6 +18,14 @@
     opacity: 1;
 }
 
+.zoom-icon:hover {
+    color: var(--hover-fg);
+}
+
+.zoom-icon:active {
+    color: var(--pressed-fg);
+}
+
 .zoom-icon.hidden {
     display: none;
 }

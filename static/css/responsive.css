@@ -221,6 +221,10 @@
     transform: translate(-50%, -50%) rotate(45deg);
 }
 
+.tabulator .tabulator-responsive-collapse-toggle:hover::before {
+    border-color: var(--hover-fg);
+}
+
 .tabulator .tabulator-footer .tabulator-page:disabled {
     opacity: .4;
     font-size: 18px;

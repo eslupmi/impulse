@@ -108,6 +108,10 @@ strong {
     transform: translate(-50%, -50%) rotate(-135deg);
 }
 
+.tabulator .tabulator-col.tabulator-sortable:hover .tabulator-col-sorter::before {
+    border-color: var(--hover-fg);
+}
+
 .tabulator .tabulator-header .tabulator-col .tabulator-col-content .tabulator-col-title {
     width: auto !important;
     padding-right: 5px !important;
@@ -310,7 +314,7 @@ strong {
 
 #add-filter-btn {
     background: transparent;
-    color: var(--fg-inverse);
+    color: var(--search-icon-color);
     border: none;
     border-radius: 4px;
     height: 100%;
@@ -321,6 +325,14 @@ strong {
     cursor: pointer;
     padding: 0;
     margin: 0;
+}
+
+#add-filter-btn:hover {
+    color: var(--hover-fg);
+}
+
+#add-filter-btn:active {
+    color: var(--pressed-fg);
 }
 
 #add-filter-btn svg {
@@ -433,6 +445,16 @@ strong {
 
 .cross::after {
     transform: translate(-50%, -50%) rotate(-45deg);
+}
+
+.cross:hover::before,
+.cross:hover::after {
+    background-color: var(--hover-fg);
+}
+
+.cross:active::before,
+.cross:active::after {
+    background-color: var(--pressed-fg);
 }
 
 /* Remove Filter Button */
@@ -572,6 +594,14 @@ strong {
     stroke: currentColor;
 }
 
+.control-btn:hover {
+    color: var(--hover-fg);
+}
+
+.control-btn:active {
+    color: var(--pressed-fg);
+}
+
 .chains-icon {
     transform: translateX(0.5px);
 }
@@ -603,6 +633,15 @@ strong {
     border: none !important;
     outline: none !important;
     box-shadow: none !important;
+    color: var(--theme-icon-color);
+}
+
+.history-toggle-btn:hover {
+    color: var(--hover-fg);
+}
+
+.history-toggle-btn:active {
+    color: var(--pressed-fg);
 }
 
 .history-toggle-btn.active .history-icon {
@@ -610,12 +649,17 @@ strong {
     opacity: 1;
 }
 
+.history-toggle-btn.active:hover,
+.history-toggle-btn.active:active {
+    color: var(--online-status-indicator);
+}
+
 .history-icon {
     width: 16px;
     height: 16px;
     display: block;
-    stroke: var(--theme-icon-color);
-    color: var(--theme-icon-color);
+    stroke: currentColor;
+    color: currentColor;
     transform: translate(-2.5px, 0.5px);
 }
 
@@ -691,7 +735,11 @@ strong {
 }
 
 .auth-logout-btn:hover {
-    opacity: 0.7;
+    color: var(--hover-fg);
+}
+
+.auth-logout-btn:active {
+    color: var(--pressed-fg);
 }
 
 .auth-controls-wrapper.logged-in .auth-username,
@@ -724,10 +772,6 @@ strong {
     border: none !important;
     outline: none !important;
     box-shadow: none !important;
-}
-
-.theme-icon {
-    color: var(--theme-icon-color);
 }
 
 .theme-icon.sun-icon {

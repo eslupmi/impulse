@@ -2,8 +2,12 @@
 :root {
     --brand-primary: #3293C3;
     --brand-secondary: #3D94E9;
+    --btn-primary-bg: #3D94E9;
 
     /* Main Colors */
+    --hover-fg: #3293C3;
+    --pressed-fg: #22688A;
+
     --bg-primary: #FFFFFF;
     --bg-header: #E8E9EA;
     --input-bg: #F2F2F2;
@@ -85,8 +89,12 @@
 [data-theme="dark"] {
     --brand-primary: #38ADE6;
     --brand-secondary: #48BDE6;
+    --btn-primary-bg: #357ABD;
 
     /* Main Colors */
+    --hover-fg: #38ADE6;
+    --pressed-fg: #357ABD;
+
     --bg-primary: #0B0B0B;
     --bg-header: #161A1C;
     --input-bg: #161A1C;

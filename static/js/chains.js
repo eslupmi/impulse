@@ -4,11 +4,14 @@ import {attachNavListener, getSharedCalendarOptions, updateMonthCalendarWeekHigh
 import {getIsAuthenticated, onAuthChange} from "./auth.js";
 import {
     captureCalendarViewAnchor,
+    closeAllTimezoneMenus,
+    ensureTimezoneSelectWidget,
     formatDateTime,
     getEffectiveTimezone as effectiveTimezone,
     onTimezoneChange,
     parseDateTime,
     reformatDateTimeInput,
+    syncTimezoneMenuWidth,
     syncTimezoneSelects,
     updateTimezoneConfig,
 } from "./ui_timezone.js";
@@ -497,9 +500,10 @@ async function openChainsModal() {
         return;
     }
 
+    updateChainSelector();
+    updateTimezoneSelector();
+
     setTimeout(async () => {
-        updateChainSelector();
-        updateTimezoneSelector();
         if (getSelectedChain()) {
             showCalendarContainer(true);
             await initializeCalendars();
@@ -1336,11 +1340,20 @@ function showCalendarContainer(show) {
     }
 }
 
+function fillChainOption(item, option) {
+    item.replaceChildren();
+    const body = document.createElement("div");
+    body.className = "timezone-select-option-body timezone-select-option-body--single";
+    const name = document.createElement("span");
+    name.className = "timezone-select-name";
+    name.textContent = option.label;
+    body.appendChild(name);
+    item.appendChild(body);
+}
+
 function updateChainSelector() {
     const selector = document.getElementById('chain-select');
     if (!selector) return;
-
-    selector.innerHTML = '';
 
     const uiChains = chainsConfig.ui_chains || [];
     const savedChain = getSelectedChain();
@@ -1350,23 +1363,58 @@ function updateChainSelector() {
         setSelectedChain('');
     }
 
-    const emptyOption = document.createElement('option');
-    emptyOption.value = '';
-    emptyOption.textContent = 'Select chain';
-    if (!currentChain) {
-        emptyOption.selected = true;
+    const options = [{value: '', label: 'Select chain', selected: !currentChain}];
+    for (const chainName of uiChains) {
+        options.push({value: chainName, label: chainName, selected: currentChain === chainName});
     }
-    selector.appendChild(emptyOption);
 
-    uiChains.forEach(chainName => {
-        const option = document.createElement('option');
-        option.value = chainName;
-        option.textContent = chainName;
-        if (currentChain === chainName) {
-            option.selected = true;
+    const widget = ensureTimezoneSelectWidget(selector);
+    const trigger = widget.querySelector(".timezone-select-trigger");
+    const triggerContent = widget.querySelector(".timezone-select-trigger-content");
+    const menu = widget.querySelector(".timezone-select-menu");
+    const selected = options.find((option) => option.selected) || options[0];
+
+    selector.innerHTML = '';
+    for (const option of options) {
+        const nativeOption = document.createElement('option');
+        nativeOption.value = option.value;
+        nativeOption.textContent = option.label;
+        if (option.selected) {
+            nativeOption.selected = true;
         }
-        selector.appendChild(option);
-    });
+        selector.appendChild(nativeOption);
+    }
+
+    triggerContent.replaceChildren();
+    const name = document.createElement("span");
+    name.className = "timezone-select-name";
+    name.textContent = selected.label;
+    triggerContent.appendChild(name);
+    trigger.setAttribute("aria-label", `Chain: ${selected.label}`);
+
+    menu.replaceChildren();
+    for (const option of options) {
+        const item = document.createElement("li");
+        item.className = "timezone-select-option";
+        if (option.selected) {
+            item.classList.add("selected");
+            item.setAttribute("aria-selected", "true");
+        } else {
+            item.setAttribute("aria-selected", "false");
+        }
+        item.setAttribute("role", "option");
+        item.dataset.value = option.value;
+        fillChainOption(item, option);
+        item.addEventListener("click", (event) => {
+            event.stopPropagation();
+            closeAllTimezoneMenus();
+            selector.value = option.value;
+            selector.dispatchEvent(new Event("change", {bubbles: true}));
+            updateChainSelector();
+        });
+        menu.appendChild(item);
+    }
+    syncTimezoneMenuWidth(widget);
 }
 
 function updateTimezoneSelector() {

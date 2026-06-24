@@ -75,6 +75,21 @@
     box-sizing: border-box;
 }
 
+.chains-header-controls .chain-select {
+    width: fit-content;
+    max-width: 100%;
+    padding: 0 24px 0 10px;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-color: var(--button-bg);
+    background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%2398A2B3' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    background-size: 10px 6px;
+    field-sizing: content;
+}
+
 .chains-header-controls .timezone-select-widget {
     padding: 0;
 }
@@ -185,11 +200,17 @@
 
 .timezone-select-chevron {
     flex-shrink: 0;
-    width: 0;
-    height: 0;
-    border-left: 4px solid transparent;
-    border-right: 4px solid transparent;
-    border-top: 5px solid var(--brand-secondary);
+    width: 10px;
+    height: 6px;
+    background-color: #98A2B3;
+    mask: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat center;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat center;
+    mask-size: contain;
+    -webkit-mask-size: contain;
+}
+
+.timezone-select-trigger:hover .timezone-select-chevron {
+    background-color: var(--hover-fg);
 }
 
 .timezone-select-menu {
@@ -276,6 +297,14 @@
     height: 12px;
 }
 
+.chains-modal-close:hover {
+    color: var(--hover-fg);
+}
+
+.chains-modal-close:active {
+    color: var(--pressed-fg);
+}
+
 .chains-modal-close svg {
     display: block;
 }
@@ -339,6 +368,14 @@
     cursor: pointer;
 }
 
+.calendar-today-btn:hover {
+    color: var(--hover-fg);
+}
+
+.calendar-today-btn:active {
+    color: var(--pressed-fg);
+}
+
 :is(#calendar-nav, #maintenance-calendar-nav) > .calendar-nav-right > div:last-child {
     display: flex;
     gap: 4px;
@@ -387,6 +424,10 @@
     -webkit-mask-size: contain;
 }
 
+:is(#calendar-prev, #maintenance-calendar-prev, #calendar-next, #maintenance-calendar-next):not(:disabled):hover::before {
+    background-color: var(--hover-fg);
+}
+
 .calendar-nav-btn:not(:disabled).calendar-nav-btn-active,
 .calendar-nav-btn:not(:disabled):active {
     background: transparent !important;
@@ -426,6 +467,8 @@
 :is(#calendar, #maintenance-calendar) .fc-scroller::-webkit-scrollbar {
     width: 8px;
     height: 8px;
+    -webkit-appearance: none;
+    appearance: none;
 }
 
 :is(#calendar, #maintenance-calendar) .fc-scroller::-webkit-scrollbar-track {
@@ -439,19 +482,27 @@
     border: 2px solid var(--calendar-timegrid-bg);
 }
 
-:is(#calendar, #maintenance-calendar) .fc-scroller {
-    scrollbar-width: thin;
-    scrollbar-color: var(--calendar-scrollbar-color);
+:is(#calendar, #maintenance-calendar) .fc-scroller::-webkit-scrollbar-button,
+:is(#calendar, #maintenance-calendar) .fc-scroller::-webkit-scrollbar-button:vertical,
+:is(#calendar, #maintenance-calendar) .fc-scroller::-webkit-scrollbar-button:horizontal,
+:is(#calendar, #maintenance-calendar) .fc-scroller-liquid-absolute::-webkit-scrollbar-button {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+    max-width: 0 !important;
+    max-height: 0 !important;
 }
 
-:is(#calendar, #maintenance-calendar) .fc-scroller::-webkit-scrollbar-button {
-    display: none;
-    height: 0;
-    width: 0;
+@supports not selector(::-webkit-scrollbar) {
+    :is(#calendar, #maintenance-calendar) .fc-scroller {
+        scrollbar-width: thin;
+        scrollbar-color: var(--calendar-scrollbar-color);
+    }
 }
 
 :is(#calendar, #maintenance-calendar) .fc-scrollgrid-section-header .fc-scroller {
     overflow: hidden !important;
+    background: var(--chains-window-bg);
 }
 
 :is(#calendar, #maintenance-calendar) .fc-scrollgrid-section-header .fc-scroller::-webkit-scrollbar {
@@ -542,6 +593,11 @@
     -webkit-mask: url('data:image/svg+xml;utf8,<svg width="7" height="12" viewBox="0 0 7 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M0.833008 10.833L5.83301 5.83301L0.833008 0.833008" stroke="black" stroke-width="1.66667" stroke-linecap="round" stroke-linejoin="round"/></svg>') no-repeat center;
     mask-size: contain;
     -webkit-mask-size: contain;
+}
+
+:is(#month-calendar, #maintenance-month-calendar) .fc-prev-button:not(:disabled):hover::before,
+:is(#month-calendar, #maintenance-month-calendar) .fc-next-button:not(:disabled):hover::before {
+    background-color: var(--hover-fg);
 }
 
 :is(#month-calendar, #maintenance-month-calendar) .fc-daygrid-day-frame {
@@ -640,7 +696,7 @@
     color: var(--calendar-today-fg);
 }
 
-:is(#month-calendar, #maintenance-month-calendar) .fc-daygrid-day.current-week {
+:is(#month-calendar, #maintenance-month-calendar) .fc-daygrid-day.current-week .fc-daygrid-day-frame {
     background: var(--calendar-week-bg) !important;
 }
 
@@ -836,9 +892,13 @@
 
 .fc-timegrid-axis-frame,
 .fc-timegrid-slot.fc-timegrid-slot-label.fc-scrollgrid-shrink,
-.fc-timegrid-slot.fc-timegrid-slot-label.fc-timegrid-slot-minor,
+.fc-timegrid-slot.fc-timegrid-slot-label.fc-timegrid-slot-minor {
+    background-color: var(--calendar-timegrid-bg);
+}
+
 .fc-scrollgrid-sync-inner {
     background-color: var(--calendar-timegrid-bg);
+    height: 100%;
 }
 
 .fc-daygrid-week-number {
@@ -933,6 +993,14 @@
     line-height: 1;
 }
 
+.modal-close:hover {
+    color: var(--hover-fg);
+}
+
+.modal-close:active {
+    color: var(--pressed-fg);
+}
+
 .modal-body {
     padding: 24px;
 }
@@ -1000,7 +1068,7 @@
 }
 
 .btn-primary {
-    background: var(--brand-secondary);
+    background: var(--btn-primary-bg);
     color: white;
     padding: 0px 15px;
     border-radius: 8px;
