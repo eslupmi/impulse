@@ -80,11 +80,17 @@ class TestMaintenanceManager:
 
         await manager.schedule_window_starts()
 
-        queue.delete_by_type.assert_awaited_once_with(QueueItemType.MAINTENANCE_START)
-        queue.put.assert_awaited_once_with(
+        queue.delete_by_type.assert_any_await(QueueItemType.MAINTENANCE_START)
+        queue.delete_by_type.assert_any_await(QueueItemType.MAINTENANCE_END)
+        queue.put.assert_any_await(
             future.starts_at,
             QueueItemType.MAINTENANCE_START,
             identifier=future.id,
+        )
+        queue.put.assert_any_await(
+            active.ends_at,
+            QueueItemType.MAINTENANCE_END,
+            identifier=active.id,
         )
 
     @pytest.mark.asyncio

@@ -18,13 +18,13 @@ await initializeTable();
 loadFiltersFromURL();
 setupTableFiltering();
 setupSortingListener();
-setupWebSocketEvents();
 initHistoryToggle();
 ThemeManager.init();
+await initAuthControls();
 MaintenanceManager.init();
 ChainsManager.init();
 initTimezoneSelectHandlers();
-await initAuthControls();
+setupWebSocketEvents();
 
 // Update zoom icons after table initialization and filters are loaded
 setTimeout(() => {

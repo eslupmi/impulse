@@ -87,6 +87,8 @@ def _build_app(config, messenger, auth_manager):
     app.state.maintenance_manager.reconcile_after_window_removed = AsyncMock()
     app.state.maintenance_manager.reconcile_all = AsyncMock()
     app.state.maintenance_manager.schedule_window_starts = AsyncMock()
+    app.state.maintenance_manager.broadcast_active_maintenance = AsyncMock()
+    app.state.maintenance_manager.active_windows_payload = Mock(return_value=[])
     app.include_router(create_router("", auth_manager=auth_manager))
     return app
 
@@ -124,6 +126,7 @@ class TestMaintenanceWebsocketAuth:
                 patch("app.routes.get_maintenance_store") as mock_store:
             with TestClient(app) as client:
                 with client.websocket_connect("/ws") as ws:
+                    ws.receive_json()
                     ws.send_json({
                         "event": "save_maintenance",
                         "data": _maintenance_ws_payload(),
@@ -143,6 +146,7 @@ class TestMaintenanceWebsocketAuth:
                 patch("app.routes.get_maintenance_store") as mock_store:
             with TestClient(app) as client:
                 with client.websocket_connect("/ws") as ws:
+                    ws.receive_json()
                     ws.send_json({"event": "request_maintenance"})
                     message = ws.receive_json()
             mock_store.return_value.load_windows.assert_not_called()
@@ -162,6 +166,7 @@ class TestMaintenanceWebsocketAuth:
             mock_validate.return_value = _maintenance_ws_payload()
             with TestClient(app, cookies={SESSION_COOKIE: "valid-session"}) as client:
                 with client.websocket_connect("/ws") as ws:
+                    ws.receive_json()
                     ws.send_json({
                         "event": "save_maintenance",
                         "data": _maintenance_ws_payload(),
@@ -185,6 +190,7 @@ class TestMaintenanceWebsocketAuth:
             mock_validate.return_value = []
             with TestClient(app, cookies={SESSION_COOKIE: "valid-session"}) as client:
                 with client.websocket_connect("/ws") as ws:
+                    ws.receive_json()
                     ws.send_json({
                         "event": "save_maintenance",
                         "data": [],
@@ -203,6 +209,7 @@ class TestMaintenanceWebsocketAuth:
             mock_store.return_value.load_windows.return_value = payload
             with TestClient(app, cookies={SESSION_COOKIE: "valid-session"}) as client:
                 with client.websocket_connect("/ws") as ws:
+                    ws.receive_json()
                     ws.send_json({"event": "request_maintenance"})
                     message = ws.receive_json()
             mock_store.return_value.prune_expired_windows.assert_called_once()
@@ -218,6 +225,7 @@ class TestUiChainsWebsocketAuth:
                 patch("app.routes.ui_chains_store") as mock_store:
             with TestClient(app) as client:
                 with client.websocket_connect("/ws") as ws:
+                    ws.receive_json()
                     ws.send_json({
                         "event": "save_ui_chains",
                         "chain_name": "primary",
@@ -238,6 +246,7 @@ class TestUiChainsWebsocketAuth:
                 patch("app.routes.ui_chains_store") as mock_store:
             with TestClient(app) as client:
                 with client.websocket_connect("/ws") as ws:
+                    ws.receive_json()
                     ws.send_json({
                         "event": "request_ui_chains",
                         "chain_name": "primary",
@@ -257,6 +266,7 @@ class TestUiChainsWebsocketAuth:
             mock_store.save_shifts.return_value = True
             with TestClient(app, cookies={SESSION_COOKIE: "valid-session"}) as client:
                 with client.websocket_connect("/ws") as ws:
+                    ws.receive_json()
                     ws.send_json({
                         "event": "save_ui_chains",
                         "chain_name": "primary",

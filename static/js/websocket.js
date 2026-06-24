@@ -182,6 +182,12 @@ function setupWebSocketEvents() {
                     }
                     break;
 
+                case "active_maintenance":
+                    if (typeof globalThis.handleActiveMaintenance === 'function') {
+                        globalThis.handleActiveMaintenance(data);
+                    }
+                    break;
+
                 case "maintenance_data":
                     if (typeof globalThis.handleMaintenanceData === 'function') {
                         globalThis.handleMaintenanceData(data);

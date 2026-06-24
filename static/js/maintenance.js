@@ -28,15 +28,17 @@ let configTimezone = "UTC";
 let configWeekStart = "Mon";
 let messengerType = "";
 let userTimezone = null;
-let activeIndicatorTimer = null;
+let cachedActiveWindows = [];
+let popupClosedThisSession = false;
+let popupVisible = false;
+let activeMaintenanceTimer = null;
 
-const ACTIVE_INDICATOR_POLL_MS = 60000;
+const ACTIVE_MAINTENANCE_RERENDER_MS = 30000;
 
 const MAINTENANCE_TOGGLE_HTML =
     '<svg class="maintenance-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">' +
     '<path d="M8.30088 3.36909C8.17873 3.49371 8.11031 3.66126 8.11031 3.83576C8.11031 4.01026 8.17873 4.17781 8.30088 4.30243L9.36755 5.36909C9.49217 5.49125 9.65971 5.55967 9.83421 5.55967C10.0087 5.55967 10.1763 5.49125 10.3009 5.36909L12.8142 2.85576C13.1494 3.59655 13.2509 4.42192 13.1052 5.22186C12.9594 6.0218 12.5734 6.75832 11.9984 7.33328C11.4234 7.90824 10.6869 8.29432 9.88698 8.44007C9.08704 8.58582 8.26167 8.48432 7.52088 8.1491L2.91421 12.7558C2.649 13.021 2.28929 13.17 1.91421 13.17C1.53914 13.17 1.17943 13.021 0.914214 12.7558C0.648997 12.4905 0.5 12.1308 0.5 11.7558C0.5 11.3807 0.648997 11.021 0.914214 10.7558L5.52088 6.1491C5.18566 5.4083 5.08416 4.58294 5.22991 3.783C5.37566 2.98306 5.76174 2.24653 6.33669 1.67158C6.91165 1.09662 7.64818 0.710541 8.44812 0.564789C9.24806 0.419038 10.0734 0.520538 10.8142 0.855761L8.30755 3.36243L8.30088 3.36909Z" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/>' +
-    '</svg>' +
-    '<span id="maintenance-active-count" class="maintenance-active-count hidden" aria-hidden="true"></span>';
+    '</svg>';
 
 let footerToggleClickHandler = null;
 
@@ -65,55 +67,154 @@ function countActiveMaintenanceWindows(windows, now = new Date()) {
     return windows.filter((w) => isMaintenanceWindowActive(w.start, w.end, now)).length;
 }
 
-function setActiveIndicatorCount(count) {
-    const badge = document.getElementById("maintenance-active-count");
-    const toggle = document.getElementById("maintenance-toggle");
-    if (!toggle) return;
+function formatTimeLeft(endIso, now = new Date()) {
+    const ms = new Date(endIso).getTime() - now.getTime();
+    if (ms <= 0) return "ended";
+    const minutes = Math.floor(ms / 60000);
+    if (minutes < 60) return `${minutes}m left`;
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    if (mins === 0) return `${hours}h left`;
+    return `${hours}h ${mins}m left`;
+}
+
+function formatTimeRange(startIso, endIso) {
+    const timeOpts = {hour: "2-digit", minute: "2-digit", hour12: false};
+    const start = new Date(startIso).toLocaleTimeString(undefined, timeOpts);
+    const end = new Date(endIso).toLocaleTimeString(undefined, timeOpts);
+    return `${start}-${end}`;
+}
+
+function getCurrentlyActiveWindows(windows, now = new Date()) {
+    return windows.filter((w) => isMaintenanceWindowActive(w.start, w.end, now));
+}
+
+function updateActiveCounter(count) {
+    const counter = document.getElementById("maintenance-active-counter");
+    if (!counter) return;
     if (count > 0) {
-        badge.textContent = String(count);
-        badge.classList.remove("hidden");
-        toggle.title = count === 1
-            ? "Maintenance (1 active window)"
-            : `Maintenance (${count} active windows)`;
+        counter.textContent = String(count);
+        counter.classList.remove("hidden");
+        counter.setAttribute("aria-label", count === 1
+            ? "1 active maintenance window"
+            : `${count} active maintenance windows`);
     } else {
-        badge.textContent = "";
-        badge.classList.add("hidden");
-        toggle.title = "Maintenance";
+        counter.textContent = "";
+        counter.classList.add("hidden");
+        counter.setAttribute("aria-label", "Active maintenance");
     }
 }
 
-function refreshActiveIndicatorFromCache() {
-    if (!getIsAuthenticated()) {
-        setActiveIndicatorCount(0);
+function showActiveMaintenancePopup() {
+    const popup = document.getElementById("maintenance-active-popup");
+    if (!popup) return;
+    popup.classList.remove("hidden");
+    popupVisible = true;
+}
+
+function hideActiveMaintenancePopup() {
+    const popup = document.getElementById("maintenance-active-popup");
+    if (!popup) return;
+    popup.classList.add("hidden");
+    popupVisible = false;
+}
+
+function renderActiveMaintenancePopup(windows) {
+    const list = document.getElementById("maintenance-active-popup-list");
+    if (!list) return;
+    list.replaceChildren();
+    const now = new Date();
+    for (const window of windows) {
+        if (!isMaintenanceWindowActive(window.start, window.end, now)) continue;
+        const row = document.createElement("div");
+        row.className = "maintenance-active-popup-row";
+
+        const times = document.createElement("div");
+        times.className = "maintenance-active-popup-times";
+
+        const timeLeft = document.createElement("div");
+        timeLeft.className = "maintenance-active-popup-time-left";
+        timeLeft.textContent = formatTimeLeft(window.end, now);
+
+        const timeRange = document.createElement("div");
+        timeRange.className = "maintenance-active-popup-time-range";
+        timeRange.textContent = formatTimeRange(window.start, window.end);
+
+        times.append(timeLeft, timeRange);
+
+        const comment = document.createElement("div");
+        comment.className = "maintenance-active-popup-comment";
+        comment.textContent = window.comment || "";
+
+        row.append(times, comment);
+        list.appendChild(row);
+    }
+}
+
+function refreshActiveMaintenanceDisplay() {
+    const now = new Date();
+    cachedActiveWindows = getCurrentlyActiveWindows(cachedActiveWindows, now);
+    const count = cachedActiveWindows.length;
+    updateActiveCounter(count);
+    if (count === 0) {
+        hideActiveMaintenancePopup();
         return;
     }
-    setActiveIndicatorCount(countActiveMaintenanceWindows(cachedWindows));
+    renderActiveMaintenancePopup(cachedActiveWindows);
 }
 
-async function refreshActiveIndicator() {
-    if (!getIsAuthenticated()) {
-        setActiveIndicatorCount(0);
+globalThis.handleActiveMaintenance = function(list) {
+    const incoming = Array.isArray(list) ? list : [];
+    const prevCount = getCurrentlyActiveWindows(cachedActiveWindows).length;
+    cachedActiveWindows = incoming;
+    const active = getCurrentlyActiveWindows(cachedActiveWindows);
+    const count = active.length;
+    updateActiveCounter(count);
+
+    if (count === 0) {
+        hideActiveMaintenancePopup();
         return;
     }
-    try {
-        await loadWindows();
-        refreshActiveIndicatorFromCache();
-    } catch (e) {
-        console.warn("Failed to refresh maintenance active indicator", e);
+
+    renderActiveMaintenancePopup(active);
+
+    if (prevCount === 0 && count > 0 && !getIsAuthenticated() && !popupClosedThisSession) {
+        showActiveMaintenancePopup();
     }
-}
+};
 
-function startActiveIndicatorPolling() {
-    if (activeIndicatorTimer !== null) return;
-    activeIndicatorTimer = setInterval(() => {
-        refreshActiveIndicator();
-    }, ACTIVE_INDICATOR_POLL_MS);
-}
+function setupActiveMaintenanceUI() {
+    const counter = document.getElementById("maintenance-active-counter");
+    const closeBtn = document.getElementById("maintenance-active-popup-close");
 
-function stopActiveIndicatorPolling() {
-    if (activeIndicatorTimer === null) return;
-    clearInterval(activeIndicatorTimer);
-    activeIndicatorTimer = null;
+    counter?.addEventListener("click", () => {
+        if (popupVisible) {
+            hideActiveMaintenancePopup();
+        } else {
+            showActiveMaintenancePopup();
+        }
+    });
+
+    closeBtn?.addEventListener("click", () => {
+        popupClosedThisSession = true;
+        hideActiveMaintenancePopup();
+    });
+
+    onAuthChange((authenticated) => {
+        if (authenticated) {
+            hideActiveMaintenancePopup();
+            return;
+        }
+        if (cachedActiveWindows.length > 0 && !popupClosedThisSession) {
+            showActiveMaintenancePopup();
+        }
+    });
+
+    if (activeMaintenanceTimer === null) {
+        activeMaintenanceTimer = setInterval(() => {
+            refreshActiveMaintenanceDisplay();
+        }, ACTIVE_MAINTENANCE_RERENDER_MS);
+    }
 }
 
 function mountFooterToggle() {
@@ -131,13 +232,10 @@ function mountFooterToggle() {
     };
     toggle.addEventListener("click", footerToggleClickHandler);
     container.appendChild(toggle);
-    refreshActiveIndicator();
 }
 
 function unmountFooterToggle() {
-    stopActiveIndicatorPolling();
     closeMaintenanceModal();
-    setActiveIndicatorCount(0);
     const toggle = document.getElementById("maintenance-toggle");
     if (!toggle) return;
     if (footerToggleClickHandler) {
@@ -177,7 +275,6 @@ globalThis.handleMaintenanceData = function(data) {
         windowsPromiseResolve(cachedWindows);
         windowsPromiseResolve = null;
     }
-    refreshActiveIndicatorFromCache();
 };
 
 globalThis.handleMaintenanceSaved = function(success) {
@@ -401,7 +498,6 @@ async function handleEventTimeChange(info) {
         return;
     }
     refreshCalendarEvents(windows);
-    refreshActiveIndicatorFromCache();
 }
 
 function renderMatcherBadges() {
@@ -562,7 +658,6 @@ async function saveWindowModal() {
     if (!saved) return;
     closeWindowModal();
     refreshCalendarEvents(windows);
-    refreshActiveIndicatorFromCache();
 }
 
 async function deleteWindowModal() {
@@ -572,7 +667,6 @@ async function deleteWindowModal() {
     if (!saved) return;
     closeWindowModal();
     refreshCalendarEvents(windows);
-    refreshActiveIndicatorFromCache();
 }
 
 function refreshMaintenanceModalDateTimes({previousTimezone, configTimezone: tz, userTimezone: userTz}) {
@@ -743,9 +837,26 @@ export const MaintenanceManager = {
     init() {
         if (this.initialized) return;
 
+        setupActiveMaintenanceUI();
+
+        onAuthChange((authenticated) => {
+            if (authenticated) {
+                mountFooterToggle();
+            } else {
+                unmountFooterToggle();
+            }
+        });
+
+        if (getIsAuthenticated()) {
+            mountFooterToggle();
+        }
+
         const modal = document.getElementById("maintenance-modal");
         const closeBtn = modal?.querySelector(".chains-modal-close");
-        if (!modal || !closeBtn) return;
+        if (!modal || !closeBtn) {
+            this.initialized = true;
+            return;
+        }
 
         setupWindowModalListeners();
 
@@ -769,20 +880,6 @@ export const MaintenanceManager = {
                 closeMaintenanceModal();
             }
         });
-
-        onAuthChange((authenticated) => {
-            if (authenticated) {
-                mountFooterToggle();
-                startActiveIndicatorPolling();
-            } else {
-                unmountFooterToggle();
-            }
-        });
-
-        if (getIsAuthenticated()) {
-            mountFooterToggle();
-            startActiveIndicatorPolling();
-        }
 
         this.initialized = true;
     },

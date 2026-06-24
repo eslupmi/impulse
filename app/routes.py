@@ -348,6 +348,9 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
         
         await incident_ws.connect(websocket)
 
+        active_maintenance = websocket.app.state.maintenance_manager.active_windows_payload()
+        await websocket.send_text(json.dumps({"event": "active_maintenance", "data": active_maintenance}))
+
         try:
             while True:
                 data = await websocket.receive_text()
@@ -425,6 +428,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
                                         await maintenance_manager.reconcile_after_window_removed(removed_window)
                                     await maintenance_manager.reconcile_all()
                                     await maintenance_manager.schedule_window_starts()
+                                    await maintenance_manager.broadcast_active_maintenance()
                                 await websocket.send_text(json.dumps({
                                     "event": "maintenance_saved",
                                     "success": success,

@@ -11,6 +11,7 @@ class QueueItemType:
     UNFREEZE = 'unfreeze'
     UPDATE_USER = 'update_user'
     MAINTENANCE_START = 'maintenance_start'
+    MAINTENANCE_END = 'maintenance_end'
 
 
 USER_UPDATE_GAP_SECONDS = {

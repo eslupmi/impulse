@@ -82,9 +82,24 @@
                     <button id="auth-login-btn" class="auth-login-btn">Login</button>
                     <button id="auth-logout-btn" class="auth-logout-btn">Logout</button>
                 </div>
+                <button id="maintenance-active-counter" class="maintenance-active-counter hidden" type="button" aria-label="Active maintenance"></button>
             </div>
         </div>
     </footer>
+    <div id="maintenance-active-popup" class="maintenance-active-popup hidden">
+        <div class="maintenance-active-popup-panel">
+            <div class="maintenance-active-popup-header">
+                <span class="maintenance-active-popup-title">Maintenance</span>
+                <button id="maintenance-active-popup-close" class="maintenance-active-popup-close" type="button" aria-label="Close">
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                        <path d="M1 1L11 11M11 1L1 11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </button>
+            </div>
+            <div id="maintenance-active-popup-list" class="maintenance-active-popup-list"></div>
+        </div>
+        <div class="maintenance-active-popup-pointer" aria-hidden="true"></div>
+    </div>
     <div id="chains-modal" class="chains-modal">
         <div class="chains-modal-content">
             <div class="chains-modal-header">
