@@ -4,11 +4,14 @@ import {attachNavListener, getSharedCalendarOptions, updateMonthCalendarWeekHigh
 import {getIsAuthenticated, onAuthChange} from "./auth.js";
 import {
     captureCalendarViewAnchor,
+    closeAllTimezoneMenus,
+    ensureTimezoneSelectWidget,
     formatDateTime,
     getEffectiveTimezone as effectiveTimezone,
     onTimezoneChange,
     parseDateTime,
     reformatDateTimeInput,
+    syncTimezoneMenuWidth,
     syncTimezoneSelects,
     updateTimezoneConfig,
 } from "./ui_timezone.js";
@@ -1336,17 +1339,60 @@ function showCalendarContainer(show) {
     }
 }
 
-function updateChainSelector() {
+function syncChainSelectWidget() {
     const selector = document.getElementById('chain-select');
     if (!selector) return;
 
-    const widget = selector.closest('.timezone-select-widget');
-    if (widget) {
-        widget.replaceWith(selector);
-        selector.classList.remove('timezone-select-native');
-        selector.removeAttribute('aria-hidden');
-        selector.removeAttribute('tabindex');
+    const widget = ensureTimezoneSelectWidget(selector);
+    const trigger = widget.querySelector(".timezone-select-trigger");
+    const triggerContent = widget.querySelector(".timezone-select-trigger-content");
+    const menu = widget.querySelector(".timezone-select-menu");
+    const selectedOption = selector.options[selector.selectedIndex];
+    const label = selectedOption?.textContent || "Select chain";
+
+    triggerContent.replaceChildren();
+    const name = document.createElement("span");
+    name.className = "timezone-select-name";
+    name.textContent = label;
+    triggerContent.appendChild(name);
+    trigger.setAttribute("aria-label", `Chain: ${label}`);
+
+    menu.replaceChildren();
+    for (const option of selector.options) {
+        const item = document.createElement("li");
+        item.className = "timezone-select-option";
+        if (option.selected) {
+            item.classList.add("selected");
+            item.setAttribute("aria-selected", "true");
+        } else {
+            item.setAttribute("aria-selected", "false");
+        }
+        item.setAttribute("role", "option");
+        item.dataset.value = option.value;
+
+        const body = document.createElement("div");
+        body.className = "timezone-select-option-body timezone-select-option-body--single";
+        const optionName = document.createElement("span");
+        optionName.className = "timezone-select-name";
+        optionName.textContent = option.textContent;
+        body.appendChild(optionName);
+        item.appendChild(body);
+
+        item.addEventListener("click", (event) => {
+            event.stopPropagation();
+            closeAllTimezoneMenus();
+            selector.value = option.value;
+            selector.dispatchEvent(new Event("change", {bubbles: true}));
+            syncChainSelectWidget();
+        });
+        menu.appendChild(item);
     }
+    syncTimezoneMenuWidth(widget);
+}
+
+function updateChainSelector() {
+    const selector = document.getElementById('chain-select');
+    if (!selector) return;
 
     selector.innerHTML = '';
 
@@ -1375,6 +1421,8 @@ function updateChainSelector() {
         }
         selector.appendChild(option);
     });
+
+    syncChainSelectWidget();
 }
 
 function updateTimezoneSelector() {

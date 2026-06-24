@@ -75,21 +75,6 @@
     box-sizing: border-box;
 }
 
-.chains-header-controls .chain-select {
-    width: fit-content;
-    max-width: 100%;
-    padding: 0 24px 0 10px;
-    appearance: none;
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    background-color: var(--button-bg);
-    background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%2398A2B3' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 8px center;
-    background-size: 10px 6px;
-    field-sizing: content;
-}
-
 .chains-header-controls .timezone-select-widget {
     padding: 0;
 }
@@ -202,15 +187,19 @@
     flex-shrink: 0;
     width: 10px;
     height: 6px;
-    background-color: #98A2B3;
-    mask: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat center;
-    -webkit-mask: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat center;
-    mask-size: contain;
-    -webkit-mask-size: contain;
+    background-color: transparent;
+    background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%2398A2B3' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
 }
 
 .timezone-select-trigger:hover .timezone-select-chevron {
-    background-color: var(--hover-fg);
+    background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%233293C3' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+[data-theme="dark"] .timezone-select-trigger:hover .timezone-select-chevron {
+    background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%2338ADE6' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 }
 
 .timezone-select-menu {
@@ -250,10 +239,8 @@
     border-top: 1px solid var(--border-primary);
 }
 
-.timezone-select-option:hover,
-.timezone-select-option.selected {
-    background: var(--select-option-bg);
-    color: var(--fg-primary);
+.timezone-select-option:hover {
+    color: var(--hover-fg);
 }
 
 #chain-modal select {
@@ -993,14 +980,6 @@
     line-height: 1;
 }
 
-.modal-close:hover {
-    color: var(--hover-fg);
-}
-
-.modal-close:active {
-    color: var(--pressed-fg);
-}
-
 .modal-body {
     padding: 24px;
 }
@@ -1068,7 +1047,7 @@
 }
 
 .btn-primary {
-    background: var(--btn-primary-bg);
+    background: var(--brand-secondary);
     color: white;
     padding: 0px 15px;
     border-radius: 8px;

@@ -695,8 +695,7 @@ strong {
     width: 1px;
     height: 14px;
     margin: 0 8px;
-    background: var(--brand-primary);
-    opacity: 0.4;
+    background: var(--border-primary);
     flex-shrink: 0;
 }
 
