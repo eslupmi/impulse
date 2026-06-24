@@ -88,6 +88,101 @@ function preserveScrollDuringOperation(operation) {
     return result;
 }
 
+const WEBSOCKET_DATA_HANDLERS = {
+    ui_chains_data: "handleUiChainsData",
+    active_maintenance: "handleActiveMaintenance",
+    maintenance_data: "handleMaintenanceData",
+};
+
+const WEBSOCKET_MESSAGE_FIELD_HANDLERS = {
+    ui_chains_saved: ["handleUiChainsSaved", "success"],
+    ui_chains_error: ["handleUiChainsError", "detail"],
+    maintenance_saved: ["handleMaintenanceSaved", "success"],
+    maintenance_error: ["handleMaintenanceError", "detail"],
+};
+
+function dispatchOptionalGlobalHandler(message) {
+    const dataHandler = WEBSOCKET_DATA_HANDLERS[message.event];
+    if (dataHandler && typeof globalThis[dataHandler] === "function") {
+        globalThis[dataHandler](message.data);
+        return true;
+    }
+    const fieldHandler = WEBSOCKET_MESSAGE_FIELD_HANDLERS[message.event];
+    if (fieldHandler) {
+        const [handlerName, field] = fieldHandler;
+        if (typeof globalThis[handlerName] === "function") {
+            globalThis[handlerName](message[field]);
+            return true;
+        }
+    }
+    return false;
+}
+
+function handleWebSocketMessage(message) {
+    const eventType = message.event;
+    const data = message.data;
+
+    if (dispatchOptionalGlobalHandler(message)) {
+        return;
+    }
+
+    switch (eventType) {
+        case "add_row":
+            preserveScrollDuringOperation(() => {
+                if (showFullTable || (data.indicator !== 'closed' && data.indicator !== 'deleted')) {
+                    table.addRow(data);
+                    table.setSort(table.getSorters());
+                    updateZoomIcons();
+                }
+            });
+            break;
+
+        case "update_row":
+            preserveScrollDuringOperation(() => {
+                if (showFullTable || (data.indicator !== 'closed' && data.indicator !== 'deleted')) {
+                    table.updateOrAddData([data]);
+                    table.setSort(table.getSorters());
+                    table.refreshFilter();
+                    updateZoomIcons();
+                } else {
+                    const rows = table.searchRows('uniq_id', '=', data.uniq_id);
+                    rows.forEach(row => row.delete());
+                    updateZoomIcons();
+                }
+            });
+            break;
+
+        case "remove_row":
+            preserveScrollDuringOperation(() => {
+                const rows = table.searchRows('uniq_id', '=', data.uniq_id);
+                rows.forEach(row => row.delete());
+                updateZoomIcons();
+            });
+            break;
+
+        case "update_data":
+            preserveScrollDuringOperation(() => {
+                if (!table.initialDataLoaded) {
+                    table.initialDataLoaded = true;
+                }
+                let tableData = data;
+                if (!showFullTable) {
+                    tableData = data.filter(row => row.indicator !== 'closed' && row.indicator !== 'deleted');
+                }
+                table.replaceData(tableData);
+                updateZoomIcons();
+            });
+            break;
+
+        case "pong":
+            handlePong();
+            break;
+
+        default:
+            console.log('Unknown WebSocket event:', eventType);
+    }
+}
+
 // Handle WebSocket Events
 function setupWebSocketEvents() {
     // Create WebSocket connection
@@ -108,107 +203,7 @@ function setupWebSocketEvents() {
 
     socket.onmessage = function(event) {
         try {
-            const message = JSON.parse(event.data);
-            const eventType = message.event;
-            const data = message.data;
-
-            switch(eventType) {
-                case "add_row":
-                    preserveScrollDuringOperation(() => {
-                        if (showFullTable || (data.indicator !== 'closed' && data.indicator !== 'deleted')) {
-                            table.addRow(data);
-                            table.setSort(table.getSorters());
-                            updateZoomIcons();
-                        }
-                    });
-                    break;
-                
-                case "update_row":
-                    preserveScrollDuringOperation(() => {
-                        if (showFullTable || (data.indicator !== 'closed' && data.indicator !== 'deleted')) {
-                            table.updateOrAddData([data]);
-                            table.setSort(table.getSorters());
-                            table.refreshFilter();
-                            updateZoomIcons();
-                        } else {
-                            const rows = table.searchRows('uniq_id', '=', data.uniq_id);
-                            rows.forEach(row => row.delete());
-                            updateZoomIcons();
-                        }
-                    });
-                    break;
-                
-                case "remove_row":
-                    preserveScrollDuringOperation(() => {
-                        const rows = table.searchRows('uniq_id', '=', data.uniq_id);
-                        rows.forEach(row => row.delete());
-                        updateZoomIcons();
-                    });
-                    break;
-                
-                case "update_data":
-                    preserveScrollDuringOperation(() => {
-                        if (!table.initialDataLoaded) {
-                            table.initialDataLoaded = true;
-                        }
-                        let tableData = data;
-                        if (!showFullTable) {
-                            tableData = data.filter(row => row.indicator !== 'closed' && row.indicator !== 'deleted');
-                        }
-                        table.replaceData(tableData);
-                        updateZoomIcons();
-                    });
-                    break;
-                
-                case "pong":
-                    handlePong();
-                    break;
-
-                case "ui_chains_data":
-                    if (typeof globalThis.handleUiChainsData === 'function') {
-                        globalThis.handleUiChainsData(data);
-                    }
-                    break;
-
-                case "ui_chains_saved":
-                    if (typeof globalThis.handleUiChainsSaved === 'function') {
-                        globalThis.handleUiChainsSaved(message.success);
-                    }
-                    break;
-
-                case "ui_chains_error":
-                    if (typeof globalThis.handleUiChainsError === 'function') {
-                        globalThis.handleUiChainsError(message.detail);
-                    }
-                    break;
-
-                case "active_maintenance":
-                    if (typeof globalThis.handleActiveMaintenance === 'function') {
-                        globalThis.handleActiveMaintenance(data);
-                    }
-                    break;
-
-                case "maintenance_data":
-                    if (typeof globalThis.handleMaintenanceData === 'function') {
-                        globalThis.handleMaintenanceData(data);
-                    }
-                    break;
-
-                case "maintenance_saved":
-                    if (typeof globalThis.handleMaintenanceSaved === 'function') {
-                        globalThis.handleMaintenanceSaved(message.success);
-                    }
-                    break;
-
-                case "maintenance_error":
-                    if (typeof globalThis.handleMaintenanceError === 'function') {
-                        globalThis.handleMaintenanceError(message.detail);
-                    }
-                    break;
-
-                default:
-                    console.log('Unknown WebSocket event:', eventType);
-            }
+            handleWebSocketMessage(JSON.parse(event.data));
         } catch (error) {
             console.error('Error parsing WebSocket message:', error);
         }

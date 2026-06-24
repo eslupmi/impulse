@@ -125,7 +125,7 @@
     color: var(--fg-primary);
     font-size: 12px;
     line-height: 1.35;
-    word-break: break-word;
+    overflow-wrap: break-word;
 }
 
 .maintenance-active-popup-pointer {
