@@ -9,7 +9,7 @@ from app.http_client import RateLimitedClient
 from app.im.chain.chain_factory import ChainFactory
 from app.im.groups import Group
 from app.im.template import notification_user, notification_user_group, notification_group, update_status, \
-    notification_assignment, notification_unassignment, notification_freeze, notification_unfreeze
+    notification_assignment, notification_unassignment, notification_unfreeze
 from app.im.user_groups import generate_user_groups
 from app.im.user_store import get_user_store, UserUpdateScheduler
 from app.im.users import UserManager, UndefinedUser
@@ -414,14 +414,12 @@ class Application(ABC):
 
     async def apply_time_freeze(
             self, incident_: 'Incident', until: datetime, user, queue_: 'AsyncQueue',
-            source: FreezeSource, notify: bool = True
+            source: FreezeSource,
     ):
         """Core time-based freeze used by manual freeze, maintenance and other auto sources."""
         incident_.freeze(until, user, source)
         await queue_.delete_by_id(incident_.uniq_id, delete_steps=True, delete_status=False)
         await queue_.put(until, QueueItemType.UNFREEZE, incident_.uniq_id, data=source.value)
-        if notify:
-            self.track_async_task(asyncio.create_task(self._post_freeze_notification(incident_, until)))
 
     async def _handle_freeze_action(
             self, incident_: 'Incident', freeze_option: str, user_id: str, incidents, queue_: 'AsyncQueue',
@@ -445,7 +443,7 @@ class Application(ABC):
             return
         logger.info(log_button_pressed, extra={'uuid': incident_.uuid, 'button': 'unfreeze', 'user_id': user_id})
         await queue_.delete_by_id_and_type(incident_.uniq_id, QueueItemType.UNFREEZE)
-        await unfreeze_incident(incident_, self, queue_)
+        await unfreeze_incident(incident_, queue_)
         await self.update_incident_message(incident_)
 
     @abstractmethod
@@ -478,18 +476,6 @@ class Application(ABC):
     @abstractmethod
     def _markdown_links_to_native_format(self, text):
         pass
-
-    async def _post_freeze_notification(self, incident_: 'Incident', freeze_time: datetime):
-        text_template = JinjaTemplate(notification_freeze)
-        fields = {'type': self.type.value}
-        text = text_template.form_notification(fields)
-
-        if self.type != MessengerType.TELEGRAM:
-            header = self.header_template.form_message(incident_.payload, incident_)
-            message = header + '\n' + text
-        else:
-            message = text
-        await self.post_to_thread(incident_.channel_id, incident_.ts, message)
 
     @abstractmethod
     def _post_thread_payload(self, channel_id, id_, text):

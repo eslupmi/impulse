@@ -108,8 +108,5 @@ class NullApplication(Application):
                                     queue_: 'AsyncQueue', user_timezone: Optional[str] = None):
         return
 
-    async def _post_freeze_notification(self, incident_: 'Incident', freeze_time: datetime, user_timezone: str = "UTC"):
-        return
-
     async def post_unfreeze_notification(self, incident_: 'Incident'):
         return

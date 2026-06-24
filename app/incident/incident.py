@@ -22,7 +22,6 @@ from app.ui.websocket import incident_ws
 from app.utils import get_attr_by_key_chain, normalize_param, filter_dict_keys
 
 if TYPE_CHECKING:
-    from app.im.application import Application
     from app.queue.queue import AsyncQueue
 
 
@@ -513,17 +512,15 @@ class Incident:
         return datetime_.strftime('%Y_%m_%d__%H_%M_%S')
 
 
-async def unfreeze_incident(incident: 'Incident', app: 'Application', queue: 'AsyncQueue'):
-    await remove_freeze_source(incident, app, queue, source=FreezeSource.ALL, notify=True)
+async def unfreeze_incident(incident: 'Incident', queue: 'AsyncQueue'):
+    await remove_freeze_source(incident, queue, source=FreezeSource.ALL)
 
 
 async def remove_freeze_source(
     incident: 'Incident',
-    app: 'Application',
     queue: 'AsyncQueue',
     source: FreezeSource,
     parent: Optional[str] = None,
-    notify: bool = False,
 ):
     if not incident.is_frozen() and source != FreezeSource.PARENT:
         logger.info(f'Incident {incident.uuid} is not frozen, skipping unfreeze')
@@ -548,35 +545,20 @@ async def remove_freeze_source(
     else:
         incident.unfreeze()
 
-    await sync_after_freeze_change(incident, app, queue, incident_status, notify=notify)
+    await sync_after_freeze_change(incident, queue, incident_status)
 
 
 async def sync_after_freeze_change(
     incident: 'Incident',
-    app: 'Application',
     queue: 'AsyncQueue',
     incident_status: Optional[str] = None,
-    notify: bool = False
 ):
     if incident.is_frozen():
         await queue.delete_by_id(incident.uniq_id, delete_steps=True, delete_status=False)
         return
-
-    if notify:
-        app.track_async_task(asyncio.create_task(app.post_unfreeze_notification(incident)))
 
     incident_status = incident_status or incident.status
     await queue.put_first(datetime.now(timezone.utc), QueueItemType.STATUS_CHECK, incident.uniq_id)
     await queue.recreate(incident.status, incident.uniq_id, incident.get_chain(), incident.chain_active_seconds)
     if incident_status != 'deleted':
         await queue.put(incident.status_update_datetime, QueueItemType.UPDATE_STATUS, incident.uniq_id)
-
-
-async def restore_after_unfreeze(
-    incident: 'Incident',
-    app: 'Application',
-    queue: 'AsyncQueue',
-    incident_status: Optional[str] = None,
-    notify: bool = False
-):
-    await sync_after_freeze_change(incident, app, queue, incident_status, notify)

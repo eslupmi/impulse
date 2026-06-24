@@ -147,15 +147,11 @@ class MaintenanceManager:
             data=FreezeSource.MAINTENANCE.value,
         )
 
-    async def reconcile_incident(
-        self, incident: "Incident", update_message: bool = True, notify_removed: bool = False
-    ):
+    async def reconcile_incident(self, incident: "Incident", update_message: bool = True):
         """Recalculate this incident's maintenance source and time-freeze schedule."""
         match = self._first_matching_window_with_coverage_end(incident, require_future_end=True)
         if match is None:
-            await remove_freeze_source(
-                incident, self.application, self.queue, source=FreezeSource.MAINTENANCE, notify=notify_removed
-            )
+            await remove_freeze_source(incident, self.queue, source=FreezeSource.MAINTENANCE)
             if update_message and incident.ts:
                 await self.application.update_incident_message(incident)
             return
