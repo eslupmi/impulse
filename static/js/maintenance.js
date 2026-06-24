@@ -432,8 +432,8 @@ function renderMatcherBadges() {
     if (input) {
         input.placeholder = modalMatchers.length === 0 ? 'service="elasticsearch"' : "";
     }
-    if (wrap) {
-        wrap.classList.toggle("maintenance-field-error", modalMatchers.length === 0);
+    if (wrap && modalMatchers.length > 0) {
+        wrap.classList.remove("maintenance-field-error");
     }
 }
 
@@ -444,17 +444,13 @@ function commitMatcherInput() {
     const query = input.value.trim();
     if (!query) return;
     const formatted = validateAndFormatFilter(query);
-    if (!formatted) {
-        input.classList.add("maintenance-field-error");
-        return;
-    }
+    if (!formatted) return;
     if (!modalMatchers.includes(formatted)) {
         modalMatchers.push(formatted);
         renderMatcherBadges();
     }
     input.value = "";
-    input.classList.remove("maintenance-field-error");
-    if (wrap) wrap.classList.toggle("maintenance-field-error", modalMatchers.length === 0);
+    wrap?.classList.remove("maintenance-field-error");
 }
 
 function openWindowModal(windowData = null) {
@@ -728,7 +724,9 @@ function setupWindowModalListeners() {
         }
     });
     matcherInput?.addEventListener("blur", commitMatcherInput);
-    matcherInput?.addEventListener("input", () => matcherInput.classList.remove("maintenance-field-error"));
+    matcherInput?.addEventListener("input", () => {
+        document.getElementById("maintenance-matchers-wrap")?.classList.remove("maintenance-field-error");
+    });
     matchersBox?.addEventListener("click", () => matcherInput?.focus());
     commentInput?.addEventListener("input", () => commentInput.classList.remove("maintenance-field-error"));
 

@@ -356,7 +356,7 @@ strong {
 
 .pill-label {
     display: inline-block;
-    padding: 2px 4px;
+    padding: 0.5px 6px;
     border-radius: 4px;
     white-space: nowrap;
     color: var(--fg-primary);
@@ -836,6 +836,22 @@ strong {
     color: var(--brand-primary) !important;
 }
 
+.tabulator-footer .tabulator-page:not(:disabled):hover {
+    color: var(--hover-fg) !important;
+}
+
+.tabulator-footer .tabulator-page:not(:disabled):active {
+    color: var(--pressed-fg) !important;
+}
+
+.tabulator-footer .tabulator-page:not(:disabled):hover::before {
+    background-color: var(--hover-fg);
+}
+
+.tabulator-footer .tabulator-page:not(:disabled):active::before {
+    background-color: var(--pressed-fg);
+}
+
 .tabulator-footer button[data-page="first"],
 .tabulator-footer button[data-page="prev"],
 .tabulator-footer button[data-page="next"],
@@ -951,10 +967,14 @@ strong {
     justify-content: flex-end;
 }
 
+.user-selector-wrapper {
+    width: 100%;
+}
+
 .user-selector {
-    appearance: none;
-    -webkit-appearance: none;
-    -moz-appearance: none;
+    box-sizing: border-box;
+    height: 23px;
+    margin: 0;
     background: transparent;
     border: 1px solid var(--user-selector-border);
     border-radius: 4px;
@@ -962,14 +982,34 @@ strong {
     font-family: inherit;
     font-size: 12px;
     padding: 4px 20px 4px 6px;
-    cursor: pointer;
+    cursor: text;
     width: 100%;
     white-space: nowrap;
-    /*overflow: hidden;*/
-    /*text-overflow: ellipsis;*/
     background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%2398A2B3' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 6px center;
+}
+
+.user-selector-options {
+    position: fixed;
+    max-height: 180px;
+    overflow-y: auto;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: 8px;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.25);
+    z-index: 2200;
+}
+
+.user-selector-option {
+    padding: 6px 8px;
+    color: var(--fg-primary);
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.user-selector-option.active {
+    background: var(--menu-option-active-bg);
 }
 
 .user-selector:focus {
@@ -988,11 +1028,6 @@ strong {
 .user-selector.readonly {
     opacity: 0.6;
     pointer-events: none;
-}
-
-.user-selector option {
-    background: var(--table-header-bg);
-    color: var(--fg-primary);
 }
 
 /* Action buttons */

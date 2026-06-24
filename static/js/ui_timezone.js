@@ -138,7 +138,7 @@ function fillDropdownOption(container, option) {
     container.appendChild(body);
 }
 
-export function closeAllTimezoneMenus() {
+function closeAllTimezoneMenus() {
     for (const menu of document.querySelectorAll(".timezone-select-menu")) {
         menu.hidden = true;
     }
@@ -147,7 +147,7 @@ export function closeAllTimezoneMenus() {
     }
 }
 
-export function syncTimezoneMenuWidth(widget) {
+function syncTimezoneMenuWidth(widget) {
     const menu = widget.querySelector(".timezone-select-menu");
     const trigger = widget.querySelector(".timezone-select-trigger");
     if (!menu || !trigger || menu.children.length === 0) {
@@ -182,7 +182,7 @@ function attachTimezoneDocumentClose() {
     document.addEventListener("click", closeAllTimezoneMenus);
 }
 
-export function ensureTimezoneSelectWidget(selectEl) {
+function ensureTimezoneSelectWidget(selectEl) {
     const existing = selectEl.closest(".timezone-select-widget");
     if (existing) {
         return existing;
