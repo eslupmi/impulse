@@ -71,6 +71,7 @@ function formatTimeLeft(endIso, now = new Date()) {
     const ms = new Date(endIso).getTime() - now.getTime();
     if (ms <= 0) return "ended";
     const minutes = Math.floor(ms / 60000);
+    if (minutes < 1) return "<1m left";
     if (minutes < 60) return `${minutes}m left`;
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
