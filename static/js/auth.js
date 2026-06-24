@@ -1,6 +1,7 @@
 import {getBaseUrl} from "./utils.js";
 
 let isAuthenticated = false;
+let currentUser = null;
 const authListeners = [];
 
 function getElements() {
@@ -26,9 +27,11 @@ function setUiState(authenticated, userData) {
         const displayName = userData.full_name || userData.username || userData.email || userData.id || "user";
         username.textContent = displayName;
         wrapper.classList.add("logged-in");
+        currentUser = userData;
     } else {
         username.textContent = "";
         wrapper.classList.remove("logged-in");
+        currentUser = null;
     }
 
 }
@@ -43,6 +46,7 @@ async function refreshAuthState() {
 
         if (!response.ok) {
             isAuthenticated = false;
+            currentUser = null;
             setUiState(false, null);
             return;
         }
@@ -53,6 +57,7 @@ async function refreshAuthState() {
         authListeners.forEach(cb => cb(isAuthenticated));
     } catch {
         isAuthenticated = false;
+        currentUser = null;
         setUiState(false, null);
         authListeners.forEach(cb => cb(false));
     }
@@ -71,6 +76,7 @@ async function handleLogout() {
         credentials: "same-origin",
     });
     isAuthenticated = false;
+    currentUser = null;
     setUiState(false, null);
     authListeners.forEach(cb => cb(false));
 }
@@ -95,4 +101,8 @@ function onAuthChange(callback) {
     authListeners.push(callback);
 }
 
-export {initAuthControls, getIsAuthenticated, onAuthChange};
+function getCurrentUser() {
+    return currentUser;
+}
+
+export {initAuthControls, getIsAuthenticated, getCurrentUser, onAuthChange};

@@ -183,17 +183,24 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
         body = await request.json()
         uniq_id = body.get("uniq_id")
         user_id = body.get("user_id")
-        if not uniq_id or not user_id:
-            raise HTTPException(status_code=400, detail="uniq_id and user_id are required")
+        if not uniq_id:
+            raise HTTPException(status_code=400, detail="uniq_id is required")
+        if user_id is None:
+            raise HTTPException(status_code=400, detail="user_id is required")
 
         incident = request.app.state.incidents.get_by_uniq_id(uniq_id)
         if incident is None:
             raise HTTPException(status_code=404, detail=_MSG_INCIDENT_NOT_FOUND)
 
-        _log_ui_action("assignment", incident, acting_user, target_user_id=user_id)
-
         messenger = request.app.state.messenger
         queue = request.app.state.queue
+        if user_id == "":
+            _log_ui_action("unassignment", incident, acting_user)
+            unassigned = await messenger.handle_ui_unassign(incident, queue)
+            return {"success": unassigned}
+
+        _log_ui_action("assignment", incident, acting_user, target_user_id=user_id)
+
         assigned = await messenger.handle_ui_assignment(incident, user_id, queue)
         return {"success": assigned}
 

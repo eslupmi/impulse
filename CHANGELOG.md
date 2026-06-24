@@ -5,6 +5,8 @@ Changes:
 - Filters became editable
 - UI update
 - Added browser timezone for UI Chains and Maintenance
+- Added search for assign field
+- Current user on top of assign field
 
 ## v3.5.1
 Changes:

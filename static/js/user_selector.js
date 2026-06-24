@@ -1,7 +1,9 @@
 import {getBaseUrl} from "./utils.js";
-import {getIsAuthenticated, onAuthChange} from "./auth.js";
+import {getCurrentUser, getIsAuthenticated, onAuthChange} from "./auth.js";
 
 let assignableUsers = [];
+
+const CLEAR_LABEL = "\u2014";
 
 async function initUserSelector(baseUrl) {
     try {
@@ -33,7 +35,7 @@ function userSelectorFormatter(cell) {
     input.type = "text";
     input.className = "user-selector";
     input.autocomplete = "off";
-    input.placeholder = "\u2014";
+    input.placeholder = CLEAR_LABEL;
     if (currentUserId) {
         input.value = currentFullName;
         input.classList.add("has-value");
@@ -42,13 +44,61 @@ function userSelectorFormatter(cell) {
     const optionsEl = document.createElement("div");
     optionsEl.className = "user-selector-options hidden";
 
-    const currentInList = assignableUsers.some(u => String(u.user_id) === currentUserId);
-    const isReadonlyExtra = currentUserId && !currentInList && currentFullName;
+    const isReadonlyExtra = currentUserId && !assignableUsers.some(u => String(u.user_id) === currentUserId) && currentFullName;
+    const isFrozen = Boolean(cell.getData()._is_frozen);
     let activeOptionIndex = -1;
     let isAssigning = false;
 
-    function getUsers() {
-        return [...assignableUsers].sort((a, b) => a.full_name.localeCompare(b.full_name));
+    function setReadonlyState() {
+        const readonly = isFrozen || isReadonlyExtra || !getIsAuthenticated();
+        input.readOnly = readonly;
+        input.classList.toggle("readonly", readonly);
+    }
+
+    function getAuthUser() {
+        const authUser = getCurrentUser();
+        if (!authUser?.id) {
+            return null;
+        }
+        return assignableUsers.find(u => String(u.user_id) === String(authUser.id)) || null;
+    }
+
+    function getOtherUsers() {
+        const authUser = getAuthUser();
+        const authId = authUser ? String(authUser.user_id) : null;
+        return assignableUsers
+            .filter(u => !authId || String(u.user_id) !== authId)
+            .sort((a, b) => a.full_name.localeCompare(b.full_name));
+    }
+
+    function getOptionUsers(showAll, query) {
+        const authUser = getAuthUser();
+        const others = getOtherUsers();
+        if (showAll || !query) {
+            return {authUser, others};
+        }
+        return {
+            authUser: authUser && authUser.full_name.toLowerCase().includes(query) ? authUser : null,
+            others: others.filter(u => u.full_name.toLowerCase().includes(query)),
+        };
+    }
+
+    function addUserOption(user) {
+        const optionEl = document.createElement("div");
+        optionEl.className = "user-selector-option";
+        optionEl.textContent = user.full_name;
+        optionEl.dataset.userId = String(user.user_id);
+        optionEl.addEventListener("mousedown", (event) => {
+            event.preventDefault();
+            selectUser(user);
+        });
+        optionsEl.appendChild(optionEl);
+    }
+
+    function addDivider() {
+        const divider = document.createElement("div");
+        divider.className = "user-selector-divider";
+        optionsEl.appendChild(divider);
     }
 
     function setActiveOption(index) {
@@ -64,48 +114,121 @@ function userSelectorFormatter(cell) {
         });
     }
 
+    function hideOptions() {
+        optionsEl.classList.add("hidden");
+    }
+
+    function positionOptions() {
+        const rect = input.getBoundingClientRect();
+        optionsEl.style.top = `${rect.bottom + 1}px`;
+        optionsEl.style.left = `${rect.left}px`;
+        optionsEl.style.width = `${rect.width}px`;
+    }
+
+    function mountOptions() {
+        if (optionsEl.parentElement !== document.body) {
+            document.body.appendChild(optionsEl);
+        }
+    }
+
+    function addClearOption() {
+        const optionEl = document.createElement("div");
+        optionEl.className = "user-selector-option";
+        optionEl.textContent = CLEAR_LABEL;
+        optionEl.dataset.clear = "1";
+        optionEl.addEventListener("mousedown", (event) => {
+            event.preventDefault();
+            clearUser();
+        });
+        optionsEl.appendChild(optionEl);
+    }
+
+    function renderOptions(showAll = false) {
+        if (isFrozen) {
+            hideOptions();
+            return;
+        }
+        const query = input.value.trim().toLowerCase();
+        const {authUser, others} = getOptionUsers(showAll, query);
+
+        optionsEl.innerHTML = "";
+        if (showAll || !query) {
+            addClearOption();
+            if (authUser || others.length > 0) {
+                addDivider();
+            }
+        }
+        if (authUser) {
+            addUserOption(authUser);
+            if (others.length > 0) {
+                addDivider();
+            }
+        }
+        others.forEach(user => addUserOption(user));
+        activeOptionIndex = -1;
+
+        if (optionsEl.children.length > 0) {
+            mountOptions();
+            positionOptions();
+            optionsEl.classList.remove("hidden");
+        } else {
+            hideOptions();
+        }
+    }
+
     function selectActiveOption() {
         const optionNodes = optionsEl.querySelectorAll(".user-selector-option");
         if (activeOptionIndex < 0 || activeOptionIndex >= optionNodes.length) {
             return;
         }
-        const user = getUsers().find(u => u.full_name === optionNodes[activeOptionIndex].textContent);
+        const node = optionNodes[activeOptionIndex];
+        if (node.dataset.clear) {
+            clearUser();
+            return;
+        }
+        const user = assignableUsers.find(u => String(u.user_id) === node.dataset.userId);
         if (user) {
             selectUser(user);
         }
     }
 
-    function positionOptions() {
-        const rect = input.getBoundingClientRect();
-        optionsEl.style.top = `${rect.bottom + 4}px`;
-        optionsEl.style.left = `${rect.left}px`;
-        optionsEl.style.width = `${rect.width}px`;
-    }
+    async function clearUser() {
+        if (isAssigning || !currentUserId) {
+            input.value = "";
+            input.classList.remove("has-value");
+            hideOptions();
+            return;
+        }
 
-    function renderOptions(showAll = false) {
-        const query = input.value.trim().toLowerCase();
-        const filtered = showAll || !query
-            ? getUsers()
-            : getUsers().filter(u => u.full_name.toLowerCase().includes(query));
+        const uniqId = cell.getData().uniq_id;
+        isAssigning = true;
+        input.disabled = true;
 
-        optionsEl.innerHTML = "";
-        filtered.forEach(user => {
-            const optionEl = document.createElement("div");
-            optionEl.className = "user-selector-option";
-            optionEl.textContent = user.full_name;
-            optionEl.addEventListener("mousedown", (event) => {
-                event.preventDefault();
-                selectUser(user);
+        try {
+            const baseUrl = getBaseUrl();
+            const response = await fetch(`${baseUrl}/assign`, {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                credentials: "same-origin",
+                body: JSON.stringify({uniq_id: uniqId, user_id: ""}),
             });
-            optionsEl.appendChild(optionEl);
-        });
-        activeOptionIndex = -1;
 
-        if (filtered.length > 0) {
-            positionOptions();
-            optionsEl.classList.remove("hidden");
-        } else {
-            optionsEl.classList.add("hidden");
+            if (response.ok) {
+                currentUserId = "";
+                currentFullName = "";
+                input.value = "";
+                input.classList.remove("has-value");
+            } else {
+                console.error("Unassignment failed:", response.status);
+                input.value = currentFullName;
+            }
+        } catch (error) {
+            console.error("Unassignment request failed:", error);
+            input.value = currentFullName;
+        } finally {
+            isAssigning = false;
+            input.disabled = false;
+            hideOptions();
         }
     }
 
@@ -113,7 +236,7 @@ function userSelectorFormatter(cell) {
         const userId = String(user.user_id);
         if (isAssigning || userId === currentUserId) {
             input.value = currentFullName;
-            optionsEl.classList.add("hidden");
+            hideOptions();
             return;
         }
 
@@ -145,30 +268,13 @@ function userSelectorFormatter(cell) {
         } finally {
             isAssigning = false;
             input.disabled = false;
-            optionsEl.classList.add("hidden");
+            hideOptions();
         }
     }
 
-    if (isReadonlyExtra) {
-        input.readOnly = true;
-    }
+    setReadonlyState();
 
-    if (!getIsAuthenticated()) {
-        input.readOnly = true;
-        input.classList.add("readonly");
-    }
-
-    onAuthChange((authenticated) => {
-        if (authenticated) {
-            if (!isReadonlyExtra) {
-                input.readOnly = false;
-            }
-            input.classList.remove("readonly");
-        } else {
-            input.readOnly = true;
-            input.classList.add("readonly");
-        }
-    });
+    onAuthChange(() => setReadonlyState());
 
     input.addEventListener("mousedown", (e) => {
         e.stopPropagation();
@@ -215,12 +321,12 @@ function userSelectorFormatter(cell) {
             return;
         }
         if (event.key === "Escape") {
-            optionsEl.classList.add("hidden");
+            hideOptions();
         }
     });
     input.addEventListener("blur", () => {
         setTimeout(() => {
-            optionsEl.classList.add("hidden");
+            hideOptions();
             input.value = currentFullName;
             if (currentUserId) {
                 input.classList.add("has-value");
@@ -231,12 +337,11 @@ function userSelectorFormatter(cell) {
     });
     wrapper.addEventListener("mouseleave", () => {
         if (document.activeElement !== input) {
-            optionsEl.classList.add("hidden");
+            hideOptions();
         }
     });
 
     wrapper.appendChild(input);
-    wrapper.appendChild(optionsEl);
     container.appendChild(wrapper);
     return container;
 }

@@ -981,7 +981,7 @@ strong {
     font-family: inherit;
     font-size: 12px;
     padding: 4px 20px 4px 6px;
-    cursor: text;
+    cursor: pointer;
     width: 100%;
     white-space: nowrap;
     background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%2398A2B3' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
@@ -989,8 +989,20 @@ strong {
     background-position: right 6px center;
 }
 
+.user-selector:hover {
+    background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%233293C3' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+[data-theme="dark"] .user-selector:hover {
+    background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%2338ADE6' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
 .user-selector-options {
     position: fixed;
+    display: block;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
     max-height: 180px;
     overflow-y: auto;
     background: var(--bg-primary);
@@ -1007,8 +1019,20 @@ strong {
     cursor: pointer;
 }
 
+.user-selector-option:hover {
+    color: var(--hover-fg);
+}
+
 .user-selector-option.active {
     background: var(--menu-option-active-bg);
+}
+
+.user-selector-divider {
+    height: 1px;
+    margin: 0;
+    padding: 0;
+    background: var(--border-primary);
+    pointer-events: none;
 }
 
 .user-selector:focus {

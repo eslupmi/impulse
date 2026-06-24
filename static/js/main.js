@@ -13,6 +13,7 @@ import {initTimezoneSelectHandlers} from "./ui_timezone.js";
 // **Initialize Everything**
 updateOnlineStatus(false);
 
+await initAuthControls();
 await initializeTable();
 
 loadFiltersFromURL();
@@ -24,7 +25,6 @@ ThemeManager.init();
 MaintenanceManager.init();
 ChainsManager.init();
 initTimezoneSelectHandlers();
-await initAuthControls();
 
 // Update zoom icons after table initialization and filters are loaded
 setTimeout(() => {
