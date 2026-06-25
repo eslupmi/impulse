@@ -332,6 +332,31 @@ async function saveWindows(windows) {
     });
 }
 
+let windowModalPersistInFlight = false;
+
+async function getWindowsForEdit() {
+    if (cachedWindows.length > 0) {
+        return [...cachedWindows];
+    }
+    return [...await loadWindows()];
+}
+
+function setWindowModalPersistInFlight(inFlight) {
+    windowModalPersistInFlight = inFlight;
+    document.getElementById("maintenance-window-save-btn")?.toggleAttribute("disabled", inFlight);
+    document.getElementById("maintenance-window-delete-btn")?.toggleAttribute("disabled", inFlight);
+}
+
+async function persistMaintenanceWindows(windows, previousWindows) {
+    refreshCalendarEvents(windows);
+    const saved = await saveWindows(windows);
+    if (!saved) {
+        cachedWindows = previousWindows;
+        refreshCalendarEvents(previousWindows);
+    }
+    return saved;
+}
+
 function windowsToEvents(windows) {
     const eventBg = getComputedStyle(document.documentElement).getPropertyValue("--maintenance-event-bg").trim()
         || getComputedStyle(document.documentElement).getPropertyValue("--chain-event-bg").trim();
@@ -482,7 +507,8 @@ function buildMonthCalendarOptions(events, firstDay, timezone) {
 }
 
 async function handleEventTimeChange(info) {
-    const windows = await loadWindows();
+    const previousWindows = cachedWindows;
+    const windows = await getWindowsForEdit();
     const index = windows.findIndex((w) => w.id === info.event.id);
     if (index === -1) {
         info.revert();
@@ -493,12 +519,10 @@ async function handleEventTimeChange(info) {
         start: info.event.start.toISOString(),
         end: info.event.end?.toISOString() ?? windows[index].end,
     };
-    const saved = await saveWindows(windows);
+    const saved = await persistMaintenanceWindows(windows, previousWindows);
     if (!saved) {
         info.revert();
-        return;
     }
-    refreshCalendarEvents(windows);
 }
 
 function renderMatcherBadges() {
@@ -630,10 +654,12 @@ function validateWindowModalInput() {
 }
 
 async function saveWindowModal() {
+    if (windowModalPersistInFlight) return;
     const input = validateWindowModalInput();
     if (!input) return;
 
-    const windows = await loadWindows();
+    const previousWindows = cachedWindows;
+    const windows = await getWindowsForEdit();
     if (currentWindowId) {
         const index = windows.findIndex((w) => w.id === currentWindowId);
         if (index === -1) return;
@@ -655,19 +681,22 @@ async function saveWindowModal() {
         });
     }
 
-    const saved = await saveWindows(windows);
-    if (!saved) return;
+    setWindowModalPersistInFlight(true);
     closeWindowModal();
-    refreshCalendarEvents(windows);
+    await persistMaintenanceWindows(windows, previousWindows);
+    setWindowModalPersistInFlight(false);
 }
 
 async function deleteWindowModal() {
-    if (!currentWindowId) return;
-    const windows = (await loadWindows()).filter((w) => w.id !== currentWindowId);
-    const saved = await saveWindows(windows);
-    if (!saved) return;
+    if (!currentWindowId || windowModalPersistInFlight) return;
+
+    const previousWindows = cachedWindows;
+    const windows = (await getWindowsForEdit()).filter((w) => w.id !== currentWindowId);
+
+    setWindowModalPersistInFlight(true);
     closeWindowModal();
-    refreshCalendarEvents(windows);
+    await persistMaintenanceWindows(windows, previousWindows);
+    setWindowModalPersistInFlight(false);
 }
 
 function refreshMaintenanceModalDateTimes({previousTimezone, configTimezone: tz, userTimezone: userTz}) {

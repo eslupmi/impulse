@@ -42,8 +42,8 @@
     background: var(--modal-bg, var(--bg-primary));
     border: 1.5px solid var(--status-badge-firing);
     border-radius: 6px;
-    min-width: 280px;
-    max-width: 360px;
+    min-width: 360px;
+    max-width: 500px;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
     overflow: hidden;
 }
@@ -133,22 +133,26 @@
 }
 
 .maintenance-active-popup-comment,
+.maintenance-active-popup-list,
 #maintenance-window-modal .maintenance-comment-input {
     scrollbar-width: thin;
     scrollbar-color: var(--scrollbar-thumb) transparent;
 }
 
 .maintenance-active-popup-comment::-webkit-scrollbar,
+.maintenance-active-popup-list::-webkit-scrollbar,
 #maintenance-window-modal .maintenance-comment-input::-webkit-scrollbar {
     width: 6px;
 }
 
 .maintenance-active-popup-comment::-webkit-scrollbar-track,
+.maintenance-active-popup-list::-webkit-scrollbar-track,
 #maintenance-window-modal .maintenance-comment-input::-webkit-scrollbar-track {
     background: transparent;
 }
 
 .maintenance-active-popup-comment::-webkit-scrollbar-thumb,
+.maintenance-active-popup-list::-webkit-scrollbar-thumb,
 #maintenance-window-modal .maintenance-comment-input::-webkit-scrollbar-thumb {
     background: var(--scrollbar-thumb);
     border-radius: 3px;
@@ -157,6 +161,7 @@
 }
 
 .maintenance-active-popup-comment::-webkit-scrollbar-thumb:hover,
+.maintenance-active-popup-list::-webkit-scrollbar-thumb:hover,
 #maintenance-window-modal .maintenance-comment-input::-webkit-scrollbar-thumb:hover {
     background: var(--scrollbar-thumb-hover);
 }
