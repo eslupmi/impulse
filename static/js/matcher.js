@@ -4,7 +4,7 @@ function isValidRegex(pattern) {
     try {
         new RegExp(pattern);
         return true;
-    } catch (e) {
+    } catch {
         return false;
     }
 }
@@ -14,7 +14,7 @@ function validateMatcher(matcher) {
     if (!query) {
         return {ok: false, reason: "Matcher cannot be empty"};
     }
-    const match = query.match(matcherPattern);
+    const match = matcherPattern.exec(query);
     if (!match) {
         return {
             ok: false,

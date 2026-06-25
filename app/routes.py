@@ -433,7 +433,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
                                     "success": success,
                                 }))
                                 if success:
-                                    asyncio.create_task(
+                                    _maintenance_save_task = asyncio.create_task(
                                         _maintenance_save_side_effects(
                                             websocket.app, existing, windows, deleted
                                         )
