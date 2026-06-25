@@ -1,6 +1,7 @@
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
+import time
 from datetime import datetime, timedelta, timezone
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -84,10 +85,7 @@ def _build_app(config, messenger, auth_manager):
     app.state.incidents = Mock()
     app.state.is_standby = False
     app.state.maintenance_manager = Mock()
-    app.state.maintenance_manager.reconcile_after_window_removed = AsyncMock()
-    app.state.maintenance_manager.reconcile_all = AsyncMock()
-    app.state.maintenance_manager.schedule_window_starts = AsyncMock()
-    app.state.maintenance_manager.broadcast_active_maintenance = AsyncMock()
+    app.state.maintenance_manager.apply_save_side_effects = AsyncMock()
     app.state.maintenance_manager.active_windows_payload = Mock(return_value=[])
     app.include_router(create_router("", auth_manager=auth_manager))
     return app
@@ -116,6 +114,10 @@ class TestPrivilegedRoutesRequireAuth:
         response = authenticated_client.get("/chains_config")
         assert response.status_code == 200
         assert response.json()["ui_chains"] == ["primary"]
+
+
+def _wait_for_background_tasks():
+    time.sleep(0.05)
 
 
 class TestMaintenanceWebsocketAuth:
@@ -172,10 +174,9 @@ class TestMaintenanceWebsocketAuth:
                         "data": _maintenance_ws_payload(),
                     })
                     message = ws.receive_json()
+            _wait_for_background_tasks()
             mock_store.return_value.save_windows.assert_called_once()
-            app.state.maintenance_manager.reconcile_after_window_removed.assert_not_called()
-            app.state.maintenance_manager.reconcile_all.assert_awaited_once()
-            app.state.maintenance_manager.schedule_window_starts.assert_awaited_once()
+            app.state.maintenance_manager.apply_save_side_effects.assert_awaited_once()
         assert message == {"event": "maintenance_saved", "success": True}
 
     def test_save_maintenance_reconciles_removed_windows(self, config, messenger):
@@ -196,8 +197,10 @@ class TestMaintenanceWebsocketAuth:
                         "data": [],
                     })
                     message = ws.receive_json()
-            removed_window = app.state.maintenance_manager.reconcile_after_window_removed.await_args.args[0]
-            assert removed_window.matchers == existing[0]["matchers"]
+            _wait_for_background_tasks()
+            side_effects = app.state.maintenance_manager.apply_save_side_effects
+            side_effects.assert_awaited_once()
+            assert side_effects.await_args.args[2] == existing
         assert message == {"event": "maintenance_saved", "success": True}
 
     def test_request_maintenance_allowed_when_authenticated(self, config, messenger):

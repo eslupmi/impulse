@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import Callable, List, Optional, TYPE_CHECKING, Tuple
+from typing import Any, Callable, Dict, List, Optional, TYPE_CHECKING, Tuple
 
 from app.logging import logger
 from app.maintenance.models import MaintenanceWindow
@@ -200,6 +200,45 @@ class MaintenanceManager:
             if not removed_window.matches_incident(incident):
                 continue
             await self.reconcile_incident(incident)
+
+    @staticmethod
+    def _reconcile_fields(window: dict) -> tuple:
+        return (
+            window["start"],
+            window["end"],
+            tuple(window.get("matchers", [])),
+        )
+
+    def needs_reconcile_after_save(
+        self,
+        existing: List[Dict[str, Any]],
+        saved: List[Dict[str, Any]],
+    ) -> bool:
+        now = self._now()
+        existing_by_id = {w["id"]: w for w in existing}
+        for window_dict in saved:
+            window = MaintenanceWindow.from_window_dict(window_dict)
+            if window.is_active(now):
+                return True
+            prev = existing_by_id.get(window_dict["id"])
+            if prev and self._reconcile_fields(prev) != self._reconcile_fields(window_dict):
+                return True
+        return False
+
+    async def apply_save_side_effects(
+        self,
+        existing: List[Dict[str, Any]],
+        saved: List[Dict[str, Any]],
+        deleted: List[Dict[str, Any]],
+    ) -> None:
+        for window_dict in deleted:
+            await self.reconcile_after_window_removed(
+                MaintenanceWindow.from_window_dict(window_dict)
+            )
+        if self.needs_reconcile_after_save(existing, saved):
+            await self.reconcile_all()
+        await self.schedule_window_starts()
+        await self.broadcast_active_maintenance()
 
     def _needs_maintenance_reconcile(self, incident: "Incident") -> bool:
         return (

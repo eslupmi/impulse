@@ -180,6 +180,16 @@
     border-color: #dc2626;
 }
 
+.maintenance-matcher-error {
+    margin-top: 6px;
+    color: var(--status-error);
+    font-size: 0.875rem;
+}
+
+.maintenance-matcher-error.hidden {
+    display: none;
+}
+
 .maintenance-panel-box {
     border: 1px solid var(--border-primary);
     border-radius: 8px;

@@ -254,7 +254,7 @@ function validateAndFormatFilter(query) {
     return formatFilterClause(parsed);
 }
 
-function createEditableFilterBadge({value, onChange, onRemove, onBadgeClick}) {
+function createEditableFilterBadge({value, onChange, onRemove, onBadgeClick, validateAndFormat = validateAndFormatFilter}) {
     let current = value;
     const badge = document.createElement("div");
     badge.className = "filter-badge";

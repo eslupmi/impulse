@@ -1,7 +1,8 @@
 import {getSocket} from "./websocket.js";
 import {getBaseUrl, parseWeekStart} from "./utils.js";
 import {attachNavListener, getSharedCalendarOptions, updateMonthCalendarWeekHighlight} from "./calendar_shared.js";
-import {createEditableFilterBadge, validateAndFormatFilter} from "./filters.js";
+import {createEditableFilterBadge} from "./filters.js";
+import {validateAndFormatMatcher, validateMatcher} from "./matcher.js";
 import {getIsAuthenticated, onAuthChange} from "./auth.js";
 import {
     captureCalendarViewAnchor,
@@ -278,13 +279,13 @@ globalThis.handleMaintenanceData = function(data) {
     }
 };
 
-globalThis.handleMaintenanceSaved = function(success) {
+globalThis.handleMaintenanceSaved = function(success, detail) {
     if (savePromiseResolve) {
         savePromiseResolve(!!success);
         savePromiseResolve = null;
     }
     if (!success) {
-        showNotification("Failed to save maintenance windows");
+        showNotification(detail || "Failed to save maintenance windows");
     }
 };
 
@@ -525,6 +526,32 @@ async function handleEventTimeChange(info) {
     }
 }
 
+function setMatcherInputError(reason) {
+    const input = document.getElementById("maintenance-matcher-input");
+    const wrap = document.getElementById("maintenance-matchers-wrap");
+    const error = document.getElementById("maintenance-matcher-error");
+    input?.classList.add("maintenance-field-error");
+    wrap?.classList.add("maintenance-field-error");
+    if (error) {
+        error.textContent = reason;
+        error.classList.remove("hidden");
+    }
+}
+
+function clearMatcherInputError() {
+    const input = document.getElementById("maintenance-matcher-input");
+    const wrap = document.getElementById("maintenance-matchers-wrap");
+    const error = document.getElementById("maintenance-matcher-error");
+    input?.classList.remove("maintenance-field-error");
+    if (error) {
+        error.textContent = "";
+        error.classList.add("hidden");
+    }
+    if (wrap) {
+        wrap.classList.toggle("maintenance-field-error", modalMatchers.length === 0);
+    }
+}
+
 function renderMatcherBadges() {
     const container = document.getElementById("maintenance-matchers-badges");
     const input = document.getElementById("maintenance-matcher-input");
@@ -534,6 +561,7 @@ function renderMatcherBadges() {
     for (const matcher of modalMatchers) {
         const badge = createEditableFilterBadge({
             value: matcher,
+            validateAndFormat: validateAndFormatMatcher,
             onBadgeClick: (e) => e.stopPropagation(),
             onChange: (newVal, oldVal) => {
                 if (modalMatchers.includes(newVal)) return false;
@@ -561,21 +589,30 @@ function renderMatcherBadges() {
 function commitMatcherInput() {
     const input = document.getElementById("maintenance-matcher-input");
     const wrap = document.getElementById("maintenance-matchers-wrap");
-    if (!input) return;
+    if (!input) return true;
     const query = input.value.trim();
-    if (!query) return;
-    const formatted = validateAndFormatFilter(query);
-    if (!formatted) {
-        input.classList.add("maintenance-field-error");
-        return;
+    if (!query) {
+        if (modalMatchers.length === 0) {
+            setMatcherInputError("At least one matcher is required");
+            return false;
+        }
+        clearMatcherInputError();
+        if (wrap) wrap.classList.remove("maintenance-field-error");
+        return true;
     }
-    if (!modalMatchers.includes(formatted)) {
-        modalMatchers.push(formatted);
+    const result = validateMatcher(query);
+    if (!result.ok) {
+        setMatcherInputError(result.reason);
+        return false;
+    }
+    if (!modalMatchers.includes(result.formatted)) {
+        modalMatchers.push(result.formatted);
         renderMatcherBadges();
     }
     input.value = "";
-    input.classList.remove("maintenance-field-error");
+    clearMatcherInputError();
     if (wrap) wrap.classList.toggle("maintenance-field-error", modalMatchers.length === 0);
+    return true;
 }
 
 function openWindowModal(windowData = null) {
@@ -606,6 +643,7 @@ function openWindowModal(windowData = null) {
         deleteBtn.classList.add("hidden");
     }
     renderMatcherBadges();
+    clearMatcherInputError();
     modal.classList.add("visible");
 }
 
@@ -638,10 +676,21 @@ function validateWindowModalInput() {
         showNotification("End must be after start");
         return null;
     }
-    if (modalMatchers.length === 0) {
-        matchersWrap?.classList.add("maintenance-field-error");
-        showNotification("At least one matcher is required");
+    if (!commitMatcherInput()) {
         return null;
+    }
+    if (modalMatchers.length === 0) {
+        setMatcherInputError("At least one matcher is required");
+        return null;
+    }
+    const matchers = [];
+    for (const matcher of modalMatchers) {
+        const result = validateMatcher(matcher);
+        if (!result.ok) {
+            setMatcherInputError(result.reason);
+            return null;
+        }
+        matchers.push(result.formatted);
     }
     if (!comment) {
         commentBox?.classList.add("maintenance-field-error");
@@ -649,8 +698,9 @@ function validateWindowModalInput() {
         return null;
     }
     commentBox?.classList.remove("maintenance-field-error");
-    matchersWrap?.classList.remove("maintenance-field-error");
-    return {start, end, comment, matchers: [...modalMatchers]};
+    clearMatcherInputError();
+    if (matchersWrap) matchersWrap.classList.remove("maintenance-field-error");
+    return {start, end, comment, matchers};
 }
 
 async function saveWindowModal() {
@@ -852,7 +902,7 @@ function setupWindowModalListeners() {
         }
     });
     matcherInput?.addEventListener("blur", commitMatcherInput);
-    matcherInput?.addEventListener("input", () => matcherInput.classList.remove("maintenance-field-error"));
+    matcherInput?.addEventListener("input", clearMatcherInputError);
     matchersBox?.addEventListener("click", () => matcherInput?.focus());
     commentInput?.addEventListener("input", () => commentInput.classList.remove("maintenance-field-error"));
 

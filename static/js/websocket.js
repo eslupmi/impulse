@@ -97,7 +97,6 @@ const WEBSOCKET_DATA_HANDLERS = {
 const WEBSOCKET_MESSAGE_FIELD_HANDLERS = {
     ui_chains_saved: ["handleUiChainsSaved", "success"],
     ui_chains_error: ["handleUiChainsError", "detail"],
-    maintenance_saved: ["handleMaintenanceSaved", "success"],
     maintenance_error: ["handleMaintenanceError", "detail"],
 };
 
@@ -105,6 +104,10 @@ function dispatchOptionalGlobalHandler(message) {
     const dataHandler = WEBSOCKET_DATA_HANDLERS[message.event];
     if (dataHandler && typeof globalThis[dataHandler] === "function") {
         globalThis[dataHandler](message.data);
+        return true;
+    }
+    if (message.event === "maintenance_saved" && typeof globalThis.handleMaintenanceSaved === "function") {
+        globalThis.handleMaintenanceSaved(message.success, message.detail);
         return true;
     }
     const fieldHandler = WEBSOCKET_MESSAGE_FIELD_HANDLERS[message.event];
