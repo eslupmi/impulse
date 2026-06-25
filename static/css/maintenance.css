@@ -122,10 +122,43 @@
 
 .maintenance-active-popup-comment {
     flex: 1;
+    min-width: 0;
     color: var(--fg-primary);
     font-size: 12px;
     line-height: 1.35;
+    max-height: calc(1.35 * 5 * 1em);
+    overflow-y: auto;
+    white-space: pre-wrap;
     overflow-wrap: break-word;
+}
+
+.maintenance-active-popup-comment,
+#maintenance-window-modal .maintenance-comment-input {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+.maintenance-active-popup-comment::-webkit-scrollbar,
+#maintenance-window-modal .maintenance-comment-input::-webkit-scrollbar {
+    width: 6px;
+}
+
+.maintenance-active-popup-comment::-webkit-scrollbar-track,
+#maintenance-window-modal .maintenance-comment-input::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.maintenance-active-popup-comment::-webkit-scrollbar-thumb,
+#maintenance-window-modal .maintenance-comment-input::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: 3px;
+    border: 1px solid transparent;
+    background-clip: padding-box;
+}
+
+.maintenance-active-popup-comment::-webkit-scrollbar-thumb:hover,
+#maintenance-window-modal .maintenance-comment-input::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
 }
 
 .maintenance-active-popup-pointer {
