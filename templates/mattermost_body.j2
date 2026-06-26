@@ -30,13 +30,12 @@ _{{ commonAnnotations.description }}_{% endif %}
     {{ k }}=`{{ v }}`
 {%- endfor -%}
 {% endif -%}
-{%- if incident.parents | length > 0 %}
+{%- set parent_incidents = incident.parents | reject("equalto", "maintenance") | list -%}
+{%- if parent_incidents | length > 0 %}
 
-**Parent sources:**
-{%- for parent_id in incident.parents %}
-{%- if parent_id == "maintenance" %}
-    Maintenance
-{%- elif parent_id in incidents.uniq_ids %}
+**Parent incidents:**
+{%- for parent_id in parent_incidents %}
+{%- if parent_id in incidents.uniq_ids %}
     [{{ incidents.uniq_ids[parent_id].payload.commonLabels.alertname }}]({{ incidents.uniq_ids[parent_id].link | urlencode }})
 {%- else %}
     {{ parent_id }}

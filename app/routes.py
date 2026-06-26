@@ -1,3 +1,4 @@
+import asyncio
 import json
 from datetime import datetime, timezone
 
@@ -9,7 +10,6 @@ from fastapi.templating import Jinja2Templates
 from app.config.config import get_config, reload_config
 from app.logging import logger
 from app.maintenance.api import merge_and_validate_save, removed_windows
-from app.maintenance.models import MaintenanceWindow
 from app.maintenance.store import get_maintenance_store
 from app.metrics import generate_metrics_response
 from app.middleware import is_standby_mode, service_unavailable_response, STANDBY_MODE_MESSAGE
@@ -21,6 +21,13 @@ from app.im.chain.ui_chains_store import ui_chains_store
 _MSG_INCIDENT_NOT_FOUND = "Incident not found"
 _MSG_UNIQ_ID_REQUIRED = "uniq_id is required"
 _MSG_AUTHENTICATION_REQUIRED = "Authentication required"
+
+
+async def _maintenance_save_side_effects(app, existing, saved, deleted):
+    try:
+        await app.state.maintenance_manager.apply_save_side_effects(existing, saved, deleted)
+    except Exception as e:
+        logger.error("Maintenance save side effects failed", extra={"error": str(e)})
 
 
 def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=None) -> APIRouter:
@@ -355,6 +362,9 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
         
         await incident_ws.connect(websocket)
 
+        active_maintenance = websocket.app.state.maintenance_manager.active_windows_payload()
+        await websocket.send_text(json.dumps({"event": "active_maintenance", "data": active_maintenance}))
+
         try:
             while True:
                 data = await websocket.receive_text()
@@ -425,16 +435,16 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
                                 existing = store.load_windows()
                                 deleted = removed_windows(existing, windows)
                                 success = store.save_windows(windows)
-                                if success:
-                                    maintenance_manager = websocket.app.state.maintenance_manager
-                                    for window_dict in deleted:
-                                        removed_window = MaintenanceWindow.from_window_dict(window_dict)
-                                        await maintenance_manager.reconcile_after_window_removed(removed_window)
-                                    await maintenance_manager.reconcile_all()
                                 await websocket.send_text(json.dumps({
                                     "event": "maintenance_saved",
                                     "success": success,
                                 }))
+                                if success:
+                                    _maintenance_save_task = asyncio.create_task(
+                                        _maintenance_save_side_effects(
+                                            websocket.app, existing, windows, deleted
+                                        )
+                                    )
 
                 except json.JSONDecodeError:
                     logger.warning("Invalid WebSocket JSON", extra={'data': data})

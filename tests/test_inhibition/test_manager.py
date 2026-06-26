@@ -320,7 +320,7 @@ class TestInhibitionManager:
             await inhibition_manager.handle_resolved(source)
 
         remove_source.assert_awaited_once_with(
-            target, mock_application, inhibition_manager.queue, source=FreezeSource.PARENT, notify=False
+            target, inhibition_manager.queue, source=FreezeSource.PARENT
         )
         mock_application.update_incident_message.assert_awaited_once_with(target)
 

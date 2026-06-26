@@ -37,8 +37,9 @@ class TestUnfreezeHandler:
         app = create_mock_application()
         app.update_thread = AsyncMock()
         app.update_incident_message = AsyncMock()
-        app.post_thread = AsyncMock()
-        
+        app.post_unfreeze_notification = AsyncMock()
+        app.track_async_task = Mock()
+
         # Mock templates
         app.header_template = Mock()
         app.header_template.form_message = Mock(return_value="Test Header")
@@ -105,13 +106,17 @@ class TestUnfreezeHandler:
         incident.ts = "1.2"
         mock_incidents.uniq_ids = {incident.uniq_id: incident}
 
-        with patch("app.queue.handlers.unfreeze_handler.remove_freeze_source", new_callable=AsyncMock) as remove_source:
+        with patch("app.queue.handlers.unfreeze_handler.remove_freeze_source", new_callable=AsyncMock) as remove_source, \
+                patch("app.queue.handlers.unfreeze_handler.asyncio.create_task", return_value="unfreeze-task") as create_task:
             await unfreeze_handler.handle(incident.uniq_id, FreezeSource.TIME.value)
 
         remove_source.assert_awaited_once_with(
-            incident, unfreeze_handler.app, unfreeze_handler.queue, source=FreezeSource.TIME, notify=True
+            incident, unfreeze_handler.queue, source=FreezeSource.TIME
         )
         mock_maintenance_manager.reconcile_incident.assert_awaited_once_with(incident, update_message=False)
+        unfreeze_handler.app.post_unfreeze_notification.assert_called_once_with(incident)
+        create_task.assert_called_once()
+        unfreeze_handler.app.track_async_task.assert_called_once_with("unfreeze-task")
         unfreeze_handler.app.update_incident_message.assert_awaited_once_with(incident)
 
     @pytest.mark.asyncio
@@ -132,8 +137,46 @@ class TestUnfreezeHandler:
             await unfreeze_handler.handle(incident.uniq_id, FreezeSource.TIME.value)
 
         remove_source.assert_awaited_once_with(
-            incident, unfreeze_handler.app, unfreeze_handler.queue, source=FreezeSource.TIME, notify=True
+            incident, unfreeze_handler.queue, source=FreezeSource.TIME
         )
+        unfreeze_handler.app.post_unfreeze_notification.assert_not_called()
+        unfreeze_handler.app.track_async_task.assert_not_called()
+        mock_maintenance_manager.reconcile_incident.assert_awaited_once_with(incident, update_message=False)
+        unfreeze_handler.app.update_incident_message.assert_awaited_once_with(incident)
+
+    @pytest.mark.asyncio
+    async def test_handle_skips_notification_when_maintenance_reconciles_back_to_frozen(
+        self, unfreeze_handler, mock_incidents, mock_maintenance_manager
+    ):
+        """Maintenance reconcile after TIME expiry must not post an unfrozen thread reply."""
+        incident = create_mock_incident_for_handlers(
+            frozen_until=datetime.now(timezone.utc) + timedelta(hours=1),
+        )
+        incident.uniq_id = "test-uniq-id"
+        incident.frozen_until_source = FreezeSource.TIME.value
+        mock_incidents.uniq_ids = {incident.uniq_id: incident}
+
+        def reconcile_refreeze(incident_, update_message=False):
+            incident_.frozen_until = datetime.now(timezone.utc) + timedelta(hours=2)
+            incident_.frozen_until_source = FreezeSource.MAINTENANCE.value
+            incident_.is_frozen = Mock(return_value=True)
+
+        mock_maintenance_manager.reconcile_incident = AsyncMock(side_effect=reconcile_refreeze)
+
+        def clear_time_freeze(incident_, queue, source):
+            incident_.frozen_until = None
+            incident_.frozen_until_source = None
+            incident_.is_frozen = Mock(return_value=False)
+
+        with patch(
+            "app.queue.handlers.unfreeze_handler.remove_freeze_source",
+            new_callable=AsyncMock,
+            side_effect=clear_time_freeze,
+        ):
+            await unfreeze_handler.handle(incident.uniq_id, FreezeSource.TIME.value)
+
+        unfreeze_handler.app.post_unfreeze_notification.assert_not_called()
+        unfreeze_handler.app.track_async_task.assert_not_called()
         mock_maintenance_manager.reconcile_incident.assert_awaited_once_with(incident, update_message=False)
         unfreeze_handler.app.update_incident_message.assert_awaited_once_with(incident)
 
@@ -155,4 +198,56 @@ class TestUnfreezeHandler:
         remove_source.assert_not_called()
         mock_maintenance_manager.reconcile_incident.assert_not_called()
         unfreeze_handler.app.update_incident_message.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_handle_maintenance_source_uses_generic_unfreeze_flow(
+        self, unfreeze_handler, mock_incidents, mock_maintenance_manager
+    ):
+        """Maintenance uses the same queued-unfreeze flow as other sources."""
+        incident = create_mock_incident_for_handlers(
+            frozen_until=datetime.now(timezone.utc),
+            frozen_by_maintenance=True,
+        )
+        incident.uniq_id = "test-uniq-id"
+        incident.frozen_until_source = FreezeSource.MAINTENANCE.value
+        mock_incidents.uniq_ids = {incident.uniq_id: incident}
+
+        with patch("app.queue.handlers.unfreeze_handler.remove_freeze_source", new_callable=AsyncMock) as remove_source:
+            await unfreeze_handler.handle(incident.uniq_id, FreezeSource.MAINTENANCE.value)
+
+        remove_source.assert_awaited_once_with(
+            incident,
+            unfreeze_handler.queue,
+            source=FreezeSource.MAINTENANCE,
+        )
+        unfreeze_handler.app.post_unfreeze_notification.assert_not_called()
+        unfreeze_handler.app.track_async_task.assert_not_called()
+        mock_maintenance_manager.reconcile_incident.assert_awaited_once_with(incident, update_message=False)
+        unfreeze_handler.app.update_incident_message.assert_awaited_once_with(incident)
+
+    @pytest.mark.asyncio
+    async def test_handle_maintenance_source_uses_parent_marker_when_time_source_differs(
+        self, unfreeze_handler, mock_incidents, mock_maintenance_manager
+    ):
+        """Maintenance expiry must clear its parent marker without requiring time-source ownership."""
+        incident = create_mock_incident_for_handlers(
+            frozen_until=datetime.now(timezone.utc) + timedelta(hours=1),
+            frozen_by_maintenance=True,
+        )
+        incident.uniq_id = "test-uniq-id"
+        incident.frozen_until_source = FreezeSource.TIME.value
+        mock_incidents.uniq_ids = {incident.uniq_id: incident}
+
+        with patch("app.queue.handlers.unfreeze_handler.remove_freeze_source", new_callable=AsyncMock) as remove_source:
+            await unfreeze_handler.handle(incident.uniq_id, FreezeSource.MAINTENANCE.value)
+
+        remove_source.assert_awaited_once_with(
+            incident,
+            unfreeze_handler.queue,
+            source=FreezeSource.MAINTENANCE,
+        )
+        unfreeze_handler.app.post_unfreeze_notification.assert_not_called()
+        unfreeze_handler.app.track_async_task.assert_not_called()
+        mock_maintenance_manager.reconcile_incident.assert_awaited_once_with(incident, update_message=False)
+        unfreeze_handler.app.update_incident_message.assert_awaited_once_with(incident)
 

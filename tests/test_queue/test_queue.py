@@ -145,6 +145,33 @@ class TestAsyncQueue:
         assert len(queue._items) == 1  # Should remain unchanged
 
     @pytest.mark.asyncio
+    async def test_delete_by_type(self, queue):
+        """Test deleting all items of one type."""
+        dt = create_test_datetime()
+        await queue.put(dt, 'maintenance_start', None, 'w1', None)
+        await queue.put(dt, 'maintenance_start', None, 'w2', None)
+        await queue.put(dt, 'update_status', 'incident123', None, None)
+
+        await queue.delete_by_type('maintenance_start')
+
+        assert len(queue._items) == 1
+        assert queue._items[0].type == 'update_status'
+
+    @pytest.mark.asyncio
+    async def test_delete_by_id_type_and_data(self, queue):
+        """Test deleting only queue items matching id, type, and data."""
+        dt = create_test_datetime()
+        await queue.put(dt, 'unfreeze', 'incident123', None, 'maintenance')
+        await queue.put(dt, 'unfreeze', 'incident123', None, 'time')
+        await queue.put(dt, 'unfreeze', 'incident456', None, 'maintenance')
+
+        await queue.delete_by_id_type_and_data('incident123', 'unfreeze', 'maintenance')
+
+        assert len(queue._items) == 2
+        assert {item.data for item in queue._items} == {'time', 'maintenance'}
+        assert any(item.uniq_id == 'incident456' for item in queue._items)
+
+    @pytest.mark.asyncio
     async def test_recreate_resolved_status(self, queue):
         """Test recreate with resolved status (should not add items)."""
         incident_chain = [

@@ -25,8 +25,8 @@ def matchers_from_payload(payload: dict) -> list:
     for m in items:
         try:
             Matcher(m)
-        except Exception as exc:
-            raise HTTPException(status_code=400, detail=f"Invalid matcher: {m}") from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
     return items
 
 

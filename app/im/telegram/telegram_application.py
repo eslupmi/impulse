@@ -191,13 +191,7 @@ class TelegramApplication(Application):
                 chain_button = buttons['chain']['assigned']
 
         if incident.frozen_by_maintenance:
-            telegram_tz = config_obj.app.general.timezone
-            freeze_text = (
-                format_freeze_expiration(incident.frozen_until, telegram_tz)
-                if incident.frozen_until
-                else 'Maintenance'
-            )
-            freeze_button = {'text': freeze_text, 'callback_data': 'noop'}
+            freeze_button = {'text': 'Maintenance', 'callback_data': 'noop'}
         elif incident.frozen_by_inhibition:
             freeze_button = buttons['freeze']['inhibited']
         elif incident.can_manual_unfreeze():
