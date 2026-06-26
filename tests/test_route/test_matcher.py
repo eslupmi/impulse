@@ -51,15 +51,13 @@ class TestMatcher:
 
     def test_matcher_initialization_invalid_string(self):
         """Test Matcher initialization with invalid string."""
-        with patch('app.route.matcher.logger'):
-            with pytest.raises(AttributeError):
-                Matcher('invalid string')
+        with pytest.raises(ValueError, match='Invalid matcher "invalid string"'):
+            Matcher('invalid string')
 
     def test_matcher_initialization_missing_quotes(self):
         """Test Matcher initialization with missing quotes."""
-        with patch('app.route.matcher.logger'):
-            with pytest.raises(AttributeError):
-                Matcher('severity=critical')
+        with pytest.raises(ValueError, match='Invalid matcher "severity=critical"'):
+            Matcher('severity=critical')
 
     def test_matches_equals_operator_match(self):
         """Test matches method with equals operator - match."""

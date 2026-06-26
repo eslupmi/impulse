@@ -2,7 +2,7 @@
 Unit tests for MaintenanceManager.
 """
 from datetime import datetime, timezone, timedelta
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
@@ -80,11 +80,17 @@ class TestMaintenanceManager:
 
         await manager.schedule_window_starts()
 
-        queue.delete_by_type.assert_awaited_once_with(QueueItemType.MAINTENANCE_START)
-        queue.put.assert_awaited_once_with(
+        queue.delete_by_type.assert_any_await(QueueItemType.MAINTENANCE_START)
+        queue.delete_by_type.assert_any_await(QueueItemType.MAINTENANCE_END)
+        queue.put.assert_any_await(
             future.starts_at,
             QueueItemType.MAINTENANCE_START,
             identifier=future.id,
+        )
+        queue.put.assert_any_await(
+            active.ends_at,
+            QueueItemType.MAINTENANCE_END,
+            identifier=active.id,
         )
 
     @pytest.mark.asyncio
@@ -371,3 +377,101 @@ class TestMaintenanceManager:
         await manager.reconcile_all()
 
         assert incident.frozen_until is None
+
+
+def _window_dict(window_id, start, end, matchers=None, comment="work"):
+    return {
+        "id": window_id,
+        "start": start.isoformat(),
+        "end": end.isoformat(),
+        "matchers": matchers or ['alertname = "TestAlert"'],
+        "comment": comment,
+    }
+
+
+class TestMaintenanceSaveSideEffects:
+    def test_needs_reconcile_when_adding_future_window_only(self, maintenance_setup):
+        manager, _, _, _ = maintenance_setup
+        future_start = TEST_NOW + timedelta(hours=2)
+        future_end = TEST_NOW + timedelta(hours=4)
+        saved = [_window_dict("w1", future_start, future_end)]
+
+        assert manager.needs_reconcile_after_save([], saved) is False
+
+    def test_needs_reconcile_when_adding_active_window(self, maintenance_setup):
+        manager, _, _, _ = maintenance_setup
+        saved = [_window_dict("w1", TEST_NOW - timedelta(hours=1), TEST_NOW + timedelta(hours=1))]
+
+        assert manager.needs_reconcile_after_save([], saved) is True
+
+    def test_needs_reconcile_when_editing_window_times(self, maintenance_setup):
+        manager, _, _, _ = maintenance_setup
+        existing = [_window_dict(
+            "w1",
+            TEST_NOW + timedelta(hours=2),
+            TEST_NOW + timedelta(hours=4),
+        )]
+        saved = [_window_dict(
+            "w1",
+            TEST_NOW + timedelta(hours=2),
+            TEST_NOW + timedelta(hours=5),
+        )]
+
+        assert manager.needs_reconcile_after_save(existing, saved) is True
+
+    def test_needs_reconcile_false_when_only_comment_changes(self, maintenance_setup):
+        manager, _, _, _ = maintenance_setup
+        existing = [_window_dict(
+            "w1",
+            TEST_NOW + timedelta(hours=2),
+            TEST_NOW + timedelta(hours=4),
+            comment="old",
+        )]
+        saved = [_window_dict(
+            "w1",
+            TEST_NOW + timedelta(hours=2),
+            TEST_NOW + timedelta(hours=4),
+            comment="new",
+        )]
+
+        assert manager.needs_reconcile_after_save(existing, saved) is False
+
+    @pytest.mark.asyncio
+    async def test_apply_save_side_effects_skips_reconcile_all_for_future_add(self, maintenance_setup):
+        manager, _, _, _ = maintenance_setup
+        future_start = TEST_NOW + timedelta(hours=2)
+        future_end = TEST_NOW + timedelta(hours=4)
+        saved = [_window_dict("w1", future_start, future_end)]
+
+        with patch("app.maintenance.manager.MaintenanceManager.reconcile_all", AsyncMock()) as mock_reconcile_all, \
+                patch("app.maintenance.manager.MaintenanceManager.reconcile_after_window_removed", AsyncMock()) as mock_removed, \
+                patch("app.maintenance.manager.MaintenanceManager.schedule_window_starts", AsyncMock()) as mock_schedule, \
+                patch("app.maintenance.manager.MaintenanceManager.broadcast_active_maintenance", AsyncMock()) as mock_broadcast:
+            await manager.apply_save_side_effects([], saved, [])
+
+        mock_removed.assert_not_awaited()
+        mock_reconcile_all.assert_not_awaited()
+        mock_schedule.assert_awaited_once()
+        mock_broadcast.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_apply_save_side_effects_reconciles_removed_without_full_reconcile(
+        self, maintenance_setup
+    ):
+        manager, _, _, _ = maintenance_setup
+        deleted = [_window_dict(
+            "w1",
+            TEST_NOW + timedelta(hours=2),
+            TEST_NOW + timedelta(hours=4),
+        )]
+
+        with patch("app.maintenance.manager.MaintenanceManager.reconcile_all", AsyncMock()) as mock_reconcile_all, \
+                patch("app.maintenance.manager.MaintenanceManager.reconcile_after_window_removed", AsyncMock()) as mock_removed, \
+                patch("app.maintenance.manager.MaintenanceManager.schedule_window_starts", AsyncMock()) as mock_schedule, \
+                patch("app.maintenance.manager.MaintenanceManager.broadcast_active_maintenance", AsyncMock()) as mock_broadcast:
+            await manager.apply_save_side_effects(deleted, [], deleted)
+
+        mock_removed.assert_awaited_once()
+        mock_reconcile_all.assert_not_awaited()
+        mock_schedule.assert_awaited_once()
+        mock_broadcast.assert_awaited_once()

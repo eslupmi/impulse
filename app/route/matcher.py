@@ -9,12 +9,17 @@ class Matcher:
     def __init__(self, string):
         m = Matcher.re_type.match(string)
         if not m:
-            logger.warning(f'Cannot use matcher \"{string}\"')
+            raise ValueError(
+                f'Invalid matcher "{string}": use label op "value" with op =, !=, =~, or !~'
+            )
         self.type = m.group('type')
         self.label = m.group('label')
         self.expr = m.group('expr')
         if self.type in ['=~', '!~']:
-            self.regex = re.compile(self.expr)
+            try:
+                self.regex = re.compile(self.expr)
+            except re.error as exc:
+                raise ValueError(f'Invalid regex in matcher "{string}"') from exc
 
     def matches(self, alert_state):
         common_labels = alert_state.get('commonLabels')

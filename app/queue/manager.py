@@ -53,6 +53,9 @@ class AsyncQueueManager:
     async def handle_maintenance_start(self, window_id: str):
         await self.maintenance_manager.handle_window_start(window_id)
 
+    async def handle_maintenance_end(self, window_id: str):
+        await self.maintenance_manager.handle_window_end(window_id)
+
     async def handle_user_update(self, user_id: str):
         await self.user_update_handler.handle(user_id)
 
@@ -76,6 +79,8 @@ class AsyncQueueManager:
                 await self.handle_unfreeze(uniq_id, data)
             elif type_ == QueueItemType.MAINTENANCE_START:
                 await self.handle_maintenance_start(identifier)
+            elif type_ == QueueItemType.MAINTENANCE_END:
+                await self.handle_maintenance_end(identifier)
             elif type_ == QueueItemType.UPDATE_USER:
                 await self.handle_user_update(identifier)
         except Exception as e:

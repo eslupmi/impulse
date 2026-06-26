@@ -1,3 +1,4 @@
+import asyncio
 from typing import TYPE_CHECKING
 
 from app.incident.freeze import FreezeSource
@@ -47,6 +48,10 @@ class UnfreezeHandler(BaseHandler):
             )
             return
 
-        await remove_freeze_source(incident, self.app, self.queue, source=freeze_source, notify=True)
+        await remove_freeze_source(incident, self.queue, source=freeze_source)
         await self.maintenance_manager.reconcile_incident(incident, update_message=False)
+        if freeze_source == FreezeSource.TIME and not incident.is_frozen():
+            self.app.track_async_task(
+                asyncio.create_task(self.app.post_unfreeze_notification(incident))
+            )
         await self.app.update_incident_message(incident)

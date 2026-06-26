@@ -1,6 +1,7 @@
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
+import time
 from datetime import datetime, timedelta, timezone
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -84,9 +85,8 @@ def _build_app(config, messenger, auth_manager):
     app.state.incidents = Mock()
     app.state.is_standby = False
     app.state.maintenance_manager = Mock()
-    app.state.maintenance_manager.reconcile_after_window_removed = AsyncMock()
-    app.state.maintenance_manager.reconcile_all = AsyncMock()
-    app.state.maintenance_manager.schedule_window_starts = AsyncMock()
+    app.state.maintenance_manager.apply_save_side_effects = AsyncMock()
+    app.state.maintenance_manager.active_windows_payload = Mock(return_value=[])
     app.include_router(create_router("", auth_manager=auth_manager))
     return app
 
@@ -116,6 +116,10 @@ class TestPrivilegedRoutesRequireAuth:
         assert response.json()["ui_chains"] == ["primary"]
 
 
+def _wait_for_background_tasks():
+    time.sleep(0.05)
+
+
 class TestMaintenanceWebsocketAuth:
     def test_save_maintenance_rejected_when_unauthenticated(self, config, messenger):
         auth_manager = _mock_auth_manager(authenticated=False)
@@ -124,6 +128,7 @@ class TestMaintenanceWebsocketAuth:
                 patch("app.routes.get_maintenance_store") as mock_store:
             with TestClient(app) as client:
                 with client.websocket_connect("/ws") as ws:
+                    ws.receive_json()
                     ws.send_json({
                         "event": "save_maintenance",
                         "data": _maintenance_ws_payload(),
@@ -143,6 +148,7 @@ class TestMaintenanceWebsocketAuth:
                 patch("app.routes.get_maintenance_store") as mock_store:
             with TestClient(app) as client:
                 with client.websocket_connect("/ws") as ws:
+                    ws.receive_json()
                     ws.send_json({"event": "request_maintenance"})
                     message = ws.receive_json()
             mock_store.return_value.load_windows.assert_not_called()
@@ -162,15 +168,15 @@ class TestMaintenanceWebsocketAuth:
             mock_validate.return_value = _maintenance_ws_payload()
             with TestClient(app, cookies={SESSION_COOKIE: "valid-session"}) as client:
                 with client.websocket_connect("/ws") as ws:
+                    ws.receive_json()
                     ws.send_json({
                         "event": "save_maintenance",
                         "data": _maintenance_ws_payload(),
                     })
                     message = ws.receive_json()
+            _wait_for_background_tasks()
             mock_store.return_value.save_windows.assert_called_once()
-            app.state.maintenance_manager.reconcile_after_window_removed.assert_not_called()
-            app.state.maintenance_manager.reconcile_all.assert_awaited_once()
-            app.state.maintenance_manager.schedule_window_starts.assert_awaited_once()
+            app.state.maintenance_manager.apply_save_side_effects.assert_awaited_once()
         assert message == {"event": "maintenance_saved", "success": True}
 
     def test_save_maintenance_reconciles_removed_windows(self, config, messenger):
@@ -185,13 +191,16 @@ class TestMaintenanceWebsocketAuth:
             mock_validate.return_value = []
             with TestClient(app, cookies={SESSION_COOKIE: "valid-session"}) as client:
                 with client.websocket_connect("/ws") as ws:
+                    ws.receive_json()
                     ws.send_json({
                         "event": "save_maintenance",
                         "data": [],
                     })
                     message = ws.receive_json()
-            removed_window = app.state.maintenance_manager.reconcile_after_window_removed.await_args.args[0]
-            assert removed_window.matchers == existing[0]["matchers"]
+            _wait_for_background_tasks()
+            side_effects = app.state.maintenance_manager.apply_save_side_effects
+            side_effects.assert_awaited_once()
+            assert side_effects.await_args.args[2] == existing
         assert message == {"event": "maintenance_saved", "success": True}
 
     def test_request_maintenance_allowed_when_authenticated(self, config, messenger):
@@ -203,6 +212,7 @@ class TestMaintenanceWebsocketAuth:
             mock_store.return_value.load_windows.return_value = payload
             with TestClient(app, cookies={SESSION_COOKIE: "valid-session"}) as client:
                 with client.websocket_connect("/ws") as ws:
+                    ws.receive_json()
                     ws.send_json({"event": "request_maintenance"})
                     message = ws.receive_json()
             mock_store.return_value.prune_expired_windows.assert_called_once()
@@ -218,6 +228,7 @@ class TestUiChainsWebsocketAuth:
                 patch("app.routes.ui_chains_store") as mock_store:
             with TestClient(app) as client:
                 with client.websocket_connect("/ws") as ws:
+                    ws.receive_json()
                     ws.send_json({
                         "event": "save_ui_chains",
                         "chain_name": "primary",
@@ -238,6 +249,7 @@ class TestUiChainsWebsocketAuth:
                 patch("app.routes.ui_chains_store") as mock_store:
             with TestClient(app) as client:
                 with client.websocket_connect("/ws") as ws:
+                    ws.receive_json()
                     ws.send_json({
                         "event": "request_ui_chains",
                         "chain_name": "primary",
@@ -257,6 +269,7 @@ class TestUiChainsWebsocketAuth:
             mock_store.save_shifts.return_value = True
             with TestClient(app, cookies={SESSION_COOKIE: "valid-session"}) as client:
                 with client.websocket_connect("/ws") as ws:
+                    ws.receive_json()
                     ws.send_json({
                         "event": "save_ui_chains",
                         "chain_name": "primary",

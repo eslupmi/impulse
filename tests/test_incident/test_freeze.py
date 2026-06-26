@@ -87,24 +87,19 @@ class TestIncidentFreeze:
     async def test_parent_unfreeze_restores_after_last_parent_already_removed(self, sample_incident):
         """Inhibition cleanup removes the parent first, then calls this to restore queues."""
         assert sample_incident.is_frozen() is False
-        app = Mock()
         queue = Mock()
 
         with patch("app.incident.incident.sync_after_freeze_change", new_callable=AsyncMock) as sync_after_change:
             await remove_freeze_source(
                 sample_incident,
-                app,
                 queue,
                 source=FreezeSource.PARENT,
-                notify=False,
             )
 
         sync_after_change.assert_awaited_once_with(
             sample_incident,
-            app,
             queue,
             "firing",
-            notify=False,
         )
 
 class TestIncidentInhibitionFreeze:

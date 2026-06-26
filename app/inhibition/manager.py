@@ -228,7 +228,5 @@ class InhibitionManager:
 
         if not target.is_frozen():
             logger.info("Target has no more parents - releasing inhibition", extra={'uuid': target.uuid})
-            await remove_freeze_source(
-                target, self.application, self.queue, source=FreezeSource.PARENT, notify=False
-            )
+            await remove_freeze_source(target, self.queue, source=FreezeSource.PARENT)
             await self.application.update_incident_message(target)
