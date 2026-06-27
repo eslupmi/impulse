@@ -8,9 +8,6 @@ def _urlencode_filter(value):
     return quote(str(value), safe=":/?#[]@!$&'()*+,;=.-_~%")
 
 
-# Messenger templates emit Slack mrkdwn, Mattermost markdown, and Telegram HTML — not
-# web-page HTML. Jinja HTML autoescape breaks that markup (see v3.5.1 regression).
-# Templates are operator-configured; dynamic values come from the alerting pipeline.
 _jinja_env = Environment(autoescape=False)  # NOSONAR python:S5439 - not HTML output
 _jinja_env.filters["urlencode"] = _urlencode_filter
 
