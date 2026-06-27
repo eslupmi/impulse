@@ -5,6 +5,7 @@ from unittest.mock import Mock, AsyncMock, patch
 
 import pytest
 
+from app.queue.handlers.alert_handler import AlertHandler
 from app.queue.manager import AsyncQueueManager
 from app.incident.freeze import FreezeSource
 from tests.utils import (
@@ -82,6 +83,21 @@ class TestAsyncQueueManager:
         manager.step_handler.handle = AwaitableMock()
 
         return manager
+
+    def test_reload_route(self, mock_queue, mock_application, mock_incidents, mock_webhooks, mock_route, mock_inhibition_manager, mock_maintenance_manager):
+        """Test reload_route recreates AlertHandler with the new route."""
+        manager = AsyncQueueManager(
+            mock_queue, mock_application, mock_incidents, mock_webhooks,
+            mock_route, mock_inhibition_manager, mock_maintenance_manager,
+        )
+        original_handler = manager.alert_handler
+        new_route = create_mock_route()
+
+        manager.reload_route(new_route)
+
+        assert manager.alert_handler is not original_handler
+        assert isinstance(manager.alert_handler, AlertHandler)
+        assert manager.alert_handler.route is new_route
 
     def test_initialization(self, mock_queue, mock_application, mock_incidents, mock_webhooks, mock_route, mock_inhibition_manager, mock_maintenance_manager):
         """Test AsyncQueueManager initialization."""

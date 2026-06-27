@@ -32,6 +32,13 @@ class AsyncQueueManager:
         self._running = False
         self._task = None
 
+    def reload_route(self, route_):
+        self.alert_handler = AlertHandler(
+            self.queue, self.application, self.incidents, route_,
+            self.inhibition_manager, self.maintenance_manager,
+        )
+        logger.info("Alert handler reloaded")
+
     async def handle_alert(self, alert_state: dict):
         await self.alert_handler.handle(alert_state)
 

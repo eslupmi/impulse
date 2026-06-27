@@ -64,6 +64,7 @@ async def create_main_objects(fastapi_app: FastAPI, reload=False):
 
     if reload:
         fastapi_app.state.inhibition_manager.reload_rules(config_data.app.inhibit_rules)
+        fastapi_app.state.queue_manager.reload_route(route)
     else:
         incidents = Incidents.create_or_load(messenger.type, messenger.public_url, messenger.team)
         JinjaTemplate.set_incidents(incidents)
