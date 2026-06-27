@@ -22,22 +22,35 @@ class AsyncQueueManager:
         self.incidents = incidents
         self.inhibition_manager = inhibition_manager
         self.maintenance_manager = maintenance_manager
-        self.step_handler = StepHandler(self.queue, application, incidents, webhooks)
-        self.status_update_handler = StatusUpdateHandler(self.queue, application, incidents, inhibition_manager)
-        self.status_check_handler = StatusCheckHandler(self.queue, application, incidents, inhibition_manager)
-        self.message_update_handler = MessageUpdateHandler(self.queue, application, incidents)
-        self.alert_handler = AlertHandler(self.queue, application, incidents, route_, inhibition_manager, maintenance_manager)
-        self.unfreeze_handler = UnfreezeHandler(self.queue, application, incidents, maintenance_manager)
-        self.user_update_handler = UserUpdateHandler(self.queue, application, incidents)
+        self._init_handlers(application, webhooks, route_)
         self._running = False
         self._task = None
 
-    def reload_route(self, route_):
+    def _init_handlers(self, application, webhooks, route_):
+        self.step_handler = StepHandler(self.queue, application, self.incidents, webhooks)
+        self.status_update_handler = StatusUpdateHandler(
+            self.queue, application, self.incidents, self.inhibition_manager,
+        )
+        self.status_check_handler = StatusCheckHandler(
+            self.queue, application, self.incidents, self.inhibition_manager,
+        )
+        self.message_update_handler = MessageUpdateHandler(self.queue, application, self.incidents)
         self.alert_handler = AlertHandler(
-            self.queue, self.application, self.incidents, route_,
+            self.queue, application, self.incidents, route_,
             self.inhibition_manager, self.maintenance_manager,
         )
-        logger.info("Alert handler reloaded")
+        self.unfreeze_handler = UnfreezeHandler(
+            self.queue, application, self.incidents, self.maintenance_manager,
+        )
+        self.user_update_handler = UserUpdateHandler(self.queue, application, self.incidents)
+
+    def reload_runtime(self, application, webhooks, route_):
+        logger.info("Reloading queue runtime")
+        self.application = application
+        self.inhibition_manager.application = application
+        self.maintenance_manager.application = application
+        self._init_handlers(application, webhooks, route_)
+        logger.info("Queue runtime reloaded")
 
     async def handle_alert(self, alert_state: dict):
         await self.alert_handler.handle(alert_state)
