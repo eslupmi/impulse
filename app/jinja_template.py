@@ -1,14 +1,14 @@
 from typing import Optional, TYPE_CHECKING
 from urllib.parse import quote
 
-from jinja2 import Environment, select_autoescape
+from jinja2 import Environment
 
 
 def _urlencode_filter(value):
     return quote(str(value), safe=":/?#[]@!$&'()*+,;=.-_~%")
 
 
-_jinja_env = Environment(autoescape=select_autoescape(default_for_string=True))
+_jinja_env = Environment()
 _jinja_env.filters["urlencode"] = _urlencode_filter
 
 if TYPE_CHECKING:
