@@ -5,6 +5,7 @@ from unittest.mock import Mock, AsyncMock, patch
 
 import pytest
 
+from app.queue.handlers.alert_handler import AlertHandler
 from app.queue.manager import AsyncQueueManager
 from app.incident.freeze import FreezeSource
 from tests.utils import (
@@ -82,6 +83,31 @@ class TestAsyncQueueManager:
         manager.step_handler.handle = AwaitableMock()
 
         return manager
+
+    def test_reload_runtime(self, mock_queue, mock_application, mock_incidents, mock_webhooks, mock_route, mock_inhibition_manager, mock_maintenance_manager):
+        """Test reload_runtime replaces application, managers, and all handlers."""
+        manager = AsyncQueueManager(
+            mock_queue, mock_application, mock_incidents, mock_webhooks,
+            mock_route, mock_inhibition_manager, mock_maintenance_manager,
+        )
+        original_alert_handler = manager.alert_handler
+        original_step_handler = manager.step_handler
+        new_application = create_mock_application()
+        new_webhooks = create_mock_webhooks_collection()
+        new_route = create_mock_route()
+
+        manager.reload_runtime(new_application, new_webhooks, new_route)
+
+        assert manager.application is new_application
+        assert mock_inhibition_manager.application is new_application
+        assert mock_maintenance_manager.application is new_application
+        assert manager.alert_handler is not original_alert_handler
+        assert manager.step_handler is not original_step_handler
+        assert isinstance(manager.alert_handler, AlertHandler)
+        assert manager.alert_handler.route is new_route
+        assert manager.alert_handler.app is new_application
+        assert manager.step_handler.webhooks is new_webhooks
+        assert manager.step_handler.app is new_application
 
     def test_initialization(self, mock_queue, mock_application, mock_incidents, mock_webhooks, mock_route, mock_inhibition_manager, mock_maintenance_manager):
         """Test AsyncQueueManager initialization."""
