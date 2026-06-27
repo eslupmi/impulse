@@ -276,6 +276,12 @@ function userSelectorFormatter(cell) {
 
     onAuthChange(() => setReadonlyState());
 
+    function selectInputText() {
+        if (!input.readOnly) {
+            input.select();
+        }
+    }
+
     input.addEventListener("mousedown", (e) => {
         e.stopPropagation();
         if (document.activeElement !== input) {
@@ -286,10 +292,14 @@ function userSelectorFormatter(cell) {
 
     input.addEventListener("click", (e) => {
         e.stopPropagation();
+        selectInputText();
         renderOptions(true);
     });
 
-    input.addEventListener("focus", () => renderOptions(true));
+    input.addEventListener("focus", () => {
+        selectInputText();
+        renderOptions(true);
+    });
     input.addEventListener("input", () => renderOptions(false));
     input.addEventListener("keydown", (event) => {
         if (event.key === "ArrowDown") {
