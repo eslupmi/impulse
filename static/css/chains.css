@@ -1075,6 +1075,20 @@
     opacity: 0.9;
 }
 
+#delete-chain-btn {
+    margin-right: auto;
+    background: var(--button-bg);
+    color: var(--fg-primary);
+    border: 1.5px solid var(--status-badge-firing);
+    border-radius: 8px;
+    padding: 0px 15px;
+    height: 32px;
+}
+
+#delete-chain-btn:hover {
+    opacity: 0.9;
+}
+
 .btn-danger {
     background: var(--status-badge-firing);
     color: white;
