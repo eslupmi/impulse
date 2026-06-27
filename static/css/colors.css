@@ -1,7 +1,7 @@
 /* Base theme (light) */
 :root {
     --brand-primary: #3293C3;
-    --brand-secondary: #3D94E9;
+    --brand-secondary: #3293C3;
     --btn-primary-bg: #3D94E9;
 
     /* Main Colors */
@@ -83,6 +83,9 @@
     --menu-option-active-bg: #F2F2F2;
     --icon-button-bg: #F2F2F2;
     --calendar-shift-bg: #CFCFCF;
+    --calendar-event-border: #3293C3;
+    --calendar-event-bg-primary: #F2F2F2;
+    --calendar-event-bg-secondary: #CFCFCF;
 }
 
 /* Dark theme */
@@ -170,4 +173,7 @@
     --menu-option-active-bg: #161A1C;
     --icon-button-bg: #161A1C;
     --calendar-shift-bg: #1C1E1F;
+    --calendar-event-border: #38ADE6;
+    --calendar-event-bg-primary: #333637;
+    --calendar-event-bg-secondary: #1C1E1F;
 }

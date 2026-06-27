@@ -277,5 +277,6 @@
 }
 
 :is(#maintenance-calendar, #maintenance-month-calendar) .fc-event.maintenance-calendar-event {
-    border-width: 2px;
+    border: 2px solid var(--calendar-event-border) !important;
+    box-shadow: none !important;
 }

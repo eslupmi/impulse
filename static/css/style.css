@@ -2,9 +2,9 @@
 
 :root {
     --chain-event-bg: var(--calendar-shift-bg);
-    --chain-event-border: var(--brand-primary);
+    --chain-event-border: var(--calendar-event-border);
     --maintenance-event-bg: var(--calendar-shift-bg);
-    --maintenance-event-border: var(--brand-primary);
+    --maintenance-event-border: var(--calendar-event-border);
 }
 
 /* General Styling */

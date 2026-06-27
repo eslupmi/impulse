@@ -181,6 +181,7 @@
     line-height: 1.1;
     color: var(--border-secondary);
     white-space: nowrap;
+    align-self: end;
 }
 
 .timezone-select-chevron {
@@ -236,7 +237,17 @@
 }
 
 .timezone-select-option + .timezone-select-option {
-    border-top: 1px solid var(--border-primary);
+    position: relative;
+}
+
+.timezone-select-option + .timezone-select-option::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 5%;
+    right: 5%;
+    height: 1px;
+    background: var(--border-primary);
 }
 
 .timezone-select-option:hover {
@@ -782,27 +793,39 @@
     background: var(--brand-secondary);
     border: none;
     border-radius: 4px;
-    padding: 2px 6px;
+    padding: 0;
     cursor: pointer;
     overflow: visible;
 }
 
 .fc .fc-event-main {
     position: relative;
-    border-color: var(--brand-primary);
+    border: none;
+    background: transparent;
+    height: 100%;
 }
 
-.fc .fc-timegrid-event {
+:is(#calendar, #maintenance-calendar) .fc-timegrid-event,
+:is(#calendar, #maintenance-calendar) .fc-timegrid-event-harness-inset .fc-timegrid-event {
     overflow: hidden;
-    border-radius: 12px;
-    border-width: 1.5px;
-    border-color: var(--brand-primary);
+    border-radius: 8px;
+    padding: 2px 6px;
+    box-sizing: border-box;
+    box-shadow: none !important;
+    outline: none;
 }
 
-.fc-event-repeat-series,
-.fc-timegrid-event.fc-event-repeat-series {
-    /*background: rgba(56, 173, 230, 0.1) !important;*/
-    border: none !important;
+:is(#calendar, #maintenance-calendar) .fc-timegrid-event:not(.fc-event-priority-1) {
+    border: 1.5px solid var(--calendar-event-border) !important;
+}
+
+:is(#calendar, #maintenance-calendar) .fc-timegrid-event.fc-event-priority-1 {
+    background: var(--calendar-event-bg-primary) !important;
+    border: 1.5px solid var(--calendar-event-border) !important;
+}
+
+:is(#calendar, #maintenance-calendar) .fc-timegrid-event .fc-event-main {
+    padding: 0;
 }
 
 .fc-event-repeat-series .fc-event-title,
@@ -814,7 +837,7 @@
 
 .fc-event-regular-series.fc-event-priority-2,
 .fc-timegrid-event.fc-event-regular-series.fc-event-priority-2 {
-    /*background: rgba(56, 173, 230, 0.1) !important;*/
+    background: var(--calendar-event-bg-secondary) !important;
     inset: 0px 10% 0px 0px !important;
 }
 
@@ -823,12 +846,6 @@
 .fc-event-regular-series.fc-event-priority-2 .fc-event-title,
 .fc-timegrid-event.fc-event-regular-series.fc-event-priority-2 .fc-event-title {
     color: var(--fg-primary) !important;
-}
-
-.fc-event-regular-series.fc-event-priority-1,
-.fc-timegrid-event.fc-event-regular-series.fc-event-priority-1 {
-    background: rgba(56, 173, 230, 0.2) !important;
-    border: none !important;
 }
 
 .fc-event-repeat-end-btn {
