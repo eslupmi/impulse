@@ -36,10 +36,7 @@ class StepHandler(BaseHandler):
             webhook_name = step['identifier']
             webhook = self.webhooks.get(webhook_name)
 
-            text_template = JinjaTemplate(
-                notification_webhook,
-                encode_markdown_link_urls=self.app.type == MessengerType.MATTERMOST,
-            )
+            text_template = JinjaTemplate(notification_webhook)
             admins = self.app.get_notification_destinations()
 
             if webhook is not None:

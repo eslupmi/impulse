@@ -1,7 +1,6 @@
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 from app.config.config import get_config
-from app.config.validation import MessengerType
 from app.im.template import update_alerts
 from app.incident.incident import IncidentConfig, Incident
 from app.jinja_template import JinjaTemplate
@@ -170,10 +169,7 @@ class AlertHandler(BaseHandler):
             'firing': new_alerts_f,
             'resolved': new_alerts_r
         }
-        text = JinjaTemplate(
-            update_alerts,
-            encode_markdown_link_urls=self.app.type == MessengerType.MATTERMOST,
-        ).form_notification(fields)
+        text = JinjaTemplate(update_alerts).form_notification(fields)
         if self.app.type == 'telegram':
             message = text
         else:
