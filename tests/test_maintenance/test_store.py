@@ -21,13 +21,10 @@ def _mock_closed_retention(closed: str = "7d"):
 
 
 def _sample_window(window_id: str = "w1") -> dict:
-    now = datetime.now(timezone.utc)
-    start = now + timedelta(hours=1)
-    end = start + timedelta(hours=4)
     return {
         "id": window_id,
-        "start": start.isoformat(),
-        "end": end.isoformat(),
+        "start": "2026-06-20T08:00:00+00:00",
+        "end": "2026-06-20T12:00:00+00:00",
         "matchers": ['service="postgres"'],
         "comment": "planned work",
         "created_by": "alice",
