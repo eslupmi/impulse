@@ -28,7 +28,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           repository: eslupmi/tests
-          ref: feature/tests
+          ref: main
           token: ${{ secrets.ESLUPMI_TESTS_REPO_TOKEN_READ }}
           path: autotests-${{ matrix.messenger_type }}
 
