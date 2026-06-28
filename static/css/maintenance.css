@@ -200,7 +200,7 @@
 #maintenance-window-modal .maintenance-matchers-box {
     width: 100%;
     height: 100%;
-    padding: 10px 12px;
+    padding: 5px 12px;
     border: 1px solid var(--border-primary);
     border-radius: 8px;
     background: var(--input-bg);
@@ -277,6 +277,6 @@
 }
 
 :is(#maintenance-calendar, #maintenance-month-calendar) .fc-event.maintenance-calendar-event {
-    border: 2px solid var(--calendar-event-border) !important;
+    border: 1.5px solid var(--calendar-event-border) !important;
     box-shadow: none !important;
 }

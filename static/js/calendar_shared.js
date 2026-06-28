@@ -10,6 +10,7 @@ export function getSharedCalendarOptions(firstDay, timezone) {
         firstDay,
         timeZone: timezone,
         weekNumbers: true,
+        fixedMirrorParent: document.body,
     };
 }
 

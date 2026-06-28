@@ -70,6 +70,7 @@
 
     /* Calendar Colors */
     --chains-window-bg: #F2F2F2;
+    --chains-window-border: #CFCFCF;
     --calendar-table-bg: #FFFFFF;
     --calendar-table-border: #CFCFCF;
     --calendar-today-fg: #3293C3;
@@ -160,6 +161,7 @@
 
     /* Calendar Colors */
     --chains-window-bg: #161A1C;
+    --chains-window-border: #5E5E5E;
     --calendar-table-bg: #0A0B0B;
     --calendar-table-border: #344054;
     --calendar-today-fg: #38ADE6;

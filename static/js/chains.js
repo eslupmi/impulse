@@ -1853,7 +1853,7 @@ async function initializeCalendars() {
 
 function setupChainEditModalListeners() {
     const modal = document.getElementById('chain-modal');
-    const closeBtn = modal.querySelector('.modal-close');
+    const closeBtn = modal.querySelector('.chains-modal-close');
     const saveBtn = document.getElementById('save-chain-btn');
     const deleteBtn = document.getElementById('delete-chain-btn');
     const addStepBtn = document.getElementById('add-step-btn');

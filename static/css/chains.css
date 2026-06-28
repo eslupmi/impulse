@@ -22,6 +22,7 @@
 
 .chains-modal-content {
     background: var(--chains-window-bg);
+    border: 1px solid var(--chains-window-border);
     border-radius: 12px;
     width: 95%;
     height: 90%;
@@ -69,7 +70,8 @@
 
 .chains-header-controls select,
 .chains-header-controls .calendar-today-btn,
-.chains-header-controls .timezone-select-widget {
+.chains-header-controls .timezone-select-widget,
+.chains-header-controls :is(#delete-chain-btn, #maintenance-window-delete-btn) {
     height: 24px;
     padding: 0 10px;
     box-sizing: border-box;
@@ -287,12 +289,15 @@
     color: var(--fg-primary);
     cursor: pointer;
     padding: 0;
-    margin-left: 16px;
     display: flex;
     align-items: center;
     justify-content: center;
     width: 12px;
     height: 12px;
+}
+
+.chains-header-controls > .chains-modal-close {
+    margin-left: 16px;
 }
 
 .chains-modal-close:hover {
@@ -851,7 +856,7 @@
 .fc-event-repeat-end-btn {
     display: none;
     position: absolute;
-    right: 4px;
+    right: 0px;
     bottom: 4px;
     background: rgba(0, 0, 0, 0.7);
     border: none;
@@ -871,8 +876,7 @@
 
 .fc-event-repeat-end-btn.active {
     display: block !important;
-    background: rgba(59, 130, 246, 0.9);
-    border: 1px solid rgba(255, 255, 255, 0.5);
+    background: var(--btn-primary-bg);
 }
 
 .fc .fc-event:hover {
@@ -965,6 +969,7 @@
 
 .modal-content {
     background: var(--bg-primary);
+    border: 1px solid var(--chains-window-border);
     border-radius: 12px;
     width: 100%;
     max-width: 480px;
@@ -976,8 +981,21 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 20px 24px;
-    border-bottom: 1px solid var(--border-primary);
+    height: 48px;
+    padding: 0 20px;
+    flex-shrink: 0;
+    position: relative;
+    box-sizing: border-box;
+}
+
+.modal-header::after {
+    content: "";
+    position: absolute;
+    left: 20px;
+    right: 20px;
+    bottom: 0;
+    height: 1px;
+    background: var(--border-primary);
 }
 
 .modal-header h2 {
@@ -985,16 +1003,6 @@
     font-size: 18px;
     font-weight: 600;
     color: var(--fg-primary);
-}
-
-.modal-close {
-    background: none;
-    border: none;
-    font-size: 24px;
-    color: var(--fg-primary);
-    cursor: pointer;
-    padding: 0;
-    line-height: 1;
 }
 
 .modal-body {
@@ -1050,8 +1058,21 @@
     align-items: center;
     justify-content: flex-end;
     gap: 12px;
-    padding: 16px 24px;
-    border-top: 1px solid var(--border-primary);
+    height: 48px;
+    padding: 0 20px;
+    box-sizing: border-box;
+    flex-shrink: 0;
+    position: relative;
+}
+
+.modal-footer::before {
+    content: "";
+    position: absolute;
+    left: 20px;
+    right: 20px;
+    top: 0;
+    height: 1px;
+    background: var(--border-primary);
 }
 
 .btn {
@@ -1064,29 +1085,31 @@
 }
 
 .btn-primary {
-    background: var(--brand-secondary);
+    background: var(--btn-primary-bg);
     color: white;
     padding: 0px 15px;
     border-radius: 8px;
     height: 32px;
 }
 
-.btn-primary:hover {
+.btn-primary:hover,
+.btn-secondary:hover,
+:is(#delete-chain-btn, #maintenance-window-delete-btn):hover {
     opacity: 0.9;
 }
 
-#delete-chain-btn {
-    margin-right: auto;
+:is(#delete-chain-btn, #maintenance-window-delete-btn) {
+    margin: 0;
     background: var(--button-bg);
     color: var(--fg-primary);
     border: 1.5px solid var(--status-badge-firing);
-    border-radius: 8px;
-    padding: 0px 15px;
-    height: 32px;
-}
-
-#delete-chain-btn:hover {
-    opacity: 0.9;
+    border-radius: 4px;
+    padding: 0 10px;
+    height: 24px;
+    font-size: 14px;
+    font-family: inherit;
+    box-sizing: border-box;
+    cursor: pointer;
 }
 
 .btn-danger {

@@ -180,7 +180,14 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h2 id="maintenance-window-modal-title">New maintenance</h2>
-                <button class="modal-close" type="button" aria-label="Close">&times;</button>
+                <div class="chains-header-controls">
+                    <button type="button" id="maintenance-window-delete-btn" class="hidden">Delete</button>
+                    <button class="chains-modal-close" type="button" aria-label="Close">
+                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                            <path d="M1 1L11 11M11 1L1 11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </button>
+                </div>
             </div>
             <div class="modal-body">
                 <div class="form-group">
@@ -207,7 +214,6 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" id="maintenance-window-delete-btn" class="btn btn-danger hidden">Delete</button>
                 <button type="button" id="maintenance-window-save-btn" class="btn btn-primary">Save</button>
             </div>
         </div>
@@ -216,7 +222,14 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h2 id="modal-title">New shift</h2>
-                <button class="modal-close">&times;</button>
+                <div class="chains-header-controls">
+                    <button type="button" id="delete-chain-btn" class="hidden">Delete</button>
+                    <button class="chains-modal-close" type="button" aria-label="Close">
+                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                            <path d="M1 1L11 11M11 1L1 11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </button>
+                </div>
             </div>
             <div class="modal-body">
                 <div class="form-group">
@@ -247,7 +260,6 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" id="delete-chain-btn" class="btn hidden">Delete</button>
                 <button type="button" id="save-chain-btn" class="btn btn-primary">Save</button>
             </div>
         </div>
