@@ -5,9 +5,9 @@
 {%- if alerts[0].generatorURL %}{% set url = alerts[0].generatorURL %}{% endif -%}
 {%- if commonAnnotations.runbook %}{% set runbook = commonAnnotations.runbook %}{% endif -%}
 {%- if commonAnnotations.summary %}**{{ commonAnnotations.summary }}**  {% endif %}
-{%- if url %}|  [source]({{ url | urlencode }})  {% endif %}
-{%- if runbook %}|  [runbook]({{ runbook | urlencode }})  {% endif %}
-{%- if incident.task_link %}|  [task]({{ incident.task_link | urlencode }})  {% endif %}
+{%- if url %}|  [source]({{ url }})  {% endif %}
+{%- if runbook %}|  [runbook]({{ runbook }})  {% endif %}
+{%- if incident.task_link %}|  [task]({{ incident.task_link }})  {% endif %}
 {%- if incident.assigned_user != "" %} (*assigned to @{{ incident.assigned_user }}*){% endif %}
 {%- if commonAnnotations.description %}
 _{{ commonAnnotations.description }}_{% endif %}
@@ -46,6 +46,6 @@ _{{ commonAnnotations.description }}_{% endif %}
 
 **Inhibited incidents:**
 {%- for uniq_id in incident.childs %}
-    [{{ incidents.uniq_ids[uniq_id].payload.commonLabels.alertname }}]({{ incidents.uniq_ids[uniq_id].link | urlencode }})
+    [{{ incidents.uniq_ids[uniq_id].payload.commonLabels.alertname }}]({{ incidents.uniq_ids[uniq_id].link }})
 {%- endfor -%}
 {% endif -%}
