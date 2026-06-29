@@ -22,7 +22,7 @@
 
 .chains-modal-content {
     background: var(--chains-window-bg);
-    border: 1px solid var(--chains-window-border);
+    border: 1.5px solid var(--chains-window-border);
     border-radius: 12px;
     width: 95%;
     height: 90%;
@@ -445,6 +445,7 @@
 }
 
 :is(#calendar, #maintenance-calendar) .fc {
+    --fc-today-bg-color: var(--calendar-today-bg);
     height: 100% !important;
 }
 
@@ -461,6 +462,10 @@
     flex-shrink: 0;
     min-height: 300px;
     background: var(--chains-window-bg);
+}
+
+:is(#month-calendar, #maintenance-month-calendar) .fc {
+    --fc-today-bg-color: var(--calendar-today-bg);
 }
 
 :is(#month-calendar, #maintenance-month-calendar) * {
@@ -691,8 +696,8 @@
     display: none;
 }
 
-:is(#month-calendar, #maintenance-month-calendar) .fc-day-today {
-    background: transparent !important;
+:is(#month-calendar, #maintenance-month-calendar) .fc-daygrid-day.fc-day-today .fc-daygrid-day-frame {
+    background: var(--calendar-today-bg) !important;
 }
 
 :is(#month-calendar, #maintenance-month-calendar) .fc-day-today .day-number {
@@ -745,7 +750,11 @@
 }
 
 :is(#calendar, #maintenance-calendar) .fc-day-today {
-    background: var(--chains-window-bg) !important;
+    background: var(--calendar-today-bg) !important;
+}
+
+:is(#calendar, #maintenance-calendar) .fc-timegrid-col.fc-day-today .fc-timegrid-slot {
+    background-color: var(--calendar-today-bg);
 }
 
 .fc .fc-daygrid-day-number {
@@ -767,6 +776,10 @@
     color: var(--fg-primary);
     font-weight: 600;
     padding: 10px;
+}
+
+:is(#calendar, #maintenance-calendar) .fc-col-header-cell.fc-day-today {
+    background: var(--calendar-today-bg) !important;
 }
 
 :is(#calendar, #maintenance-calendar) .fc-col-header-cell.fc-day-today .fc-col-header-cell-cushion {

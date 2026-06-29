@@ -2,11 +2,13 @@
 
 ## v3.6.0
 Changes:
-- Filters became editable
 - UI update
+- Filters became editable
 - Added browser timezone for UI Chains and Maintenance
-- Added search for assign field
-- Current user on top of assign field
+- Added search for "assign to" field
+- Current user on top of "assign to" field
+- Removed "update: freeze" messages
+- Fix bug in reload
 
 ## v3.5.1
 Changes:

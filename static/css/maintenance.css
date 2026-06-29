@@ -3,6 +3,11 @@
     overflow: visible;
 }
 
+.maintenance-icon {
+    transform: translateX(1.5px);
+    transform: translateY(1px);
+}
+
 .maintenance-active-counter {
     flex-shrink: 0;
     min-width: 18px;
@@ -53,12 +58,22 @@
     align-items: center;
     justify-content: space-between;
     padding: 8px 10px;
-    border-bottom: 1px solid var(--border-primary);
+    position: relative;
+}
+
+.maintenance-active-popup-header::after {
+    content: "";
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    bottom: 0;
+    height: 1px;
+    background: var(--border-primary);
 }
 
 .maintenance-active-popup-title {
     color: var(--fg-primary);
-    font-size: 13px;
+    font-size: 16px;
     font-weight: 600;
 }
 
@@ -91,11 +106,21 @@
     display: flex;
     gap: 12px;
     padding: 10px 12px;
-    border-bottom: 1px solid var(--border-primary);
+    position: relative;
 }
 
-.maintenance-active-popup-row:last-child {
-    border-bottom: none;
+.maintenance-active-popup-row::after {
+    content: "";
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    bottom: 0;
+    height: 1px;
+    background: var(--border-primary);
+}
+
+.maintenance-active-popup-row:last-child::after {
+    display: none;
 }
 
 .maintenance-active-popup-times {
@@ -108,7 +133,7 @@
 
 .maintenance-active-popup-time-left {
     color: var(--fg-primary);
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 600;
     white-space: nowrap;
 }
@@ -116,7 +141,7 @@
 .maintenance-active-popup-time-range {
     color: var(--fg-primary);
     opacity: 0.6;
-    font-size: 11px;
+    font-size: 12px;
     white-space: nowrap;
 }
 
@@ -124,9 +149,9 @@
     flex: 1;
     min-width: 0;
     color: var(--fg-primary);
-    font-size: 12px;
-    line-height: 1.35;
-    max-height: calc(1.35 * 5 * 1em);
+    font-size: 14px;
+    line-height: 1.6;
+    max-height: calc(1.6 * 5 * 1em);
     overflow-y: auto;
     white-space: pre-wrap;
     overflow-wrap: break-word;
@@ -169,10 +194,11 @@
 .maintenance-active-popup-pointer {
     width: 0;
     height: 0;
-    border-left: 8px solid transparent;
-    border-right: 8px solid transparent;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
     border-top: 8px solid var(--status-badge-firing);
-    margin-right: 2px;
+    margin-right: 4px;
+    margin-top: -1px;
 }
 
 .maintenance-matchers-wrap.maintenance-field-error .maintenance-panel-box,

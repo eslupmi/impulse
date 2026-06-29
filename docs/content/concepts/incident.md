@@ -114,10 +114,11 @@ There are two ways an Incident can be closed:
 
 The **frozen** state is a **pseudo-status** that temporarily pauses incident handling and suppresses status update. When an incident is **frozen**, its actual status (**firing**, **resolved**, **unknown**, or **closed**) is hidden but preserved underneath. Also, while the incident is **frozen**, no new incident with the same identifier will be created.
 
-An incident can be **frozen** two ways:
+An incident can be **frozen** three ways:
 
 - by clicking the [Freeze](#freeze) button and selecting a duration
 - by [inhibition](inhibition.md), if the incident becomes a child
+- by [maintenance](maintenance.md)
 
 ## Lifecycle
 
