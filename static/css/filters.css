@@ -4,8 +4,8 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 20px;
-    height: 20px;
+    width: 16px;
+    height: 16px;
     border-radius: 50%;
     flex-shrink: 0;
     opacity: 0;
@@ -16,6 +16,14 @@
 /* Change from row hover to cell hover */
 .tabulator-cell:hover .zoom-icon {
     opacity: 1;
+}
+
+.zoom-icon:hover {
+    color: var(--hover-fg);
+}
+
+.zoom-icon:active {
+    color: var(--pressed-fg);
 }
 
 .zoom-icon.hidden {

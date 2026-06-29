@@ -30,10 +30,12 @@ The footer can be divided into 3 parts:
 - in the center is a page switcher
 - on the right are 4 buttons :
 
-    - **ui chains** (when authenticated)
+    - **maintenance** (visible when authenticated)
+    - **ui chains** (visible when authenticated)
     - **theme switcher**
     - **archive** - for displaying historical data (incidents in [closed](incident.md#closed) status)
     - **login** (**logout**) (see [Authentication](../guides/authentication.md))
+    - **notifications icon** (visible when maintenance is active)
 
 ## Features
 

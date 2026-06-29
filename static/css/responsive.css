@@ -35,22 +35,18 @@
 
 .status-value.firing {
     color: var(--status-badge-firing);
-    font-weight: 600;
 }
 
 .status-value.resolved {
     color: var(--status-badge-resolved);
-    font-weight: 600;
 }
 
 .status-value.unknown {
     color: var(--status-badge-unknown);
-    font-weight: 600;
 }
 
 .status-value.closed {
     color: var(--fg-primary);
-    font-weight: 600;
 }
 
 .incident-link {
@@ -219,6 +215,10 @@
 
 .tabulator .tabulator-responsive-collapse-toggle.open::before {
     transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.tabulator .tabulator-responsive-collapse-toggle:hover::before {
+    border-color: var(--hover-fg);
 }
 
 .tabulator .tabulator-footer .tabulator-page:disabled {

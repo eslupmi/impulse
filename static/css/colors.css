@@ -1,9 +1,13 @@
 /* Base theme (light) */
 :root {
     --brand-primary: #3293C3;
-    --brand-secondary: #3D94E9;
+    --brand-secondary: #3293C3;
+    --btn-primary-bg: #3D94E9;
 
     /* Main Colors */
+    --hover-fg: #3293C3;
+    --pressed-fg: #22688A;
+
     --bg-primary: #FFFFFF;
     --bg-header: #E8E9EA;
     --input-bg: #F2F2F2;
@@ -66,8 +70,10 @@
 
     /* Calendar Colors */
     --chains-window-bg: #F2F2F2;
+    --chains-window-border: #CFCFCF;
     --calendar-table-bg: #FFFFFF;
     --calendar-table-border: #CFCFCF;
+    --calendar-today-bg: #FFFFFF;
     --calendar-today-fg: #3293C3;
     --calendar-week-bg: #E0E0E0;
     --calendar-timegrid-bg: #F2F2F2;
@@ -79,14 +85,21 @@
     --menu-option-active-bg: #F2F2F2;
     --icon-button-bg: #F2F2F2;
     --calendar-shift-bg: #CFCFCF;
+    --calendar-event-border: #3293C3;
+    --calendar-event-bg-primary: #F2F2F2;
+    --calendar-event-bg-secondary: #CFCFCF;
 }
 
 /* Dark theme */
 [data-theme="dark"] {
     --brand-primary: #38ADE6;
     --brand-secondary: #48BDE6;
+    --btn-primary-bg: #357ABD;
 
     /* Main Colors */
+    --hover-fg: #38ADE6;
+    --pressed-fg: #357ABD;
+
     --bg-primary: #0B0B0B;
     --bg-header: #161A1C;
     --input-bg: #161A1C;
@@ -149,8 +162,10 @@
 
     /* Calendar Colors */
     --chains-window-bg: #161A1C;
+    --chains-window-border: #5E5E5E;
     --calendar-table-bg: #0A0B0B;
     --calendar-table-border: #344054;
+    --calendar-today-bg: #0A0B0B;
     --calendar-today-fg: #38ADE6;
     --calendar-week-bg: #0A0B0B;
     --calendar-timegrid-bg: #161A1C;
@@ -162,4 +177,7 @@
     --menu-option-active-bg: #161A1C;
     --icon-button-bg: #161A1C;
     --calendar-shift-bg: #1C1E1F;
+    --calendar-event-border: #38ADE6;
+    --calendar-event-bg-primary: #333637;
+    --calendar-event-bg-secondary: #1C1E1F;
 }

@@ -51,6 +51,7 @@ nav:
     - concepts/incident.md
     - concepts/inhibition.md
     - concepts/ui.md
+    - concepts/maintenance.md
     - concepts/messengers.md
     - concepts/special_variables.md
     - concepts/templates.md

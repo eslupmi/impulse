@@ -456,14 +456,17 @@ function createSimpleCommonBlock(responsiveData) {
     commonBlock.className = 'simple-common-block';
 
     const info = responsiveData.incident_info || {};
+    const isFrozen = info.frozen_by_inhibition || info.frozen_by_maintenance || info.frozen_until;
     
     const infoStack = document.createElement('div');
     infoStack.className = 'info-stack';
     
-    const statusSpan = document.createElement('span');
-    statusSpan.className = 'info-item';
-    statusSpan.innerHTML = `<strong>status:</strong> <span class="status-value ${info.status}">${info.status}</span>`;
-    infoStack.appendChild(statusSpan);
+    if (!isFrozen) {
+        const statusSpan = document.createElement('span');
+        statusSpan.className = 'info-item';
+        statusSpan.innerHTML = `<strong>status:</strong> <span class="status-value ${info.status}">${info.status}</span>`;
+        infoStack.appendChild(statusSpan);
+    }
     
     const createdTimeAgo = formatRelativeTime(info.created);
     const createdSpan = document.createElement('span');

@@ -13,6 +13,7 @@ import {initTimezoneSelectHandlers} from "./ui_timezone.js";
 // **Initialize Everything**
 updateOnlineStatus(false);
 
+await initAuthControls();
 await initializeTable();
 
 loadFiltersFromURL();

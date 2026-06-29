@@ -207,7 +207,12 @@ function showFreezePopup(anchorBtn, uniqId) {
     const popup = document.createElement("div");
     popup.className = "freeze-popup";
 
-    FREEZE_OPTIONS.forEach(opt => {
+    FREEZE_OPTIONS.forEach((opt, index) => {
+        if (index > 0) {
+            const divider = document.createElement("div");
+            divider.className = "freeze-popup-divider";
+            popup.appendChild(divider);
+        }
         const item = document.createElement("div");
         item.className = "freeze-popup-option";
         item.textContent = opt.label;

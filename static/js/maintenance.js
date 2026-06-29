@@ -581,8 +581,8 @@ function renderMatcherBadges() {
     if (input) {
         input.placeholder = modalMatchers.length === 0 ? 'service="elasticsearch"' : "";
     }
-    if (wrap) {
-        wrap.classList.toggle("maintenance-field-error", modalMatchers.length === 0);
+    if (wrap && modalMatchers.length > 0) {
+        wrap.classList.remove("maintenance-field-error");
     }
 }
 
@@ -885,7 +885,7 @@ async function openMaintenanceModal() {
 
 function setupWindowModalListeners() {
     const modal = document.getElementById("maintenance-window-modal");
-    const closeBtn = modal?.querySelector(".modal-close");
+    const closeBtn = modal?.querySelector(".chains-modal-close");
     const saveBtn = document.getElementById("maintenance-window-save-btn");
     const deleteBtn = document.getElementById("maintenance-window-delete-btn");
     const matcherInput = document.getElementById("maintenance-matcher-input");
