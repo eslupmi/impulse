@@ -18,7 +18,7 @@ class TestUnifiedConfig:
         config = UnifiedConfig(mock_impulse_config)
 
         assert config.app == mock_impulse_config
-        assert config.INCIDENT_ACTUAL_VERSION == 'v3.4.0'
+        assert config.INCIDENT_ACTUAL_VERSION == 'v3.6.0'
         assert config.check_updates is True
 
     def test_messenger_property(self, mock_impulse_config):

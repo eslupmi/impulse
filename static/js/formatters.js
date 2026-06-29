@@ -143,8 +143,7 @@ function formatterWrapper(formatter) {
             const pillDiv = document.createElement("div");
             pillDiv.textContent = text;
             pillDiv.className = "pill-label";
-            pillDiv.style.border = `2px solid ${color}`;
-            pillDiv.style.backgroundColor = "transparent";
+            pillDiv.style.setProperty('--pill-color', color);
             
             // Add the pill to the container
             container.appendChild(pillDiv);
@@ -255,7 +254,9 @@ function formatAlertsCount(cell) {
     }
     const circle = document.createElement("div");
     circle.className = "alerts-count-circle";
-    circle.textContent = count;
+    const countSpan = document.createElement("span");
+    countSpan.textContent = count;
+    circle.appendChild(countSpan);
     return circle;
 }
 
@@ -346,9 +347,7 @@ function createTruncatedPill(key, value, options = {}) {
     // Check if the text is truncated
     const isTruncated = () => {
         const temp = document.createElement('span');
-        temp.style.visibility = 'hidden';
-        temp.style.position = 'absolute';
-        temp.style.whiteSpace = 'nowrap';
+        temp.className = 'text-measure';
         temp.textContent = `${key}: ${value}`;
         document.body.appendChild(temp);
         const fullWidth = temp.offsetWidth;
@@ -362,10 +361,6 @@ function createTruncatedPill(key, value, options = {}) {
         const tooltipText = document.createElement('div');
         tooltipText.className = 'tooltip-text';
         tooltipText.textContent = `${key}: ${value}`;
-        tooltipText.style.userSelect = 'text';
-        tooltipText.style.webkitUserSelect = 'text';
-        tooltipText.style.mozUserSelect = 'text';
-        tooltipText.style.msUserSelect = 'text';
         wrapper.appendChild(tooltipText);
     }
 
@@ -461,14 +456,17 @@ function createSimpleCommonBlock(responsiveData) {
     commonBlock.className = 'simple-common-block';
 
     const info = responsiveData.incident_info || {};
+    const isFrozen = info.frozen_by_inhibition || info.frozen_by_maintenance || info.frozen_until;
     
     const infoStack = document.createElement('div');
     infoStack.className = 'info-stack';
     
-    const statusSpan = document.createElement('span');
-    statusSpan.className = 'info-item';
-    statusSpan.innerHTML = `<strong>status:</strong> <span class="status-value ${info.status}">${info.status}</span>`;
-    infoStack.appendChild(statusSpan);
+    if (!isFrozen) {
+        const statusSpan = document.createElement('span');
+        statusSpan.className = 'info-item';
+        statusSpan.innerHTML = `<strong>status:</strong> <span class="status-value ${info.status}">${info.status}</span>`;
+        infoStack.appendChild(statusSpan);
+    }
     
     const createdTimeAgo = formatRelativeTime(info.created);
     const createdSpan = document.createElement('span');
@@ -485,11 +483,6 @@ function createSimpleCommonBlock(responsiveData) {
     updatedSpan.innerHTML = `<strong>updated:</strong> <div class="relative-time-label">${updatedTimeAgo}</div>`;
     updatedSpan.title = formatTimestamp(info.updated);
     infoStack.appendChild(updatedSpan);
-    
-    const assignedSpan = document.createElement('span');
-    assignedSpan.className = 'info-item';
-    assignedSpan.innerHTML = `<strong>assigned to:</strong> ${info.assigned_fullname ? info.assigned_fullname : '-'}`;
-    infoStack.appendChild(assignedSpan);
     
     if (info.link) {
         const linkSpan = document.createElement('span');

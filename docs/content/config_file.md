@@ -561,7 +561,7 @@ Below are all the configuration options supported by IMPulse.
 - **details:**
     
     !!! note ""
-        Instructions how to find users `id`: [Slack](https://www.workast.com/help/article/how-to-find-a-slack-user-id/), [Mattermost](https://docs.mattermost.com/administration-guide/configure/user-management-configuration-settings.html#identify-a-user-s-id), [Telegram](integrations/messengers/telegram.md#configure-groups)
+        Instructions how to find users `id`: [Slack](./integrations/messengers/slack.md#get-user-id), [Mattermost](./integrations/messengers/mattermost.md#get-user-id), [Telegram](./integrations/messengers/telegram.md#get-user-id)
 
 - **examples:**
 

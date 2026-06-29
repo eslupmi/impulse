@@ -1,16 +1,92 @@
 import os
+import json
 from datetime import datetime, timezone, timedelta
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Tuple
 
 from icalendar import Calendar, Event
 
+from app.config.config import get_config
 from app.config.environment import get_environment_config
 from app.logging import logger
+from app.time import unix_sleep_to_timedelta
 
 
 def _chain_name_to_filename(chain_name: str) -> str:
     safe = "".join(c if c.isalnum() or c in "-_" else "_" for c in (chain_name or ""))
     return (safe.strip("_") or "chain") + ".ics"
+
+
+def _days_in_month(year: int, month: int) -> int:
+    return [31, 29 if year % 4 == 0 and (year % 100 != 0 or year % 400 == 0) else 28,
+            31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1]
+
+
+def _next_monthly(base_start: datetime, current_start: datetime) -> datetime:
+    year = current_start.year + (1 if current_start.month == 12 else 0)
+    month = 1 if current_start.month == 12 else current_start.month + 1
+    day = min(base_start.day, _days_in_month(year, month))
+    return current_start.replace(year=year, month=month, day=day)
+
+
+def _next_yearly(base_start: datetime, current_start: datetime) -> datetime:
+    year = current_start.year + 1
+    day = base_start.day
+    month = base_start.month
+    if month == 2 and day == 29 and not (year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)):
+        day = 28
+    return current_start.replace(year=year, month=month, day=day)
+
+
+def _next_occurrence_start(base_start: datetime, current_start: datetime, repeat: str) -> datetime:
+    if repeat == "daily":
+        return current_start + timedelta(days=1)
+    if repeat == "weekly":
+        return current_start + timedelta(days=7)
+    if repeat == "monthly":
+        return _next_monthly(base_start, current_start)
+    if repeat == "yearly":
+        return _next_yearly(base_start, current_start)
+    return current_start + timedelta(days=1)
+
+
+def _ical_dt_to_iso(dt) -> str:
+    if hasattr(dt, 'isoformat'):
+        iso_str = dt.isoformat()
+        if not iso_str.endswith('Z') and '+' not in iso_str and '-' not in iso_str[-6:]:
+            iso_str += 'Z'
+        return iso_str
+    return str(dt)
+
+
+def _parse_steps_description(description) -> Optional[List[Dict[str, Any]]]:
+    if not description:
+        return None
+    try:
+        return json.loads(str(description))
+    except json.JSONDecodeError:
+        return None
+
+
+def _parse_x_priority(x_priority) -> Optional[int]:
+    if not x_priority:
+        return None
+    try:
+        return int(str(x_priority))
+    except (ValueError, TypeError):
+        return None
+
+
+def _occurrence_overlaps_range(
+    occurrence_start: datetime,
+    duration: timedelta,
+    repeat_end: Optional[datetime],
+    range_start: datetime,
+    range_end: datetime,
+) -> bool:
+    occurrence_end = occurrence_start + duration
+    if repeat_end and occurrence_end > repeat_end:
+        return False
+    return range_start < occurrence_end and range_end > occurrence_start
 
 
 class UIChainsStore:
@@ -30,6 +106,43 @@ class UIChainsStore:
     def load_shifts(self, chain_name: str) -> List[Dict[str, Any]]:
         if not chain_name:
             return []
+        shifts = self._read_shifts_from_disk(chain_name)
+        logger.debug("Loaded ui chains", extra={"chain": chain_name, "count": len(shifts)})
+        return self.recalculate_priorities(shifts)
+
+    def prune_expired_shifts(self, chain_name: str, now: Optional[datetime] = None) -> int:
+        if not chain_name:
+            return 0
+        shifts = self._read_shifts_from_disk(chain_name)
+        if not shifts:
+            return 0
+        retained, expired = self._partition_by_retention(shifts, now)
+        if not expired:
+            return 0
+        self._write_shifts(chain_name, retained)
+        logger.info(
+            "Pruned expired ui chain shifts",
+            extra={"chain": chain_name, "removed": len(expired)},
+        )
+        return len(expired)
+
+    def prune_all(self, now: Optional[datetime] = None) -> int:
+        if not os.path.exists(self.ui_chains_dir):
+            return 0
+        removed = 0
+        for filename in os.listdir(self.ui_chains_dir):
+            if not filename.endswith(".ics"):
+                continue
+            removed += self.prune_expired_shifts(filename[:-4], now)
+        return removed
+
+    def filter_retained_shifts(
+        self, shifts: List[Dict[str, Any]], now: Optional[datetime] = None
+    ) -> List[Dict[str, Any]]:
+        retained, _ = self._partition_by_retention(shifts, now)
+        return retained
+
+    def _read_shifts_from_disk(self, chain_name: str) -> List[Dict[str, Any]]:
         path = self._calendar_path(chain_name)
         if not os.path.exists(path):
             return []
@@ -44,12 +157,89 @@ class UIChainsStore:
                     shift = self._ical_event_to_chain(component)
                     if shift:
                         shifts.append(shift)
-
-            logger.debug("Loaded ui chains", extra={"chain": chain_name, "count": len(shifts)})
-            return self.recalculate_priorities(shifts)
+            return shifts
         except Exception as e:
             logger.error("Failed to load ui chains", extra={"error": str(e), "chain": chain_name})
             return []
+
+    def _write_shifts(self, chain_name: str, shifts: List[Dict[str, Any]]) -> bool:
+        path = self._calendar_path(chain_name)
+        try:
+            cal = Calendar()
+            cal.add("prodid", "-//IMPulse//impulse.calendar//EN")
+            cal.add("version", "2.0")
+            cal.add("calscale", "GREGORIAN")
+            cal.add("method", "PUBLISH")
+
+            for shift in shifts:
+                event = self._chain_to_ical_event(shift)
+                if event:
+                    cal.add_component(event)
+
+            with open(path, "wb") as f:
+                f.write(cal.to_ical())
+
+            logger.debug("Saved ui chains", extra={"chain": chain_name, "count": len(shifts)})
+            return True
+        except Exception as e:
+            logger.error("Failed to save ui chains", extra={"error": str(e), "chain": chain_name})
+            return False
+
+    def _retention_cutoff(self, now: datetime) -> datetime:
+        config = get_config()
+        retention = unix_sleep_to_timedelta(config.incident.timeouts.get("closed"))
+        return now - retention
+
+    def _partition_by_retention(
+        self, shifts: List[Dict[str, Any]], now: Optional[datetime] = None
+    ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+        now = now or datetime.now(timezone.utc)
+        if now.tzinfo is None:
+            now = now.replace(tzinfo=timezone.utc)
+        cutoff = self._retention_cutoff(now)
+        retained = []
+        expired = []
+        for shift in shifts:
+            if self._is_shift_expired(shift, cutoff):
+                expired.append(shift)
+            else:
+                retained.append(shift)
+        return retained, expired
+
+    def _is_shift_expired(self, shift: Dict[str, Any], cutoff: datetime) -> bool:
+        start = self._parse_datetime(shift.get("start"))
+        if start is None:
+            return True
+        effective_end = self._shift_effective_end(shift)
+        if effective_end is None:
+            return False
+        return effective_end < cutoff
+
+    def _shift_effective_end(self, shift: Dict[str, Any]) -> Optional[datetime]:
+        start = self._parse_datetime(shift.get("start"))
+        if start is None:
+            return None
+
+        end = self._parse_datetime(shift.get("end")) or (start + timedelta(days=1))
+        repeat = shift.get("repeat")
+        if not repeat:
+            return end
+
+        repeat_end = self._parse_datetime(shift.get("repeatEnd")) if shift.get("repeatEnd") else None
+        if repeat_end is None:
+            return None
+
+        duration = end - start
+        occurrence_start = start
+        occurrence_end = end
+        last_end = occurrence_end
+        while occurrence_start <= repeat_end:
+            if occurrence_end > repeat_end:
+                break
+            last_end = occurrence_end
+            occurrence_start = self._next_occurrence_start(start, occurrence_start, repeat)
+            occurrence_end = occurrence_start + duration
+        return last_end
 
     def get_steps_for_now(self, chain_name: str, now: Optional[datetime] = None) -> List[Dict[str, Any]]:
         shifts = self.load_shifts(chain_name)
@@ -75,28 +265,9 @@ class UIChainsStore:
     def save_shifts(self, chain_name: str, shifts: List[Dict[str, Any]]) -> bool:
         if not chain_name:
             return False
+        shifts = self.filter_retained_shifts(shifts)
         shifts = self.recalculate_priorities(shifts)
-        path = self._calendar_path(chain_name)
-        try:
-            cal = Calendar()
-            cal.add("prodid", "-//IMPulse//impulse.calendar//EN")
-            cal.add("version", "2.0")
-            cal.add("calscale", "GREGORIAN")
-            cal.add("method", "PUBLISH")
-
-            for shift in shifts:
-                event = self._chain_to_ical_event(shift)
-                if event:
-                    cal.add_component(event)
-
-            with open(path, "wb") as f:
-                f.write(cal.to_ical())
-
-            logger.debug("Saved ui chains", extra={"chain": chain_name, "count": len(shifts)})
-            return True
-        except Exception as e:
-            logger.error("Failed to save ui chains", extra={"error": str(e), "chain": chain_name})
-            return False
+        return self._write_shifts(chain_name, shifts)
 
     def _chain_to_ical_event(self, chain: Dict[str, Any]) -> Optional[Event]:
         try:
@@ -133,7 +304,6 @@ class UIChainsStore:
 
             steps = chain.get("steps")
             if steps:
-                import json
                 event.add("description", json.dumps(steps))
 
             priority = chain.get("priority")
@@ -162,24 +332,12 @@ class UIChainsStore:
             dtstart = event.get("dtstart")
             if dtstart:
                 dt = dtstart.dt if hasattr(dtstart, "dt") else dtstart
-                if hasattr(dt, 'isoformat'):
-                    iso_str = dt.isoformat()
-                    if not iso_str.endswith('Z') and '+' not in iso_str and '-' not in iso_str[-6:]:
-                        iso_str += 'Z'
-                    chain["start"] = iso_str
-                else:
-                    chain["start"] = str(dt)
+                chain["start"] = _ical_dt_to_iso(dt)
 
             dtend = event.get("dtend")
             if dtend:
                 dt = dtend.dt if hasattr(dtend, "dt") else dtend
-                if hasattr(dt, 'isoformat'):
-                    iso_str = dt.isoformat()
-                    if not iso_str.endswith('Z') and '+' not in iso_str and '-' not in iso_str[-6:]:
-                        iso_str += 'Z'
-                    chain["end"] = iso_str
-                else:
-                    chain["end"] = str(dt)
+                chain["end"] = _ical_dt_to_iso(dt)
             else:
                 chain["end"] = None
 
@@ -192,34 +350,12 @@ class UIChainsStore:
             x_repeat_end = event.get("x-repeat-end")
             if x_repeat_end:
                 dt = x_repeat_end.dt if hasattr(x_repeat_end, "dt") else x_repeat_end
-                if hasattr(dt, 'isoformat'):
-                    iso_str = dt.isoformat()
-                    if not iso_str.endswith('Z') and '+' not in iso_str and '-' not in iso_str[-6:]:
-                        iso_str += 'Z'
-                    chain["repeatEnd"] = iso_str
-                else:
-                    chain["repeatEnd"] = str(dt)
+                chain["repeatEnd"] = _ical_dt_to_iso(dt)
             else:
                 chain["repeatEnd"] = None
 
-            description = event.get("description")
-            if description:
-                import json
-                try:
-                    chain["steps"] = json.loads(str(description))
-                except json.JSONDecodeError:
-                    chain["steps"] = None
-            else:
-                chain["steps"] = None
-
-            x_priority = event.get("x-priority")
-            if x_priority:
-                try:
-                    chain["priority"] = int(str(x_priority))
-                except (ValueError, TypeError):
-                    chain["priority"] = None
-            else:
-                chain["priority"] = None
+            chain["steps"] = _parse_steps_description(event.get("description"))
+            chain["priority"] = _parse_x_priority(event.get("x-priority"))
 
             return chain
         except Exception as e:
@@ -265,23 +401,7 @@ class UIChainsStore:
 
     @staticmethod
     def _next_occurrence_start(base_start: datetime, current_start: datetime, repeat: str) -> datetime:
-        if repeat == "daily":
-            return current_start + timedelta(days=1)
-        if repeat == "weekly":
-            return current_start + timedelta(days=7)
-        if repeat == "monthly":
-            year = current_start.year + (1 if current_start.month == 12 else 0)
-            month = 1 if current_start.month == 12 else current_start.month + 1
-            day = min(base_start.day, [31, 29 if year % 4 == 0 and (year % 100 != 0 or year % 400 == 0) else 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1])
-            return current_start.replace(year=year, month=month, day=day)
-        if repeat == "yearly":
-            year = current_start.year + 1
-            day = base_start.day
-            month = base_start.month
-            if month == 2 and day == 29 and not (year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)):
-                day = 28
-            return current_start.replace(year=year, month=month, day=day)
-        return current_start + timedelta(days=1)
+        return _next_occurrence_start(base_start, current_start, repeat)
 
     def recalculate_priorities(self, chains: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         return [
@@ -334,26 +454,20 @@ class UIChainsStore:
         if repeat_end and chain_start >= repeat_end:
             return False
 
-        def occurrence_overlaps(occurrence_start: datetime) -> bool:
-            occurrence_end = occurrence_start + duration
-            if repeat_end and occurrence_end > repeat_end:
-                return False
-            return range_start < occurrence_end and range_end > occurrence_start
-
-        if occurrence_overlaps(chain_start):
+        if _occurrence_overlaps_range(chain_start, duration, repeat_end, range_start, range_end):
             return True
         current_start = chain_start
         max_occurrences = 520
         base_start = chain_start
         for _ in range(max_occurrences):
-            next_start = self._next_occurrence_start(base_start, current_start, repeat)
+            next_start = _next_occurrence_start(base_start, current_start, repeat)
             if repeat_end:
                 next_end = next_start + duration
                 if next_end > repeat_end:
                     break
             if next_start >= range_end:
                 break
-            if occurrence_overlaps(next_start):
+            if _occurrence_overlaps_range(next_start, duration, repeat_end, range_start, range_end):
                 return True
             current_start = next_start
         return False

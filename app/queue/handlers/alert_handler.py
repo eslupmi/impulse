@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from app.incident.incidents import Incidents
     from app.route.route import Route
     from app.inhibition.manager import InhibitionManager
+    from app.maintenance.manager import MaintenanceManager
 
 class AlertHandler(BaseHandler):
     """
@@ -25,13 +26,16 @@ class AlertHandler(BaseHandler):
     :param incidents: Incidents instance
     :param route: Route instance
     :param inhibition_manager: InhibitionManager instance for inhibition rule handling
+    :param maintenance_manager: MaintenanceManager instance for time-bounded maintenance windows
     """
-    __slots__ = ['route', 'inhibition_manager']
+    __slots__ = ['route', 'inhibition_manager', 'maintenance_manager']
 
-    def __init__(self, queue: 'AsyncQueue', application: 'Application', incidents: 'Incidents', route: 'Route', inhibition_manager: 'InhibitionManager'):
+    def __init__(self, queue: 'AsyncQueue', application: 'Application', incidents: 'Incidents', route: 'Route',
+                 inhibition_manager: 'InhibitionManager', maintenance_manager: 'MaintenanceManager'):
         super().__init__(queue, application, incidents)
         self.route = route
         self.inhibition_manager = inhibition_manager
+        self.maintenance_manager = maintenance_manager
 
     async def handle(self, alert_state):
         incident_ = self.incidents.get(alert=alert_state)
@@ -73,17 +77,25 @@ class AlertHandler(BaseHandler):
             version=config.INCIDENT_ACTUAL_VERSION
         )
 
-        # Check inhibition before creating thread in messenger
-        self.incidents.add(incident_)
+        will_match_maintenance = self.maintenance_manager.would_match_active_window(incident_)
         will_be_inhibited = self.inhibition_manager.would_be_inhibited(incident_)
 
-        await self.inhibition_manager.process_incident(incident_)
+        thread_id = await self._create_thread(incident_)
+        if thread_id is None:
+            logger.warning(
+                "Incident creation aborted: failed to create thread",
+                extra={'channel_id': incident_.channel_id, 'messenger': self.app.type.value},
+            )
+            return
 
-        # Always create thread, but with frozen state if inhibited
-        await self._create_thread(incident_)
+        self.incidents.add(incident_)
+        await self.inhibition_manager.process_incident(incident_)
+        await self.maintenance_manager.process_incident(incident_)
         incident_.dump()
 
-        if will_be_inhibited:
+        if will_match_maintenance:
+            logger.info("Incident created (maintenance)", extra={'uuid': incident_.uuid, 'link': incident_.link})
+        elif will_be_inhibited:
             logger.info("Incident created (inhibited)", extra={'uuid': incident_.uuid, 'link': incident_.link})
         else:
             logger.info("Incident created", extra={'uuid': incident_.uuid, 'link': incident_.link})
@@ -91,8 +103,7 @@ class AlertHandler(BaseHandler):
         await self.queue.put(status_update_datetime, QueueItemType.UPDATE_STATUS, incident_.uniq_id)
 
         incident_.generate_chain(self.app.chains, chain_name)
-        # Don't schedule chain steps if incident is inhibited
-        if not will_be_inhibited:
+        if not (will_be_inhibited or will_match_maintenance):
             await self.queue.recreate(status, incident_.uniq_id, incident_.chain, incident_.chain_active_seconds)
 
     async def _handle_update(self, uuid_, incident_, alert_state):
@@ -141,11 +152,12 @@ class AlertHandler(BaseHandler):
         return is_new_firing, is_some_resolved
 
     async def _handle_inhibition_state_change(self, incident_, prev_status):
-        """Handle inhibition manager updates based on status change."""
+        """Handle inhibition and maintenance manager updates based on status change."""
         if incident_.status == 'resolved':
             await self.inhibition_manager.handle_resolved(incident_)
         elif incident_.status == 'firing' and prev_status != 'firing':
             await self.inhibition_manager.process_incident(incident_)
+            await self.maintenance_manager.process_incident(incident_)
 
     async def _notify_new_fire_alert(self, incident_, new_alerts_f, new_alerts_r, uuid_):
         """
@@ -171,6 +183,8 @@ class AlertHandler(BaseHandler):
     async def _create_thread(self, incident_):
         body, header, status_icons = self.app.form_body_header_status_icons(incident_)
         thread_id = await self.app.create_incident_message(incident_, body, header, status_icons)
+        if not thread_id or thread_id == 'None/None':
+            return None
         incident_.ts = thread_id
         incident_.link = incident_.generate_link(self.app.public_url)
         return thread_id

@@ -1,5 +1,16 @@
 # Changelog
 
+## v3.6.0
+Changes:
+- UI update
+- Filters became editable
+- Added browser timezone for UI Chains and Maintenance
+- Added search for "assign to" field
+- Current user on top of "assign to" field
+- Removed "update: freeze" messages
+- First day of week in calendars based on `general.week_start`
+- Fix bug in reload
+
 ## v3.5.1
 Changes:
 - [Mattermost] Added workaround for links rendering bug on mobile

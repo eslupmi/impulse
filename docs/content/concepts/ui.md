@@ -4,7 +4,7 @@ The interface provides multi-level sorting, filtering, and data coloring capabil
 
 The interface uses WebSocket for communication on the `/ws` path. If you use a reverse proxy, don't forget to properly forward the traffic.
 
-![None](https://github.com/eslupmi/site/blob/main/static/ui.png?raw=true)
+![None](https://github.com/eslupmi/site/blob/main/static/preview-dark.png?raw=true)
 
 ## Elements
 
@@ -30,10 +30,12 @@ The footer can be divided into 3 parts:
 - in the center is a page switcher
 - on the right are 4 buttons :
 
-    - **ui chains** (when authenticated)
+    - **maintenance** (visible when authenticated)
+    - **ui chains** (visible when authenticated)
     - **theme switcher**
     - **archive** - for displaying historical data (incidents in [closed](incident.md#closed) status)
     - **login** (**logout**) (see [Authentication](../guides/authentication.md))
+    - **notifications icon** (visible when maintenance is active)
 
 ## Features
 

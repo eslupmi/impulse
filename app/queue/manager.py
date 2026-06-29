@@ -16,20 +16,41 @@ class AsyncQueueManager:
     AsyncQueueManager class is responsible for handling the queue items asynchronously.
     """
     
-    def __init__(self, queue, application, incidents, webhooks, route_, inhibition_manager):
+    def __init__(self, queue, application, incidents, webhooks, route_, inhibition_manager, maintenance_manager):
         self.queue = queue
         self.application = application
         self.incidents = incidents
         self.inhibition_manager = inhibition_manager
-        self.step_handler = StepHandler(self.queue, application, incidents, webhooks)
-        self.status_update_handler = StatusUpdateHandler(self.queue, application, incidents, inhibition_manager)
-        self.status_check_handler = StatusCheckHandler(self.queue, application, incidents, inhibition_manager)
-        self.message_update_handler = MessageUpdateHandler(self.queue, application, incidents)
-        self.alert_handler = AlertHandler(self.queue, application, incidents, route_, inhibition_manager)
-        self.unfreeze_handler = UnfreezeHandler(self.queue, application, incidents)
-        self.user_update_handler = UserUpdateHandler(self.queue, application, incidents)
+        self.maintenance_manager = maintenance_manager
+        self._init_handlers(application, webhooks, route_)
         self._running = False
         self._task = None
+
+    def _init_handlers(self, application, webhooks, route_):
+        self.step_handler = StepHandler(self.queue, application, self.incidents, webhooks)
+        self.status_update_handler = StatusUpdateHandler(
+            self.queue, application, self.incidents, self.inhibition_manager,
+        )
+        self.status_check_handler = StatusCheckHandler(
+            self.queue, application, self.incidents, self.inhibition_manager,
+        )
+        self.message_update_handler = MessageUpdateHandler(self.queue, application, self.incidents)
+        self.alert_handler = AlertHandler(
+            self.queue, application, self.incidents, route_,
+            self.inhibition_manager, self.maintenance_manager,
+        )
+        self.unfreeze_handler = UnfreezeHandler(
+            self.queue, application, self.incidents, self.maintenance_manager,
+        )
+        self.user_update_handler = UserUpdateHandler(self.queue, application, self.incidents)
+
+    def reload_runtime(self, application, webhooks, route_):
+        logger.info("Reloading queue runtime")
+        self.application = application
+        self.inhibition_manager.application = application
+        self.maintenance_manager.application = application
+        self._init_handlers(application, webhooks, route_)
+        logger.info("Queue runtime reloaded")
 
     async def handle_alert(self, alert_state: dict):
         await self.alert_handler.handle(alert_state)
@@ -46,8 +67,14 @@ class AsyncQueueManager:
     async def handle_step(self, uniq_id: str, identifier: str):
         await self.step_handler.handle(uniq_id, identifier)
 
-    async def handle_unfreeze(self, uniq_id: str):
-        await self.unfreeze_handler.handle(uniq_id)
+    async def handle_unfreeze(self, uniq_id: str, data: str):
+        await self.unfreeze_handler.handle(uniq_id, data)
+
+    async def handle_maintenance_start(self, window_id: str):
+        await self.maintenance_manager.handle_window_start(window_id)
+
+    async def handle_maintenance_end(self, window_id: str):
+        await self.maintenance_manager.handle_window_end(window_id)
 
     async def handle_user_update(self, user_id: str):
         await self.user_update_handler.handle(user_id)
@@ -69,7 +96,11 @@ class AsyncQueueManager:
             elif type_ == QueueItemType.ALERT:
                 await self.handle_alert(data)
             elif type_ == QueueItemType.UNFREEZE:
-                await self.handle_unfreeze(uniq_id)
+                await self.handle_unfreeze(uniq_id, data)
+            elif type_ == QueueItemType.MAINTENANCE_START:
+                await self.handle_maintenance_start(identifier)
+            elif type_ == QueueItemType.MAINTENANCE_END:
+                await self.handle_maintenance_end(identifier)
             elif type_ == QueueItemType.UPDATE_USER:
                 await self.handle_user_update(identifier)
         except Exception as e:
@@ -89,24 +120,22 @@ class AsyncQueueManager:
     async def stop_processing(self):
         if not self._running:
             return
-            
+
         self._running = False
-        if self._task:
-            self._task.cancel()
-            try:
-                await self._task
-            except asyncio.CancelledError:
-                # Expected when cancelling the task, suppress the exception
-                pass
+        if self._task is not None:
+            await self._task
+            self._task = None
         logger.info("Stopped queue")
 
     async def _process_queue_loop(self):
         while self._running:
             try:
                 await self.queue_handle_once()
-                await asyncio.sleep(0.1)
-            except asyncio.CancelledError:
-                break
             except Exception as e:
                 logger.error(f"Error in queue processing loop: {e}")
-                await asyncio.sleep(1)
+                if self._running:
+                    await asyncio.sleep(1)
+                continue
+            if not self._running:
+                break
+            await asyncio.sleep(0.1)

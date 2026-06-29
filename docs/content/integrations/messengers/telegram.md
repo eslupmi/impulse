@@ -7,12 +7,12 @@ In Telegram, although the configuration uses the term **channels**, they are act
 
 ## Authentication
 
-1. Use [https://&lt;your_domain&gt;/auth/callback](https://<your_domain>/auth/callback) as ENV `AUTH_REDIRECT_URL`[↰](../../envs.md)
+1. Use [https://&lt;impulse_domain&gt;/auth/callback](https://<impulse_domain>/auth/callback) as ENV `AUTH_REDIRECT_URL`[↰](../../envs.md)
 1. Open BotFather Mini App
-2. Select IMPulse bot -> Bot Settings
-3. In the **Web Login** section:
+2. Select IMPulse bot -> Login Widget
+3. In the **Login Widget** section:
     - press **Switch to OpenID Connect Login** button, **Confirm**
-    - press **Add an Allowed URL** button, **Add a Redirect URI**
+    - press in the **Redirect URIs** section, **Add a Redirect URI**
     - enter the same URI as in `AUTH_REDIRECT_URL` [↰](../../envs.md)
     - use "Client ID" as ENV `AUTH_CLIENT_ID`[↰](../../envs.md)
     - use "Client Secret" as ENV `AUTH_CLIENT_SECRET`[↰](../../envs.md)
@@ -47,3 +47,7 @@ Follow this [instruction](https://core.telegram.org/bots/features#creating-a-new
     - you can remove `@myidbot` afterwards
 
 8. Make sure the IMPulse bot has permission to interact with users. If you see the log warning <b>"user &lt;username&gt; not found in Telegram and will not be notified"</b> - ask the user `<username>` to send a message to the bot. This usually resolves the issue.
+
+## Get user ID
+
+Send command `/getid` to [myidbot](https://t.me/myidbot)

@@ -440,9 +440,8 @@ class TestTelegramApplication:
         """Test _send_create_thread method with HTTP interaction."""
         app = self.create_telegram_app(app_config, channels, users)
 
-        # Mock HTTP response
         mock_response = create_mock_http_response()
-        mock_response.json = AsyncMock(return_value={'result': {'message_id': 12345}})
+        mock_response.json = AsyncMock(return_value={'ok': True, 'result': {'message_id': 12345}})
         with patch.object(app.http, 'post', new=AsyncMock(return_value=mock_response)) as mock_post:
             result = await app._send_create_incident_message({'test': 'payload'})
 
@@ -450,18 +449,69 @@ class TestTelegramApplication:
             mock_post.assert_called_once()
 
     @pytest.mark.asyncio
+    async def test_send_create_thread_api_error_returns_none(self, app_config, channels, users):
+        """Test _send_create_incident_message returns None when Telegram API returns error."""
+        app = self.create_telegram_app(app_config, channels, users)
+
+        mock_response = create_mock_http_response(status_code=400)
+        mock_response.json = AsyncMock(return_value={'ok': False, 'description': 'Bad Request: chat not found'})
+        with patch.object(app.http, 'post', new=AsyncMock(return_value=mock_response)):
+            result = await app._send_create_incident_message({'chat_id': 'c1'})
+
+            assert result is None
+
+    @pytest.mark.asyncio
     async def test_create_topic_success(self, app_config, channels, users):
         """Test _create_topic method with successful HTTP response."""
         app = self.create_telegram_app(app_config, channels, users)
 
-        # Mock successful HTTP response
         mock_response = create_mock_http_response()
-        mock_response.json = AsyncMock(return_value={'result': {'message_thread_id': 67890}})
+        mock_response.json = AsyncMock(return_value={'ok': True, 'result': {'message_thread_id': 67890}})
         with patch.object(app.http, 'post', new=AsyncMock(return_value=mock_response)) as mock_post:
             result = await app._create_topic("test_channel", "test_header", "test_icon")
 
             assert result == 67890
             mock_post.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_create_topic_api_error_returns_none(self, app_config, channels, users):
+        """Test _create_topic returns None when Telegram API returns error response."""
+        app = self.create_telegram_app(app_config, channels, users)
+
+        mock_response = create_mock_http_response(status_code=400)
+        mock_response.json = AsyncMock(return_value={'ok': False, 'description': 'Forum topics disabled'})
+        with patch.object(app.http, 'post', new=AsyncMock(return_value=mock_response)):
+            result = await app._create_topic("test_channel", "test_header", "test_icon")
+
+            assert result is None
+
+    @pytest.mark.asyncio
+    async def test_create_incident_message_returns_none_on_topic_failure(self, app_config, channels, users):
+        """create_incident_message should return None if topic creation fails."""
+        app = self.create_telegram_app(app_config, channels, users)
+
+        incident = Mock()
+        incident.channel_id = 'c1'
+        with patch.object(app, '_create_topic', new=AsyncMock(return_value=None)), \
+             patch.object(app, '_send_create_incident_message', new=AsyncMock()) as mock_send:
+            result = await app.create_incident_message(incident, 'b', 'h', 's')
+
+            assert result is None
+            mock_send.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_create_incident_message_returns_none_on_message_failure(self, app_config, channels, users):
+        """create_incident_message should return None if message creation fails."""
+        app = self.create_telegram_app(app_config, channels, users)
+
+        incident = Mock()
+        incident.channel_id = 'c1'
+        with patch.object(app, '_create_topic', new=AsyncMock(return_value=67890)), \
+             patch.object(app, '_get_incident_message_payload', return_value={'chat_id': 'c1'}), \
+             patch.object(app, '_send_create_incident_message', new=AsyncMock(return_value=None)):
+            result = await app.create_incident_message(incident, 'b', 'h', 's')
+
+            assert result is None
 
     @pytest.mark.asyncio
     async def test_create_topic_error_handling(self, app_config, channels, users):

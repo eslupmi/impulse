@@ -15,11 +15,14 @@ from app.incident.incidents import Incidents
 from app.inhibition.manager import InhibitionManager
 from app.jinja_template import JinjaTemplate
 from app.logging import logger
+from app.maintenance.manager import MaintenanceManager
+from app.maintenance.store import get_maintenance_store
 from app.metrics import STATUS
 from app.queue.manager import AsyncQueueManager
 from app.queue.queue import AsyncQueue
 from app.route import generate_route
 from app.webhook import generate_webhooks
+from app.im.chain.ui_chains_store import ui_chains_store
 
 
 async def _initialize_primary_server(fastapi_app: FastAPI, file_lock: FileLock) -> bool:
@@ -60,7 +63,10 @@ async def create_main_objects(fastapi_app: FastAPI, reload=False):
     webhooks = generate_webhooks(webhooks_config)
 
     if reload:
+        user_scheduler = fastapi_app.state.messenger._user_scheduler
         fastapi_app.state.inhibition_manager.reload_rules(config_data.app.inhibit_rules)
+        messenger.configure_scheduler(user_scheduler)
+        fastapi_app.state.queue_manager.reload_runtime(messenger, webhooks, route)
     else:
         incidents = Incidents.create_or_load(messenger.type, messenger.public_url, messenger.team)
         JinjaTemplate.set_incidents(incidents)
@@ -72,15 +78,28 @@ async def create_main_objects(fastapi_app: FastAPI, reload=False):
             queue=queue
         )
         inhibition_manager.restore_from_incidents()
+        maintenance_manager = MaintenanceManager(
+            store=get_maintenance_store(),
+            incidents=incidents,
+            application=messenger,
+            queue=queue,
+        )
+        inhibition_manager.attach_maintenance_manager(maintenance_manager)
         user_scheduler = UserUpdateScheduler(queue, messenger.type.value)
         messenger.configure_scheduler(user_scheduler)
         await user_scheduler.schedule_all_stored()
-        queue_manager = AsyncQueueManager(queue, messenger, incidents, webhooks, route, inhibition_manager)
+        queue_manager = AsyncQueueManager(queue, messenger, incidents, webhooks, route, inhibition_manager, maintenance_manager)
+        await maintenance_manager.reconcile_all()
+        await maintenance_manager.schedule_window_starts()
+        await maintenance_manager.broadcast_active_maintenance()
+        ui_chains_store.prune_all()
+        get_maintenance_store().prune_expired_windows()
 
         fastapi_app.state.queue_manager = queue_manager
         fastapi_app.state.incidents = incidents
         fastapi_app.state.queue = queue
         fastapi_app.state.inhibition_manager = inhibition_manager
+        fastapi_app.state.maintenance_manager = maintenance_manager
 
     fastapi_app.state.messenger = messenger
     fastapi_app.state.webhooks = webhooks
@@ -127,6 +146,7 @@ async def lifespan(fastapi_app: FastAPI):
     fastapi_app.state.queue_manager = None
     fastapi_app.state.queue = AsyncQueue()
     fastapi_app.state.inhibition_manager = None
+    fastapi_app.state.maintenance_manager = None
 
     if is_standby:
         logger.info("Another IMPulse instance is running, working as standby server")

@@ -28,26 +28,21 @@ jobs:
       contents: read
       packages: write
     steps:
-
     - name: Checkout repository
       uses: actions/checkout@v5
-
     - name: Log in to the Container registry
       uses: docker/login-action@v4
       with:
         registry: ${{ env.REGISTRY }}
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
-
     - name: Extract metadata (tags, labels) for Docker
       id: meta
       uses: docker/metadata-action@v6
       with:
         images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-
     - name: Build Docker image
       run: docker build .
-
     - name: Build and push Docker image
       uses: docker/build-push-action@v7
       with:
@@ -55,6 +50,16 @@ jobs:
         push: true
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
+
+  cleanup-untagged-images:
+    needs: build-and-push-image
+    runs-on: ubuntu-24.04
+    permissions:
+      packages: write
+    steps:
+      - uses: dataaxiom/ghcr-cleanup-action@v1
+        with:
+          dry-run: false
 
   autotests:
     needs: build-and-push-image

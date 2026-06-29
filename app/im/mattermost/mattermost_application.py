@@ -16,12 +16,31 @@ class MattermostApplication(Application):
     def __init__(self, app_config: ApplicationConfig, channels, default_channel):
         super().__init__(app_config, channels, default_channel)
 
+    async def _dispatch_button_action(self, incident_, payload, user_id, incidents, queue_, user_tz):
+        context = payload.get('context', {})
+        action = context.get('action')
+        if action == 'chain':
+            return await self._handle_chain_action(incident_, user_id, queue_, payload)
+        if action == 'task':
+            self._handle_task_action(incident_, user_id, queue_)
+            return None
+        if action == 'unfreeze' and incident_.can_manual_unfreeze():
+            await self._handle_unfreeze_action(incident_, user_id, queue_)
+            return None
+        selected_option = context.get('selected_option')
+        if selected_option and selected_option.startswith('freeze_'):
+            freeze_option = selected_option.replace('freeze_', '')
+            await self._handle_freeze_action(
+                incident_, freeze_option, user_id, incidents, queue_, user_timezone=user_tz
+            )
+        return None
+
     async def buttons_handler(self, payload, incidents, queue_, route):
         post_id = payload['post_id']
         incident_ = incidents.get_by_ts(ts=post_id)
         if incident_ is None:
             return JSONResponse(payload, status_code=200)
-        
+
         context = payload.get('context', {})
         user_id = payload.get('user_id')
         action = context.get('action')
@@ -30,19 +49,9 @@ class MattermostApplication(Application):
         if incident_.is_frozen() and (incident_.frozen_by_inhibition or not action == 'unfreeze'):
             logger.debug('Incident frozen, blocking actions', extra={'uuid': incident_.uuid})
         else:
-            if action == 'chain':
-                early_return = await self._handle_chain_action(incident_, user_id, queue_, payload)
-                if early_return is not None:
-                    return early_return
-            elif action == 'task':
-                self._handle_task_action(incident_, user_id, queue_)
-            elif action == 'unfreeze':
-                await self._handle_unfreeze_action(incident_, user_id, queue_)
-            else:
-                selected_option = context.get('selected_option')
-                if selected_option and selected_option.startswith('freeze_'):
-                    freeze_option = selected_option.replace('freeze_', '')
-                    await self._handle_freeze_action(incident_, freeze_option, user_id, incidents, queue_, user_timezone=user_tz)
+            early_return = await self._dispatch_button_action(incident_, payload, user_id, incidents, queue_, user_tz)
+            if early_return is not None:
+                return early_return
         return self._build_button_response(incident_, user_tz)
 
     def create_user(self, name, user_details):

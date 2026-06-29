@@ -109,7 +109,7 @@ img {
 [data-md-color-scheme="slate"] .md-typeset pre,
 [data-md-color-scheme="slate"] .md-typeset .highlight > pre,
 [data-md-color-scheme="slate"] .md-typeset .highlighttable {
-    background: #1e293b;
+    background: #171a1e;
     border: 1px solid #7c8da3;
     border-radius: 4px;
     color: #f8fafc;
@@ -120,4 +120,14 @@ img {
     background: transparent;
     border: 0;
     color: #f8fafc;
+}
+
+[data-md-color-scheme="default"] .md-typeset .admonition.note,
+[data-md-color-scheme="default"] .md-typeset details.note {
+    border-color: #b8c2cc;
+}
+
+[data-md-color-scheme="slate"] .md-typeset .admonition.note,
+[data-md-color-scheme="slate"] .md-typeset details.note {
+    border-color: #7c8da3;
 }

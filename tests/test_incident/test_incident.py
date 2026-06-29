@@ -793,13 +793,12 @@ class TestIncidentInhibitionFields:
         """Test that serialize includes inhibition-related fields."""
         mock_channel_manager.return_value.get_channel_name_by_id.return_value = "test-channel"
         
-        sample_incident.frozen_by_inhibition = True
         sample_incident.childs = ["child-1", "child-2"]
         sample_incident.parents = ["parent-1"]
 
         result = sample_incident.serialize()
 
-        assert 'frozen_by_inhibition' in result
+        assert result['is_frozen'] is True
         assert result['frozen_by_inhibition'] is True
         assert 'childs' in result
         assert result['childs'] == ["child-1", "child-2"]
@@ -814,24 +813,22 @@ class TestIncidentInhibitionFields:
         self, mock_yaml_dump, mock_file_open, mock_get_config, mock_get_env_config, 
         sample_incident, mock_unified_config, mock_environment_config
     ):
-        """Test that dump includes inhibition-related fields in YAML."""
+        """Test that dump persists parents but not derived freeze flags."""
         mock_get_config.return_value = mock_unified_config
         mock_get_env_config.return_value = mock_environment_config
         mock_environment_config.incidents_path = "/test/incidents"
         
-        sample_incident.frozen_by_inhibition = True
         sample_incident.childs = ["child-1"]
         sample_incident.parents = ["parent-1", "parent-2"]
 
         with patch('app.incident.incident.incident_ws'):
             sample_incident.dump()
 
-        # Check that yaml.dump was called with data containing inhibition fields
         call_args = mock_yaml_dump.call_args
         dumped_data = call_args[0][0]
         
-        assert 'frozen_by_inhibition' in dumped_data
-        assert dumped_data['frozen_by_inhibition'] is True
+        assert 'frozen_by_inhibition' not in dumped_data
+        assert 'frozen_by_maintenance' not in dumped_data
         assert 'childs' in dumped_data
         assert dumped_data['childs'] == ["child-1"]
         assert 'parents' in dumped_data
@@ -844,11 +841,10 @@ class TestIncidentInhibitionFields:
         self, mock_yaml_load, mock_file_open, mock_get_config, 
         incident_config, mock_unified_config
     ):
-        """Test that load properly reads inhibition-related fields."""
+        """Test that load derives freeze flags from parents."""
         mock_get_config.return_value = mock_unified_config
 
         mock_incident_data = create_mock_incident_data()
-        mock_incident_data['frozen_by_inhibition'] = True
         mock_incident_data['childs'] = ["child-1", "child-2"]
         mock_incident_data['parents'] = ["parent-1"]
         mock_yaml_load.return_value = mock_incident_data
@@ -856,6 +852,8 @@ class TestIncidentInhibitionFields:
         incident = Incident.load('/test/incident.yml', incident_config)
 
         assert incident.frozen_by_inhibition is True
+        assert incident.frozen_by_maintenance is False
+        assert incident.is_frozen() is True
         assert incident.childs == ["child-1", "child-2"]
         assert incident.parents == ["parent-1"]
 
@@ -878,12 +876,14 @@ class TestIncidentInhibitionFields:
 
         # Should use defaults
         assert incident.frozen_by_inhibition is False
+        assert incident.frozen_by_maintenance is False
         assert incident.childs == []
         assert incident.parents == []
 
     def test_default_inhibition_field_values(self, sample_incident):
         """Test that inhibition fields have correct default values."""
         assert sample_incident.frozen_by_inhibition is False
+        assert sample_incident.frozen_by_maintenance is False
         assert sample_incident.childs == []
         assert sample_incident.parents == []
         # Ensure they are mutable lists, not shared references

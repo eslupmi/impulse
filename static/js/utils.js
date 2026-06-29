@@ -22,5 +22,21 @@ function getBaseUrl() {
     return pathSegments.length > 0 ? '/' + pathSegments.join('/') : '';
 }
 
+function parseWeekStart(weekStart) {
+    const weekStartMap = {
+        'Mon': 1, '1': 1,
+        'Tue': 2, '2': 2,
+        'Wed': 3, '3': 3,
+        'Thu': 4, '4': 4,
+        'Fri': 5, '5': 5,
+        'Sat': 6, '6': 6,
+        'Sun': 0, '0': 0, '7': 0
+    };
+    if (!(weekStart in weekStartMap)) {
+        throw new Error(`Invalid week_start: ${weekStart}`);
+    }
+    return weekStartMap[weekStart];
+}
+
 // Export for use in other modules
-export { getBaseUrl };
+export { getBaseUrl, parseWeekStart };

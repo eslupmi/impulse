@@ -11,7 +11,7 @@ venv*
 
 .env
 .coverage
-/impulse*.yml
+/impulse*.yml*
 /data
 docker-compose.yml
 /htmlcov

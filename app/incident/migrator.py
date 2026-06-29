@@ -5,6 +5,7 @@ from typing import Dict, List
 import yaml
 
 from app.config.config import get_config
+from app.incident.freeze import FreezeSource
 from app.incident.incident import Incident
 from app.logging import logger
 from app.tools import NoAliasDumper
@@ -23,6 +24,7 @@ class IncidentMigrator:
         'v0.4': 'v3.0.0',
         'v3.0.0': 'v3.2.0',
         'v3.2.0': 'v3.4.0',
+        'v3.4.0': 'v3.6.0',
     }
     
     def __init__(self):
@@ -33,6 +35,7 @@ class IncidentMigrator:
             'v0.4_to_v3.0.0': self._migrate_v0_4_to_v3_0_0,
             'v3.0.0_to_v3.2.0': self._migrate_v3_0_0_to_v3_2_0,
             'v3.2.0_to_v3.4.0': self._migrate_v3_2_0_to_v3_4_0,
+            'v3.4.0_to_v3.6.0': self._migrate_v3_4_0_to_v3_6_0,
         }
     
     def migrate_file(self, file_path: str, incident_data: Dict, current_version: str, target_version: str):
@@ -194,4 +197,14 @@ class IncidentMigrator:
         else:
             migrated.setdefault('chain_active_seconds', 0.0)
 
+        return migrated
+
+    @staticmethod
+    def _migrate_v3_4_0_to_v3_6_0(data: Dict) -> Dict:
+        """Add frozen_until_source for source-aware time freeze ownership."""
+        migrated = data.copy()
+        if migrated.get('frozen_until') is not None and migrated.get('frozen_until_source') is None:
+            migrated['frozen_until_source'] = FreezeSource.TIME.value
+        else:
+            migrated.setdefault('frozen_until_source', None)
         return migrated

@@ -29,6 +29,18 @@
     {{ k }}=<code>{{ v }}</code>
 {%- endfor -%}
 {% endif -%}
+{%- set parent_incidents = incident.parents | reject("equalto", "maintenance") | list -%}
+{%- if parent_incidents | length > 0 %}
+
+<b>Parent incidents:</b>
+{%- for parent_id in parent_incidents %}
+{%- if parent_id in incidents.uniq_ids %}
+    <a href="{{ incidents.uniq_ids[parent_id].link }}">{{ incidents.uniq_ids[parent_id].payload.commonLabels.alertname }}</a>
+{%- else %}
+    {{ parent_id }}
+{%- endif %}
+{%- endfor -%}
+{% endif -%}
 {%- if incident.childs | length > 0 %}
 
 <b>Inhibited incidents:</b>

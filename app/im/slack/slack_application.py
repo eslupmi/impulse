@@ -172,7 +172,7 @@ class SlackApplication(Application):
 
     async def _handle_freeze_button(self, action, incident_, user_id, incidents, queue_, tz_str):
         """Handle freeze button action"""
-        if incident_.frozen_until is not None:
+        if incident_.can_manual_unfreeze():
             await self._handle_unfreeze_action(incident_, user_id, queue_)
             return
         

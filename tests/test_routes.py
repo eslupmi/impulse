@@ -6,21 +6,31 @@ from fastapi.testclient import TestClient
 from app.routes import create_router
 
 
+def _mock_messenger(**overrides):
+    messenger = Mock()
+    messenger.type = Mock()
+    messenger.type.value = "slack"
+    for key, value in overrides.items():
+        setattr(messenger, key, value)
+    return messenger
+
+
 def test_chains_config_uses_assignable_users_for_ui_chains():
     app = FastAPI()
 
-    messenger = Mock()
-    messenger.users = Mock()
+    messenger = _mock_messenger(
+        users=Mock(),
+        user_groups={"ops": Mock()},
+        groups={"team-a": Mock()},
+        chains={
+            "primary": {"type": "ui"},
+            "secondary": {"type": "direct"},
+        },
+    )
     messenger.users.get_assignable_users.return_value = [
         {"user_id": "U1", "full_name": "User One", "config_name": "user.one"},
         {"user_id": "U2", "full_name": "User Two", "config_name": ""},
     ]
-    messenger.user_groups = {"ops": Mock()}
-    messenger.groups = {"team-a": Mock()}
-    messenger.chains = {
-        "primary": {"type": "ui"},
-        "secondary": {"type": "direct"},
-    }
 
     config = Mock()
     config.app = Mock()
@@ -52,6 +62,8 @@ def test_chains_config_uses_assignable_users_for_ui_chains():
         "webhooks": ["notify"],
         "week_start": "Sun",
         "timezone": "Europe/Berlin",
+        "messenger_type": "slack",
+        "user_timezone": None,
         "ui_chains": ["primary"],
     }
     messenger.users.get_assignable_users.assert_called_once_with()
@@ -60,16 +72,17 @@ def test_chains_config_uses_assignable_users_for_ui_chains():
 def test_chains_config_uses_runtime_messenger_not_raw_config():
     app = FastAPI()
 
-    runtime_messenger = Mock()
-    runtime_messenger.users = Mock()
+    runtime_messenger = _mock_messenger(
+        users=Mock(),
+        user_groups={"ops": Mock()},
+        groups={"team-a": Mock()},
+        chains={
+            "primary": {"type": "ui"},
+        },
+    )
     runtime_messenger.users.get_assignable_users.return_value = [
         {"user_id": "U1", "full_name": "User One", "config_name": "user.one"},
     ]
-    runtime_messenger.user_groups = {"ops": Mock()}
-    runtime_messenger.groups = {"team-a": Mock()}
-    runtime_messenger.chains = {
-        "primary": {"type": "ui"},
-    }
 
     raw_config_messenger = Mock()
     raw_config_messenger.users = {}
@@ -108,14 +121,15 @@ def test_chains_config_uses_runtime_messenger_not_raw_config():
 def test_chains_config_keeps_ui_chains_from_raw_config_when_runtime_chains_exclude_them():
     app = FastAPI()
 
-    runtime_messenger = Mock()
-    runtime_messenger.users = Mock()
+    runtime_messenger = _mock_messenger(
+        users=Mock(),
+        user_groups={},
+        groups={},
+        chains={
+            "primary": Mock(),
+        },
+    )
     runtime_messenger.users.get_assignable_users.return_value = []
-    runtime_messenger.user_groups = {}
-    runtime_messenger.groups = {}
-    runtime_messenger.chains = {
-        "primary": Mock(),
-    }
 
     raw_config_messenger = Mock()
     raw_config_messenger.chains = {

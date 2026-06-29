@@ -73,9 +73,13 @@ class TelegramApplication(Application):
 
     async def create_incident_message(self, incident, body, header, status_icons):
         topic_id = await self._create_topic(incident.channel_id, header, status_icons)
+        if topic_id is None:
+            return None
         payload = self._get_incident_message_payload(incident, body, header, status_icons)
         payload['message_thread_id'] = topic_id
         message_id = await self._send_create_incident_message(payload)
+        if message_id is None:
+            return None
         return f'{topic_id}/{message_id}'
 
     def create_group(self, config_name, group_details):
@@ -186,12 +190,18 @@ class TelegramApplication(Application):
             else:
                 chain_button = buttons['chain']['assigned']
 
-        if incident.frozen_by_inhibition:
+        if incident.frozen_by_maintenance:
+            freeze_button = {'text': 'Maintenance', 'callback_data': 'noop'}
+        elif incident.frozen_by_inhibition:
             freeze_button = buttons['freeze']['inhibited']
-        elif incident.frozen_until:
+        elif incident.can_manual_unfreeze():
             telegram_tz = config_obj.app.general.timezone
             freeze_text = format_freeze_expiration(incident.frozen_until, telegram_tz)
             freeze_button = {'text': freeze_text, 'callback_data': 'freeze_menu'}
+        elif incident.frozen_until:
+            telegram_tz = config_obj.app.general.timezone
+            freeze_text = format_freeze_expiration(incident.frozen_until, telegram_tz)
+            freeze_button = {'text': freeze_text, 'callback_data': 'noop'}
         else:
             freeze_button = buttons['freeze']['inactive']
         
@@ -214,8 +224,19 @@ class TelegramApplication(Application):
                 json=payload,
                 headers=self.headers
             )
+            status = response.status
             response_json = await response.json()
             response.close()
+            if status != 200 or response_json.get('ok') is not True:
+                logger.error(
+                    "Telegram topic creation failed",
+                    extra={
+                        'channel_id': channel_id,
+                        'status': status,
+                        'description': response_json.get('description'),
+                    },
+                )
+                return None
             return response_json.get('result', {}).get('message_thread_id')
         except aiohttp.ClientError as e:
             logger.error("Topic creation failed", extra={'error': str(e)})
@@ -233,7 +254,12 @@ class TelegramApplication(Application):
 
         keyboard_row = []
         if incident.status != 'closed':
-            freeze_button = buttons['freeze']['inhibited'] if incident.frozen_by_inhibition else buttons['freeze']['inactive']
+            if incident.frozen_by_maintenance:
+                freeze_button = {'text': 'Maintenance', 'callback_data': 'noop'}
+            elif incident.frozen_by_inhibition:
+                freeze_button = buttons['freeze']['inhibited']
+            else:
+                freeze_button = buttons['freeze']['inactive']
             keyboard_row = [
                 buttons['chain']['takeit'],
                 freeze_button
@@ -278,7 +304,7 @@ class TelegramApplication(Application):
 
     async def _handle_freeze_actions(self, action, incident_, user_id, incidents, queue_, callback):
         if action == 'freeze_menu':
-            if incident_.is_frozen():
+            if incident_.can_manual_unfreeze():
                 await self._handle_unfreeze_action(incident_, user_id, queue_)
             else:
                 return await self._show_freeze_menu(incident_, callback)
@@ -323,8 +349,19 @@ class TelegramApplication(Application):
     async def _send_create_incident_message(self, payload):
         logger.debug('Create incident message')
         response = await self.http.post(self.post_message_url, headers=self.headers, json=payload)
+        status = response.status
         response_json = await response.json()
         response.close()
+        if status != 200 or response_json.get('ok') is not True:
+            logger.error(
+                "Telegram incident message creation failed",
+                extra={
+                    'channel_id': payload.get('chat_id'),
+                    'status': status,
+                    'description': response_json.get('description'),
+                },
+            )
+            return None
         return response_json.get('result', {}).get(self.thread_id_key)
 
     async def _setup_webhook(self):

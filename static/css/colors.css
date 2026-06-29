@@ -1,181 +1,183 @@
 /* Base theme (light) */
 :root {
-    /* Brand Colors */
-    --brand-primary: #4A90E2;
-    --brand-primary-light: #C3E6F8;
-    --brand-primary-dark: #357ABD;
-    --brand-secondary: #38ADE6;
-    --brand-secondary-light: #C3E6F7;
-    --brand-secondary-dark: #0B232E;
+    --brand-primary: #3293C3;
+    --brand-secondary: #3293C3;
+    --btn-primary-bg: #3D94E9;
 
-    /* Neutral Colors */
-    --neutral-100: #FFFFFF;
-    --neutral-200: #F2F4F7;
-    --neutral-300: #EBF7FC;
-    --neutral-400: #D0D5DD;
-    --neutral-500: #BCC0C7;
-    --neutral-600: #98A2B3;
-    --neutral-700: #667085;
-    --neutral-800: #475467;
-    --neutral-900: #344054;
-    --neutral-1000: #061117;
+    /* Main Colors */
+    --hover-fg: #3293C3;
+    --pressed-fg: #22688A;
 
-    /* Semantic Colors */
-    --text-primary: var(--neutral-1000);
-    --text-secondary: var(--neutral-700);
-    --text-inverse: var(--neutral-100);
-    
-    --background-primary: var(--neutral-100);
-    --background-secondary: var(--brand-primary-light);
-    --background-tertiary: var(--neutral-200);
-    
-    --border-primary: var(--brand-secondary-light);
-    --border-secondary: var(--neutral-500);
-    
-    --link-primary: var(--brand-secondary);
-    --link-hover: var(--brand-primary-dark);
-    
-    /* Interactive States */
-    --hover-primary: var(--brand-primary-dark);
-    
-    /* Status Colors */
-    --status-error: #FF4444;
+    --bg-primary: #FFFFFF;
+    --bg-header: #E8E9EA;
+    --input-bg: #F2F2F2;
+    --border-primary: #CFCFCF;
+    --border-secondary: #B0B5C0;
+    --button-bg: #F2F2F2;
+    --link-hover: #38ADE6;
+    --link-primary: #070708;
+    --scrollbar-thumb-hover: #475467;
+    --scrollbar-thumb: #667085;
+    --scrollbar-color: #667085 transparent;
+    --fg-inverse: #F2F7FF;
+    --fg-primary: #344054;
 
-    /* Status Badge Colors */
-    --status-badge-firing: #F04438;
-    --status-badge-resolved: #56C15E;
-    --status-badge-unknown: #C1A300;
+    /* Header Colors */
+    --filter-badge-close-hover: #357ABD;
+    --filter-badge-fg: #061117;
+    --filter-badge: #061117;
+    --header-fg: #344054;
+    --search-icon-color: #252E33;
+    --filter-scroll-arrow-bg: #F2F2F2;
+
+    /* Table Colors */
+    --user-selector-border: #B0B5C0;
+    --incident-opened: #F5F5F5;
+    --action-btn-hover-bg: #F2F7FF;
+    --alerts-count-circle-color: #B0B5C0;
+    --alerts-count-circle-text: #252E33;
+    --user-selector-fg: #252E33;
+    --alerts-count-fg: #EDEFF2;
+    --annotation-border: #475467;
+    --annotation-fg: #1D2939;
+    --incident-content-border-color: #CFCFCF;
+    --info-block-bg: #EAEAEA;
+    --label-bg: #CFCFCF;
+    --label-highlighted-bg: #1D2939;
+    --label-highlighted-fg: #F2F7FF;
+    --label-fg: #11161C;
     --status-badge-closed: #969696;
-    --status-badge-frozen: #38ade6;
-    
-    /* Theme Icon Colors */
-    --theme-icon-color: #22688A;
+    --status-badge-firing: #EF5247;
+    --status-badge-frozen: #38ADE6;
+    --status-badge-resolved: #23C040;
+    --status-badge-unknown: #D9CD4A;
+    --status-error: #FF4444;
+    --table-border: #CFCFCF;
+    --table-header-bg: #E8E9EA;
+    --table-row-hover: #E4E7EC;
+    --scrollbar-track-bg: #F2F2F2;
+    --popup-bg: #F2F2F2;
+    --tooltip-bg: #22688A;
 
-    /* Online Status Colors */
-    --online-status-indicator: var(--theme-icon-color);
+    /* Footer Colors */
+    --auth-button-bg: #E8E9EA;
+    --footer-fg: #252E33;
+    --footer-bg: #E8E9EA;
+    --login-button-color: #3293C3;
     --offline-status-indicator: #F04438;
+    --online-status-indicator: #22688A;
+    --theme-icon-color: #252E33;
 
-    --info-block-background: #E4E7EC;
-    
-    /* Search Icon Colors */
-    --search-icon-color: #38ADE6;
-    
-    /* Component-specific Colors */
-    --header-background: var(--brand-primary-light);
-    --header-text: var(--neutral-1000);
-    
-    --table-background: var(--neutral-100);
-    --table-row-hover: var(--neutral-200);
-    --table-border: var(--border-primary);
-    
-    --filter-badge: var(--brand-secondary-dark);
-    --filter-badge-hover: var(--brand-primary-dark);
-    --filter-badge-text: var(--neutral-1000);
-    --filter-badge-close-hover: var(--brand-primary-dark);
-    
-    --alerts-count-background: var(--theme-icon-color);
-    --alerts-count-text: var(--neutral-300);
-    --alerts-count-circle-color: var(--theme-icon-color);
-    
-    --label-background: var(--neutral-400);
-    --label-text: var(--neutral-900);
-    --label-highlighted-background: var(--neutral-800);
-    --label-highlighted-text: var(--neutral-100);
-    
-    --annotation-border: var(--neutral-600);
-    --annotation-text: var(--neutral-800);
-    --tooltip-background: var(--alerts-count-background);
- 
-    --footer-text: #606060;
+    /* Calendar Colors */
+    --chains-window-bg: #F2F2F2;
+    --chains-window-border: #CFCFCF;
+    --calendar-table-bg: #FFFFFF;
+    --calendar-table-border: #CFCFCF;
+    --calendar-today-bg: #FFFFFF;
+    --calendar-today-fg: #3293C3;
+    --calendar-week-bg: #E0E0E0;
+    --calendar-timegrid-bg: #F2F2F2;
+    --calendar-scrollbar-thumb: #3293C3;
+    --calendar-scrollbar-color: #3293C3 var(--calendar-timegrid-bg);
+    --calendar-weeknumber-fg: #3293C3;
+    --select-option-fg: #3293C3;
+    --select-option-bg: #F2F2F2;
+    --menu-option-active-bg: #F2F2F2;
+    --icon-button-bg: #F2F2F2;
+    --calendar-shift-bg: #CFCFCF;
+    --calendar-event-border: #3293C3;
+    --calendar-event-bg-primary: #F2F2F2;
+    --calendar-event-bg-secondary: #CFCFCF;
 }
 
 /* Dark theme */
 [data-theme="dark"] {
-    /* Brand Colors - slightly adjusted for dark theme */
-    --brand-primary: #5A9FE2;
-    --brand-primary-light: #113445;
-    --brand-primary-dark: #4A8FD2;
+    --brand-primary: #38ADE6;
     --brand-secondary: #48BDE6;
-    --brand-secondary-light: #16455C;
-    --brand-secondary-dark: #22688A;
+    --btn-primary-bg: #357ABD;
 
-    /* Neutral Colors - inverted and adjusted for dark theme */
-    --neutral-100: #061117;
-    --neutral-200: #131B1F;
-    --neutral-300: #344054;
-    --neutral-400: #2D2D2D;
-    --neutral-500: #333B40;
-    --neutral-600: #6D6D6D;
-    --neutral-700: #98A2B3;
-    --neutral-800: #EBF7FC;
-    --neutral-900: #F2F4F7;
-    --neutral-1000: #FFFFFF;
+    /* Main Colors */
+    --hover-fg: #38ADE6;
+    --pressed-fg: #357ABD;
 
-    /* Semantic Colors */
-    --text-primary: var(--neutral-800);
-    --text-secondary: var(--neutral-700);
-    --text-inverse: var(--neutral-100);
+    --bg-primary: #0B0B0B;
+    --bg-header: #161A1C;
+    --input-bg: #161A1C;
+    --border-primary: #333B40;
+    --border-secondary: #98A2B3;
+    --button-bg: #161A1C;
+    --link-hover: #357ABD;
+    --link-primary: #38ADE6;
+    --scrollbar-thumb-hover: #38ADE6;
+    --scrollbar-thumb: #98A2B3;
+    --scrollbar-color: #98A2B3 transparent;
+    --fg-inverse: #1D2939;
+    --fg-primary: #DFE0E2;
 
-    --background-primary: var(--neutral-100);
-    --background-secondary: var(--brand-primary-light);
-    --background-tertiary: var(--neutral-100);
+    /* Header Colors */
+    --filter-badge-close-hover: #EBF7FC;
+    --filter-badge-fg: #EBF7FC;
+    --filter-badge: #EBF7FC;
+    --header-fg: #DFE0E2;
+    --search-icon-color: #EBF7FC;
+    --filter-scroll-arrow-bg: #161A1C;
 
-    --border-primary: var(--brand-secondary-light);
-    --border-secondary: var(--neutral-500);
-
-    --link-primary: var(--brand-secondary);
-    --link-hover: var(--brand-primary-dark);
-
-    /* Interactive States */
-    --hover-primary: var(--brand-primary-dark);
-
-    /* Status Colors */
-    --status-error: #FF6666;
-
-    /* Status Badge Colors */
-    --status-badge-firing: #D14035;
-    --status-badge-resolved: #56C15E;
-    --status-badge-unknown: #C1A300;
+    /* Table Colors */
+    --user-selector-border: #555555;
+    --incident-opened: #1C1F20;
+    --action-btn-hover-bg: #1D2939;
+    --alerts-count-circle-color: #555555;
+    --alerts-count-circle-text: #DFE0E2;
+    --user-selector-fg: #DFE0E2;
+    --alerts-count-fg: #EBF7FC;
+    --annotation-border: #344054;
+    --annotation-fg: #EBF7FC;
+    --incident-content-border-color: #333B40;
+    --info-block-bg: #0A0B0B;
+    --label-bg: #42444B;
+    --label-highlighted-bg: #EBF7FC;
+    --label-highlighted-fg: #1D2939;
+    --label-fg: #EBF7FC;
     --status-badge-closed: #969696;
-    --status-badge-frozen: #38ade6;
+    --status-badge-firing: #E43F32;
+    --status-badge-frozen: #38ADE6;
+    --status-badge-resolved: #37C177;
+    --status-badge-unknown: #ADA014;
+    --status-error: #FF6666;
+    --table-border: #2E2E2F;
+    --table-header-bg: #161A1C;
+    --table-row-hover: #344054;
+    --scrollbar-track-bg: #161A1C;
+    --popup-bg: #161A1C;
+    --tooltip-bg: #EBF7FC;
 
-    /* Online Status Colors */
-    --online-status-indicator: #38ADE6;
+    /* Footer Colors */
+    --auth-button-bg: #161A1C;
+    --footer-fg: #DFE0E2;
+    --footer-bg: #161A1C;
+    --login-button-color: #38ADE6;
     --offline-status-indicator: #D14035;
-
-    --info-block-background: var(--neutral-200);
-
-    /* Theme Icon Colors */
+    --online-status-indicator: #38ADE6;
     --theme-icon-color: #EBF7FC;
 
-    /* Search Icon Colors */
-    --search-icon-color: #EBF7FC;
-
-    /* Component-specific Colors */
-    --header-background: var(--brand-primary-light);
-    --header-text: var(--neutral-800);
-
-    --table-background: var(--neutral-100);
-    --table-row-hover: var(--neutral-200);
-    --table-border: var(--border-primary);
-
-    --filter-badge: var(--brand-secondary-dark);
-    --filter-badge-hover: var(--brand-primary-dark);
-    --filter-badge-text: var(--neutral-1000);
-    --filter-badge-close-hover: var(--brand-secondary-dark);
-
-    --alerts-count-background: var(--neutral-800);
-    --alerts-count-text: var(--neutral-800);
-    --alerts-count-circle-color: var(--alerts-count-text);
-
-    --label-background: var(--neutral-300);
-    --label-text: var(--neutral-800);
-    --label-highlighted-background: var(--neutral-700);
-    --label-highlighted-text: var(--neutral-100);
-
-    --annotation-border: var(--neutral-300);
-    --annotation-text: var(--neutral-800);
-    --tooltip-background: var(--alerts-count-background);
-
-    --footer-text: var(--text-primary);
+    /* Calendar Colors */
+    --chains-window-bg: #161A1C;
+    --chains-window-border: #5E5E5E;
+    --calendar-table-bg: #0A0B0B;
+    --calendar-table-border: #344054;
+    --calendar-today-bg: #0A0B0B;
+    --calendar-today-fg: #38ADE6;
+    --calendar-week-bg: #0A0B0B;
+    --calendar-timegrid-bg: #161A1C;
+    --calendar-scrollbar-thumb: #38ADE6;
+    --calendar-scrollbar-color: #38ADE6 var(--calendar-timegrid-bg);
+    --calendar-weeknumber-fg: #EBF7FC;
+    --select-option-fg: #38ADE6;
+    --select-option-bg: #161A1C;
+    --menu-option-active-bg: #161A1C;
+    --icon-button-bg: #161A1C;
+    --calendar-shift-bg: #1C1E1F;
+    --calendar-event-border: #38ADE6;
+    --calendar-event-bg-primary: #333637;
+    --calendar-event-bg-secondary: #1C1E1F;
 }

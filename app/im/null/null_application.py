@@ -30,7 +30,7 @@ class NullApplication(Application):
         )
 
     async def get_all_groups(self):
-        pass
+        return {}
 
     async def initialize_async(self):
         self.public_url = ''
@@ -57,25 +57,25 @@ class NullApplication(Application):
         return 200
 
     async def update_incident_message(self, incident):
-        pass
+        return
 
     async def update(self, incident, incident_status, alert_state, updated_status, chain_enabled, status_enabled,
                      task_link=''):
-        pass
+        return
 
     async def new_version_notification(self, channel_id, new_tag):
-        pass
+        return
 
     async def notify(self, incident, notify_type, identifier):
         return 200
 
     async def close(self):
-        pass
+        return
 
     ### PRIVATE METHODS ###
 
     def _initialize_specific_params(self):
-        pass
+        return
 
     def _markdown_links_to_native_format(self, text):
         return text
@@ -96,20 +96,17 @@ class NullApplication(Application):
         return {}
 
     async def _update_incident_message(self, id_, payload):
-        pass
+        return
 
     async def _send_create_incident_message(self, payload):
         return str(uuid.uuid4())
 
     async def _generate_groups(self, groups_dict: Dict):
-        pass
+        return {}
 
     async def _handle_freeze_action(self, incident_: 'Incident', freeze_option: str, user_id: str, incidents,
                                     queue_: 'AsyncQueue', user_timezone: Optional[str] = None):
-        pass
-
-    async def _post_freeze_notification(self, incident_: 'Incident', freeze_time: datetime, user_timezone: str = "UTC"):
-        pass
+        return
 
     async def post_unfreeze_notification(self, incident_: 'Incident'):
-        pass
+        return

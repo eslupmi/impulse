@@ -29,7 +29,9 @@ class TestMainApplication:
                 patch('app.config.environment.get_environment_config') as mock_get_env_config, \
                 patch('app.im.application.Application') as mock_application, \
                 patch('app.lifespan.UserUpdateScheduler') as mock_scheduler_class, \
-                patch('app.lifespan.InhibitionManager') as mock_inhibition_manager_class:
+                patch('app.lifespan.InhibitionManager') as mock_inhibition_manager_class, \
+                patch('app.lifespan.get_maintenance_store') as mock_get_maintenance_store, \
+                patch('app.lifespan.MaintenanceManager') as mock_maintenance_manager_class:
             # Setup mock scheduler
             mock_scheduler = Mock()
             mock_scheduler.schedule_all_stored = AsyncMock()
@@ -38,7 +40,18 @@ class TestMainApplication:
             # Setup mock inhibition manager
             mock_inhibition_manager = Mock()
             mock_inhibition_manager.restore_from_incidents = Mock()
+            mock_inhibition_manager.attach_maintenance_manager = Mock()
             mock_inhibition_manager_class.return_value = mock_inhibition_manager
+
+            mock_maintenance_store = Mock()
+            mock_maintenance_store.list.return_value = []
+            mock_get_maintenance_store.return_value = mock_maintenance_store
+
+            mock_maintenance_manager = Mock()
+            mock_maintenance_manager.reconcile_all = AsyncMock()
+            mock_maintenance_manager.schedule_window_starts = AsyncMock()
+            mock_maintenance_manager.broadcast_active_maintenance = AsyncMock()
+            mock_maintenance_manager_class.return_value = mock_maintenance_manager
             
             # Setup mock config
             mock_config = Mock()
@@ -84,6 +97,7 @@ class TestMainApplication:
 
             # Setup mock incidents
             mock_incidents_instance = Mock()
+            mock_incidents_instance.uniq_ids = {}
             mock_incidents.return_value = mock_incidents_instance
 
             # Setup mock queue
@@ -99,6 +113,7 @@ class TestMainApplication:
             # Setup mock file lock
             mock_file_lock_instance = Mock()
             mock_file_lock_instance.is_locked.return_value = False  # Not locked by default
+            mock_file_lock_instance.can_take_over_lock.return_value = False
             mock_file_lock_instance.get_lock_info.return_value = ("test-hostname", "12345")
             mock_file_lock_instance.wait_for_unlock = AsyncMock()
             mock_file_lock_instance.acquire_lock = Mock(return_value=True)
@@ -125,7 +140,9 @@ class TestMainApplication:
                 'file_lock': mock_file_lock_instance,
                 'env_config': mock_env_config,
                 'application': mock_application,
-                'inhibition_manager': mock_inhibition_manager
+                'inhibition_manager': mock_inhibition_manager,
+                'maintenance_manager': mock_maintenance_manager,
+                'maintenance_store': mock_maintenance_store,
             }
 
     def test_app_creation(self):

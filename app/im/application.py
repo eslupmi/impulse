@@ -9,7 +9,7 @@ from app.http_client import RateLimitedClient
 from app.im.chain.chain_factory import ChainFactory
 from app.im.groups import Group
 from app.im.template import notification_user, notification_user_group, notification_group, update_status, \
-    notification_assignment, notification_unassignment, notification_freeze, notification_unfreeze
+    notification_assignment, notification_unassignment, notification_unfreeze
 from app.im.user_groups import generate_user_groups
 from app.im.user_store import get_user_store, UserUpdateScheduler
 from app.im.users import UserManager, UndefinedUser
@@ -17,6 +17,7 @@ from app.integrations.jira_integration import JiraIntegration
 from app.jinja_template import JinjaTemplate
 from app.logging import logger
 from app.queue.constants import QueueItemType
+from app.incident.freeze import FreezeSource
 from app.incident.incident import unfreeze_incident
 from app.time import calculate_freeze_time
 
@@ -170,6 +171,20 @@ class Application(ABC):
         self.fetch_and_assign_user_name(incident, str_user_id)
         self.track_async_task(asyncio.create_task(self.post_assignment_notification(incident)))
         incident.chain_enabled = False
+        incident.dump()
+        await self.update_incident_message(incident)
+        return True
+
+    async def handle_ui_unassign(self, incident, queue):
+        if not incident.assigned_user_id:
+            return False
+
+        await queue.delete_by_id(incident.uniq_id, delete_steps=True, delete_status=False)
+        incident.assigned_user_id = ""
+        incident.assigned_user = ""
+        incident.assigned_fullname = ""
+        incident.chain_enabled = True
+        self.track_async_task(asyncio.create_task(self.post_unassignment_notification(incident)))
         incident.dump()
         await self.update_incident_message(incident)
         return True
@@ -411,6 +426,15 @@ class Application(ABC):
         config = get_config()
         return config.app.general.timezone
 
+    async def apply_time_freeze(
+            self, incident_: 'Incident', until: datetime, user, queue_: 'AsyncQueue',
+            source: FreezeSource,
+    ):
+        """Core time-based freeze used by manual freeze, maintenance and other auto sources."""
+        incident_.freeze(until, user, source)
+        await queue_.delete_by_id(incident_.uniq_id, delete_steps=True, delete_status=False)
+        await queue_.put(until, QueueItemType.UNFREEZE, incident_.uniq_id, data=source.value)
+
     async def _handle_freeze_action(
             self, incident_: 'Incident', freeze_option: str, user_id: str, incidents, queue_: 'AsyncQueue',
             user_timezone: Optional[str] = None
@@ -422,20 +446,18 @@ class Application(ABC):
         freeze_time = calculate_freeze_time(freeze_option, config.app.general, timezone_str)
         self.fetch_and_assign_user_name(incident_, user_id, dump=False)
         cached_user = self.users.get_user_by_id(user_id)
-        incident_.freeze(freeze_time, cached_user)
-
-        await queue_.delete_by_id(incident_.uniq_id, delete_steps=True, delete_status=False)
-        await queue_.put(freeze_time, QueueItemType.UNFREEZE, incident_.uniq_id)
-        self.track_async_task(asyncio.create_task(self._post_freeze_notification(incident_, freeze_time)))
+        await self.apply_time_freeze(incident_, freeze_time, cached_user, queue_, source=FreezeSource.TIME)
 
     def _handle_task_action(self, incident_, user_id, queue_):
         logger.info(log_button_pressed, extra={'uuid': incident_.uuid, 'button': 'task', 'user_id': user_id})
         self.track_async_task(asyncio.create_task(self.handle_task_button(incident_, queue_)))
 
     async def _handle_unfreeze_action(self, incident_: 'Incident', user_id: str, queue_: 'AsyncQueue'):
+        if not incident_.can_manual_unfreeze():
+            return
         logger.info(log_button_pressed, extra={'uuid': incident_.uuid, 'button': 'unfreeze', 'user_id': user_id})
         await queue_.delete_by_id_and_type(incident_.uniq_id, QueueItemType.UNFREEZE)
-        await unfreeze_incident(incident_, self, queue_)
+        await unfreeze_incident(incident_, queue_)
         await self.update_incident_message(incident_)
 
     @abstractmethod
@@ -469,26 +491,39 @@ class Application(ABC):
     def _markdown_links_to_native_format(self, text):
         pass
 
-    async def _post_freeze_notification(self, incident_: 'Incident', freeze_time: datetime):
-        text_template = JinjaTemplate(notification_freeze)
-        fields = {'type': self.type.value}
-        text = text_template.form_notification(fields)
-
-        if self.type != MessengerType.TELEGRAM:
-            header = self.header_template.form_message(incident_.payload, incident_)
-            message = header + '\n' + text
-        else:
-            message = text
-        await self.post_to_thread(incident_.channel_id, incident_.ts, message)
-
     @abstractmethod
     def _post_thread_payload(self, channel_id, id_, text):
         pass
 
     async def _send_create_incident_message(self, payload):
         response = await self.http.post(self.post_message_url, headers=self.headers, json=payload)
+        status = response.status
         response_json = await response.json()
         response.close()
+        if not 200 <= status < 300: # Mattermost
+            logger.error(
+                "Incident message creation failed",
+                extra={
+                    'messenger': self.type.value,
+                    'channel_id': payload.get('channel_id') or payload.get('channel'),
+                    'status': status,
+                    'error': response_json.get('error') or response_json.get('message'),
+                    'body': response_json,
+                },
+            )
+            return None
+        if 'ok' in response_json and response_json.get('ok') is not True: # Slack
+            logger.error(
+                "Incident message creation failed",
+                extra={
+                    'messenger': self.type.value,
+                    'channel_id': payload.get('channel_id') or payload.get('channel'),
+                    'status': status,
+                    'error': response_json.get('error'),
+                    'body': response_json,
+                },
+            )
+            return None
         return response_json.get(self.thread_id_key)
 
     def _setup_http(self) -> RateLimitedClient:

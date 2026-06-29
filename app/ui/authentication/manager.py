@@ -26,6 +26,7 @@ class UserAuthenticationManager:
         state_ttl_seconds: int = 300,
         session_ttl_seconds: int = 90 * 24 * 60 * 60,
         cookie_secure: bool = False,
+        cookie_path: str = "/",
         allowed_user_ids: Optional[Set[str]] = None,
         default_redirect_path: str = "/",
         allowed_redirect_prefixes: Optional[Set[str]] = None,
@@ -39,6 +40,7 @@ class UserAuthenticationManager:
         self.state_ttl_seconds = state_ttl_seconds
         self.session_ttl_seconds = session_ttl_seconds
         self.cookie_secure = cookie_secure
+        self.cookie_path = cookie_path or "/"
         self.allowed_user_ids = {str(user_id) for user_id in (allowed_user_ids or set())}
         self.default_redirect_path = self._coerce_default_redirect_path(default_redirect_path)
         self.allowed_redirect_prefixes = self._coerce_allowed_redirect_prefixes(
@@ -128,7 +130,7 @@ class UserAuthenticationManager:
             secure=self.cookie_secure,
             samesite="lax",
             max_age=self.session_ttl_seconds,
-            path="/",
+            path=self.cookie_path,
         )
         return response
 
@@ -145,7 +147,7 @@ class UserAuthenticationManager:
             self.session_store.delete_session(session_id)
 
         response = Response(status_code=204)
-        response.delete_cookie(key=self.session_cookie_name, path="/")
+        response.delete_cookie(key=self.session_cookie_name, path=self.cookie_path)
         return response
 
     def _pop_state(self, state: str) -> Optional[AuthState]:
