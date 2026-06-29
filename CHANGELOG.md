@@ -8,6 +8,7 @@ Changes:
 - Added search for "assign to" field
 - Current user on top of "assign to" field
 - Removed "update: freeze" messages
+- First day of week in calendars based on `general.week_start`
 - Fix bug in reload
 
 ## v3.5.1
