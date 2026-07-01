@@ -1,6 +1,14 @@
 import {getSocket} from "./websocket.js";
 import {getBaseUrl, parseWeekStart} from "./utils.js";
-import {attachNavListener, getSharedCalendarOptions, updateMonthCalendarWeekHighlight} from "./calendar_shared.js";
+import {
+    attachNavListener,
+    cleanupFullCalendarDragArtifacts,
+    destroyFullCalendarInstance,
+    getSharedCalendarOptions,
+    registerCalendarSuspender,
+    suspendOtherCalendars,
+    updateMonthCalendarWeekHighlight,
+} from "./calendar_shared.js";
 import {createEditableFilterBadge} from "./filters.js";
 import {validateAndFormatMatcher, validateMatcher} from "./matcher.js";
 import {getIsAuthenticated, onAuthChange} from "./auth.js";
@@ -237,6 +245,7 @@ function mountFooterToggle() {
 }
 
 function unmountFooterToggle() {
+    destroyCalendars();
     closeMaintenanceModal();
     const toggle = document.getElementById("maintenance-toggle");
     if (!toggle) return;
@@ -864,6 +873,15 @@ async function initializeCalendars() {
     }, 200);
 }
 
+function destroyCalendars() {
+    destroyFullCalendarInstance(calendar);
+    calendar = null;
+    destroyFullCalendarInstance(monthCalendar);
+    monthCalendar = null;
+    initialized = false;
+    cleanupFullCalendarDragArtifacts();
+}
+
 function closeMaintenanceModal() {
     closeWindowModal();
     document.getElementById("maintenance-modal")?.classList.remove("visible");
@@ -871,6 +889,7 @@ function closeMaintenanceModal() {
 
 async function openMaintenanceModal() {
     if (!getIsAuthenticated()) return;
+    suspendOtherCalendars("maintenance");
     const modal = document.getElementById("maintenance-modal");
     if (!modal) return;
 
@@ -960,6 +979,8 @@ export const MaintenanceManager = {
                 closeMaintenanceModal();
             }
         });
+
+        registerCalendarSuspender("maintenance", destroyCalendars);
 
         this.initialized = true;
     },
