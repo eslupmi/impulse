@@ -33,6 +33,7 @@ export const ThemeManager = {
     setTheme(theme) {
         document.documentElement.dataset.theme = theme;
         localStorage.setItem('theme', theme);
+        window.dispatchEvent(new CustomEvent('themechange', { detail: { theme } }));
     },
 
     // Toggle theme

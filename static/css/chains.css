@@ -840,6 +840,13 @@
 :is(#calendar, #maintenance-calendar) .fc-timegrid-event.fc-event-priority-1 {
     background: var(--calendar-event-bg-primary) !important;
     border: 1.5px solid var(--calendar-event-border) !important;
+    inset: 0 0 0 10% !important;
+    z-index: 2;
+}
+
+:is(#calendar, #maintenance-calendar) .fc-timegrid-event.fc-event-priority-2 {
+    inset: 0px 10% 0px 0px !important;
+    z-index: 1;
 }
 
 :is(#calendar, #maintenance-calendar) .fc-timegrid-event .fc-event-main {
@@ -853,10 +860,13 @@
     color: var(--fg-primary) !important;
 }
 
+:is(#calendar, #maintenance-calendar) .fc-timegrid-event.fc-event-repeat-series.fc-event-priority-2 {
+    background: var(--chain-event-bg) !important;
+}
+
 .fc-event-regular-series.fc-event-priority-2,
 .fc-timegrid-event.fc-event-regular-series.fc-event-priority-2 {
     background: var(--calendar-event-bg-secondary) !important;
-    inset: 0px 10% 0px 0px !important;
 }
 
 .fc-event-regular-series.fc-event-priority-1 .fc-event-title,
@@ -890,6 +900,19 @@
 .fc-event-repeat-end-btn.active {
     display: block !important;
     background: var(--btn-primary-bg);
+}
+
+:is(#calendar, #maintenance-calendar) .fc-timegrid-event:hover .fc-event-repeat-end-btn:not(.active) {
+    display: block !important;
+}
+
+:is(#calendar, #maintenance-calendar) .fc-timegrid-event-harness.fc-event-harness-full-width {
+    left: 0 !important;
+    right: 0 !important;
+}
+
+:is(#calendar, #maintenance-calendar) .chain-event-title {
+    line-height: 1.4;
 }
 
 .fc .fc-event:hover {
