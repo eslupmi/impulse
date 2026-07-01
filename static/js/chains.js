@@ -1894,7 +1894,7 @@ export const ChainsManager = {
             await updateCalendarTimezone();
         });
 
-        window.addEventListener('themechange', restyleMountedCalendarEvents);
+        globalThis.addEventListener('themechange', restyleMountedCalendarEvents);
 
         chainsCloseBtn.addEventListener('click', () => {
             closeChainsModal();
