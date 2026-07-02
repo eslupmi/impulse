@@ -1019,12 +1019,10 @@ strong {
     cursor: pointer;
 }
 
-.user-selector-option:hover {
-    color: var(--hover-fg);
-}
-
+.user-selector-option:hover,
 .user-selector-option.active {
-    background: var(--menu-option-active-bg);
+    background: var(--table-row-hover);
+    color: var(--hover-fg);
 }
 
 .user-selector-divider,
