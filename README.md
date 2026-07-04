@@ -4,7 +4,7 @@
 
 [![Container](https://img.shields.io/badge/docker-ghcr.io%2Feslupmi%2Fimpulse-blue?logo=docker)](https://ghcr.io/eslupmi/impulse) [![Community Helm](https://img.shields.io/badge/community-artifacthub.io-blue?style=flat&logo=helm)](https://artifacthub.io/packages/helm/impulse/impulse)
 
-[![Sonar](https://sonarcloud.io/api/project_badges/measure?project=eslupmi_impulse&metric=alert_status&branch=master&label=)](https://sonarcloud.io/dashboard?id=eslupmi_impulse&branch=master)
+[![Sonar](https://sonarcloud.io/api/project_badges/measure?project=eslupmi_impulse&metric=alert_status&branch=develop&label=)](https://sonarcloud.io/dashboard?id=eslupmi_impulse&branch=develop)
 
 <div align="center"><img src="https://github.com/eslupmi/site/blob/main/static/preview.png?raw=true" width="960"></div>
 

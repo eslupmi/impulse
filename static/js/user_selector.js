@@ -101,6 +101,16 @@ function userSelectorFormatter(cell) {
         optionsEl.appendChild(divider);
     }
 
+    function getFirstUserOptionIndex() {
+        const optionNodes = optionsEl.querySelectorAll(".user-selector-option");
+        for (let i = 0; i < optionNodes.length; i++) {
+            if (optionNodes[i].dataset.userId) {
+                return i;
+            }
+        }
+        return optionNodes.length > 0 ? 0 : -1;
+    }
+
     function setActiveOption(index) {
         const optionNodes = optionsEl.querySelectorAll(".user-selector-option");
         if (optionNodes.length === 0) {
@@ -112,6 +122,7 @@ function userSelectorFormatter(cell) {
         optionNodes.forEach((node, nodeIndex) => {
             node.classList.toggle("active", nodeIndex === nextIndex);
         });
+        optionNodes[nextIndex].scrollIntoView({block: "nearest"});
     }
 
     function hideOptions() {
@@ -165,13 +176,14 @@ function userSelectorFormatter(cell) {
             }
         }
         others.forEach(user => addUserOption(user));
-        activeOptionIndex = -1;
 
         if (optionsEl.children.length > 0) {
             mountOptions();
             positionOptions();
             optionsEl.classList.remove("hidden");
+            setActiveOption(getFirstUserOptionIndex());
         } else {
+            activeOptionIndex = -1;
             hideOptions();
         }
     }

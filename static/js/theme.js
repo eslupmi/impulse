@@ -13,7 +13,7 @@ export const ThemeManager = {
             this.setTheme(this.DARK);
         }
 
-        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+        globalThis.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
             if (!localStorage.getItem('theme')) {
                 this.setTheme(this.DARK);
             }
@@ -33,6 +33,7 @@ export const ThemeManager = {
     setTheme(theme) {
         document.documentElement.dataset.theme = theme;
         localStorage.setItem('theme', theme);
+        globalThis.dispatchEvent(new CustomEvent('themechange', { detail: { theme } }));
     },
 
     // Toggle theme

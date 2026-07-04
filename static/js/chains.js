@@ -1,6 +1,14 @@
 import {getSocket} from "./websocket.js";
 import {getBaseUrl, parseWeekStart} from "./utils.js";
-import {attachNavListener, getSharedCalendarOptions, updateMonthCalendarWeekHighlight} from "./calendar_shared.js";
+import {
+    attachNavListener,
+    cleanupFullCalendarDragArtifacts,
+    destroyFullCalendarInstance,
+    getSharedCalendarOptions,
+    registerCalendarSuspender,
+    suspendOtherCalendars,
+    updateMonthCalendarWeekHighlight,
+} from "./calendar_shared.js";
 import {getIsAuthenticated, onAuthChange} from "./auth.js";
 import {
     captureCalendarViewAnchor,
@@ -125,9 +133,6 @@ function expandRecurringEvents(chains, rangeStart, rangeEnd) {
         const endDate = chain.end ? new Date(chain.end) : null;
         const duration = endDate ? endDate.getTime() - startDate.getTime() : msPerDay;
         const repeatEndDate = chain.repeatEnd ? new Date(chain.repeatEnd) : null;
-        const originalBgColor = chain.backgroundColor;
-        const originalBorderColor = chain.borderColor;
-        
         const intervalDays = getRepeatIntervalDays(chain.repeat);
         if (intervalDays === null) {
             expandedEvents.push(chain);
@@ -157,8 +162,6 @@ function expandRecurringEvents(chains, rangeStart, rangeEnd) {
                     start: currentStart.toISOString(),
                     end: endDate ? new Date(currentStart.getTime() + duration).toISOString() : null,
                     isOccurrence: true,
-                    backgroundColor: originalBgColor,
-                    borderColor: originalBorderColor
                 };
                 lastOccurrence = occurrence;
                 expandedEvents.push(occurrence);
@@ -198,6 +201,7 @@ function prepareEventsForCalendar(chains) {
         const stepsText = formatStepsText(chain.steps);
         const priority = chain.priority ?? 2;
         const isOccurrence = !!chain.isOccurrence;
+        const hasRepeat = !!chain.repeat;
         
         return {
             ...chain,
@@ -216,9 +220,11 @@ function prepareEventsForCalendar(chains) {
                 isOriginal: chain.isOriginal,
                 isLastOccurrence: chain.isLastOccurrence
             },
+            classNames: [
+                `fc-event-priority-${priority}`,
+                hasRepeat ? 'fc-event-repeat-series' : 'fc-event-regular-series',
+            ],
             display: 'block',
-            backgroundColor: chain.backgroundColor || getComputedStyle(document.documentElement).getPropertyValue('--chain-event-bg').trim(),
-            borderColor: chain.borderColor || getComputedStyle(document.documentElement).getPropertyValue('--chain-event-border').trim()
         };
     }).sort((a, b) => {
         const timeDiff = new Date(a.start) - new Date(b.start);
@@ -235,31 +241,6 @@ function getExpandedChains(chains) {
     return prepareEventsForCalendar(chains);
 }
 
-function shouldApplyVisualShift(eventLike) {
-    return true;
-}
-
-function applyEventInset(element, event = null) {
-    if (!element) return;
-    
-    const priority = event?.extendedProps?.priority ?? (Number.parseInt(element.dataset.priority) || 2);
-    
-    if (priority === 2) {
-        element.style.setProperty('inset', '0px 10% 0px 0px', 'important');
-    } else if (priority === 1) {
-        element.style.setProperty('inset', '0 0 0 10%', 'important');
-    } else {
-        element.style.setProperty('inset', '0 0 0 0', 'important');
-    }
-}
-
-function applyEventOverlapOffset(element) {
-    if (!element) return;
-
-    const harness = element.closest('.fc-timegrid-event-harness');
-    applyHarnessOverlapOffset(harness);
-}
-
 function applyHarnessOverlapOffset(harness) {
     if (!harness) return;
 
@@ -267,11 +248,9 @@ function applyHarnessOverlapOffset(harness) {
     const right = parseFloat(harness.style.right);
 
     // FullCalendar positions the second overlapping event at 50%.
-    // Shift it to 10% while keeping it inside the slot.
-    if (Number.isFinite(left) && left > 10 && (!Number.isFinite(right) || right === 0)) {
-        harness.style.setProperty('left', '0%', 'important');
-        harness.style.setProperty('right', '0%', 'important');
-    }
+    // Expand the harness to full width; priority classes handle the visual inset.
+    const shouldExpand = Number.isFinite(left) && left > 10 && (!Number.isFinite(right) || right === 0);
+    harness.classList.toggle('fc-event-harness-full-width', shouldExpand);
 }
 
 function setupEventOverlapObserver(rootElement) {
@@ -310,17 +289,26 @@ function setupEventOverlapObserver(rootElement) {
 
 function updateEventStyles() {
     if (!calendar) return;
-    
+
     setTimeout(() => {
-        const events = calendar.getEvents();
-        events.forEach(event => {
-            if (event.extendedProps?.isOccurrence) return;
+        calendar.el.querySelectorAll('.fc-timegrid-event-harness').forEach(applyHarnessOverlapOffset);
+        calendar.getEvents().forEach(event => {
             if (event.el) {
-                applyEventOverlapOffset(event.el);
-                applyEventInset(event.el, event);
+                styleMountedEvent(event.el, event);
             }
         });
     }, 100);
+}
+
+function restyleMountedCalendarEvents() {
+    for (const cal of [calendar, monthCalendar]) {
+        if (!cal) continue;
+        cal.getEvents().forEach(event => {
+            if (event.el) {
+                styleMountedEvent(event.el, event);
+            }
+        });
+    }
 }
 
 function recalculatePriorities(chains) {
@@ -357,8 +345,7 @@ function recalculatePrioritiesForChainIds(chains, chainIds) {
 function applyPriorityToEvent(event, chain) {
     event.setExtendedProp('priority', chain.priority ?? 2);
     if (event.el) {
-        applyEventOverlapOffset(event.el);
-        applyEventInset(event.el, event);
+        styleMountedEvent(event.el, event);
     }
 }
 
@@ -441,6 +428,19 @@ function getPrivilegedFooterControlsContainer() {
     return document.getElementById("privileged-footer-controls");
 }
 
+function destroyCalendars() {
+    if (eventOverlapObserver) {
+        eventOverlapObserver.disconnect();
+        eventOverlapObserver = null;
+    }
+    destroyFullCalendarInstance(calendar);
+    calendar = null;
+    destroyFullCalendarInstance(monthCalendar);
+    monthCalendar = null;
+    initialized = false;
+    cleanupFullCalendarDragArtifacts();
+}
+
 function closeChainsModal() {
     const chainsModal = document.getElementById("chains-modal");
     chainsModal?.classList.remove("visible");
@@ -471,6 +471,7 @@ function mountFooterToggle() {
 }
 
 function unmountFooterToggle() {
+    destroyCalendars();
     closeChainsModal();
     const toggle = document.getElementById("chains-toggle");
     if (!toggle) {
@@ -487,6 +488,7 @@ async function openChainsModal() {
     if (!getIsAuthenticated()) {
         return;
     }
+    suspendOtherCalendars("chains");
     const chainsModal = document.getElementById("chains-modal");
     if (!chainsModal) {
         return;
@@ -1560,18 +1562,6 @@ function mountRepeatEndButton(el, event) {
         await setRepeatEndFromEvent(event, isLastOccurrence);
     });
 
-    if (isLastOccurrence) {
-        repeatEndBtn.style.display = 'block';
-    } else {
-        repeatEndBtn.style.display = 'none';
-        el.addEventListener('mouseenter', () => {
-            repeatEndBtn.style.setProperty('display', 'block', 'important');
-        });
-        el.addEventListener('mouseleave', () => {
-            repeatEndBtn.style.setProperty('display', 'none', 'important');
-        });
-    }
-
     const eventMain = el.querySelector('.fc-event-main') || el;
     eventMain.appendChild(repeatEndBtn);
 }
@@ -1587,12 +1577,8 @@ function styleMountedEvent(el, event) {
 
     el.classList.add(`fc-event-priority-${priority}`);
     el.classList.add(hasRepeat ? 'fc-event-repeat-series' : 'fc-event-regular-series');
-    el.dataset.priority = priority.toString();
-    el.style.zIndex = 3 - priority;
-    if (shouldApplyVisualShift(event)) {
-        applyEventOverlapOffset(el);
-        applyEventInset(el, event);
-    }
+
+    applyHarnessOverlapOffset(el.closest('.fc-timegrid-event-harness'));
 }
 
 function buildMainCalendarOptions(expandedChains, firstDay, timezone) {
@@ -1631,7 +1617,7 @@ function buildMainCalendarOptions(expandedChains, firstDay, timezone) {
             const stepsText = formatStepsText(steps);
             if (stepsText) {
                 return {
-                    html: `<div class="fc-event-title" style="line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${stepsText}</div>`
+                    html: `<div class="fc-event-title chain-event-title">${stepsText}</div>`
                 };
             }
             return { html: '' };
@@ -1742,6 +1728,10 @@ function buildMonthCalendarOptions(expandedChains, firstDay, timezone) {
             return {
                 html: `<div class="day-number">${dayNum}</div>`
             };
+        },
+
+        eventDidMount: function(arg) {
+            styleMountedEvent(arg.el, arg.event);
         },
 
         datesSet: function() {
@@ -1927,6 +1917,8 @@ export const ChainsManager = {
             await updateCalendarTimezone();
         });
 
+        globalThis.addEventListener('themechange', restyleMountedCalendarEvents);
+
         chainsCloseBtn.addEventListener('click', () => {
             closeChainsModal();
         });
@@ -1958,6 +1950,7 @@ export const ChainsManager = {
         if (getIsAuthenticated()) {
             mountFooterToggle();
         }
+        registerCalendarSuspender("chains", destroyCalendars);
         this.initialized = true;
     }
 };

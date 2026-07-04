@@ -1,5 +1,10 @@
 # Changelog
 
+## v3.6.1
+Changes:
+- Fix maintenance moving
+- Fix style problems
+
 ## v3.6.0
 Changes:
 - UI update
