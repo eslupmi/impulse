@@ -860,6 +860,10 @@
     color: var(--fg-primary) !important;
 }
 
+.maintenance-calendar-event .maintenance-event-title, .maintenance-calendar-event .fc-event-title {
+	color: var(--fg-primary);
+}
+
 :is(#calendar, #maintenance-calendar) .fc-timegrid-event.fc-event-repeat-series.fc-event-priority-2 {
     background: var(--chain-event-bg) !important;
 }
