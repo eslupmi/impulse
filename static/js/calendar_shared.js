@@ -5,6 +5,34 @@ export function attachNavListener(btn, handler) {
     }
 }
 
+export function cleanupFullCalendarDragArtifacts() {
+    document.body.classList.remove("fc-not-allowed");
+    for (const mirror of document.querySelectorAll(".fc-event-mirror")) {
+        mirror.remove();
+    }
+}
+
+export function destroyFullCalendarInstance(calendarInstance) {
+    if (calendarInstance) {
+        calendarInstance.destroy();
+    }
+}
+
+const calendarSuspenders = new Map();
+
+export function registerCalendarSuspender(id, suspend) {
+    calendarSuspenders.set(id, suspend);
+}
+
+export function suspendOtherCalendars(activeId) {
+    for (const [id, suspend] of calendarSuspenders) {
+        if (id !== activeId) {
+            suspend();
+        }
+    }
+    cleanupFullCalendarDragArtifacts();
+}
+
 export function getSharedCalendarOptions(firstDay, timezone) {
     return {
         firstDay,

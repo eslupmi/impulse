@@ -1,6 +1,14 @@
 import {getSocket} from "./websocket.js";
 import {getBaseUrl, parseWeekStart} from "./utils.js";
-import {attachNavListener, getSharedCalendarOptions, updateMonthCalendarWeekHighlight} from "./calendar_shared.js";
+import {
+    attachNavListener,
+    cleanupFullCalendarDragArtifacts,
+    destroyFullCalendarInstance,
+    getSharedCalendarOptions,
+    registerCalendarSuspender,
+    suspendOtherCalendars,
+    updateMonthCalendarWeekHighlight,
+} from "./calendar_shared.js";
 import {getIsAuthenticated, onAuthChange} from "./auth.js";
 import {
     captureCalendarViewAnchor,
@@ -441,6 +449,19 @@ function getPrivilegedFooterControlsContainer() {
     return document.getElementById("privileged-footer-controls");
 }
 
+function destroyCalendars() {
+    if (eventOverlapObserver) {
+        eventOverlapObserver.disconnect();
+        eventOverlapObserver = null;
+    }
+    destroyFullCalendarInstance(calendar);
+    calendar = null;
+    destroyFullCalendarInstance(monthCalendar);
+    monthCalendar = null;
+    initialized = false;
+    cleanupFullCalendarDragArtifacts();
+}
+
 function closeChainsModal() {
     const chainsModal = document.getElementById("chains-modal");
     chainsModal?.classList.remove("visible");
@@ -471,6 +492,7 @@ function mountFooterToggle() {
 }
 
 function unmountFooterToggle() {
+    destroyCalendars();
     closeChainsModal();
     const toggle = document.getElementById("chains-toggle");
     if (!toggle) {
@@ -487,6 +509,7 @@ async function openChainsModal() {
     if (!getIsAuthenticated()) {
         return;
     }
+    suspendOtherCalendars("chains");
     const chainsModal = document.getElementById("chains-modal");
     if (!chainsModal) {
         return;
@@ -1958,6 +1981,7 @@ export const ChainsManager = {
         if (getIsAuthenticated()) {
             mountFooterToggle();
         }
+        registerCalendarSuspender("chains", destroyCalendars);
         this.initialized = true;
     }
 };
