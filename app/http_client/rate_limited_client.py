@@ -6,6 +6,7 @@ import aiohttp
 from aiohttp import ClientTimeout, ClientSession, ClientResponse
 from aiohttp_retry import ExponentialRetry, RetryClient
 
+from app.config.environment import get_environment_config
 from app.logging import logger
 from app.metrics import measure_request
 
@@ -169,7 +170,8 @@ class RateLimitedClient:
         self._session = ClientSession(
             timeout=timeout,
             connector=connector,
-            raise_for_status=False
+            raise_for_status=False,
+            proxy=get_environment_config().proxy_url,
         )
         
         self._client = RetryClient(

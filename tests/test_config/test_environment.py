@@ -33,6 +33,9 @@ class TestEnvironmentConfig:
         assert config.http_prefix == ""
         assert config.listen_host == "0.0.0.0"
         assert config.listen_port == 5000
+        assert config.http_proxy == ""
+        assert config.https_proxy == ""
+        assert config.proxy_url is None
 
     def test_environment_variable_loading(self):
         """Test loading values from environment variables."""
@@ -51,7 +54,9 @@ class TestEnvironmentConfig:
             'LOG_LEVEL': 'DEBUG',
             'HTTP_PREFIX': '/api/v1',
             'LISTEN_HOST': '127.0.0.1',
-            'LISTEN_PORT': '8080'
+            'LISTEN_PORT': '8080',
+            'HTTP_PROXY': 'http://proxy.example.com:8080',
+            'HTTPS_PROXY': 'http://secure-proxy.example.com:8443',
         }
 
         with patch.dict('os.environ', env_vars, clear=True):
@@ -72,6 +77,9 @@ class TestEnvironmentConfig:
         assert config.http_prefix == '/api/v1'
         assert config.listen_host == '127.0.0.1'
         assert config.listen_port == 8080
+        assert config.http_proxy == 'http://proxy.example.com:8080'
+        assert config.https_proxy == 'http://secure-proxy.example.com:8443'
+        assert config.proxy_url == 'http://secure-proxy.example.com:8443'
 
     def test_positive_integer_validation(self):
         """Test validation of positive integer fields."""
@@ -315,6 +323,30 @@ class TestEnvironmentConfig:
         with pytest.raises(ValidationError,
                            match="HTTP prefix must not end with '/' \\(e.g., '/impulse' not '/impulse/'\\)"):
             EnvironmentConfig(**config_data)
+
+    def test_proxy_url_prefers_https_proxy(self):
+        """HTTPS_PROXY takes precedence over HTTP_PROXY for outbound requests."""
+        config = EnvironmentConfig(
+            http_proxy='http://proxy.example.com:8080',
+            https_proxy='http://secure-proxy.example.com:8443',
+        )
+        assert config.proxy_url == 'http://secure-proxy.example.com:8443'
+
+    def test_proxy_url_falls_back_to_http_proxy(self):
+        """HTTP_PROXY is used when HTTPS_PROXY is unset."""
+        with patch.dict('os.environ', {'HTTP_PROXY': 'http://proxy.example.com:8080'}, clear=True):
+            config = EnvironmentConfig()
+
+        assert config.http_proxy == 'http://proxy.example.com:8080'
+        assert config.https_proxy == ''
+        assert config.proxy_url == 'http://proxy.example.com:8080'
+
+    def test_proxy_url_none_when_unset(self):
+        """No proxy is configured when both env vars are unset."""
+        with patch.dict('os.environ', {}, clear=True):
+            config = EnvironmentConfig()
+
+        assert config.proxy_url is None
 
 
 class TestEnvironmentConfigFunctions:
