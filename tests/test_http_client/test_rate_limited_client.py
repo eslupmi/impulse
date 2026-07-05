@@ -306,7 +306,7 @@ class TestRateLimitedClient:
             assert client.rate_limit is None
             assert abs(client.rate_window - 1.0) < 0.001
 
-    async def test_initialize_client_uses_proxy_from_environment(self):
+    def test_initialize_client_uses_proxy_from_environment(self):
         """Test that ClientSession is created with proxy from environment config."""
         mock_env_config = MagicMock()
         mock_env_config.proxy_url = 'http://proxy.example.com:8080'
