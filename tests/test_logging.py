@@ -100,6 +100,31 @@ class TestJSONFormatter:
         assert data['chain'] == 'test_chain'
         assert data['message'] == "Test message"
 
+    def test_json_formatter_omits_exception_traceback(self):
+        """Test JSONFormatter does not emit traceback text from exc_info."""
+        formatter = JSONFormatter()
+        try:
+            raise ValueError('messenger unavailable')
+        except ValueError:
+            import sys
+            record = logging.LogRecord(
+                name='test_logger',
+                level=logging.ERROR,
+                pathname=__file__,
+                lineno=1,
+                msg='Messenger initialization failed',
+                args=(),
+                exc_info=sys.exc_info(),
+            )
+            record.module = 'test_module'
+
+        result = formatter.format(record)
+        data = json.loads(result)
+
+        assert data['message'] == 'Messenger initialization failed'
+        assert 'exception' not in data
+        assert 'exc_info' not in data
+
     def test_json_formatter_format_without_extra_fields(self):
         """Test JSONFormatter format method without extra fields."""
         formatter = JSONFormatter()
