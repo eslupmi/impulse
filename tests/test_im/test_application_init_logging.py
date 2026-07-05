@@ -107,10 +107,11 @@ class TestMeasureRequestMetrics:
             async def request(self):
                 raise aiohttp.ClientConnectionError('connection failed')
 
+        client = Client()
         mock_labels = Mock()
         with patch.object(API_LATENCY, 'labels', return_value=mock_labels) as mock_label_factory:
             with pytest.raises(aiohttp.ClientConnectionError):
-                await Client().request()
+                await client.request()
 
             mock_label_factory.assert_called_once_with(status='no_response', error='connection_failed')
             mock_labels.observe.assert_called_once()

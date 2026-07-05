@@ -8,6 +8,8 @@ from app.http_client.errors import MESSENGER_TRANSPORT_ERRORS, classify_messenge
 
 class ConnectorErrorStub(aiohttp.ClientConnectorError):
     def __init__(self):
+        # aiohttp.ClientConnectorError requires connection_key and os_error; this stub
+        # exists only so isinstance checks in classify_messenger_http_error can be tested.
         pass
 
 
