@@ -14,10 +14,12 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Prepare message
+      - name: Notify Telegram
         env:
+          RELEASE_TELEGRAM_BOT_TOKEN: ${{ secrets.RELEASE_TELEGRAM_BOT_TOKEN }}
+          RELEASE_TELEGRAM_CHAT_ID: ${{ secrets.RELEASE_TELEGRAM_CHAT_ID }}
           # TAG: ${{ github.ref_name }}
-          TAG: "v3.0.0"
+          TAG: 'v3.0.0'
           REPO: ${{ github.repository }}
         run: |
           BODY=$(awk -v tag="$TAG" '
@@ -26,50 +28,42 @@ jobs:
           ' CHANGELOG.md)
           [ -n "$BODY" ] || { echo "Changelog not found for $TAG"; exit 1; }
           export BODY
-          python3 <<'PY'
-          import html, os, re
+          MESSAGE=$(python3 <<'PY'
+          import os, re
           tag, body, repo = os.environ["TAG"], os.environ["BODY"], os.environ["REPO"]
-          pat = re.compile(r"```[\s\S]*?```|`[^`]+`|\*\*[^*]+\*\*|_[^_]+_|\[[^\]]+\]\([^)]+\)|https?://[^\s<]+")
+          fmt = re.compile(r"`[^`]+`|\*\*[^*]+\*\*|\[[^\]]+\]\([^)]+\)")
 
           def esc(s):
-              return html.escape(s)
+              return re.sub(r"([_*\[\]()~`>#+\-=|{}.!])", r"\\\1", s)
 
-          def chunk(c):
-              if c.startswith("```"):
-                  inner = c[3:-3].strip("\n")
-                  if "\n" in inner and inner.split("\n", 1)[0].isalpha():
-                      inner = inner.split("\n", 1)[1]
-                  return f"<pre>{esc(inner.rstrip())}</pre>"
-              if c.startswith("`"):
-                  return f"<code>{esc(c[1:-1])}</code>"
-              if c.startswith("_"):
-                  return f"<i>{esc(c[1:-1])}</i>"
-              if c.startswith("**"):
-                  return f"<b>{esc(c[2:-2])}</b>"
-              if c.startswith("http"):
-                  return f'<a href="{esc(c)}">{esc(c)}</a>'
-              m = re.match(r"\[([^\]]+)\]\(([^)]+)\)", c)
-              return f'<a href="{esc(m.group(2))}">{esc(m.group(1))}</a>'
+          def esc_url(s):
+              return s.replace("\\", "\\\\").replace(")", "\\)")
+
+          def esc_code(s):
+              return s.replace("\\", "\\\\").replace("`", "\\`")
 
           def convert(s):
               out, last = [], 0
-              for m in pat.finditer(s):
+              for m in fmt.finditer(s):
                   out.append(esc(s[last:m.start()]))
-                  out.append(chunk(m.group()))
+                  c = m.group()
+                  if c.startswith("`"):
+                      out.append(f"`{esc_code(c[1:-1])}`")
+                  elif c.startswith("**"):
+                      out.append(f"*{esc(c[2:-2])}*")
+                  else:
+                      lm = re.match(r"\[([^\]]+)\]\(([^)]+)\)", c)
+                      out.append(f"[{esc(lm.group(1))}]({esc_url(lm.group(2))})")
                   last = m.end()
               out.append(esc(s[last:]))
               return "".join(out)
 
           url = f"https://github.com/{repo}/releases/tag/{tag}"
-          msg = f"<b>IMPulse {esc(tag)}</b>\n\n{convert(body)}\n\n<a href=\"{esc(url)}\">Release</a>"
-          open("message.txt", "w").write(msg)
+          print(f"*{esc('IMPulse ' + tag)}*\n\n{convert(body)}\n\n[{esc('Release')}]({esc_url(url)})", end="")
           PY
-
-      - uses: appleboy/telegram-action@v1.0.1
-        with:
-          to: ${{ secrets.RELEASE_TELEGRAM_CHAT_ID }}
-          token: ${{ secrets.RELEASE_TELEGRAM_BOT_TOKEN }}
-          # message_file: message.txt
-          # format: html
-          # disable_web_page_preview: true
-          message: hello
+          )
+          [ ${#MESSAGE} -le 4096 ] || MESSAGE="${MESSAGE:0:4090}..."
+          jq -n --arg chat_id "$RELEASE_TELEGRAM_CHAT_ID" --arg text "$MESSAGE" \
+            '{chat_id: $chat_id, text: $text, parse_mode: "MarkdownV2", disable_web_page_preview: true}' | \
+          curl -fsS -X POST "https://api.telegram.org/bot${RELEASE_TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -H "Content-Type: application/json" -d @-
