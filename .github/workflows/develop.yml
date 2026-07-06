@@ -30,8 +30,3 @@ jobs:
     with:
       deploy-path: /opt/impulse/dev
     secrets: inherit
-
-  notify:
-    needs: build-and-push-image
-    uses: ./.github/workflows/_notify.yml
-    secrets: inherit

@@ -18,8 +18,7 @@ jobs:
         env:
           RELEASE_TELEGRAM_BOT_TOKEN: ${{ secrets.RELEASE_TELEGRAM_BOT_TOKEN }}
           RELEASE_TELEGRAM_CHAT_ID: ${{ secrets.RELEASE_TELEGRAM_CHAT_ID }}
-          # TAG: ${{ github.ref_name }}
-          TAG: 'v3.0.0'
+          TAG: ${{ github.ref_name }}
           REPO: ${{ github.repository }}
         run: |
           BODY=$(awk -v tag="$TAG" '
