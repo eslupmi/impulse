@@ -8,6 +8,10 @@ on:
     branches:
     - 'master'
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   tests:
     uses: ./.github/workflows/_tests.yml

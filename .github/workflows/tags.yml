@@ -8,6 +8,10 @@ on:
     tags:
     - 'v*'
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   build-and-push-image:
     uses: ./.github/workflows/_build-and-push-image.yml
