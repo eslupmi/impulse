@@ -1,0 +1,36 @@
+name: develop
+
+concurrency:
+  group: ${{ github.ref }}
+
+on:
+  push:
+    branches:
+    - 'develop'
+
+jobs:
+  tests:
+    uses: ./.github/workflows/modules/_tests.yml
+
+  build-and-push-image:
+    needs: tests
+    uses: ./.github/workflows/modules/_build-and-push-image.yml
+
+  cleanup-untagged-images:
+    needs: build-and-push-image
+    uses: ./.github/workflows/modules/_cleanup-untagged-images.yml
+
+  autotests:
+    needs: build-and-push-image
+    uses: ./.github/workflows/modules/_autotests.yml
+    with:
+      branch: ${{ github.ref_name }}
+      runs-on: self-hosted
+    secrets: inherit
+
+  deploy:
+    needs: build-and-push-image #!
+    uses: ./.github/workflows/modules/_deploy.yml
+    with:
+      deploy-path: /opt/impulse/dev
+    secrets: inherit

@@ -8,6 +8,6 @@ on:
 
 jobs:
   tests:
-    uses: ./.github/workflows/tests.yml
+    uses: ./.github/workflows/modules/_tests.yml
     with:
       runs-on: self-hosted
