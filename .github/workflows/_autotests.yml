@@ -1,4 +1,4 @@
-name: autotests
+name: _autotests
 
 on:
   workflow_call:
@@ -6,10 +6,13 @@ on:
       branch:
         required: true
         type: string
+      runs-on:
+        type: string
+        default: ubuntu-24.04
 
 jobs:
   autotests:
-    runs-on: self-hosted
+    runs-on: ${{ inputs.runs-on }}
     strategy:
       fail-fast: true
       matrix:

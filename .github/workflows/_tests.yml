@@ -1,18 +1,21 @@
-name: tests
+name: _tests
 
 on:
   workflow_call:
     inputs:
       runs-on:
-        required: true
         type: string
+        default: ubuntu-24.04
+      python-versions:
+        type: string
+        default: '["3.12"]'
 
 jobs:
   tests:
     runs-on: ${{ inputs.runs-on }}
     strategy:
       matrix:
-        python-version: ${{ github.ref_type == 'tag' && fromJSON('["3.10","3.11","3.12","3.13"]') || fromJSON('["3.12"]') }}
+        python-version: ${{ fromJSON(inputs.python-versions) }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5

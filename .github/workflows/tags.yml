@@ -1,0 +1,21 @@
+name: tags
+
+concurrency:
+  group: ${{ github.ref }}
+
+on:
+  push:
+    tags:
+    - 'v*'
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-and-push-image:
+    uses: ./.github/workflows/_build-and-push-image.yml
+
+  cleanup-untagged-images:
+    needs: build-and-push-image
+    uses: ./.github/workflows/_cleanup-untagged-images.yml

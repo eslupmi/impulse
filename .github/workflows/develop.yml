@@ -1,0 +1,51 @@
+name: develop
+
+concurrency:
+  group: ${{ github.ref }}
+
+on:
+  push:
+    branches:
+    - 'develop'
+  pull_request:
+    branches:
+    - master
+    types:
+    - opened
+    - synchronize
+    - reopened
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  tests:
+    if: github.event_name == 'push'
+    uses: ./.github/workflows/_tests.yml
+
+  build-and-push-image:
+    if: github.event_name == 'push'
+    needs: tests
+    uses: ./.github/workflows/_build-and-push-image.yml
+
+  cleanup-untagged-images:
+    if: github.event_name == 'push'
+    needs: build-and-push-image
+    uses: ./.github/workflows/_cleanup-untagged-images.yml
+
+  deploy:
+    if: github.event_name == 'push'
+    needs: build-and-push-image #!
+    uses: ./.github/workflows/_deploy.yml
+    with:
+      deploy-path: /opt/impulse/dev
+    secrets: inherit
+
+  autotests:
+    if: github.event_name == 'pull_request' && github.head_ref == 'develop'
+    uses: ./.github/workflows/_autotests.yml
+    with:
+      branch: develop
+      runs-on: self-hosted
+    secrets: inherit
