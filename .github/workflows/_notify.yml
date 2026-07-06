@@ -16,7 +16,8 @@ jobs:
 
       - name: Prepare message
         env:
-          TAG: ${{ github.ref_name }}
+          # TAG: ${{ github.ref_name }}
+          TAG: "v3.0.0"
           REPO: ${{ github.repository }}
         run: |
           BODY=$(awk -v tag="$TAG" '
