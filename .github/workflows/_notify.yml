@@ -31,7 +31,8 @@ jobs:
           MESSAGE=$(python3 <<'PY'
           import os, re
           tag, body, repo = os.environ["TAG"], os.environ["BODY"], os.environ["REPO"]
-          fmt = re.compile(r"`[^`]+`|\*\*[^*]+\*\*|\[[^\]]+\]\([^)]+\)")
+          link = r"\[((?:[^[\]]|\[[^\]]*\])+)\]\(([^)]+)\)"
+          fmt = re.compile(rf"`[^`]+`|\*\*[^*]+\*\*|{link}")
 
           def esc(s):
               return re.sub(r"([_*\[\]()~`>#+\-=|{}.!])", r"\\\1", s)
@@ -52,14 +53,14 @@ jobs:
                   elif c.startswith("**"):
                       out.append(f"*{esc(c[2:-2])}*")
                   else:
-                      lm = re.match(r"\[([^\]]+)\]\(([^)]+)\)", c)
+                      lm = re.match(link, c)
                       out.append(f"[{esc(lm.group(1))}]({esc_url(lm.group(2))})")
                   last = m.end()
               out.append(esc(s[last:]))
               return "".join(out)
 
           url = f"https://github.com/{repo}/releases/tag/{tag}"
-          print(f"*{esc('IMPulse ' + tag)}*\n\n{convert(body)}\n\n[{esc('Release')}]({esc_url(url)})", end="")
+          print(f"*[{esc('IMPulse ' + tag)}]({esc_url(url)})*\n\n{convert(body)}", end="")
           PY
           )
           [ ${#MESSAGE} -le 4096 ] || MESSAGE="${MESSAGE:0:4090}..."
