@@ -1,0 +1,31 @@
+name: pr
+
+on:
+  pull_request:
+    branches:
+    - master
+    types:
+    - opened
+    - synchronize
+    - reopened
+    - ready_for_review
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  tests:
+    if: github.event.pull_request.draft == false && github.head_ref == 'develop'
+    uses: ./.github/workflows/_tests.yml
+    with:
+      runs-on: ubuntu-24.04
+      python-versions: '["3.10","3.11","3.12","3.13"]'
+
+  autotests:
+    if: github.event.pull_request.draft == false && github.head_ref == 'develop'
+    uses: ./.github/workflows/_autotests.yml
+    with:
+      branch: develop
+      runs-on: self-hosted
+    secrets: inherit

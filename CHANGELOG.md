@@ -4,6 +4,7 @@
 Changes:
 - Fix maintenance moving
 - Fix style problems
+- Fix links style problems
 
 ## v3.6.0
 Changes:
