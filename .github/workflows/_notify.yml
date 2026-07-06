@@ -69,6 +69,7 @@ jobs:
         with:
           to: ${{ secrets.RELEASE_TELEGRAM_CHAT_ID }}
           token: ${{ secrets.RELEASE_TELEGRAM_BOT_TOKEN }}
-          message_file: message.txt
-          format: html
-          disable_web_page_preview: true
+          # message_file: message.txt
+          # format: html
+          # disable_web_page_preview: true
+          message: hello
