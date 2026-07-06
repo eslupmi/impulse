@@ -1,0 +1,38 @@
+name: _notify
+
+on:
+  workflow_call:
+    secrets:
+      RELEASE_TELEGRAM_BOT_TOKEN:
+        required: true
+      RELEASE_TELEGRAM_CHAT_ID:
+        required: true
+
+jobs:
+  notify:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Notify Telegram
+        env:
+          RELEASE_TELEGRAM_BOT_TOKEN: ${{ secrets.RELEASE_TELEGRAM_BOT_TOKEN }}
+          RELEASE_TELEGRAM_CHAT_ID: ${{ secrets.RELEASE_TELEGRAM_CHAT_ID }}
+          # TAG: ${{ github.ref_name }}
+          TAG: 'v3.5.1'
+        run: |
+          BODY=$(awk -v tag="$TAG" '
+            /^## / { if (found) exit; if ($0 == "## " tag) found=1; next }
+            found { print }
+          ' CHANGELOG.md)
+          [ -n "$BODY" ] || { echo "Changelog not found for $TAG"; exit 1; }
+          MESSAGE="IMPulse $TAG
+
+          $BODY
+
+          https://github.com/${{ github.repository }}/releases/tag/$TAG"
+          [ ${#MESSAGE} -le 4096 ] || MESSAGE="${MESSAGE:0:4090}..."
+          jq -n --arg chat_id "$RELEASE_TELEGRAM_CHAT_ID" --arg text "$MESSAGE" \
+            '{chat_id: $chat_id, text: $text, disable_web_page_preview: true}' | \
+          curl -fsS -X POST "https://api.telegram.org/bot${RELEASE_TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -H "Content-Type: application/json" -d @-
