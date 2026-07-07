@@ -2,10 +2,19 @@ import {table} from "./table.js";
 import {updateZoomIcons} from "./filters.js";
 import {getBaseUrl} from "./utils.js";
 
+const SHOW_FULL_TABLE_KEY = "show_full_table";
+
+function loadShowFullTablePreference() {
+    const saved = localStorage.getItem(SHOW_FULL_TABLE_KEY);
+    if (saved === "true") return true;
+    if (saved === "false") return false;
+    return false;
+}
+
 let socket;
 let heartbeatInterval;
 let heartbeatTimeout;
-let showFullTable = false;
+let showFullTable = loadShowFullTablePreference();
 const HEARTBEAT_INTERVAL = 10000;
 const HEARTBEAT_TIMEOUT = 5000;
 const RECONNECT_DELAY = 3000;
@@ -226,31 +235,39 @@ function setupWebSocketEvents() {
     };
 }
 
-function toggleHistoryView() {
-    showFullTable = !showFullTable;
-    const button = document.getElementById('history-toggle');
-    if (button) {
-        if (showFullTable) {
-            button.classList.add('active');
-            button.title = 'Hide archive';
-        } else {
-            button.classList.remove('active');
-            button.title = 'Show archive';
-        }
+function updateHistoryToggleButton() {
+    const button = document.getElementById("history-toggle");
+    if (!button) return;
+    if (showFullTable) {
+        button.classList.add("active");
+        button.title = "Hide archive";
+    } else {
+        button.classList.remove("active");
+        button.title = "Show archive";
     }
-    
+}
+
+function setShowFullTable(value) {
+    showFullTable = value;
+    localStorage.setItem(SHOW_FULL_TABLE_KEY, value ? "true" : "false");
+    updateHistoryToggleButton();
+}
+
+function toggleHistoryView() {
+    setShowFullTable(!showFullTable);
+
     if (socket && socket.readyState === WebSocket.OPEN) {
         socket.send(JSON.stringify({event: "request_data", show_full_table: showFullTable}));
     } else {
-        console.warn('WebSocket not connected, cannot reload table');
+        console.warn("WebSocket not connected, cannot reload table");
     }
 }
 
 function initHistoryToggle() {
-    const button = document.getElementById('history-toggle');
+    const button = document.getElementById("history-toggle");
     if (button) {
-        button.addEventListener('click', toggleHistoryView);
-        button.title = 'Show archive';
+        button.addEventListener("click", toggleHistoryView);
+        updateHistoryToggleButton();
     }
 }
 
