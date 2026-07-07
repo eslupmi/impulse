@@ -422,8 +422,20 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
                         else:
                             acting_user = _get_acting_user_from_websocket(websocket)
                             windows_payload = message.get("data", [])
+                            store = get_maintenance_store()
+                            existing = store.load_windows()
+                            existing_by_id = {w["id"]: w for w in existing}
+                            assignable_user_ids = {
+                                str(user["user_id"])
+                                for user in _get_assignable_users(websocket.app.state.messenger)
+                            }
                             try:
-                                windows = merge_and_validate_save(windows_payload, acting_user)
+                                windows = merge_and_validate_save(
+                                    windows_payload,
+                                    acting_user,
+                                    assignable_user_ids,
+                                    existing_by_id,
+                                )
                             except HTTPException as exc:
                                 await websocket.send_text(json.dumps({
                                     "event": "maintenance_saved",
@@ -431,8 +443,6 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
                                     "detail": exc.detail,
                                 }))
                             else:
-                                store = get_maintenance_store()
-                                existing = store.load_windows()
                                 deleted = removed_windows(existing, windows)
                                 success = store.save_windows(windows)
                                 await websocket.send_text(json.dumps({

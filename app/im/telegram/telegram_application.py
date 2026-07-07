@@ -1,5 +1,5 @@
 import asyncio
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 import aiohttp
 from fastapi.responses import JSONResponse
@@ -10,6 +10,7 @@ if TYPE_CHECKING:
     from app.incident.incident import Incident
 from app.im.telegram.config import buttons
 from app.im.telegram.user import User
+from app.im.users import BaseUser
 from app.logging import logger
 from app.config.config import get_config
 from app.config.environment import get_environment_config
@@ -285,6 +286,9 @@ class TelegramApplication(Application):
 
     def _get_url(self, app_config: ApplicationConfig):
         return 'https://api.telegram.org/bot'
+
+    def _build_user_profile_url(self, user_id: str, user: BaseUser) -> Optional[str]:
+        return f"tg://user?id={user_id}"
 
     async def _handle_chain_action(self, action, incident_, user_id, queue_, payload):
         await queue_.delete_by_id(incident_.uniq_id, delete_steps=True, delete_status=False)

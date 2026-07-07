@@ -30,7 +30,7 @@ def _sample_window(window_id: str = "w1") -> dict:
         "end": end.isoformat(),
         "matchers": ['service="postgres"'],
         "comment": "planned work",
-        "created_by": "alice",
+        "owner_id": "U123",
     }
 
 
@@ -52,7 +52,7 @@ def test_save_and_load_windows_round_trip(tmp_path: Path):
         assert len(loaded) == 2
         by_id = {w["id"]: w for w in loaded}
         assert by_id["w1"]["comment"] == "planned work"
-        assert by_id["w1"]["created_by"] == "alice"
+        assert by_id["w1"]["owner_id"] == "U123"
         assert by_id["w2"]["matchers"] == ['service="elastic"', 'env="prod"']
     finally:
         mock_config.stop()

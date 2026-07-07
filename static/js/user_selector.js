@@ -16,17 +16,36 @@ async function initUserSelector(baseUrl) {
     }
 }
 
-function userSelectorFormatter(cell) {
+function getAuthUser() {
+    const authUser = getCurrentUser();
+    if (!authUser?.id) {
+        return null;
+    }
+    return assignableUsers.find(u => String(u.user_id) === String(authUser.id)) || null;
+}
+
+function getOtherUsers() {
+    const authUser = getAuthUser();
+    const authId = authUser ? String(authUser.user_id) : null;
+    return assignableUsers
+        .filter(u => !authId || String(u.user_id) !== authId)
+        .sort((a, b) => a.full_name.localeCompare(b.full_name));
+}
+
+function createUserSelector({
+    userId: initialUserId = "",
+    fullName: initialFullName = "",
+    allowClear = true,
+    readonlyExtra = false,
+    frozen = false,
+    onSelectUser,
+    onClearUser,
+}) {
+    let currentUserId = String(initialUserId || "");
+    let currentFullName = initialFullName || "";
+
     const container = document.createElement("div");
     container.className = "user-selector-container";
-
-    const indicator = cell.getData().indicator;
-    if (indicator === "closed" || indicator === "deleted") {
-        return container;
-    }
-
-    let currentUserId = String(cell.getData()._assigned_user_id || "");
-    let currentFullName = cell.getData()._assigned_fullname || "";
 
     const wrapper = document.createElement("div");
     wrapper.className = "user-selector-wrapper";
@@ -44,31 +63,13 @@ function userSelectorFormatter(cell) {
     const optionsEl = document.createElement("div");
     optionsEl.className = "user-selector-options hidden";
 
-    const isReadonlyExtra = currentUserId && !assignableUsers.some(u => String(u.user_id) === currentUserId) && currentFullName;
-    const isFrozen = Boolean(cell.getData()._is_frozen);
     let activeOptionIndex = -1;
-    let isAssigning = false;
+    let isBusy = false;
 
     function setReadonlyState() {
-        const readonly = isFrozen || isReadonlyExtra || !getIsAuthenticated();
+        const readonly = frozen || readonlyExtra || !getIsAuthenticated();
         input.readOnly = readonly;
         input.classList.toggle("readonly", readonly);
-    }
-
-    function getAuthUser() {
-        const authUser = getCurrentUser();
-        if (!authUser?.id) {
-            return null;
-        }
-        return assignableUsers.find(u => String(u.user_id) === String(authUser.id)) || null;
-    }
-
-    function getOtherUsers() {
-        const authUser = getAuthUser();
-        const authId = authUser ? String(authUser.user_id) : null;
-        return assignableUsers
-            .filter(u => !authId || String(u.user_id) !== authId)
-            .sort((a, b) => a.full_name.localeCompare(b.full_name));
     }
 
     function getOptionUsers(showAll, query) {
@@ -90,7 +91,7 @@ function userSelectorFormatter(cell) {
         optionEl.dataset.userId = String(user.user_id);
         optionEl.addEventListener("mousedown", (event) => {
             event.preventDefault();
-            selectUser(user);
+            applyUserSelection(user);
         });
         optionsEl.appendChild(optionEl);
     }
@@ -149,13 +150,13 @@ function userSelectorFormatter(cell) {
         optionEl.dataset.clear = "1";
         optionEl.addEventListener("mousedown", (event) => {
             event.preventDefault();
-            clearUser();
+            applyClearSelection();
         });
         optionsEl.appendChild(optionEl);
     }
 
     function renderOptions(showAll = false) {
-        if (isFrozen) {
+        if (frozen) {
             hideOptions();
             return;
         }
@@ -163,7 +164,7 @@ function userSelectorFormatter(cell) {
         const {authUser, others} = getOptionUsers(showAll, query);
 
         optionsEl.innerHTML = "";
-        if (showAll || !query) {
+        if (allowClear && (showAll || !query)) {
             addClearOption();
             if (authUser || others.length > 0) {
                 addDivider();
@@ -188,6 +189,17 @@ function userSelectorFormatter(cell) {
         }
     }
 
+    function setLocalValue(userId, fullName) {
+        currentUserId = String(userId || "");
+        currentFullName = fullName || "";
+        input.value = currentFullName;
+        if (currentUserId) {
+            input.classList.add("has-value");
+        } else {
+            input.classList.remove("has-value");
+        }
+    }
+
     function selectActiveOption() {
         const optionNodes = optionsEl.querySelectorAll(".user-selector-option");
         if (activeOptionIndex < 0 || activeOptionIndex >= optionNodes.length) {
@@ -195,97 +207,78 @@ function userSelectorFormatter(cell) {
         }
         const node = optionNodes[activeOptionIndex];
         if (node.dataset.clear) {
-            clearUser();
+            applyClearSelection();
             return;
         }
         const user = assignableUsers.find(u => String(u.user_id) === node.dataset.userId);
         if (user) {
-            selectUser(user);
+            applyUserSelection(user);
         }
     }
 
-    async function clearUser() {
-        if (isAssigning || !currentUserId) {
-            input.value = "";
-            input.classList.remove("has-value");
+    async function applyClearSelection() {
+        if (isBusy) {
+            return;
+        }
+        if (!currentUserId) {
+            setLocalValue("", "");
             hideOptions();
             return;
         }
 
-        const uniqId = cell.getData().uniq_id;
-        isAssigning = true;
-        input.disabled = true;
-
-        try {
-            const baseUrl = getBaseUrl();
-            const response = await fetch(`${baseUrl}/assign`, {
-                method: "POST",
-                headers: {"Content-Type": "application/json"},
-                credentials: "same-origin",
-                body: JSON.stringify({uniq_id: uniqId, user_id: ""}),
-            });
-
-            if (response.ok) {
-                currentUserId = "";
-                currentFullName = "";
-                input.value = "";
-                input.classList.remove("has-value");
-            } else {
-                console.error("Unassignment failed:", response.status);
-                input.value = currentFullName;
+        if (onClearUser) {
+            isBusy = true;
+            input.disabled = true;
+            try {
+                const success = await onClearUser();
+                if (success) {
+                    setLocalValue("", "");
+                } else {
+                    input.value = currentFullName;
+                }
+            } finally {
+                isBusy = false;
+                input.disabled = false;
+                hideOptions();
             }
-        } catch (error) {
-            console.error("Unassignment request failed:", error);
-            input.value = currentFullName;
-        } finally {
-            isAssigning = false;
-            input.disabled = false;
-            hideOptions();
+            return;
         }
+
+        setLocalValue("", "");
+        hideOptions();
     }
 
-    async function selectUser(user) {
+    async function applyUserSelection(user) {
         const userId = String(user.user_id);
-        if (isAssigning || userId === currentUserId) {
+        if (isBusy || userId === currentUserId) {
             input.value = currentFullName;
             hideOptions();
             return;
         }
 
-        const uniqId = cell.getData().uniq_id;
-        isAssigning = true;
-        input.disabled = true;
-
-        try {
-            const baseUrl = getBaseUrl();
-            const response = await fetch(`${baseUrl}/assign`, {
-                method: "POST",
-                headers: {"Content-Type": "application/json"},
-                credentials: "same-origin",
-                body: JSON.stringify({uniq_id: uniqId, user_id: userId}),
-            });
-
-            if (response.ok) {
-                currentUserId = userId;
-                currentFullName = user.full_name;
-                input.value = currentFullName;
-                input.classList.add("has-value");
-            } else {
-                console.error("Assignment failed:", response.status);
-                input.value = currentFullName;
+        if (onSelectUser) {
+            isBusy = true;
+            input.disabled = true;
+            try {
+                const success = await onSelectUser(user);
+                if (success) {
+                    setLocalValue(userId, user.full_name);
+                } else {
+                    input.value = currentFullName;
+                }
+            } finally {
+                isBusy = false;
+                input.disabled = false;
+                hideOptions();
             }
-        } catch (error) {
-            console.error("Assignment request failed:", error);
-            input.value = currentFullName;
-        } finally {
-            isAssigning = false;
-            input.disabled = false;
-            hideOptions();
+            return;
         }
+
+        setLocalValue(userId, user.full_name);
+        hideOptions();
     }
 
     setReadonlyState();
-
     onAuthChange(() => setReadonlyState());
 
     function selectInputText() {
@@ -365,7 +358,83 @@ function userSelectorFormatter(cell) {
 
     wrapper.appendChild(input);
     container.appendChild(wrapper);
-    return container;
+
+    return {
+        element: container,
+        getValue() {
+            return {userId: currentUserId, fullName: currentFullName};
+        },
+        setValue(userId, fullName) {
+            setLocalValue(userId, fullName);
+        },
+        setDefaultToAuthUser() {
+            const authUser = getAuthUser();
+            if (authUser) {
+                setLocalValue(authUser.user_id, authUser.full_name);
+            }
+        },
+        destroy() {
+            optionsEl.remove();
+            container.remove();
+        },
+    };
 }
 
-export {initUserSelector, userSelectorFormatter};
+function userSelectorFormatter(cell) {
+    const indicator = cell.getData().indicator;
+    if (indicator === "closed" || indicator === "deleted") {
+        const empty = document.createElement("div");
+        empty.className = "user-selector-container";
+        return empty;
+    }
+
+    const currentUserId = String(cell.getData()._assigned_user_id || "");
+    const currentFullName = cell.getData()._assigned_fullname || "";
+    const isReadonlyExtra = currentUserId
+        && !assignableUsers.some(u => String(u.user_id) === currentUserId)
+        && currentFullName;
+
+    const selector = createUserSelector({
+        userId: currentUserId,
+        fullName: currentFullName,
+        allowClear: true,
+        readonlyExtra: Boolean(isReadonlyExtra),
+        frozen: Boolean(cell.getData()._is_frozen),
+        onSelectUser: async (user) => {
+            const uniqId = cell.getData().uniq_id;
+            const baseUrl = getBaseUrl();
+            const response = await fetch(`${baseUrl}/assign`, {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                credentials: "same-origin",
+                body: JSON.stringify({uniq_id: uniqId, user_id: String(user.user_id)}),
+            });
+            if (!response.ok) {
+                console.error("Assignment failed:", response.status);
+            }
+            return response.ok;
+        },
+        onClearUser: async () => {
+            const uniqId = cell.getData().uniq_id;
+            const baseUrl = getBaseUrl();
+            const response = await fetch(`${baseUrl}/assign`, {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                credentials: "same-origin",
+                body: JSON.stringify({uniq_id: uniqId, user_id: ""}),
+            });
+            if (!response.ok) {
+                console.error("Unassignment failed:", response.status);
+            }
+            return response.ok;
+        },
+    });
+
+    return selector.element;
+}
+
+function getAssignableUserById(userId) {
+    return assignableUsers.find(u => String(u.user_id) === String(userId)) || null;
+}
+
+export {initUserSelector, userSelectorFormatter, createUserSelector, getAuthUser, getAssignableUserById};
