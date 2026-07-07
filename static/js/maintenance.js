@@ -652,6 +652,7 @@ function ensureOwnerSelector() {
         return ownerSelector;
     }
     ownerSelector = createUserSelector({
+        inputId: "maintenance-window-owner",
         allowClear: false,
     });
     wrap.replaceChildren(ownerSelector.element);

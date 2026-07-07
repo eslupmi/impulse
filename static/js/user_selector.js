@@ -32,9 +32,22 @@ function getOtherUsers() {
         .sort((a, b) => a.full_name.localeCompare(b.full_name));
 }
 
+function getOptionUsers(showAll, query) {
+    const authUser = getAuthUser();
+    const others = getOtherUsers();
+    if (showAll || !query) {
+        return {authUser, others};
+    }
+    return {
+        authUser: authUser && authUser.full_name.toLowerCase().includes(query) ? authUser : null,
+        others: others.filter(u => u.full_name.toLowerCase().includes(query)),
+    };
+}
+
 function createUserSelector({
     userId: initialUserId = "",
     fullName: initialFullName = "",
+    inputId = "",
     allowClear = true,
     readonlyExtra = false,
     frozen = false,
@@ -55,6 +68,9 @@ function createUserSelector({
     input.className = "user-selector";
     input.autocomplete = "off";
     input.placeholder = CLEAR_LABEL;
+    if (inputId) {
+        input.id = inputId;
+    }
     if (currentUserId) {
         input.value = currentFullName;
         input.classList.add("has-value");
@@ -70,18 +86,6 @@ function createUserSelector({
         const readonly = frozen || readonlyExtra || !getIsAuthenticated();
         input.readOnly = readonly;
         input.classList.toggle("readonly", readonly);
-    }
-
-    function getOptionUsers(showAll, query) {
-        const authUser = getAuthUser();
-        const others = getOtherUsers();
-        if (showAll || !query) {
-            return {authUser, others};
-        }
-        return {
-            authUser: authUser && authUser.full_name.toLowerCase().includes(query) ? authUser : null,
-            others: others.filter(u => u.full_name.toLowerCase().includes(query)),
-        };
     }
 
     function addUserOption(user) {

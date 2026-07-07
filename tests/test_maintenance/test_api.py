@@ -27,7 +27,7 @@ ASSIGNABLE = {"U123", "U555"}
 
 
 def test_owner_id_from_payload_uses_explicit_value():
-    assert owner_id_from_payload({"owner_id": "U999"}, None) is "U999"
+    assert owner_id_from_payload({"owner_id": "U999"}, None) == "U999"
 
 
 def test_owner_id_from_payload_defaults_to_acting_user():
@@ -77,12 +77,9 @@ def test_window_from_ws_item_defaults_owner_to_acting_user():
 
 
 def test_window_from_ws_item_rejects_invalid_owner():
+    payload = _window_payload(owner_id="U999")
     with pytest.raises(HTTPException) as exc:
-        window_from_ws_item(
-            _window_payload(owner_id="U999"),
-            acting_user={"id": "U555"},
-            assignable_user_ids=ASSIGNABLE,
-        )
+        window_from_ws_item(payload, acting_user={"id": "U555"}, assignable_user_ids=ASSIGNABLE)
     assert exc.value.detail == "invalid owner_id"
 
 
