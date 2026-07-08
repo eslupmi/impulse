@@ -27,7 +27,7 @@ ASSIGNABLE = {"U123", "U555"}
 
 
 def test_owner_id_from_payload_uses_explicit_value():
-    assert owner_id_from_payload({"owner_id": "U999"}, None) == "U999"
+    assert owner_id_from_payload({"owner_id": "U999"}, None, ASSIGNABLE) == "U999"
 
 
 def test_owner_id_from_payload_defaults_to_acting_user():
@@ -37,7 +37,7 @@ def test_owner_id_from_payload_defaults_to_acting_user():
 
 def test_owner_id_from_payload_required():
     with pytest.raises(HTTPException) as exc:
-        owner_id_from_payload({}, None)
+        owner_id_from_payload({}, None, ASSIGNABLE)
     assert exc.value.detail == "owner_id is required"
 
 
@@ -94,7 +94,12 @@ def test_window_from_ws_item_allows_existing_owner_not_assignable():
 
 
 def test_windows_from_ws_payload_validates_list():
-    windows = windows_from_ws_payload([_window_payload()], acting_user={"id": "U555"}, assignable_user_ids=ASSIGNABLE)
+    windows = windows_from_ws_payload(
+        [_window_payload()],
+        acting_user={"id": "U555"},
+        assignable_user_ids=ASSIGNABLE,
+        existing_by_id={},
+    )
     assert len(windows) == 1
     assert windows[0]["owner_id"] == "U123"
 

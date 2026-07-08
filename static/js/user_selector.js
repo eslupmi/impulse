@@ -215,9 +215,7 @@ function createUserSelector({
             return;
         }
         const user = assignableUsers.find(u => String(u.user_id) === node.dataset.userId);
-        if (user) {
-            applyUserSelection(user);
-        }
+        applyUserSelection(user);
     }
 
     async function applyClearSelection() {

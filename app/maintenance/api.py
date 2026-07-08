@@ -44,7 +44,7 @@ def validate_owner_id(
 def owner_id_from_payload(
     payload: dict,
     acting_user: Optional[dict],
-    assignable_user_ids: Optional[Set[str]] = None,
+    assignable_user_ids: Set[str],
 ) -> str:
     owner_id = payload.get("owner_id")
     if owner_id:
@@ -52,7 +52,7 @@ def owner_id_from_payload(
     acting_id = (acting_user or {}).get("id")
     if acting_id:
         resolved = str(acting_id)
-        if assignable_user_ids is not None and resolved not in assignable_user_ids:
+        if resolved not in assignable_user_ids:
             raise HTTPException(status_code=400, detail="owner_id is required")
         return resolved
     raise HTTPException(status_code=400, detail="owner_id is required")
@@ -60,8 +60,8 @@ def owner_id_from_payload(
 
 def window_from_ws_item(
     payload: dict,
-    acting_user: Optional[dict] = None,
-    assignable_user_ids: Optional[Set[str]] = None,
+    acting_user: Optional[dict],
+    assignable_user_ids: Set[str],
     existing_owner_id: Optional[str] = None,
 ) -> dict:
     if "start" not in payload or "end" not in payload:
@@ -81,8 +81,7 @@ def window_from_ws_item(
         raise HTTPException(status_code=400, detail="id is required")
 
     owner_id = owner_id_from_payload(payload, acting_user, assignable_user_ids)
-    if assignable_user_ids is not None:
-        validate_owner_id(owner_id, assignable_user_ids, existing_owner_id)
+    validate_owner_id(owner_id, assignable_user_ids, existing_owner_id)
 
     return {
         "id": str(window_id),
@@ -97,13 +96,12 @@ def window_from_ws_item(
 def windows_from_ws_payload(
     data: list,
     acting_user: Optional[dict],
-    assignable_user_ids: Optional[Set[str]] = None,
-    existing_by_id: Optional[Dict[str, dict]] = None,
+    assignable_user_ids: Set[str],
+    existing_by_id: Dict[str, dict],
 ) -> List[Dict[str, Any]]:
     if not isinstance(data, list):
         raise HTTPException(status_code=400, detail="data must be a list")
 
-    existing_by_id = existing_by_id or {}
     windows = []
 
     for item in data:

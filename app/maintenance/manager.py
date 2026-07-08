@@ -108,9 +108,7 @@ class MaintenanceManager:
 
         payload["owner_id"] = owner_id
         payload["owner_full_name"] = user.full_name or user.name
-        owner_url = self.application.get_user_profile_url(owner_id, user)
-        if owner_url:
-            payload["owner_url"] = owner_url
+        payload["owner_url"] = self.application.get_user_profile_url(owner_id, user)
         return payload
 
     async def broadcast_active_maintenance(self):

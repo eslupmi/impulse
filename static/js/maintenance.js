@@ -162,14 +162,12 @@ function renderActiveMaintenancePopup(windows) {
 
         const owner = document.createElement(window.owner_url ? "a" : "span");
         owner.className = "maintenance-active-popup-owner";
-        if (window.owner_full_name) {
-            owner.textContent = window.owner_full_name;
-            owner.title = window.owner_full_name;
-            if (window.owner_url) {
-                owner.href = window.owner_url;
-                owner.target = "_blank";
-                owner.rel = "noopener noreferrer";
-            }
+        owner.textContent = window.owner_full_name || "";
+        owner.title = window.owner_full_name || "";
+        if (window.owner_url) {
+            owner.href = window.owner_url;
+            owner.target = "_blank";
+            owner.rel = "noopener noreferrer";
         }
         row.append(owner);
 
@@ -689,7 +687,7 @@ function openWindowModal(windowData = null) {
         commentInput.value = windowData.comment || "";
         modalMatchers = [...(windowData.matchers || [])];
         deleteBtn.classList.remove("hidden");
-        setOwnerSelectorValue(windowData.owner_id || "", null);
+        setOwnerSelectorValue(windowData.owner_id, null);
     } else {
         currentWindowId = null;
         title.textContent = "New maintenance";
