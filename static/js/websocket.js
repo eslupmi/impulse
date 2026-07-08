@@ -1,8 +1,7 @@
 import {table} from "./table.js";
 import {updateZoomIcons} from "./filters.js";
 import {getBaseUrl} from "./utils.js";
-
-const SHOW_FULL_TABLE_KEY = "show_full_table";
+import {SHOW_FULL_TABLE_KEY} from "./constants.js";
 
 function loadShowFullTablePreference() {
     const saved = localStorage.getItem(SHOW_FULL_TABLE_KEY);
@@ -21,14 +20,14 @@ const RECONNECT_DELAY = 3000;
 
 // Update online status indicator
 function updateOnlineStatus(isOnline) {
-    const indicator = document.querySelector('.online-status-indicator');
+    const indicator = document.querySelector(".online-status-indicator");
     if (indicator) {
         if (isOnline) {
-            indicator.textContent = 'online';
-            indicator.className = 'online-status-indicator online';
+            indicator.textContent = "online";
+            indicator.className = "online-status-indicator online";
         } else {
-            indicator.textContent = 'offline';
-            indicator.className = 'online-status-indicator offline';
+            indicator.textContent = "offline";
+            indicator.className = "online-status-indicator offline";
         }
     }
 }
@@ -42,7 +41,7 @@ function startHeartbeat() {
             socket.send(JSON.stringify({event: "ping"}));
 
             heartbeatTimeout = setTimeout(() => {
-                console.log('Heartbeat timeout - no pong received, connection appears dead');
+                console.log("Heartbeat timeout - no pong received, connection appears dead");
                 updateOnlineStatus(false);
                 socket.close();
             }, HEARTBEAT_TIMEOUT);
@@ -141,7 +140,7 @@ function handleWebSocketMessage(message) {
     switch (eventType) {
         case "add_row":
             preserveScrollDuringOperation(() => {
-                if (showFullTable || (data.indicator !== 'closed' && data.indicator !== 'deleted')) {
+                if (showFullTable || (data.indicator !== "closed" && data.indicator !== "deleted")) {
                     table.addRow(data);
                     table.setSort(table.getSorters());
                     updateZoomIcons();
@@ -151,13 +150,13 @@ function handleWebSocketMessage(message) {
 
         case "update_row":
             preserveScrollDuringOperation(() => {
-                if (showFullTable || (data.indicator !== 'closed' && data.indicator !== 'deleted')) {
+                if (showFullTable || (data.indicator !== "closed" && data.indicator !== "deleted")) {
                     table.updateOrAddData([data]);
                     table.setSort(table.getSorters());
                     table.refreshFilter();
                     updateZoomIcons();
                 } else {
-                    const rows = table.searchRows('uniq_id', '=', data.uniq_id);
+                    const rows = table.searchRows("uniq_id", "=", data.uniq_id);
                     rows.forEach(row => row.delete());
                     updateZoomIcons();
                 }
@@ -166,7 +165,7 @@ function handleWebSocketMessage(message) {
 
         case "remove_row":
             preserveScrollDuringOperation(() => {
-                const rows = table.searchRows('uniq_id', '=', data.uniq_id);
+                const rows = table.searchRows("uniq_id", "=", data.uniq_id);
                 rows.forEach(row => row.delete());
                 updateZoomIcons();
             });
@@ -179,7 +178,7 @@ function handleWebSocketMessage(message) {
                 }
                 let tableData = data;
                 if (!showFullTable) {
-                    tableData = data.filter(row => row.indicator !== 'closed' && row.indicator !== 'deleted');
+                    tableData = data.filter(row => row.indicator !== "closed" && row.indicator !== "deleted");
                 }
                 table.replaceData(tableData);
                 updateZoomIcons();
@@ -191,21 +190,21 @@ function handleWebSocketMessage(message) {
             break;
 
         default:
-            console.log('Unknown WebSocket event:', eventType);
+            console.log("Unknown WebSocket event:", eventType);
     }
 }
 
 // Handle WebSocket Events
 function setupWebSocketEvents() {
     // Create WebSocket connection
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const baseUrl = getBaseUrl();
     const wsUrl = `${protocol}//${window.location.host}${baseUrl}/ws`;
     
     socket = new WebSocket(wsUrl);
 
     socket.onopen = function(event) {
-        console.log('WebSocket connected');
+        console.log("WebSocket connected");
         updateOnlineStatus(true);
         startHeartbeat();
         table.initialDataLoaded = false;
@@ -217,19 +216,19 @@ function setupWebSocketEvents() {
         try {
             handleWebSocketMessage(JSON.parse(event.data));
         } catch (error) {
-            console.error('Error parsing WebSocket message:', error);
+            console.error("Error parsing WebSocket message:", error);
         }
     };
 
     socket.onclose = function(event) {
-        console.log('WebSocket disconnected');
+        console.log("WebSocket disconnected");
         updateOnlineStatus(false);
         stopHeartbeat();
         setTimeout(setupWebSocketEvents, RECONNECT_DELAY);
     };
 
     socket.onerror = function(error) {
-        console.error('WebSocket error:', error);
+        console.error("WebSocket error:", error);
         updateOnlineStatus(false);
         stopHeartbeat();
     };
