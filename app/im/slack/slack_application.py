@@ -157,8 +157,6 @@ class SlackApplication(Application):
         return 'https://slack.com'
 
     def _build_user_profile_url(self, user_id: str, user: BaseUser) -> Optional[str]:
-        if not self.public_url:
-            return None
         return f"{self.public_url.rstrip('/')}/team/{user_id}"
 
     async def _handle_chain_action(self, incident_, user_id, queue_):

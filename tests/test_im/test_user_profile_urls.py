@@ -14,14 +14,6 @@ def test_slack_user_profile_url():
     assert app._build_user_profile_url("U123", user) == "https://example.slack.com/team/U123"
 
 
-def test_slack_user_profile_url_requires_public_url():
-    app = SlackApplication.__new__(SlackApplication)
-    app.public_url = None
-    user = SlackUser("alice", "U123", exists=True, full_name="Alice", username="alice")
-
-    assert app._build_user_profile_url("U123", user) is None
-
-
 def test_mattermost_user_profile_url_with_username():
     app = MattermostApplication.__new__(MattermostApplication)
     app.public_url = "https://mm.example.com"
@@ -40,8 +32,15 @@ def test_mattermost_user_profile_url_falls_back_to_user_id():
     assert app._build_user_profile_url("U123", user) == "https://mm.example.com/team1/users/U123"
 
 
-def test_telegram_user_profile_url():
+def test_telegram_user_profile_url_with_username():
+    app = TelegramApplication.__new__(TelegramApplication)
+    user = TelegramUser("alice", 12345, exists=True, full_name="Alice", username="alice")
+
+    assert app._build_user_profile_url("12345", user) == "https://t.me/alice"
+
+
+def test_telegram_user_profile_url_requires_username():
     app = TelegramApplication.__new__(TelegramApplication)
     user = TelegramUser("alice", 12345, exists=True, full_name="Alice")
 
-    assert app._build_user_profile_url("12345", user) == "tg://user?id=12345"
+    assert app._build_user_profile_url("12345", user) is None

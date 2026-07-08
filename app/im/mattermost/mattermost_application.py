@@ -179,11 +179,7 @@ class MattermostApplication(Application):
         return app_config.address
 
     def _build_user_profile_url(self, user_id: str, user: BaseUser) -> Optional[str]:
-        if not self.public_url or not self.team:
-            return None
         base = self.public_url.rstrip("/")
-        if user.username:
-            return f"{base}/{self.team}/messages/@{user.username}"
         return f"{base}/{self.team}/users/{user_id}"
 
     async def _handle_chain_action(self, incident_, user_id, queue_, payload):

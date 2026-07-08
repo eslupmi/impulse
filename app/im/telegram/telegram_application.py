@@ -91,7 +91,8 @@ class TelegramApplication(Application):
             name=name,
             id_=user_details.get('id'),
             exists=user_details.get('exists', False),
-            full_name=user_details.get('full_name')
+            full_name=user_details.get('full_name'),
+            username=user_details.get('username'),
         )
 
     async def get_all_groups(self):
@@ -288,7 +289,9 @@ class TelegramApplication(Application):
         return 'https://api.telegram.org/bot'
 
     def _build_user_profile_url(self, user_id: str, user: BaseUser) -> Optional[str]:
-        return f"tg://user?id={user_id}"
+        if not user.username:
+            return None
+        return f"https://t.me/{user.username}"
 
     async def _handle_chain_action(self, action, incident_, user_id, queue_, payload):
         await queue_.delete_by_id(incident_.uniq_id, delete_steps=True, delete_status=False)
