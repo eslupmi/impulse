@@ -307,6 +307,23 @@ class TestRateLimitedClient:
             assert abs(client.rate_window - 1.0) < 0.001
 
 
+class TestRateLimitedClientConfiguration:
+    def test_initialize_client_uses_proxy_from_environment(self):
+        """Test that ClientSession is created with proxy from environment config."""
+        mock_env_config = MagicMock()
+        mock_env_config.proxy_url = 'http://proxy.example.com:8080'
+
+        with patch('app.http_client.rate_limited_client.get_environment_config', return_value=mock_env_config), \
+             patch('app.http_client.rate_limited_client.aiohttp.TCPConnector'), \
+             patch('app.http_client.rate_limited_client.ClientSession') as mock_session_class, \
+             patch('app.http_client.rate_limited_client.RetryClient'):
+            client = RateLimitedClient()
+            client.initialize_client()
+
+            mock_session_class.assert_called_once()
+            assert mock_session_class.call_args.kwargs['proxy'] == 'http://proxy.example.com:8080'
+
+
 class TestRetryAfterRetry:
     """Test cases for RetryAfterRetry policy (synchronous tests)"""
     

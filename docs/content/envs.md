@@ -15,6 +15,7 @@ Environment variables are created in `.env` file for python installation or in `
 | DATA_PATH | Path to data directory | `./data` | - |
 | GOOGLE_SERVICE_ACCOUNT_FILE | Path to Google service account file<br/>(for [cloud chain](config_file.md#cloud-chains)) | `./key.json` | - |
 | HTTP_PREFIX | HTTP prefix for reverse proxy deployments<br/>(e.g., `/impulse`) | | - |
+| HTTP_PROXY | HTTP(S) proxy URL for outbound requests<br/> | | - |
 | JIRA_API_TOKEN | Jira API token for Basic Auth | | for [task management](integrations/task_management/jira.md) |
 | JIRA_BASE_URL | Jira base URL<br/>(e.g., [https://your-domain.atlassian.net](https://your-domain.atlassian.net)) | | for [task management](integrations/task_management/jira.md) |
 | JIRA_USER_EMAIL | Jira user email for Basic Auth | | for [task management](integrations/task_management/jira.md) |
