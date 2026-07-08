@@ -4,10 +4,7 @@ import {getBaseUrl} from "./utils.js";
 import {SHOW_FULL_TABLE_KEY} from "./constants.js";
 
 function loadShowFullTablePreference() {
-    const saved = localStorage.getItem(SHOW_FULL_TABLE_KEY);
-    if (saved === "true") return true;
-    if (saved === "false") return false;
-    return false;
+    return localStorage.getItem(SHOW_FULL_TABLE_KEY) === "true";
 }
 
 let socket;
@@ -21,14 +18,12 @@ const RECONNECT_DELAY = 3000;
 // Update online status indicator
 function updateOnlineStatus(isOnline) {
     const indicator = document.querySelector(".online-status-indicator");
-    if (indicator) {
-        if (isOnline) {
-            indicator.textContent = "online";
-            indicator.className = "online-status-indicator online";
-        } else {
-            indicator.textContent = "offline";
-            indicator.className = "online-status-indicator offline";
-        }
+    if (isOnline) {
+        indicator.textContent = "online";
+        indicator.className = "online-status-indicator online";
+    } else {
+        indicator.textContent = "offline";
+        indicator.className = "online-status-indicator offline";
     }
 }
 
@@ -110,21 +105,19 @@ const WEBSOCKET_MESSAGE_FIELD_HANDLERS = {
 
 function dispatchOptionalGlobalHandler(message) {
     const dataHandler = WEBSOCKET_DATA_HANDLERS[message.event];
-    if (dataHandler && typeof globalThis[dataHandler] === "function") {
+    if (dataHandler) {
         globalThis[dataHandler](message.data);
         return true;
     }
-    if (message.event === "maintenance_saved" && typeof globalThis.handleMaintenanceSaved === "function") {
+    if (message.event === "maintenance_saved") {
         globalThis.handleMaintenanceSaved(message.success, message.detail);
         return true;
     }
     const fieldHandler = WEBSOCKET_MESSAGE_FIELD_HANDLERS[message.event];
     if (fieldHandler) {
         const [handlerName, field] = fieldHandler;
-        if (typeof globalThis[handlerName] === "function") {
-            globalThis[handlerName](message[field]);
-            return true;
-        }
+        globalThis[handlerName](message[field]);
+        return true;
     }
     return false;
 }
@@ -173,9 +166,7 @@ function handleWebSocketMessage(message) {
 
         case "update_data":
             preserveScrollDuringOperation(() => {
-                if (!table.initialDataLoaded) {
-                    table.initialDataLoaded = true;
-                }
+                table.initialDataLoaded = true;
                 let tableData = data;
                 if (!showFullTable) {
                     tableData = data.filter(row => row.indicator !== "closed" && row.indicator !== "deleted");
@@ -188,9 +179,6 @@ function handleWebSocketMessage(message) {
         case "pong":
             handlePong();
             break;
-
-        default:
-            console.log("Unknown WebSocket event:", eventType);
     }
 }
 
@@ -236,7 +224,6 @@ function setupWebSocketEvents() {
 
 function updateHistoryToggleButton() {
     const button = document.getElementById("history-toggle");
-    if (!button) return;
     if (showFullTable) {
         button.classList.add("active");
         button.title = "Hide archive";
@@ -255,19 +242,14 @@ function setShowFullTable(value) {
 function toggleHistoryView() {
     setShowFullTable(!showFullTable);
 
-    if (socket && socket.readyState === WebSocket.OPEN) {
+    if (socket?.readyState === WebSocket.OPEN) {
         socket.send(JSON.stringify({event: "request_data", show_full_table: showFullTable}));
-    } else {
-        console.warn("WebSocket not connected, cannot reload table");
     }
 }
 
 function initHistoryToggle() {
-    const button = document.getElementById("history-toggle");
-    if (button) {
-        button.addEventListener("click", toggleHistoryView);
-        updateHistoryToggleButton();
-    }
+    document.getElementById("history-toggle").addEventListener("click", toggleHistoryView);
+    updateHistoryToggleButton();
 }
 
 function getSocket() {
