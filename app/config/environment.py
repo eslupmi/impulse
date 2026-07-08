@@ -130,10 +130,6 @@ class EnvironmentConfig(BaseModel):
         default_factory=lambda: os.getenv('HTTP_PROXY', ''),
         description="HTTP proxy URL for outbound requests (e.g., 'http://proxy.example.com:8080')"
     )
-    https_proxy: str = Field(
-        default_factory=lambda: os.getenv('HTTPS_PROXY', ''),
-        description="HTTPS proxy URL for outbound requests (falls back to HTTP_PROXY when unset)"
-    )
     
     @field_validator('provider_sync_interval', 'provider_max_events', 'provider_days_to_sync', 'listen_port')
     @classmethod
@@ -170,9 +166,7 @@ class EnvironmentConfig(BaseModel):
     
     @property
     def proxy_url(self) -> Optional[str]:
-        """Outbound HTTP(S) proxy URL from HTTP_PROXY / HTTPS_PROXY environment variables."""
-        proxy = self.https_proxy or self.http_proxy
-        return proxy or None
+        return self.http_proxy or None
 
     @property
     def incidents_path(self) -> str:
