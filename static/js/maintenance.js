@@ -647,10 +647,10 @@ function commitMatcherInput() {
 }
 
 function ensureOwnerSelector() {
-    const wrap = document.getElementById("maintenance-window-owner-wrap");
-    if (!wrap || ownerSelector) {
+    if (ownerSelector) {
         return ownerSelector;
     }
+    const wrap = document.getElementById("maintenance-window-owner-wrap");
     ownerSelector = createUserSelector({
         inputId: "maintenance-window-owner",
         allowClear: false,
@@ -661,12 +661,9 @@ function ensureOwnerSelector() {
 
 function setOwnerSelectorValue(ownerId, fullName, {defaultToAuthUser = false} = {}) {
     const selector = ensureOwnerSelector();
-    if (!selector) {
-        return;
-    }
     if (ownerId) {
         const user = getAssignableUserById(ownerId);
-        selector.setValue(ownerId, fullName || user?.full_name || "");
+        selector.setValue(ownerId, fullName || (user && user.full_name) || "");
         return;
     }
     if (defaultToAuthUser) {
@@ -760,8 +757,8 @@ function validateWindowModalInput() {
         showNotification("Comment is required");
         return null;
     }
-    const ownerValue = ensureOwnerSelector()?.getValue();
-    if (!ownerValue?.userId) {
+    const ownerValue = ensureOwnerSelector().getValue();
+    if (!ownerValue.userId) {
         showNotification("Owner is required");
         return null;
     }

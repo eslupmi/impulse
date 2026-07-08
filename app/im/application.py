@@ -426,12 +426,7 @@ class Application(ABC):
         config = get_config()
         return config.app.general.timezone
 
-    def get_user_profile_url(self, user_id: str) -> Optional[str]:
-        if not self.users:
-            return None
-        user = self.users.get_user_by_id(user_id)
-        if not user or not user.exists:
-            return None
+    def get_user_profile_url(self, user_id: str, user: BaseUser) -> Optional[str]:
         return self._build_user_profile_url(str(user_id), user)
 
     @abstractmethod

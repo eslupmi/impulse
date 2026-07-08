@@ -4,7 +4,6 @@ from typing import Any, Dict, List, Optional, Set
 from fastapi import HTTPException, Request
 
 from app.maintenance.models import _ensure_utc, _parse_iso
-from app.maintenance.store import get_maintenance_store
 from app.route.matcher import Matcher
 
 
@@ -111,7 +110,7 @@ def windows_from_ws_payload(
         if not isinstance(item, dict):
             raise HTTPException(status_code=400, detail="each window must be an object")
         window_id = item.get("id")
-        prev = existing_by_id.get(str(window_id), {}) if window_id else {}
+        prev = existing_by_id.get(str(window_id), {})
         windows.append(window_from_ws_item(
             item,
             acting_user,
@@ -134,10 +133,7 @@ async def reconcile_maintenance(request: Request):
 def merge_and_validate_save(
     data: list,
     acting_user: Optional[dict],
-    assignable_user_ids: Optional[Set[str]] = None,
-    existing_by_id: Optional[Dict[str, dict]] = None,
+    assignable_user_ids: Set[str],
+    existing_by_id: Dict[str, dict],
 ) -> List[Dict[str, Any]]:
-    if assignable_user_ids is None:
-        store = get_maintenance_store()
-        existing_by_id = existing_by_id or {w["id"]: w for w in store.load_windows()}
     return windows_from_ws_payload(data, acting_user, assignable_user_ids, existing_by_id)

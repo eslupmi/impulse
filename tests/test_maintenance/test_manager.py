@@ -503,7 +503,7 @@ class TestActiveWindowsPayload:
         assert payload[0]["owner_id"] == "U123"
         assert payload[0]["owner_full_name"] == "Dmitry Tsybus"
         assert payload[0]["owner_url"] == "https://team.example/messages/@dmitry"
-        application.get_user_profile_url.assert_called_once_with("U123")
+        application.get_user_profile_url.assert_called_once_with("U123", owner)
 
     def test_active_windows_payload_omits_owner_when_user_missing(self, maintenance_setup):
         manager, store, application, _ = maintenance_setup
