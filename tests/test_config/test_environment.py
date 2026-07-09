@@ -33,7 +33,7 @@ class TestEnvironmentConfig:
         assert config.http_prefix == ""
         assert config.listen_host == "0.0.0.0"
         assert config.listen_port == 5000
-        assert config.http_proxy == ""
+        assert config.impulse_proxy == ""
         assert config.proxy_url is None
 
     def test_environment_variable_loading(self):
@@ -54,7 +54,7 @@ class TestEnvironmentConfig:
             'HTTP_PREFIX': '/api/v1',
             'LISTEN_HOST': '127.0.0.1',
             'LISTEN_PORT': '8080',
-            'HTTP_PROXY': 'http://proxy.example.com:8080',
+            'IMPULSE_PROXY': 'http://proxy.example.com:8080',
         }
 
         with patch.dict('os.environ', env_vars, clear=True):
@@ -75,7 +75,7 @@ class TestEnvironmentConfig:
         assert config.http_prefix == '/api/v1'
         assert config.listen_host == '127.0.0.1'
         assert config.listen_port == 8080
-        assert config.http_proxy == 'http://proxy.example.com:8080'
+        assert config.impulse_proxy == 'http://proxy.example.com:8080'
         assert config.proxy_url == 'http://proxy.example.com:8080'
 
     def test_positive_integer_validation(self):
@@ -321,11 +321,11 @@ class TestEnvironmentConfig:
                            match="HTTP prefix must not end with '/' \\(e.g., '/impulse' not '/impulse/'\\)"):
             EnvironmentConfig(**config_data)
 
-    def test_proxy_url_from_http_proxy(self):
-        with patch.dict('os.environ', {'HTTP_PROXY': 'http://proxy.example.com:8080'}, clear=True):
+    def test_proxy_url_from_impulse_proxy(self):
+        with patch.dict('os.environ', {'IMPULSE_PROXY': 'http://proxy.example.com:8080'}, clear=True):
             config = EnvironmentConfig()
 
-        assert config.http_proxy == 'http://proxy.example.com:8080'
+        assert config.impulse_proxy == 'http://proxy.example.com:8080'
         assert config.proxy_url == 'http://proxy.example.com:8080'
 
     def test_proxy_url_none_when_unset(self):

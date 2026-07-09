@@ -126,8 +126,8 @@ class EnvironmentConfig(BaseModel):
     )
 
     # Outbound HTTP proxy
-    http_proxy: str = Field(
-        default_factory=lambda: os.getenv('HTTP_PROXY', ''),
+    impulse_proxy: str = Field(
+        default_factory=lambda: os.getenv('IMPULSE_PROXY', ''),
         description="HTTP proxy URL for outbound requests (e.g., 'http://proxy.example.com:8080')"
     )
     
@@ -166,7 +166,7 @@ class EnvironmentConfig(BaseModel):
     
     @property
     def proxy_url(self) -> Optional[str]:
-        return self.http_proxy or None
+        return self.impulse_proxy or None
 
     @property
     def incidents_path(self) -> str:
