@@ -213,7 +213,7 @@ Below are all the configuration options supported by IMPulse.
 - **details:**
     
     !!! note ""
-        There are 3 chain types: [simple](#simple-chains), [schedule](#schedule-chains), [cloud](#cloud-chains). See their description below.
+        There are 4 chain types: [simple](#simple-chains), [schedule](#schedule-chains), [cloud](#cloud-chains), [ui](#ui-chains). See their description below.
 
         **Steps**
 
@@ -506,6 +506,8 @@ Below are all the configuration options supported by IMPulse.
         Use UI chains for on-call rotations and quick shift updates without editing the config file.
 
         A UI chain is declared in config and edited from the **ui chains** button in the web interface (see [Footer](concepts/ui.md#footer)).
+
+        UI chains older than [incident.timeouts.closed](#incidenttimeoutsclosed) are deleted.
 
 ##### &lt;chain&gt;.type *
 
