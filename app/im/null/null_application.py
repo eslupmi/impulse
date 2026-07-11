@@ -83,7 +83,7 @@ class NullApplication(Application):
     def _get_url(self, app_config):
         return ''
 
-    def _get_public_url(self, app_config):
+    async def _get_public_url(self, app_config):
         return ''
 
     def _get_team_name(self, app_config):

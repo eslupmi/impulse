@@ -5,7 +5,7 @@ import aiohttp
 from fastapi.responses import JSONResponse
 
 from app.im.application import Application
-from app.im.messenger_init import messenger_init_step
+from app.im.messenger_init import messenger_init_step_async
 
 if TYPE_CHECKING:
     from app.incident.incident import Incident
@@ -135,7 +135,7 @@ class TelegramApplication(Application):
         await super().initialize_async()
         await self._init_webhook()
 
-    @messenger_init_step('webhook')
+    @messenger_init_step_async('webhook')
     async def _init_webhook(self):
         await self._setup_webhook()
 
@@ -282,7 +282,7 @@ class TelegramApplication(Application):
             }
         }
 
-    def _get_public_url(self, app_config: ApplicationConfig):
+    async def _get_public_url(self, app_config: ApplicationConfig):
         return 'https://api.telegram.org/bot'
 
     def _get_team_name(self, app_config: ApplicationConfig):

@@ -7,7 +7,7 @@ from app.config.config import get_config
 from app.config.validation import ApplicationConfig, MattermostUser, SlackUser, TelegramUser, MessengerType
 from app.http_client import RateLimitedClient
 from app.im.chain.chain_factory import ChainFactory
-from app.im.messenger_init import messenger_init_step
+from app.im.messenger_init import messenger_init_step_async, messenger_init_step_sync
 from app.logging_context import redact_messenger_url
 from app.im.groups import Group
 from app.im.template import notification_user, notification_user_group, notification_group, update_status, \
@@ -220,31 +220,27 @@ class Application(ABC):
 
         logger.info('Messenger initialized', extra={'messenger': self.type.value})
 
-    @messenger_init_step('http_client')
+    @messenger_init_step_sync('http_client')
     def _init_http_client(self) -> RateLimitedClient:
         return self._setup_http()
 
-    @messenger_init_step('public_url')
+    @messenger_init_step_async('public_url')
     async def _init_public_url(self):
-        if hasattr(self, '_get_public_url') and callable(getattr(self, '_get_public_url')):
-            if asyncio.iscoroutinefunction(self._get_public_url):
-                return await self._get_public_url(self._app_config)
-            return self._get_public_url(self._app_config)
-        return self.public_url
+        return await self._get_public_url(self._app_config)
 
-    @messenger_init_step('users')
+    @messenger_init_step_async('users')
     async def _init_users(self):
         return await self._generate_users(self._users_config)
 
-    @messenger_init_step('user_groups')
+    @messenger_init_step_sync('user_groups')
     def _init_user_groups(self):
         return generate_user_groups(self._user_groups_config, self.users)
 
-    @messenger_init_step('groups')
+    @messenger_init_step_async('groups')
     async def _init_groups(self):
         return await self._generate_groups(self._groups_config)
 
-    @messenger_init_step('admin_users')
+    @messenger_init_step_sync('admin_users')
     def _init_admin_users(self):
         return [self.users.get(admin) or UndefinedUser(admin) for admin in self._admin_users_config]
 
@@ -440,7 +436,7 @@ class Application(ABC):
         pass
 
     @abstractmethod
-    def _get_public_url(self, app_config: ApplicationConfig):
+    async def _get_public_url(self, app_config: ApplicationConfig):
         pass
 
     @abstractmethod

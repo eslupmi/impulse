@@ -62,8 +62,6 @@ def measure_request(func):
 
         except (asyncio.TimeoutError, aiohttp.ClientError) as exc:
             error = classify_messenger_http_error(exc)
-            if error == 'client_error':
-                error = 'unknown'
             raise
 
         finally:

@@ -1,5 +1,5 @@
-import asyncio
 import functools
+from contextlib import contextmanager
 
 from app.http_client.errors import MESSENGER_TRANSPORT_ERRORS
 from app.logging import logger
@@ -23,45 +23,43 @@ def _log_init_failure(self, step: str, exc: BaseException) -> None:
     )
 
 
-def messenger_init_step(step: str):
+@contextmanager
+def _init_step_context(self, step: str):
+    token = messenger_init_context.set(
+        MessengerInitContext(step=step, messenger=self.type.value)
+    )
+    try:
+        yield
+    except MESSENGER_TRANSPORT_ERRORS:
+        raise
+    except Exception as exc:
+        # Init steps can fail on config, parsing, and API logic — not only transport.
+        # Transport errors re-raise without logging here; HTTP client logs those with step context.
+        _log_init_failure(self, step, exc)
+        raise
+    finally:
+        messenger_init_context.reset(token)
+
+
+def messenger_init_step_sync(step: str):
     def decorator(func):
-        if asyncio.iscoroutinefunction(func):
-            @functools.wraps(func)
-            async def async_wrapper(self, *args, **kwargs):
-                token = messenger_init_context.set(
-                    MessengerInitContext(step=step, messenger=self.type.value)
-                )
-                try:
-                    return await func(self, *args, **kwargs)
-                except MESSENGER_TRANSPORT_ERRORS:
-                    raise
-                except Exception as exc:
-                    # Init steps can fail on config, parsing, and API logic — not only transport.
-                    # Transport errors re-raise without logging here; HTTP client logs those with step context.
-                    _log_init_failure(self, step, exc)
-                    raise
-                finally:
-                    messenger_init_context.reset(token)
-
-            return async_wrapper
-
         @functools.wraps(func)
-        def sync_wrapper(self, *args, **kwargs):
-            token = messenger_init_context.set(
-                MessengerInitContext(step=step, messenger=self.type.value)
-            )
-            try:
+        def wrapper(self, *args, **kwargs):
+            with _init_step_context(self, step):
                 return func(self, *args, **kwargs)
-            except MESSENGER_TRANSPORT_ERRORS:
-                raise
-            except Exception as exc:
-                # Init steps can fail on config, parsing, and API logic — not only transport.
-                # Transport errors re-raise without logging here; HTTP client logs those with step context.
-                _log_init_failure(self, step, exc)
-                raise
-            finally:
-                messenger_init_context.reset(token)
 
-        return sync_wrapper
+        return wrapper
+
+    return decorator
+
+
+def messenger_init_step_async(step: str):
+    def decorator(func):
+        @functools.wraps(func)
+        async def wrapper(self, *args, **kwargs):
+            with _init_step_context(self, step):
+                return await func(self, *args, **kwargs)
+
+        return wrapper
 
     return decorator

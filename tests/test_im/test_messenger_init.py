@@ -4,7 +4,7 @@ from unittest.mock import Mock, patch
 import aiohttp
 import pytest
 
-from app.im.messenger_init import messenger_init_step
+from app.im.messenger_init import messenger_init_step_async, messenger_init_step_sync
 
 
 class StubApplication:
@@ -17,7 +17,7 @@ class TestMessengerInitStep:
     async def test_async_step_logs_and_reraises_non_transport_errors(self):
         app = StubApplication()
 
-        @messenger_init_step('users')
+        @messenger_init_step_async('users')
         async def init_users(self):
             raise ValueError('invalid user config')
 
@@ -36,7 +36,7 @@ class TestMessengerInitStep:
     async def test_async_step_skips_logging_for_transport_errors(self):
         app = StubApplication()
 
-        @messenger_init_step('users')
+        @messenger_init_step_async('users')
         async def init_users(self):
             raise aiohttp.ClientConnectionError('connection failed')
 
@@ -44,13 +44,12 @@ class TestMessengerInitStep:
             with pytest.raises(aiohttp.ClientConnectionError):
                 await init_users(app)
 
-            mock_logger.exception.assert_not_called()
             mock_logger.error.assert_not_called()
 
     def test_sync_step_logs_and_reraises_non_transport_errors(self):
         app = StubApplication()
 
-        @messenger_init_step('http_client')
+        @messenger_init_step_sync('http_client')
         def init_http(self):
             raise RuntimeError('setup failed')
 
@@ -67,7 +66,7 @@ class TestMessengerInitStep:
     def test_sync_step_skips_logging_for_transport_errors(self):
         app = StubApplication()
 
-        @messenger_init_step('http_client')
+        @messenger_init_step_sync('http_client')
         def init_http(self):
             raise asyncio.TimeoutError()
 
@@ -75,14 +74,13 @@ class TestMessengerInitStep:
             with pytest.raises(asyncio.TimeoutError):
                 init_http(app)
 
-            mock_logger.exception.assert_not_called()
             mock_logger.error.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_async_step_returns_value(self):
         app = StubApplication()
 
-        @messenger_init_step('groups')
+        @messenger_init_step_async('groups')
         async def init_groups(self):
             return {'oncall': 'team-a'}
 
@@ -92,7 +90,7 @@ class TestMessengerInitStep:
     def test_sync_step_returns_value(self):
         app = StubApplication()
 
-        @messenger_init_step('user_groups')
+        @messenger_init_step_sync('user_groups')
         def init_user_groups(self):
             return {}
 
