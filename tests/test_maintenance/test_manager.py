@@ -505,7 +505,7 @@ class TestActiveWindowsPayload:
         assert payload[0]["owner_url"] == "https://team.example/messages/@dmitry"
         application.get_user_profile_url.assert_called_once_with("U123", owner)
 
-    def test_active_windows_payload_omits_owner_when_user_missing(self, maintenance_setup):
+    def test_active_windows_payload_keeps_owner_when_user_missing(self, maintenance_setup):
         manager, store, application, _ = maintenance_setup
         application.users = Mock()
         application.users.get_user_by_id.return_value = None
@@ -517,6 +517,7 @@ class TestActiveWindowsPayload:
         payload = manager.active_windows_payload()
 
         assert len(payload) == 1
-        assert "owner_id" not in payload[0]
-        assert "owner_full_name" not in payload[0]
+        assert payload[0]["owner_id"] == "U123"
+        assert payload[0]["owner_full_name"] == "U123"
+        assert "owner_url" not in payload[0]
         application.get_user_profile_url.assert_not_called()

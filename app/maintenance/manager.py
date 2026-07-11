@@ -102,11 +102,13 @@ class MaintenanceManager:
             return payload
 
         owner_id = str(window.owner_id)
+        payload["owner_id"] = owner_id
+
         user = self.application.users.get_user_by_id(owner_id)
         if not user or not user.exists:
+            payload["owner_full_name"] = owner_id
             return payload
 
-        payload["owner_id"] = owner_id
         payload["owner_full_name"] = user.full_name or user.name
         payload["owner_url"] = self.application.get_user_profile_url(owner_id, user)
         return payload

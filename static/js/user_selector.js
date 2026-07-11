@@ -197,11 +197,7 @@ function createUserSelector({
         currentUserId = String(userId || "");
         currentFullName = fullName || "";
         input.value = currentFullName;
-        if (currentUserId) {
-            input.classList.add("has-value");
-        } else {
-            input.classList.remove("has-value");
-        }
+        input.classList.toggle("has-value", Boolean(currentUserId));
     }
 
     function selectActiveOption() {
@@ -344,12 +340,7 @@ function createUserSelector({
     input.addEventListener("blur", () => {
         setTimeout(() => {
             hideOptions();
-            input.value = currentFullName;
-            if (currentUserId) {
-                input.classList.add("has-value");
-            } else {
-                input.classList.remove("has-value");
-            }
+            setLocalValue(currentUserId, currentFullName);
         }, 100);
     });
     wrapper.addEventListener("mouseleave", () => {
@@ -371,9 +362,7 @@ function createUserSelector({
         },
         setDefaultToAuthUser() {
             const authUser = getAuthUser();
-            if (authUser) {
-                setLocalValue(authUser.user_id, authUser.full_name);
-            }
+            setLocalValue(authUser?.user_id || "", authUser?.full_name || "");
         },
         destroy() {
             optionsEl.remove();

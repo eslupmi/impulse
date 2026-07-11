@@ -657,11 +657,10 @@ function ensureOwnerSelector() {
     return ownerSelector;
 }
 
-function setOwnerSelectorValue(ownerId, fullName, {defaultToAuthUser = false} = {}) {
+function setOwnerSelectorValue(ownerId, defaultToAuthUser = false) {
     const selector = ensureOwnerSelector();
     if (ownerId) {
-        const user = getAssignableUserById(ownerId);
-        selector.setValue(ownerId, fullName || (user && user.full_name) || "");
+        selector.setValue(ownerId, getAssignableUserById(ownerId)?.full_name || "");
         return;
     }
     if (defaultToAuthUser) {
@@ -687,7 +686,7 @@ function openWindowModal(windowData = null) {
         commentInput.value = windowData.comment || "";
         modalMatchers = [...(windowData.matchers || [])];
         deleteBtn.classList.remove("hidden");
-        setOwnerSelectorValue(windowData.owner_id, null);
+        setOwnerSelectorValue(windowData.owner_id);
     } else {
         currentWindowId = null;
         title.textContent = "New maintenance";
@@ -698,7 +697,7 @@ function openWindowModal(windowData = null) {
         commentInput.value = "";
         modalMatchers = [];
         deleteBtn.classList.add("hidden");
-        setOwnerSelectorValue("", "", {defaultToAuthUser: true});
+        setOwnerSelectorValue("", true);
     }
     renderMatcherBadges();
     clearMatcherInputError();

@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Set
 
-from fastapi import HTTPException, Request
+from fastapi import HTTPException
 
 from app.maintenance.models import _ensure_utc, _parse_iso
 from app.route.matcher import Matcher
@@ -41,26 +41,15 @@ def validate_owner_id(
     raise HTTPException(status_code=400, detail="invalid owner_id")
 
 
-def owner_id_from_payload(
-    payload: dict,
-    acting_user: Optional[dict],
-    assignable_user_ids: Set[str],
-) -> str:
+def owner_id_from_payload(payload: dict) -> str:
     owner_id = payload.get("owner_id")
     if owner_id:
         return str(owner_id)
-    acting_id = (acting_user or {}).get("id")
-    if acting_id:
-        resolved = str(acting_id)
-        if resolved not in assignable_user_ids:
-            raise HTTPException(status_code=400, detail="owner_id is required")
-        return resolved
     raise HTTPException(status_code=400, detail="owner_id is required")
 
 
 def window_from_ws_item(
     payload: dict,
-    acting_user: Optional[dict],
     assignable_user_ids: Set[str],
     existing_owner_id: Optional[str] = None,
 ) -> dict:
@@ -72,7 +61,7 @@ def window_from_ws_item(
         raise HTTPException(status_code=400, detail="end must be after start")
 
     matchers = matchers_from_payload(payload)
-    comment = str(payload.get("comment", "") or "").strip()
+    comment = str(payload.get("comment") or "").strip()
     if not comment:
         raise HTTPException(status_code=400, detail="comment is required")
 
@@ -80,7 +69,7 @@ def window_from_ws_item(
     if not window_id:
         raise HTTPException(status_code=400, detail="id is required")
 
-    owner_id = owner_id_from_payload(payload, acting_user, assignable_user_ids)
+    owner_id = owner_id_from_payload(payload)
     validate_owner_id(owner_id, assignable_user_ids, existing_owner_id)
 
     return {
@@ -95,43 +84,21 @@ def window_from_ws_item(
 
 def windows_from_ws_payload(
     data: list,
-    acting_user: Optional[dict],
     assignable_user_ids: Set[str],
     existing_by_id: Dict[str, dict],
 ) -> List[Dict[str, Any]]:
-    if not isinstance(data, list):
-        raise HTTPException(status_code=400, detail="data must be a list")
-
     windows = []
-
     for item in data:
         if not isinstance(item, dict):
             raise HTTPException(status_code=400, detail="each window must be an object")
-        window_id = item.get("id")
-        prev = existing_by_id.get(str(window_id), {})
         windows.append(window_from_ws_item(
             item,
-            acting_user,
             assignable_user_ids,
-            prev.get("owner_id"),
+            existing_by_id.get(str(item.get("id")), {}).get("owner_id"),
         ))
-
     return windows
 
 
 def removed_windows(existing: List[Dict[str, Any]], saved: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     saved_ids = {w["id"] for w in saved}
     return [w for w in existing if w["id"] not in saved_ids]
-
-
-async def reconcile_maintenance(request: Request):
-    await request.app.state.maintenance_manager.reconcile_all()
-
-
-def merge_and_validate_save(
-    data: list,
-    acting_user: Optional[dict],
-    assignable_user_ids: Set[str],
-    existing_by_id: Dict[str, dict],
-) -> List[Dict[str, Any]]:
-    return windows_from_ws_payload(data, acting_user, assignable_user_ids, existing_by_id)
