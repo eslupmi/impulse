@@ -55,8 +55,9 @@ def test_window_from_ws_item_includes_owner_id():
 
 
 def test_window_from_ws_item_rejects_missing_owner():
+    payload = _window_payload(owner_id=None)
     with pytest.raises(HTTPException) as exc:
-        window_from_ws_item(_window_payload(owner_id=None), assignable_user_ids=ASSIGNABLE)
+        window_from_ws_item(payload, assignable_user_ids=ASSIGNABLE)
     assert exc.value.detail == "owner_id is required"
 
 
