@@ -65,9 +65,13 @@ jobs:
             -e CONFIG_PATH="/config" \
             ghcr.io/eslupmi/impulse:"${IMPULSE_IMAGE_TAG}"
 
-      - name: Wait 60 seconds for impulse container to be ready
+      - name: Wait for impulse container to be ready
         run: |
-          sleep 60
+          for i in $(seq 1 60); do
+            curl -sf "http://localhost:${{ matrix.port }}/readyz" && exit 0
+            sleep 1
+          done
+          exit 1
 
       - name: Run autotests for ${{ matrix.messenger_type }}
         env:
