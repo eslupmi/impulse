@@ -1,5 +1,9 @@
 # Changelog
 
+## v3.6.2
+Changes:
+- Added webhook step to UI chains
+
 ## v3.6.1
 Changes:
 - Fix maintenance moving

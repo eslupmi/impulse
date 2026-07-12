@@ -604,6 +604,7 @@ function createStepElement(step = null, index = null) {
                 <option value="group">group</option>
                 ${waitOption}
                 <option value="chain">chain</option>
+                <option value="webhook">webhook</option>
             </select>
             <div class="step-value-wrapper">
                 <input type="text" class="step-value" placeholder="Enter value" autocomplete="off">
@@ -658,6 +659,8 @@ function createStepElement(step = null, index = null) {
                 return chainsConfig.groups;
             case 'chain':
                 return chainsConfig.chains;
+            case 'webhook':
+                return chainsConfig.webhooks;
             default:
                 return [];
         }
@@ -803,6 +806,8 @@ function formatStepsText(steps) {
                 return `wait: ${value}`;
             case 'chain':
                 return `chain: ${value}`;
+            case 'webhook':
+                return `webhook: ${value}`;
             default:
                 return `${type}: ${value}`;
         }
