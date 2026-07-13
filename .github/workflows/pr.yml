@@ -16,7 +16,6 @@ on:
 
 permissions:
   contents: read
-  packages: write
 
 jobs:
   tests:
@@ -47,7 +46,7 @@ jobs:
     permissions:
       packages: write
     steps:
-    - uses: dataaxiom/ghcr-cleanup-action@v1
+    - uses: dataaxiom/ghcr-cleanup-action@d52806a0dc70b430571a37da1fde39733ffd640f
       with:
         delete-tags: pr-${{ github.event.pull_request.number }}
         dry-run: false
