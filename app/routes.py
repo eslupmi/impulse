@@ -9,7 +9,7 @@ from fastapi.templating import Jinja2Templates
 
 from app.config.config import get_config, reload_config
 from app.logging import logger
-from app.maintenance.api import merge_and_validate_save, removed_windows
+from app.maintenance.api import removed_windows, windows_from_ws_payload
 from app.maintenance.store import get_maintenance_store
 from app.metrics import generate_metrics_response
 from app.middleware import is_standby_mode, service_unavailable_response, STANDBY_MODE_MESSAGE
@@ -420,10 +420,20 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
                                 "detail": _MSG_AUTHENTICATION_REQUIRED,
                             }))
                         else:
-                            acting_user = _get_acting_user_from_websocket(websocket)
                             windows_payload = message.get("data", [])
+                            store = get_maintenance_store()
+                            existing = store.load_windows()
+                            existing_by_id = {w["id"]: w for w in existing}
+                            assignable_user_ids = {
+                                str(user["user_id"])
+                                for user in _get_assignable_users(websocket.app.state.messenger)
+                            }
                             try:
-                                windows = merge_and_validate_save(windows_payload, acting_user)
+                                windows = windows_from_ws_payload(
+                                    windows_payload,
+                                    assignable_user_ids,
+                                    existing_by_id,
+                                )
                             except HTTPException as exc:
                                 await websocket.send_text(json.dumps({
                                     "event": "maintenance_saved",
@@ -431,8 +441,6 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
                                     "detail": exc.detail,
                                 }))
                             else:
-                                store = get_maintenance_store()
-                                existing = store.load_windows()
                                 deleted = removed_windows(existing, windows)
                                 success = store.save_windows(windows)
                                 await websocket.send_text(json.dumps({

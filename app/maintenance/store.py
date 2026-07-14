@@ -135,9 +135,9 @@ class MaintenanceStore:
             if comment:
                 event.add("x-comment", str(comment))
 
-            created_by = window.get("created_by")
-            if created_by:
-                event.add("x-created-by", str(created_by))
+            owner_id = window.get("owner_id")
+            if owner_id:
+                event.add("x-owner-id", str(owner_id))
 
             return event
         except Exception as e:
@@ -173,7 +173,7 @@ class MaintenanceStore:
             end_dt = dtend.dt if hasattr(dtend, "dt") else dtend
 
             x_comment = event.get("x-comment")
-            x_created_by = event.get("x-created-by")
+            x_owner_id = event.get("x-owner-id")
 
             return {
                 "id": str(uid),
@@ -181,7 +181,7 @@ class MaintenanceStore:
                 "end": _ical_dt_to_iso(end_dt),
                 "matchers": matchers,
                 "comment": str(x_comment) if x_comment else "",
-                "created_by": str(x_created_by) if x_created_by else None,
+                "owner_id": str(x_owner_id) if x_owner_id else None,
             }
         except Exception as e:
             logger.error("Failed to convert iCal event to maintenance window", extra={"error": str(e)})

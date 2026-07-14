@@ -1,15 +1,17 @@
 import asyncio
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 import aiohttp
 from fastapi.responses import JSONResponse
 
 from app.im.application import Application
+from app.im.messenger_init import messenger_init_step_async
 
 if TYPE_CHECKING:
     from app.incident.incident import Incident
 from app.im.telegram.config import buttons
 from app.im.telegram.user import User
+from app.im.users import BaseUser
 from app.logging import logger
 from app.config.config import get_config
 from app.config.environment import get_environment_config
@@ -90,7 +92,8 @@ class TelegramApplication(Application):
             name=name,
             id_=user_details.get('id'),
             exists=user_details.get('exists', False),
-            full_name=user_details.get('full_name')
+            full_name=user_details.get('full_name'),
+            username=user_details.get('username'),
         )
 
     async def get_all_groups(self):
@@ -132,6 +135,10 @@ class TelegramApplication(Application):
 
     async def initialize_async(self):
         await super().initialize_async()
+        await self._init_webhook()
+
+    @messenger_init_step_async('webhook')
+    async def _init_webhook(self):
         await self._setup_webhook()
 
     async def update_incident_message(self, incident):
@@ -277,7 +284,7 @@ class TelegramApplication(Application):
             }
         }
 
-    def _get_public_url(self, app_config: ApplicationConfig):
+    async def _get_public_url(self, app_config: ApplicationConfig):
         return 'https://api.telegram.org/bot'
 
     def _get_team_name(self, app_config: ApplicationConfig):
@@ -285,6 +292,11 @@ class TelegramApplication(Application):
 
     def _get_url(self, app_config: ApplicationConfig):
         return 'https://api.telegram.org/bot'
+
+    def _build_user_profile_url(self, user_id: str, user: BaseUser) -> Optional[str]:
+        if not user.username:
+            return None
+        return f"https://t.me/{user.username}"
 
     async def _handle_chain_action(self, action, incident_, user_id, queue_, payload):
         await queue_.delete_by_id(incident_.uniq_id, delete_steps=True, delete_status=False)
@@ -366,16 +378,12 @@ class TelegramApplication(Application):
 
     async def _setup_webhook(self):
         config = get_config()
-        try:
-            response = await self.http.post(
-                f'{self.url}/setWebhook',
-                params={'url': f"{config.messenger.impulse_address}/app"},
-                headers=self.headers
-            )
-            response.close()
-        except aiohttp.ClientError as e:
-            logger.error("Webhook setup failed", extra={'error': str(e)})
-            raise e
+        response = await self.http.post(
+            f'{self.url}/setWebhook',
+            params={'url': f"{config.messenger.impulse_address}/app"},
+            headers=self.headers
+        )
+        response.close()
 
     async def _show_freeze_menu(self, incident_: 'Incident', callback):
         body, header, status_icons = self.form_body_header_status_icons(incident_)
