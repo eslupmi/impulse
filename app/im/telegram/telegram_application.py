@@ -5,6 +5,7 @@ import aiohttp
 from fastapi.responses import JSONResponse
 
 from app.im.application import Application
+from app.im.messenger_init import messenger_init_step_async
 
 if TYPE_CHECKING:
     from app.incident.incident import Incident
@@ -132,6 +133,10 @@ class TelegramApplication(Application):
 
     async def initialize_async(self):
         await super().initialize_async()
+        await self._init_webhook()
+
+    @messenger_init_step_async('webhook')
+    async def _init_webhook(self):
         await self._setup_webhook()
 
     async def update_incident_message(self, incident):
@@ -277,7 +282,7 @@ class TelegramApplication(Application):
             }
         }
 
-    def _get_public_url(self, app_config: ApplicationConfig):
+    async def _get_public_url(self, app_config: ApplicationConfig):
         return 'https://api.telegram.org/bot'
 
     def _get_team_name(self, app_config: ApplicationConfig):
@@ -366,16 +371,12 @@ class TelegramApplication(Application):
 
     async def _setup_webhook(self):
         config = get_config()
-        try:
-            response = await self.http.post(
-                f'{self.url}/setWebhook',
-                params={'url': f"{config.messenger.impulse_address}/app"},
-                headers=self.headers
-            )
-            response.close()
-        except aiohttp.ClientError as e:
-            logger.error("Webhook setup failed", extra={'error': str(e)})
-            raise e
+        response = await self.http.post(
+            f'{self.url}/setWebhook',
+            params={'url': f"{config.messenger.impulse_address}/app"},
+            headers=self.headers
+        )
+        response.close()
 
     async def _show_freeze_menu(self, incident_: 'Incident', callback):
         body, header, status_icons = self.form_body_header_status_icons(incident_)

@@ -167,7 +167,7 @@ class MattermostApplication(Application):
     def _get_incident_message_payload(self, incident, body, header, status_icons):
         return mattermost_get_create_thread_payload(incident, body, header, status_icons)
 
-    def _get_public_url(self, app_config: ApplicationConfig):
+    async def _get_public_url(self, app_config: ApplicationConfig):
         return app_config.address
 
     def _get_team_name(self, app_config: ApplicationConfig):
