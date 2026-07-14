@@ -14,7 +14,7 @@ from app.im.template import notification_user, notification_user_group, notifica
     notification_assignment, notification_unassignment, notification_unfreeze
 from app.im.user_groups import generate_user_groups
 from app.im.user_store import get_user_store, UserUpdateScheduler
-from app.im.users import UserManager, UndefinedUser
+from app.im.users import UserManager, UndefinedUser, BaseUser
 from app.integrations.jira_integration import JiraIntegration
 from app.jinja_template import JinjaTemplate
 from app.logging import logger
@@ -454,6 +454,13 @@ class Application(ABC):
                 return user_tz
         config = get_config()
         return config.app.general.timezone
+
+    def get_user_profile_url(self, user_id: str, user: BaseUser) -> Optional[str]:
+        return self._build_user_profile_url(str(user_id), user)
+
+    @abstractmethod
+    def _build_user_profile_url(self, user_id: str, user: BaseUser) -> Optional[str]:
+        pass
 
     async def apply_time_freeze(
             self, incident_: 'Incident', until: datetime, user, queue_: 'AsyncQueue',

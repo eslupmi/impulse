@@ -1,10 +1,11 @@
 import uuid
 from datetime import datetime
-from typing import Optional, TYPE_CHECKING, Dict
+from typing import TYPE_CHECKING, Dict, Optional
 
 from fastapi.responses import JSONResponse
 
 from app.im.application import Application
+from app.im.users import BaseUser
 from app.jinja_template import JinjaTemplate
 
 if TYPE_CHECKING:
@@ -87,6 +88,9 @@ class NullApplication(Application):
         return ''
 
     def _get_team_name(self, app_config):
+        return None
+
+    def _build_user_profile_url(self, user_id: str, user: BaseUser) -> Optional[str]:
         return None
 
     def _get_incident_message_payload(self, incident, body, header, status_icons):

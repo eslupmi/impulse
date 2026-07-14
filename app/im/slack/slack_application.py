@@ -1,5 +1,6 @@
 import asyncio
 import re
+from typing import Optional
 
 from fastapi.responses import JSONResponse
 
@@ -8,6 +9,7 @@ from app.config.validation import ApplicationConfig
 from app.im.application import Application
 from app.im.slack.threads import get_incident_message_payload, slack_get_update_payload
 from app.im.slack.user import User
+from app.im.users import BaseUser
 from app.logging import logger
 
 
@@ -153,6 +155,9 @@ class SlackApplication(Application):
 
     def _get_url(self, app_config: ApplicationConfig):
         return 'https://slack.com'
+
+    def _build_user_profile_url(self, user_id: str, user: BaseUser) -> Optional[str]:
+        return f"{self.public_url.rstrip('/')}/team/{user_id}"
 
     async def _handle_chain_action(self, incident_, user_id, queue_):
         """Handle chain-related button actions"""

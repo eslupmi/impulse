@@ -12,7 +12,7 @@ class MaintenanceWindow:
     ends_at: datetime
     matchers: List[str]
     comment: str = ""
-    created_by: Optional[str] = None
+    owner_id: Optional[str] = None
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
 
     def __post_init__(self):
@@ -39,7 +39,7 @@ class MaintenanceWindow:
             "end": self.ends_at.isoformat(),
             "matchers": list(self.matchers),
             "comment": self.comment,
-            "created_by": self.created_by,
+            "owner_id": self.owner_id,
         }
 
     @classmethod
@@ -49,7 +49,7 @@ class MaintenanceWindow:
             ends_at=_parse_iso(data["end"]),
             matchers=list(data.get("matchers", [])),
             comment=data.get("comment", ""),
-            created_by=data.get("created_by"),
+            owner_id=data.get("owner_id"),
             id=data.get("id") or str(uuid.uuid4()),
         )
 
@@ -60,7 +60,7 @@ class MaintenanceWindow:
             "ends_at": self.ends_at.isoformat(),
             "matchers": list(self.matchers),
             "comment": self.comment,
-            "created_by": self.created_by,
+            "owner_id": self.owner_id,
         }
 
     @classmethod
@@ -72,7 +72,7 @@ class MaintenanceWindow:
             ends_at=_parse_iso(data["ends_at"]),
             matchers=list(data.get("matchers", [])),
             comment=data.get("comment", ""),
-            created_by=data.get("created_by"),
+            owner_id=data.get("owner_id"),
             id=data.get("id") or str(uuid.uuid4()),
         )
 

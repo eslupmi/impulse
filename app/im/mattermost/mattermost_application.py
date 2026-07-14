@@ -1,4 +1,5 @@
 import asyncio
+from typing import Optional
 
 from fastapi.responses import JSONResponse
 
@@ -8,6 +9,7 @@ from app.im.application import Application
 from app.im.mattermost.threads import mattermost_get_button_update_payload, \
     mattermost_get_update_payload, mattermost_get_create_thread_payload
 from app.im.mattermost.user import User
+from app.im.users import BaseUser
 from app.logging import logger
 
 
@@ -175,6 +177,10 @@ class MattermostApplication(Application):
 
     def _get_url(self, app_config: ApplicationConfig):
         return app_config.address
+
+    def _build_user_profile_url(self, user_id: str, user: BaseUser) -> Optional[str]:
+        base = self.public_url.rstrip("/")
+        return f"{base}/{self.team}/users/{user_id}"
 
     async def _handle_chain_action(self, incident_, user_id, queue_, payload):
         """Handle chain-related button actions"""
