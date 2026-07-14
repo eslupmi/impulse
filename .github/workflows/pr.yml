@@ -41,7 +41,7 @@ jobs:
     secrets: inherit
 
   cleanup-pr-image:
-    if: always() && needs.autotests.result != 'skipped'
+    if: needs.autotests.result == 'success'
     needs: autotests
     runs-on: ubuntu-24.04
     permissions:
