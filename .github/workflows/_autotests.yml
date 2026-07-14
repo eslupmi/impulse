@@ -21,8 +21,8 @@ jobs:
             port: 15100
           - messenger_type: mattermost
             port: 15101
-          # - messenger_type: telegram
-          #   port: 15102
+          - messenger_type: telegram
+            port: 15102
     permissions:
       contents: read
       packages: read
