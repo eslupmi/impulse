@@ -68,7 +68,7 @@ jobs:
       - name: Wait for impulse container to be ready
         run: |
           for i in $(seq 1 60); do
-            curl -sf "http://localhost:${{ matrix.port }}/readyz" && exit 0
+            curl -sf "http://localhost:${{ matrix.port }}/${{ matrix.messenger_type }}/readyz" && exit 0
             sleep 1
           done
           exit 1
