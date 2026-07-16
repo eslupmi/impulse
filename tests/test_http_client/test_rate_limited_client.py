@@ -7,7 +7,7 @@ import pytest_asyncio
 import aiohttp
 from aiohttp import web
 
-from app.http_client import RateLimitedClient
+from app.http_client.rate_limited_client import RateLimitedClient
 from app.http_client.rate_limited_client import RetryAfterRetry
 from tests.utils import FakeTime, create_test_server_url, make_requests_and_close
 

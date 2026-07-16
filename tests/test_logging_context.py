@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, patch
 import aiohttp
 import pytest
 
-from app.http_client import RateLimitedClient
+from app.http_client.rate_limited_client import RateLimitedClient
 from app.logging_context import (
     MessengerInitContext,
     exception_fields,
