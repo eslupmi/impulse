@@ -243,7 +243,7 @@ class IncidentMigrator:
     def _migrate_filename_v3_6_0_to_v3_7_0(file_path: str, incident_data: Dict) -> str:
         uniq_id = incident_data['uniq_id']
         basename = os.path.basename(file_path)
-        if basename.startswith(f'{uniq_id}.yml') or basename.startswith(f'{uniq_id}__'):
+        if basename.startswith((f'{uniq_id}.yml', f'{uniq_id}__')):
             return file_path
 
         if '__' in basename:

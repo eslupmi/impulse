@@ -42,7 +42,7 @@ class AlertHandler(BaseHandler):
         if incident_ is None:
             await self._handle_create(alert_state)
         else:
-            await self._handle_update(incident_.uuid, incident_, alert_state)
+            await self._handle_update(incident_, alert_state)
 
     async def _handle_create(self, alert_state):
         config = get_config()
@@ -106,7 +106,7 @@ class AlertHandler(BaseHandler):
         if not (will_be_inhibited or will_match_maintenance):
             await self.queue.recreate(status, incident_.uniq_id, incident_.chain, incident_.chain_active_seconds)
 
-    async def _handle_update(self, uuid_, incident_, alert_state):
+    async def _handle_update(self, incident_, alert_state):
         config = get_config()
 
         if incident_.is_frozen() and incident_.status in ['closed', 'deleted']:
@@ -133,7 +133,7 @@ class AlertHandler(BaseHandler):
 
         should_notify = prev_status == 'firing' and incident_.status == 'firing' and not incident_.is_frozen()
         if should_notify and (is_new_firing_alerts_added or is_some_firing_alerts_removed):
-            await self._notify_new_fire_alert(incident_, is_new_firing_alerts_added, is_some_firing_alerts_removed, uuid_)
+            await self._notify_new_fire_alert(incident_, is_new_firing_alerts_added, is_some_firing_alerts_removed)
         await self.queue.update(incident_.uniq_id, incident_.status_update_datetime, incident_.status)
 
     ### PRIVATE METHODS ###
@@ -159,7 +159,7 @@ class AlertHandler(BaseHandler):
             await self.inhibition_manager.process_incident(incident_)
             await self.maintenance_manager.process_incident(incident_)
 
-    async def _notify_new_fire_alert(self, incident_, new_alerts_f, new_alerts_r, uuid_):
+    async def _notify_new_fire_alert(self, incident_, new_alerts_f, new_alerts_r):
         """
         Notify about new firing alerts added to the incident
         """

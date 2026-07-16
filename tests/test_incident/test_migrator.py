@@ -55,7 +55,7 @@ class TestIncidentMigrator:
             mock_config = create_mock_config(messenger_type="slack")
             mock_get_config.return_value = mock_config
 
-            result = migrator.migrate_file('/test/incident.yml', incident_data, 'v0.4', 'v3.7.0')
+            migrator.migrate_file('/test/incident.yml', incident_data, 'v0.4', 'v3.7.0')
 
             mock_file.assert_called_once_with('/test/incident.yml', 'w')
             mock_yaml_dump.assert_called_once()
@@ -289,7 +289,7 @@ class TestIncidentMigrator:
             mock_config = create_mock_config(messenger_type="slack")
             mock_get_config.return_value = mock_config
 
-            result = migrator.migrate_file('/test/incident.yml', incident_data, 'v0.4', 'v3.7.0')
+            migrator.migrate_file('/test/incident.yml', incident_data, 'v0.4', 'v3.7.0')
 
             # Check that logging was called
             assert mock_logger.info.call_count >= 2
