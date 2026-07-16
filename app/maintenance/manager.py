@@ -154,7 +154,7 @@ class MaintenanceManager:
             await self._schedule_maintenance_freeze(incident, coverage_end)
             logger.info(
                 "Maintenance source recorded on frozen incident",
-                extra={"uuid": incident.uuid, "window_id": window.id, "until": coverage_end},
+                extra={"uniq_id": incident.uniq_id, "window_id": window.id, "until": coverage_end},
             )
             if incident.ts:
                 await self.application.update_incident_message(incident)
@@ -165,7 +165,7 @@ class MaintenanceManager:
         )
         logger.info(
             "Maintenance time freeze applied",
-            extra={"uuid": incident.uuid, "window_id": window.id, "until": coverage_end},
+            extra={"uniq_id": incident.uniq_id, "window_id": window.id, "until": coverage_end},
         )
         if incident.ts:
             await self.application.update_incident_message(incident)
@@ -204,7 +204,7 @@ class MaintenanceManager:
 
         logger.info(
             "Maintenance time freeze scheduled",
-            extra={"uuid": incident.uuid, "window_id": window.id, "until": coverage_end},
+            extra={"uniq_id": incident.uniq_id, "window_id": window.id, "until": coverage_end},
         )
 
         if update_message and incident.ts:

@@ -230,7 +230,7 @@ class TestIncidents:
         ]
 
         # Mock YAML content
-        mock_yaml_load.return_value = {'version': 'v3.6.0'}
+        mock_yaml_load.return_value = {'version': 'v3.7.0'}
 
         # Mock incident loading
         mock_incident = Mock()
@@ -273,7 +273,7 @@ class TestIncidents:
         mock_walk.return_value = [('/test/incidents', [], [])]
 
         # Mock YAML content
-        mock_yaml_load.return_value = {'version': 'v3.6.0'}
+        mock_yaml_load.return_value = {'version': 'v3.7.0'}
 
         # Mock incident loading
         mock_incident = Mock()
@@ -319,7 +319,7 @@ class TestIncidents:
         ]
 
         # Mock YAML content
-        mock_yaml_load.return_value = {'version': 'v3.6.0'}
+        mock_yaml_load.return_value = {'version': 'v3.7.0'}
 
         # Mock incident with different messenger type
         mock_incident = Mock()
@@ -375,6 +375,7 @@ class TestIncidents:
 
         # Mock migrator
         mock_migrator = Mock()
+        mock_migrator.migrate_file.return_value = '/test/incidents/incident1.yml'
         mock_migrator_class.return_value = mock_migrator
 
         incidents = Incidents.create_or_load(
@@ -385,3 +386,8 @@ class TestIncidents:
 
         assert isinstance(incidents, Incidents)
         mock_migrator_class.assert_called_once()
+        mock_migrator.migrate_file.assert_called_once()
+        mock_load.assert_called_once_with(
+            dump_file='/test/incidents/incident1.yml',
+            incident_config=mock_load.call_args.kwargs['incident_config']
+        )

@@ -56,7 +56,7 @@ class Incidents:
             incident_filename = incident.get_current_filename()
             os.remove(incident_filename)
         except (OSError, PermissionError, FileNotFoundError) as e:
-            logger.error(f'Failed to delete incident file for uuid: {incident.uuid}: {str(e)}')
+            logger.error(f'Failed to delete incident file for uniq_id: {incident.uniq_id}: {str(e)}')
 
     def del_by_uniq_id(self, uniq_id: str):
         incident = self.uniq_ids.pop(uniq_id, None)
@@ -71,7 +71,7 @@ class Incidents:
             except RuntimeError:
                 # No event loop running, skip websocket update
                 pass
-            logger.info("Incident deleted", extra={'uuid': incident.uuid})
+            logger.info("Incident deleted", extra={'uniq_id': incident.uniq_id})
         else:
             logger.warning("Incident not found", extra={'uniq_id': uniq_id})
 
@@ -101,7 +101,7 @@ class Incidents:
             for filename in files:
                 file_path = os.path.join(path, filename)
 
-                cls._migrate_file_if_needed(migrator, file_path)
+                file_path = cls._migrate_file_if_needed(migrator, file_path)
 
                 incident_config = IncidentConfig(
                     application_type=application_type,
@@ -126,13 +126,16 @@ class Incidents:
     ### PRIVATE METHODS ###
 
     @staticmethod
-    def _migrate_file_if_needed(migrator: IncidentMigrator, file_path: str):
+    def _migrate_file_if_needed(migrator: IncidentMigrator, file_path: str) -> str:
         """
         Check if a file needs migration and migrate it if necessary.
 
         Args:
             migrator: The IncidentMigrator instance
             file_path: Path to the incident file
+            
+        Returns:
+            Path to the incident file (may differ after filename migration)
         """
         config = get_config()
         try:
@@ -141,7 +144,8 @@ class Incidents:
                 current_version = content.get('version', 'v0.4')
 
             if current_version != config.INCIDENT_ACTUAL_VERSION:
-                migrator.migrate_file(file_path, content, current_version, config.INCIDENT_ACTUAL_VERSION)
+                return migrator.migrate_file(file_path, content, current_version, config.INCIDENT_ACTUAL_VERSION)
+            return file_path
 
         except Exception as e:
             logger.error(f'Failed to check/migrate file {file_path}: {str(e)}')

@@ -153,7 +153,7 @@ class Incident:
             self.assigned_fullname = user.name
         self.chain_enabled = False
         self.dump()
-        logger.info("Incident frozen", extra={'uuid': self.uuid, 'frozen_until': until})
+        logger.info("Incident frozen", extra={'uniq_id': self.uniq_id, 'frozen_until': until})
 
     def unfreeze(self):
         """Clear all freeze sources."""
@@ -161,20 +161,20 @@ class Incident:
         self.frozen_until_source = None
         self.parents = []
         self.dump()
-        logger.info("Incident unfrozen", extra={'uuid': self.uuid})
+        logger.info("Incident unfrozen", extra={'uniq_id': self.uniq_id})
 
     def clear_time_freeze(self):
         """Clear only time-based freeze state, preserving parent-based freezes."""
         self.frozen_until = None
         self.frozen_until_source = None
         self.dump()
-        logger.info("Incident time freeze cleared", extra={'uuid': self.uuid})
+        logger.info("Incident time freeze cleared", extra={'uniq_id': self.uniq_id})
 
     def remove_freeze_parent(self, parent: str):
         if parent in self.parents:
             self.parents.remove(parent)
             self.dump()
-            logger.info("Incident freeze parent removed", extra={'uuid': self.uuid, 'parent': parent})
+            logger.info("Incident freeze parent removed", extra={'uniq_id': self.uniq_id, 'parent': parent})
 
     def set_maintenance_parent(self):
         if MAINTENANCE_PARENT_SENTINEL not in self.parents:
@@ -185,7 +185,7 @@ class Incident:
         """Sync inhibition freeze side effects after caller records source uniq_id in parents."""
         self.accumulate_chain_time(self.updated)
         self.dump()
-        logger.info("Incident frozen by inhibition", extra={'uuid': self.uuid})
+        logger.info("Incident frozen by inhibition", extra={'uniq_id': self.uniq_id})
 
     def is_frozen(self) -> bool:
         return self.frozen_until is not None or len(self.parents) > 0
@@ -263,9 +263,9 @@ class Incident:
         env_config = get_environment_config()
         if self.status == 'closed' or self.status == 'deleted':
             closed_str = self._datetime_serialize(self.closed)
-            return f'{env_config.incidents_path}/{self.uuid}__{closed_str}.yml'
+            return f'{env_config.incidents_path}/{self.uniq_id}__{closed_str}.yml'
         else:
-            return f'{env_config.incidents_path}/{self.uuid}.yml'
+            return f'{env_config.incidents_path}/{self.uniq_id}.yml'
 
     def dump(self):
         data = {
@@ -444,7 +444,7 @@ class Incident:
 
     def _set_status(self, status: str):
         self.status = status
-        logger.debug("Status updated", extra={'uuid': self.uuid, 'status': status})
+        logger.debug("Status updated", extra={'uniq_id': self.uniq_id, 'status': status})
         if status == 'closed' and not self.closed:
             self.closed = datetime.now(timezone.utc)
 
@@ -523,7 +523,7 @@ async def remove_freeze_source(
     parent: Optional[str] = None,
 ):
     if not incident.is_frozen() and source != FreezeSource.PARENT:
-        logger.info(f'Incident {incident.uuid} is not frozen, skipping unfreeze')
+        logger.info(f'Incident {incident.uniq_id} is not frozen, skipping unfreeze')
         return
 
     incident_status = incident.status

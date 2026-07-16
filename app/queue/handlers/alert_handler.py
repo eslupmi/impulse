@@ -94,11 +94,11 @@ class AlertHandler(BaseHandler):
         incident_.dump()
 
         if will_match_maintenance:
-            logger.info("Incident created (maintenance)", extra={'uuid': incident_.uuid, 'link': incident_.link})
+            logger.info("Incident created (maintenance)", extra={'uniq_id': incident_.uniq_id, 'link': incident_.link})
         elif will_be_inhibited:
-            logger.info("Incident created (inhibited)", extra={'uuid': incident_.uuid, 'link': incident_.link})
+            logger.info("Incident created (inhibited)", extra={'uniq_id': incident_.uniq_id, 'link': incident_.link})
         else:
-            logger.info("Incident created", extra={'uuid': incident_.uuid, 'link': incident_.link})
+            logger.info("Incident created", extra={'uniq_id': incident_.uniq_id, 'link': incident_.link})
 
         await self.queue.put(status_update_datetime, QueueItemType.UPDATE_STATUS, incident_.uniq_id)
 
@@ -110,7 +110,7 @@ class AlertHandler(BaseHandler):
         config = get_config()
 
         if incident_.is_frozen() and incident_.status in ['closed', 'deleted']:
-            logger.debug("Ignoring alert for frozen incident", extra={'uuid': uuid_})
+            logger.debug("Ignoring alert for frozen incident", extra={'uniq_id': incident_.uniq_id})
             return
 
         prev_status = incident_.status
@@ -176,9 +176,9 @@ class AlertHandler(BaseHandler):
             message = header + '\n' + text
         await self.app.post_to_thread(incident_.channel_id, incident_.ts, message)
         if new_alerts_f:
-            logger.info("Incident updated with new alerts firing", extra={'uuid': uuid_})
+            logger.info("Incident updated with new alerts firing", extra={'uniq_id': incident_.uniq_id})
         elif new_alerts_r:
-            logger.info("Incident updated with some alerts resolved", extra={'uuid': uuid_})
+            logger.info("Incident updated with some alerts resolved", extra={'uniq_id': incident_.uniq_id})
 
     async def _create_thread(self, incident_):
         body, header, status_icons = self.app.form_body_header_status_icons(incident_)
