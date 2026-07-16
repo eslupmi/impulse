@@ -74,7 +74,7 @@ class TestApplicationInitLogging:
 
     @pytest.mark.asyncio
     async def test_initialize_async_transport_failure_includes_step_in_http_log(self, slack_app):
-        from app.http_client import RateLimitedClient
+        from app.http_client.rate_limited_client import RateLimitedClient
 
         http_client = RateLimitedClient(retry_attempts=1)
         http_client.initialize_client()
