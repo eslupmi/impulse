@@ -170,7 +170,7 @@ Below are all the configuration options supported by IMPulse.
 
 ### messenger.address *
 
-- **impact:** `mattermost` only
+- **available in:** `mattermost` only
 - **description:** your messenger server address
 - **type:** string
 
@@ -526,7 +526,7 @@ Below are all the configuration options supported by IMPulse.
 
 ### messenger.groups
 
-- **impact:** `mattermost`, `slack` only
+- **available in:** `mattermost`, `slack` only
 - **description:** Messenger groups
 - **type:** dict
 - **details:**
@@ -552,7 +552,7 @@ Below are all the configuration options supported by IMPulse.
 
 ### messenger.impulse_address *
 
-- **impact:** `mattermost`, `telegram` only
+- **available in:** `mattermost`, `telegram` only
 - **description:** IMPulse address for button callbacks. Telegram supported only HTTPS.
 - **type:** string
 
@@ -602,7 +602,7 @@ Below are all the configuration options supported by IMPulse.
 
 ### messenger.team *
 
-- **impact:** `mattermost` only
+- **available in:** `mattermost` only
 - **description:** team name
 - **type:** string
 
