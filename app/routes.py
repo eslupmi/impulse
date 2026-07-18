@@ -33,10 +33,10 @@ async def _maintenance_save_side_effects(app, existing, saved, deleted):
 def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=None) -> APIRouter:
     router = APIRouter(prefix=http_prefix)
 
-    templates = None
+    ui_templates = None
     if fastapi_app and get_config().ui_config:
         fastapi_app.mount(f"{http_prefix}/static", StaticFiles(directory="static"), name="static")
-        templates = Jinja2Templates(directory="templates")
+        ui_templates = Jinja2Templates(directory="static")
 
     @router.get("/livez")
     def get_live(request: Request):
@@ -68,10 +68,10 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
         queue = request.app.state.queue
         return await generate_metrics_response(queue)
 
-    if templates:
+    if ui_templates:
         @router.get("/", response_class=HTMLResponse)
         async def get_index(request: Request):
-            return templates.TemplateResponse("index.html", {
+            return ui_templates.TemplateResponse("index.html", {
                 "request": request,
                 "http_prefix": http_prefix
             })
