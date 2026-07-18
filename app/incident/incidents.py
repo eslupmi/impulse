@@ -119,7 +119,7 @@ class Incidents:
                     else:
                         os.remove(file_path)
                 else:
-                    logger.warning(f'Skipping incident {filename}: messenger_type mismatch')
+                    logger.warning(f'Skipping incident {os.path.basename(file_path)}: messenger_type mismatch')
 
         return incidents
 

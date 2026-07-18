@@ -242,17 +242,7 @@ class IncidentMigrator:
     @staticmethod
     def _migrate_filename_v3_6_0_to_v3_7_0(file_path: str, incident_data: Dict) -> str:
         uniq_id = incident_data['uniq_id']
-        basename = os.path.basename(file_path)
-        if basename.startswith((f'{uniq_id}.yml', f'{uniq_id}__')):
-            return file_path
-
-        if '__' in basename:
-            _, suffix = basename.split('__', 1)
-            new_basename = f'{uniq_id}__{suffix}'
-        else:
-            new_basename = f'{uniq_id}.yml'
-
-        new_path = os.path.join(os.path.dirname(file_path), new_basename)
+        new_path = os.path.join(os.path.dirname(file_path), f'{uniq_id}.yml')
         return IncidentMigrator._rename_file(file_path, new_path)
 
     @staticmethod

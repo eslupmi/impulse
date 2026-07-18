@@ -1,6 +1,5 @@
 import asyncio
 import json
-import os
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -261,11 +260,7 @@ class Incident:
     def get_current_filename(self) -> str:
         """Get the current filename based on incident state"""
         env_config = get_environment_config()
-        if self.status == 'closed' or self.status == 'deleted':
-            closed_str = self._datetime_serialize(self.closed)
-            return f'{env_config.incidents_path}/{self.uniq_id}__{closed_str}.yml'
-        else:
-            return f'{env_config.incidents_path}/{self.uniq_id}.yml'
+        return f'{env_config.incidents_path}/{self.uniq_id}.yml'
 
     def dump(self):
         data = {
@@ -400,13 +395,9 @@ class Incident:
         now = datetime.now(timezone.utc)
         self._schedule_status_change_by_timeout(status, now)
         if self.status != status:
-            old_filename = self.get_current_filename()
             self._set_status(status)
             self.updated = now
             self.dump()
-            new_filename = self.get_current_filename()
-            if old_filename != new_filename:
-                self._remove_old_file(old_filename)
             return True
         self.dump()
         return False
@@ -492,24 +483,8 @@ class Incident:
         return False
 
     @staticmethod
-    def _remove_old_file(old_filename: str):
-        """Remove old incident file"""
-        try:
-            if os.path.exists(old_filename):
-                os.remove(old_filename)
-                logger.debug("Removed incident file", extra={'file': old_filename})
-        except OSError as e:
-            logger.error("Failed to remove incident file", extra={'file': old_filename, 'error': str(e)})
-
-    @staticmethod
     def _get_firing_alerts_labels(alert_state):
         return [a.get('labels') for a in alert_state['alerts'] if a['status'] == 'firing']
-
-    @staticmethod
-    def _datetime_serialize(datetime_: Optional[datetime]) -> str:
-        if datetime_ is None:
-            return ''
-        return datetime_.strftime('%Y_%m_%d__%H_%M_%S')
 
 
 async def unfreeze_incident(incident: 'Incident', queue: 'AsyncQueue'):

@@ -320,9 +320,9 @@ class TestIncidentMigrator:
 
         mock_rename.assert_called_once_with(
             '/test/incidents/old-uuid__2025_01_15__14_30_45.yml',
-            f'/test/incidents/{uniq_id}__2025_01_15__14_30_45.yml'
+            f'/test/incidents/{uniq_id}.yml'
         )
-        assert result == f'/test/incidents/{uniq_id}__2025_01_15__14_30_45.yml'
+        assert result == f'/test/incidents/{uniq_id}.yml'
 
     def test_migrate_filename_idempotent(self, migrator):
         uniq_id = 'already-migrated-id'

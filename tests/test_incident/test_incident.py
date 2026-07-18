@@ -385,9 +385,7 @@ class TestIncident:
             sample_incident.dump()
 
         mock_file_open.assert_called_once()
-        # Check that file is opened with correct path for closed incident
-        closed_str = sample_incident._datetime_serialize(sample_incident.closed)
-        assert f'/test/incidents/{sample_incident.uniq_id}__{closed_str}.yml' in str(mock_file_open.call_args)
+        assert f'/test/incidents/{sample_incident.uniq_id}.yml' in str(mock_file_open.call_args)
         mock_yaml_dump.assert_called_once()
 
     @patch('app.incident.incident.ChannelManager')
