@@ -103,9 +103,9 @@ class Application(ABC):
                 incident.assigned_user_id = user_id
                 incident.assigned_user = cached_user.username
                 incident.assigned_fullname = cached_user.full_name or '(empty)'
-            logger.debug(f'Incident {incident.uuid} assigned', extra={'user_id': user_id})
+            logger.debug(f'Incident {incident.uniq_id} assigned', extra={'user_id': user_id})
         except Exception as e:
-            logger.error(f'Failed to fetch user name for incident {incident.uuid}: {e}')
+            logger.error(f'Failed to fetch user name for incident {incident.uniq_id}: {e}')
         finally:
             if dump:
                 incident.dump()
@@ -266,7 +266,7 @@ class Application(ABC):
         else:
             message = header + '\n' + text
         response_code = await self.post_to_thread(incident.channel_id, incident.ts, message)
-        logger.info(f'Chain step {notify_type} \'{identifier}\'', extra={'uuid': incident.uuid})
+        logger.info(f'Chain step {notify_type} \'{identifier}\'', extra={'uniq_id': incident.uniq_id})
         return response_code
 
     async def post_assignment_notification(self, incident):
@@ -289,10 +289,10 @@ class Application(ABC):
                 message = header + '\n' + text
 
             await self.post_to_thread(incident.channel_id, incident.ts, message)
-            logger.debug(f'Posted assignment notification for incident {incident.uuid}')
+            logger.debug(f'Posted assignment notification for incident {incident.uniq_id}')
 
         except Exception as e:
-            logger.error(f'Failed to post assignment notification for incident {incident.uuid}: {e}')
+            logger.error(f'Failed to post assignment notification for incident {incident.uniq_id}: {e}')
 
     async def post_to_thread(self, channel_id, id_, text):
         payload = self._post_thread_payload(channel_id, id_, text)
@@ -315,10 +315,10 @@ class Application(ABC):
                 message = header + '\n' + text
 
             await self.post_to_thread(incident_obj.channel_id, incident_obj.ts, message)
-            logger.debug(f'Posted unassignment notification for incident {incident_obj.uuid}: {message}')
+            logger.debug(f'Posted unassignment notification for incident {incident_obj.uniq_id}: {message}')
 
         except Exception as e:
-            logger.error(f'Failed to post unassignment notification for incident {incident_obj.uuid}: {e}')
+            logger.error(f'Failed to post unassignment notification for incident {incident_obj.uniq_id}: {e}')
 
     async def post_unfreeze_notification(self, incident_: 'Incident'):
         text_template = JinjaTemplate(notification_unfreeze)
@@ -475,7 +475,7 @@ class Application(ABC):
             self, incident_: 'Incident', freeze_option: str, user_id: str, incidents, queue_: 'AsyncQueue',
             user_timezone: Optional[str] = None
     ):
-        logger.info(log_button_pressed, extra={'uuid': incident_.uuid, 'button': 'freeze', 'user_id': user_id})
+        logger.info(log_button_pressed, extra={'uniq_id': incident_.uniq_id, 'button': 'freeze', 'user_id': user_id})
 
         config = get_config()
         timezone_str = user_timezone or config.app.general.timezone
@@ -485,13 +485,13 @@ class Application(ABC):
         await self.apply_time_freeze(incident_, freeze_time, cached_user, queue_, source=FreezeSource.TIME)
 
     def _handle_task_action(self, incident_, user_id, queue_):
-        logger.info(log_button_pressed, extra={'uuid': incident_.uuid, 'button': 'task', 'user_id': user_id})
+        logger.info(log_button_pressed, extra={'uniq_id': incident_.uniq_id, 'button': 'task', 'user_id': user_id})
         self.track_async_task(asyncio.create_task(self.handle_task_button(incident_, queue_)))
 
     async def _handle_unfreeze_action(self, incident_: 'Incident', user_id: str, queue_: 'AsyncQueue'):
         if not incident_.can_manual_unfreeze():
             return
-        logger.info(log_button_pressed, extra={'uuid': incident_.uuid, 'button': 'unfreeze', 'user_id': user_id})
+        logger.info(log_button_pressed, extra={'uniq_id': incident_.uniq_id, 'button': 'unfreeze', 'user_id': user_id})
         await queue_.delete_by_id_and_type(incident_.uniq_id, QueueItemType.UNFREEZE)
         await unfreeze_incident(incident_, queue_)
         await self.update_incident_message(incident_)

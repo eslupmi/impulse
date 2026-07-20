@@ -84,13 +84,13 @@ class InhibitionManager:
                 if rule.is_source(incident):
                     self.sources[rule_idx].add(incident.uniq_id)
                     logger.debug("Restored source incident", 
-                               extra={'uuid': incident.uuid, 'rule_idx': rule_idx,
+                               extra={'uniq_id': incident.uniq_id, 'rule_idx': rule_idx,
                                      'status': incident.status, 'childs': len(incident.childs)})
                 
                 if rule.is_target(incident):
                     self.targets[rule_idx].add(incident.uniq_id)
                     logger.debug("Restored target incident",
-                               extra={'uuid': incident.uuid, 'rule_idx': rule_idx,
+                               extra={'uniq_id': incident.uniq_id, 'rule_idx': rule_idx,
                                      'status': incident.status, 'parents': len(incident.parents)})
         
         logger.debug("Inhibition state restoration complete",
@@ -128,7 +128,7 @@ class InhibitionManager:
             if source.uniq_id in target.parents:
                 target.remove_freeze_parent(source.uniq_id)
                 logger.debug("Removed parent from target",
-                           extra={'source_uuid': source.uuid, 'target_uuid': target.uuid})
+                           extra={'source_uniq_id': source.uniq_id, 'target_uniq_id': target.uniq_id})
             
             if child_uniq_id in source.childs:
                 source.childs.remove(child_uniq_id)
@@ -177,7 +177,7 @@ class InhibitionManager:
         await self.queue.delete_by_id(target.uniq_id, delete_steps=True, delete_status=False)
         
         logger.info("Target frozen by inhibition",
-                   extra={'source_uuid': source.uuid, 'target_uuid': target.uuid})
+                   extra={'source_uniq_id': source.uniq_id, 'target_uniq_id': target.uniq_id})
         if target.ts != '':
             await self.application.update_incident_message(target)
         return True
@@ -219,7 +219,7 @@ class InhibitionManager:
         if MAINTENANCE_PARENT_SENTINEL in target.parents:
             logger.info(
                 "Inhibition released; reconciling maintenance",
-                extra={'uuid': target.uuid},
+                extra={'uniq_id': target.uniq_id},
             )
             if self.maintenance_manager is not None:
                 await self.maintenance_manager.reconcile_incident(target, update_message=False)
@@ -227,6 +227,6 @@ class InhibitionManager:
             return
 
         if not target.is_frozen():
-            logger.info("Target has no more parents - releasing inhibition", extra={'uuid': target.uuid})
+            logger.info("Target has no more parents - releasing inhibition", extra={'uniq_id': target.uniq_id})
             await remove_freeze_source(target, self.queue, source=FreezeSource.PARENT)
             await self.application.update_incident_message(target)

@@ -22,16 +22,16 @@ class StatusCheckHandler(BaseHandler):
 
         # Skip any actions if incident is frozen
         if incident.is_frozen():
-            logger.debug("Incident frozen, skipping actions", extra={'uuid': incident.uuid})
+            logger.debug("Incident frozen, skipping actions", extra={'uniq_id': incident.uniq_id})
             return
 
         if incident.status == 'deleted':
             await self.inhibition_manager.handle_closed(incident)
-            logger.debug("Removing incident", extra={'uuid': incident.uuid})
+            logger.debug("Removing incident", extra={'uniq_id': incident.uniq_id})
             self.incidents.del_by_uniq_id(uniq_id)
             return
 
         # Handle closed status - remove from active map only (file cleanup handled by update_status)
         if incident.status == 'closed':
-            logger.info("Incident closed", extra={'uuid': incident.uuid})
+            logger.info("Incident closed", extra={'uniq_id': incident.uniq_id})
             self.incidents.remove_from_active_map(incident.uuid)

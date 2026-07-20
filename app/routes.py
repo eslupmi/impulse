@@ -175,7 +175,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
     def _log_ui_action(action_name, incident, acting_user, **extra):
         acting_name = (acting_user or {}).get("full_name") or (acting_user or {}).get("username") or "unknown"
         acting_id = (acting_user or {}).get("id") or "unknown"
-        log_extra = {"uuid": incident.uuid, "acting_user": acting_name, "acting_user_id": acting_id}
+        log_extra = {"uniq_id": incident.uniq_id, "acting_user": acting_name, "acting_user_id": acting_id}
         log_extra.update(extra)
         logger.info(f"UI {action_name}", extra=log_extra)
 

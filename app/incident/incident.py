@@ -1,6 +1,5 @@
 import asyncio
 import json
-import os
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -153,7 +152,7 @@ class Incident:
             self.assigned_fullname = user.name
         self.chain_enabled = False
         self.dump()
-        logger.info("Incident frozen", extra={'uuid': self.uuid, 'frozen_until': until})
+        logger.info("Incident frozen", extra={'uniq_id': self.uniq_id, 'frozen_until': until})
 
     def unfreeze(self):
         """Clear all freeze sources."""
@@ -161,20 +160,20 @@ class Incident:
         self.frozen_until_source = None
         self.parents = []
         self.dump()
-        logger.info("Incident unfrozen", extra={'uuid': self.uuid})
+        logger.info("Incident unfrozen", extra={'uniq_id': self.uniq_id})
 
     def clear_time_freeze(self):
         """Clear only time-based freeze state, preserving parent-based freezes."""
         self.frozen_until = None
         self.frozen_until_source = None
         self.dump()
-        logger.info("Incident time freeze cleared", extra={'uuid': self.uuid})
+        logger.info("Incident time freeze cleared", extra={'uniq_id': self.uniq_id})
 
     def remove_freeze_parent(self, parent: str):
         if parent in self.parents:
             self.parents.remove(parent)
             self.dump()
-            logger.info("Incident freeze parent removed", extra={'uuid': self.uuid, 'parent': parent})
+            logger.info("Incident freeze parent removed", extra={'uniq_id': self.uniq_id, 'parent': parent})
 
     def set_maintenance_parent(self):
         if MAINTENANCE_PARENT_SENTINEL not in self.parents:
@@ -185,7 +184,7 @@ class Incident:
         """Sync inhibition freeze side effects after caller records source uniq_id in parents."""
         self.accumulate_chain_time(self.updated)
         self.dump()
-        logger.info("Incident frozen by inhibition", extra={'uuid': self.uuid})
+        logger.info("Incident frozen by inhibition", extra={'uniq_id': self.uniq_id})
 
     def is_frozen(self) -> bool:
         return self.frozen_until is not None or len(self.parents) > 0
@@ -261,11 +260,7 @@ class Incident:
     def get_current_filename(self) -> str:
         """Get the current filename based on incident state"""
         env_config = get_environment_config()
-        if self.status == 'closed' or self.status == 'deleted':
-            closed_str = self._datetime_serialize(self.closed)
-            return f'{env_config.incidents_path}/{self.uuid}__{closed_str}.yml'
-        else:
-            return f'{env_config.incidents_path}/{self.uuid}.yml'
+        return f'{env_config.incidents_path}/{self.uniq_id}.yml'
 
     def dump(self):
         data = {
@@ -400,13 +395,9 @@ class Incident:
         now = datetime.now(timezone.utc)
         self._schedule_status_change_by_timeout(status, now)
         if self.status != status:
-            old_filename = self.get_current_filename()
             self._set_status(status)
             self.updated = now
             self.dump()
-            new_filename = self.get_current_filename()
-            if old_filename != new_filename:
-                self._remove_old_file(old_filename)
             return True
         self.dump()
         return False
@@ -444,7 +435,7 @@ class Incident:
 
     def _set_status(self, status: str):
         self.status = status
-        logger.debug("Status updated", extra={'uuid': self.uuid, 'status': status})
+        logger.debug("Status updated", extra={'uniq_id': self.uniq_id, 'status': status})
         if status == 'closed' and not self.closed:
             self.closed = datetime.now(timezone.utc)
 
@@ -492,24 +483,8 @@ class Incident:
         return False
 
     @staticmethod
-    def _remove_old_file(old_filename: str):
-        """Remove old incident file"""
-        try:
-            if os.path.exists(old_filename):
-                os.remove(old_filename)
-                logger.debug("Removed incident file", extra={'file': old_filename})
-        except OSError as e:
-            logger.error("Failed to remove incident file", extra={'file': old_filename, 'error': str(e)})
-
-    @staticmethod
     def _get_firing_alerts_labels(alert_state):
         return [a.get('labels') for a in alert_state['alerts'] if a['status'] == 'firing']
-
-    @staticmethod
-    def _datetime_serialize(datetime_: Optional[datetime]) -> str:
-        if datetime_ is None:
-            return ''
-        return datetime_.strftime('%Y_%m_%d__%H_%M_%S')
 
 
 async def unfreeze_incident(incident: 'Incident', queue: 'AsyncQueue'):
@@ -523,7 +498,7 @@ async def remove_freeze_source(
     parent: Optional[str] = None,
 ):
     if not incident.is_frozen() and source != FreezeSource.PARENT:
-        logger.info(f'Incident {incident.uuid} is not frozen, skipping unfreeze')
+        logger.info(f'Incident {incident.uniq_id} is not frozen, skipping unfreeze')
         return
 
     incident_status = incident.status

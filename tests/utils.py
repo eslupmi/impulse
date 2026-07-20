@@ -336,7 +336,7 @@ def create_mock_config(
 
     mock_config = Mock()
     mock_config.incidents_path = incidents_path
-    mock_config.INCIDENT_ACTUAL_VERSION = "v3.6.0"
+    mock_config.INCIDENT_ACTUAL_VERSION = "v3.7.0"
 
     # Mock incident config
     mock_incident_config = Mock()

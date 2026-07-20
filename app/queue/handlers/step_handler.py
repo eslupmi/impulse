@@ -24,11 +24,11 @@ class StepHandler(BaseHandler):
         incident = self.incidents.uniq_ids[uniq_id]
 
         if incident.is_frozen():
-            logger.debug("Incident frozen, skipping chain step", extra={'uuid': incident.uuid})
+            logger.debug("Incident frozen, skipping chain step", extra={'uniq_id': incident.uniq_id})
             return
 
         if not incident.ts:
-            logger.debug("Incident has no thread, skipping chain step", extra={'uuid': incident.uuid})
+            logger.debug("Incident has no thread, skipping chain step", extra={'uniq_id': incident.uniq_id})
             return
 
         step = incident.chain[identifier]
@@ -45,14 +45,14 @@ class StepHandler(BaseHandler):
                           'result': result, 'response': r_code}
                 incident.chain_update(identifier, done=True, result=r_code)
                 if result == 'ok':
-                    logger.info("Webhook sent", extra={'uuid': incident.uuid, 'webhook': webhook_name, 'response': r_code})
+                    logger.info("Webhook sent", extra={'uniq_id': incident.uniq_id, 'webhook': webhook_name, 'response': r_code})
                 else:
-                    logger.warning("Webhook failed", extra={'uuid': incident.uuid, 'webhook': webhook_name, 'response': r_code})
+                    logger.warning("Webhook failed", extra={'uniq_id': incident.uniq_id, 'webhook': webhook_name, 'response': r_code})
             else:
                 fields = {'type': self.app.type, 'name': webhook_name, 'unit': webhook, 'admins': admins}
 
                 incident.chain_update(identifier, done=True, result=None)
-                logger.warning("Webhook undefined", extra={'uuid': incident.uuid, 'webhook': webhook_name})
+                logger.warning("Webhook undefined", extra={'uniq_id': incident.uniq_id, 'webhook': webhook_name})
 
             text = text_template.form_notification(fields)
             if self.app.type == MessengerType.TELEGRAM:
