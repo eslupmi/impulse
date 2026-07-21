@@ -2,10 +2,12 @@ from typing import Dict, List, Set, TYPE_CHECKING
 
 from app.config.validation import InhibitRule, MessengerType
 from app.inhibition.rule import InhibitionRule
-from app.incident.freeze import FreezeSource
+from app.incident.freeze import FreezeSource, MAINTENANCE_PARENT_SENTINEL
 from app.logging import logger
 
 from app.incident.incident import remove_freeze_source
+
+_INACTIVE_INHIBITION_STATUSES = frozenset({'resolved', 'closed', 'deleted'})
 
 if TYPE_CHECKING:
     from app.incident.incident import Incident
@@ -96,6 +98,45 @@ class InhibitionManager:
         logger.debug("Inhibition state restoration complete",
                    extra={'sources_count': sum(len(s) for s in self.sources.values()),
                          'targets_count': sum(len(t) for t in self.targets.values())})
+
+    async def reconcile_orphans(self):
+        """Drop stale inhibition parents/childs left after mid-lifecycle restarts."""
+        for incident in list(self.incidents.uniq_ids.values()):
+            orphan_parents = [
+                parent_id for parent_id in incident.parents
+                if parent_id != MAINTENANCE_PARENT_SENTINEL
+                and not self._is_active_inhibition_parent(parent_id)
+            ]
+            if not orphan_parents:
+                continue
+
+            for parent_id in orphan_parents:
+                incident.remove_freeze_parent(parent_id)
+                parent = self.incidents.uniq_ids.get(parent_id)
+                if parent and incident.uniq_id in parent.childs:
+                    parent.childs.remove(incident.uniq_id)
+                    parent.dump()
+                logger.info(
+                    "Removed orphan inhibition parent",
+                    extra={'uuid': incident.uuid, 'parent': parent_id},
+                )
+
+            await self._unfreeze_target_if_no_parents(incident)
+
+        for incident in list(self.incidents.uniq_ids.values()):
+            stale_childs = [
+                child_id for child_id in incident.childs
+                if child_id not in self.incidents.uniq_ids
+            ]
+            if not stale_childs:
+                continue
+            for child_id in stale_childs:
+                incident.childs.remove(child_id)
+            incident.dump()
+            logger.info(
+                "Pruned stale inhibition childs",
+                extra={'uuid': incident.uuid, 'childs': stale_childs},
+            )
     
     def would_be_inhibited(self, incident: 'Incident') -> bool:
         if not self.rules:
@@ -208,8 +249,11 @@ class InhibitionManager:
             if done and self.application.type != MessengerType.TELEGRAM:
                 await self.application.update_incident_message(incident)
 
+    def _is_active_inhibition_parent(self, parent_uniq_id: str) -> bool:
+        parent = self.incidents.uniq_ids.get(parent_uniq_id)
+        return parent is not None and parent.status not in _INACTIVE_INHIBITION_STATUSES
+
     async def _unfreeze_target_if_no_parents(self, target: 'Incident'):
-        from app.incident.freeze import MAINTENANCE_PARENT_SENTINEL
         remaining_inhibition_parents = [
             parent for parent in target.parents if parent != MAINTENANCE_PARENT_SENTINEL
         ]

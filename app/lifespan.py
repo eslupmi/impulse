@@ -65,6 +65,7 @@ async def create_main_objects(fastapi_app: FastAPI, reload=False):
     if reload:
         user_scheduler = fastapi_app.state.messenger._user_scheduler
         fastapi_app.state.inhibition_manager.reload_rules(config_data.app.inhibit_rules)
+        await fastapi_app.state.inhibition_manager.reconcile_orphans()
         messenger.configure_scheduler(user_scheduler)
         fastapi_app.state.queue_manager.reload_runtime(messenger, webhooks, route)
     else:
@@ -85,6 +86,7 @@ async def create_main_objects(fastapi_app: FastAPI, reload=False):
             queue=queue,
         )
         inhibition_manager.attach_maintenance_manager(maintenance_manager)
+        await inhibition_manager.reconcile_orphans()
         user_scheduler = UserUpdateScheduler(queue, messenger.type.value)
         messenger.configure_scheduler(user_scheduler)
         await user_scheduler.schedule_all_stored()
