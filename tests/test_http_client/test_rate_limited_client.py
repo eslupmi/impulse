@@ -351,10 +351,7 @@ class TestRateLimitedClient:
 class TestRateLimitedClientConfiguration:
     def test_initialize_client_uses_proxy_from_environment(self):
         """Test that ClientSession is created with proxy from environment config."""
-        mock_env_config = MagicMock()
-        mock_env_config.proxy_url = 'http://proxy.example.com:8080'
-
-        with patch('app.http_client.rate_limited_client.get_environment_config', return_value=mock_env_config), \
+        with patch('app.http_client.rate_limited_client.http_proxy_url', return_value='http://proxy.example.com:8080'), \
              patch('app.http_client.rate_limited_client.aiohttp.TCPConnector'), \
              patch('app.http_client.rate_limited_client.ClientSession') as mock_session_class, \
              patch('app.http_client.rate_limited_client.RetryClient'):
