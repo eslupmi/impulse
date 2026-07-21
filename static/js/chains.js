@@ -588,21 +588,19 @@ async function loadChainsConfig() {
     });
 }
 
-function createStepElement(step = null, index = null) {
+function createStepElement(step = null) {
     const stepDiv = document.createElement('div');
     stepDiv.className = 'step-item';
     
     const stepType = step ? Object.keys(step)[0] : 'user';
     const stepValue = step ? step[stepType] : '';
-    const isFirst = index === 0;
-    const waitOption = isFirst ? '' : '<option value="wait">wait</option>';
     stepDiv.innerHTML = `
         <div class="step-controls">
             <select class="step-type">
                 <option value="user">user</option>
                 <option value="user_group">user_group</option>
                 <option value="group">group</option>
-                ${waitOption}
+                <option value="wait">wait</option>
                 <option value="chain">chain</option>
                 <option value="webhook">webhook</option>
             </select>
@@ -765,10 +763,10 @@ function renderSteps(steps = []) {
     const stepsContainer = document.getElementById('steps-container');
     stepsContainer.innerHTML = '';
     if (steps.length === 0) {
-        stepsContainer.appendChild(createStepElement(null, 0));
+        stepsContainer.appendChild(createStepElement());
     } else {
-        steps.forEach((step, index) => {
-            stepsContainer.appendChild(createStepElement(step, index));
+        steps.forEach((step) => {
+            stepsContainer.appendChild(createStepElement(step));
         });
     }
 }
@@ -1861,9 +1859,7 @@ function setupChainEditModalListeners() {
     repeatSelect.addEventListener('change', toggleRepeatUntilVisibility);
     repeatSelect.addEventListener('input', toggleRepeatUntilVisibility);
     addStepBtn.addEventListener('click', () => {
-        const existingSteps = stepsContainer.querySelectorAll('.step-item');
-        const nextIndex = existingSteps.length;
-        stepsContainer.appendChild(createStepElement(null, nextIndex));
+        stepsContainer.appendChild(createStepElement());
     });
 
     modal.addEventListener('click', (e) => {
