@@ -101,7 +101,7 @@ class InhibitionManager:
 
     async def reconcile_orphans(self):
         """Drop stale inhibition parents/childs left after mid-lifecycle restarts."""
-        for incident in list(self.incidents.uniq_ids.values()):
+        for incident in self.incidents.uniq_ids.values():
             orphan_parents = [
                 parent_id for parent_id in incident.parents
                 if parent_id != MAINTENANCE_PARENT_SENTINEL
@@ -123,7 +123,7 @@ class InhibitionManager:
 
             await self._unfreeze_target_if_no_parents(incident)
 
-        for incident in list(self.incidents.uniq_ids.values()):
+        for incident in self.incidents.uniq_ids.values():
             stale_childs = [
                 child_id for child_id in incident.childs
                 if child_id not in self.incidents.uniq_ids
