@@ -281,7 +281,7 @@ class Incident:
         env_config = get_environment_config()
         return f'{env_config.incidents_path}/{self.uniq_id}.yml'
 
-    def _serializable_dict(self) -> Dict:
+    def serialize(self) -> Dict:
         data = {
             f.name: getattr(self, f.name)
             for f in fields(self)
@@ -291,25 +291,17 @@ class Incident:
         return data
 
     def dump(self):
-        data = self._serializable_dict()
-        incident_filename = self.get_current_filename()
+        path = self.get_current_filename()
         try:
-            with open(incident_filename, 'w') as f:
-                yaml.dump(data, f, NoAliasDumper, default_flow_style=False)
+            with open(path, 'w') as f:
+                yaml.dump(self.serialize(), f, NoAliasDumper, default_flow_style=False)
         except OSError as e:
-            logger.error("Failed to write incident file", extra={'file': incident_filename, 'error': str(e)})
-        # Schedule async websocket update
-        import asyncio
+            logger.error("Failed to write incident file", extra={'file': path, 'error': str(e)})
         try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                _ws_task = asyncio.create_task(incident_ws.update_row(self))
+            if asyncio.get_event_loop().is_running():
+                asyncio.create_task(incident_ws.update_row(self))
         except RuntimeError:
-            # No event loop running, skip websocket update
             pass
-
-    def serialize(self) -> Dict:
-        return self._serializable_dict()
 
     def get_table_data(self, params) -> Dict:
         alerts = self.payload.get('alerts', [])
