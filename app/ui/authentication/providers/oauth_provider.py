@@ -4,7 +4,7 @@ from urllib.parse import urlencode
 
 import aiohttp
 
-from app.http_client.proxy import http_proxy_url
+from app.http_client.session import create_client_session
 from app.ui.authentication.models.auth_user import AuthUser
 from app.ui.authentication.providers.base_provider import AuthenticationProvider, AuthenticationProviderError
 
@@ -49,7 +49,7 @@ class OAuthProvider(AuthenticationProvider):
             "redirect_uri": redirect_uri,
         }
         timeout = aiohttp.ClientTimeout(total=self.timeout_seconds)
-        async with aiohttp.ClientSession(timeout=timeout, proxy=http_proxy_url()) as session:
+        async with create_client_session(timeout=timeout) as session:
             async with session.post(self.token_url, data=payload) as response:
                 data = await response.json(content_type=None)
                 if response.status != 200:
@@ -72,7 +72,7 @@ class OAuthProvider(AuthenticationProvider):
     async def _fetch_user(self, access_token: str) -> AuthUser:
         headers = {"Authorization": f"Bearer {access_token}"}
         timeout = aiohttp.ClientTimeout(total=self.timeout_seconds)
-        async with aiohttp.ClientSession(timeout=timeout, proxy=http_proxy_url()) as session:
+        async with create_client_session(timeout=timeout) as session:
             async with session.get(self.user_url, headers=headers) as response:
                 data = await response.json(content_type=None)
                 if response.status != 200:

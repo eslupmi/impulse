@@ -5,7 +5,7 @@ from urllib.parse import urlencode
 import aiohttp
 import jwt
 
-from app.http_client.proxy import http_proxy_url
+from app.http_client.session import create_client_session
 from app.ui.authentication.models.auth_user import AuthUser
 from app.ui.authentication.providers.base_provider import AuthenticationProvider, AuthenticationProviderError
 
@@ -55,7 +55,7 @@ class TelegramAuthenticationProvider(AuthenticationProvider):
         headers = {"Authorization": f"Basic {credentials}"}
 
         timeout = aiohttp.ClientTimeout(total=self.timeout_seconds)
-        async with aiohttp.ClientSession(timeout=timeout, proxy=http_proxy_url()) as session:
+        async with create_client_session(timeout=timeout) as session:
             async with session.post(self.token_url, data=payload, headers=headers) as response:
                 data = await response.json(content_type=None)
                 if response.status != 200:
@@ -71,7 +71,7 @@ class TelegramAuthenticationProvider(AuthenticationProvider):
             return self._jwks_cache
 
         timeout = aiohttp.ClientTimeout(total=self.timeout_seconds)
-        async with aiohttp.ClientSession(timeout=timeout, proxy=http_proxy_url()) as session:
+        async with create_client_session(timeout=timeout) as session:
             async with session.get(self.jwks_url) as response:
                 if response.status != 200:
                     raise AuthenticationProviderError("auth_failed", "Failed to fetch Telegram JWKS")

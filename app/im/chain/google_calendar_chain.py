@@ -11,7 +11,6 @@ from urllib3 import Retry
 
 from app.config.environment import get_environment_config
 from app.config.validation import CloudChain, ScheduleEntry, ScheduleMatcherExpression, SimpleChainStep
-from app.http_client.proxy import requests_proxies
 from app.im.chain.schedule_chain import ScheduleChain
 from app.logging import logger
 from app.tools import HTMLTextExtractor
@@ -57,9 +56,6 @@ class GoogleCalendarChain(ScheduleChain):
         )
         adapter = HTTPAdapter(max_retries=retry_strategy)
         self.session = requests.Session()
-        proxies = requests_proxies()
-        if proxies is not None:
-            self.session.proxies.update(proxies)
         self.session.mount("https://", adapter)
         self.session.mount("http://", adapter)
 

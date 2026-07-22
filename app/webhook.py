@@ -8,7 +8,7 @@ from aiohttp_retry import ExponentialRetry, RetryClient
 from jinja2 import Template
 
 from app.config.validation import WebhookConfig
-from app.http_client.proxy import http_proxy_url
+from app.http_client.session import create_client_session
 from app.incident.incident import Incident
 from app.logging import logger
 
@@ -32,7 +32,7 @@ class Webhook:
             statuses={500, 502, 503, 504}
         )
         timeout = ClientTimeout(total=30.0)
-        async with aiohttp.ClientSession(timeout=timeout, proxy=http_proxy_url()) as temp_session:
+        async with create_client_session(timeout=timeout) as temp_session:
             retry_client = RetryClient(client_session=temp_session, retry_options=retry_options)
             return await self._make_request(retry_client, rendered_data, rendered_json, auth)
 
