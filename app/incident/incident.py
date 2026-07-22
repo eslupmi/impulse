@@ -299,7 +299,7 @@ class Incident:
             logger.error("Failed to write incident file", extra={'file': path, 'error': str(e)})
         try:
             if asyncio.get_event_loop().is_running():
-                asyncio.create_task(incident_ws.update_row(self))
+                _ws_task = asyncio.create_task(incident_ws.update_row(self))
         except RuntimeError:
             pass
 
