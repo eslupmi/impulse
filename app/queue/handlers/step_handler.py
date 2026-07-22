@@ -23,7 +23,7 @@ class StepHandler(BaseHandler):
     async def handle(self, uniq_id, identifier):
         incident = self.incidents.uniq_ids[uniq_id]
 
-        if incident.is_frozen():
+        if incident.is_frozen:
             logger.debug("Incident frozen, skipping chain step", extra={'uniq_id': incident.uniq_id})
             return
 

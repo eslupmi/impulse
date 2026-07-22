@@ -147,7 +147,7 @@ class MaintenanceManager:
             return
         window, coverage_end = match
 
-        was_frozen = incident.is_frozen()
+        was_frozen = incident.is_frozen
         incident.set_maintenance_parent()
 
         if was_frozen:

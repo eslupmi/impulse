@@ -340,7 +340,7 @@ class Application(ABC):
 
     async def update(self, incident, incident_status, alert_state, updated_status, chain_enabled,
                      frozen_until, task_link=''):
-        if not incident.is_frozen():
+        if not incident.is_frozen:
             await self.update_incident_message(incident)
 
             config = get_config()

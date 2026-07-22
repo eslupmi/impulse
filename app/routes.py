@@ -262,7 +262,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
         if incident is None:
             raise HTTPException(status_code=404, detail=_MSG_INCIDENT_NOT_FOUND)
 
-        if incident.is_frozen():
+        if incident.is_frozen:
             raise HTTPException(status_code=409, detail="Incident is already frozen")
 
         user_tz = (acting_user or {}).get("timezone")

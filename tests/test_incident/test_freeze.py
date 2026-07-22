@@ -55,7 +55,7 @@ class TestIncidentFreeze:
         """Test that incidents are not frozen by default."""
         assert sample_incident.frozen_until is None
         assert sample_incident.frozen_by_inhibition is False
-        assert sample_incident.is_frozen() is False
+        assert sample_incident.is_frozen is False
 
     def test_unfrozen_incident_shows_actual_status(self, sample_incident):
         """Test that unfrozen incidents show their actual status."""
@@ -86,7 +86,7 @@ class TestIncidentFreeze:
     @pytest.mark.asyncio
     async def test_parent_unfreeze_restores_after_last_parent_already_removed(self, sample_incident):
         """Inhibition cleanup removes the parent first, then calls this to restore queues."""
-        assert sample_incident.is_frozen() is False
+        assert sample_incident.is_frozen is False
         queue = Mock()
 
         with patch("app.incident.incident.sync_after_freeze_change", new_callable=AsyncMock) as sync_after_change:
@@ -143,7 +143,7 @@ class TestIncidentInhibitionFreeze:
             _apply_inhibition_freeze(sample_incident)
 
         assert sample_incident.frozen_by_inhibition is True
-        assert sample_incident.is_frozen() is True
+        assert sample_incident.is_frozen is True
 
     def test_freeze_by_inhibition_does_not_affect_chain_enabled(self, sample_incident):
         """Test that freeze_by_inhibition does not change chain_enabled."""
@@ -172,7 +172,7 @@ class TestIncidentInhibitionFreeze:
             
             assert sample_incident.frozen_by_inhibition is False
             assert sample_incident.frozen_by_maintenance is False
-            assert sample_incident.is_frozen() is False
+            assert sample_incident.is_frozen is False
 
     def test_unfreeze_from_inhibition_does_not_affect_chain_enabled(self, sample_incident):
         """Test that unfreezing from inhibition does not change chain_enabled."""
@@ -194,7 +194,7 @@ class TestIncidentInhibitionFreeze:
         
         assert sample_incident.frozen_until is None
         assert sample_incident.frozen_by_inhibition is True
-        assert sample_incident.is_frozen() is True
+        assert sample_incident.is_frozen is True
         assert sample_incident.can_manual_unfreeze() is False
         assert sample_incident.can_manual_unfreeze() is False
 

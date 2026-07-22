@@ -16,7 +16,7 @@ class TestMattermostApplication:
     def test_closed_incident_update_payload_has_no_actions(self):
         """Closed incidents should not render action buttons."""
         incident = create_mock_incident_for_handlers(status="closed")
-        incident.is_frozen = Mock(return_value=False)
+        incident.is_frozen = False
 
         with patch('app.im.mattermost.threads.get_config') as mock_get_config, \
                 patch('app.im.mattermost.threads.get_environment_config') as mock_get_env_config:

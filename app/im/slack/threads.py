@@ -8,7 +8,7 @@ from app.time import format_freeze_expiration
 
 def get_incident_message_payload(incident, body, header, status_icons, tz_str):
     actions = _build_slack_actions(incident, tz_str)
-    display_status = 'frozen' if incident.is_frozen() else incident.status
+    display_status = 'frozen' if incident.is_frozen else incident.status
 
     attachments = [
         {
@@ -34,7 +34,7 @@ def get_incident_message_payload(incident, body, header, status_icons, tz_str):
 
 def slack_get_update_payload(incident, body, header, status_icons, tz_str):
     actions = _build_slack_actions(incident, tz_str)
-    display_status = 'frozen' if incident.is_frozen() else incident.status
+    display_status = 'frozen' if incident.is_frozen else incident.status
 
     attachments = [
         {
