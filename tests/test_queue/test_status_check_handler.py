@@ -70,7 +70,7 @@ class TestStatusCheckHandler:
             status="deleted",
             frozen_until=None
         )
-        mock_incident.is_frozen = Mock(return_value=False)
+        mock_incident.is_frozen = False
 
         mock_incidents.uniq_ids = {incident_uniq_id: mock_incident}
         mock_incidents.del_by_uniq_id = Mock()
@@ -91,7 +91,7 @@ class TestStatusCheckHandler:
             status="closed",
             frozen_until=None
         )
-        mock_incident.is_frozen = Mock(return_value=False)
+        mock_incident.is_frozen = False
 
         mock_incidents.uniq_ids = {incident_uniq_id: mock_incident}
         mock_incidents.remove_from_active_map = Mock()
@@ -115,7 +115,7 @@ class TestStatusCheckHandler:
             status="deleted",
             frozen_until=frozen_until
         )
-        mock_incident.is_frozen = Mock(return_value=True)
+        mock_incident.is_frozen = True
 
         mock_incidents.uniq_ids = {incident_uniq_id: mock_incident}
         mock_incidents.del_by_uniq_id = Mock()
@@ -139,7 +139,7 @@ class TestStatusCheckHandler:
             status="closed",
             frozen_until=frozen_until
         )
-        mock_incident.is_frozen = Mock(return_value=True)
+        mock_incident.is_frozen = True
 
         mock_incidents.uniq_ids = {incident_uniq_id: mock_incident}
         mock_incidents.remove_from_active_map = Mock()
@@ -169,7 +169,7 @@ class TestStatusCheckHandler:
             status="firing",
             frozen_until=None
         )
-        mock_incident.is_frozen = Mock(return_value=False)
+        mock_incident.is_frozen = False
 
         mock_incidents.uniq_ids = {incident_uniq_id: mock_incident}
         mock_incidents.del_by_uniq_id = Mock()
@@ -192,7 +192,7 @@ class TestStatusCheckHandler:
             status="unknown",
             frozen_until=None
         )
-        mock_incident.is_frozen = Mock(return_value=False)
+        mock_incident.is_frozen = False
 
         mock_incidents.uniq_ids = {incident_uniq_id: mock_incident}
         mock_incidents.del_by_uniq_id = Mock()
@@ -215,7 +215,7 @@ class TestStatusCheckHandler:
             status="resolved",
             frozen_until=None
         )
-        mock_incident.is_frozen = Mock(return_value=False)
+        mock_incident.is_frozen = False
 
         mock_incidents.uniq_ids = {incident_uniq_id: mock_incident}
         mock_incidents.del_by_uniq_id = Mock()
@@ -236,14 +236,14 @@ class TestStatusCheckHandler:
             status="deleted",
             frozen_until=None
         )
-        incident1.is_frozen = Mock(return_value=False)
+        incident1.is_frozen = False
 
         incident2 = create_mock_incident_for_handlers(
             uuid="test-uuid-2",
             status="deleted",
             frozen_until=None
         )
-        incident2.is_frozen = Mock(return_value=False)
+        incident2.is_frozen = False
 
         mock_incidents.del_by_uniq_id = Mock()
 
@@ -267,14 +267,14 @@ class TestStatusCheckHandler:
             status="closed",
             frozen_until=None
         )
-        incident1.is_frozen = Mock(return_value=False)
+        incident1.is_frozen = False
 
         incident2 = create_mock_incident_for_handlers(
             uuid="test-uuid-2",
             status="closed",
             frozen_until=None
         )
-        incident2.is_frozen = Mock(return_value=False)
+        incident2.is_frozen = False
 
         mock_incidents.remove_from_active_map = Mock()
 
@@ -300,7 +300,7 @@ class TestStatusCheckHandler:
                 status=status,
                 frozen_until=frozen_until
             )
-            incident.is_frozen = Mock(return_value=True)
+            incident.is_frozen = True
 
             mock_incidents.uniq_ids = {f'incident_{status}': incident}
             mock_incidents.del_by_uniq_id = Mock()

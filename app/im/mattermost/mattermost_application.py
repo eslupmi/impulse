@@ -48,7 +48,7 @@ class MattermostApplication(Application):
         action = context.get('action')
         user_tz = self._get_user_timezone_str(user_id)
 
-        if incident_.is_frozen() and (incident_.frozen_by_inhibition or not action == 'unfreeze'):
+        if incident_.is_frozen and (incident_.frozen_by_inhibition or not action == 'unfreeze'):
             logger.debug('Incident frozen, blocking actions', extra={'uniq_id': incident_.uniq_id})
         else:
             early_return = await self._dispatch_button_action(incident_, payload, user_id, incidents, queue_, user_tz)

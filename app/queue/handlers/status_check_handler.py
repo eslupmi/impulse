@@ -21,7 +21,7 @@ class StatusCheckHandler(BaseHandler):
             return
 
         # Skip any actions if incident is frozen
-        if incident.is_frozen():
+        if incident.is_frozen:
             logger.debug("Incident frozen, skipping actions", extra={'uniq_id': incident.uniq_id})
             return
 

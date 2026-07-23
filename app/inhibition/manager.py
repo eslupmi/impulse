@@ -45,7 +45,7 @@ class InhibitionManager:
                 self.sources[rule_idx].discard(incident.uniq_id)
             
             if incident.uniq_id in self.targets[rule_idx]:
-                if not incident.is_frozen():
+                if not incident.is_frozen:
                     self.targets[rule_idx].discard(incident.uniq_id)
     
     async def handle_resolved(self, incident: 'Incident'):
@@ -226,7 +226,7 @@ class InhibitionManager:
             await self.application.update_incident_message(target)
             return
 
-        if not target.is_frozen():
+        if not target.is_frozen:
             logger.info("Target has no more parents - releasing inhibition", extra={'uniq_id': target.uniq_id})
             await remove_freeze_source(target, self.queue, source=FreezeSource.PARENT)
             await self.application.update_incident_message(target)

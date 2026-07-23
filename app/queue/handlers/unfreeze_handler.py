@@ -50,7 +50,7 @@ class UnfreezeHandler(BaseHandler):
 
         await remove_freeze_source(incident, self.queue, source=freeze_source)
         await self.maintenance_manager.reconcile_incident(incident, update_message=False)
-        if freeze_source == FreezeSource.TIME and not incident.is_frozen():
+        if freeze_source == FreezeSource.TIME and not incident.is_frozen:
             self.app.track_async_task(
                 asyncio.create_task(self.app.post_unfreeze_notification(incident))
             )

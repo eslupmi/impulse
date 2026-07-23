@@ -7,7 +7,7 @@ from app.time import format_freeze_expiration
 
 def mattermost_get_button_update_payload(incident, body, header, status_icons, user_timezone='UTC'):
     actions = _build_mattermost_actions(incident, user_timezone)
-    display_status = 'frozen' if incident.is_frozen() else incident.status
+    display_status = 'frozen' if incident.is_frozen else incident.status
 
     attachment = {
         'fallback': 'test',
@@ -29,7 +29,7 @@ def mattermost_get_button_update_payload(incident, body, header, status_icons, u
 
 def mattermost_get_create_thread_payload(incident, body, header, status_icons):
     actions = _build_mattermost_actions(incident)
-    display_status = 'frozen' if incident.is_frozen() else incident.status
+    display_status = 'frozen' if incident.is_frozen else incident.status
 
     attachment = {
         'fallback': 'test',
@@ -50,7 +50,7 @@ def mattermost_get_create_thread_payload(incident, body, header, status_icons):
 
 def mattermost_get_update_payload(incident, body, header, status_icons, tz_str):
     actions = _build_mattermost_actions(incident, tz_str)
-    display_status = 'frozen' if incident.is_frozen() else incident.status
+    display_status = 'frozen' if incident.is_frozen else incident.status
 
     attachment = {
         'fallback': 'test',

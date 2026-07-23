@@ -17,7 +17,7 @@ class Incidents:
         self.uniq_ids: Dict[str, Incident] = {}
         for i in incidents_list:
             self.uniq_ids[i.uniq_id] = i
-            if (i.status != 'closed' and i.status != 'deleted') or i.is_frozen():
+            if (i.status != 'closed' and i.status != 'deleted') or i.is_frozen:
                 self.active_map[i.uuid] = i.uniq_id
 
     def get(self, alert: Dict) -> Union[Incident, None]:
@@ -41,13 +41,13 @@ class Incidents:
     def remove_from_active_map(self, uuid: str):
         if uuid in self.active_map:
             incident = self.uniq_ids.get(self.active_map[uuid])
-            if incident and incident.is_frozen():
+            if incident and incident.is_frozen:
                 return
             del self.active_map[uuid]
     
     def add(self, incident: Incident):
         self.uniq_ids[incident.uniq_id] = incident
-        if (incident.status != 'closed' and incident.status != 'deleted') or incident.is_frozen():
+        if (incident.status != 'closed' and incident.status != 'deleted') or incident.is_frozen:
             self.active_map[incident.uuid] = incident.uniq_id
 
     def remove_file(self, incident: Incident):
@@ -114,7 +114,7 @@ class Incidents:
                     incident_config=incident_config
                 )
                 if incident_.messenger_type == config.messenger.type.value:
-                    if incident_.status != 'deleted' or incident_.is_frozen():
+                    if incident_.status != 'deleted' or incident_.is_frozen:
                         incidents.add(incident_)
                     else:
                         os.remove(file_path)

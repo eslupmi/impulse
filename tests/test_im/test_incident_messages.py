@@ -33,7 +33,7 @@ def _maintenance_incident():
         frozen_until=datetime.now(timezone.utc) + timedelta(hours=1),
         task_link="",
         can_manual_unfreeze=lambda: False,
-        is_frozen=lambda: True,
+        is_frozen=True,
     )
 
 
