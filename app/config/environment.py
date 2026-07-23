@@ -1,5 +1,5 @@
 import os
-from typing import List, Optional
+from typing import List
 
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field, field_validator
@@ -125,12 +125,6 @@ class EnvironmentConfig(BaseModel):
         description="Port to listen on"
     )
 
-    # Outbound HTTP proxy
-    impulse_proxy: str = Field(
-        default_factory=lambda: os.getenv('IMPULSE_PROXY', ''),
-        description="HTTP proxy URL for outbound requests (e.g., 'http://proxy.example.com:8080')"
-    )
-    
     @field_validator('provider_sync_interval', 'provider_max_events', 'provider_days_to_sync', 'listen_port')
     @classmethod
     def validate_positive_integers(cls, v):
@@ -164,10 +158,6 @@ class EnvironmentConfig(BaseModel):
             raise ValueError("HTTP prefix must not end with '/' (e.g., '/impulse' not '/impulse/')")
         return v
     
-    @property
-    def proxy_url(self) -> Optional[str]:
-        return self.impulse_proxy or None
-
     @property
     def incidents_path(self) -> str:
         """Computed property for incidents path"""

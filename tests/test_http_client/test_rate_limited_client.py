@@ -349,20 +349,16 @@ class TestRateLimitedClient:
 
 
 class TestRateLimitedClientConfiguration:
-    def test_initialize_client_uses_proxy_from_environment(self):
-        """Test that ClientSession is created with proxy from environment config."""
-        mock_env_config = MagicMock()
-        mock_env_config.proxy_url = 'http://proxy.example.com:8080'
-
-        with patch('app.http_client.rate_limited_client.get_environment_config', return_value=mock_env_config), \
-             patch('app.http_client.rate_limited_client.aiohttp.TCPConnector'), \
-             patch('app.http_client.rate_limited_client.ClientSession') as mock_session_class, \
+    def test_initialize_client_uses_trust_env_session(self):
+        """Test that sessions are created via create_client_session (env proxies)."""
+        with patch('app.http_client.rate_limited_client.aiohttp.TCPConnector'), \
+             patch('app.http_client.rate_limited_client.create_client_session') as mock_create_session, \
              patch('app.http_client.rate_limited_client.RetryClient'):
             client = RateLimitedClient()
             client.initialize_client()
 
-            mock_session_class.assert_called_once()
-            assert mock_session_class.call_args.kwargs['proxy'] == 'http://proxy.example.com:8080'
+            mock_create_session.assert_called_once()
+            assert 'proxy' not in mock_create_session.call_args.kwargs
 
 
 class TestRetryAfterRetry:
