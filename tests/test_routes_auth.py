@@ -162,7 +162,7 @@ class TestMaintenanceWebsocketAuth:
         app = _build_app(config, messenger, auth_manager)
         with patch("app.routes.get_config", return_value=config), \
                 patch("app.routes.get_maintenance_store") as mock_store, \
-                patch("app.routes.merge_and_validate_save") as mock_validate:
+                patch("app.routes.windows_from_ws_payload") as mock_validate:
             mock_store.return_value.load_windows.return_value = []
             mock_store.return_value.save_windows.return_value = True
             mock_validate.return_value = _maintenance_ws_payload()
@@ -185,7 +185,7 @@ class TestMaintenanceWebsocketAuth:
         existing = _maintenance_ws_payload()
         with patch("app.routes.get_config", return_value=config), \
                 patch("app.routes.get_maintenance_store") as mock_store, \
-                patch("app.routes.merge_and_validate_save") as mock_validate:
+                patch("app.routes.windows_from_ws_payload") as mock_validate:
             mock_store.return_value.load_windows.return_value = existing
             mock_store.return_value.save_windows.return_value = True
             mock_validate.return_value = []

@@ -90,10 +90,28 @@ class MaintenanceManager:
         now = self._now()
         active = [w for w in self.store.list() if w.is_active(now)]
         active.sort(key=lambda w: w.starts_at)
-        return [
-            {"start": w.starts_at.isoformat(), "end": w.ends_at.isoformat(), "comment": w.comment}
-            for w in active
-        ]
+        return [self._active_window_payload(w) for w in active]
+
+    def _active_window_payload(self, window: MaintenanceWindow) -> dict:
+        payload = {
+            "start": window.starts_at.isoformat(),
+            "end": window.ends_at.isoformat(),
+            "comment": window.comment,
+        }
+        if not window.owner_id:
+            return payload
+
+        owner_id = str(window.owner_id)
+        payload["owner_id"] = owner_id
+
+        user = self.application.users.get_user_by_id(owner_id)
+        if not user or not user.exists:
+            payload["owner_full_name"] = owner_id
+            return payload
+
+        payload["owner_full_name"] = user.full_name or user.name
+        payload["owner_url"] = self.application.get_user_profile_url(owner_id, user)
+        return payload
 
     async def broadcast_active_maintenance(self):
         await incident_ws.broadcast("active_maintenance", self.active_windows_payload())
@@ -136,7 +154,7 @@ class MaintenanceManager:
             await self._schedule_maintenance_freeze(incident, coverage_end)
             logger.info(
                 "Maintenance source recorded on frozen incident",
-                extra={"uuid": incident.uuid, "window_id": window.id, "until": coverage_end},
+                extra={"uniq_id": incident.uniq_id, "window_id": window.id, "until": coverage_end},
             )
             if incident.ts:
                 await self.application.update_incident_message(incident)
@@ -147,7 +165,7 @@ class MaintenanceManager:
         )
         logger.info(
             "Maintenance time freeze applied",
-            extra={"uuid": incident.uuid, "window_id": window.id, "until": coverage_end},
+            extra={"uniq_id": incident.uniq_id, "window_id": window.id, "until": coverage_end},
         )
         if incident.ts:
             await self.application.update_incident_message(incident)
@@ -186,7 +204,7 @@ class MaintenanceManager:
 
         logger.info(
             "Maintenance time freeze scheduled",
-            extra={"uuid": incident.uuid, "window_id": window.id, "until": coverage_end},
+            extra={"uniq_id": incident.uniq_id, "window_id": window.id, "until": coverage_end},
         )
 
         if update_message and incident.ts:

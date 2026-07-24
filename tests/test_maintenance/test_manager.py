@@ -475,3 +475,49 @@ class TestMaintenanceSaveSideEffects:
         mock_reconcile_all.assert_not_awaited()
         mock_schedule.assert_awaited_once()
         mock_broadcast.assert_awaited_once()
+
+
+class TestActiveWindowsPayload:
+    def test_active_windows_payload_includes_owner(self, maintenance_setup):
+        manager, store, application, _ = maintenance_setup
+        owner = Mock()
+        owner.exists = True
+        owner.full_name = "Dmitry Tsybus"
+        owner.name = "dmitry"
+        owner.username = "dmitry"
+
+        application.users = Mock()
+        application.users.get_user_by_id.return_value = owner
+        application.get_user_profile_url.return_value = "https://team.example/messages/@dmitry"
+
+        active_window = _window(
+            start_offset_hours=1,
+            duration_hours=2,
+        )
+        active_window.owner_id = "U123"
+        store.list.return_value = [active_window]
+
+        payload = manager.active_windows_payload()
+
+        assert len(payload) == 1
+        assert payload[0]["owner_id"] == "U123"
+        assert payload[0]["owner_full_name"] == "Dmitry Tsybus"
+        assert payload[0]["owner_url"] == "https://team.example/messages/@dmitry"
+        application.get_user_profile_url.assert_called_once_with("U123", owner)
+
+    def test_active_windows_payload_keeps_owner_when_user_missing(self, maintenance_setup):
+        manager, store, application, _ = maintenance_setup
+        application.users = Mock()
+        application.users.get_user_by_id.return_value = None
+
+        active_window = _window(start_offset_hours=1, duration_hours=2)
+        active_window.owner_id = "U123"
+        store.list.return_value = [active_window]
+
+        payload = manager.active_windows_payload()
+
+        assert len(payload) == 1
+        assert payload[0]["owner_id"] == "U123"
+        assert payload[0]["owner_full_name"] == "U123"
+        assert "owner_url" not in payload[0]
+        application.get_user_profile_url.assert_not_called()

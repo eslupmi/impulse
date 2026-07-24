@@ -170,7 +170,7 @@ Below are all the configuration options supported by IMPulse.
 
 ### messenger.address *
 
-- **impact:** `mattermost` only
+- **available in:** `mattermost` only
 - **description:** your messenger server address
 - **type:** string
 
@@ -213,7 +213,7 @@ Below are all the configuration options supported by IMPulse.
 - **details:**
     
     !!! note ""
-        There are 3 chain types: [simple](#simple-chains), [schedule](#schedule-chains), [cloud](#cloud-chains). See their description below.
+        There are 4 chain types: [simple](#simple-chains), [schedule](#schedule-chains), [cloud](#cloud-chains), [ui](#ui-chains). See their description below.
 
         **Steps**
 
@@ -507,6 +507,8 @@ Below are all the configuration options supported by IMPulse.
 
         A UI chain is declared in config and edited from the **ui chains** button in the web interface (see [Footer](concepts/ui.md#footer)).
 
+        UI chains older than [incident.timeouts.closed](#incidenttimeoutsclosed) are deleted.
+
 ##### &lt;chain&gt;.type *
 
 - **description:** chain type
@@ -524,7 +526,7 @@ Below are all the configuration options supported by IMPulse.
 
 ### messenger.groups
 
-- **impact:** `mattermost`, `slack` only
+- **available in:** `mattermost`, `slack` only
 - **description:** Messenger groups
 - **type:** dict
 - **details:**
@@ -550,7 +552,7 @@ Below are all the configuration options supported by IMPulse.
 
 ### messenger.impulse_address *
 
-- **impact:** `mattermost`, `telegram` only
+- **available in:** `mattermost`, `telegram` only
 - **description:** IMPulse address for button callbacks. Telegram supported only HTTPS.
 - **type:** string
 
@@ -600,7 +602,7 @@ Below are all the configuration options supported by IMPulse.
 
 ### messenger.team *
 
-- **impact:** `mattermost` only
+- **available in:** `mattermost` only
 - **description:** team name
 - **type:** string
 

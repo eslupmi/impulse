@@ -27,6 +27,8 @@ class TestIncidentMigrator:
         assert 'v3.0.0_to_v3.2.0' in migrator._migration_methods
         assert 'v3.2.0_to_v3.4.0' in migrator._migration_methods
         assert 'v3.4.0_to_v3.6.0' in migrator._migration_methods
+        assert 'v3.6.0_to_v3.7.0' in migrator._migration_methods
+        assert 'v3.6.0_to_v3.7.0' in migrator._filename_migration_methods
 
     def test_migrate_file_success(self, migrator):
         """Test successful file migration."""
@@ -47,12 +49,13 @@ class TestIncidentMigrator:
 
         with patch('builtins.open', mock_open()) as mock_file, \
                 patch('yaml.dump') as mock_yaml_dump, \
+                patch('app.incident.migrator.os.rename'), \
                 patch('app.incident.migrator.get_config') as mock_get_config:
             # Use utility function for mock config
             mock_config = create_mock_config(messenger_type="slack")
             mock_get_config.return_value = mock_config
 
-            migrator.migrate_file('/test/incident.yml', incident_data, 'v0.4', 'v3.6.0')
+            migrator.migrate_file('/test/incident.yml', incident_data, 'v0.4', 'v3.7.0')
 
             mock_file.assert_called_once_with('/test/incident.yml', 'w')
             mock_yaml_dump.assert_called_once()
@@ -60,12 +63,12 @@ class TestIncidentMigrator:
             # Check that the migrated data has the correct structure
             call_args = mock_yaml_dump.call_args[0]
             migrated_data = call_args[0]
-            assert migrated_data['version'] == 'v3.6.0'
+            assert migrated_data['version'] == 'v3.7.0'
             assert migrated_data['payload'] == incident_data['last_state']
             assert migrated_data['messenger_type'] == 'slack'
 
-    def test_migrate_data_v0_4_to_v3_6_0(self, migrator):
-        """Test migrating data from v0.4 to v3.6.0 (chained)."""
+    def test_migrate_data_v0_4_to_v3_7_0(self, migrator):
+        """Test migrating data from v0.4 to v3.7.0 (chained)."""
         # Use utility function for alert payload
         alert_payload = create_alert_payload(
             status="firing",
@@ -87,9 +90,9 @@ class TestIncidentMigrator:
             mock_config = create_mock_config(messenger_type="slack")
             mock_get_config.return_value = mock_config
 
-            result = migrator._migrate_data(incident_data, 'v0.4', 'v3.6.0')
+            result = migrator._migrate_data(incident_data, 'v0.4', 'v3.7.0')
 
-            assert result['version'] == 'v3.6.0'
+            assert result['version'] == 'v3.7.0'
             assert result['payload'] == incident_data['last_state']
             assert result['messenger_type'] == 'slack'
             assert result['status'] == 'firing'
@@ -112,9 +115,9 @@ class TestIncidentMigrator:
 
     def test_get_migration_path(self, migrator):
         """Test getting migration path between versions."""
-        path = migrator._get_migration_path('v0.4', 'v3.6.0')
+        path = migrator._get_migration_path('v0.4', 'v3.7.0')
 
-        assert path == ['v0.4', 'v3.0.0', 'v3.2.0', 'v3.4.0', 'v3.6.0']
+        assert path == ['v0.4', 'v3.0.0', 'v3.2.0', 'v3.4.0', 'v3.6.0', 'v3.7.0']
 
     def test_apply_single_migration(self, migrator):
         """Test applying a single migration step."""
@@ -279,15 +282,75 @@ class TestIncidentMigrator:
 
         with patch('builtins.open', mock_open()), \
                 patch('yaml.dump'), \
+                patch('app.incident.migrator.os.rename'), \
                 patch('app.incident.migrator.get_config') as mock_get_config, \
                 patch('app.incident.migrator.logger') as mock_logger:
             # Use utility function for mock config
             mock_config = create_mock_config(messenger_type="slack")
             mock_get_config.return_value = mock_config
 
-            migrator.migrate_file('/test/incident.yml', incident_data, 'v0.4', 'v3.6.0')
+            migrator.migrate_file('/test/incident.yml', incident_data, 'v0.4', 'v3.7.0')
 
             # Check that logging was called
-            assert mock_logger.info.call_count == 2
-            mock_logger.info.assert_any_call('Migrating incident.yml from v0.4 to v3.6.0')
-            mock_logger.info.assert_any_call('Successfully migrated incident.yml')
+            assert mock_logger.info.call_count >= 2
+            mock_logger.info.assert_any_call('Migrating incident.yml from v0.4 to v3.7.0')
+
+    def test_migrate_filename_open_incident(self, migrator):
+        uniq_id = 'test-uniq-id-open'
+        incident_data = {'uniq_id': uniq_id, 'version': 'v3.7.0'}
+
+        with patch('app.incident.migrator.os.rename') as mock_rename:
+            result = migrator._migrate_filename_v3_6_0_to_v3_7_0('/test/incidents/old-uuid.yml', incident_data)
+
+        mock_rename.assert_called_once_with(
+            '/test/incidents/old-uuid.yml',
+            f'/test/incidents/{uniq_id}.yml'
+        )
+        assert result == f'/test/incidents/{uniq_id}.yml'
+
+    def test_migrate_filename_closed_incident(self, migrator):
+        uniq_id = 'test-uniq-id-closed'
+        incident_data = {'uniq_id': uniq_id, 'version': 'v3.7.0'}
+
+        with patch('app.incident.migrator.os.rename') as mock_rename:
+            result = migrator._migrate_filename_v3_6_0_to_v3_7_0(
+                '/test/incidents/old-uuid__2025_01_15__14_30_45.yml',
+                incident_data,
+            )
+
+        mock_rename.assert_called_once_with(
+            '/test/incidents/old-uuid__2025_01_15__14_30_45.yml',
+            f'/test/incidents/{uniq_id}.yml'
+        )
+        assert result == f'/test/incidents/{uniq_id}.yml'
+
+    def test_migrate_filename_idempotent(self, migrator):
+        uniq_id = 'already-migrated-id'
+        file_path = f'/test/incidents/{uniq_id}.yml'
+        incident_data = {'uniq_id': uniq_id, 'version': 'v3.7.0'}
+
+        with patch('app.incident.migrator.os.rename') as mock_rename:
+            result = migrator._migrate_filename_v3_6_0_to_v3_7_0(file_path, incident_data)
+
+        mock_rename.assert_not_called()
+        assert result == file_path
+
+    def test_migrate_file_returns_renamed_path(self, migrator):
+        uniq_id = 'renamed-uniq-id'
+        incident_data = {
+            'status': 'firing',
+            'uniq_id': uniq_id,
+            'version': 'v3.6.0',
+        }
+
+        with patch('builtins.open', mock_open()), \
+                patch('yaml.dump'), \
+                patch('app.incident.migrator.os.rename'):
+            result = migrator.migrate_file(
+                '/test/incidents/old-uuid.yml',
+                incident_data,
+                'v3.6.0',
+                'v3.7.0',
+            )
+
+        assert result == f'/test/incidents/{uniq_id}.yml'

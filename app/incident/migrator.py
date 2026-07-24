@@ -25,20 +25,23 @@ class IncidentMigrator:
         'v3.0.0': 'v3.2.0',
         'v3.2.0': 'v3.4.0',
         'v3.4.0': 'v3.6.0',
+        'v3.6.0': 'v3.7.0',
     }
     
     def __init__(self):
         """Initialize the migrator with available migration methods."""
-        # Add version migrations here as needed
-        # Example: 'v0.4_to_v0.5': self._migrate_v0_4_to_v0_5,
         self._migration_methods = {
             'v0.4_to_v3.0.0': self._migrate_v0_4_to_v3_0_0,
             'v3.0.0_to_v3.2.0': self._migrate_v3_0_0_to_v3_2_0,
             'v3.2.0_to_v3.4.0': self._migrate_v3_2_0_to_v3_4_0,
             'v3.4.0_to_v3.6.0': self._migrate_v3_4_0_to_v3_6_0,
+            'v3.6.0_to_v3.7.0': self._migrate_v3_6_0_to_v3_7_0,
+        }
+        self._filename_migration_methods = {
+            'v3.6.0_to_v3.7.0': self._migrate_filename_v3_6_0_to_v3_7_0,
         }
     
-    def migrate_file(self, file_path: str, incident_data: Dict, current_version: str, target_version: str):
+    def migrate_file(self, file_path: str, incident_data: Dict, current_version: str, target_version: str) -> str:
         """
         Migrate an incident file to the target version.
         
@@ -47,6 +50,9 @@ class IncidentMigrator:
             incident_data: The loaded incident data
             current_version: Current version of the incident data
             target_version: The target version to migrate to
+            
+        Returns:
+            Final path to the incident file (may differ after filename migration)
         """
         logger.info(f'Migrating {os.path.basename(file_path)} from {current_version} to {target_version}')
         
@@ -57,8 +63,11 @@ class IncidentMigrator:
                 yaml.dump(migrated_data, f, NoAliasDumper, default_flow_style=False)
         except (OSError, PermissionError, FileNotFoundError) as e:
             logger.error(f'Failed to write migrated incident file {os.path.basename(file_path)}: {str(e)}')
+            return file_path
         
-        logger.info(f'Successfully migrated {os.path.basename(file_path)}')
+        final_path = self._apply_filename_migrations(file_path, migrated_data, current_version, target_version)
+        logger.info(f'Successfully migrated {os.path.basename(final_path)}')
+        return final_path
     
     ### PRIVATE METHODS ###
 
@@ -208,3 +217,38 @@ class IncidentMigrator:
         else:
             migrated.setdefault('frozen_until_source', None)
         return migrated
+
+    @staticmethod
+    def _migrate_v3_6_0_to_v3_7_0(data: Dict) -> Dict:
+        return data.copy()
+
+    def _apply_filename_migrations(self, file_path: str, incident_data: Dict, from_version: str, to_version: str) -> str:
+        if not self.MIGRATION_CHAIN:
+            return file_path
+
+        migration_path = self._get_migration_path(from_version, to_version)
+        current_path = file_path
+
+        for i in range(len(migration_path) - 1):
+            current_version = migration_path[i]
+            next_version = migration_path[i + 1]
+            method_key = f"{current_version}_to_{next_version}"
+            filename_method = self._filename_migration_methods.get(method_key)
+            if filename_method:
+                current_path = filename_method(current_path, incident_data)
+
+        return current_path
+
+    @staticmethod
+    def _migrate_filename_v3_6_0_to_v3_7_0(file_path: str, incident_data: Dict) -> str:
+        uniq_id = incident_data['uniq_id']
+        new_path = os.path.join(os.path.dirname(file_path), f'{uniq_id}.yml')
+        return IncidentMigrator._rename_file(file_path, new_path)
+
+    @staticmethod
+    def _rename_file(old_path: str, new_path: str) -> str:
+        if old_path == new_path:
+            return old_path
+        logger.info(f'Renaming incident file {os.path.basename(old_path)} to {os.path.basename(new_path)}')
+        os.rename(old_path, new_path)
+        return new_path

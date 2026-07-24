@@ -51,7 +51,7 @@ class TestEnvironmentConfig:
             'LOG_LEVEL': 'DEBUG',
             'HTTP_PREFIX': '/api/v1',
             'LISTEN_HOST': '127.0.0.1',
-            'LISTEN_PORT': '8080'
+            'LISTEN_PORT': '8080',
         }
 
         with patch.dict('os.environ', env_vars, clear=True):
@@ -315,7 +315,6 @@ class TestEnvironmentConfig:
         with pytest.raises(ValidationError,
                            match="HTTP prefix must not end with '/' \\(e.g., '/impulse' not '/impulse/'\\)"):
             EnvironmentConfig(**config_data)
-
 
 class TestEnvironmentConfigFunctions:
     """Test cases for environment configuration functions."""

@@ -42,7 +42,7 @@ class AlertHandler(BaseHandler):
         if incident_ is None:
             await self._handle_create(alert_state)
         else:
-            await self._handle_update(incident_.uuid, incident_, alert_state)
+            await self._handle_update(incident_, alert_state)
 
     async def _handle_create(self, alert_state):
         config = get_config()
@@ -94,11 +94,11 @@ class AlertHandler(BaseHandler):
         incident_.dump()
 
         if will_match_maintenance:
-            logger.info("Incident created (maintenance)", extra={'uuid': incident_.uuid, 'link': incident_.link})
+            logger.info("Incident created (maintenance)", extra={'uniq_id': incident_.uniq_id, 'link': incident_.link})
         elif will_be_inhibited:
-            logger.info("Incident created (inhibited)", extra={'uuid': incident_.uuid, 'link': incident_.link})
+            logger.info("Incident created (inhibited)", extra={'uniq_id': incident_.uniq_id, 'link': incident_.link})
         else:
-            logger.info("Incident created", extra={'uuid': incident_.uuid, 'link': incident_.link})
+            logger.info("Incident created", extra={'uniq_id': incident_.uniq_id, 'link': incident_.link})
 
         await self.queue.put(status_update_datetime, QueueItemType.UPDATE_STATUS, incident_.uniq_id)
 
@@ -106,11 +106,11 @@ class AlertHandler(BaseHandler):
         if not (will_be_inhibited or will_match_maintenance):
             await self.queue.recreate(status, incident_.uniq_id, incident_.chain, incident_.chain_active_seconds)
 
-    async def _handle_update(self, uuid_, incident_, alert_state):
+    async def _handle_update(self, incident_, alert_state):
         config = get_config()
 
         if incident_.is_frozen() and incident_.status in ['closed', 'deleted']:
-            logger.debug("Ignoring alert for frozen incident", extra={'uuid': uuid_})
+            logger.debug("Ignoring alert for frozen incident", extra={'uniq_id': incident_.uniq_id})
             return
 
         prev_status = incident_.status
@@ -133,7 +133,7 @@ class AlertHandler(BaseHandler):
 
         should_notify = prev_status == 'firing' and incident_.status == 'firing' and not incident_.is_frozen()
         if should_notify and (is_new_firing_alerts_added or is_some_firing_alerts_removed):
-            await self._notify_new_fire_alert(incident_, is_new_firing_alerts_added, is_some_firing_alerts_removed, uuid_)
+            await self._notify_new_fire_alert(incident_, is_new_firing_alerts_added, is_some_firing_alerts_removed)
         await self.queue.update(incident_.uniq_id, incident_.status_update_datetime, incident_.status)
 
     ### PRIVATE METHODS ###
@@ -159,7 +159,7 @@ class AlertHandler(BaseHandler):
             await self.inhibition_manager.process_incident(incident_)
             await self.maintenance_manager.process_incident(incident_)
 
-    async def _notify_new_fire_alert(self, incident_, new_alerts_f, new_alerts_r, uuid_):
+    async def _notify_new_fire_alert(self, incident_, new_alerts_f, new_alerts_r):
         """
         Notify about new firing alerts added to the incident
         """
@@ -176,9 +176,9 @@ class AlertHandler(BaseHandler):
             message = header + '\n' + text
         await self.app.post_to_thread(incident_.channel_id, incident_.ts, message)
         if new_alerts_f:
-            logger.info("Incident updated with new alerts firing", extra={'uuid': uuid_})
+            logger.info("Incident updated with new alerts firing", extra={'uniq_id': incident_.uniq_id})
         elif new_alerts_r:
-            logger.info("Incident updated with some alerts resolved", extra={'uuid': uuid_})
+            logger.info("Incident updated with some alerts resolved", extra={'uniq_id': incident_.uniq_id})
 
     async def _create_thread(self, incident_):
         body, header, status_icons = self.app.form_body_header_status_icons(incident_)

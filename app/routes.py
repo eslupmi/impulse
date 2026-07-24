@@ -9,7 +9,7 @@ from fastapi.templating import Jinja2Templates
 
 from app.config.config import get_config, reload_config
 from app.logging import logger
-from app.maintenance.api import merge_and_validate_save, removed_windows
+from app.maintenance.api import removed_windows, windows_from_ws_payload
 from app.maintenance.store import get_maintenance_store
 from app.metrics import generate_metrics_response
 from app.middleware import is_standby_mode, service_unavailable_response, STANDBY_MODE_MESSAGE
@@ -33,10 +33,10 @@ async def _maintenance_save_side_effects(app, existing, saved, deleted):
 def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=None) -> APIRouter:
     router = APIRouter(prefix=http_prefix)
 
-    templates = None
+    ui_templates = None
     if fastapi_app and get_config().ui_config:
         fastapi_app.mount(f"{http_prefix}/static", StaticFiles(directory="static"), name="static")
-        templates = Jinja2Templates(directory="templates")
+        ui_templates = Jinja2Templates(directory="static")
 
     @router.get("/livez")
     def get_live(request: Request):
@@ -68,10 +68,10 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
         queue = request.app.state.queue
         return await generate_metrics_response(queue)
 
-    if templates:
+    if ui_templates:
         @router.get("/", response_class=HTMLResponse)
         async def get_index(request: Request):
-            return templates.TemplateResponse("index.html", {
+            return ui_templates.TemplateResponse("index.html", {
                 "request": request,
                 "http_prefix": http_prefix
             })
@@ -175,7 +175,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
     def _log_ui_action(action_name, incident, acting_user, **extra):
         acting_name = (acting_user or {}).get("full_name") or (acting_user or {}).get("username") or "unknown"
         acting_id = (acting_user or {}).get("id") or "unknown"
-        log_extra = {"uuid": incident.uuid, "acting_user": acting_name, "acting_user_id": acting_id}
+        log_extra = {"uniq_id": incident.uniq_id, "acting_user": acting_name, "acting_user_id": acting_id}
         log_extra.update(extra)
         logger.info(f"UI {action_name}", extra=log_extra)
 
@@ -420,10 +420,20 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
                                 "detail": _MSG_AUTHENTICATION_REQUIRED,
                             }))
                         else:
-                            acting_user = _get_acting_user_from_websocket(websocket)
                             windows_payload = message.get("data", [])
+                            store = get_maintenance_store()
+                            existing = store.load_windows()
+                            existing_by_id = {w["id"]: w for w in existing}
+                            assignable_user_ids = {
+                                str(user["user_id"])
+                                for user in _get_assignable_users(websocket.app.state.messenger)
+                            }
                             try:
-                                windows = merge_and_validate_save(windows_payload, acting_user)
+                                windows = windows_from_ws_payload(
+                                    windows_payload,
+                                    assignable_user_ids,
+                                    existing_by_id,
+                                )
                             except HTTPException as exc:
                                 await websocket.send_text(json.dumps({
                                     "event": "maintenance_saved",
@@ -431,8 +441,6 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
                                     "detail": exc.detail,
                                 }))
                             else:
-                                store = get_maintenance_store()
-                                existing = store.load_windows()
                                 deleted = removed_windows(existing, windows)
                                 success = store.save_windows(windows)
                                 await websocket.send_text(json.dumps({

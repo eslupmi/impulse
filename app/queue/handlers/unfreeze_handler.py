@@ -41,7 +41,7 @@ class UnfreezeHandler(BaseHandler):
             logger.info(
                 "Ignoring stale unfreeze event",
                 extra={
-                    'uuid': incident.uuid,
+                    'uniq_id': incident.uniq_id,
                     'event_source': freeze_source.value,
                     'active_source': incident.frozen_until_source,
                 },

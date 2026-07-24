@@ -6,7 +6,10 @@ import aiohttp
 from aiohttp import ClientTimeout, ClientSession, ClientResponse
 from aiohttp_retry import ExponentialRetry, RetryClient
 
+from app.http_client.errors import MESSENGER_TRANSPORT_ERRORS
+from app.http_client.session import create_client_session
 from app.logging import logger
+from app.logging_context import messenger_init_log_fields, redact_messenger_url, transport_failure_fields
 from app.metrics import measure_request
 
 
@@ -166,10 +169,10 @@ class RateLimitedClient:
             limit_per_host=self._connector_limit_per_host
         )
         
-        self._session = ClientSession(
+        self._session = create_client_session(
             timeout=timeout,
             connector=connector,
-            raise_for_status=False
+            raise_for_status=False,
         )
         
         self._client = RetryClient(
@@ -208,7 +211,19 @@ class RateLimitedClient:
         """
         self.initialize_client()
         await self._wait_for_rate_limit()
-        return await self._client.request(method, url, **kwargs)
+        try:
+            return await self._client.request(method, url, **kwargs)
+        except MESSENGER_TRANSPORT_ERRORS as exc:
+            logger.error(
+                "Messenger is not responding",
+                extra={
+                    'method': method,
+                    'url': redact_messenger_url(url),
+                    **transport_failure_fields(exc),
+                    **messenger_init_log_fields(),
+                },
+            )
+            raise
     
     async def _wait_for_rate_limit(self):
         """

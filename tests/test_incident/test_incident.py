@@ -365,7 +365,7 @@ class TestIncident:
 
         mock_file_open.assert_called_once()
         # Check that file is opened with correct path for non-closed incident
-        assert f'/test/incidents/{sample_incident.uuid}.yml' in str(mock_file_open.call_args)
+        assert f'/test/incidents/{sample_incident.uniq_id}.yml' in str(mock_file_open.call_args)
         mock_yaml_dump.assert_called_once()
 
     @patch('app.incident.incident.get_environment_config')
@@ -385,9 +385,7 @@ class TestIncident:
             sample_incident.dump()
 
         mock_file_open.assert_called_once()
-        # Check that file is opened with correct path for closed incident
-        closed_str = sample_incident._datetime_serialize(sample_incident.closed)
-        assert f'/test/incidents/{sample_incident.uuid}__{closed_str}.yml' in str(mock_file_open.call_args)
+        assert f'/test/incidents/{sample_incident.uniq_id}.yml' in str(mock_file_open.call_args)
         mock_yaml_dump.assert_called_once()
 
     @patch('app.incident.incident.ChannelManager')
@@ -434,6 +432,30 @@ class TestIncident:
         assert sample_incident.chain[0]['identifier'] == 'testuser'
         assert sample_incident.chain[1]['type'] == 'user'
         assert sample_incident.chain[1]['identifier'] == 'admin'
+        assert sample_incident.chain[0]['delay'] == pytest.approx(0.0)
+        assert sample_incident.chain[1]['delay'] == pytest.approx(300.0)
+
+    def test_generate_chain_with_leading_wait(self, sample_incident):
+        """Leading wait delays the first actionable step; wait itself is not queued."""
+        chains = create_mock_chains_config({
+            'test_chain': [
+                {'wait': '5m'},
+                {'user': 'testuser'},
+                {'wait': '10m'},
+                {'user': 'admin'},
+            ]
+        })
+
+        with patch.object(sample_incident, 'dump'):
+            sample_incident.generate_chain(chains, 'test_chain')
+
+        assert len(sample_incident.chain) == 2
+        assert sample_incident.chain[0]['type'] == 'user'
+        assert sample_incident.chain[0]['identifier'] == 'testuser'
+        assert sample_incident.chain[0]['delay'] == pytest.approx(300.0)
+        assert sample_incident.chain[1]['type'] == 'user'
+        assert sample_incident.chain[1]['identifier'] == 'admin'
+        assert sample_incident.chain[1]['delay'] == pytest.approx(900.0)
 
     def test_generate_chain_with_none_chain_name(self, sample_incident):
         """Test generating chain with None chain name."""

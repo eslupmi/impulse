@@ -1,4 +1,5 @@
 import asyncio
+from typing import Optional
 
 from fastapi.responses import JSONResponse
 
@@ -8,6 +9,7 @@ from app.im.application import Application
 from app.im.mattermost.threads import mattermost_get_button_update_payload, \
     mattermost_get_update_payload, mattermost_get_create_thread_payload
 from app.im.mattermost.user import User
+from app.im.users import BaseUser
 from app.logging import logger
 
 
@@ -47,7 +49,7 @@ class MattermostApplication(Application):
         user_tz = self._get_user_timezone_str(user_id)
 
         if incident_.is_frozen() and (incident_.frozen_by_inhibition or not action == 'unfreeze'):
-            logger.debug('Incident frozen, blocking actions', extra={'uuid': incident_.uuid})
+            logger.debug('Incident frozen, blocking actions', extra={'uniq_id': incident_.uniq_id})
         else:
             early_return = await self._dispatch_button_action(incident_, payload, user_id, incidents, queue_, user_tz)
             if early_return is not None:
@@ -167,7 +169,7 @@ class MattermostApplication(Application):
     def _get_incident_message_payload(self, incident, body, header, status_icons):
         return mattermost_get_create_thread_payload(incident, body, header, status_icons)
 
-    def _get_public_url(self, app_config: ApplicationConfig):
+    async def _get_public_url(self, app_config: ApplicationConfig):
         return app_config.address
 
     def _get_team_name(self, app_config: ApplicationConfig):
@@ -176,19 +178,23 @@ class MattermostApplication(Application):
     def _get_url(self, app_config: ApplicationConfig):
         return app_config.address
 
+    def _build_user_profile_url(self, user_id: str, user: BaseUser) -> Optional[str]:
+        base = self.public_url.rstrip("/")
+        return f"{base}/{self.team}/users/{user_id}"
+
     async def _handle_chain_action(self, incident_, user_id, queue_, payload):
         """Handle chain-related button actions"""
         await queue_.delete_by_id(incident_.uniq_id, delete_steps=True, delete_status=False)
         if incident_.chain_enabled or incident_.status != 'resolved':
             if incident_.assigned_user_id == user_id:
-                logger.info('Button pressed. User already assigned', extra={'incident': incident_.uuid, 'button': 'take_it', 'user_id': user_id})
+                logger.info('Button pressed. User already assigned', extra={'incident': incident_.uniq_id, 'button': 'take_it', 'user_id': user_id})
                 return JSONResponse(payload, status_code=200)
-            logger.info('Button pressed: assigning to user', extra={'incident': incident_.uuid, 'button': 'take_it', 'user_id': user_id})
+            logger.info('Button pressed: assigning to user', extra={'incident': incident_.uniq_id, 'button': 'take_it', 'user_id': user_id})
             self.fetch_and_assign_user_name(incident_, user_id, dump=False)
             self.track_async_task(asyncio.create_task(self.post_assignment_notification(incident_)))
             incident_.chain_enabled = False
         else:
-            logger.info('Button pressed', extra={'uuid': incident_.uuid, 'button': 'release', 'user_id': user_id})
+            logger.info('Button pressed', extra={'uniq_id': incident_.uniq_id, 'button': 'release', 'user_id': user_id})
             self.track_async_task(asyncio.create_task(self.post_unassignment_notification(incident_)))
             incident_.release()
         return None
