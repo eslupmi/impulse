@@ -481,5 +481,116 @@ class TestInhibitionManager:
         assert "old-source" not in inhibition_manager.sources.get(0, set())
         assert "old-target" not in inhibition_manager.targets.get(0, set())
 
+    # Orphan Reconcile Tests
+
+    @pytest.mark.asyncio
+    async def test_reconcile_orphans_removes_missing_parent(
+        self, inhibition_manager, mock_incidents, mock_application
+    ):
+        """Gone source uniq_id is dropped from target parents and inhibition is released."""
+        target = self._create_mock_incident(
+            "target-1", "warning", "api",
+            status="deleted",
+            parents=["missing-source"],
+            frozen_by_inhibition=True,
+        )
+        mock_incidents.uniq_ids = {"target-1": target}
+
+        with patch("app.inhibition.manager.remove_freeze_source", new_callable=AsyncMock) as remove_source:
+            await inhibition_manager.reconcile_orphans()
+
+        assert "missing-source" not in target.parents
+        remove_source.assert_awaited_once_with(
+            target, inhibition_manager.queue, source=FreezeSource.PARENT
+        )
+        mock_application.update_incident_message.assert_awaited_once_with(target)
+
+    @pytest.mark.asyncio
+    async def test_reconcile_orphans_removes_closed_parent_still_on_disk(
+        self, inhibition_manager, mock_incidents
+    ):
+        """Restart-in-air: closed source still loaded must not keep inhibiting children."""
+        source = self._create_mock_incident(
+            "source-1", "critical", "api",
+            status="closed",
+            childs=["target-1"],
+        )
+        target = self._create_mock_incident(
+            "target-1", "warning", "api",
+            status="deleted",
+            parents=["source-1"],
+            frozen_by_inhibition=True,
+        )
+        mock_incidents.uniq_ids = {"source-1": source, "target-1": target}
+
+        with patch("app.inhibition.manager.remove_freeze_source", new_callable=AsyncMock) as remove_source:
+            await inhibition_manager.reconcile_orphans()
+
+        assert "source-1" not in target.parents
+        assert "target-1" not in source.childs
+        source.dump.assert_called()
+        remove_source.assert_awaited_once_with(
+            target, inhibition_manager.queue, source=FreezeSource.PARENT
+        )
+
+    @pytest.mark.asyncio
+    async def test_reconcile_orphans_keeps_active_parent(self, inhibition_manager, mock_incidents):
+        """Firing/unknown parents remain valid inhibition parents."""
+        source = self._create_mock_incident(
+            "source-1", "critical", "api",
+            status="firing",
+            childs=["target-1"],
+        )
+        target = self._create_mock_incident(
+            "target-1", "warning", "api",
+            parents=["source-1"],
+            frozen_by_inhibition=True,
+        )
+        mock_incidents.uniq_ids = {"source-1": source, "target-1": target}
+
+        with patch("app.inhibition.manager.remove_freeze_source", new_callable=AsyncMock) as remove_source:
+            await inhibition_manager.reconcile_orphans()
+
+        assert target.parents == ["source-1"]
+        assert source.childs == ["target-1"]
+        remove_source.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_reconcile_orphans_preserves_maintenance_sentinel(
+        self, inhibition_manager, mock_incidents
+    ):
+        """Maintenance parent is kept while gone inhibition parent is dropped."""
+        target = self._create_mock_incident(
+            "target-1", "warning", "api",
+            parents=["missing-source", MAINTENANCE_PARENT_SENTINEL],
+            frozen_by_inhibition=True,
+        )
+        maintenance_manager = Mock()
+        maintenance_manager.reconcile_incident = AsyncMock()
+        inhibition_manager.attach_maintenance_manager(maintenance_manager)
+        mock_incidents.uniq_ids = {"target-1": target}
+
+        with patch("app.inhibition.manager.remove_freeze_source", new_callable=AsyncMock) as remove_source:
+            await inhibition_manager.reconcile_orphans()
+
+        assert target.parents == [MAINTENANCE_PARENT_SENTINEL]
+        remove_source.assert_not_called()
+        maintenance_manager.reconcile_incident.assert_awaited_once_with(target, update_message=False)
+
+    @pytest.mark.asyncio
+    async def test_reconcile_orphans_prunes_stale_childs(self, inhibition_manager, mock_incidents):
+        """Source childs pointing at missing incidents are pruned."""
+        source = self._create_mock_incident(
+            "source-1", "critical", "api",
+            childs=["gone-target", "still-here"],
+        )
+        child = self._create_mock_incident("still-here", "warning", "api", parents=["source-1"])
+        mock_incidents.uniq_ids = {"source-1": source, "still-here": child}
+
+        await inhibition_manager.reconcile_orphans()
+
+        assert source.childs == ["still-here"]
+        source.dump.assert_called()
+
     # Thread Update Tests
 
