@@ -41,6 +41,7 @@ class TestMainApplication:
             mock_inhibition_manager = Mock()
             mock_inhibition_manager.restore_from_incidents = Mock()
             mock_inhibition_manager.attach_maintenance_manager = Mock()
+            mock_inhibition_manager.reconcile_orphans = AsyncMock()
             mock_inhibition_manager_class.return_value = mock_inhibition_manager
 
             mock_maintenance_store = Mock()
