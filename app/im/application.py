@@ -117,13 +117,17 @@ class Application(ABC):
     def generate_template(self):
         def read_template(file_key, default_path):
             file_path = self.templates.get(file_key, default_path)
-            return JinjaTemplate(open(file_path).read())
+            return self.jinja_template(open(file_path).read())
 
         body_template = read_template('body', f'./templates/{self.type.value}_body.j2')
         header_template = read_template('header', f'./templates/{self.type.value}_header.j2')
         status_icons_template = read_template('status_icons', f'./templates/{self.type.value}_status_icons.j2')
 
         return body_template, header_template, status_icons_template
+
+    def jinja_template(self, template: str) -> JinjaTemplate:
+        """Build a Jinja template with messenger-appropriate escaping (HTML for Telegram)."""
+        return JinjaTemplate(template, autoescape=self.type == MessengerType.TELEGRAM)
 
     @abstractmethod
     async def get_all_groups(self):
@@ -219,16 +223,16 @@ class Application(ABC):
         destinations = self.get_notification_destinations()
         if notify_type == 'user':
             unit = self.users.get(identifier)
-            text_template = JinjaTemplate(notification_user)
+            text_template = self.jinja_template(notification_user)
         elif notify_type == 'user_group':
             unit = self.user_groups.get(identifier)
-            text_template = JinjaTemplate(notification_user_group)
+            text_template = self.jinja_template(notification_user_group)
         elif notify_type == 'group':
             unit = self.groups.get(identifier)
-            text_template = JinjaTemplate(notification_group)
+            text_template = self.jinja_template(notification_group)
         else:
             unit = None
-            text_template = JinjaTemplate(notification_user_group)
+            text_template = self.jinja_template(notification_user_group)
         fields = {'type': self.type.value, 'name': identifier, 'unit': unit, 'admins': destinations}
         text = text_template.form_notification(fields)
         _, header, _ = self.form_body_header_status_icons(incident)
@@ -253,7 +257,7 @@ class Application(ABC):
                 'username': incident.assigned_user,
                 'id': incident.assigned_user_id
             }
-            text = JinjaTemplate(notification_assignment).form_notification(fields)
+            text = self.jinja_template(notification_assignment).form_notification(fields)
             if self.type == MessengerType.TELEGRAM:
                 message = text
             else:
@@ -279,7 +283,7 @@ class Application(ABC):
 
         try:
             header = self.header_template.form_message(incident_obj.payload, incident_obj)
-            text = JinjaTemplate(notification_unassignment).form_notification({})
+            text = self.jinja_template(notification_unassignment).form_notification({})
             if self.type.value == MessengerType.TELEGRAM:
                 message = text
             else:
@@ -292,8 +296,7 @@ class Application(ABC):
             logger.error(f'Failed to post unassignment notification for incident {incident_obj.uuid}: {e}')
 
     async def post_unfreeze_notification(self, incident_: 'Incident'):
-        text_template = JinjaTemplate(notification_unfreeze)
-        text = text_template.form_notification({'type': self.type.value})
+        text = self.jinja_template(notification_unfreeze).form_notification({'type': self.type.value})
 
         if self.type != MessengerType.TELEGRAM:
             header = self.header_template.form_message(incident_.payload, incident_)
@@ -316,10 +319,9 @@ class Application(ABC):
 
             config = get_config()
             if updated_status and incident_status != 'closed' and config.incident.notifications.status_update:
-                text_template = JinjaTemplate(update_status)
                 admins = self.get_notification_destinations()
                 fields = {'type': self.type.value, 'status': incident_status, 'admins': admins}
-                text = text_template.form_notification(fields)
+                text = self.jinja_template(update_status).form_notification(fields)
 
                 _, header, _ = self.form_body_header_status_icons(incident)
                 message = text if self.type == MessengerType.TELEGRAM else header + '\n' + text

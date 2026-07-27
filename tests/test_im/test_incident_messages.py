@@ -5,6 +5,8 @@ from unittest.mock import patch
 
 import pytest
 
+from app.config.validation import MessengerType
+from app.im.application import Application
 from app.im.mattermost.threads import _build_mattermost_actions
 from app.im.slack.threads import _build_slack_actions
 from app.jinja_template import JinjaTemplate
@@ -84,7 +86,10 @@ def test_maintenance_freeze_button_label_is_maintenance(builder, config_patch, e
 
 @pytest.mark.parametrize("template_name", ["slack_body.j2", "mattermost_body.j2", "telegram_body.j2"])
 def test_parent_section_hidden_for_maintenance_sentinel_only(template_name):
-    template = JinjaTemplate((TEMPLATES_DIR / template_name).read_text())
+    template = JinjaTemplate(
+        (TEMPLATES_DIR / template_name).read_text(),
+        autoescape=template_name.startswith("telegram_"),
+    )
     incident = SimpleNamespace(serialize=lambda: _incident_data(["maintenance"]))
     JinjaTemplate.set_incidents(SimpleNamespace(uniq_ids={}))
     try:
@@ -99,7 +104,10 @@ def test_parent_section_hidden_for_maintenance_sentinel_only(template_name):
 
 @pytest.mark.parametrize("template_name", ["slack_body.j2", "mattermost_body.j2", "telegram_body.j2"])
 def test_parent_section_shows_only_real_parent_incidents(template_name):
-    template = JinjaTemplate((TEMPLATES_DIR / template_name).read_text())
+    template = JinjaTemplate(
+        (TEMPLATES_DIR / template_name).read_text(),
+        autoescape=template_name.startswith("telegram_"),
+    )
     incident = SimpleNamespace(serialize=lambda: _incident_data(["maintenance", "parent-1"]))
     parent = SimpleNamespace(
         link="https://example.test/parent",
@@ -115,3 +123,51 @@ def test_parent_section_shows_only_real_parent_incidents(template_name):
     assert "Parent sources" not in rendered
     assert "ParentAlert" in rendered
     assert "Maintenance" not in rendered
+
+
+def test_application_jinja_template_autoescape_only_for_telegram():
+    snippet = '<a href="{{ url }}">link</a>'
+    url = 'https://example.com?q="x"&y=1'
+    telegram = Application.jinja_template(SimpleNamespace(type=MessengerType.TELEGRAM), snippet)
+    slack = Application.jinja_template(SimpleNamespace(type=MessengerType.SLACK), snippet)
+
+    assert telegram.render(url=url) == '<a href="https://example.com?q=&#34;x&#34;&amp;y=1">link</a>'
+    assert slack.render(url=url) == '<a href="https://example.com?q="x"&y=1">link</a>'
+
+
+def test_telegram_body_escapes_quotes_in_source_and_runbook_urls():
+    grafana_url = (
+        'https://grafana.iuqweiu.com/explore?orgld=1&left="now-1h","now","VictoriaMetrics",'
+        '{"expr":"rate(kube_pod_container_status_restarts_total{job=\\"kube-state-metrics\\"}[15m])"}'
+    )
+    payload = {
+        "commonAnnotations": {
+            "summary": "Summary",
+            "description": "Test description 'with quotes'",
+            "runbook": grafana_url.replace("grafana.iuqweiu.com", "grafana.tst-st.com"),
+        },
+        "groupLabels": {"alertname": "alert1"},
+        "commonLabels": {
+            "alertname": "alert1",
+            "instance": "localhost:9100",
+            "job": "elasricsearch",
+            "severity": "critical",
+            "service": "elast",
+        },
+        "alerts": [{"generatorURL": grafana_url, "labels": {"instance": "localhost:9100"}, "annotations": {}}],
+    }
+    template = Application.jinja_template(
+        SimpleNamespace(type=MessengerType.TELEGRAM),
+        (TEMPLATES_DIR / "telegram_body.j2").read_text(),
+    )
+    incident = SimpleNamespace(serialize=lambda: _incident_data([]))
+    JinjaTemplate.set_incidents(SimpleNamespace(uniq_ids={}))
+    try:
+        rendered = template.form_message(payload, incident)
+    finally:
+        JinjaTemplate.set_incidents(None)
+
+    assert 'href="https://grafana.iuqweiu.com/explore?orgld=1&amp;left=&#34;now-1h&#34;' in rendered
+    assert 'href="https://grafana.tst-st.com/explore?orgld=1&amp;left=&#34;now-1h&#34;' in rendered
+    assert 'left="now-1h"' not in rendered
+    assert "<i>Test description &#39;with quotes&#39;</i>" in rendered

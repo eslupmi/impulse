@@ -48,4 +48,19 @@ class TestJinjaTemplate:
         template = JinjaTemplate("Hello {{ name }}!")
         result = template.render(name="World")
         assert result == "Hello World!"
-        
+
+    def test_autoescape_disabled_by_default(self):
+        template = JinjaTemplate('<a href="{{ url }}">link</a>')
+        result = template.render(url='https://example.com?q="x"&y=1')
+        assert result == '<a href="https://example.com?q="x"&y=1">link</a>'
+
+    def test_autoescape_escapes_html_attribute_values(self):
+        template = JinjaTemplate('<a href="{{ url }}">link</a>', autoescape=True)
+        result = template.render(url='https://example.com?q="x"&y=1')
+        assert result == '<a href="https://example.com?q=&#34;x&#34;&amp;y=1">link</a>'
+
+    def test_autoescape_preserves_literal_html_tags(self):
+        template = JinjaTemplate('<b>{{ text }}</b>', autoescape=True)
+        result = template.render(text='Summary <script>')
+        assert result == '<b>Summary &lt;script&gt;</b>'
+
