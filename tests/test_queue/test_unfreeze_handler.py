@@ -159,14 +159,14 @@ class TestUnfreezeHandler:
         def reconcile_refreeze(incident_, update_message=False):
             incident_.frozen_until = datetime.now(timezone.utc) + timedelta(hours=2)
             incident_.frozen_until_source = FreezeSource.MAINTENANCE.value
-            incident_.is_frozen = Mock(return_value=True)
+            incident_.is_frozen = True
 
         mock_maintenance_manager.reconcile_incident = AsyncMock(side_effect=reconcile_refreeze)
 
         def clear_time_freeze(incident_, queue, source):
             incident_.frozen_until = None
             incident_.frozen_until_source = None
-            incident_.is_frozen = Mock(return_value=False)
+            incident_.is_frozen = False
 
         with patch(
             "app.queue.handlers.unfreeze_handler.remove_freeze_source",

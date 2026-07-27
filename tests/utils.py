@@ -646,7 +646,7 @@ def create_mock_incident_for_handlers(
     incident.frozen_until = frozen_until
     incident.frozen_by_inhibition = frozen_by_inhibition
     incident.frozen_by_maintenance = frozen_by_maintenance
-    incident.is_frozen = Mock(return_value=frozen_by_inhibition or frozen_by_maintenance or frozen_until is not None)
+    incident.is_frozen = frozen_by_inhibition or frozen_by_maintenance or frozen_until is not None
     incident.status_update_datetime = create_test_datetime()
     incident.next_status = {
         'firing': 'unknown',

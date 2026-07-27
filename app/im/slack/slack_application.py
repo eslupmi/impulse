@@ -91,7 +91,7 @@ class SlackApplication(Application):
         is_freeze_action = any(action['name'] == 'freeze' for action in actions)
 
         # Block non-freeze actions if incident is frozen
-        if incident_.is_frozen() and (incident_.frozen_by_inhibition or not is_freeze_action):
+        if incident_.is_frozen and (incident_.frozen_by_inhibition or not is_freeze_action):
             logger.debug('Incident frozen, blocking actions', extra={'incident': incident_.uniq_id})
             return JSONResponse(original_message, status_code=200)
         else:

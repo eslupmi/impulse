@@ -109,7 +109,7 @@ class AlertHandler(BaseHandler):
     async def _handle_update(self, incident_, alert_state):
         config = get_config()
 
-        if incident_.is_frozen() and incident_.status in ['closed', 'deleted']:
+        if incident_.is_frozen and incident_.status in ['closed', 'deleted']:
             logger.debug("Ignoring alert for frozen incident", extra={'uniq_id': incident_.uniq_id})
             return
 
@@ -131,7 +131,7 @@ class AlertHandler(BaseHandler):
                 incident_.chain_enabled, incident_.frozen_until, incident_.task_link
             )
 
-        should_notify = prev_status == 'firing' and incident_.status == 'firing' and not incident_.is_frozen()
+        should_notify = prev_status == 'firing' and incident_.status == 'firing' and not incident_.is_frozen
         if should_notify and (is_new_firing_alerts_added or is_some_firing_alerts_removed):
             await self._notify_new_fire_alert(incident_, is_new_firing_alerts_added, is_some_firing_alerts_removed)
         await self.queue.update(incident_.uniq_id, incident_.status_update_datetime, incident_.status)

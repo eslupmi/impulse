@@ -50,7 +50,7 @@ class TelegramApplication(Application):
 
         is_freeze_action = action.startswith('freeze_')
 
-        if incident_.is_frozen() and not is_freeze_action:
+        if incident_.is_frozen and not is_freeze_action:
             logger.debug('Incident frozen, blocking actions', extra={'incident': incident_.uniq_id})
             await self._answer_callback(callback['id'])
             return JSONResponse({}, status_code=200)
