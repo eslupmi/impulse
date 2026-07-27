@@ -51,7 +51,7 @@ class Incident:
     updated: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     created: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     version: str = get_config().INCIDENT_ACTUAL_VERSION
-    uniq_id: str = field(default=None)
+    uniq_id: str = field(default='')
     uuid: str = field(init=False)
     ts: str = field(default='')
     link: str = field(default='')
@@ -122,9 +122,11 @@ class Incident:
             except AttributeError:
                 logger.error(f'Chain {chain_name} does not have steps attribute')
                 return None
-        chain_config = get_config().messenger.chains.get(chain_name) if get_config().messenger.chains else None
-        if isinstance(chain_config, dict) and chain_config.get("type") == "ui":
-            return ui_chains_store.get_steps_for_now(chain_name)
+        messenger_chains = get_config().messenger.chains
+        if messenger_chains:
+            chain_config = messenger_chains.get(chain_name)
+            if isinstance(chain_config, dict) and chain_config.get("type") == "ui":
+                return ui_chains_store.get_steps_for_now(chain_name)
         logger.warning("Chain not found", extra={'chain': chain_name})
         return None
 
