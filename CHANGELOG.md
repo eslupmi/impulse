@@ -1,5 +1,10 @@
 # Changelog
 
+## v3.6.3
+Changes:
+- Clean up orphaned parent/child incidents on startup and reload
+- [_Telegram_] Fix links format in templates
+
 ## v3.6.2
 Changes:
 - Added webhook step to UI chains
@@ -23,7 +28,7 @@ Changes:
 
 ## v3.5.1
 Changes:
-- [Mattermost] Added workaround for links rendering bug on mobile
+- [_Mattermost_] Added workaround for links rendering bug on mobile
 
 ## v3.5.0
 Changes:
@@ -31,7 +36,7 @@ Changes:
 - Added standard incident action buttons to the UI
 - Added support for [UI chains](https://docs.impulse.bot/stable/config_file/#ui-chains)
 - Added the `/-/reload` endpoint for configuration reload
-- [Mattermost] Updated header and body templates
+- [_Mattermost_] Updated header and body templates
 - Removed buttons for closed incidents
 - Fixed bugs
 
