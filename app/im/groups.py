@@ -1,3 +1,7 @@
+def serialize_groups(groups):
+    return {name: group.serialize() for name, group in groups.items()}
+
+
 class Group:
     """Common Group class for Slack and Mattermost"""
     def __init__(self, config_name, name=None, id_=None, exists=False):
@@ -9,3 +13,12 @@ class Group:
 
     def __repr__(self):
         return self.name if self.name else self.config_name
+
+    def serialize(self):
+        return {
+            'config_name': self.config_name,
+            'name': self.name,
+            'id': self.id,
+            'exists': self.exists,
+            'defined': self.defined,
+        }

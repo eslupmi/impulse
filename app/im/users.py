@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import Union, Optional, Dict, List
 
+from app.im.user_store import UserStore, get_user_store
+
 
 class BaseUser(ABC):
     """Base class for all messenger users."""
@@ -21,6 +23,18 @@ class BaseUser(ABC):
     def get_notification_identifier(self) -> Union[int, str, None]:
         """Return the platform-specific identifier used for mentions/notifications."""
         pass
+
+    def serialize(self):
+        return UserStore.serialize(
+            None,
+            {
+                'username': self.username,
+                'email': None,
+                'full_name': self.full_name,
+                'timezone': self.timezone,
+            },
+            updated_at=None,
+        )
 
 
 class UndefinedUser(BaseUser):
@@ -86,13 +100,46 @@ class UserManager:
         if user and user.timezone:
             return user.timezone
         return None
+
+    def serialize(self) -> Dict[str, Dict]:
+        stored_users = get_user_store().get_all()
+        config_names = {user_id: name for name, user_id in self._config_names.items()}
+        return {
+            config_names.get(user_id, user_id): self._serialize_user(user_id, user, stored_users)
+            for user_id, user in self._users.items()
+        }
+
+    def serialize_one(self, name: str) -> Optional[Dict]:
+        user_id = self._resolve_user_id(name)
+        if user_id is None:
+            return None
+        user = self._users.get(user_id)
+        if user is None:
+            return None
+        stored = get_user_store().get(user_id)
+        stored_users = {user_id: stored} if stored is not None else {}
+        return self._serialize_user(user_id, user, stored_users)
     
     ### PRIVATE METHODS ###
 
     def _resolve_user(self, name: str) -> BaseUser:
         """Resolve a name to a user, checking config names first, then user_ids."""
+        user_id = self._resolve_user_id(name)
+        if user_id is None:
+            return UndefinedUser(name)
+        return self._users.get(user_id, UndefinedUser(name))
+
+    def _resolve_user_id(self, name: str) -> Optional[str]:
         if name in self._config_names:
-            user_id = self._config_names[name]
-            user = self._users.get(user_id)
-            return user if user else UndefinedUser(name)
-        return UndefinedUser(name)
+            return self._config_names[name]
+        str_name = str(name)
+        if str_name in self._users:
+            return str_name
+        return None
+
+    @staticmethod
+    def _serialize_user(user_id: str, user: BaseUser, stored_users: Dict[str, Dict]) -> Dict:
+        stored = stored_users.get(user_id)
+        if stored is not None:
+            return stored
+        return user.serialize()

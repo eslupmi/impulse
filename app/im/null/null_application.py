@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Dict, Optional
 from fastapi.responses import JSONResponse
 
 from app.im.application import Application
-from app.im.users import BaseUser
+from app.im.users import BaseUser, UserManager
 from app.jinja_template import JinjaTemplate
 
 if TYPE_CHECKING:
@@ -35,6 +35,9 @@ class NullApplication(Application):
 
     async def initialize_async(self):
         self.public_url = ''
+        self.users = UserManager()
+        self.user_groups = {}
+        self.groups = {}
 
     async def buttons_handler(self, payload, incidents, queue_, route):
         return JSONResponse({}, status_code=200)

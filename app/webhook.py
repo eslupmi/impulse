@@ -15,6 +15,7 @@ from app.logging import logger
 
 class Webhook:
     def __init__(self, url, data=None, json_payload=None, auth=None):
+        self._url_template = url
         self._url = self.render(url)
         self._data = data
         self._json_payload = json_payload
@@ -123,6 +124,13 @@ class Webhook:
         u, p = self._auth.split(':')
         return BasicAuth(self.render(u), self.render(p))
 
+    def serialize(self):
+        return {
+            'url': self._url_template,
+            'data': self._data,
+            'json': self._json_payload,
+        }
+
     @staticmethod
     def render(custom_string, **kwargs):
         tmplt = Template(custom_string)
@@ -140,3 +148,7 @@ def generate_webhooks(webhooks_config: Dict[str, WebhookConfig] = None):
             auth = webhook_obj.auth
             webhooks[name] = Webhook(url, data, json_payload, auth)
     return webhooks
+
+
+def serialize_webhooks(webhooks: Dict[str, Webhook]):
+    return {name: webhook.serialize() for name, webhook in webhooks.items()}

@@ -31,18 +31,25 @@ class UserStore:
 
     def get_all_users_by_type(self, messenger_type: str) -> Dict[str, Dict[str, Any]]:
         """Get all stored users for a specific messenger type."""
+        return {
+            user_id: user_data
+            for user_id, user_data in self.get_all().items()
+            if user_data.get('messenger_type') == messenger_type
+        }
+
+    def get_all(self) -> Dict[str, Dict[str, Any]]:
         users = {}
         if not os.path.exists(self._users_path):
             return users
-        
+
         for filename in os.listdir(self._users_path):
             if not filename.endswith('.yml'):
                 continue
             user_id = filename[:-4]
             user_data = self.get(user_id)
-            if user_data and user_data.get('messenger_type') == messenger_type:
+            if user_data:
                 users[user_id] = user_data
-        
+
         return users
     
     def get_next_refresh_time(self, user_id: str) -> datetime:
@@ -84,20 +91,30 @@ class UserStore:
 
     def save(self, user_id: str, messenger_type: str, user_data: Dict[str, Any]) -> None:
         file_path = self._get_user_file_path(user_id)
-        data = {
-            'updated_at': datetime.now(timezone.utc),
-            'messenger_type': messenger_type,
-            'username': user_data.get('username'),
-            'email': user_data.get('email'),
-            'full_name': user_data.get('full_name'),
-            'timezone': user_data.get('timezone'),
-        }
+        data = self.serialize(messenger_type, user_data)
         try:
             with open(file_path, 'w') as f:
                 yaml.dump(data, f, default_flow_style=False, allow_unicode=True)
             logger.debug('Saved user data', extra={'user_id': user_id})
         except IOError as e:
             logger.error('Failed to save user file', extra={'user_id': user_id, 'error': str(e)})
+
+    @staticmethod
+    def serialize(
+        messenger_type: Optional[str],
+        user_data: Dict[str, Any],
+        updated_at: Optional[datetime] = ...,
+    ) -> Dict[str, Any]:
+        if updated_at is ...:
+            updated_at = datetime.now(timezone.utc)
+        return {
+            'updated_at': updated_at,
+            'messenger_type': messenger_type,
+            'username': user_data.get('username'),
+            'email': user_data.get('email'),
+            'full_name': user_data.get('full_name'),
+            'timezone': user_data.get('timezone'),
+        }
     
     ### PRIVATE METHODS ###
 

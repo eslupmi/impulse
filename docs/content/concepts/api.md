@@ -45,6 +45,75 @@ Prometheus metrics endpoint. Returns metrics in Prometheus format for monitoring
 
 Get current processing queue state.
 
+## Storage read API
+
+Read-only endpoints under `/api` return the same payloads as each entity's `serialize()` method. Collection keys match path identifiers (`uniq_id` for incidents; config names, messenger IDs, or resource names for other units).
+
+### HTTP `/api/incidents` [GET]
+
+Get all incidents. Returns `{uniq_id: incident.serialize()}`.
+
+### HTTP `/api/incidents/{uniq_id}` [GET]
+
+Get one incident by `uniq_id`.
+
+**Responses:**
+
+- `200 OK` - Incident payload
+- `404 Not Found` - Incident not found
+
+### HTTP `/api/groups` [GET]
+
+Get all messenger groups. Returns `{config_name: group.serialize()}`.
+
+### HTTP `/api/groups/{group_name}` [GET]
+
+Get one group by config name.
+
+**Responses:**
+
+- `200 OK` - Group payload
+- `404 Not Found` - Group not found
+
+### HTTP `/api/users` [GET]
+
+Get all users. Configured users are keyed by config name; stored or discovered users without a config name are keyed by messenger ID. Values always use the `UserStore` field set (`updated_at`, `messenger_type`, `username`, `email`, `full_name`, `timezone`). When a user file exists under `data/users/`, the value is exactly that file content.
+
+### HTTP `/api/users/{user_name}` [GET]
+
+Get one user by config name or messenger ID. Returns disk content when present.
+
+**Responses:**
+
+- `200 OK` - User payload
+- `404 Not Found` - User not found
+
+### HTTP `/api/user_groups` [GET]
+
+Get all user groups. Returns `{name: user_group.serialize()}`.
+
+### HTTP `/api/user_groups/{user_group_name}` [GET]
+
+Get one user group by name.
+
+**Responses:**
+
+- `200 OK` - User group payload
+- `404 Not Found` - User group not found
+
+### HTTP `/api/webhooks` [GET]
+
+Get all webhooks. Returns `{name: webhook.serialize()}` without authentication credentials. URL templates are returned without environment rendering.
+
+### HTTP `/api/webhooks/{webhook_name}` [GET]
+
+Get one webhook by name.
+
+**Responses:**
+
+- `200 OK` - Webhook payload
+- `404 Not Found` - Webhook not found
+
 ### WebSocket `/ws`
 
 WebSocket connection for receiving real-time incident updates.
