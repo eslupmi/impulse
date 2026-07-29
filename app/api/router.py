@@ -1,14 +1,14 @@
 from fastapi import APIRouter, HTTPException, Request
 
-from app.im.groups import serialize_groups
-from app.im.user_groups import serialize_user_groups
-from app.webhook import serialize_webhooks
-
 _MSG_INCIDENT_NOT_FOUND = "Incident not found"
 _MSG_GROUP_NOT_FOUND = "Group not found"
 _MSG_USER_NOT_FOUND = "User not found"
 _MSG_USER_GROUP_NOT_FOUND = "User group not found"
 _MSG_WEBHOOK_NOT_FOUND = "Webhook not found"
+
+
+def _serialize_map(items):
+    return {name: item.serialize() for name, item in items.items()}
 
 
 def create_api_router() -> APIRouter:
@@ -27,7 +27,7 @@ def create_api_router() -> APIRouter:
 
     @router.get("/groups")
     async def get_groups(request: Request):
-        return serialize_groups(request.app.state.messenger.groups)
+        return _serialize_map(request.app.state.messenger.groups)
 
     @router.get("/groups/{group_name}")
     async def get_group(request: Request, group_name: str):
@@ -49,7 +49,7 @@ def create_api_router() -> APIRouter:
 
     @router.get("/user_groups")
     async def get_user_groups(request: Request):
-        return serialize_user_groups(request.app.state.messenger.user_groups)
+        return _serialize_map(request.app.state.messenger.user_groups)
 
     @router.get("/user_groups/{user_group_name}")
     async def get_user_group(request: Request, user_group_name: str):
@@ -60,7 +60,7 @@ def create_api_router() -> APIRouter:
 
     @router.get("/webhooks")
     async def get_webhooks(request: Request):
-        return serialize_webhooks(request.app.state.webhooks)
+        return _serialize_map(request.app.state.webhooks)
 
     @router.get("/webhooks/{webhook_name}")
     async def get_webhook(request: Request, webhook_name: str):

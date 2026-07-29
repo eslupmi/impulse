@@ -5,13 +5,13 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from app.im.groups import Group, serialize_groups
-from app.im.user_groups import UserGroup, serialize_user_groups
+from app.im.groups import Group
+from app.im.user_groups import UserGroup
 from app.im.users import UserManager
 from app.im.user_store import UserStore
 from app.im.slack.user import User as SlackUser
 from app.routes import create_router
-from app.webhook import Webhook, serialize_webhooks
+from app.webhook import Webhook
 
 
 def _make_api_client(**state_overrides):
@@ -87,11 +87,6 @@ class TestEntitySerialize:
             "defined": True,
         }
 
-    def test_serialize_groups(self, sample_group):
-        assert serialize_groups({"team-a": sample_group}) == {
-            "team-a": sample_group.serialize(),
-        }
-
     def test_user_serialize(self, sample_user):
         assert sample_user.serialize() == {
             "updated_at": None,
@@ -108,21 +103,11 @@ class TestEntitySerialize:
             "users": ["alice"],
         }
 
-    def test_serialize_user_groups(self, sample_user_group):
-        assert serialize_user_groups({"ops": sample_user_group}) == {
-            "ops": sample_user_group.serialize(),
-        }
-
     def test_webhook_serialize(self, sample_webhook):
         assert sample_webhook.serialize() == {
             "url": "https://example.com/hook",
             "data": {"text": "hello"},
             "json": None,
-        }
-
-    def test_serialize_webhooks(self, sample_webhook):
-        assert serialize_webhooks({"notify": sample_webhook}) == {
-            "notify": sample_webhook.serialize(),
         }
 
     def test_webhook_serialize_preserves_url_template(self, monkeypatch):

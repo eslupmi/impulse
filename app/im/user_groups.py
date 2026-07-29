@@ -16,10 +16,6 @@ def generate_user_groups(user_groups_dict=None, users=None):
     return user_groups
 
 
-def serialize_user_groups(user_groups):
-    return {name: user_group.serialize() for name, user_group in user_groups.items()}
-
-
 class UserGroup:
     def __init__(self, name, users):
         self.name = name

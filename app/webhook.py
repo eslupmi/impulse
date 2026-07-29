@@ -148,7 +148,3 @@ def generate_webhooks(webhooks_config: Dict[str, WebhookConfig] = None):
             auth = webhook_obj.auth
             webhooks[name] = Webhook(url, data, json_payload, auth)
     return webhooks
-
-
-def serialize_webhooks(webhooks: Dict[str, Webhook]):
-    return {name: webhook.serialize() for name, webhook in webhooks.items()}

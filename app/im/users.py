@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Union, Optional, Dict, List
 
-from app.im.user_store import UserStore, get_user_store
+from app.im.user_store import get_user_store
 
 
 class BaseUser(ABC):
@@ -25,16 +25,14 @@ class BaseUser(ABC):
         pass
 
     def serialize(self):
-        return UserStore.serialize(
-            None,
-            {
-                'username': self.username,
-                'email': None,
-                'full_name': self.full_name,
-                'timezone': self.timezone,
-            },
-            updated_at=None,
-        )
+        return {
+            'updated_at': None,
+            'messenger_type': None,
+            'username': self.username,
+            'email': None,
+            'full_name': self.full_name,
+            'timezone': self.timezone,
+        }
 
 
 class UndefinedUser(BaseUser):
@@ -104,10 +102,12 @@ class UserManager:
     def serialize(self) -> Dict[str, Dict]:
         stored_users = get_user_store().get_all()
         config_names = {user_id: name for name, user_id in self._config_names.items()}
-        return {
-            config_names.get(user_id, user_id): self._serialize_user(user_id, user, stored_users)
-            for user_id, user in self._users.items()
-        }
+        result = {}
+        for user_id, user in self._users.items():
+            key = config_names.get(user_id, user_id)
+            stored = stored_users.get(user_id)
+            result[key] = stored if stored is not None else user.serialize()
+        return result
 
     def serialize_one(self, name: str) -> Optional[Dict]:
         user_id = self._resolve_user_id(name)
@@ -117,8 +117,9 @@ class UserManager:
         if user is None:
             return None
         stored = get_user_store().get(user_id)
-        stored_users = {user_id: stored} if stored is not None else {}
-        return self._serialize_user(user_id, user, stored_users)
+        if stored is not None:
+            return stored
+        return user.serialize()
     
     ### PRIVATE METHODS ###
 
@@ -136,10 +137,3 @@ class UserManager:
         if str_name in self._users:
             return str_name
         return None
-
-    @staticmethod
-    def _serialize_user(user_id: str, user: BaseUser, stored_users: Dict[str, Dict]) -> Dict:
-        stored = stored_users.get(user_id)
-        if stored is not None:
-            return stored
-        return user.serialize()

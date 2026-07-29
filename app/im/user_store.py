@@ -100,15 +100,9 @@ class UserStore:
             logger.error('Failed to save user file', extra={'user_id': user_id, 'error': str(e)})
 
     @staticmethod
-    def serialize(
-        messenger_type: Optional[str],
-        user_data: Dict[str, Any],
-        updated_at: Optional[datetime] = ...,
-    ) -> Dict[str, Any]:
-        if updated_at is ...:
-            updated_at = datetime.now(timezone.utc)
+    def serialize(messenger_type: str, user_data: Dict[str, Any], updated_at: datetime = None) -> Dict[str, Any]:
         return {
-            'updated_at': updated_at,
+            'updated_at': updated_at or datetime.now(timezone.utc),
             'messenger_type': messenger_type,
             'username': user_data.get('username'),
             'email': user_data.get('email'),
