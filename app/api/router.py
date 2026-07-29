@@ -18,7 +18,9 @@ def create_api_router() -> APIRouter:
     async def get_incidents(request: Request):
         return request.app.state.incidents.serialize()
 
-    @router.get("/incidents/{uniq_id}")
+    @router.get("/incidents/{uniq_id}", responses={
+        404: {"description": _MSG_INCIDENT_NOT_FOUND},
+    })
     async def get_incident(request: Request, uniq_id: str):
         incident = request.app.state.incidents.get_by_uniq_id(uniq_id)
         if incident is None:
@@ -29,7 +31,9 @@ def create_api_router() -> APIRouter:
     async def get_groups(request: Request):
         return _serialize_map(request.app.state.messenger.groups)
 
-    @router.get("/groups/{group_name}")
+    @router.get("/groups/{group_name}", responses={
+        404: {"description": _MSG_GROUP_NOT_FOUND},
+    })
     async def get_group(request: Request, group_name: str):
         group = request.app.state.messenger.groups.get(group_name)
         if group is None:
@@ -40,7 +44,9 @@ def create_api_router() -> APIRouter:
     async def get_users(request: Request):
         return request.app.state.messenger.users.serialize()
 
-    @router.get("/users/{user_name}")
+    @router.get("/users/{user_name}", responses={
+        404: {"description": _MSG_USER_NOT_FOUND},
+    })
     async def get_user(request: Request, user_name: str):
         payload = request.app.state.messenger.users.serialize_one(user_name)
         if payload is None:
@@ -51,7 +57,9 @@ def create_api_router() -> APIRouter:
     async def get_user_groups(request: Request):
         return _serialize_map(request.app.state.messenger.user_groups)
 
-    @router.get("/user_groups/{user_group_name}")
+    @router.get("/user_groups/{user_group_name}", responses={
+        404: {"description": _MSG_USER_GROUP_NOT_FOUND},
+    })
     async def get_user_group(request: Request, user_group_name: str):
         user_group = request.app.state.messenger.user_groups.get(user_group_name)
         if user_group is None:
@@ -62,7 +70,9 @@ def create_api_router() -> APIRouter:
     async def get_webhooks(request: Request):
         return _serialize_map(request.app.state.webhooks)
 
-    @router.get("/webhooks/{webhook_name}")
+    @router.get("/webhooks/{webhook_name}", responses={
+        404: {"description": _MSG_WEBHOOK_NOT_FOUND},
+    })
     async def get_webhook(request: Request, webhook_name: str):
         webhook = request.app.state.webhooks.get(webhook_name)
         if webhook is None:
