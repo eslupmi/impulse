@@ -419,9 +419,11 @@ class Application(ABC):
             user_id = str(user_info.id)
             if user_id in stored_user_ids:
                 user_manager.add_config_name(name, user_id)
+                user_manager.get_user_by_id(user_id).roles = list(user_info.roles)
                 continue
 
             user_details = await self.get_user_details(user_info)
+            user_details['roles'] = list(user_info.roles)
             if not user_details['exists']:
                 logger.warning('User not found in messenger', extra={'user': name})
             else:
@@ -513,6 +515,9 @@ class Application(ABC):
                 'timezone': stored_data.get('timezone'),
             }
             config_name = self.get_config_name_by_user_id(user_id)
+            user_info = self._users_config.get(config_name)
+            if user_info:
+                user_details['roles'] = list(user_info.roles)
             user = self.create_user(config_name, user_details)
             if user:
                 user_manager.add_user(user_id, user)

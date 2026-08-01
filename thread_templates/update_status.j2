@@ -1,0 +1,16 @@
+{%- if fields.type == 'slack' -%}
+update: status *{% if fields.status == 'unknown' %}<https://docs.impulse.bot/stable/warnings/StatusUnknown/|unknown>{% else %}{{ fields.status }}{% endif %}*
+{#--#}{%- if fields.status == 'unknown' -%}
+{#-   #}  |  :loudspeaker: admins ({%- for a in fields.admins %}<@{{ a }}>{% if not loop.last %},{% endif %}{% endfor -%})
+{#--#}{%- endif -%}
+{%- elif fields.type == 'mattermost' -%}
+update: status **{% if fields.status == 'unknown' %}[unknown](https://docs.impulse.bot/stable/warnings/StatusUnknown/){% else %}{{ fields.status }}{% endif %}**
+{#--#}{%- if fields.status == 'unknown' -%}
+{#-   #}  |  :bell: admins ({%- for a in fields.admins %}@{{ a }}{% if not loop.last %},{% endif %}{% endfor -%})
+{#--#}{%- endif -%}
+{%- elif fields.type == 'telegram' -%}
+update: status <b>{% if fields.status == 'unknown' %}<a href="https://docs.impulse.bot/stable/warnings/StatusUnknown/">unknown</a>{% else %}{{ fields.status }}{% endif %}</b>
+{#--#}{%- if fields.status == 'unknown' -%}
+{#-   #}  |  🔔 admins ({%- for a in fields.admins %}<a href="tg://user?id={{ a.id }}">{{ a.name }}</a>{% if not loop.last %},{% endif %}{% endfor -%})
+{#--#}{%- endif -%}
+{%- endif -%}

@@ -31,9 +31,9 @@ class StepHandler(BaseHandler):
             logger.debug("Incident has no thread, skipping chain step", extra={'uniq_id': incident.uniq_id})
             return
 
-        step = incident.chain[identifier]
-        if step['type'] == 'webhook':
-            webhook_name = step['identifier']
+        step = incident.chain_steps[identifier]
+        if step['name'] == 'webhook':
+            webhook_name = step['value']
             webhook = self.webhooks.get(webhook_name)
 
             text_template = JinjaTemplate(notification_webhook)
@@ -43,7 +43,7 @@ class StepHandler(BaseHandler):
                 result, r_code = await webhook.push(incident)
                 fields = {'type': self.app.type, 'name': webhook_name, 'unit': webhook, 'admins': admins,
                           'result': result, 'response': r_code}
-                incident.chain_update(identifier, done=True, result=r_code)
+                incident.chain_update(identifier, done=True, result=r_code, status=result)
                 if result == 'ok':
                     logger.info("Webhook sent", extra={'uniq_id': incident.uniq_id, 'webhook': webhook_name, 'response': r_code})
                 else:
@@ -62,5 +62,5 @@ class StepHandler(BaseHandler):
                 message = header + '\n' + text
             await self.app.post_to_thread(incident.channel_id, incident.ts, message)
         else:
-            r_code = await self.app.notify(incident, step['type'], step['identifier'])
+            r_code = await self.app.notify(incident, step['name'], step['value'])
             incident.chain_update(identifier, done=True, result=r_code)

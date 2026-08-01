@@ -65,7 +65,7 @@ class AlertHandler(BaseHandler):
             status=status,
             channel_id=channel['id'],
             config=incident_config,
-            chain=[],
+            chain_steps=[],
             chain_enabled=True,
             status_enabled=True,
             updated=updated_datetime,
@@ -104,7 +104,7 @@ class AlertHandler(BaseHandler):
 
         incident_.generate_chain(self.app.chains, chain_name)
         if not (will_be_inhibited or will_match_maintenance):
-            await self.queue.recreate(status, incident_.uniq_id, incident_.chain, incident_.chain_active_seconds)
+            await self.queue.recreate(status, incident_.uniq_id, incident_.chain_steps, incident_.chain_active_seconds)
 
     async def _handle_update(self, incident_, alert_state):
         config = get_config()
@@ -140,7 +140,7 @@ class AlertHandler(BaseHandler):
 
     def _regenerate_chain_if_needed(self, incident_, alert_state, prev_status):
         """Generate chain from scratch if incident chain is empty and was resolved."""
-        if prev_status == 'resolved' and incident_.chain_enabled and incident_.chain == []:
+        if prev_status == 'resolved' and incident_.chain_enabled and incident_.chain_steps == []:
             _, chain_name = self.route.get_route(alert_state)
             incident_.generate_chain(self.app.chains, chain_name)
 

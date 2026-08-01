@@ -63,7 +63,8 @@ class MattermostApplication(Application):
             username=user_details.get('username'),
             exists=user_details.get('exists'),
             full_name=user_details.get('full_name'),
-            timezone_=user_details.get('timezone')
+            timezone_=user_details.get('timezone'),
+            roles=user_details.get('roles', []),
         )
 
     async def get_all_groups(self):

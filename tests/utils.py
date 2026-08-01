@@ -423,7 +423,7 @@ def create_mock_incident_data(
         'status': status,
         'channel_id': channel_id,
         'payload': {'alertname': 'TestAlert', 'severity': 'critical'},
-        'chain': [],
+        'chain_steps': [],
         'chain_enabled': False,
         'chain_active_seconds': 0.0,
         'status_enabled': False,
@@ -640,7 +640,7 @@ def create_mock_incident_for_handlers(
     incident.channel_id = channel_id
     incident.ts = ts
     incident.payload = payload
-    incident.chain = chain
+    incident.chain_steps = chain
     incident.chain_enabled = chain_enabled
     incident.status_enabled = status_enabled
     incident.frozen_until = frozen_until

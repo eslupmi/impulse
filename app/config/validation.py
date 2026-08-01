@@ -42,6 +42,17 @@ class SortOrder(str, Enum):
 
 
 class BaseUser(BaseModel):
+    roles: List[str] = Field(default_factory=list, description="User roles")
+
+    @field_validator('roles')
+    @classmethod
+    def validate_roles(cls, v):
+        allowed = {'admin'}
+        for role in v:
+            if role not in allowed:
+                raise ValueError(f"Unsupported role '{role}'. Allowed roles: {sorted(allowed)}")
+        return v
+
     def get(self, key: str) -> Any:
         return getattr(self, key)
 

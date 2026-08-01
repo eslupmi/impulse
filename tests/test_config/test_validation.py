@@ -9,7 +9,7 @@ from app.config.validation import (
     TelegramApplicationConfig, RouteConfig, WebhookConfig,
     ScheduleChain, CloudChain, SimpleChainStep, UIConfig, UIColumn,
     UISorting, IncidentTimeouts, IncidentNotifications,
-    UserGroup, TemplateFiles, validate_config, MessengerType
+    UserGroup, TemplateFiles, validate_config, MessengerType, SlackUser
 )
 from tests.utils import (
     create_slack_config_data, create_mattermost_config_data,
@@ -62,6 +62,18 @@ class TestSlackApplicationConfig:
         assert "admin1" in config.users
         assert config.users["admin1"].id == "U123456"
         assert config.template_files.status_icons is None
+
+    def test_user_roles_default_empty(self):
+        user = SlackUser(id="U123456")
+        assert user.roles == []
+
+    def test_user_roles_accepts_admin(self):
+        user = SlackUser(id="U123456", roles=["admin"])
+        assert user.roles == ["admin"]
+
+    def test_user_roles_rejects_unknown(self):
+        with pytest.raises(ValidationError):
+            SlackUser(id="U123456", roles=["superuser"])
 
     def test_slack_config_with_template_files(self):
         """Test SlackApplicationConfig with template files."""

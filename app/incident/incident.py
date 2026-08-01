@@ -45,7 +45,7 @@ class Incident:
     assigned_fullname: str
     messenger_type: str
     _: KW_ONLY
-    chain: List[Dict] = field(default_factory=list)
+    chain_steps: List[Dict] = field(default_factory=list)
     chain_enabled: bool = False
     status_enabled: bool = False
     updated: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
@@ -150,12 +150,12 @@ class Incident:
             if type_ == 'wait':
                 cumulative_delay += unix_sleep_to_timedelta(value).total_seconds()
             else:
-                self.chain_put(index=index, delay=cumulative_delay, type_=type_, identifier=value)
+                self.chain_put(index=index, delay=cumulative_delay, name=type_, value=value)
         self.chain_active_seconds = 0.0
         self.dump()
 
     def release(self):
-        self.chain = []
+        self.chain_steps = []
         self.chain_active_seconds = 0.0
         self.assigned_user_id = ""
         self.assigned_user = ""
@@ -228,20 +228,23 @@ class Incident:
     def get_chain(self) -> List[Dict]:
         if not self.chain_enabled:
             return []
-        return self.chain
+        return self.chain_steps
 
-    def chain_put(self, index: int, delay: float, type_: str, identifier: str):
-        self.chain.insert(index, {
+    def chain_put(self, index: int, delay: float, name: str, value: str):
+        self.chain_steps.insert(index, {
             'delay': delay,
-            'type': type_,
-            'identifier': identifier,
+            'name': name,
+            'value': value,
             'done': False,
-            'result': None
+            'result': None,
+            'status': None,
         })
 
-    def chain_update(self, index: int, done: bool, result: Optional[str]):
-        self.chain[index]['done'] = done
-        self.chain[index]['result'] = result
+    def chain_update(self, index: int, done: bool, result, status=None):
+        self.chain_steps[index]['done'] = done
+        self.chain_steps[index]['result'] = result
+        if status is not None:
+            self.chain_steps[index]['status'] = status
         self.dump()
 
     @classmethod
@@ -254,7 +257,7 @@ class Incident:
             status=content.get('status'),
             channel_id=content.get('channel_id'),
             config=incident_config,
-            chain=content.get('chain', []),
+            chain_steps=content.get('chain_steps', []),
             chain_enabled=content.get('chain_enabled', False),
             closed=content.get('closed', None),
             status_enabled=content.get('status_enabled', False),

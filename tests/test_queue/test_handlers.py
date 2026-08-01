@@ -5,6 +5,7 @@ from unittest.mock import Mock, AsyncMock, patch
 
 import pytest
 
+from app.config.validation import MessengerType
 from app.queue.handlers.alert_handler import AlertHandler
 from app.queue.handlers.base_handler import BaseHandler
 from app.queue.handlers.status_update_handler import StatusUpdateHandler
@@ -138,7 +139,7 @@ class TestAlertHandler:
         mock_incident.uuid = 'test-uuid-123'
         mock_incident.status = 'firing'
         mock_incident.chain_enabled = True
-        mock_incident.chain = []
+        mock_incident.chain_steps = []
         mock_incident.status_enabled = True
         mock_incident.update_state.return_value = (False, False)  # No changes
         mock_incident.is_new_firing_alerts_added.return_value = False
@@ -469,8 +470,8 @@ class TestStepHandler:
         mock_incident.channel_id = 'C123456789'
         mock_incident.ts = '1234567890.123456'
         mock_incident.payload = {'alertname': 'TestAlert'}
-        mock_incident.chain = [
-            {'type': 'user', 'identifier': 'testuser', 'done': False}
+        mock_incident.chain_steps = [
+            {'name': 'user', 'value': 'testuser', 'done': False}
         ]
         mock_incident.chain_update = Mock()
         mock_incident.is_frozen = False
@@ -481,6 +482,35 @@ class TestStepHandler:
         # Should call app.notify
         mock_application.notify.assert_called_once_with(mock_incident, 'user', 'testuser')
         mock_incident.chain_update.assert_called_once_with(identifier, done=True, result=200)
+
+    @pytest.mark.asyncio
+    async def test_handle_webhook_step_stores_status(self, step_handler, mock_incidents, mock_application, mock_webhooks):
+        incident_uniq_id = 'incident123'
+        identifier = 0
+
+        mock_incident = Mock()
+        mock_incident.uniq_id = incident_uniq_id
+        mock_incident.channel_id = 'C123456789'
+        mock_incident.ts = '1234567890.123456'
+        mock_incident.payload = {'alertname': 'TestAlert'}
+        mock_incident.chain_steps = [
+            {'name': 'webhook', 'value': 'test_webhook', 'done': False}
+        ]
+        mock_incident.chain_update = Mock()
+        mock_incident.is_frozen = False
+        mock_incidents.uniq_ids = {incident_uniq_id: mock_incident}
+
+        webhook = Mock()
+        webhook.push = AsyncMock(return_value=('ok', 204))
+        mock_webhooks.get.return_value = webhook
+        mock_application.type = MessengerType.SLACK
+        mock_application.get_notification_destinations.return_value = []
+        mock_application.header_template.form_message.return_value = 'header'
+        mock_application.post_to_thread = AsyncMock()
+
+        await step_handler.handle(incident_uniq_id, identifier)
+
+        mock_incident.chain_update.assert_called_once_with(identifier, done=True, result=204, status='ok')
 
     @pytest.mark.asyncio
     async def test_handle_nonexistent_incident(self, step_handler, mock_incidents):
