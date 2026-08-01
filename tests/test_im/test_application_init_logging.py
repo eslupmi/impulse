@@ -15,7 +15,7 @@ class TestApplicationInitLogging:
         config.type = MessengerType.SLACK
         config.template_files = {}
         config.chains = {}
-        config.users = {'alice': Mock(spec=SlackUser, id='U1')}
+        config.users = {'alice': Mock(spec=SlackUser, id='U1', roles=[])}
         config.user_groups = {}
         config.groups = {}
         config.admin_users = []
