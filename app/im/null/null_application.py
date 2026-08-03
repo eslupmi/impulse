@@ -112,5 +112,8 @@ class NullApplication(Application):
                                     queue_: 'AsyncQueue', user_timezone: Optional[str] = None):
         return
 
+    async def post_freeze_notification(self, incident_: 'Incident'):
+        return
+
     async def post_unfreeze_notification(self, incident_: 'Incident'):
         return

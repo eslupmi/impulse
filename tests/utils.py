@@ -1044,7 +1044,8 @@ def create_incident_config_data(
             "assignment": True,
             "new_firing": True,
             "partial_resolved": True,
-            "status_update": True
+            "status_update": True,
+            "freeze": False
         }
     if timeouts is None:
         timeouts = {

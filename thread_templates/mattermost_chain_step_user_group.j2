@@ -1,0 +1,20 @@
+{%- set undefined_users = [] -%}
+{%- set absent_users = [] -%}
+{%- for u in fields.unit.users -%}
+{%-   if not u.defined -%}
+{%-     set _ = undefined_users.append(u.name) -%}
+{%-   elif not u.exists -%}
+{%-     set _ = absent_users.append(u.name) -%}
+{%-   endif -%}
+{%- endfor -%}
+{%- set existing_users = [] -%}
+{%- for u in fields.unit.users if u.exists %}{% set _ = existing_users.append(u.username) %}{% endfor -%}
+:bell: user_group **{{ fields.name -}}**
+{#--#}{%- if not fields.unit -%}
+{#-   #} ([NotDefined](https://docs.impulse.bot/stable/warnings/NotDefined/))  |  :bell: admins ({%- for a in fields.admins %}@{{ a }}{% if not loop.last %},{% endif %}{% endfor -%})
+{#--#}{%- else -%}
+{#-   #} ({%- for u in existing_users %}@{{ u }}{% if not loop.last %}, {% endif %}{% endfor -%})
+{#-  -#}{% if absent_users | length > 0 %}  |  {% for u in absent_users %}**{{ u }}** ([NotFound](https://docs.impulse.bot/stable/warnings/NotFound/)){% if not loop.last %}, {% endif %}{% endfor %}{% endif %}
+{#-  -#}{% if undefined_users | length > 0 %}  |  {% for u in undefined_users %}**{{ u }}** ([NotDefined](https://docs.impulse.bot/stable/warnings/NotDefined/)){% if not loop.last %}, {% endif %}{% endfor %}{% endif %}
+{#-  -#}{% if absent_users | length > 0 or undefined_users | length > 0 %}  |  :bell: admins ({% for a in fields.admins %}@{{ a }}{% if not loop.last %},{% endif %}{% endfor -%}){% endif -%}
+{#--#}{%- endif -%}

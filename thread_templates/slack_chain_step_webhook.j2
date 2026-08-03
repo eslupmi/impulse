@@ -1,0 +1,12 @@
+:loudspeaker: webhook *{{ fields.name -}}*
+{#--#}{%- if fields.unit is none -%}
+{#-   #} (<https://docs.impulse.bot/stable/warnings/NotDefined/|NotDefined>)  |  :loudspeaker: admins ({%- for a in fields.admins %}<@{{ a }}>{% if not loop.last %},{% endif %}{% endfor -%})
+{#--#}{%- else -%}
+{#-  -#}{%- if fields.result == 'ok' -%}
+{#-     #} ({% if fields.response < 400 %}{{ fields.response }}{% else %}<https://docs.impulse.bot/stable/warnings/ResponseCode/|{{ fields.response }}>{% endif %})
+{#-  -#}{%- elif fields.result == 'Timeout' -%}
+{#      #} (<https://docs.impulse.bot/stable/warnings/TimeoutError/|TimeoutError>)  |  :loudspeaker: admins ({%- for a in fields.admins %}<@{{ a }}>{% if not loop.last %},{% endif %}{% endfor -%})
+{#-  -#}{%- else -%}
+{#      #} (<https://docs.impulse.bot/stable/warnings/ConnectionError/|ConnectionError>)  |  :loudspeaker: admins ({%- for a in fields.admins %}<@{{ a }}>{% if not loop.last %},{% endif %}{% endfor -%})
+{#-  -#}{%- endif -%}
+{#--#}{%- endif -%}

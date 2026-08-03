@@ -1,5 +1,5 @@
 from app.config.validation import MessengerType
-from app.im.template import notification_webhook
+from app.im.template import chain_step_webhook
 from app.jinja_template import JinjaTemplate
 from app.logging import logger
 from app.queue.handlers.base_handler import BaseHandler
@@ -36,12 +36,12 @@ class StepHandler(BaseHandler):
             webhook_name = step['value']
             webhook = self.webhooks.get(webhook_name)
 
-            text_template = JinjaTemplate(notification_webhook)
+            text_template = JinjaTemplate(chain_step_webhook[self.app.type.value])
             admins = self.app.get_notification_destinations()
 
             if webhook is not None:
                 result, r_code = await webhook.push(incident)
-                fields = {'type': self.app.type, 'name': webhook_name, 'unit': webhook, 'admins': admins,
+                fields = {'name': webhook_name, 'unit': webhook, 'admins': admins,
                           'result': result, 'response': r_code}
                 incident.chain_update(identifier, done=True, result=r_code, status=result)
                 if result == 'ok':
@@ -49,7 +49,7 @@ class StepHandler(BaseHandler):
                 else:
                     logger.warning("Webhook failed", extra={'uniq_id': incident.uniq_id, 'webhook': webhook_name, 'response': r_code})
             else:
-                fields = {'type': self.app.type, 'name': webhook_name, 'unit': webhook, 'admins': admins}
+                fields = {'name': webhook_name, 'unit': webhook, 'admins': admins}
 
                 incident.chain_update(identifier, done=True, result=None)
                 logger.warning("Webhook undefined", extra={'uniq_id': incident.uniq_id, 'webhook': webhook_name})
