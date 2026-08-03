@@ -129,6 +129,7 @@ class Webhook:
             'url': self._url_template,
             'data': self._data,
             'json': self._json_payload,
+            'is_defined': True,
         }
 
     @staticmethod

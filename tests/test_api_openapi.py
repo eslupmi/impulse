@@ -71,7 +71,7 @@ def test_openapi_schema_respects_http_prefix():
     assert "/impulse/metrics" not in paths
 
 
-def test_openapi_omits_responses():
+def test_openapi_keeps_status_codes_without_schemas():
     app = FastAPI(
         docs_url="/api/docs",
         redoc_url=None,
@@ -82,5 +82,14 @@ def test_openapi_omits_responses():
 
     schema = TestClient(app).get("/api/openapi.json").json()
     assert "components" not in schema
+    assert schema["paths"]["/api/incidents"]["get"]["responses"] == {
+        "200": {"description": "Successful Response"},
+    }
+    assert schema["paths"]["/api/incidents/{uniq_id}"]["get"]["responses"] == {
+        "200": {"description": "Successful Response"},
+        "404": {"description": "Incident not found"},
+    }
     for path, methods in schema["paths"].items():
-        assert methods["get"]["responses"] == {}, path
+        assert "422" not in methods["get"]["responses"], path
+        for body in methods["get"]["responses"].values():
+            assert "content" not in body, path

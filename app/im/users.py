@@ -26,12 +26,11 @@ class BaseUser(ABC):
 
     def serialize(self):
         return {
-            'updated_at': None,
-            'messenger_type': None,
+            'id': self.id,
             'username': self.username,
-            'email': None,
             'full_name': self.full_name,
             'timezone': self.timezone,
+            'is_defined': self.defined,
         }
 
 
@@ -105,8 +104,7 @@ class UserManager:
         result = {}
         for user_id, user in self._users.items():
             key = config_names.get(user_id, user_id)
-            stored = stored_users.get(user_id)
-            result[key] = stored if stored is not None else user.serialize()
+            result[key] = self._api_payload(user_id, user, stored_users.get(user_id))
         return result
 
     def serialize_one(self, name: str) -> Optional[Dict]:
@@ -116,12 +114,20 @@ class UserManager:
         user = self._users.get(user_id)
         if user is None:
             return None
-        stored = get_user_store().get(user_id)
-        if stored is not None:
-            return stored
-        return user.serialize()
+        return self._api_payload(user_id, user, get_user_store().get(user_id))
     
     ### PRIVATE METHODS ###
+
+    @staticmethod
+    def _api_payload(user_id: str, user: BaseUser, stored: Optional[Dict]) -> Dict:
+        if stored is not None:
+            return {
+                **stored,
+                'id': user.id if user.id is not None else user_id,
+                'is_defined': user.defined,
+            }
+        return user.serialize()
+
 
     def _resolve_user(self, name: str) -> BaseUser:
         """Resolve a name to a user, checking config names first, then user_ids."""

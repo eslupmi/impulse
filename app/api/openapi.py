@@ -20,10 +20,16 @@ def configure_api_openapi(app: FastAPI, http_prefix: str = "") -> None:
             for path, item in openapi_schema["paths"].items()
             if path == api_prefix or path.startswith(f"{api_prefix}/")
         }
+        # Keep status codes for Swagger Try it out; drop schemas and unreachable 422.
         for path_item in openapi_schema["paths"].values():
             for operation in path_item.values():
-                if isinstance(operation, dict):
-                    operation["responses"] = {}
+                if not isinstance(operation, dict):
+                    continue
+                operation["responses"] = {
+                    code: {"description": body.get("description", "Response")}
+                    for code, body in operation.get("responses", {}).items()
+                    if code != "422" and isinstance(body, dict)
+                }
         openapi_schema.pop("components", None)
         app.openapi_schema = openapi_schema
         return app.openapi_schema

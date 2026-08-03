@@ -12,9 +12,8 @@ class Group:
 
     def serialize(self):
         return {
-            'config_name': self.config_name,
             'name': self.name,
             'id': self.id,
             'exists': self.exists,
-            'defined': self.defined,
+            'is_defined': self.defined,
         }

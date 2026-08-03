@@ -80,27 +80,25 @@ def api_client(sample_group, sample_user, stored_user, sample_user_group, sample
 class TestEntitySerialize:
     def test_group_serialize(self, sample_group):
         assert sample_group.serialize() == {
-            "config_name": "team-a",
             "name": "Team A",
             "id": "G123",
             "exists": True,
-            "defined": True,
+            "is_defined": True,
         }
 
     def test_user_serialize(self, sample_user):
         assert sample_user.serialize() == {
-            "updated_at": None,
-            "messenger_type": None,
+            "id": "U123",
             "username": "alice",
-            "email": None,
             "full_name": "Alice",
             "timezone": None,
+            "is_defined": True,
         }
 
     def test_user_group_serialize(self, sample_user_group):
         assert sample_user_group.serialize() == {
-            "name": "ops",
             "users": ["alice"],
+            "is_defined": True,
         }
 
     def test_webhook_serialize(self, sample_webhook):
@@ -108,6 +106,7 @@ class TestEntitySerialize:
             "url": "https://example.com/hook",
             "data": {"text": "hello"},
             "json": None,
+            "is_defined": True,
         }
 
     def test_webhook_serialize_preserves_url_template(self, monkeypatch):
@@ -118,6 +117,7 @@ class TestEntitySerialize:
             "url": "https://{{ env.WEBHOOK_HOST }}/hook",
             "data": None,
             "json": None,
+            "is_defined": True,
         }
 
     def test_user_store_serialize_matches_save_payload(self):
@@ -155,10 +155,18 @@ class TestEntitySerialize:
 
         with patch("app.im.users.get_user_store", return_value=store):
             assert users.serialize() == {
-                "alice": disk_payload,
+                "alice": {
+                    **disk_payload,
+                    "id": "U123",
+                    "is_defined": True,
+                },
                 "U999": stored_user.serialize(),
             }
-            assert users.serialize_one("alice") == disk_payload
+            assert users.serialize_one("alice") == {
+                **disk_payload,
+                "id": "U123",
+                "is_defined": True,
+            }
             assert users.serialize_one("U999") == stored_user.serialize()
         store.get_all.assert_called_once_with()
 
@@ -224,7 +232,11 @@ class TestUsersApi:
         with patch("app.im.users.get_user_store", return_value=store):
             response = api_client.get("/api/users")
         assert response.status_code == 200
-        assert response.json()["alice"] == disk_payload
+        assert response.json()["alice"] == {
+            **disk_payload,
+            "id": "U123",
+            "is_defined": True,
+        }
 
     def test_get_user(self, api_client, sample_user):
         store = Mock()
