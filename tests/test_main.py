@@ -151,7 +151,7 @@ class TestMainApplication:
         assert main.app is not None
         assert main.app.title == "IMPulse"
         assert main.app.description is None or main.app.description == ""
-        assert main.app.version == "1.0.0"
+        assert main.app.version == "1.0"
         assert main.app.docs_url.endswith("/api/docs")
         assert main.app.redoc_url is None
         assert main.app.openapi_url.endswith("/api/openapi.json")

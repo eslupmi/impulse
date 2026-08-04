@@ -21,7 +21,7 @@ api_base = f"{http_prefix}/api"
 
 app = FastAPI(
     title="IMPulse",
-    version="1.0.0",
+    version="1.0",
     lifespan=lifespan,
     docs_url=f"{api_base}/docs",
     redoc_url=None,
