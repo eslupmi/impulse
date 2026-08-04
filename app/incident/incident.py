@@ -326,6 +326,17 @@ class Incident:
             '_action_state': f"{self.is_frozen}|{self.status}|{self.assigned_user_id or ''}|{bool(self.task_link)}|{self.frozen_by_inhibition}|{self.frozen_by_maintenance}",
             '_assigned_user_id': self.assigned_user_id or '',
             '_assigned_fullname': self.assigned_fullname or '',
+            '_timeline': {
+                'alertname': self.payload.get('commonLabels', {}).get('alertname', ''),
+                'group_labels': self.payload.get('groupLabels', {}),
+                'created': normalize_param(self.created),
+                'updated': normalize_param(self.updated),
+                'closed': normalize_param(self.closed) if self.closed else None,
+                'status': self.status,
+                'next_status': self.next_status.get(self.status),
+                'status_update_datetime': normalize_param(self.status_update_datetime),
+                'frozen_until': normalize_param(self.frozen_until) if self.frozen_until else None,
+            },
             '_responsive_data': {
                 'group_labels': group_labels,
                 'common_labels': filter_dict_keys(common_labels, group_labels),

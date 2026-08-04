@@ -8,6 +8,7 @@ import {initAuthControls} from "./auth.js";
 import {ChainsManager} from "./chains.js";
 import {MaintenanceManager} from "./maintenance.js";
 import {initTimezoneSelectHandlers} from "./ui_timezone.js";
+import {initTimeline} from "./timeline.js";
 
 
 // **Initialize Everything**
@@ -25,6 +26,7 @@ await initAuthControls();
 MaintenanceManager.init();
 ChainsManager.init();
 initTimezoneSelectHandlers();
+initTimeline();
 setupWebSocketEvents();
 
 // Update zoom icons after table initialization and filters are loaded

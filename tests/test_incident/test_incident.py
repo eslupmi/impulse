@@ -1,7 +1,7 @@
 """
 Unit tests for app.incident.incident module.
 """
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from unittest.mock import Mock, patch, mock_open
 
 import pytest
@@ -752,6 +752,32 @@ class TestIncident:
         assert result['_responsive_data']['group_labels'] == {'alertname': 'TestAlert'}
         assert result['_responsive_data']['common_labels'] == {'severity': 'critical'}
         assert result['_responsive_data']['common_annotations'] == {'summary': 'Test alert'}
+
+    def test_get_table_data_timeline(self, sample_incident):
+        """Test get_table_data exposes the timeline block."""
+        result = sample_incident.get_table_data({})
+
+        timeline = result['_timeline']
+        assert timeline['alertname'] == 'TestAlert'
+        assert timeline['group_labels'] == {'alertname': 'TestAlert', 'service': 'test-service'}
+        assert timeline['created'] == sample_incident.created.timestamp()
+        assert timeline['updated'] == sample_incident.updated.timestamp()
+        assert timeline['closed'] is None
+        assert timeline['status'] == 'firing'
+        assert timeline['next_status'] == 'unknown'
+        assert timeline['status_update_datetime'] == sample_incident.status_update_datetime.timestamp()
+        assert timeline['frozen_until'] is None
+
+    def test_get_table_data_timeline_frozen(self, sample_incident):
+        """Test get_table_data timeline block for a frozen incident."""
+        frozen_until = datetime.now(timezone.utc) + timedelta(hours=2)
+        sample_incident.frozen_until = frozen_until
+        sample_incident.closed = datetime.now(timezone.utc)
+
+        timeline = sample_incident.get_table_data({})['_timeline']
+
+        assert timeline['frozen_until'] == frozen_until.timestamp()
+        assert timeline['closed'] == sample_incident.closed.timestamp()
 
     def test_get_table_data_with_params(self, sample_incident):
         """Test get_table_data with custom parameters."""

@@ -16,3 +16,9 @@ export const LINK_ICON = `<svg width="12" height="12" viewBox="0 0 12 12" fill="
 </svg>`
 
 export const SHOW_FULL_TABLE_KEY = "show_full_table";
+
+export const TIMELINE_VIEW_KEY = "timeline_view";
+
+export const TIMELINE_RANGE_KEY = "timeline_range";
+
+export const TIMELINE_PINS_KEY = "timeline_pins";
