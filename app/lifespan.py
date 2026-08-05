@@ -37,8 +37,8 @@ async def _initialize_primary_server(fastapi_app: FastAPI, file_lock: FileLock) 
         STATUS.set(1)
         logger.info('Started as primary server')
         return True
-    except Exception as e:
-        logger.error("Primary server initialization failed", extra={'error': str(e)})
+    except Exception:
+        logger.error("Primary server initialization failed")
         await file_lock.release_lock()
         return False
 

@@ -13,30 +13,11 @@ permissions:
   packages: write
 
 jobs:
-  tests:
-    uses: ./.github/workflows/_tests.yml
-    with:
-      runs-on: ubuntu-24.04
-      python-versions: '["3.10","3.11","3.12","3.13"]'
-
   build-and-push-image:
-    needs: tests
     uses: ./.github/workflows/_build-and-push-image.yml
 
-  cleanup-untagged-images:
-    needs: build-and-push-image
-    uses: ./.github/workflows/_cleanup-untagged-images.yml
-
-  autotests:
-    needs: build-and-push-image
-    uses: ./.github/workflows/_autotests.yml
-    with:
-      branch: ${{ github.ref_name }}
-      runs-on: self-hosted
-    secrets: inherit
-
   deploy:
-    needs: autotests
+    needs: build-and-push-image
     uses: ./.github/workflows/_deploy.yml
     with:
       deploy-path: /opt/impulse/prod

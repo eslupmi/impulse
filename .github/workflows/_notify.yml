@@ -64,6 +64,6 @@ jobs:
           )
           [ ${#MESSAGE} -le 4096 ] || MESSAGE="${MESSAGE:0:4090}..."
           jq -n --arg chat_id "$RELEASE_TELEGRAM_CHAT_ID" --arg text "$MESSAGE" \
-            '{chat_id: $chat_id, text: $text, parse_mode: "MarkdownV2", disable_web_page_preview: true}' | \
+            '{chat_id: $chat_id, text: $text, disable_notification: true, parse_mode: "MarkdownV2", disable_web_page_preview: true}' | \
           curl -fsS -X POST "https://api.telegram.org/bot${RELEASE_TELEGRAM_BOT_TOKEN}/sendMessage" \
             -H "Content-Type: application/json" -d @-

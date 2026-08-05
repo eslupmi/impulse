@@ -74,18 +74,18 @@ class JiraIntegration:
             Response dict with success status
         """
         if incident.task_link:
-            logger.debug(f"Incident {incident.uuid} already has Jira task: {incident.task_link}")
+            logger.debug(f"Incident {incident.uniq_id} already has Jira task: {incident.task_link}")
             return {"success": True, "message": "Task already exists"}
 
         if incident.task_creation_in_progress:
-            logger.debug(f"Incident {incident.uuid} task creation already in progress")
+            logger.debug(f"Incident {incident.uniq_id} task creation already in progress")
             return {"success": True, "message": "Task creation in progress"}
 
         incident.task_creation_in_progress = True
 
         summary, description = self.format_incident_for_jira(incident)
 
-        logger.info(f"Creating Jira task for incident {incident.uuid}")
+        logger.info(f"Creating Jira task for incident {incident.uniq_id}")
         project_key = self._get_project_key()
         result = await self.jira_client.create_issue(
             project_key=project_key,
@@ -96,7 +96,7 @@ class JiraIntegration:
         if result:
             incident.task_link = result["url"]
             incident.dump()
-            logger.info(f"Created Jira task {result['key']} for incident {incident.uuid}")
+            logger.info(f"Created Jira task {result['key']} for incident {incident.uniq_id}")
             response = {
                 "success": True,
                 "message": f"Created Jira task: {result['key']}",
@@ -104,7 +104,7 @@ class JiraIntegration:
                 "task_url": result['url']
             }
         else:
-            logger.error(f"Failed to create Jira task for incident {incident.uuid}")
+            logger.error(f"Failed to create Jira task for incident {incident.uniq_id}")
             response = {
                 "success": False,
                 "message": "Failed to create Jira task"

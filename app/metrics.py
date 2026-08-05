@@ -6,6 +6,8 @@ from functools import wraps
 
 import aiohttp
 from fastapi.responses import Response
+
+from app.http_client.errors import classify_messenger_http_error
 from prometheus_client import (
     CollectorRegistry,
     CONTENT_TYPE_LATEST,
@@ -58,12 +60,8 @@ def measure_request(func):
             error = 'none'
             return response
 
-        except asyncio.TimeoutError:
-            error = 'timeout'
-            raise
-
-        except aiohttp.ClientConnectorError:
-            error = 'connection_failed'
+        except (asyncio.TimeoutError, aiohttp.ClientError) as exc:
+            error = classify_messenger_http_error(exc)
             raise
 
         finally:

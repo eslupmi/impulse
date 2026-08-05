@@ -24,7 +24,7 @@ class StatusUpdateHandler(BaseHandler):
         status_updated = incident.update_status(new_status)
 
         if status_updated:
-            logger.info("Status updated", extra={'uuid': incident.uuid, 'status': new_status})
+            logger.info("Status updated", extra={'uniq_id': incident.uniq_id, 'status': new_status})
 
         if incident.status == 'closed':
             await self.inhibition_manager.handle_closed(incident)

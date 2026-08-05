@@ -1,5 +1,9 @@
 name: pr
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 on:
   pull_request:
     branches:
@@ -12,20 +16,38 @@ on:
 
 permissions:
   contents: read
-  packages: read
+  packages: write
 
 jobs:
   tests:
-    if: github.event.pull_request.draft == false && github.head_ref == 'develop'
+    if: github.event.pull_request.draft == false
     uses: ./.github/workflows/_tests.yml
     with:
       runs-on: ubuntu-24.04
       python-versions: '["3.10","3.11","3.12","3.13"]'
 
+  build-and-push-image:
+    if: github.event.pull_request.draft == false
+    needs: tests
+    uses: ./.github/workflows/_build-and-push-image.yml
+
   autotests:
-    if: github.event.pull_request.draft == false && github.head_ref == 'develop'
+    if: github.event.pull_request.draft == false
+    needs: build-and-push-image
     uses: ./.github/workflows/_autotests.yml
     with:
-      branch: develop
+      branch: pr-${{ github.event.pull_request.number }}
       runs-on: self-hosted
     secrets: inherit
+
+  cleanup-pr-image:
+    if: needs.autotests.result == 'success'
+    needs: autotests
+    runs-on: ubuntu-24.04
+    permissions:
+      packages: write
+    steps:
+    - uses: dataaxiom/ghcr-cleanup-action@d52806a0dc70b430571a37da1fde39733ffd640f
+      with:
+        delete-tags: pr-${{ github.event.pull_request.number }}
+        dry-run: false

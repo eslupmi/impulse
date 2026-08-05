@@ -124,7 +124,7 @@ class EnvironmentConfig(BaseModel):
         default_factory=lambda: int(os.getenv('LISTEN_PORT', '5000')),
         description="Port to listen on"
     )
-    
+
     @field_validator('provider_sync_interval', 'provider_max_events', 'provider_days_to_sync', 'listen_port')
     @classmethod
     def validate_positive_integers(cls, v):

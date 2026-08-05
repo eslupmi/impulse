@@ -148,10 +148,11 @@ class TestTelegramApplication:
 
         assert url == "https://api.telegram.org/bot"
 
-    def test_get_public_url(self, app_config, channels, users):
+    @pytest.mark.asyncio
+    async def test_get_public_url(self, app_config, channels, users):
         """Test _get_public_url method."""
         app = self.create_telegram_app(app_config, channels, users)
-        url = app._get_public_url(app_config)
+        url = await app._get_public_url(app_config)
 
         assert url == "https://api.telegram.org/bot"
 

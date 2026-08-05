@@ -94,7 +94,7 @@ class TestWebhook:
     @pytest.mark.asyncio
     async def test_push_with_session_form_data(self, sample_incident):
         """Test push method with form data."""
-        with patch('aiohttp.ClientSession') as mock_session_class, \
+        with patch('app.webhook.create_client_session') as mock_session_class, \
              patch('app.webhook.RetryClient') as mock_retry_client_class:
             mock_retry_client = setup_mock_session_class_patch(mock_session_class, 200)
             mock_retry_client_class.return_value = mock_retry_client
@@ -114,7 +114,7 @@ class TestWebhook:
     @pytest.mark.asyncio
     async def test_push_with_session_json_dict(self, sample_incident):
         """Test push method with JSON dict."""
-        with patch('aiohttp.ClientSession') as mock_session_class, \
+        with patch('app.webhook.create_client_session') as mock_session_class, \
              patch('app.webhook.RetryClient') as mock_retry_client_class:
             mock_retry_client = setup_mock_session_class_patch(mock_session_class, 200)
             mock_retry_client_class.return_value = mock_retry_client
@@ -135,7 +135,7 @@ class TestWebhook:
     @pytest.mark.asyncio
     async def test_push_with_session_json_string(self, sample_incident):
         """Test push method with JSON string."""
-        with patch('aiohttp.ClientSession') as mock_session_class, \
+        with patch('app.webhook.create_client_session') as mock_session_class, \
              patch('app.webhook.RetryClient') as mock_retry_client_class:
             mock_retry_client = setup_mock_session_class_patch(mock_session_class, 200)
             mock_retry_client_class.return_value = mock_retry_client
@@ -156,7 +156,7 @@ class TestWebhook:
     @pytest.mark.asyncio
     async def test_push_without_session(self, sample_incident):
         """Test push method without provided session (creates temporary session)."""
-        with patch('aiohttp.ClientSession') as mock_session_class, \
+        with patch('app.webhook.create_client_session') as mock_session_class, \
              patch('app.webhook.RetryClient') as mock_retry_client_class:
             mock_retry_client = setup_mock_session_class_patch(mock_session_class, 200)
             mock_retry_client_class.return_value = mock_retry_client
@@ -170,7 +170,7 @@ class TestWebhook:
     @pytest.mark.asyncio
     async def test_push_with_auth(self, sample_incident):
         """Test push method with authentication."""
-        with patch('aiohttp.ClientSession') as mock_session_class, \
+        with patch('app.webhook.create_client_session') as mock_session_class, \
              patch('app.webhook.RetryClient') as mock_retry_client_class:
             mock_retry_client = setup_mock_session_class_patch(mock_session_class, 200)
             mock_retry_client_class.return_value = mock_retry_client
@@ -186,7 +186,7 @@ class TestWebhook:
     @pytest.mark.asyncio
     async def test_make_request_timeout_error(self, sample_incident):
         """Test _make_request method with timeout error."""
-        with patch('aiohttp.ClientSession') as mock_session_class, \
+        with patch('app.webhook.create_client_session') as mock_session_class, \
              patch('app.webhook.RetryClient') as mock_retry_client_class:
             
             mock_retry_client = AsyncMock()
@@ -206,7 +206,7 @@ class TestWebhook:
     @pytest.mark.asyncio
     async def test_make_request_connection_error(self, sample_incident):
         """Test _make_request method with connection error."""
-        with patch('aiohttp.ClientSession') as mock_session_class, \
+        with patch('app.webhook.create_client_session') as mock_session_class, \
              patch('app.webhook.RetryClient') as mock_retry_client_class:
             
             mock_retry_client = AsyncMock()
@@ -226,7 +226,7 @@ class TestWebhook:
     @pytest.mark.asyncio
     async def test_make_request_client_error(self, sample_incident):
         """Test _make_request method with client error."""
-        with patch('aiohttp.ClientSession') as mock_session_class, \
+        with patch('app.webhook.create_client_session') as mock_session_class, \
              patch('app.webhook.RetryClient') as mock_retry_client_class:
             
             mock_retry_client = AsyncMock()
@@ -246,7 +246,7 @@ class TestWebhook:
     @pytest.mark.asyncio
     async def test_push_with_retry_on_server_errors(self, sample_incident):
         """Test push method retries on 500, 502, 503, 504 status codes."""
-        with patch('aiohttp.ClientSession') as mock_session_class, \
+        with patch('app.webhook.create_client_session') as mock_session_class, \
              patch('app.webhook.RetryClient') as mock_retry_client_class:
             
             setup_mock_webhook_with_retry_client(
@@ -463,7 +463,7 @@ class TestWebhookIntegration:
     @pytest.mark.asyncio
     async def test_complete_webhook_flow_form_data(self, sample_incident):
         """Test complete webhook flow with form data."""
-        with patch('aiohttp.ClientSession') as mock_session_class, \
+        with patch('app.webhook.create_client_session') as mock_session_class, \
              patch('app.webhook.RetryClient') as mock_retry_client_class:
             mock_retry_client = setup_mock_session_class_patch(mock_session_class, 201)
             mock_retry_client_class.return_value = mock_retry_client
@@ -494,7 +494,7 @@ class TestWebhookIntegration:
     @pytest.mark.asyncio
     async def test_complete_webhook_flow_json_dict(self, sample_incident):
         """Test complete webhook flow with JSON dict."""
-        with patch('aiohttp.ClientSession') as mock_session_class, \
+        with patch('app.webhook.create_client_session') as mock_session_class, \
              patch('app.webhook.RetryClient') as mock_retry_client_class:
             mock_retry_client = setup_mock_session_class_patch(mock_session_class, 200)
             mock_retry_client_class.return_value = mock_retry_client
@@ -523,7 +523,7 @@ class TestWebhookIntegration:
     @pytest.mark.asyncio
     async def test_complete_webhook_flow_json_string(self, sample_incident):
         """Test complete webhook flow with JSON string."""
-        with patch('aiohttp.ClientSession') as mock_session_class, \
+        with patch('app.webhook.create_client_session') as mock_session_class, \
              patch('app.webhook.RetryClient') as mock_retry_client_class:
             mock_retry_client = setup_mock_session_class_patch(mock_session_class, 200)
             mock_retry_client_class.return_value = mock_retry_client

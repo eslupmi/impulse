@@ -27,8 +27,6 @@ jobs:
       uses: docker/metadata-action@v6
       with:
         images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-    - name: Build Docker image
-      run: docker build .
     - name: Build and push Docker image
       uses: docker/build-push-action@v7
       with:

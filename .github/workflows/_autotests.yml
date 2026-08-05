@@ -21,8 +21,8 @@ jobs:
             port: 15100
           - messenger_type: mattermost
             port: 15101
-          # - messenger_type: telegram
-          #   port: 15102
+          - messenger_type: telegram
+            port: 15102
     permissions:
       contents: read
       packages: read
@@ -31,7 +31,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           repository: eslupmi/tests
-          ref: main
+          ref: rewrite/autotest-suite #!
           token: ${{ secrets.ESLUPMI_TESTS_REPO_TOKEN_READ }}
           path: autotests-${{ matrix.messenger_type }}
 
@@ -63,11 +63,16 @@ jobs:
             -e MATTERMOST_ACCESS_TOKEN="$MATTERMOST_ACCESS_TOKEN" \
             -e TELEGRAM_BOT_TOKEN="$TELEGRAM_BOT_TOKEN" \
             -e CONFIG_PATH="/config" \
+            -e HTTP_PREFIX="/${{ matrix.messenger_type }}" \
             ghcr.io/eslupmi/impulse:"${IMPULSE_IMAGE_TAG}"
 
-      - name: Wait 60 seconds for impulse container to be ready
+      - name: Wait for impulse container to be ready
         run: |
-          sleep 60
+          for i in $(seq 1 60); do
+            curl -sf "http://localhost:${{ matrix.port }}/${{ matrix.messenger_type }}/readyz" && exit 0
+            sleep 1
+          done
+          exit 1
 
       - name: Run autotests for ${{ matrix.messenger_type }}
         env:
@@ -79,7 +84,7 @@ jobs:
           API_ID: ${{ secrets.AUTOTESTS_API_ID }}
           API_HASH: ${{ secrets.AUTOTESTS_API_HASH }}
           TELEGRAM_SESSION_BASE64: ${{ secrets.AUTOTESTS_TELEGRAM_SESSION_BASE64 }}
-          IMPULSE_URL: http://localhost:${{ matrix.port }}
+          IMPULSE_URL: http://localhost:${{ matrix.port }}/${{ matrix.messenger_type }}
           MESSENGER_TYPE: ${{ matrix.messenger_type }}
         run: |
           cd autotests-${{ matrix.messenger_type }}

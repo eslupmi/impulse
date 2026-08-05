@@ -96,45 +96,66 @@
 }
 
 .maintenance-active-popup-list {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: minmax(72px, max-content) minmax(0, 1fr) max-content;
+    column-gap: 12px;
     max-height: 240px;
     overflow-y: auto;
 }
 
 .maintenance-active-popup-row {
-    display: flex;
-    gap: 12px;
-    padding: 10px 12px;
-    position: relative;
+    display: contents;
 }
 
-.maintenance-active-popup-row::after {
-    content: "";
-    position: absolute;
-    left: 12px;
-    right: 12px;
-    bottom: 0;
-    height: 1px;
-    background: var(--border-primary);
-}
-
-.maintenance-active-popup-row:last-child::after {
-    display: none;
+.maintenance-active-popup-row-divider {
+    grid-column: 1 / -1;
+    height: 0;
+    margin: 0 12px;
+    border-bottom: 1px solid var(--border-primary);
 }
 
 .maintenance-active-popup-times {
-    flex-shrink: 0;
+    grid-column: 1;
     display: flex;
     flex-direction: column;
     gap: 2px;
-    min-width: 72px;
+    padding: 10px 0 10px 12px;
+}
+
+.maintenance-active-popup-comment {
+    grid-column: 2;
+    min-width: 0;
+    padding: 10px 0;
+    color: var(--fg-primary);
+    font-size: 14px;
+    line-height: 1.35;
+    max-height: calc(1.35 * 5 * 1em);
+    overflow-y: auto;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+}
+
+.maintenance-active-popup-owner {
+    grid-column: 3;
+    width: 88px;
+    max-width: 88px;
+    padding: 10px 12px 10px 0;
+    display: block;
+    color: var(--link-primary);
+    font-size: 12px;
+    line-height: 1.35;
+    text-decoration: none;
+    text-align: right;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .maintenance-active-popup-time-left {
     color: var(--fg-primary);
     font-size: 14px;
     font-weight: 600;
+    line-height: 1.35;
     white-space: nowrap;
 }
 
@@ -145,16 +166,48 @@
     white-space: nowrap;
 }
 
-.maintenance-active-popup-comment {
-    flex: 1;
-    min-width: 0;
-    color: var(--fg-primary);
+.maintenance-active-popup-owner:not(:empty):hover {
+    text-decoration: underline;
+}
+
+.maintenance-owner-wrap .user-selector-container {
+    height: auto;
+}
+
+.maintenance-owner-wrap .user-selector-wrapper {
+    width: 100%;
+}
+
+.form-group .maintenance-owner-wrap .user-selector {
+    width: 100%;
+    height: auto;
+    box-sizing: border-box;
+    padding: 10px 36px 10px 12px;
+    border: 1px solid var(--border-primary);
+    border-radius: 8px;
+    background-color: var(--input-bg);
+    background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%2398A2B3' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
     font-size: 14px;
-    line-height: 1.6;
-    max-height: calc(1.6 * 5 * 1em);
-    overflow-y: auto;
-    white-space: pre-wrap;
-    overflow-wrap: break-word;
+}
+
+.form-group .maintenance-owner-wrap .user-selector:hover,
+.form-group .maintenance-owner-wrap .user-selector:focus {
+    border-color: var(--brand-secondary);
+    background-color: var(--input-bg);
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+}
+
+.form-group .maintenance-owner-wrap .user-selector:hover {
+    background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%233293C3' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+[data-theme="dark"] .form-group .maintenance-owner-wrap .user-selector:hover {
+    background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%2338ADE6' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
 }
 
 .maintenance-active-popup-comment,

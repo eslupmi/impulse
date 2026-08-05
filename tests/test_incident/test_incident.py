@@ -365,7 +365,7 @@ class TestIncident:
 
         mock_file_open.assert_called_once()
         # Check that file is opened with correct path for non-closed incident
-        assert f'/test/incidents/{sample_incident.uuid}.yml' in str(mock_file_open.call_args)
+        assert f'/test/incidents/{sample_incident.uniq_id}.yml' in str(mock_file_open.call_args)
         mock_yaml_dump.assert_called_once()
 
     @patch('app.incident.incident.get_environment_config')
@@ -385,9 +385,7 @@ class TestIncident:
             sample_incident.dump()
 
         mock_file_open.assert_called_once()
-        # Check that file is opened with correct path for closed incident
-        closed_str = sample_incident._datetime_serialize(sample_incident.closed)
-        assert f'/test/incidents/{sample_incident.uuid}__{closed_str}.yml' in str(mock_file_open.call_args)
+        assert f'/test/incidents/{sample_incident.uniq_id}.yml' in str(mock_file_open.call_args)
         mock_yaml_dump.assert_called_once()
 
     @patch('app.incident.incident.ChannelManager')
@@ -401,6 +399,8 @@ class TestIncident:
         assert result['channel_id'] == sample_incident.channel_id
         assert result['channel_name'] == "test-channel"
         assert result['payload'] == sample_incident.payload
+        assert result['version'] == sample_incident.version
+        assert result['uuid'] == sample_incident.uuid
         assert 'chain_enabled' in result
         assert 'chain' in result
         assert 'status_enabled' in result
@@ -434,6 +434,30 @@ class TestIncident:
         assert sample_incident.chain[0]['identifier'] == 'testuser'
         assert sample_incident.chain[1]['type'] == 'user'
         assert sample_incident.chain[1]['identifier'] == 'admin'
+        assert sample_incident.chain[0]['delay'] == pytest.approx(0.0)
+        assert sample_incident.chain[1]['delay'] == pytest.approx(300.0)
+
+    def test_generate_chain_with_leading_wait(self, sample_incident):
+        """Leading wait delays the first actionable step; wait itself is not queued."""
+        chains = create_mock_chains_config({
+            'test_chain': [
+                {'wait': '5m'},
+                {'user': 'testuser'},
+                {'wait': '10m'},
+                {'user': 'admin'},
+            ]
+        })
+
+        with patch.object(sample_incident, 'dump'):
+            sample_incident.generate_chain(chains, 'test_chain')
+
+        assert len(sample_incident.chain) == 2
+        assert sample_incident.chain[0]['type'] == 'user'
+        assert sample_incident.chain[0]['identifier'] == 'testuser'
+        assert sample_incident.chain[0]['delay'] == pytest.approx(300.0)
+        assert sample_incident.chain[1]['type'] == 'user'
+        assert sample_incident.chain[1]['identifier'] == 'admin'
+        assert sample_incident.chain[1]['delay'] == pytest.approx(900.0)
 
     def test_generate_chain_with_none_chain_name(self, sample_incident):
         """Test generating chain with None chain name."""
@@ -813,7 +837,7 @@ class TestIncidentInhibitionFields:
         self, mock_yaml_dump, mock_file_open, mock_get_config, mock_get_env_config, 
         sample_incident, mock_unified_config, mock_environment_config
     ):
-        """Test that dump persists parents but not derived freeze flags."""
+        """Test that dump includes parents and derived freeze flags."""
         mock_get_config.return_value = mock_unified_config
         mock_get_env_config.return_value = mock_environment_config
         mock_environment_config.incidents_path = "/test/incidents"
@@ -821,18 +845,23 @@ class TestIncidentInhibitionFields:
         sample_incident.childs = ["child-1"]
         sample_incident.parents = ["parent-1", "parent-2"]
 
-        with patch('app.incident.incident.incident_ws'):
+        with patch('app.incident.incident.incident_ws'), \
+             patch('app.incident.incident.ChannelManager') as mock_channel_manager:
+            mock_channel_manager.return_value.get_channel_name_by_id.return_value = "test-channel"
             sample_incident.dump()
 
         call_args = mock_yaml_dump.call_args
         dumped_data = call_args[0][0]
         
-        assert 'frozen_by_inhibition' not in dumped_data
-        assert 'frozen_by_maintenance' not in dumped_data
-        assert 'childs' in dumped_data
+        assert dumped_data['frozen_by_inhibition'] is True
+        assert dumped_data['frozen_by_maintenance'] is False
+        assert dumped_data['is_frozen'] is True
         assert dumped_data['childs'] == ["child-1"]
-        assert 'parents' in dumped_data
         assert dumped_data['parents'] == ["parent-1", "parent-2"]
+        assert dumped_data['uuid'] == sample_incident.uuid
+        assert dumped_data['link'] == sample_incident.link
+        assert dumped_data['channel_name'] == "test-channel"
+        assert dumped_data['version'] == sample_incident.version
 
     @patch('app.incident.incident.get_config')
     @patch('builtins.open', new_callable=mock_open)
@@ -853,7 +882,7 @@ class TestIncidentInhibitionFields:
 
         assert incident.frozen_by_inhibition is True
         assert incident.frozen_by_maintenance is False
-        assert incident.is_frozen() is True
+        assert incident.is_frozen is True
         assert incident.childs == ["child-1", "child-2"]
         assert incident.parents == ["parent-1"]
 

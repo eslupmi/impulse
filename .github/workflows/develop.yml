@@ -2,6 +2,7 @@ name: develop
 
 concurrency:
   group: ${{ github.ref }}
+  cancel-in-progress: true
 
 on:
   push:
@@ -22,7 +23,13 @@ jobs:
 
   cleanup-untagged-images:
     needs: build-and-push-image
-    uses: ./.github/workflows/_cleanup-untagged-images.yml
+    runs-on: ubuntu-24.04
+    permissions:
+      packages: write
+    steps:
+    - uses: dataaxiom/ghcr-cleanup-action@d52806a0dc70b430571a37da1fde39733ffd640f
+      with:
+        dry-run: false
 
   deploy:
     needs: build-and-push-image
