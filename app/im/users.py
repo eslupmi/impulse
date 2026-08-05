@@ -30,7 +30,6 @@ class BaseUser(ABC):
             'username': self.username,
             'full_name': self.full_name,
             'timezone': self.timezone,
-            'is_defined': self.defined,
         }
 
 
@@ -124,7 +123,6 @@ class UserManager:
             return {
                 **stored,
                 'id': user.id if user.id is not None else user_id,
-                'is_defined': user.defined,
             }
         return user.serialize()
 

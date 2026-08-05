@@ -82,8 +82,7 @@ class TestEntitySerialize:
         assert sample_group.serialize() == {
             "name": "Team A",
             "id": "G123",
-            "exists": True,
-            "is_defined": True,
+            "is_exists": True,
         }
 
     def test_user_serialize(self, sample_user):
@@ -92,13 +91,11 @@ class TestEntitySerialize:
             "username": "alice",
             "full_name": "Alice",
             "timezone": None,
-            "is_defined": True,
         }
 
     def test_user_group_serialize(self, sample_user_group):
         assert sample_user_group.serialize() == {
             "users": ["alice"],
-            "is_defined": True,
         }
 
     def test_webhook_serialize(self, sample_webhook):
@@ -106,7 +103,6 @@ class TestEntitySerialize:
             "url": "https://example.com/hook",
             "data": {"text": "hello"},
             "json": None,
-            "is_defined": True,
         }
 
     def test_webhook_serialize_preserves_url_template(self, monkeypatch):
@@ -117,7 +113,6 @@ class TestEntitySerialize:
             "url": "https://{{ env.WEBHOOK_HOST }}/hook",
             "data": None,
             "json": None,
-            "is_defined": True,
         }
 
     def test_user_store_serialize_matches_save_payload(self):
@@ -158,14 +153,12 @@ class TestEntitySerialize:
                 "alice": {
                     **disk_payload,
                     "id": "U123",
-                    "is_defined": True,
                 },
                 "U999": stored_user.serialize(),
             }
             assert users.serialize_one("alice") == {
                 **disk_payload,
                 "id": "U123",
-                "is_defined": True,
             }
             assert users.serialize_one("U999") == stored_user.serialize()
         store.get_all.assert_called_once_with()
@@ -235,7 +228,6 @@ class TestUsersApi:
         assert response.json()["alice"] == {
             **disk_payload,
             "id": "U123",
-            "is_defined": True,
         }
 
     def test_get_user(self, api_client, sample_user):

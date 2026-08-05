@@ -64,7 +64,7 @@ Get one incident by `uniq_id`.
 
 ### HTTP `/api/groups` [GET]
 
-Get all messenger groups. Returns `{config_name: group.serialize()}` (`name`, `id`, `exists`, `is_defined`).
+Get all messenger groups. Returns `{config_name: group.serialize()}` (`name`, `id`, `is_exists`).
 
 ### HTTP `/api/groups/{group_name}` [GET]
 
@@ -77,7 +77,7 @@ Get one group by config name.
 
 ### HTTP `/api/users` [GET]
 
-Get all users. Configured users are keyed by config name; stored or discovered users without a config name are keyed by messenger ID. Values include `id` and `is_defined`. When a user file exists under `data/users/`, disk fields (`updated_at`, `messenger_type`, `username`, `email`, `full_name`, `timezone`) are returned with `id` / `is_defined` added. Otherwise `BaseUser.serialize()` is used (`id`, `username`, `full_name`, `timezone`, `is_defined`).
+Get all users. Configured users are keyed by config name; stored or discovered users without a config name are keyed by messenger ID. Values include `id`. When a user file exists under `data/users/`, disk fields (`updated_at`, `messenger_type`, `username`, `email`, `full_name`, `timezone`) are returned with `id` added. Otherwise `BaseUser.serialize()` is used (`id`, `username`, `full_name`, `timezone`).
 
 ### HTTP `/api/users/{user_name}` [GET]
 
@@ -90,7 +90,7 @@ Get one user by config name or messenger ID.
 
 ### HTTP `/api/user_groups` [GET]
 
-Get all user groups. Returns `{name: user_group.serialize()}` (`users`, `is_defined`).
+Get all user groups. Returns `{name: user_group.serialize()}` (`users`).
 
 ### HTTP `/api/user_groups/{user_group_name}` [GET]
 
@@ -103,7 +103,7 @@ Get one user group by name.
 
 ### HTTP `/api/webhooks` [GET]
 
-Get all webhooks. Returns `{name: webhook.serialize()}` without authentication credentials (`url`, `data`, `json`, `is_defined`). URL templates are returned without environment rendering.
+Get all webhooks. Returns `{name: webhook.serialize()}` without authentication credentials (`url`, `data`, `json`). URL templates are returned without environment rendering.
 
 ### HTTP `/api/webhooks/{webhook_name}` [GET]
 

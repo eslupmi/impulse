@@ -24,5 +24,4 @@ class UserGroup:
     def serialize(self):
         return {
             'users': [u.name for u in self.users],
-            'is_defined': True,
         }

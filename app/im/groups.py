@@ -14,6 +14,5 @@ class Group:
         return {
             'name': self.name,
             'id': self.id,
-            'exists': self.exists,
-            'is_defined': self.defined,
+            'is_exists': self.exists,
         }
