@@ -1,0 +1,10 @@
+:loudspeaker: user *{{ fields.name -}}*
+{#--#}{%- if not fields.unit -%}
+{#-   #} (<https://docs.impulse.bot/stable/warnings/NotDefined/|NotDefined>)  |  :loudspeaker: admins ({%- for a in fields.admins %}<@{{ a }}>{% if not loop.last %},{% endif %}{% endfor -%})
+{#--#}{%- else -%}
+{#-  -#}{%- if fields.unit.exists -%}
+{#-     #} (<@{{ fields.unit.id }}>)
+{#-  -#}{%- else -%}
+{#      #} (<https://docs.impulse.bot/stable/warnings/NotFound/|NotFound>)  |  :loudspeaker: admins ({%- for a in fields.admins %}<@{{ a }}>{% if not loop.last %},{% endif %}{% endfor -%})
+{#-  -#}{%- endif -%}
+{#--#}{%- endif -%}

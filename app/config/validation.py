@@ -42,6 +42,17 @@ class SortOrder(str, Enum):
 
 
 class BaseUser(BaseModel):
+    roles: List[str] = Field(default_factory=list, description="User roles")
+
+    @field_validator('roles')
+    @classmethod
+    def validate_roles(cls, v):
+        allowed = {'admin'}
+        for role in v:
+            if role not in allowed:
+                raise ValueError(f"Unsupported role '{role}'. Allowed roles: {sorted(allowed)}")
+        return v
+
     def get(self, key: str) -> Any:
         return getattr(self, key)
 
@@ -420,6 +431,7 @@ class IncidentNotifications(BaseModel):
     new_firing: Optional[bool] = Field(True, description="New firing notifications")
     partial_resolved: Optional[bool] = Field(True, description="Partial resolved notifications")
     status_update: Optional[bool] = Field(True, description="Status update notifications")
+    freeze: Optional[bool] = Field(False, description="Freeze notifications")
 
     def get(self, key: str) -> bool:
         return getattr(self, key) or False

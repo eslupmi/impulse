@@ -1,0 +1,12 @@
+:bell: webhook **{{ fields.name -}}**
+{#--#}{%- if fields.unit is none -%}
+{#-   #} ([NotDefined](https://docs.impulse.bot/stable/warnings/NotDefined/))  |  :bell: admins ({%- for a in fields.admins %}@{{ a }}{% if not loop.last %},{% endif %}{% endfor -%})
+{#--#}{%- else -%}
+{#-  -#}{%- if fields.result == 'ok' -%}
+{#-     #} ({% if fields.response < 400 %}{{ fields.response }}{% else %}[{{ fields.response }}](https://docs.impulse.bot/stable/warnings/ResponseCode/){% endif %})
+{#-  -#}{%- elif fields.result == 'Timeout' -%}
+{#      #} ([TimeoutError](https://docs.impulse.bot/stable/warnings/TimeoutError/))  |  :bell: admins ({%- for a in fields.admins %}@{{ a }}{% if not loop.last %},{% endif %}{% endfor -%})
+{#-  -#}{%- else -%}
+{#      #} ([ConnectionError](https://docs.impulse.bot/stable/warnings/ConnectionError/))  |  :bell: admins ({%- for a in fields.admins %}@{{ a }}{% if not loop.last %},{% endif %}{% endfor -%})
+{#-  -#}{%- endif -%}
+{#--#}{%- endif -%}

@@ -6,9 +6,9 @@ class User(BaseUser):
     
     def __init__(
         self, name: str, id_: str = None, username: str = None, exists: bool = False, full_name: str = None,
-        timezone_: str = None
+        timezone_: str = None, roles=None
     ):
-        super().__init__(name=name, id_=id_, exists=exists, full_name=full_name, username=username, timezone=timezone_)
+        super().__init__(name=name, id_=id_, exists=exists, full_name=full_name, username=username, timezone=timezone_, roles=roles)
 
     def get_notification_identifier(self):
         return self.username

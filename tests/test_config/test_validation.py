@@ -9,7 +9,7 @@ from app.config.validation import (
     TelegramApplicationConfig, RouteConfig, WebhookConfig,
     ScheduleChain, CloudChain, SimpleChainStep, UIConfig, UIColumn,
     UISorting, IncidentTimeouts, IncidentNotifications,
-    UserGroup, TemplateFiles, validate_config, MessengerType
+    UserGroup, TemplateFiles, validate_config, MessengerType, SlackUser
 )
 from tests.utils import (
     create_slack_config_data, create_mattermost_config_data,
@@ -62,6 +62,18 @@ class TestSlackApplicationConfig:
         assert "admin1" in config.users
         assert config.users["admin1"].id == "U123456"
         assert config.template_files.status_icons is None
+
+    def test_user_roles_default_empty(self):
+        user = SlackUser(id="U123456")
+        assert user.roles == []
+
+    def test_user_roles_accepts_admin(self):
+        user = SlackUser(id="U123456", roles=["admin"])
+        assert user.roles == ["admin"]
+
+    def test_user_roles_rejects_unknown(self):
+        with pytest.raises(ValidationError):
+            SlackUser(id="U123456", roles=["superuser"])
 
     def test_slack_config_with_template_files(self):
         """Test SlackApplicationConfig with template files."""
@@ -434,6 +446,7 @@ class TestValidateConfig:
         assert config.incident.notifications.new_firing is True
         assert config.incident.notifications.partial_resolved is True
         assert config.incident.notifications.status_update is True
+        assert config.incident.notifications.freeze is False
         assert config.incident.timeouts.firing == "6h"
         assert config.incident.timeouts.unknown == "1h"
         assert config.incident.timeouts.resolved == "5m"
@@ -631,6 +644,7 @@ class TestIncidentNotifications:
         assert notifications.new_firing is True
         assert notifications.partial_resolved is True
         assert notifications.status_update is True
+        assert notifications.freeze is False
 
     def test_incident_notifications_get_method(self):
         """Test IncidentNotifications get method."""

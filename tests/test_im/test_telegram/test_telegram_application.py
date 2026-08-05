@@ -111,6 +111,7 @@ class TestTelegramApplication:
         """Create mock users configuration."""
         user1 = Mock(spec=TelegramUser)
         user1.id = 123456789
+        user1.roles = []
         return {"admin1": user1}
 
     def test_telegram_application_initialization(self, app_config, channels, users):

@@ -10,8 +10,11 @@ from app.im.chain.chain_factory import ChainFactory
 from app.im.messenger_init import messenger_init_step_async, messenger_init_step_sync
 from app.logging_context import redact_messenger_url
 from app.im.groups import Group
-from app.im.template import notification_user, notification_user_group, notification_group, update_status, \
-    notification_assignment, notification_unassignment, notification_unfreeze
+from app.im.template import (
+    chain_step_user, chain_step_user_group, chain_step_group,
+    incident_notifications_assignment, incident_notifications_status_update,
+    incident_notifications_freeze, incident_notifications_unfreeze,
+)
 from app.im.user_groups import generate_user_groups
 from app.im.user_store import get_user_store, UserUpdateScheduler
 from app.im.users import UserManager, UndefinedUser, BaseUser
@@ -246,19 +249,20 @@ class Application(ABC):
 
     async def notify(self, incident, notify_type, identifier):
         destinations = self.get_notification_destinations()
+        messenger = self.type.value
         if notify_type == 'user':
             unit = self.users.get(identifier)
-            text_template = JinjaTemplate(notification_user)
+            text_template = JinjaTemplate(chain_step_user[messenger])
         elif notify_type == 'user_group':
             unit = self.user_groups.get(identifier)
-            text_template = JinjaTemplate(notification_user_group)
+            text_template = JinjaTemplate(chain_step_user_group[messenger])
         elif notify_type == 'group':
             unit = self.groups.get(identifier)
-            text_template = JinjaTemplate(notification_group)
+            text_template = JinjaTemplate(chain_step_group[messenger])
         else:
             unit = None
-            text_template = JinjaTemplate(notification_user_group)
-        fields = {'type': self.type.value, 'name': identifier, 'unit': unit, 'admins': destinations}
+            text_template = JinjaTemplate(chain_step_user_group[messenger])
+        fields = {'name': identifier, 'unit': unit, 'admins': destinations}
         text = text_template.form_notification(fields)
         _, header, _ = self.form_body_header_status_icons(incident)
         if self.type == MessengerType.TELEGRAM:
@@ -277,12 +281,12 @@ class Application(ABC):
         try:
             header = self.header_template.form_message(incident.payload, incident)
             fields = {
-                'type': self.type.value,
+                'assigned': True,
                 'full_name': incident.assigned_fullname,
                 'username': incident.assigned_user,
                 'id': incident.assigned_user_id
             }
-            text = JinjaTemplate(notification_assignment).form_notification(fields)
+            text = JinjaTemplate(incident_notifications_assignment[self.type.value]).form_notification(fields)
             if self.type == MessengerType.TELEGRAM:
                 message = text
             else:
@@ -308,7 +312,9 @@ class Application(ABC):
 
         try:
             header = self.header_template.form_message(incident_obj.payload, incident_obj)
-            text = JinjaTemplate(notification_unassignment).form_notification({})
+            text = JinjaTemplate(incident_notifications_assignment[self.type.value]).form_notification(
+                {'assigned': False}
+            )
             if self.type.value == MessengerType.TELEGRAM:
                 message = text
             else:
@@ -320,9 +326,22 @@ class Application(ABC):
         except Exception as e:
             logger.error(f'Failed to post unassignment notification for incident {incident_obj.uniq_id}: {e}')
 
+    async def post_freeze_notification(self, incident_: 'Incident'):
+        config = get_config()
+        if not config.incident.notifications.freeze:
+            return
+
+        text = JinjaTemplate(incident_notifications_freeze[self.type.value]).form_notification({})
+        if self.type != MessengerType.TELEGRAM:
+            header = self.header_template.form_message(incident_.payload, incident_)
+            message = header + '\n' + text
+        else:
+            message = text
+
+        await self.post_to_thread(incident_.channel_id, incident_.ts, message)
+
     async def post_unfreeze_notification(self, incident_: 'Incident'):
-        text_template = JinjaTemplate(notification_unfreeze)
-        text = text_template.form_notification({'type': self.type.value})
+        text = JinjaTemplate(incident_notifications_unfreeze[self.type.value]).form_notification({})
 
         if self.type != MessengerType.TELEGRAM:
             header = self.header_template.form_message(incident_.payload, incident_)
@@ -345,9 +364,9 @@ class Application(ABC):
 
             config = get_config()
             if updated_status and incident_status != 'closed' and config.incident.notifications.status_update:
-                text_template = JinjaTemplate(update_status)
+                text_template = JinjaTemplate(incident_notifications_status_update[self.type.value])
                 admins = self.get_notification_destinations()
-                fields = {'type': self.type.value, 'status': incident_status, 'admins': admins}
+                fields = {'status': incident_status, 'admins': admins}
                 text = text_template.form_notification(fields)
 
                 _, header, _ = self.form_body_header_status_icons(incident)
@@ -419,9 +438,11 @@ class Application(ABC):
             user_id = str(user_info.id)
             if user_id in stored_user_ids:
                 user_manager.add_config_name(name, user_id)
+                user_manager.get_user_by_id(user_id).roles = list(user_info.roles)
                 continue
 
             user_details = await self.get_user_details(user_info)
+            user_details['roles'] = list(user_info.roles)
             if not user_details['exists']:
                 logger.warning('User not found in messenger', extra={'user': name})
             else:
@@ -483,6 +504,7 @@ class Application(ABC):
         self.fetch_and_assign_user_name(incident_, user_id, dump=False)
         cached_user = self.users.get_user_by_id(user_id)
         await self.apply_time_freeze(incident_, freeze_time, cached_user, queue_, source=FreezeSource.TIME)
+        await self.post_freeze_notification(incident_)
 
     def _handle_task_action(self, incident_, user_id, queue_):
         logger.info(log_button_pressed, extra={'uniq_id': incident_.uniq_id, 'button': 'task', 'user_id': user_id})
@@ -513,6 +535,9 @@ class Application(ABC):
                 'timezone': stored_data.get('timezone'),
             }
             config_name = self.get_config_name_by_user_id(user_id)
+            user_info = self._users_config.get(config_name)
+            if user_info:
+                user_details['roles'] = list(user_info.roles)
             user = self.create_user(config_name, user_details)
             if user:
                 user_manager.add_user(user_id, user)

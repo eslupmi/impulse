@@ -1,0 +1,8 @@
+🔔 group <b>{{ fields.name }}</b>
+{#--#}{%- if not fields.unit -%}
+{#-   #} (<a href="https://docs.impulse.bot/stable/warnings/NotDefined/">NotDefined</a>)  |  🔔 admins ({%- for a in fields.admins %}<a href="tg://user?id={{ a.id }}">{{ a.name }}</a>{% if not loop.last %},{% endif %}{% endfor -%})
+{#--#}{%- elif not fields.unit.exists -%}
+{#-   #} (<a href="https://docs.impulse.bot/stable/warnings/NotFound/">NotFound</a>)  |  🔔 admins ({%- for a in fields.admins %}<a href="tg://user?id={{ a.id }}">{{ a.name }}</a>{% if not loop.last %},{% endif %}{% endfor -%})
+{#--#}{%- else -%}
+{#-     #} ({{ fields.unit.name }})
+{#--#}{%- endif -%}
