@@ -80,9 +80,8 @@ def api_client(sample_group, sample_user, stored_user, sample_user_group, sample
 class TestEntitySerialize:
     def test_group_serialize(self, sample_group):
         assert sample_group.serialize() == {
-            "name": "Team A",
             "id": "G123",
-            "is_exists": True,
+            "exists": True,
         }
 
     def test_user_serialize(self, sample_user):

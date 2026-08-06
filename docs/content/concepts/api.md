@@ -64,7 +64,7 @@ Get one incident by `uniq_id`.
 
 ### HTTP `/api/groups` [GET]
 
-Get all messenger groups. Returns `{config_name: group.serialize()}` (`name`, `id`, `is_exists`).
+Get all messenger groups. Returns `{config_name: group.serialize()}` (`id`, `exists`).
 
 ### HTTP `/api/groups/{group_name}` [GET]
 
