@@ -9,3 +9,9 @@ class Group:
 
     def __repr__(self):
         return self.name if self.name else self.config_name
+
+    def serialize(self):
+        return {
+            'id': self.id,
+            'exists': self.exists,
+        }
