@@ -24,7 +24,7 @@ class User(BaseUser):
         return {
             'email': self.email,
             'full_name': self.full_name,
-            'id': str(self.id) if self.id is not None else None,
+            'id': str(self.id),
             'name': self.name,
             'timezone': self.timezone,
             'username': self.username,
