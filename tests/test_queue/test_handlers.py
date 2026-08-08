@@ -514,7 +514,7 @@ class TestStepHandler:
         mock_application.groups = {}
         mock_application.webhooks = {'test_webhook': webhook}
         mock_application._users_config = {}
-        mock_application._admin_users_config = []
+        mock_application.admin_users = []
         mock_incident.serialize = Mock(return_value={})
 
         await step_handler.handle(incident_uniq_id, identifier)
