@@ -24,6 +24,8 @@ class SlackApplication(Application):
             id_=user_details.get('id'),
             exists=user_details.get('exists'),
             full_name=user_details.get('full_name'),
+            username=user_details.get('username'),
+            email=user_details.get('email'),
             timezone_=user_details.get('timezone')
         )
 

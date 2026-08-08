@@ -1,5 +1,5 @@
-from unittest.mock import Mock, patch
 from datetime import datetime, timezone
+from unittest.mock import Mock
 
 import pytest
 from fastapi import FastAPI
@@ -79,18 +79,25 @@ def api_client(sample_group, sample_user, stored_user, sample_user_group, sample
 
 class TestEntitySerialize:
     def test_group_serialize(self, sample_group):
-        assert sample_group.serialize() == {
-            "id": "G123",
+        payload = sample_group.serialize()
+        assert payload == {
             "exists": True,
+            "id": "G123",
         }
+        assert list(payload) == sorted(payload)
 
     def test_user_serialize(self, sample_user):
-        assert sample_user.serialize() == {
-            "id": "U123",
-            "username": "alice",
+        payload = sample_user.serialize()
+        assert payload == {
+            "email": None,
             "full_name": "Alice",
+            "id": "U123",
+            "name": "alice",
             "timezone": None,
+            "username": "alice",
         }
+        assert list(payload) == sorted(payload)
+        assert isinstance(payload["id"], str)
 
     def test_user_group_serialize(self, sample_user_group):
         assert sample_user_group.serialize() == {
@@ -98,21 +105,25 @@ class TestEntitySerialize:
         }
 
     def test_webhook_serialize(self, sample_webhook):
-        assert sample_webhook.serialize() == {
-            "url": "https://example.com/hook",
+        payload = sample_webhook.serialize()
+        assert payload == {
             "data": {"text": "hello"},
             "json": None,
+            "url": "https://example.com/hook",
         }
+        assert list(payload) == sorted(payload)
 
     def test_webhook_serialize_preserves_url_template(self, monkeypatch):
         monkeypatch.setenv("WEBHOOK_HOST", "secret.example.com")
         webhook = Webhook("https://{{ env.WEBHOOK_HOST }}/hook", auth="user:pass")
 
-        assert webhook.serialize() == {
-            "url": "https://{{ env.WEBHOOK_HOST }}/hook",
+        payload = webhook.serialize()
+        assert payload == {
             "data": None,
             "json": None,
+            "url": "https://{{ env.WEBHOOK_HOST }}/hook",
         }
+        assert list(payload) == sorted(payload)
 
     def test_user_store_serialize_matches_save_payload(self):
         updated_at = datetime(2026, 1, 2, 3, 4, 5, tzinfo=timezone.utc)
@@ -122,45 +133,25 @@ class TestEntitySerialize:
             "full_name": "Alice",
             "timezone": "UTC",
         }
-        assert UserStore.serialize("slack", user_data, updated_at=updated_at) == {
-            "updated_at": updated_at,
-            "messenger_type": "slack",
-            "username": "alice",
+        payload = UserStore.serialize("slack", user_data, updated_at=updated_at)
+        assert payload == {
             "email": "alice@example.com",
             "full_name": "Alice",
+            "messenger_type": "slack",
             "timezone": "UTC",
+            "updated_at": updated_at,
+            "username": "alice",
         }
+        assert list(payload) == sorted(payload)
 
-    def test_user_manager_serialize_prefers_disk_content(self, sample_user, stored_user):
+    def test_user_manager_serialize_configured_only(self, sample_user, stored_user):
         users = UserManager()
         users.add_user("U123", sample_user, config_name="alice")
         users.add_user("U999", stored_user)
-        disk_payload = {
-            "updated_at": datetime(2026, 1, 2, 3, 4, 5, tzinfo=timezone.utc),
-            "messenger_type": "slack",
-            "username": "alice",
-            "email": "alice@example.com",
-            "full_name": "Alice",
-            "timezone": "UTC",
-        }
-        store = Mock()
-        store.get_all.return_value = {"U123": disk_payload}
-        store.get.side_effect = lambda user_id: disk_payload if user_id == "U123" else None
 
-        with patch("app.im.users.get_user_store", return_value=store):
-            assert users.serialize() == {
-                "alice": {
-                    **disk_payload,
-                    "id": "U123",
-                },
-                "U999": stored_user.serialize(),
-            }
-            assert users.serialize_one("alice") == {
-                **disk_payload,
-                "id": "U123",
-            }
-            assert users.serialize_one("U999") == stored_user.serialize()
-        store.get_all.assert_called_once_with()
+        assert users.serialize() == [sample_user.serialize()]
+        assert users.serialize_one("alice") == sample_user.serialize()
+        assert users.serialize_one("U999") is None
 
 
 class TestIncidentsApi:
@@ -198,58 +189,23 @@ class TestGroupsApi:
 
 
 class TestUsersApi:
-    def test_list_users(self, api_client, sample_user, stored_user):
-        store = Mock()
-        store.get_all.return_value = {}
-        store.get.return_value = None
-        with patch("app.im.users.get_user_store", return_value=store):
-            response = api_client.get("/api/users")
+    def test_list_users_configured_only(self, api_client, sample_user):
+        response = api_client.get("/api/users")
         assert response.status_code == 200
-        assert response.json() == {
-            "alice": sample_user.serialize(),
-            "U999": stored_user.serialize(),
-        }
-
-    def test_list_users_returns_disk_content_when_present(self, api_client):
-        disk_payload = {
-            "updated_at": "2026-01-02T03:04:05+00:00",
-            "messenger_type": "slack",
-            "username": "alice",
-            "email": "alice@example.com",
-            "full_name": "Alice",
-            "timezone": "UTC",
-        }
-        store = Mock()
-        store.get_all.return_value = {"U123": disk_payload}
-        with patch("app.im.users.get_user_store", return_value=store):
-            response = api_client.get("/api/users")
-        assert response.status_code == 200
-        assert response.json()["alice"] == {
-            **disk_payload,
-            "id": "U123",
-        }
+        assert response.json() == [sample_user.serialize()]
 
     def test_get_user(self, api_client, sample_user):
-        store = Mock()
-        store.get.return_value = None
-        with patch("app.im.users.get_user_store", return_value=store):
-            response = api_client.get("/api/users/alice")
+        response = api_client.get("/api/users/alice")
         assert response.status_code == 200
         assert response.json() == sample_user.serialize()
 
-    def test_get_stored_user_by_id(self, api_client, stored_user):
-        store = Mock()
-        store.get.return_value = None
-        with patch("app.im.users.get_user_store", return_value=store):
-            response = api_client.get("/api/users/U999")
-        assert response.status_code == 200
-        assert response.json() == stored_user.serialize()
+    def test_get_runtime_user_by_id_not_found(self, api_client):
+        response = api_client.get("/api/users/U999")
+        assert response.status_code == 404
+        assert response.json()["detail"] == "User not found"
 
     def test_get_user_not_found(self, api_client):
-        store = Mock()
-        store.get.return_value = None
-        with patch("app.im.users.get_user_store", return_value=store):
-            response = api_client.get("/api/users/missing")
+        response = api_client.get("/api/users/missing")
         assert response.status_code == 404
         assert response.json()["detail"] == "User not found"
 

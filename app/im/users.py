@@ -1,8 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Union, Optional, Dict, List
 
-from app.im.user_store import get_user_store
-
 
 class BaseUser(ABC):
     """Base class for all messenger users."""
@@ -24,13 +22,10 @@ class BaseUser(ABC):
         """Return the platform-specific identifier used for mentions/notifications."""
         pass
 
-    def serialize(self):
-        return {
-            'id': self.id,
-            'username': self.username,
-            'full_name': self.full_name,
-            'timezone': self.timezone,
-        }
+    @abstractmethod
+    def serialize(self) -> Dict:
+        """Return the messenger-specific API payload for this user."""
+        pass
 
 
 class UndefinedUser(BaseUser):
@@ -40,6 +35,14 @@ class UndefinedUser(BaseUser):
     
     def get_notification_identifier(self):
         return None
+
+    def serialize(self) -> Dict:
+        return {
+            'full_name': None,
+            'id': None,
+            'name': self.name,
+            'username': None,
+        }
 
 
 class UserManager:
@@ -97,35 +100,25 @@ class UserManager:
             return user.timezone
         return None
 
-    def serialize(self) -> Dict[str, Dict]:
-        stored_users = get_user_store().get_all()
-        config_names = {user_id: name for name, user_id in self._config_names.items()}
-        result = {}
-        for user_id, user in self._users.items():
-            key = config_names.get(user_id, user_id)
-            result[key] = self._api_payload(user_id, user, stored_users.get(user_id))
+    def serialize(self) -> List[Dict]:
+        result = []
+        for config_name in sorted(self._config_names):
+            user = self._users.get(self._config_names[config_name])
+            if user is None:
+                continue
+            result.append(user.serialize())
         return result
 
     def serialize_one(self, name: str) -> Optional[Dict]:
-        user_id = self._resolve_user_id(name)
+        user_id = self._config_names.get(name)
         if user_id is None:
             return None
         user = self._users.get(user_id)
         if user is None:
             return None
-        return self._api_payload(user_id, user, get_user_store().get(user_id))
+        return user.serialize()
     
     ### PRIVATE METHODS ###
-
-    @staticmethod
-    def _api_payload(user_id: str, user: BaseUser, stored: Optional[Dict]) -> Dict:
-        if stored is not None:
-            return {
-                **stored,
-                'id': user.id if user.id is not None else user_id,
-            }
-        return user.serialize()
-
 
     def _resolve_user(self, name: str) -> BaseUser:
         """Resolve a name to a user, checking config names first, then user_ids."""

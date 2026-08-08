@@ -41,7 +41,7 @@ def create_api_router() -> APIRouter:
         return group.serialize()
 
     @router.get("/users")
-    async def get_users(request: Request) -> dict:
+    async def get_users(request: Request) -> list:
         return request.app.state.messenger.users.serialize()
 
     @router.get("/users/{user_name}", responses={

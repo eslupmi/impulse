@@ -102,12 +102,12 @@ class UserStore:
     @staticmethod
     def serialize(messenger_type: str, user_data: Dict[str, Any], updated_at: datetime = None) -> Dict[str, Any]:
         return {
-            'updated_at': updated_at or datetime.now(timezone.utc),
-            'messenger_type': messenger_type,
-            'username': user_data.get('username'),
             'email': user_data.get('email'),
             'full_name': user_data.get('full_name'),
+            'messenger_type': messenger_type,
             'timezone': user_data.get('timezone'),
+            'updated_at': updated_at or datetime.now(timezone.utc),
+            'username': user_data.get('username'),
         }
     
     ### PRIVATE METHODS ###

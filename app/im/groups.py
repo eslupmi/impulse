@@ -12,6 +12,6 @@ class Group:
 
     def serialize(self):
         return {
-            'id': self.id,
             'exists': self.exists,
+            'id': self.id,
         }

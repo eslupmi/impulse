@@ -63,6 +63,7 @@ class MattermostApplication(Application):
             username=user_details.get('username'),
             exists=user_details.get('exists'),
             full_name=user_details.get('full_name'),
+            email=user_details.get('email'),
             timezone_=user_details.get('timezone')
         )
 

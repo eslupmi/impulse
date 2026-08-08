@@ -510,6 +510,7 @@ class Application(ABC):
                 'exists': True,
                 'full_name': stored_data.get('full_name'),
                 'username': stored_data.get('username'),
+                'email': stored_data.get('email'),
                 'timezone': stored_data.get('timezone'),
             }
             config_name = self.get_config_name_by_user_id(user_id)

@@ -47,7 +47,7 @@ Get current processing queue state.
 
 ## Storage read API
 
-Read-only endpoints under `/api` return the same payloads as each entity's `serialize()` method. Collection keys match path identifiers (`uniq_id` for incidents; config names, messenger IDs, or resource names for other units).
+Read-only endpoints under `/api` return the same payloads as each entity's `serialize()` method. Collection keys match path identifiers (`uniq_id` for incidents; config names or resource names for groups, user groups, and webhooks). `/api/users` returns a list of configured users.
 
 ### HTTP `/api/incidents` [GET]
 
@@ -64,7 +64,7 @@ Get one incident by `uniq_id`.
 
 ### HTTP `/api/groups` [GET]
 
-Get all messenger groups. Returns `{config_name: group.serialize()}` (`id`, `exists`).
+Get all messenger groups. Returns `{config_name: group.serialize()}` (`exists`, `id`).
 
 ### HTTP `/api/groups/{group_name}` [GET]
 
@@ -77,11 +77,14 @@ Get one group by config name.
 
 ### HTTP `/api/users` [GET]
 
-Get all users. Configured users are keyed by config name; stored or discovered users without a config name are keyed by messenger ID. Values include `id`. When a user file exists under `data/users/`, disk fields (`updated_at`, `messenger_type`, `username`, `email`, `full_name`, `timezone`) are returned with `id` added. Otherwise `BaseUser.serialize()` is used (`id`, `username`, `full_name`, `timezone`).
+Get configured users only as a list of messenger-specific `User.serialize()` payloads. Runtime/UserStore-only users are omitted. `messenger_type` is not included.
+
+- Slack / Mattermost: `email`, `full_name`, `id` (string), `name`, `timezone`, `username`
+- Telegram: `full_name`, `id` (int), `name`, `username`
 
 ### HTTP `/api/users/{user_name}` [GET]
 
-Get one user by config name or messenger ID.
+Get one configured user by config name.
 
 **Responses:**
 
@@ -103,7 +106,7 @@ Get one user group by name.
 
 ### HTTP `/api/webhooks` [GET]
 
-Get all webhooks. Returns `{name: webhook.serialize()}` without authentication credentials (`url`, `data`, `json`). URL templates are returned without environment rendering.
+Get all webhooks. Returns `{name: webhook.serialize()}` without authentication credentials (`data`, `json`, `url`). URL templates are returned without environment rendering.
 
 ### HTTP `/api/webhooks/{webhook_name}` [GET]
 

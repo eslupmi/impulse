@@ -126,9 +126,9 @@ class Webhook:
 
     def serialize(self):
         return {
-            'url': self._url_template,
             'data': self._data,
             'json': self._json_payload,
+            'url': self._url_template,
         }
 
     @staticmethod
