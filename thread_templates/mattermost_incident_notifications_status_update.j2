@@ -1,4 +1,1 @@
-update: status **{% if fields.status == 'unknown' %}[unknown](https://docs.impulse.bot/stable/warnings/StatusUnknown/){% else %}{{ fields.status }}{% endif %}**
-{#--#}{%- if fields.status == 'unknown' -%}
-{#-   #}  |  :bell: admins ({%- for a in fields.admins %}@{{ a }}{% if not loop.last %},{% endif %}{% endfor -%})
-{#--#}{%- endif -%}
+update: status **{% if incident.status == 'unknown' %}[unknown](https://docs.impulse.bot/stable/warnings/StatusUnknown/){% else %}{{ incident.status }}{% endif %}**{%- if incident.status == 'unknown' %}  |  :bell: admins ({%- for a in admins %}@{{ a.username }}{% if not loop.last %},{% endif %}{% endfor -%}){% endif %}

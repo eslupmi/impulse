@@ -296,6 +296,7 @@ class TestStatusUpdateHandler:
         # Should call update_status and update
         mock_incident.update_status.assert_called_once_with('unknown')
         mock_application.update.assert_called_once()
+        assert mock_application.update.call_args.kwargs['previous_payload'] == {'alertname': 'TestAlert'}
 
     @pytest.mark.asyncio
     async def test_handle_incident_status_closed(self, status_update_handler, mock_incidents, mock_application,
@@ -479,8 +480,8 @@ class TestStepHandler:
 
         await step_handler.handle(incident_uniq_id, identifier)
 
-        # Should call app.notify
-        mock_application.notify.assert_called_once_with(mock_incident, 'user', 'testuser')
+        # Should call app.notify with the step dict
+        mock_application.notify.assert_called_once_with(mock_incident, mock_incident.chain_steps[0])
         mock_incident.chain_update.assert_called_once_with(identifier, done=True, result=200)
 
     @pytest.mark.asyncio
@@ -507,10 +508,19 @@ class TestStepHandler:
         mock_application.get_notification_destinations.return_value = []
         mock_application.header_template.form_message.return_value = 'header'
         mock_application.post_to_thread = AsyncMock()
+        mock_application.users = Mock()
+        mock_application.users.get = Mock(return_value=None)
+        mock_application.user_groups = {}
+        mock_application.groups = {}
+        mock_application.webhooks = {'test_webhook': webhook}
+        mock_application._users_config = {}
+        mock_application._admin_users_config = []
+        mock_incident.serialize = Mock(return_value={})
 
         await step_handler.handle(incident_uniq_id, identifier)
 
         mock_incident.chain_update.assert_called_once_with(identifier, done=True, result=204, status='ok')
+        mock_application.post_to_thread.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_handle_nonexistent_incident(self, step_handler, mock_incidents):

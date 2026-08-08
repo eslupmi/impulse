@@ -203,12 +203,12 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
         queue = request.app.state.queue
         if user_id == "":
             _log_ui_action("unassignment", incident, acting_user)
-            unassigned = await messenger.handle_ui_unassign(incident, queue)
+            unassigned = await messenger.handle_ui_unassign(incident, queue, ui_user=acting_user)
             return {"success": unassigned}
 
         _log_ui_action("assignment", incident, acting_user, target_user_id=user_id)
 
-        assigned = await messenger.handle_ui_assignment(incident, user_id, queue)
+        assigned = await messenger.handle_ui_assignment(incident, user_id, queue, ui_user=acting_user)
         return {"success": assigned}
 
     @router.post("/task", responses={
@@ -271,7 +271,10 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
         messenger = request.app.state.messenger
         queue = request.app.state.queue
         incidents = request.app.state.incidents
-        await messenger.handle_ui_freeze(incident, freeze_option, str((acting_user or {}).get("id", "")), incidents, queue, user_timezone=user_tz)
+        await messenger.handle_ui_freeze(
+            incident, freeze_option, str((acting_user or {}).get("id", "")), incidents, queue,
+            user_timezone=user_tz, ui_user=acting_user,
+        )
         return {"success": True}
 
     @router.post("/unfreeze", responses={
@@ -326,7 +329,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
         _log_ui_action("release", incident, acting_user)
 
         messenger = request.app.state.messenger
-        await messenger.handle_ui_release(incident)
+        await messenger.handle_ui_release(incident, ui_user=acting_user)
         return {"success": True}
 
     @router.post("/-/reload")

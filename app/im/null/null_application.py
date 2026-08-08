@@ -61,13 +61,13 @@ class NullApplication(Application):
         return
 
     async def update(self, incident, incident_status, alert_state, updated_status, chain_enabled, status_enabled,
-                     task_link=''):
+                     task_link='', previous_payload=None):
         return
 
     async def new_version_notification(self, channel_id, new_tag):
         return
 
-    async def notify(self, incident, notify_type, identifier):
+    async def notify(self, incident, step):
         return 200
 
     async def close(self):
@@ -112,8 +112,8 @@ class NullApplication(Application):
                                     queue_: 'AsyncQueue', user_timezone: Optional[str] = None):
         return
 
-    async def post_freeze_notification(self, incident_: 'Incident'):
+    async def post_freeze_notification(self, incident_: 'Incident', ui_user=None):
         return
 
-    async def post_unfreeze_notification(self, incident_: 'Incident'):
+    async def post_unfreeze_notification(self, incident_: 'Incident', ui_user=None):
         return

@@ -1,3 +1,4 @@
+from copy import deepcopy
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 from app.config.validation import MessengerType
@@ -118,6 +119,7 @@ class AlertHandler(BaseHandler):
             return
 
         prev_status = incident_.status
+        previous_payload = deepcopy(incident_.payload)
         self._regenerate_chain_if_needed(incident_, alert_state, prev_status)
         await self.queue.recreate(alert_state.get('status'), incident_.uniq_id, incident_.get_chain(), incident_.chain_active_seconds)
 
@@ -132,14 +134,21 @@ class AlertHandler(BaseHandler):
         if is_state_updated or is_status_updated:
             await self.app.update(
                 incident_, alert_state['status'], alert_state, is_status_updated,
-                incident_.chain_enabled, incident_.frozen_until, incident_.task_link
+                incident_.chain_enabled, incident_.frozen_until, incident_.task_link,
+                previous_payload=previous_payload,
             )
 
         should_notify = prev_status == 'firing' and incident_.status == 'firing' and not incident_.is_frozen
         if should_notify and is_new_firing_alerts_added:
-            await self._notify_alert_change(incident_, incident_notifications_new_firing, 'new alerts firing')
+            await self._notify_alert_change(
+                incident_, incident_notifications_new_firing, 'new alerts firing',
+                alert_state, previous_payload,
+            )
         if should_notify and is_some_firing_alerts_removed:
-            await self._notify_alert_change(incident_, incident_notifications_partial_resolved, 'some alerts resolved')
+            await self._notify_alert_change(
+                incident_, incident_notifications_partial_resolved, 'some alerts resolved',
+                alert_state, previous_payload,
+            )
         await self.queue.update(incident_.uniq_id, incident_.status_update_datetime, incident_.status)
 
     ### PRIVATE METHODS ###
@@ -165,9 +174,13 @@ class AlertHandler(BaseHandler):
             await self.inhibition_manager.process_incident(incident_)
             await self.maintenance_manager.process_incident(incident_)
 
-    async def _notify_alert_change(self, incident_, templates, log_message):
+    async def _notify_alert_change(self, incident_, templates, log_message, payload, previous_payload):
         header = self.app.header_template.form_message(incident_.payload, incident_)
-        text = JinjaTemplate(templates[self.app.type.value]).form_notification({})
+        text = JinjaTemplate(templates[self.app.type.value]).form_notification(
+            payload=payload,
+            previous_payload=previous_payload,
+            incident=incident_.serialize(),
+        )
         if self.app.type == MessengerType.TELEGRAM:
             message = text
         else:

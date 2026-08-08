@@ -1,5 +1,5 @@
 from app.config.validation import MessengerType
-from app.im.template import chain_step_webhook
+from app.im.template import chain_step_webhook, chain_template_context
 from app.jinja_template import JinjaTemplate
 from app.logging import logger
 from app.queue.handlers.base_handler import BaseHandler
@@ -36,25 +36,20 @@ class StepHandler(BaseHandler):
             webhook_name = step['value']
             webhook = self.webhooks.get(webhook_name)
 
-            text_template = JinjaTemplate(chain_step_webhook[self.app.type.value])
-            admins = self.app.get_notification_destinations()
-
             if webhook is not None:
                 result, r_code = await webhook.push(incident)
-                fields = {'name': webhook_name, 'unit': webhook, 'admins': admins,
-                          'result': result, 'response': r_code}
                 incident.chain_update(identifier, done=True, result=r_code, status=result)
                 if result == 'ok':
                     logger.info("Webhook sent", extra={'uniq_id': incident.uniq_id, 'webhook': webhook_name, 'response': r_code})
                 else:
                     logger.warning("Webhook failed", extra={'uniq_id': incident.uniq_id, 'webhook': webhook_name, 'response': r_code})
             else:
-                fields = {'name': webhook_name, 'unit': webhook, 'admins': admins}
-
                 incident.chain_update(identifier, done=True, result=None)
                 logger.warning("Webhook undefined", extra={'uniq_id': incident.uniq_id, 'webhook': webhook_name})
 
-            text = text_template.form_notification(fields)
+            text = JinjaTemplate(chain_step_webhook[self.app.type.value]).form_notification(
+                **chain_template_context(self.app, incident, step)
+            )
             if self.app.type == MessengerType.TELEGRAM:
                 message = text
             else:
@@ -62,5 +57,5 @@ class StepHandler(BaseHandler):
                 message = header + '\n' + text
             await self.app.post_to_thread(incident.channel_id, incident.ts, message)
         else:
-            r_code = await self.app.notify(incident, step['name'], step['value'])
+            r_code = await self.app.notify(incident, step)
             incident.chain_update(identifier, done=True, result=r_code)

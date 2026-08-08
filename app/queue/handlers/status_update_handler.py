@@ -1,3 +1,4 @@
+from copy import deepcopy
 from datetime import datetime, timezone
 
 from app.logging import logger
@@ -19,7 +20,8 @@ class StatusUpdateHandler(BaseHandler):
         incident = self.incidents.uniq_ids.get(uniq_id)
         if incident is None:
             return
-            
+
+        previous_payload = deepcopy(incident.payload)
         new_status = incident.next_status[incident.status]
         status_updated = incident.update_status(new_status)
 
@@ -32,7 +34,8 @@ class StatusUpdateHandler(BaseHandler):
         if incident.status != 'deleted':
             await self.app.update(
                 incident, incident.status, incident.payload,
-                status_updated, incident.chain_enabled, incident.frozen_until, incident.task_link
+                status_updated, incident.chain_enabled, incident.frozen_until, incident.task_link,
+                previous_payload=previous_payload,
             )
 
         if incident.status == 'unknown':

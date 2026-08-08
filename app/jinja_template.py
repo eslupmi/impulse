@@ -1,4 +1,4 @@
-from typing import Optional, TYPE_CHECKING
+from typing import Dict, Iterable, Optional, TYPE_CHECKING
 
 from jinja2 import Template
 
@@ -19,10 +19,10 @@ class JinjaTemplate:
         incident_data = incident.serialize() if incident else {}
         return template.render(payload=alert_state, incident=incident_data, incidents=self._incidents)
 
-    def form_notification(self, fields):
-        """Render a notification template with provided fields."""
+    def form_notification(self, **kwargs):
+        """Render a thread notification template with the provided context kwargs."""
         template = Template(self.template)
-        return template.render(fields=fields)
+        return template.render(**kwargs)
 
     def render(self, **kwargs):
         """Generic render method for any template with provided kwargs."""
@@ -33,3 +33,18 @@ class JinjaTemplate:
     def set_incidents(cls, incidents: Optional['Incidents']):
         """Set incidents storage used to resolve parent/child incident objects in templates."""
         cls._incidents = incidents
+
+    @classmethod
+    def related_incidents(cls, uniq_ids: Iterable[str], skip: Optional[Iterable[str]] = None) -> Dict[str, 'Incident']:
+        """Resolve uniq_ids to live Incident objects from the shared incidents store."""
+        if cls._incidents is None:
+            return {}
+        skip_set = set(skip or ())
+        result = {}
+        for uniq_id in uniq_ids:
+            if uniq_id in skip_set:
+                continue
+            incident = cls._incidents.uniq_ids.get(uniq_id)
+            if incident is not None:
+                result[uniq_id] = incident
+        return result

@@ -1,5 +1,5 @@
-{%- if fields.assigned -%}
-update: assigned to <a href="tg://user?id={{ fields.id }}">{{ fields.full_name }}</a>
+{%- if incident.assigned_user_id -%}
+update: assigned to <a href="tg://user?id={{ incident.assigned_user_id }}">{{ incident.assigned_fullname }}</a>
 {%- else -%}
 update: unassigned
 {%- endif -%}

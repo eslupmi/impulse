@@ -1,10 +1,11 @@
-:bell: user **{{ fields.name -}}**
-{#--#}{%- if not fields.unit -%}
-{#-   #} ([NotDefined](https://docs.impulse.bot/stable/warnings/NotDefined/))  |  :bell: admins ({%- for a in fields.admins %}@{{ a }}{% if not loop.last %},{% endif %}{% endfor -%})
+{%- set unit = users.get(step.value) -%}
+:bell: user **{{ step.value -}}**
+{#--#}{%- if not unit -%}
+{#-   #} ([NotDefined](https://docs.impulse.bot/stable/warnings/NotDefined/))  |  :bell: admins ({%- for a in admins %}@{{ a.username }}{% if not loop.last %},{% endif %}{% endfor -%})
 {#--#}{%- else -%}
-{#-  -#}{%- if fields.unit.exists -%}
-{#-     #} (@{{ fields.unit.username }})
+{#-  -#}{%- if unit.exists -%}
+{#-     #} (@{{ unit.username }})
 {#-  -#}{%- else -%}
-{#      #} ([NotFound](https://docs.impulse.bot/stable/warnings/NotFound/))  |  :bell: admins ({%- for a in fields.admins %}@{{ a }}{% if not loop.last %},{% endif %}{% endfor -%})
+{#      #} ([NotFound](https://docs.impulse.bot/stable/warnings/NotFound/))  |  :bell: admins ({%- for a in admins %}@{{ a.username }}{% if not loop.last %},{% endif %}{% endfor -%})
 {#-  -#}{%- endif -%}
 {#--#}{%- endif -%}

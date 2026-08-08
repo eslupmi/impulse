@@ -14,6 +14,8 @@ from app.im.template import (
     chain_step_user, chain_step_user_group, chain_step_group,
     incident_notifications_assignment, incident_notifications_status_update,
     incident_notifications_freeze, incident_notifications_unfreeze,
+    chain_template_context, assignment_template_context, freeze_template_context,
+    status_update_template_context,
 )
 from app.im.user_groups import generate_user_groups
 from app.im.user_store import get_user_store, UserUpdateScheduler
@@ -60,6 +62,7 @@ class Application(ABC):
         self.user_groups = None
         self.groups = {}
         self.admin_users = None
+        self.webhooks = {}
 
         self._users_config = app_config.users
         self._user_groups_config = app_config.user_groups
@@ -167,20 +170,20 @@ class Application(ABC):
 
         return await self.task_management_integration.handle_button_press(incident, queue_)
 
-    async def handle_ui_assignment(self, incident, user_id, queue):
+    async def handle_ui_assignment(self, incident, user_id, queue, ui_user=None):
         str_user_id = str(user_id)
         if incident.assigned_user_id == str_user_id:
             return False
 
         await queue.delete_by_id(incident.uniq_id, delete_steps=True, delete_status=False)
         self.fetch_and_assign_user_name(incident, str_user_id)
-        self.track_async_task(asyncio.create_task(self.post_assignment_notification(incident)))
+        self.track_async_task(asyncio.create_task(self.post_assignment_notification(incident, ui_user=ui_user)))
         incident.chain_enabled = False
         incident.dump()
         await self.update_incident_message(incident)
         return True
 
-    async def handle_ui_unassign(self, incident, queue):
+    async def handle_ui_unassign(self, incident, queue, ui_user=None):
         if not incident.assigned_user_id:
             return False
 
@@ -189,21 +192,23 @@ class Application(ABC):
         incident.assigned_user = ""
         incident.assigned_fullname = ""
         incident.chain_enabled = True
-        self.track_async_task(asyncio.create_task(self.post_unassignment_notification(incident)))
+        self.track_async_task(asyncio.create_task(self.post_unassignment_notification(incident, ui_user=ui_user)))
         incident.dump()
         await self.update_incident_message(incident)
         return True
 
-    async def handle_ui_freeze(self, incident, freeze_option, user_id, incidents, queue, user_timezone=None):
-        await self._handle_freeze_action(incident, freeze_option, user_id, incidents, queue, user_timezone=user_timezone)
+    async def handle_ui_freeze(self, incident, freeze_option, user_id, incidents, queue, user_timezone=None, ui_user=None):
+        await self._handle_freeze_action(
+            incident, freeze_option, user_id, incidents, queue, user_timezone=user_timezone, ui_user=ui_user,
+        )
         await self.update_incident_message(incident)
 
     async def handle_ui_unfreeze(self, incident, queue):
         await self._handle_unfreeze_action(incident, '', queue)
 
-    async def handle_ui_release(self, incident):
+    async def handle_ui_release(self, incident, ui_user=None):
         incident.release()
-        self.track_async_task(asyncio.create_task(self.post_unassignment_notification(incident)))
+        self.track_async_task(asyncio.create_task(self.post_unassignment_notification(incident, ui_user=ui_user)))
         await self.update_incident_message(incident)
 
     async def initialize_async(self):
@@ -247,46 +252,37 @@ class Application(ABC):
     def _init_admin_users(self):
         return [self.users.get(admin) or UndefinedUser(admin) for admin in self._admin_users_config]
 
-    async def notify(self, incident, notify_type, identifier):
-        destinations = self.get_notification_destinations()
+    async def notify(self, incident, step):
         messenger = self.type.value
+        notify_type = step['name']
         if notify_type == 'user':
-            unit = self.users.get(identifier)
             text_template = JinjaTemplate(chain_step_user[messenger])
         elif notify_type == 'user_group':
-            unit = self.user_groups.get(identifier)
             text_template = JinjaTemplate(chain_step_user_group[messenger])
         elif notify_type == 'group':
-            unit = self.groups.get(identifier)
             text_template = JinjaTemplate(chain_step_group[messenger])
         else:
-            unit = None
             text_template = JinjaTemplate(chain_step_user_group[messenger])
-        fields = {'name': identifier, 'unit': unit, 'admins': destinations}
-        text = text_template.form_notification(fields)
+        text = text_template.form_notification(**chain_template_context(self, incident, step))
         _, header, _ = self.form_body_header_status_icons(incident)
         if self.type == MessengerType.TELEGRAM:
             message = text
         else:
             message = header + '\n' + text
         response_code = await self.post_to_thread(incident.channel_id, incident.ts, message)
-        logger.info(f'Chain step {notify_type} \'{identifier}\'', extra={'uniq_id': incident.uniq_id})
+        logger.info(f'Chain step {notify_type} \'{step["value"]}\'', extra={'uniq_id': incident.uniq_id})
         return response_code
 
-    async def post_assignment_notification(self, incident):
+    async def post_assignment_notification(self, incident, ui_user=None):
         config = get_config()
         if not config.incident.notifications.assignment or not incident.assigned_user_id:
             return
 
         try:
             header = self.header_template.form_message(incident.payload, incident)
-            fields = {
-                'assigned': True,
-                'full_name': incident.assigned_fullname,
-                'username': incident.assigned_user,
-                'id': incident.assigned_user_id
-            }
-            text = JinjaTemplate(incident_notifications_assignment[self.type.value]).form_notification(fields)
+            text = JinjaTemplate(incident_notifications_assignment[self.type.value]).form_notification(
+                **assignment_template_context(self, incident, ui_user)
+            )
             if self.type == MessengerType.TELEGRAM:
                 message = text
             else:
@@ -305,7 +301,7 @@ class Application(ABC):
         response.close()
         return status
 
-    async def post_unassignment_notification(self, incident_obj):
+    async def post_unassignment_notification(self, incident_obj, ui_user=None):
         config = get_config()
         if not config.incident.notifications.assignment:
             return
@@ -313,9 +309,9 @@ class Application(ABC):
         try:
             header = self.header_template.form_message(incident_obj.payload, incident_obj)
             text = JinjaTemplate(incident_notifications_assignment[self.type.value]).form_notification(
-                {'assigned': False}
+                **assignment_template_context(self, incident_obj, ui_user)
             )
-            if self.type.value == MessengerType.TELEGRAM:
+            if self.type == MessengerType.TELEGRAM:
                 message = text
             else:
                 message = header + '\n' + text
@@ -326,12 +322,14 @@ class Application(ABC):
         except Exception as e:
             logger.error(f'Failed to post unassignment notification for incident {incident_obj.uniq_id}: {e}')
 
-    async def post_freeze_notification(self, incident_: 'Incident'):
+    async def post_freeze_notification(self, incident_: 'Incident', ui_user=None):
         config = get_config()
         if not config.incident.notifications.freeze:
             return
 
-        text = JinjaTemplate(incident_notifications_freeze[self.type.value]).form_notification({})
+        text = JinjaTemplate(incident_notifications_freeze[self.type.value]).form_notification(
+            **freeze_template_context(incident_, ui_user)
+        )
         if self.type != MessengerType.TELEGRAM:
             header = self.header_template.form_message(incident_.payload, incident_)
             message = header + '\n' + text
@@ -340,8 +338,10 @@ class Application(ABC):
 
         await self.post_to_thread(incident_.channel_id, incident_.ts, message)
 
-    async def post_unfreeze_notification(self, incident_: 'Incident'):
-        text = JinjaTemplate(incident_notifications_unfreeze[self.type.value]).form_notification({})
+    async def post_unfreeze_notification(self, incident_: 'Incident', ui_user=None):
+        text = JinjaTemplate(incident_notifications_unfreeze[self.type.value]).form_notification(
+            **freeze_template_context(incident_, ui_user)
+        )
 
         if self.type != MessengerType.TELEGRAM:
             header = self.header_template.form_message(incident_.payload, incident_)
@@ -358,16 +358,16 @@ class Application(ABC):
         task.add_done_callback(self._async_tasks.discard)
 
     async def update(self, incident, incident_status, alert_state, updated_status, chain_enabled,
-                     frozen_until, task_link=''):
+                     frozen_until, task_link='', previous_payload=None):
         if not incident.is_frozen:
             await self.update_incident_message(incident)
 
             config = get_config()
             if updated_status and incident_status != 'closed' and config.incident.notifications.status_update:
                 text_template = JinjaTemplate(incident_notifications_status_update[self.type.value])
-                admins = self.get_notification_destinations()
-                fields = {'status': incident_status, 'admins': admins}
-                text = text_template.form_notification(fields)
+                text = text_template.form_notification(
+                    **status_update_template_context(self, incident, alert_state, previous_payload)
+                )
 
                 _, header, _ = self.form_body_header_status_icons(incident)
                 message = text if self.type == MessengerType.TELEGRAM else header + '\n' + text
@@ -494,7 +494,7 @@ class Application(ABC):
 
     async def _handle_freeze_action(
             self, incident_: 'Incident', freeze_option: str, user_id: str, incidents, queue_: 'AsyncQueue',
-            user_timezone: Optional[str] = None
+            user_timezone: Optional[str] = None, ui_user=None,
     ):
         logger.info(log_button_pressed, extra={'uniq_id': incident_.uniq_id, 'button': 'freeze', 'user_id': user_id})
 
@@ -504,7 +504,7 @@ class Application(ABC):
         self.fetch_and_assign_user_name(incident_, user_id, dump=False)
         cached_user = self.users.get_user_by_id(user_id)
         await self.apply_time_freeze(incident_, freeze_time, cached_user, queue_, source=FreezeSource.TIME)
-        await self.post_freeze_notification(incident_)
+        await self.post_freeze_notification(incident_, ui_user=ui_user)
 
     def _handle_task_action(self, incident_, user_id, queue_):
         logger.info(log_button_pressed, extra={'uniq_id': incident_.uniq_id, 'button': 'task', 'user_id': user_id})

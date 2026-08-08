@@ -61,6 +61,7 @@ async def create_main_objects(fastapi_app: FastAPI, reload=False):
     )
     await messenger.initialize_async()
     webhooks = generate_webhooks(webhooks_config)
+    messenger.webhooks = webhooks
 
     if reload:
         user_scheduler = fastapi_app.state.messenger._user_scheduler
