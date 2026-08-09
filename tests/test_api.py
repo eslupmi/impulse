@@ -115,15 +115,22 @@ class TestEntitySerialize:
 
     def test_webhook_serialize_preserves_url_template(self, monkeypatch):
         monkeypatch.setenv("WEBHOOK_HOST", "secret.example.com")
-        webhook = Webhook("https://{{ env.WEBHOOK_HOST }}/hook", auth="user:pass")
+        webhook = Webhook(
+            "https://{{ env.WEBHOOK_HOST }}/hook",
+            data={"token": "{{ env['TOKEN'] }}", "text": "hello"},
+            auth="user:pass",
+        )
 
         payload = webhook.serialize()
         assert payload == {
-            "data": None,
+            "data": {"token": "***", "text": "hello"},
             "json": None,
-            "url": "https://{{ env.WEBHOOK_HOST }}/hook",
+            "url": "https://***/hook",
         }
         assert list(payload) == sorted(payload)
+        assert "secret.example.com" not in str(payload)
+        assert "TOKEN" not in str(payload)
+        assert "auth" not in payload
 
     def test_user_store_serialize_matches_save_payload(self):
         updated_at = datetime(2026, 1, 2, 3, 4, 5, tzinfo=timezone.utc)
@@ -149,7 +156,7 @@ class TestEntitySerialize:
         users.add_user("U123", sample_user, config_name="alice")
         users.add_user("U999", stored_user)
 
-        assert users.serialize() == [sample_user.serialize()]
+        assert users.serialize() == {"alice": sample_user.serialize()}
         assert users.serialize_one("alice") == sample_user.serialize()
         assert users.serialize_one("U999") is None
 
@@ -192,7 +199,7 @@ class TestUsersApi:
     def test_list_users_configured_only(self, api_client, sample_user):
         response = api_client.get("/api/users")
         assert response.status_code == 200
-        assert response.json() == [sample_user.serialize()]
+        assert response.json() == {"alice": sample_user.serialize()}
 
     def test_get_user(self, api_client, sample_user):
         response = api_client.get("/api/users/alice")

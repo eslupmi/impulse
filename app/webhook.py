@@ -1,5 +1,6 @@
 import asyncio
 import os
+import re
 from typing import Dict
 
 import aiohttp
@@ -11,6 +12,8 @@ from app.config.validation import WebhookConfig
 from app.http_client.session import create_client_session
 from app.incident.incident import Incident
 from app.logging import logger
+
+_ENV_JINJA = re.compile(r'\{\{[^{}]*\benv\b[^{}]*\}\}')
 
 
 class Webhook:
@@ -126,10 +129,20 @@ class Webhook:
 
     def serialize(self):
         return {
-            'data': self._data,
-            'json': self._json_payload,
-            'url': self._url_template,
+            'data': self._omit_env(self._data),
+            'json': self._omit_env(self._json_payload),
+            'url': self._omit_env(self._url_template),
         }
+
+    @staticmethod
+    def _omit_env(value):
+        if isinstance(value, str):
+            return _ENV_JINJA.sub('***', value)
+        if isinstance(value, dict):
+            return {key: Webhook._omit_env(item) for key, item in value.items()}
+        if isinstance(value, list):
+            return [Webhook._omit_env(item) for item in value]
+        return value
 
     @staticmethod
     def render(custom_string, **kwargs):

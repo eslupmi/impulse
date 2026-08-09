@@ -100,13 +100,13 @@ class UserManager:
             return user.timezone
         return None
 
-    def serialize(self) -> List[Dict]:
-        result = []
+    def serialize(self) -> Dict[str, Dict]:
+        result = {}
         for config_name in sorted(self._config_names):
             user = self._users.get(self._config_names[config_name])
             if user is None:
                 continue
-            result.append(user.serialize())
+            result[config_name] = user.serialize()
         return result
 
     def serialize_one(self, name: str) -> Optional[Dict]:

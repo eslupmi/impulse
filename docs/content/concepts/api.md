@@ -47,7 +47,7 @@ Get current processing queue state.
 
 ## Storage read API
 
-Read-only endpoints under `/api` return the same payloads as each entity's `serialize()` method. Collection keys match path identifiers (`uniq_id` for incidents; config names or resource names for groups, user groups, and webhooks). `/api/users` returns a list of configured users.
+Read-only endpoints under `/api` return the same payloads as each entity's `serialize()` method. Collection keys match path identifiers (`uniq_id` for incidents; config names for groups, users, user groups, and webhooks).
 
 ### HTTP `/api/incidents` [GET]
 
@@ -77,7 +77,7 @@ Get one group by config name.
 
 ### HTTP `/api/users` [GET]
 
-Get configured users only as a list of messenger-specific `User.serialize()` payloads. Runtime/UserStore-only users are omitted. `messenger_type` is not included.
+Get configured users only as `{config_name: User.serialize()}`. Runtime/UserStore-only users are omitted. `messenger_type` is not included.
 
 - Slack / Mattermost: `email`, `full_name`, `id` (string), `name`, `timezone`, `username`
 - Telegram: `full_name`, `id` (int), `name`, `username`
@@ -106,7 +106,7 @@ Get one user group by name.
 
 ### HTTP `/api/webhooks` [GET]
 
-Get all webhooks. Returns `{name: webhook.serialize()}` without authentication credentials (`data`, `json`, `url`). URL templates are returned without environment rendering.
+Get all webhooks. Returns `{name: webhook.serialize()}` without authentication credentials (`data`, `json`, `url`). URL/body templates are returned without environment rendering; Jinja expressions that reference `env` are replaced with `***`.
 
 ### HTTP `/api/webhooks/{webhook_name}` [GET]
 
