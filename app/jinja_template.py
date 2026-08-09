@@ -35,11 +35,9 @@ class JinjaTemplate:
         cls._incidents = incidents
 
     @classmethod
-    def related_incidents(cls, uniq_ids: Iterable[str], skip: Optional[Iterable[str]] = None) -> Dict[str, 'Incident']:
+    def related_incidents(cls, uniq_ids: Iterable[str], skip: Iterable[str] = ()) -> Dict[str, 'Incident']:
         """Resolve uniq_ids to live Incident objects from the shared incidents store."""
-        if cls._incidents is None:
-            return {}
-        skip_set = set(skip or ())
+        skip_set = set(skip)
         result = {}
         for uniq_id in uniq_ids:
             if uniq_id in skip_set:

@@ -24,13 +24,13 @@ def template_users(messenger) -> dict:
     """Config-name → user map for templates. Missing lookups stay None (NotDefined)."""
     return {
         config_name: messenger.users.get(config_name)
-        for config_name in (messenger._users_config or {})
+        for config_name in messenger._users_config
     }
 
 
 def template_admins(messenger) -> list:
     """Users from messenger.admin_users (config admin_users), not config roles."""
-    return list(messenger.admin_users or [])
+    return list(messenger.admin_users)
 
 
 def chain_template_context(messenger, incident: 'Incident', step: dict) -> dict:
@@ -39,9 +39,9 @@ def chain_template_context(messenger, incident: 'Incident', step: dict) -> dict:
         'incident': incident.serialize(),
         'users': template_users(messenger),
         'admins': template_admins(messenger),
-        'user_groups': messenger.user_groups or {},
-        'groups': messenger.groups or {},
-        'webhooks': messenger.webhooks or {},
+        'user_groups': messenger.user_groups,
+        'groups': messenger.groups,
+        'webhooks': messenger.webhooks,
     }
 
 
