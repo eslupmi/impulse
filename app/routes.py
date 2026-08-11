@@ -7,6 +7,7 @@ from fastapi.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+from app.api.router import create_api_router
 from app.config.config import get_config, reload_config
 from app.logging import logger
 from app.maintenance.api import removed_windows, windows_from_ws_payload
@@ -464,5 +465,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
         except Exception as e:
             logger.error("WebSocket error", extra={'error': str(e)})
             incident_ws.disconnect(websocket)
+
+    router.include_router(create_api_router())
 
     return router

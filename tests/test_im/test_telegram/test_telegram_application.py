@@ -108,10 +108,8 @@ class TestTelegramApplication:
 
     @pytest.fixture
     def users(self):
-        """Create mock users configuration."""
-        user1 = Mock(spec=TelegramUser)
-        user1.id = 123456789
-        return {"admin1": user1}
+        """Create users configuration."""
+        return {"admin1": TelegramUser(id=123456789)}
 
     def test_telegram_application_initialization(self, app_config, channels, users):
         """Test TelegramApplication initialization."""

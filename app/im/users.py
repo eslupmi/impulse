@@ -22,6 +22,11 @@ class BaseUser(ABC):
         """Return the platform-specific identifier used for mentions/notifications."""
         pass
 
+    @abstractmethod
+    def serialize(self) -> Dict:
+        """Return the messenger-specific API payload for this user."""
+        pass
+
 
 class UndefinedUser(BaseUser):
     def __init__(self, name: str):
@@ -30,6 +35,14 @@ class UndefinedUser(BaseUser):
     
     def get_notification_identifier(self):
         return None
+
+    def serialize(self) -> Dict:
+        return {
+            'full_name': None,
+            'id': None,
+            'name': self.name,
+            'username': None,
+        }
 
 
 class UserManager:
@@ -86,13 +99,38 @@ class UserManager:
         if user and user.timezone:
             return user.timezone
         return None
+
+    def serialize(self) -> Dict[str, Dict]:
+        result = {}
+        for config_name in sorted(self._config_names):
+            user = self._users.get(self._config_names[config_name])
+            if user is None:
+                continue
+            result[config_name] = user.serialize()
+        return result
+
+    def serialize_one(self, name: str) -> Optional[Dict]:
+        user_id = self._config_names.get(name)
+        if user_id is None:
+            return None
+        user = self._users.get(user_id)
+        if user is None:
+            return None
+        return user.serialize()
     
     ### PRIVATE METHODS ###
 
     def _resolve_user(self, name: str) -> BaseUser:
         """Resolve a name to a user, checking config names first, then user_ids."""
+        user_id = self._resolve_user_id(name)
+        if user_id is None:
+            return UndefinedUser(name)
+        return self._users.get(user_id, UndefinedUser(name))
+
+    def _resolve_user_id(self, name: str) -> Optional[str]:
         if name in self._config_names:
-            user_id = self._config_names[name]
-            user = self._users.get(user_id)
-            return user if user else UndefinedUser(name)
-        return UndefinedUser(name)
+            return self._config_names[name]
+        str_name = str(name)
+        if str_name in self._users:
+            return str_name
+        return None

@@ -3,11 +3,9 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from app.config.config import get_config
-from app.config.environment import get_environment_config
 from app.config.validation import MessengerType
 from app.signals import setup_sighup_handler
 from app.file_lock import FileLock
-from app.routes import create_router
 from app.im.channel_manager import ChannelManager
 from app.im.helpers import get_application
 from app.im.user_store import UserUpdateScheduler
@@ -131,11 +129,6 @@ async def _cleanup_application_objects(fastapi_app: FastAPI, reload = False):
 @asynccontextmanager
 async def lifespan(fastapi_app: FastAPI):
     setup_sighup_handler(fastapi_app, create_main_objects, _cleanup_application_objects)
-
-    env_config = get_environment_config()
-    http_prefix = env_config.http_prefix
-    router = create_router(http_prefix, fastapi_app)
-    fastapi_app.include_router(router)
 
     file_lock = FileLock()
     shutdown_event = asyncio.Event()
