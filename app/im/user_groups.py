@@ -20,3 +20,8 @@ class UserGroup:
     def __init__(self, name, users):
         self.name = name
         self.users = users
+
+    def serialize(self):
+        return {
+            'users': [u.name for u in self.users],
+        }

@@ -94,7 +94,6 @@ class TelegramApplication(Application):
             exists=user_details.get('exists', False),
             full_name=user_details.get('full_name'),
             username=user_details.get('username'),
-            roles=user_details.get('roles', []),
         )
 
     async def get_all_groups(self):

@@ -154,6 +154,20 @@ class TestTelegramUser:
         """Test that Telegram user returns ID for notifications."""
         user = TelegramUser("John Doe", id_=12345)
         assert user.get_notification_identifier() == 12345
+
+    def test_telegram_user_serialize(self):
+        user = TelegramUser("john", id_="12345", exists=True, full_name="John Doe", username="johnny")
+        payload = user.serialize()
+        assert payload == {
+            "exists": True,
+            "full_name": "John Doe",
+            "id": 12345,
+            "name": "john",
+            "roles": [],
+            "username": "johnny",
+        }
+        assert isinstance(payload["id"], int)
+        assert list(payload) == sorted(payload)
     
     def test_telegram_user_repr(self):
         """Test string representation of Telegram user."""
@@ -181,6 +195,30 @@ class TestSlackUser:
         """Test that Slack user returns ID for notifications."""
         user = SlackUser("Jane Smith", id_="U12345")
         assert user.get_notification_identifier() == "U12345"
+
+    def test_slack_user_serialize(self):
+        user = SlackUser(
+            "jane",
+            id_="U12345",
+            exists=True,
+            full_name="Jane Smith",
+            username="jane",
+            email="jane@example.com",
+            timezone_="America/New_York",
+        )
+        payload = user.serialize()
+        assert payload == {
+            "email": "jane@example.com",
+            "exists": True,
+            "full_name": "Jane Smith",
+            "id": "U12345",
+            "name": "jane",
+            "roles": [],
+            "timezone": "America/New_York",
+            "username": "jane",
+        }
+        assert isinstance(payload["id"], str)
+        assert list(payload) == sorted(payload)
     
     def test_slack_user_repr(self):
         """Test string representation of Slack user."""
@@ -209,6 +247,30 @@ class TestMattermostUser:
         """Test that Mattermost user returns username for notifications."""
         user = MattermostUser("Bob Johnson", id_="abc123", username="bjohnson")
         assert user.get_notification_identifier() == "bjohnson"
+
+    def test_mattermost_user_serialize(self):
+        user = MattermostUser(
+            "bob",
+            id_="abc123",
+            username="bjohnson",
+            exists=True,
+            full_name="Bob Johnson",
+            email="bob@example.com",
+            timezone_="UTC",
+        )
+        payload = user.serialize()
+        assert payload == {
+            "email": "bob@example.com",
+            "exists": True,
+            "full_name": "Bob Johnson",
+            "id": "abc123",
+            "name": "bob",
+            "roles": [],
+            "timezone": "UTC",
+            "username": "bjohnson",
+        }
+        assert isinstance(payload["id"], str)
+        assert list(payload) == sorted(payload)
     
     def test_mattermost_user_repr(self):
         """Test string representation of Mattermost user."""

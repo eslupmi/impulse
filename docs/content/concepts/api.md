@@ -45,6 +45,78 @@ Prometheus metrics endpoint. Returns metrics in Prometheus format for monitoring
 
 Get current processing queue state.
 
+## Storage read API
+
+Read-only endpoints under `/api` return the same payloads as each entity's `serialize()` method. Collection keys match path identifiers (`uniq_id` for incidents; config names for groups, users, user groups, and webhooks).
+
+### HTTP `/api/incidents` [GET]
+
+Get all incidents. Returns `{uniq_id: incident.serialize()}`.
+
+### HTTP `/api/incidents/{uniq_id}` [GET]
+
+Get one incident by `uniq_id`.
+
+**Responses:**
+
+- `200 OK` - Incident payload
+- `404 Not Found` - Incident not found
+
+### HTTP `/api/groups` [GET]
+
+Get all messenger groups. Returns `{config_name: group.serialize()}` (`exists`, `id`).
+
+### HTTP `/api/groups/{group_name}` [GET]
+
+Get one group by config name.
+
+**Responses:**
+
+- `200 OK` - Group payload
+- `404 Not Found` - Group not found
+
+### HTTP `/api/users` [GET]
+
+Get configured users only as `{config_name: User.serialize()}`. Runtime/UserStore-only users are omitted. `messenger_type` is not included. `roles` is runtime-only (`["admin"]` when the user is listed in `admin_users`); it is not stored in config or on disk.
+
+- Slack / Mattermost: `email`, `exists`, `full_name`, `id` (string), `name`, `roles`, `timezone`, `username`
+- Telegram: `exists`, `full_name`, `id` (int), `name`, `roles`, `username`
+
+### HTTP `/api/users/{user_name}` [GET]
+
+Get one configured user by config name.
+
+**Responses:**
+
+- `200 OK` - User payload
+- `404 Not Found` - User not found
+
+### HTTP `/api/user_groups` [GET]
+
+Get all user groups. Returns `{name: user_group.serialize()}` (`users`).
+
+### HTTP `/api/user_groups/{user_group_name}` [GET]
+
+Get one user group by name.
+
+**Responses:**
+
+- `200 OK` - User group payload
+- `404 Not Found` - User group not found
+
+### HTTP `/api/webhooks` [GET]
+
+Get all webhooks. Returns `{name: webhook.serialize()}` without authentication credentials (`data`, `json`, `url`). URL/body templates are returned without environment rendering; Jinja expressions that reference `env` are replaced with `***`.
+
+### HTTP `/api/webhooks/{webhook_name}` [GET]
+
+Get one webhook by name.
+
+**Responses:**
+
+- `200 OK` - Webhook payload
+- `404 Not Found` - Webhook not found
+
 ### WebSocket `/ws`
 
 WebSocket connection for receiving real-time incident updates.

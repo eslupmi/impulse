@@ -293,7 +293,7 @@ class Incident:
             if not f.metadata.get('runtime')
         }
         data.update({name: getattr(self, name) for name in self._COMPUTED_SERIALIZABLE})
-        return data
+        return dict(sorted(data.items()))
 
     def dump(self):
         path = self.get_current_filename()
