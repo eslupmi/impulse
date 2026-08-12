@@ -63,8 +63,8 @@ class NullApplication(Application):
     async def update_incident_message(self, incident):
         return
 
-    async def update(self, incident, incident_status, alert_state, updated_status, chain_enabled, status_enabled,
-                     task_link='', previous_payload=None):
+    async def update(self, incident, incident_status, alert_state, updated_status, chain_enabled,
+                     frozen_until, task_link='', previous_payload=None):
         return
 
     async def new_version_notification(self, channel_id, new_tag):

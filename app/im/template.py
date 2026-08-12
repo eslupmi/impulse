@@ -29,7 +29,7 @@ def template_users(messenger) -> dict:
 
 
 def template_admins(messenger) -> list:
-    """Users from messenger.admin_users (config admin_users), not config roles."""
+    """Users from messenger.admin_users (config admin_users)."""
     return list(messenger.admin_users)
 
 
