@@ -162,7 +162,6 @@ class TestTelegramUser:
             "exists": True,
             "full_name": "John Doe",
             "id": 12345,
-            "name": "john",
             "roles": [],
             "username": "johnny",
         }
@@ -212,7 +211,6 @@ class TestSlackUser:
             "exists": True,
             "full_name": "Jane Smith",
             "id": "U12345",
-            "name": "jane",
             "roles": [],
             "timezone": "America/New_York",
             "username": "jane",
@@ -264,7 +262,6 @@ class TestMattermostUser:
             "exists": True,
             "full_name": "Bob Johnson",
             "id": "abc123",
-            "name": "bob",
             "roles": [],
             "timezone": "UTC",
             "username": "bjohnson",

@@ -42,7 +42,6 @@ class UndefinedUser(BaseUser):
             'exists': self.exists,
             'full_name': None,
             'id': None,
-            'name': self.name,
             'roles': list(self.roles),
             'username': None,
         }

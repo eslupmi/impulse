@@ -25,7 +25,6 @@ class User(BaseUser):
             'exists': self.exists,
             'full_name': self.full_name,
             'id': self.id,
-            'name': self.name,
             'roles': list(self.roles),
             'username': self.username,
         }

@@ -79,8 +79,8 @@ Get one group by config name.
 
 Get configured users only as `{config_name: User.serialize()}`. Runtime/UserStore-only users are omitted. `messenger_type` is not included. `roles` is runtime-only (`["admin"]` when the user is listed in `admin_users`); it is not stored in config or on disk.
 
-- Slack / Mattermost: `email`, `exists`, `full_name`, `id` (string), `name`, `roles`, `timezone`, `username`
-- Telegram: `exists`, `full_name`, `id` (int), `name`, `roles`, `username`
+- Slack / Mattermost: `email`, `exists`, `full_name`, `id` (string), `roles`, `timezone`, `username`
+- Telegram: `exists`, `full_name`, `id` (int), `roles`, `username`
 
 ### HTTP `/api/users/{user_name}` [GET]
 

@@ -93,7 +93,6 @@ class TestEntitySerialize:
             "exists": True,
             "full_name": "Alice",
             "id": "U123",
-            "name": "alice",
             "roles": [],
             "timezone": None,
             "username": "alice",
