@@ -1,25 +1,11 @@
-{%- set unit = user_groups.get(step.value) -%}
-{%- set undefined_users = [] -%}
 {%- set absent_users = [] -%}
-{%- if unit -%}
-{%- for u in unit.users -%}
-{%-   if not u.defined -%}
-{%-     set _ = undefined_users.append(u.name) -%}
-{%-   elif not u.exists -%}
-{%-     set _ = absent_users.append(u.name) -%}
+{%- for name in user_groups.get(step.value).users -%}
+{%-   set u = users.get(name) -%}
+{%-   if not u or not u.exists -%}
+{%-     set _ = absent_users.append(name) -%}
 {%-   endif -%}
 {%- endfor -%}
-{%- endif -%}
-{%- set existing_users = [] -%}
-{%- if unit -%}
-{%- for u in unit.users if u.exists %}{% set _ = existing_users.append(u) %}{% endfor -%}
-{%- endif -%}
 🔔 user_group <b>{{ step.value }}</b>
-{#--#}{%- if not unit -%}
-{#-   #} (<a href="https://docs.impulse.bot/stable/warnings/NotDefined/">NotDefined</a>)  |  🔔 admins ({%- for a in admins %}<a href="tg://user?id={{ a.id }}">{{ a.name }}</a>{% if not loop.last %},{% endif %}{% endfor -%})
-{#--#}{%- else -%}
-{#-   #} ({%- for u in existing_users %}<a href="tg://user?id={{ u.id }}">{{ u.name }}</a>{% if not loop.last %}, {% endif %}{% endfor -%})
-{#-  -#}{% if absent_users | length > 0 %}  |  {% for u in absent_users %}<b>{{ u }}</b> (<a href="https://docs.impulse.bot/stable/warnings/NotFound/">NotFound</a>){% if not loop.last %}, {% endif %}{% endfor %}{% endif %}
-{#-  -#}{% if undefined_users | length > 0 %}  |  {% for u in undefined_users %}<b>{{ u }}</b> (<a href="https://docs.impulse.bot/stable/warnings/NotDefined/">NotDefined</a>){% if not loop.last %}, {% endif %}{% endfor %}{% endif %}
-{#-  -#}{% if absent_users | length > 0 or undefined_users | length > 0 %}  |  🔔 admins ({%- for a in admins %}<a href="tg://user?id={{ a.id }}">{{ a.name }}</a>{% if not loop.last %},{% endif %}{% endfor -%}){% endif -%}
-{#--#}{%- endif -%}
+ ({%- for name in user_groups.get(step.value).users %}{%- set u = users.get(name) %}{%- if u and u.exists %}<a href="tg://user?id={{ u.id }}">{{ u.name }}</a>{% if not loop.last %}, {% endif %}{%- endif %}{%- endfor -%})
+{% if absent_users | length > 0 %}  |  {% for u in absent_users %}<b>{{ u }}</b> (<a href="https://docs.impulse.bot/stable/warnings/NotFound/">NotFound</a>){% if not loop.last %}, {% endif %}{% endfor %}{% endif %}
+{% if absent_users | length > 0 %}  |  🔔 admins ({%- for u in users.values() if u and 'admin' in u.roles %}<a href="tg://user?id={{ u.id }}">{{ u.name }}</a>{% if not loop.last %},{% endif %}{% endfor -%}){% endif -%}

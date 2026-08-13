@@ -1,11 +1,7 @@
-{%- set unit = users.get(step.value) -%}
+{%- set user = users.get(step.value) -%}
 :bell: user **{{ step.value -}}**
-{#--#}{%- if not unit -%}
-{#-   #} ([NotDefined](https://docs.impulse.bot/stable/warnings/NotDefined/))  |  :bell: admins ({%- for a in admins %}@{{ a.username }}{% if not loop.last %},{% endif %}{% endfor -%})
-{#--#}{%- else -%}
-{#-  -#}{%- if unit.exists -%}
-{#-     #} (@{{ unit.username }})
-{#-  -#}{%- else -%}
-{#      #} ([NotFound](https://docs.impulse.bot/stable/warnings/NotFound/))  |  :bell: admins ({%- for a in admins %}@{{ a.username }}{% if not loop.last %},{% endif %}{% endfor -%})
-{#-  -#}{%- endif -%}
-{#--#}{%- endif -%}
+{%- if user.exists -%}
+ (@{{ user.username }})
+{%- else -%}
+ ([NotFound](https://docs.impulse.bot/stable/warnings/NotFound/))  |  :bell: admins ({%- for u in users.values() if u and 'admin' in u.roles %}@{{ u.username }}{% if not loop.last %},{% endif %}{% endfor -%})
+{%- endif -%}

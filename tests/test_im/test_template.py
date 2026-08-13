@@ -50,7 +50,6 @@ class TestThreadTemplates:
             step={'name': 'user', 'value': 'alice'},
             incident={},
             users={'alice': Unit()},
-            admins=[],
             user_groups={},
             groups={},
             webhooks={},
@@ -58,20 +57,20 @@ class TestThreadTemplates:
         assert 'alice' in text
         assert '<@U1>' in text
 
-    def test_chain_step_user_not_defined_when_missing(self):
+    def test_chain_step_user_not_found_when_missing(self):
         class Admin:
             id = 'A1'
+            roles = ['admin']
 
         text = JinjaTemplate(template.chain_step_user['slack']).form_notification(
             step={'name': 'user', 'value': 'missing'},
             incident={},
-            users={},
-            admins=[Admin()],
+            users={'admin': Admin()},
             user_groups={},
             groups={},
             webhooks={},
         )
-        assert 'NotDefined' in text
+        assert 'NotFound' in text
         assert '<@A1>' in text
 
     def test_status_update_template_uses_incident_status(self):
@@ -80,20 +79,20 @@ class TestThreadTemplates:
             previous_payload={},
             incident={'status': 'firing'},
             users={},
-            admins=[],
         )
         assert 'firing' in text
 
     def test_status_update_unknown_pings_admins(self):
         class Admin:
             id = 'A1'
+            name = 'Admin'
+            roles = ['admin']
 
         text = JinjaTemplate(template.incident_notifications_status_update['slack']).form_notification(
             payload={},
             previous_payload={},
             incident={'status': 'unknown'},
-            users={},
-            admins=[Admin()],
+            users={'admin': Admin()},
         )
         assert 'unknown' in text
         assert '<@A1>' in text

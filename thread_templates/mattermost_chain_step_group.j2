@@ -1,9 +1,7 @@
-{%- set unit = groups.get(step.value) -%}
+{%- set group = groups.get(step.value) -%}
 :bell: group **{{ step.value }}**
-{#--#}{%- if not unit -%}
-{#-   #} ([NotDefined](https://docs.impulse.bot/stable/warnings/NotDefined/))  |  :bell: admins ({%- for a in admins %}@{{ a.username }}{% if not loop.last %},{% endif %}{% endfor -%})
-{#--#}{%- elif not unit.exists -%}
-{#-   #} ([NotFound](https://docs.impulse.bot/stable/warnings/NotFound/))  |  :bell: admins ({%- for a in admins %}@{{ a.username }}{% if not loop.last %},{% endif %}{% endfor -%})
-{#--#}{%- else -%}
-{#-     #} (@{{ unit.name }})
-{#--#}{%- endif -%}
+{%- if not group.exists -%}
+ ([NotFound](https://docs.impulse.bot/stable/warnings/NotFound/))  |  :bell: admins ({%- for u in users.values() if u and 'admin' in u.roles %}@{{ u.username }}{% if not loop.last %},{% endif %}{% endfor -%})
+{%- else -%}
+ (@{{ group.name }})
+{%- endif -%}

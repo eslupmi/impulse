@@ -1,11 +1,7 @@
-{%- set unit = users.get(step.value) -%}
+{%- set user = users.get(step.value) -%}
 :loudspeaker: user *{{ step.value -}}*
-{#--#}{%- if not unit -%}
-{#-   #} (<https://docs.impulse.bot/stable/warnings/NotDefined/|NotDefined>)  |  :loudspeaker: admins ({%- for a in admins %}<@{{ a.id }}>{% if not loop.last %},{% endif %}{% endfor -%})
-{#--#}{%- else -%}
-{#-  -#}{%- if unit.exists -%}
-{#-     #} (<@{{ unit.id }}>)
-{#-  -#}{%- else -%}
-{#      #} (<https://docs.impulse.bot/stable/warnings/NotFound/|NotFound>)  |  :loudspeaker: admins ({%- for a in admins %}<@{{ a.id }}>{% if not loop.last %},{% endif %}{% endfor -%})
-{#-  -#}{%- endif -%}
-{#--#}{%- endif -%}
+{%- if user.exists -%}
+ (<@{{ user.id }}>)
+{%- else -%}
+ (<https://docs.impulse.bot/stable/warnings/NotFound/|NotFound>)  |  :loudspeaker: admins ({%- for u in users.values() if u and 'admin' in u.roles %}<@{{ u.id }}>{% if not loop.last %},{% endif %}{% endfor -%})
+{%- endif -%}

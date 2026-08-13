@@ -1,11 +1,7 @@
-{%- set unit = users.get(step.value) -%}
+{%- set user = users.get(step.value) -%}
 🔔 user
-{#--#}{%- if not unit -%}
-{#-   #} <b>{{ step.value }}</b> (<a href="https://docs.impulse.bot/stable/warnings/NotDefined/">NotDefined</a>)  |  🔔 admins ({%- for a in admins %}<a href="tg://user?id={{ a.id }}">{{ a.name }}</a>{% if not loop.last %},{% endif %}{% endfor -%})
-{#--#}{%- else -%}
-{#-  -#}{%- if unit.exists -%}
-{#-     #} <b><a href="tg://user?id={{ unit.id }}">{{ step.value }}</a></b>
-{#-  -#}{%- else -%}
-{#      #} <b>{{ step.value }}</b> (<a href="https://docs.impulse.bot/stable/warnings/NotFound/">NotFound</a>)  |  🔔 admins ({%- for a in admins %}<a href="tg://user?id={{ a.id }}">{{ a.name }}</a>{% if not loop.last %},{% endif %}{% endfor -%})
-{#-  -#}{%- endif -%}
-{#--#}{%- endif -%}
+{%- if user.exists -%}
+ <b><a href="tg://user?id={{ user.id }}">{{ step.value }}</a></b>
+{%- else -%}
+ <b>{{ step.value }}</b> (<a href="https://docs.impulse.bot/stable/warnings/NotFound/">NotFound</a>)  |  🔔 admins ({%- for u in users.values() if u and 'admin' in u.roles %}<a href="tg://user?id={{ u.id }}">{{ u.name }}</a>{% if not loop.last %},{% endif %}{% endfor -%})
+{%- endif -%}
