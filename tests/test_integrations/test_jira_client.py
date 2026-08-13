@@ -36,14 +36,26 @@ class TestJiraClient:
         expected_token = base64.b64encode(expected_credentials.encode()).decode('ascii')
         assert jira_client._auth_token == expected_token
     
-    def test_initialization_strips_trailing_slash(self):
-        """Test that base_url trailing slash is stripped"""
+    @pytest.mark.asyncio
+    async def test_create_issue_url_ignores_trailing_slash(self):
         client = JiraClient(
             base_url="https://test.atlassian.net/",
             user_email="test@example.com",
             api_token="token"
         )
-        assert client.base_url == "https://test.atlassian.net"
+        mock_response = AsyncMock()
+        mock_response.status = 201
+        mock_response.json = AsyncMock(return_value={"key": "DTS-123"})
+        mock_http_client = AsyncMock()
+        mock_http_client.post = AsyncMock(return_value=mock_response)
+        mock_http_client._initialize_client = Mock()
+        client._http_client = mock_http_client
+
+        result = await client.create_issue("DTS", "Test Issue", "Test Description")
+
+        assert result["url"] == "https://test.atlassian.net/browse/DTS-123"
+        mock_http_client.post.assert_called_once()
+        assert mock_http_client.post.call_args.args[0] == "https://test.atlassian.net/rest/api/2/issue"
     
     def test_get_auth_headers(self, jira_client):
         """Test _get_auth_headers returns correct format"""

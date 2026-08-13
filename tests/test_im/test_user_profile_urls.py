@@ -8,19 +8,21 @@ from app.im.telegram.user import User as TelegramUser
 
 def test_slack_user_profile_url():
     app = SlackApplication.__new__(SlackApplication)
-    app.public_url = "https://example.slack.com/"
     user = SlackUser("alice", "U123", exists=True, full_name="Alice", username="alice")
 
-    assert app._build_user_profile_url("U123", user) == "https://example.slack.com/team/U123"
+    for public_url in ("https://example.slack.com", "https://example.slack.com/"):
+        app.public_url = public_url
+        assert app._build_user_profile_url("U123", user) == "https://example.slack.com/team/U123"
 
 
 def test_mattermost_user_profile_url():
     app = MattermostApplication.__new__(MattermostApplication)
-    app.public_url = "https://mm.example.com"
     app.team = "team1"
     user = MattermostUser("alice", "U123", username="alice", exists=True, full_name="Alice")
 
-    assert app._build_user_profile_url("U123", user) == "https://mm.example.com/team1/users/U123"
+    for public_url in ("https://mm.example.com", "https://mm.example.com/"):
+        app.public_url = public_url
+        assert app._build_user_profile_url("U123", user) == "https://mm.example.com/team1/users/U123"
 
 
 def test_telegram_user_profile_url_with_username():

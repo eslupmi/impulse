@@ -3,6 +3,7 @@ from app.config.environment import get_environment_config
 from app.im.colors import status_colors
 from app.im.mattermost.config import buttons
 from app.time import format_freeze_expiration
+from app.utils import join_url
 
 
 def mattermost_get_button_update_payload(incident, body, header, status_icons, user_timezone='UTC'):
@@ -77,6 +78,7 @@ def _build_mattermost_actions(incident, user_timezone='UTC'):
 
     config = get_config()
     env_config = get_environment_config()
+    callback_url = join_url(config.messenger.impulse_address, "app")
     
     chain_text, chain_style = _chain_attrs(incident.chain_enabled, incident.status)
     if incident.frozen_by_inhibition:
@@ -88,7 +90,7 @@ def _build_mattermost_actions(incident, user_timezone='UTC'):
         "name": chain_text,
         "style": chain_style,
         "integration": {
-            "url": f"{config.messenger.impulse_address}/app",
+            "url": callback_url,
             "context": {
                 "action": "chain"
             }
@@ -103,7 +105,7 @@ def _build_mattermost_actions(incident, user_timezone='UTC'):
             "name": freeze_text,
             "style": buttons['freeze']['inhibited']['style'],
             "integration": {
-                "url": f"{config.messenger.impulse_address}/app",
+                "url": callback_url,
                 "context": {
                     "action": "noop"
                 }
@@ -116,7 +118,7 @@ def _build_mattermost_actions(incident, user_timezone='UTC'):
             "name": buttons['freeze']['inhibited']['text'],
             "style": buttons['freeze']['inhibited']['style'],
             "integration": {
-                "url": f"{config.messenger.impulse_address}/app",
+                "url": callback_url,
                 "context": {
                     "action": "noop"
                 }
@@ -130,7 +132,7 @@ def _build_mattermost_actions(incident, user_timezone='UTC'):
             "name": freeze_text,
             "style": buttons['freeze']['inactive']['style'],
             "integration": {
-                "url": f"{config.messenger.impulse_address}/app",
+                "url": callback_url,
                 "context": {
                     "action": "unfreeze"
                 }
@@ -149,7 +151,7 @@ def _build_mattermost_actions(incident, user_timezone='UTC'):
             "name": freeze_text,
             "style": buttons['freeze']['inactive']['style'],
             "integration": {
-                "url": f"{config.messenger.impulse_address}/app",
+                "url": callback_url,
                 "context": {}
             },
             "options": freeze_options
@@ -162,7 +164,7 @@ def _build_mattermost_actions(incident, user_timezone='UTC'):
             "name": buttons['task']['create']['text'],
             "style": buttons['task']['create']['style'],
             "integration": {
-                "url": f"{config.messenger.impulse_address}/app",
+                "url": callback_url,
                 "context": {
                     "action": "task"
                 }

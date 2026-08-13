@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 from app.config.environment import get_environment_config
 from app.config.validation import ApplicationConfig
 from app.im.application import Application
+from app.utils import join_url
 from app.im.mattermost.threads import mattermost_get_button_update_payload, \
     mattermost_get_update_payload, mattermost_get_create_thread_payload
 from app.im.mattermost.user import User
@@ -78,7 +79,7 @@ class MattermostApplication(Application):
         
         try:
             response = await self.http.get(
-                f'{self.url}/api/v4/groups/{group_id}',
+                join_url(self.url, f'api/v4/groups/{group_id}'),
                 headers=self.headers
             )
             try:
@@ -101,7 +102,10 @@ class MattermostApplication(Application):
 
     async def get_user_details(self, user_details):
         id_ = user_details.get('id')
-        response = await self.http.get(f'{self.url}/api/v4/users/{id_}?user_id={id_}', headers=self.headers)
+        response = await self.http.get(
+            join_url(self.url, f'api/v4/users/{id_}?user_id={id_}'),
+            headers=self.headers
+        )
 
         if response.status == 404:
             logger.debug("User not found", extra={'user_id': id_})
@@ -180,8 +184,7 @@ class MattermostApplication(Application):
         return app_config.address
 
     def _build_user_profile_url(self, user_id: str, user: BaseUser) -> Optional[str]:
-        base = self.public_url.rstrip("/")
-        return f"{base}/{self.team}/users/{user_id}"
+        return join_url(self.public_url, self.team, "users", user_id)
 
     async def _handle_chain_action(self, incident_, user_id, queue_, payload):
         """Handle chain-related button actions"""
@@ -201,7 +204,7 @@ class MattermostApplication(Application):
         return None
 
     def _initialize_specific_params(self):
-        self.post_message_url = f'{self.url}/api/v4/posts'
+        self.post_message_url = join_url(self.url, 'api/v4/posts')
         env_config = get_environment_config()
         self.headers = {
             'Content-Type': 'application/json',
@@ -218,7 +221,7 @@ class MattermostApplication(Application):
 
     async def _update_incident_message(self, id_, payload):
         response = await self.http.put(
-            f'{self.url}/api/v4/posts/{id_}',
+            join_url(self.url, f'api/v4/posts/{id_}'),
             headers=self.headers,
             json=payload
         )

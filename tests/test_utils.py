@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from app.utils import get_attr_by_key_chain, normalize_param, filter_dict_keys
+from app.utils import get_attr_by_key_chain, normalize_param, filter_dict_keys, join_url
 
 
 class TestGetAttrByKeyChain:
@@ -170,3 +170,27 @@ class TestFilterDictKeys:
         # Result should be different
         assert result != source
         assert result == {"a": 1, "c": 3}
+
+
+class TestJoinUrl:
+    """Test cases for join_url."""
+
+    def test_joins_without_duplicate_slashes(self):
+        assert join_url("https://example.com", "app") == "https://example.com/app"
+        assert join_url("https://example.com/", "app") == "https://example.com/app"
+        assert join_url("https://example.com", "/app") == "https://example.com/app"
+        assert join_url("https://example.com/", "/app") == "https://example.com/app"
+
+    def test_preserves_base_path(self):
+        assert join_url("https://example.com/impulse", "app") == "https://example.com/impulse/app"
+        assert join_url("https://example.com/impulse/", "app") == "https://example.com/impulse/app"
+
+    def test_joins_multiple_parts(self):
+        assert join_url("https://mm.example.com/", "team1", "users", "U123") == (
+            "https://mm.example.com/team1/users/U123"
+        )
+
+    def test_keeps_query_string(self):
+        assert join_url("https://slack.com", "api/users.info?user=U123") == (
+            "https://slack.com/api/users.info?user=U123"
+        )

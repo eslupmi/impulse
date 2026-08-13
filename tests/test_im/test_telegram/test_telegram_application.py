@@ -610,6 +610,8 @@ class TestTelegramApplication:
             await app._setup_webhook()
 
             mock_post.assert_called_once()
+            _, kwargs = mock_post.call_args
+            assert kwargs['params']['url'] == 'https://impulse.example.com/app'
 
     @pytest.mark.asyncio
     async def test_setup_webhook_error_handling(self, app_config, channels, users):

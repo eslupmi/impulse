@@ -3,6 +3,7 @@ from typing import Sequence
 from app.ui.authentication.models.auth_user import AuthUser
 from app.ui.authentication.providers.base_provider import AuthenticationProviderError
 from app.ui.authentication.providers.oauth_provider import OAuthProvider
+from app.utils import join_url
 
 
 class MattermostAuthenticationProvider(OAuthProvider):
@@ -19,15 +20,13 @@ class MattermostAuthenticationProvider(OAuthProvider):
         user_url: str = None,
         timeout_seconds: float = 10.0,
     ):
-        base_url = base_url.rstrip("/")
-        self.base_url = base_url
         super().__init__(
             client_id=client_id,
             client_secret=client_secret,
             scopes=scopes,
-            authorize_url=authorize_url or f"{base_url}/oauth/authorize",
-            token_url=token_url or f"{base_url}/oauth/access_token",
-            user_url=user_url or f"{base_url}/api/v4/users/me",
+            authorize_url=authorize_url or join_url(base_url, "oauth/authorize"),
+            token_url=token_url or join_url(base_url, "oauth/access_token"),
+            user_url=user_url or join_url(base_url, "api/v4/users/me"),
             timeout_seconds=timeout_seconds,
         )
 

@@ -4,6 +4,7 @@ from typing import Dict, Optional
 
 from app.http_client.rate_limited_client import RateLimitedClient
 from app.logging import logger
+from app.utils import join_url
 
 
 class JiraClient:
@@ -26,7 +27,7 @@ class JiraClient:
             user_email: User email for authentication
             api_token: API token for authentication
         """
-        self.base_url = base_url.rstrip('/')
+        self.base_url = base_url
         self.user_email = user_email
         self.api_token = api_token
         
@@ -73,7 +74,7 @@ class JiraClient:
         Returns:
             Dict with 'key' and 'url' if successful, None otherwise
         """
-        url = f"{self.base_url}/rest/api/2/issue"
+        url = join_url(self.base_url, "rest/api/2/issue")
         
         payload = {
             "fields": {
@@ -96,7 +97,7 @@ class JiraClient:
                 data = await response.json()
                 issue_key = data.get("key")
                 # Build browse URL from key
-                issue_url = f"{self.base_url}/browse/{issue_key}"
+                issue_url = join_url(self.base_url, "browse", issue_key)
                 
                 logger.info(f"Successfully created Jira issue: {issue_key}")
                 return {
