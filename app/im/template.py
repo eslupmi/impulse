@@ -28,17 +28,11 @@ def template_users(messenger) -> dict:
     }
 
 
-def template_admins(messenger) -> list:
-    """Users from messenger.admin_users (config admin_users)."""
-    return list(messenger.admin_users)
-
-
 def chain_template_context(messenger, incident: 'Incident', step: dict) -> dict:
     return {
         'step': step,
         'incident': incident.serialize(),
         'users': template_users(messenger),
-        'admins': template_admins(messenger),
         'user_groups': messenger.user_groups,
         'groups': messenger.groups,
         'webhooks': messenger.webhooks,
@@ -59,7 +53,6 @@ def status_update_template_context(messenger, incident: 'Incident', payload, pre
         'previous_payload': previous_payload,
         'incident': incident.serialize(),
         'users': template_users(messenger),
-        'admins': template_admins(messenger),
     }
 
 

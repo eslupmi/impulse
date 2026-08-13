@@ -73,6 +73,45 @@ class TestThreadTemplates:
         assert 'NotFound' in text
         assert '<@A1>' in text
 
+    def test_chain_context_matches_declared_vars(self):
+        class Incident:
+            def serialize(self):
+                return {'uniq_id': 'inc-1'}
+
+        class Users:
+            def get(self, name):
+                return None
+
+        class Messenger:
+            _users_config = {'alice': object()}
+            users = Users()
+            user_groups = {'ops': object()}
+            groups = {'g': object()}
+            webhooks = {'w': object()}
+            admin_users = [object()]
+
+        ctx = template.chain_template_context(
+            Messenger(), Incident(), {'name': 'user', 'value': 'alice'},
+        )
+        assert set(ctx) == {'step', 'incident', 'users', 'user_groups', 'groups', 'webhooks'}
+        assert 'admins' not in ctx
+
+    def test_assignment_context_matches_declared_vars(self):
+        class Incident:
+            def serialize(self):
+                return {'assigned_user_id': 'U1'}
+
+        class Users:
+            def get(self, name):
+                return None
+
+        class Messenger:
+            _users_config = {}
+            users = Users()
+
+        ctx = template.assignment_template_context(Messenger(), Incident(), ui_user=None)
+        assert set(ctx) == {'incident', 'users', 'ui_user'}
+
     def test_status_update_template_uses_incident_status(self):
         text = JinjaTemplate(template.incident_notifications_status_update['slack']).form_notification(
             payload={},
@@ -96,6 +135,23 @@ class TestThreadTemplates:
         )
         assert 'unknown' in text
         assert '<@A1>' in text
+
+    def test_status_update_context_includes_users(self):
+        class Incident:
+            def serialize(self):
+                return {'status': 'unknown'}
+
+        class Users:
+            def get(self, name):
+                return None
+
+        class Messenger:
+            _users_config = {}
+            users = Users()
+
+        ctx = template.status_update_template_context(Messenger(), Incident(), {}, {})
+        assert set(ctx) == {'payload', 'previous_payload', 'incident', 'users'}
+        assert 'admins' not in ctx
 
     def test_related_incidents_helper(self):
         class Incidents:

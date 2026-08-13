@@ -248,12 +248,15 @@ class Application(ABC):
     async def _init_groups(self):
         return await self._generate_groups(self._groups_config)
 
+    def _apply_admin_role(self, user, config_name):
+        user.roles = ['admin'] if config_name in self._admin_users_config else []
+
     @messenger_init_step_sync('admin_users')
     def _init_admin_users(self):
         admins = []
         for admin in self._admin_users_config:
             user = self.users.get(admin) or UndefinedUser(admin)
-            user.roles = ['admin']
+            self._apply_admin_role(user, admin)
             admins.append(user)
         return admins
 
@@ -403,6 +406,7 @@ class Application(ABC):
         display_name = self._format_display_name(user_details)
         user = self.create_user(display_name, user_details)
         if user:
+            self._apply_admin_role(user, self.get_config_name_by_user_id(user_id_str))
             self.users.add_user(user_id_str, user)
             if self._user_scheduler:
                 self._user_scheduler.schedule_update(user_id_str)
@@ -443,6 +447,7 @@ class Application(ABC):
             user_id = str(user_info.id)
             if user_id in stored_user_ids:
                 user_manager.add_config_name(name, user_id)
+                self._apply_admin_role(user_manager.get(name), name)
                 continue
 
             user_details = await self.get_user_details(user_info)
@@ -451,6 +456,7 @@ class Application(ABC):
             else:
                 user_store.save(user_id, messenger_type, user_details)
             user = self.create_user(name, user_details)
+            self._apply_admin_role(user, name)
             user_manager.add_user(user_id, user, config_name=name)
 
         return user_manager
@@ -541,6 +547,7 @@ class Application(ABC):
             config_name = self.get_config_name_by_user_id(user_id)
             user = self.create_user(config_name, user_details)
             if user:
+                self._apply_admin_role(user, config_name)
                 user_manager.add_user(user_id, user)
                 loaded_ids.add(user_id)
 
