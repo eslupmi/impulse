@@ -1,0 +1,97 @@
+name: _migration
+
+on:
+  workflow_call:
+    inputs:
+      branch:
+        required: true
+        type: string
+      deploy-path:
+        required: true
+        type: string
+    secrets:
+      HOST:
+        required: true
+      PORT:
+        required: true
+      USER:
+        required: true
+      SSH_KEY:
+        required: true
+
+jobs:
+  migration:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Get latest release
+        id: latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: echo "tag=$(gh api "repos/${{ github.repository }}/releases/latest" --jq .tag_name)" >> "$GITHUB_OUTPUT"
+
+      - name: Check incidents migration
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          BRANCH: ${{ inputs.branch }}
+          DEPLOY_PATH: ${{ inputs.deploy-path }}
+          LATEST_RELEASE: ${{ steps.latest.outputs.tag }}
+        with:
+          host: ${{ secrets.HOST }}
+          port: ${{ secrets.PORT }}
+          username: ${{ secrets.USER }}
+          key: ${{ secrets.SSH_KEY }}
+          envs: BRANCH,DEPLOY_PATH,LATEST_RELEASE
+          command_timeout: 15m
+          script_stop: true
+          script: |
+            set -euo pipefail
+            cd "$DEPLOY_PATH"
+            REF=/tmp/impulse-migration-incidents
+            COMPOSE_BAK=/tmp/impulse-migration-compose.yml
+            rm -rf "$REF"
+            cp -a data/incidents "$REF"
+            cp -a docker-compose.yml "$COMPOSE_BAK"
+            sed -i "s|ghcr.io/eslupmi/impulse:[^ ]*|ghcr.io/eslupmi/impulse:${BRANCH}|" docker-compose.yml
+            docker compose pull
+            docker compose up -d
+            ok=0
+            for i in $(seq 1 60); do
+              if docker compose exec -T app python -c "import os,urllib.request; urllib.request.urlopen('http://127.0.0.1:5000'+os.environ.get('HTTP_PREFIX','')+'/readyz')" 2>/dev/null; then
+                ok=1
+                break
+              fi
+              sleep 1
+            done
+            if [ "$ok" -ne 1 ]; then
+              docker compose logs
+              exit 1
+            fi
+            docker compose stop
+            docker compose run --rm --no-deps app python -m main --downgrade "$LATEST_RELEASE"
+            diff -ru "$REF" data/incidents
+
+      - name: Restore impulse prod
+        if: always()
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          DEPLOY_PATH: ${{ inputs.deploy-path }}
+        with:
+          host: ${{ secrets.HOST }}
+          port: ${{ secrets.PORT }}
+          username: ${{ secrets.USER }}
+          key: ${{ secrets.SSH_KEY }}
+          envs: DEPLOY_PATH
+          command_timeout: 10m
+          script: |
+            set -euo pipefail
+            cd "$DEPLOY_PATH"
+            docker compose stop || true
+            if [ -d /tmp/impulse-migration-incidents ]; then
+              rm -rf data/incidents
+              cp -a /tmp/impulse-migration-incidents data/incidents
+            fi
+            if [ -f /tmp/impulse-migration-compose.yml ]; then
+              cp -a /tmp/impulse-migration-compose.yml docker-compose.yml
+            fi
+            docker compose up -d
+            rm -rf /tmp/impulse-migration-incidents /tmp/impulse-migration-compose.yml

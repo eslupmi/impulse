@@ -1,0 +1,32 @@
+name: cleanup
+
+on:
+  pull_request:
+    branches:
+    - master
+    - develop
+    types:
+    - closed
+
+permissions:
+  packages: write
+
+jobs:
+  cleanup-pr-image:
+    runs-on: ubuntu-24.04
+    permissions:
+      packages: write
+    steps:
+    - uses: dataaxiom/ghcr-cleanup-action@d52806a0dc70b430571a37da1fde39733ffd640f
+      with:
+        delete-tags: pr-${{ github.event.pull_request.number }}
+        dry-run: false
+
+  cleanup-untagged-images:
+    runs-on: ubuntu-24.04
+    permissions:
+      packages: write
+    steps:
+    - uses: dataaxiom/ghcr-cleanup-action@d52806a0dc70b430571a37da1fde39733ffd640f
+      with:
+        dry-run: false
