@@ -43,6 +43,7 @@ class TestJiraClient:
             user_email="test@example.com",
             api_token="token"
         )
+        assert client.base_url == "https://test.atlassian.net"
         mock_response = AsyncMock()
         mock_response.status = 201
         mock_response.json = AsyncMock(return_value={"key": "DTS-123"})

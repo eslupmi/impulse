@@ -18,7 +18,7 @@ from app.queue.constants import QueueItemType
 from app.time import unix_sleep_to_timedelta
 from app.tools import NoAliasDumper
 from app.ui.websocket import incident_ws
-from app.utils import get_attr_by_key_chain, normalize_param, filter_dict_keys, join_url
+from app.utils import get_attr_by_key_chain, normalize_param, filter_dict_keys
 
 if TYPE_CHECKING:
     from app.queue.queue import AsyncQueue
@@ -107,14 +107,9 @@ class Incident:
 
     def generate_link(self, public_url) -> str:
         if self.config.application_type == MessengerType.SLACK:
-            return join_url(public_url, f'archives/{self.channel_id}/p{self.ts.replace(".", "")}')
+            return f'{public_url}/archives/{self.channel_id}/p{self.ts.replace(".", "")}'
         elif self.config.application_type == MessengerType.MATTERMOST:
-            return join_url(
-                self.config.application_url,
-                self.config.application_team.lower(),
-                'pl',
-                self.ts,
-            )
+            return f'{self.config.application_url}/{self.config.application_team.lower()}/pl/{self.ts}'
         elif self.config.application_type == MessengerType.TELEGRAM:
             return f'https://t.me/c/{str(self.channel_id)[4:]}/{self.ts}'
         return ''

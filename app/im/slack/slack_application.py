@@ -11,7 +11,6 @@ from app.im.slack.threads import get_incident_message_payload, slack_get_update_
 from app.im.slack.user import User
 from app.im.users import BaseUser
 from app.logging import logger
-from app.utils import join_url
 
 
 class SlackApplication(Application):
@@ -32,7 +31,7 @@ class SlackApplication(Application):
 
     async def get_all_groups(self):
         """Fetch all user groups from Slack API using usergroups.list"""
-        response = await self.http.get(join_url(self.url, 'api/usergroups.list'), headers=self.headers)
+        response = await self.http.get(f'{self.url}/api/usergroups.list', headers=self.headers)
         try:
             if response.status != 200:
                 logger.debug(f'Failed to get groups list: HTTP {response.status}')
@@ -51,7 +50,7 @@ class SlackApplication(Application):
 
     async def get_user_details(self, user_details):
         id_ = user_details.get('id')
-        response = await self.http.get(join_url(self.url, f'api/users.info?user={id_}'), headers=self.headers)
+        response = await self.http.get(f'{self.url}/api/users.info?user={id_}', headers=self.headers)
         if response.status != 200:
             logger.debug("User details fetch failed", extra={'user_id': id_, 'status': response.status})
             response.close()
@@ -160,7 +159,7 @@ class SlackApplication(Application):
         return 'https://slack.com'
 
     def _build_user_profile_url(self, user_id: str, user: BaseUser) -> Optional[str]:
-        return join_url(self.public_url, 'team', user_id)
+        return f"{self.public_url}/team/{user_id}"
 
     async def _handle_chain_action(self, incident_, user_id, queue_):
         """Handle chain-related button actions"""
@@ -195,7 +194,7 @@ class SlackApplication(Application):
         await self._handle_freeze_action(incident_, freeze_option, user_id, incidents, queue_, user_timezone=tz_str)
 
     def _initialize_specific_params(self):
-        self.post_message_url = join_url(self.url, 'api/chat.postMessage')
+        self.post_message_url = f'{self.url}/api/chat.postMessage'
         env_config = get_environment_config()
         self.headers = {
             'Content-Type': 'application/json',
@@ -219,7 +218,7 @@ class SlackApplication(Application):
 
     async def _update_incident_message(self, id_, payload):
         response = await self.http.post(
-            join_url(self.url, 'api/chat.update'),
+            f'{self.url}/api/chat.update',
             headers=self.headers,
             json=payload
         )

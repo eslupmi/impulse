@@ -94,19 +94,16 @@ class TestIncident:
         sample_incident.config.application_type = MessengerType.SLACK
         sample_incident.ts = "1234567890.123456"
 
-        for public_url in ("https://test.slack.com", "https://test.slack.com/"):
-            link = sample_incident.generate_link(public_url)
-            assert link == "https://test.slack.com/archives/C123456789/p1234567890123456"
+        link = sample_incident.generate_link("https://test.slack.com")
+        assert link == "https://test.slack.com/archives/C123456789/p1234567890123456"
 
     def test_generate_link_mattermost(self, sample_incident):
         """Test link generation for Mattermost."""
         sample_incident.config.application_type = MessengerType.MATTERMOST
         sample_incident.ts = "thread123"
 
-        for application_url in ("https://test.slack.com", "https://test.slack.com/"):
-            sample_incident.config.application_url = application_url
-            link = sample_incident.generate_link("https://mattermost.test.com/")
-            assert link == "https://test.slack.com/test-team/pl/thread123"
+        link = sample_incident.generate_link("https://mattermost.test.com")
+        assert link == "https://test.slack.com/test-team/pl/thread123"
 
     def test_generate_link_telegram(self, sample_incident):
         """Test link generation for Telegram."""

@@ -1,5 +1,4 @@
 from datetime import datetime, timezone
-from urllib.parse import urljoin
 
 
 def get_attr_by_key_chain(obj, default=None, *keys):
@@ -43,10 +42,3 @@ def filter_dict_keys(source: dict, keys_to_exclude: dict) -> dict:
     Return a copy of source with keys removed that exist in keys_to_exclude.
     """
     return {k: v for k, v in source.items() if k not in keys_to_exclude}
-
-
-def join_url(base: str, *parts: str) -> str:
-    url = base
-    for part in parts:
-        url = urljoin(url.rstrip("/") + "/", part.lstrip("/"))
-    return url

@@ -3,7 +3,6 @@ from app.config.environment import get_environment_config
 from app.im.colors import status_colors
 from app.im.mattermost.config import buttons
 from app.time import format_freeze_expiration
-from app.utils import join_url
 
 
 def mattermost_get_button_update_payload(incident, body, header, status_icons, user_timezone='UTC'):
@@ -78,7 +77,7 @@ def _build_mattermost_actions(incident, user_timezone='UTC'):
 
     config = get_config()
     env_config = get_environment_config()
-    callback_url = join_url(config.messenger.impulse_address, "app")
+    callback_url = f"{config.messenger.impulse_address}/app"
     
     chain_text, chain_style = _chain_attrs(incident.chain_enabled, incident.status)
     if incident.frozen_by_inhibition:

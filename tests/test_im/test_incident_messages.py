@@ -82,25 +82,6 @@ def test_maintenance_freeze_button_label_is_maintenance(builder, config_patch, e
     assert freeze_action[label_key] == "Maintenance"
 
 
-@pytest.mark.parametrize(
-    ("impulse_address", "expected"),
-    [
-        ("https://impulse.test", "https://impulse.test/app"),
-        ("https://impulse.test/", "https://impulse.test/app"),
-        ("https://impulse.test/prefix/", "https://impulse.test/prefix/app"),
-    ],
-)
-def test_mattermost_callback_url_ignores_trailing_slash(impulse_address, expected):
-    config = _config()
-    config.messenger.impulse_address = impulse_address
-
-    with patch("app.im.mattermost.threads.get_config", return_value=config), \
-            patch("app.im.mattermost.threads.get_environment_config", return_value=_env()):
-        actions = _build_mattermost_actions(_maintenance_incident(), "UTC")
-
-    assert all(action["integration"]["url"] == expected for action in actions)
-
-
 @pytest.mark.parametrize("template_name", ["slack_body.j2", "mattermost_body.j2", "telegram_body.j2"])
 def test_parent_section_hidden_for_maintenance_sentinel_only(template_name):
     template = JinjaTemplate((TEMPLATES_DIR / template_name).read_text())

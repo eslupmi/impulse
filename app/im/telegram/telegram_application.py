@@ -17,7 +17,6 @@ from app.config.config import get_config
 from app.config.environment import get_environment_config
 from app.config.validation import ApplicationConfig
 from app.time import format_freeze_expiration
-from app.utils import join_url
 
 
 class TelegramApplication(Application):
@@ -105,7 +104,7 @@ class TelegramApplication(Application):
 
     async def get_user_details(self, user_details):
         id_ = user_details.get('id')
-        response = await self.http.get(join_url(self.url, f'getChat?chat_id={id_}'), headers=self.headers)
+        response = await self.http.get(f'{self.url}/getChat?chat_id={id_}', headers=self.headers)
         if response.status != 200:
             logger.debug("User details fetch failed", extra={'user_id': id_, 'status': response.status})
             response.close()
@@ -168,7 +167,7 @@ class TelegramApplication(Application):
 
     async def _answer_callback(self, callback_id):
         await self.http.post(
-            join_url(self.url, 'answerCallbackQuery'),
+            f'{self.url}/answerCallbackQuery',
             json={'callback_query_id': callback_id},
             headers=self.headers
         )
@@ -228,7 +227,7 @@ class TelegramApplication(Application):
         }
         try:
             response = await self.http.post(
-                join_url(self.url, 'createForumTopic'),
+                f'{self.url}/createForumTopic',
                 json=payload,
                 headers=self.headers
             )
@@ -341,7 +340,7 @@ class TelegramApplication(Application):
     def _initialize_specific_params(self):
         env_config = get_environment_config()
         self.url += env_config.telegram_bot_token
-        self.post_message_url = join_url(self.url, 'sendMessage')
+        self.post_message_url = self.url + '/sendMessage'
         self.headers = {'Content-Type': 'application/json'}
         self.rate_limit = 20
         self.rate_window = 60.0
@@ -380,8 +379,8 @@ class TelegramApplication(Application):
     async def _setup_webhook(self):
         config = get_config()
         response = await self.http.post(
-            join_url(self.url, 'setWebhook'),
-            params={'url': join_url(config.messenger.impulse_address, 'app')},
+            f'{self.url}/setWebhook',
+            params={'url': f"{config.messenger.impulse_address}/app"},
             headers=self.headers
         )
         response.close()
@@ -391,7 +390,7 @@ class TelegramApplication(Application):
         payload = self.update_incident_payload(incident_, body, header, status_icons, show_freeze_menu=True)
         await self._update_incident_message(incident_.ts, payload)
         await self.http.post(
-            join_url(self.url, 'answerCallbackQuery'),
+            f'{self.url}/answerCallbackQuery',
             json={'callback_query_id': callback['id']},
             headers=self.headers
         )
@@ -400,7 +399,7 @@ class TelegramApplication(Application):
     async def _update_incident_message(self, id_, payload):
         try:
             response = await self.http.post(
-                join_url(self.url, 'editMessageText'),
+                f'{self.url}/editMessageText',
                 json=payload,
                 headers=self.headers
             )
@@ -418,7 +417,7 @@ class TelegramApplication(Application):
         }
         try:
             response = await self.http.post(
-                join_url(self.url, 'editForumTopic'),
+                f'{self.url}/editForumTopic',
                 json=payload,
                 headers=self.headers
             )

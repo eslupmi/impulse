@@ -316,5 +316,10 @@ class TestEnvironmentConfig:
                            match="HTTP prefix must not end with '/' \\(e.g., '/impulse' not '/impulse/'\\)"):
             EnvironmentConfig(**config_data)
 
+    def test_jira_base_url_strips_trailing_slash(self):
+        config = EnvironmentConfig(jira_base_url="https://test.atlassian.net/")
+        assert config.jira_base_url == "https://test.atlassian.net"
+
+
 class TestEnvironmentConfigFunctions:
     """Test cases for environment configuration functions."""

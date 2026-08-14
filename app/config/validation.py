@@ -1,11 +1,11 @@
 import os
 import re
 from enum import Enum
-from typing import Dict, List, Optional, Union, Any
+from typing import Annotated, Dict, List, Optional, Union, Any
 from typing import Literal
 
 import yaml
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import AfterValidator, BaseModel, Field, field_validator, model_validator
 
 
 class MessengerType(str, Enum):
@@ -261,10 +261,13 @@ def _validate_ui_chain(chain_config):
     return chain_config
 
 
+HttpBase = Annotated[str, AfterValidator(lambda v: v.rstrip("/"))]
+
+
 class BaseApplicationConfig(BaseModel):
     """Base messenger configuration with common fields"""
     type: MessengerType = Field(..., description="Application type")
-    impulse_address: Optional[str] = Field(None, description="Impulse callback address")
+    impulse_address: Optional[HttpBase] = Field(None, description="Impulse callback address")
     admin_users: List[str] = Field(..., description="Admin users")
     user_groups: Optional[Dict[str, UserGroup]] = Field({}, description="User groups")
     chains: Optional[Dict[str, Any]] = Field({}, description="Chain definitions")
@@ -341,7 +344,7 @@ class MattermostApplicationConfig(AddressRequiredApplicationConfig):
     channels: Dict[str, MattermostChannel] = Field(..., description="Channel definitions")
     groups: Optional[Dict[str, MattermostGroup]] = Field({}, description="Mattermost group definitions")
     users: Dict[str, MattermostUser] = Field(..., description="User definitions")
-    address: str = Field(..., description="Mattermost server address")
+    address: HttpBase = Field(..., description="Mattermost server address")
     team: str = Field(..., description="Mattermost team name")
 
 
@@ -350,7 +353,7 @@ class TelegramApplicationConfig(AddressRequiredApplicationConfig):
     type: Literal[MessengerType.TELEGRAM] = Field(MessengerType.TELEGRAM, description="Application type")
     channels: Dict[str, TelegramChannel] = Field(..., description="Channel definitions")
     users: Dict[str, TelegramUser] = Field(..., description="User definitions")
-    address: Optional[str] = Field(None, description="Telegram API address (optional)")
+    address: Optional[HttpBase] = Field(None, description="Telegram API address (optional)")
 
 
 class NullApplicationConfig(BaseApplicationConfig):
