@@ -1,0 +1,35 @@
+name: deploy
+
+concurrency:
+  group: ${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+    - 'develop'
+    - 'master'
+    tags:
+    - 'v*'
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-and-push-image:
+    uses: ./.github/workflows/_build-and-push-image.yml
+
+  deploy:
+    if: github.ref_type == 'branch'
+    needs: build-and-push-image
+    uses: ./.github/workflows/_deploy.yml
+    with:
+      deploy-path: /opt/impulse/${{ github.ref_name == 'master' && 'prod' || 'dev' }}
+    secrets: inherit
+
+  notify:
+    if: github.ref_type == 'tag'
+    needs: build-and-push-image
+    uses: ./.github/workflows/_notify.yml
+    secrets: inherit
