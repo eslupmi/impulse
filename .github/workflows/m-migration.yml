@@ -1,0 +1,16 @@
+name: "[m] migration"
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        required: true
+        type: number
+
+jobs:
+  migration:
+    uses: ./.github/workflows/_migration.yml
+    with:
+      branch: pr-${{ inputs.pr_number }}
+      deploy-path: /opt/impulse/prod
+    secrets: inherit
