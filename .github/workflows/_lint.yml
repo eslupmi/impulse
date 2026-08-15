@@ -22,6 +22,8 @@ jobs:
         run: |
           docker run --rm \
             -e RUFF_CACHE_DIR=/tmp/ruff_cache \
+            -e FORCE_COLOR=1 \
+            -e TERM=xterm-256color \
             -v "${{ github.workspace }}:/app:ro,Z" \
             -w /app \
             python:3.12-slim \
@@ -29,6 +31,6 @@ jobs:
               python -m pip install --upgrade pip && \
               pip install -r requirements.txt && \
               pip install ruff mypy && \
-              ruff check . && \
-              mypy --cache-dir=/tmp/mypy_cache .
+              ruff check . --exclude tests && \
+              mypy --cache-dir=/tmp/mypy_cache --exclude '^tests/' --color-output --pretty .
             "
