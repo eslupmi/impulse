@@ -4,13 +4,16 @@ on:
   workflow_dispatch:
     inputs:
       pr_number:
-        required: true
+        required: false
         type: number
+      branch:
+        required: false
+        type: string
 
 jobs:
   autotests:
     uses: ./.github/workflows/_autotests.yml
     with:
-      branch: pr-${{ inputs.pr_number }}
+      branch: ${{ inputs.branch || format('pr-{0}', inputs.pr_number) }}
       runs-on: self-hosted
     secrets: inherit

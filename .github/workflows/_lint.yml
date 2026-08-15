@@ -1,0 +1,33 @@
+name: _lint
+
+on:
+  workflow_call:
+    inputs:
+      runs-on:
+        type: string
+        default: ubuntu-24.04
+      ref:
+        type: string
+        required: false
+
+jobs:
+  lint:
+    runs-on: ${{ inputs.runs-on }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.ref }}
+      - name: Run ruff and mypy
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/app:ro,Z" \
+            -w /app \
+            python:3.12-slim \
+            sh -c "
+              python -m pip install --upgrade pip && \
+              pip install -r requirements.txt && \
+              pip install ruff mypy && \
+              ruff check . && \
+              mypy .
+            "
