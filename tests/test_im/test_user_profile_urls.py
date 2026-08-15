@@ -1,3 +1,6 @@
+import pytest
+
+from app.config.validation import MessengerType
 from app.im.mattermost.user import User as MattermostUser
 from app.im.mattermost.mattermost_application import MattermostApplication
 from app.im.slack.slack_application import SlackApplication
@@ -6,9 +9,23 @@ from app.im.telegram.telegram_application import TelegramApplication
 from app.im.telegram.user import User as TelegramUser
 
 
+@pytest.mark.asyncio
+async def test_init_public_url_strips_trailing_slash():
+    app = SlackApplication.__new__(SlackApplication)
+    app.type = MessengerType.SLACK
+    app.url = "https://slack.com"
+    app._app_config = None
+
+    async def public_url(_config):
+        return "https://example.slack.com/"
+
+    app._get_public_url = public_url
+    assert await app._init_public_url() == "https://example.slack.com"
+
+
 def test_slack_user_profile_url():
     app = SlackApplication.__new__(SlackApplication)
-    app.public_url = "https://example.slack.com/"
+    app.public_url = "https://example.slack.com"
     user = SlackUser("alice", "U123", exists=True, full_name="Alice", username="alice")
 
     assert app._build_user_profile_url("U123", user) == "https://example.slack.com/team/U123"

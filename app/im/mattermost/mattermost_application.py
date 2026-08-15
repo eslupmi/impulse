@@ -180,8 +180,7 @@ class MattermostApplication(Application):
         return app_config.address
 
     def _build_user_profile_url(self, user_id: str, user: BaseUser) -> Optional[str]:
-        base = self.public_url.rstrip("/")
-        return f"{base}/{self.team}/users/{user_id}"
+        return f"{self.public_url}/{self.team}/users/{user_id}"
 
     async def _handle_chain_action(self, incident_, user_id, queue_, payload):
         """Handle chain-related button actions"""

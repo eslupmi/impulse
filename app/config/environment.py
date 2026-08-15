@@ -157,6 +157,11 @@ class EnvironmentConfig(BaseModel):
         if v and v.endswith('/'):
             raise ValueError("HTTP prefix must not end with '/' (e.g., '/impulse' not '/impulse/')")
         return v
+
+    @field_validator('jira_base_url')
+    @classmethod
+    def normalize_jira_base_url(cls, v):
+        return v.rstrip("/") if v else v
     
     @property
     def incidents_path(self) -> str:

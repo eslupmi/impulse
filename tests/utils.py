@@ -398,7 +398,7 @@ def create_mock_incident_data(
         assigned_fullname: str = "Test User",
         messenger_type: str = "slack",
         ts: str = "1234567890.123456",
-        link: str = "https://test.slack.comarchives/C123456789/p1234567890123456"
+        link: str = "https://test.slack.com/archives/C123456789/p1234567890123456"
 ) -> Dict[str, Any]:
     """
     Create mock incident data for testing.

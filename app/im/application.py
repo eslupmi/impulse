@@ -161,7 +161,7 @@ class Application(ABC):
         pass
 
     def get_url(self, app_config: ApplicationConfig):
-        return self._get_url(app_config)
+        return self._get_url(app_config).rstrip("/")
 
     async def handle_task_button(self, incident, queue_):
         if not self.task_management_integration:
@@ -234,7 +234,8 @@ class Application(ABC):
 
     @messenger_init_step_async('public_url')
     async def _init_public_url(self):
-        return await self._get_public_url(self._app_config)
+        url = await self._get_public_url(self._app_config)
+        return url.rstrip("/") if url else url
 
     @messenger_init_step_async('users')
     async def _init_users(self):

@@ -20,7 +20,6 @@ class MattermostAuthenticationProvider(OAuthProvider):
         timeout_seconds: float = 10.0,
     ):
         base_url = base_url.rstrip("/")
-        self.base_url = base_url
         super().__init__(
             client_id=client_id,
             client_secret=client_secret,

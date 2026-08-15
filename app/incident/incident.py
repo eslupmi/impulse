@@ -107,7 +107,7 @@ class Incident:
 
     def generate_link(self, public_url) -> str:
         if self.config.application_type == MessengerType.SLACK:
-            return f'{public_url}' + f'archives/{self.channel_id}/p{self.ts.replace(".", "")}'
+            return f'{public_url}/archives/{self.channel_id}/p{self.ts.replace(".", "")}'
         elif self.config.application_type == MessengerType.MATTERMOST:
             return f'{self.config.application_url}/{self.config.application_team.lower()}/pl/{self.ts}'
         elif self.config.application_type == MessengerType.TELEGRAM:
