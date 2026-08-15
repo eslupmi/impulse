@@ -21,13 +21,15 @@ jobs:
       - name: Run ruff and mypy
         run: |
           docker run --rm \
+            -e RUFF_CACHE_DIR=/tmp/ruff_cache \
             -v "${{ github.workspace }}:/app:ro,Z" \
             -w /app \
             python:3.12-slim \
             sh -c "
+              export RUFF_CACHE_DIR=/tmp/ruff_cache \
               python -m pip install --upgrade pip && \
               pip install -r requirements.txt && \
               pip install ruff mypy && \
               ruff check . && \
-              mypy .
+              mypy --cache-dir=/tmp/mypy_cache .
             "
