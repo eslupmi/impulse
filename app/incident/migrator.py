@@ -1,5 +1,5 @@
 import os
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import ClassVar
 
 import yaml
@@ -152,8 +152,8 @@ class IncidentMigrator:
             return None
         if isinstance(value, datetime):
             if value.tzinfo is None:
-                return value.replace(tzinfo=UTC)
-            return value.astimezone(UTC)
+                return value.replace(tzinfo=timezone.utc)
+            return value.astimezone(timezone.utc)
         return value
 
     def _migrate_v3_0_0_to_v3_2_0(self, data: dict) -> dict:
@@ -174,7 +174,7 @@ class IncidentMigrator:
 
         migrated['uniq_id'] = Incident.gen_uniq_id(
             migrated.get('payload', {}).get('groupLabels', {}),
-            migrated.get('created') or datetime.now(UTC)
+            migrated.get('created')
         )
 
         return migrated

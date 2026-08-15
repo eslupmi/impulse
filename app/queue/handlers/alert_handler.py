@@ -1,5 +1,5 @@
 from copy import deepcopy
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 from app.config.config import get_config
@@ -57,9 +57,9 @@ class AlertHandler(BaseHandler):
         channel = self.app.channels[channel_name]
 
         status = alert_state['status']
-        updated_datetime = datetime.now(UTC)
+        updated_datetime = datetime.now(timezone.utc)
         timeout_value = config.incident.timeouts.get(status)
-        status_update_datetime = datetime.now(UTC) + unix_sleep_to_timedelta(timeout_value)
+        status_update_datetime = datetime.now(timezone.utc) + unix_sleep_to_timedelta(timeout_value)
 
         incident_config = IncidentConfig(
             application_type=self.app.type,

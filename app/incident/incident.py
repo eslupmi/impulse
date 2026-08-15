@@ -2,7 +2,7 @@ import asyncio
 import json
 import uuid
 from dataclasses import KW_ONLY, dataclass, field, fields
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, ClassVar
 
 import yaml
@@ -48,8 +48,8 @@ class Incident:
     chain_steps: list[dict] = field(default_factory=list)
     chain_enabled: bool = False
     status_enabled: bool = False
-    updated: datetime = field(default_factory=lambda: datetime.now(UTC))
-    created: datetime = field(default_factory=lambda: datetime.now(UTC))
+    updated: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    created: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     version: str = get_config().INCIDENT_ACTUAL_VERSION
     uniq_id: str = field(default='')
     uuid: str = field(init=False)
@@ -84,7 +84,7 @@ class Incident:
 
     def __post_init__(self):
         if not self.created:
-            self.created = datetime.now(UTC)
+            self.created = datetime.now(timezone.utc)
         self.uuid = self.gen_uuid(self.payload.get('groupLabels'))
         if not self.uniq_id:
             self.uniq_id = self.gen_uniq_id(self.payload.get('groupLabels'), self.created)
@@ -220,7 +220,7 @@ class Incident:
     def accumulate_chain_time(self, updated):
         """Accumulate chain active time from self.updated until now. Updates self.updated.
         Must be called before any state change that affects chain activity."""
-        now = datetime.now(UTC)
+        now = datetime.now(timezone.utc)
         delta = (now - updated).total_seconds()
         if delta > 0:
             self.chain_active_seconds += delta
@@ -364,7 +364,7 @@ class Incident:
         return data
 
     def update_status(self, status: str) -> bool:
-        now = datetime.now(UTC)
+        now = datetime.now(timezone.utc)
         self._schedule_status_change_by_timeout(status, now)
         if self.status != status:
             self._set_status(status)
@@ -409,7 +409,7 @@ class Incident:
         self.status = status
         logger.debug("Status updated", extra={'uniq_id': self.uniq_id, 'status': status})
         if status == 'closed' and not self.closed:
-            self.closed = datetime.now(UTC)
+            self.closed = datetime.now(timezone.utc)
 
     def _schedule_status_change_by_timeout(self, status, now):
         if status != 'deleted':
@@ -505,7 +505,7 @@ async def sync_after_freeze_change(
         return
 
     incident_status = incident_status or incident.status
-    await queue.put_first(datetime.now(UTC), QueueItemType.STATUS_CHECK, incident.uniq_id)
+    await queue.put_first(datetime.now(timezone.utc), QueueItemType.STATUS_CHECK, incident.uniq_id)
     await queue.recreate(incident.status, incident.uniq_id, incident.get_chain(), incident.chain_active_seconds)
     if incident_status != 'deleted':
         await queue.put(incident.status_update_datetime, QueueItemType.UPDATE_STATUS, incident.uniq_id)

@@ -1,6 +1,5 @@
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
-from app.http_client.errors import MESSENGER_TRANSPORT_ERRORS
 from app.im.user_store import USER_REFRESH_HOURS, get_user_store
 from app.logging import logger
 from app.queue.constants import USER_UPDATE_GAP_SECONDS, QueueItemType
@@ -33,7 +32,7 @@ class UserUpdateHandler(BaseHandler):
                 self.app._apply_admin_role(user, config_name)
                 self.app.users.add_user(user_id, user)
             logger.info('User data refreshed', extra={'user_id': user_id})
-        except MESSENGER_TRANSPORT_ERRORS + (OSError,) as e:
+        except Exception as e:  # noqa: BLE001
             logger.error('Failed to update user', extra={'user_id': user_id, 'error': str(e)})
         await self._schedule_next_refresh(user_id)
 
@@ -42,7 +41,7 @@ class UserUpdateHandler(BaseHandler):
         gap_seconds = USER_UPDATE_GAP_SECONDS.get(self.app.type.value, 1.0)
         latest = await self.queue.get_latest_item_by_type(QueueItemType.UPDATE_USER)
         
-        now = datetime.now(UTC)
+        now = datetime.now(timezone.utc)
         next_refresh_base = now + timedelta(hours=USER_REFRESH_HOURS)
         
         if latest and latest > next_refresh_base:

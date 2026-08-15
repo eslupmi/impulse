@@ -72,7 +72,7 @@ class GoogleCalendarChain(ScheduleChain):
             return response.json()
         except requests.exceptions.RequestException as e:
             logger.error(f"Calendar API request failed: {e!s}", extra={'provider': 'google'})
-            if hasattr(e, 'response') and e.response is not None:
+            if e.response is not None:
                 logger.error(f"API response: {e.response.text}", extra={'provider': 'google'})
             raise
 
@@ -94,7 +94,7 @@ class GoogleCalendarChain(ScheduleChain):
             events = self._fetch_events()
             self._update_schedule(events)
             logger.debug(f"Initial sync: {len(events)} events", extra={'provider': 'google'})
-        except (requests.exceptions.RequestException, jwt.InvalidTokenError, KeyError, ValueError) as e:
+        except Exception as e:  # noqa: BLE001
             logger.error(f"Initial sync failed: {e!s}", extra={'provider': 'google'})
             # Initialize with empty schedule if sync fails
             self.schedule = []
@@ -108,7 +108,7 @@ class GoogleCalendarChain(ScheduleChain):
             matchers.append(ScheduleEntry(matcher=None, steps=self.default_steps))
 
         self.schedule = matchers
-        self._last_sync_time = datetime.datetime.now(datetime.UTC)
+        self._last_sync_time = datetime.datetime.now(datetime.timezone.utc)
 
     def start_sync(self) -> None:
         """Start the sync task in the background."""
@@ -155,12 +155,12 @@ class GoogleCalendarChain(ScheduleChain):
         try:
             # Check if we have a valid cached token
             if self._last_token and self._token_expiry:
-                now = datetime.datetime.now(datetime.UTC)
+                now = datetime.datetime.now(datetime.timezone.utc)
                 if now < self._token_expiry:
                     return self._last_token
 
             # Get current time in UTC
-            now = datetime.datetime.now(datetime.UTC)
+            now = datetime.datetime.now(datetime.timezone.utc)
             iat = int(now.timestamp())
             exp = iat + 3600  # Token expires in 1 hour
 
@@ -197,12 +197,12 @@ class GoogleCalendarChain(ScheduleChain):
             response.raise_for_status()
             token_data = response.json()
 
-            # Cache the token
-            self._last_token = token_data['access_token']
+            token = token_data['access_token']
+            self._last_token = token
             self._token_expiry = now + datetime.timedelta(
                 seconds=token_data.get('expires_in', 3600) - 300)  # 5 min buffer
 
-            return self._last_token or ""
+            return token
 
         except jwt.InvalidTokenError as e:
             logger.error(f"JWT generation failed: {e!s}", extra={'provider': 'google'})
@@ -234,7 +234,7 @@ class GoogleCalendarChain(ScheduleChain):
         try:
             token = self._get_access_token()
 
-            date_from = datetime.datetime.now(datetime.UTC)
+            date_from = datetime.datetime.now(datetime.timezone.utc)
             date_to = date_from + datetime.timedelta(days=self._env_config.provider_days_to_sync)
 
             params = {
@@ -266,10 +266,10 @@ class GoogleCalendarChain(ScheduleChain):
         try:
             parser.feed(description)
             description = parser.get_text()
-        except (ValueError, TypeError) as e:
-            logger.warning(f"Description parse error: {e!s}", extra={'provider': 'google'})
         except MemoryError as e:
             logger.error(f"Description too large: {e!s}", extra={'provider': 'google'})
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"Description parse error: {e!s}", extra={'provider': 'google'})
 
         steps = []
         for line in description.strip().split('\n'):
@@ -319,9 +319,8 @@ class GoogleCalendarChain(ScheduleChain):
                 self._update_schedule(events)
                 logger.debug(f"Synced {len(events)} events", extra={'provider': 'google'})
 
-            except (requests.exceptions.RequestException, jwt.InvalidTokenError, KeyError, ValueError) as e:
+            except Exception as e:  # noqa: BLE001
                 logger.error(f"Calendar sync error: {e!s}", extra={'provider': 'google'})
-                await asyncio.sleep(min(self._env_config.provider_sync_interval * 2, 300))  # Max 5 minutes
+                await asyncio.sleep(min(self._env_config.provider_sync_interval * 2, 300))
                 continue
-
             await asyncio.sleep(self._env_config.provider_sync_interval)

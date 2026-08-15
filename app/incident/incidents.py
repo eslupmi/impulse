@@ -20,7 +20,7 @@ class Incidents:
                 self.active_map[i.uuid] = i.uniq_id
 
     def get(self, alert: dict) -> Incident | None:
-        uuid = Incident.gen_uuid(alert.get('groupLabels') or {})
+        uuid = Incident.gen_uuid(alert.get('groupLabels'))
         return self.get_by_uuid(uuid)
 
     def get_by_uuid(self, uuid: str) -> Incident | None:

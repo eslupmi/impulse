@@ -57,9 +57,9 @@ class TestChainFactory:
 
         with patch('app.im.chain.chain_factory.ScheduleChain') as mock_schedule_chain:
             mock_schedule_chain.side_effect = Exception("Schedule chain error")
-
-            with pytest.raises(Exception, match="Schedule chain error"):
-                ChainFactory._create_chain("test_chain", config)
+            with patch('app.im.chain.chain_factory.isinstance', return_value=True):
+                with pytest.raises(Exception, match="Schedule chain error"):
+                    ChainFactory._create_chain("test_chain", config)
 
     def test_create_chain_with_google_calendar_chain_exception(self):
         """Test _create_chain with Google Calendar chain creation exception."""
@@ -69,24 +69,24 @@ class TestChainFactory:
 
         with patch('app.im.chain.chain_factory.GoogleCalendarChain') as mock_google_chain:
             mock_google_chain.side_effect = Exception("Google Calendar chain error")
+            with patch('app.im.chain.chain_factory.isinstance', return_value=True):
+                with pytest.raises(Exception, match="Google Calendar chain error"):
+                    ChainFactory._create_chain("test_chain", config)
 
-            with pytest.raises(Exception, match="Google Calendar chain error"):
-                ChainFactory._create_chain("test_chain", config)
-
-    def test_create_chain_with_google_calendar_chain_not_instance(self):
-        """Test _create_chain with Google Calendar chain not being instance."""
+    def test_create_chain_with_google_calendar_chain_starts_sync(self):
+        """Google calendar chains always start sync after construction."""
         config = Mock()
         config.type = ChainType.CLOUD
         config.provider = "google"
 
         with patch('app.im.chain.chain_factory.GoogleCalendarChain') as mock_google_chain:
-            mock_google_chain.return_value = "not_instance"
-
-            # Mock isinstance to return False for GoogleCalendarChain
-            with patch('app.im.chain.chain_factory.isinstance', return_value=False):
+            mock_instance = Mock()
+            mock_google_chain.return_value = mock_instance
+            with patch('app.im.chain.chain_factory.isinstance', return_value=True):
                 result = ChainFactory._create_chain("test_chain", config)
 
-                assert result == "not_instance"
+        mock_instance.start_sync.assert_called_once()
+        assert result == mock_instance
 
     def test_create_chain_with_basic_chain_type(self):
         """Test _create_chain with basic chain type (no type attribute)."""

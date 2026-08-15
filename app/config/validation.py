@@ -162,7 +162,7 @@ class SimpleChain(BaseModel):
 class ScheduleChain(BaseModel):
     """Schedule chain configuration"""
     type: Literal[ChainType.SCHEDULE] = Field(..., description="Chain type")
-    timezone: str | None = Field("UTC", description="Timezone")
+    timezone: str = Field("UTC", description="Timezone")
     schedule: list[ScheduleEntry] = Field(..., description="Schedule entries")
 
 
@@ -171,7 +171,7 @@ class CloudChain(BaseModel):
     type: Literal[ChainType.CLOUD] = Field(..., description="Chain type")
     provider: CloudProvider = Field(..., description="Cloud provider")
     calendar_id: str = Field(..., description="Calendar ID")
-    default_steps: list[SimpleChainStep] | None = Field([], description="Default steps")
+    default_steps: list[SimpleChainStep] = Field([], description="Default steps")
 
 
 class UserGroup(BaseModel):
@@ -266,8 +266,9 @@ class BaseApplicationConfig(BaseModel):
     type: MessengerType = Field(..., description="Application type")
     impulse_address: HttpBase | None = Field(None, description="Impulse callback address")
     admin_users: list[str] = Field(..., description="Admin users")
-    user_groups: dict[str, UserGroup] | None = Field({}, description="User groups")
-    chains: dict[str, Any] | None = Field({}, description="Chain definitions")
+    user_groups: dict[str, UserGroup] = Field({}, description="User groups")
+    chains: dict[str, Any] = Field({}, description="Chain definitions")
+    groups: dict[str, Any] = Field({}, description="Group definitions")
     template_files: TemplateFiles | None = Field(TemplateFiles(status_icons=None, header=None, body=None),
                                                     description="Template files")
 
@@ -285,9 +286,6 @@ class BaseApplicationConfig(BaseModel):
     @classmethod
     def validate_chains_structure_and_references(cls, v, info):
         """Validate chain structure and references"""
-        if v is None:
-            return v
-
         users = info.data.get('users', {})
         user_groups = info.data.get('user_groups', {})
         groups = info.data.get('groups', {})
@@ -331,7 +329,7 @@ class SlackApplicationConfig(BaseApplicationConfig):
     """Slack messenger configuration"""
     type: Literal[MessengerType.SLACK] = Field(MessengerType.SLACK, description="Application type")
     channels: dict[str, SlackChannel] = Field(..., description="Channel definitions")
-    groups: dict[str, SlackGroup] | None = Field({}, description="Slack group definitions")
+    groups: dict[str, SlackGroup] = Field({}, description="Slack group definitions")
     users: dict[str, SlackUser] = Field(..., description="User definitions")
 
 
@@ -339,7 +337,7 @@ class MattermostApplicationConfig(AddressRequiredApplicationConfig):
     """Mattermost messenger configuration"""
     type: Literal[MessengerType.MATTERMOST] = Field(MessengerType.MATTERMOST, description="Application type")
     channels: dict[str, MattermostChannel] = Field(..., description="Channel definitions")
-    groups: dict[str, MattermostGroup] | None = Field({}, description="Mattermost group definitions")
+    groups: dict[str, MattermostGroup] = Field({}, description="Mattermost group definitions")
     users: dict[str, MattermostUser] = Field(..., description="User definitions")
     address: HttpBase = Field(..., description="Mattermost server address")
     team: str = Field(..., description="Mattermost team name")
@@ -356,8 +354,8 @@ class TelegramApplicationConfig(AddressRequiredApplicationConfig):
 class NullApplicationConfig(BaseApplicationConfig):
     """Null messenger configuration for UI-only mode"""
     type: Literal[MessengerType.NONE] = Field(MessengerType.NONE, description="Application type")
-    channels: dict[str, Any] | None = Field(default_factory=dict, description="Channel definitions (not used)")
-    users: dict[str, Any] | None = Field(default_factory=dict, description="User definitions (not used)")
+    channels: dict[str, Any] = Field(default_factory=dict, description="Channel definitions (not used)")
+    users: dict[str, Any] = Field(default_factory=dict, description="User definitions (not used)")
     admin_users: list[str] = Field(default_factory=list, description="Admin users (not used)")
     impulse_address: str | None = Field(None, description="Impulse callback address (not used)")
 
@@ -380,15 +378,15 @@ ApplicationConfig = (
 
 class GeneralConfig(BaseModel):
     """General configuration"""
-    workday_start: str | None = Field("09:00", description="Time when workday starts")
-    week_start: str | None = Field("Mon", description="First day of the week")
-    timezone: str | None = Field("UTC", description="Default timezone for freeze calculations")
+    workday_start: str = Field("09:00", description="Time when workday starts")
+    week_start: str = Field("Mon", description="First day of the week")
+    timezone: str = Field("UTC", description="Default timezone for freeze calculations")
 
     @field_validator('workday_start')
     @classmethod
     def validate_workday_start_format(cls, v):
         """Validate workday_start format (HH:MM)"""
-        if v and not re.match(r'^([01]\d|2[0-3]):([0-5]\d)$', v):
+        if not re.match(r'^([01]\d|2[0-3]):([0-5]\d)$', v):
             raise ValueError("workday_start must be in HH:MM format (e.g., '09:00')")
         return v
 
@@ -397,7 +395,7 @@ class GeneralConfig(BaseModel):
     def validate_week_start_format(cls, v):
         """Validate week_start format"""
         valid_days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', '0', '1', '2', '3', '4', '5', '6', '7']
-        if v and v not in valid_days:
+        if v not in valid_days:
             raise ValueError(f"week_start must be one of {valid_days}")
         return v
 
@@ -435,8 +433,8 @@ class RouteConfig(BaseModel):
     """Route configuration"""
     channel: str = Field(..., description="Default channel")
     chain: str | None = Field(None, description="Default chain")
-    matchers: list[str] | None = Field([], description="Route matchers")
-    routes: list['RouteConfig'] | None = Field([], description="Nested routes")
+    matchers: list[str] = Field([], description="Route matchers")
+    routes: list['RouteConfig'] = Field([], description="Nested routes")
 
 
 class UIColumn(BaseModel):
@@ -543,19 +541,19 @@ class InhibitRule(BaseModel):
     """Single inhibition rule configuration for AlertManager-style inhibition"""
     source_matchers: list[str] = Field(..., description="Source matchers (e.g., 'severity =~ \"critical\"')")
     target_matchers: list[str] = Field(..., description="Target matchers (e.g., 'severity =~ \"warning\"')")
-    equal: list[str] | None = Field([], description="Labels that must be equal between source and target")
+    equal: list[str] = Field([], description="Labels that must be equal between source and target")
 
 
 class ImpulseConfig(BaseModel):
     """Main Impulse configuration"""
-    general: GeneralConfig | None = Field(GeneralConfig(), description="General configuration")
+    general: GeneralConfig = Field(default_factory=GeneralConfig, description="General configuration")
     messenger: ApplicationConfig = Field(..., description="Messenger configuration", discriminator='type')
     incident: IncidentConfig | None = Field(None, description="Incident configuration")
     route: RouteConfig | None = Field(None, description="Route configuration")
     ui: UIConfig | None = Field(None, description="UI configuration")
-    webhooks: dict[str, WebhookConfig] | None = Field({}, description="Webhook configurations")
+    webhooks: dict[str, WebhookConfig] = Field({}, description="Webhook configurations")
     task_management: TaskManagementConfig | None = Field(None, description="Task management configuration")
-    inhibit_rules: list[InhibitRule] | None = Field([], description="Inhibition rules for AlertManager-style inhibition")
+    inhibit_rules: list[InhibitRule] = Field([], description="Inhibition rules for AlertManager-style inhibition")
 
     @model_validator(mode='after')
     def validate_route_exists(self):
@@ -593,15 +591,16 @@ class ImpulseConfig(BaseModel):
 
         chains = self.messenger.chains
 
-        def validate_route_chain(route_config):
-            if hasattr(route_config, 'chain') and route_config.chain and route_config.chain not in chains:
+        def validate_route_chain(route_config: RouteConfig):
+            if route_config.chain and route_config.chain not in chains:
                 raise ValueError(f"Route chain '{route_config.chain}' not found in messenger chains")
 
-            if hasattr(route_config, 'routes') and route_config.routes:
+            if route_config.routes:
                 for nested_route in route_config.routes:
                     validate_route_chain(nested_route)
 
-        validate_route_chain(self.route)
+        if self.route is not None:
+            validate_route_chain(self.route)
         return self
 
 

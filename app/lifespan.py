@@ -73,7 +73,7 @@ async def create_main_objects(fastapi_app: FastAPI, reload=False):
         JinjaTemplate.set_incidents(incidents)
         queue = await AsyncQueue.recreate_queue(incidents)
         inhibition_manager = InhibitionManager(
-            rules=config_data.app.inhibit_rules or [],
+            rules=config_data.app.inhibit_rules,
             incidents=incidents,
             application=messenger,
             queue=queue
@@ -197,5 +197,5 @@ async def _wait_and_become_primary(shutdown_event, file_lock, fastapi_app):
         try:
             await asyncio.wait_for(shutdown_event.wait(), timeout=5.0)
             break
-        except TimeoutError:
+        except asyncio.TimeoutError:
             pass

@@ -1,5 +1,5 @@
 import calendar
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 
@@ -28,7 +28,7 @@ def calculate_freeze_time(option: str, general_config, timezone_str: str = "UTC"
     if option == 'tomorrow':
         freeze_time = now + timedelta(days=1)
         freeze_time = freeze_time.replace(hour=workday_hour, minute=workday_minute, second=0, microsecond=0)
-        return freeze_time.astimezone(UTC)
+        return freeze_time.astimezone(timezone.utc)
         
     elif option == 'next_monday':
         week_start_map = {
@@ -48,17 +48,17 @@ def calculate_freeze_time(option: str, general_config, timezone_str: str = "UTC"
             
         freeze_time = now + timedelta(days=days_ahead)
         freeze_time = freeze_time.replace(hour=workday_hour, minute=workday_minute, second=0, microsecond=0)
-        return freeze_time.astimezone(UTC)
+        return freeze_time.astimezone(timezone.utc)
         
     elif option == 'month':
         freeze_time = _add_months(now, 1)
         freeze_time = freeze_time.replace(hour=workday_hour, minute=workday_minute, second=0, microsecond=0)
-        return freeze_time.astimezone(UTC)
+        return freeze_time.astimezone(timezone.utc)
         
     elif option == '6months':
         freeze_time = _add_months(now, 6)
         freeze_time = freeze_time.replace(hour=workday_hour, minute=workday_minute, second=0, microsecond=0)
-        return freeze_time.astimezone(UTC)
+        return freeze_time.astimezone(timezone.utc)
         
     else:
         raise ValueError(f"Unknown freeze option: {option}")

@@ -1,6 +1,6 @@
 import asyncio
 from collections import namedtuple
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from app.logging import logger
@@ -59,7 +59,7 @@ class AsyncQueue:
 
     async def get_next_ready_item(self) -> tuple[str, str, str, Any] | None:
         """Get the next item that's ready to be processed (datetime <= now)"""
-        now = datetime.now(UTC)
+        now = datetime.now(timezone.utc)
         async with self._lock:
             if self._items and self._items[0].datetime <= now:
                 item = self._items.pop(0)
@@ -88,7 +88,7 @@ class AsyncQueue:
     async def recreate(self, status: str, uniq_id: str, incident_chain: list, chain_active_seconds: float = 0.0):
         """Recreate queue items for incident chain using relative seconds"""
         if status == 'firing' or status == 'unknown':
-            now = datetime.now(UTC)
+            now = datetime.now(timezone.utc)
             new_items = []
             for i, s in enumerate(incident_chain):
                 if not s['done']:
@@ -119,7 +119,7 @@ class AsyncQueue:
             if incident.status != 'deleted':
                 await queue.put(incident.status_update_datetime, QueueItemType.UPDATE_STATUS, uniq_id)
             else:
-                await queue.put_first(datetime.now(UTC), QueueItemType.STATUS_CHECK, uniq_id)
+                await queue.put_first(datetime.now(timezone.utc), QueueItemType.STATUS_CHECK, uniq_id)
 
         return queue
 

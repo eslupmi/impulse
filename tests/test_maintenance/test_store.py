@@ -63,7 +63,7 @@ def test_list_returns_maintenance_window_objects(tmp_path: Path):
     mock_config = _mock_closed_retention("7d")
     try:
         store.save_windows([_sample_window()])
-        windows = store.list()
+        windows = store.windows_list()
         assert len(windows) == 1
         assert isinstance(windows[0], MaintenanceWindow)
         assert windows[0].matchers == ['service="postgres"']

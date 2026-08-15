@@ -1,5 +1,5 @@
 from collections.abc import Callable
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
 from app.incident.freeze import MAINTENANCE_PARENT_SENTINEL, FreezeSource
@@ -40,13 +40,13 @@ class MaintenanceManager:
         self.incidents = incidents
         self.application = application
         self.queue = queue
-        self._now = now or (lambda: datetime.now(UTC))
+        self._now = now or (lambda: datetime.now(timezone.utc))
 
     def _first_matching_window_with_coverage_end(
         self, incident: "Incident", require_future_end: bool = False
     ) -> tuple[MaintenanceWindow, datetime] | None:
         now = self._now()
-        windows = self.store.list()
+        windows = self.store.windows_list()
         active = [w for w in windows if w.is_active(now)]
         active.sort(key=lambda w: (w.starts_at, w.ends_at, w.id))
         for window in active:
@@ -89,7 +89,7 @@ class MaintenanceManager:
 
     def active_windows_payload(self) -> list[dict]:
         now = self._now()
-        active = [w for w in self.store.list() if w.is_active(now)]
+        active = [w for w in self.store.windows_list() if w.is_active(now)]
         active.sort(key=lambda w: w.starts_at)
         return [self._active_window_payload(w) for w in active]
 
@@ -122,7 +122,7 @@ class MaintenanceManager:
         now = self._now()
         await self.queue.delete_by_type(QueueItemType.MAINTENANCE_START)
         await self.queue.delete_by_type(QueueItemType.MAINTENANCE_END)
-        for window in self.store.list():
+        for window in self.store.windows_list():
             if window.starts_at > now:
                 await self.queue.put(
                     window.starts_at,

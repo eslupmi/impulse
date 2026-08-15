@@ -107,7 +107,7 @@ class JiraClient:
                 error_text = await response.text()
                 logger.error(f"Failed to create Jira issue: {response.status} - {error_text}")
                 return None
-        except MESSENGER_TRANSPORT_ERRORS as e:
+        except Exception as e:  # noqa: BLE001
             logger.error(f"Error creating Jira issue: {e}")
             return None
     

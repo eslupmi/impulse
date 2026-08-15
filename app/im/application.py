@@ -79,9 +79,9 @@ class Application(ABC):
         self.admin_users = None
         self.webhooks: dict = {}
 
-        self._users_config = app_config.users or {}
+        self._users_config = app_config.users
         self._user_groups_config = app_config.user_groups
-        self._groups_config = getattr(app_config, 'groups', {})
+        self._groups_config = app_config.groups
         self._admin_users_config = app_config.admin_users
 
         self._async_tasks: set = set()
@@ -372,8 +372,6 @@ class Application(ABC):
         await self.post_to_thread(incident_.channel_id, incident_.ts, message)
 
     def track_async_task(self, task):
-        if not hasattr(self, '_async_tasks'):
-            self._async_tasks = set()
         self._async_tasks.add(task)
         task.add_done_callback(self._async_tasks.discard)
 
@@ -494,9 +492,7 @@ class Application(ABC):
             user_tz = self.users.get_user_timezone(user_id)
             if user_tz:
                 return user_tz
-        config = get_config()
-        general = config.app.general
-        return (general.timezone if general else None) or "UTC"
+        return get_config().app.general.timezone
 
     def get_user_profile_url(self, user_id: str, user: BaseUser) -> str | None:
         return self._build_user_profile_url(str(user_id), user)
@@ -520,9 +516,8 @@ class Application(ABC):
     ):
         logger.info(log_button_pressed, extra={'uniq_id': incident_.uniq_id, 'button': 'freeze', 'user_id': user_id})
 
-        config = get_config()
-        general = config.app.general
-        timezone_str = user_timezone or ((general.timezone if general else None) or "UTC")
+        general = get_config().app.general
+        timezone_str = user_timezone or general.timezone
         freeze_time = calculate_freeze_time(freeze_option, general, timezone_str)
         self.fetch_and_assign_user_name(incident_, user_id, dump=False)
         cached_user = self.users.get_user_by_id(user_id) if self.users else None

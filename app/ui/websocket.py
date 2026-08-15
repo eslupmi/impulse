@@ -36,7 +36,7 @@ class AsyncIncidentWS:
         for websocket in self.connections:
             try:
                 await websocket.send_text(message)
-            except (WebSocketDisconnect, RuntimeError) as e:
+            except Exception as e:  # noqa: BLE001
                 logger.warning(f"Failed to send message to WebSocket: {e}")
                 disconnected.add(websocket)
 
@@ -73,7 +73,7 @@ class AsyncIncidentWS:
                 data = incidents.get_active_table(self._get_values())
             message = json.dumps({"event": "update_data", "data": data})
             await websocket.send_text(message)
-        except (WebSocketDisconnect, RuntimeError) as e:
+        except Exception as e:  # noqa: BLE001
             logger.error(f"Failed to send full table data: {e}")
 
     @staticmethod

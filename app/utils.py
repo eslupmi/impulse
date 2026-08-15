@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 
 def get_attr_by_key_chain(obj, default=None, *keys):
@@ -32,7 +32,7 @@ def normalize_param(param):
 
     if isinstance(param, datetime):
         if param.tzinfo is None:
-            param = param.replace(tzinfo=UTC)
+            param = param.replace(tzinfo=timezone.utc)
         return param.timestamp()
     else:
         return param

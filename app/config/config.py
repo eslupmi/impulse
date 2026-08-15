@@ -69,7 +69,7 @@ def load_unified_config(exit_on_error: bool = True) -> UnifiedConfig:
 
 def reload_config() -> bool:
     global _config
-    current_config = get_config()
+    current_config = _config
 
     try:
         new_config = load_unified_config(exit_on_error=False)
@@ -84,7 +84,7 @@ def reload_config() -> bool:
         logger.warning("Config validation failed, keeping current config", extra={'error': str(e)})
         _config = current_config
         return False
-    except OSError as e:
+    except Exception as e:  # noqa: BLE001
         logger.warning("Config reload failed, keeping current config", extra={'error': str(e)})
         _config = current_config
         return False

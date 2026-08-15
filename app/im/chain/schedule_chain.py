@@ -1,5 +1,5 @@
 import re
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import ClassVar
 from zoneinfo import ZoneInfo
 
@@ -30,7 +30,7 @@ class ScheduleChain:
         """
         Get the steps for the current time.
         """
-        current_time = datetime.now(UTC)
+        current_time = datetime.now(timezone.utc)
         return self._get_steps(current_time)
 
     ### PRIVATE METHODS ###

@@ -1,6 +1,6 @@
 import asyncio
 import json
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 from fastapi import (
     APIRouter,
@@ -93,9 +93,9 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
         try:
             alert_state = await request.json()
             logger.debug("Alert received", extra={'payload': alert_state})
-            await request.app.state.queue.put_first(datetime.now(UTC), 'alert', None, None, alert_state)
+            await request.app.state.queue.put_first(datetime.now(timezone.utc), 'alert', None, None, alert_state)
             return alert_state
-        except json.JSONDecodeError as e:
+        except Exception as e:  # noqa: BLE001
             logger.error("Alert processing error", extra={'error': str(e)})
             raise HTTPException(status_code=400, detail=str(e))
 
@@ -105,7 +105,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
         try:
             if request.app.state.messenger.type == 'slack':
                 form_data = await request.form()
-                payload = json.loads(str(form_data['payload']))
+                payload = json.loads(form_data['payload'])
             else:
                 payload = await request.json()
 
@@ -128,9 +128,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
         return get_all_ui_config()
 
     def _get_assignable_users(messenger):
-        if messenger and hasattr(messenger, 'users') and hasattr(messenger.users, 'get_assignable_users'):
-            return messenger.users.get_assignable_users()
-        return []
+        return messenger.users.get_assignable_users()
 
     def _get_acting_user(request: Request):
         if not auth_manager:
@@ -158,19 +156,19 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
         app = config.app
         runtime_messenger = request.app.state.messenger
         configured_messenger = config.messenger
-        runtime_chains = runtime_messenger.chains if getattr(runtime_messenger, "chains", None) else {}
-        configured_chains = configured_messenger.chains if getattr(configured_messenger, "chains", None) else {}
+        runtime_chains = runtime_messenger.chains
+        configured_chains = configured_messenger.chains
         ui_chains = [n for n, c in configured_chains.items() if isinstance(c, dict) and c.get("type") == "ui"]
         assignable_users = _get_assignable_users(runtime_messenger)
         acting_user = _get_acting_user(request)
         return {
             "users": [user["config_name"] for user in assignable_users if user.get("config_name")],
-            "user_groups": list(runtime_messenger.user_groups.keys()) if getattr(runtime_messenger, "user_groups", None) else [],
-            "groups": list(runtime_messenger.groups.keys()) if getattr(runtime_messenger, "groups", None) else [],
+            "user_groups": list(runtime_messenger.user_groups.keys()),
+            "groups": list(runtime_messenger.groups.keys()),
             "chains": list(runtime_chains.keys()),
-            "webhooks": list((app.webhooks or {}).keys()),
-            "week_start": app.general.week_start if app.general else "Mon",
-            "timezone": app.general.timezone if app.general else "UTC",
+            "webhooks": list(app.webhooks.keys()),
+            "week_start": app.general.week_start,
+            "timezone": app.general.timezone,
             "messenger_type": runtime_messenger.type.value,
             "user_timezone": acting_user.get("timezone"),
             "ui_chains": ui_chains,
@@ -361,7 +359,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
                 )
             else:
                 raise HTTPException(status_code=400, detail="Configuration reload failed")
-        except OSError as e:
+        except Exception as e:  # noqa: BLE001
             logger.error("Configuration reload error via API", extra={'error': str(e)})
             raise HTTPException(status_code=500, detail=str(e))
 
@@ -474,7 +472,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
 
         except WebSocketDisconnect:
             incident_ws.disconnect(websocket)
-        except RuntimeError as e:
+        except Exception as e:  # noqa: BLE001
             logger.error("WebSocket error", extra={'error': str(e)})
             incident_ws.disconnect(websocket)
 

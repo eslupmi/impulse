@@ -1,7 +1,7 @@
 import builtins
 import os
 import threading
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from icalendar import Calendar, Component, Event
@@ -47,7 +47,7 @@ class MaintenanceStore:
             retained = self._filter_retained_windows(windows)
             return self._write_windows_unlocked(retained)
 
-    def list(self) -> list[MaintenanceWindow]:
+    def windows_list(self) -> list[MaintenanceWindow]:
         windows = self.load_windows()
         return [MaintenanceWindow.from_window_dict(w) for w in windows]
 
@@ -71,7 +71,7 @@ class MaintenanceStore:
             os.makedirs(self._dir)
             logger.info("Created maintenance directory", extra={"path": self._dir})
 
-    def _read_windows_from_disk(self) -> builtins.list[dict[str, Any]]:
+    def _read_windows_from_disk(self) -> list[dict[str, Any]]:
         if not os.path.exists(self._file):
             return []
         try:
@@ -84,11 +84,11 @@ class MaintenanceStore:
                     if window:
                         windows.append(window)
             return windows
-        except (OSError, ValueError, TypeError) as e:
+        except Exception as e:  # noqa: BLE001
             logger.error("Failed to load maintenance store", extra={"error": str(e), "path": self._file})
             return []
 
-    def _write_windows_unlocked(self, windows: builtins.list[dict[str, Any]]) -> bool:
+    def _write_windows_unlocked(self, windows: list[dict[str, Any]]) -> bool:
         try:
             cal = Calendar()
             cal.add("prodid", "-//IMPulse//impulse.maintenance//EN")
@@ -106,7 +106,7 @@ class MaintenanceStore:
 
             logger.debug("Saved maintenance windows", extra={"count": len(windows)})
             return True
-        except (OSError, ValueError, TypeError) as e:
+        except Exception as e:  # noqa: BLE001
             logger.error("Failed to save maintenance store", extra={"error": str(e), "path": self._file})
             return False
 
@@ -127,7 +127,7 @@ class MaintenanceStore:
 
             event.add("dtstart", start_dt)
             event.add("dtend", end_dt)
-            event.add("dtstamp", datetime.now(UTC))
+            event.add("dtstamp", datetime.now(timezone.utc))
 
             for matcher in matchers:
                 event.add("x-matcher", str(matcher))
@@ -141,7 +141,7 @@ class MaintenanceStore:
                 event.add("x-owner-id", str(owner_id))
 
             return event
-        except (ValueError, TypeError, KeyError) as e:
+        except Exception as e:  # noqa: BLE001
             logger.error(
                 "Failed to convert maintenance window to iCal event",
                 extra={"error": str(e), "window_id": window.get("id")},
@@ -184,7 +184,7 @@ class MaintenanceStore:
                 "comment": str(x_comment) if x_comment else "",
                 "owner_id": str(x_owner_id) if x_owner_id else None,
             }
-        except (ValueError, TypeError, KeyError) as e:
+        except Exception as e:  # noqa: BLE001
             logger.error("Failed to convert iCal event to maintenance window", extra={"error": str(e)})
             return None
 
@@ -206,11 +206,11 @@ class MaintenanceStore:
         return now - retention
 
     def _partition_by_retention(
-        self, windows: builtins.list[dict[str, Any]], now: datetime | None = None
-    ) -> tuple[builtins.list[dict[str, Any]], builtins.list[dict[str, Any]]]:
-        now = now or datetime.now(UTC)
+        self, windows: list[dict[str, Any]], now: datetime | None = None
+    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+        now = now or datetime.now(timezone.utc)
         if now.tzinfo is None:
-            now = now.replace(tzinfo=UTC)
+            now = now.replace(tzinfo=timezone.utc)
         cutoff = self._retention_cutoff(now)
         retained = []
         expired = []
@@ -222,7 +222,7 @@ class MaintenanceStore:
                 retained.append(window)
         return retained, expired
 
-    def _filter_retained_windows(self, windows: builtins.list[dict[str, Any]], now: datetime | None = None) -> builtins.list[dict[str, Any]]:
+    def _filter_retained_windows(self, windows: list[dict[str, Any]], now: datetime | None = None) -> list[dict[str, Any]]:
         retained, _ = self._partition_by_retention(windows, now)
         return retained
 

@@ -1,6 +1,6 @@
 import json
 import os
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from icalendar import Calendar, Component, Event
@@ -158,7 +158,7 @@ class UIChainsStore:
                     if shift:
                         shifts.append(shift)
             return shifts
-        except (OSError, ValueError, TypeError) as e:
+        except Exception as e:  # noqa: BLE001
             logger.error("Failed to load ui chains", extra={"error": str(e), "chain": chain_name})
             return []
 
@@ -181,7 +181,7 @@ class UIChainsStore:
 
             logger.debug("Saved ui chains", extra={"chain": chain_name, "count": len(shifts)})
             return True
-        except (OSError, ValueError, TypeError) as e:
+        except Exception as e:  # noqa: BLE001
             logger.error("Failed to save ui chains", extra={"error": str(e), "chain": chain_name})
             return False
 
@@ -193,9 +193,9 @@ class UIChainsStore:
     def _partition_by_retention(
         self, shifts: list[dict[str, Any]], now: datetime | None = None
     ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-        now = now or datetime.now(UTC)
+        now = now or datetime.now(timezone.utc)
         if now.tzinfo is None:
-            now = now.replace(tzinfo=UTC)
+            now = now.replace(tzinfo=timezone.utc)
         cutoff = self._retention_cutoff(now)
         retained = []
         expired = []
@@ -246,9 +246,9 @@ class UIChainsStore:
         if not shifts:
             return []
 
-        now = now or datetime.now(UTC)
+        now = now or datetime.now(timezone.utc)
         if now.tzinfo is None:
-            now = now.replace(tzinfo=UTC)
+            now = now.replace(tzinfo=timezone.utc)
 
         active = []
         for shift in shifts:
@@ -288,7 +288,7 @@ class UIChainsStore:
                 if end_dt:
                     event.add("dtend", end_dt)
 
-            event.add("dtstamp", datetime.now(UTC))
+            event.add("dtstamp", datetime.now(timezone.utc))
 
             repeat = chain.get("repeat")
             if repeat:
@@ -311,7 +311,7 @@ class UIChainsStore:
                 event.add("x-priority", str(priority))
 
             return event
-        except (ValueError, TypeError, OSError) as e:
+        except Exception as e:  # noqa: BLE001
             logger.error("Failed to convert chain to iCal event", extra={"error": str(e), "chain_id": chain.get("id")})
             return None
 
@@ -358,7 +358,7 @@ class UIChainsStore:
             chain["priority"] = _parse_x_priority(event.get("x-priority"))
 
             return chain
-        except (ValueError, TypeError, KeyError) as e:
+        except Exception as e:  # noqa: BLE001
             logger.error("Failed to convert iCal event to chain", extra={"error": str(e)})
             return None
 

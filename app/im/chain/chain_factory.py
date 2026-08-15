@@ -24,13 +24,12 @@ class ChainFactory:
         if isinstance(config, ScheduleChainType):
             return ScheduleChain(
                 name=name,
-                timezone_=config.timezone or ScheduleChain.DEFAULT_TIMEZONE,
+                timezone_=config.timezone,
                 schedule=config.schedule,
             )
-        if hasattr(config, 'type'):
-            raise ValueError(f"Unknown chain type '{config.type.value}' for chain '{name}'. Check impulse.yml")
-        else:
+        if isinstance(config, list):
             return Chain(name, config)
+        raise ValueError(f"Unknown chain type '{config.type.value}' for chain '{name}'. Check impulse.yml")
 
     @classmethod
     def generate(cls, chains_dict):
@@ -43,7 +42,7 @@ class ChainFactory:
                     chains[name] = chain
                 else:
                     logger.warning(f"Skipping chain '{name}' because it is handled outside runtime chain creation")
-            except ValueError as e:
+            except Exception as e:  # noqa: BLE001
                 logger.exception(f"Failed to create chain '{name}'")
                 logger.warning(f"Skipping chain '{name}' due to creation failure: {e}")
         return chains

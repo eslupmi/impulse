@@ -1,7 +1,7 @@
 import os
 import re
 import tempfile
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import yaml
@@ -72,7 +72,7 @@ class FileSessionStore:
             return 0
 
         removed = 0
-        now = datetime.now(UTC)
+        now = datetime.now(timezone.utc)
         for path in self.root_dir.glob("*.yaml"):
             try:
                 raw = path.read_text(encoding="utf-8")
@@ -97,8 +97,8 @@ class FileSessionStore:
     @staticmethod
     def _is_expired(expires_at: datetime, now: datetime | None = None) -> bool:
         if expires_at.tzinfo is None:
-            expires_at = expires_at.replace(tzinfo=UTC)
-        now = now or datetime.now(UTC)
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        now = now or datetime.now(timezone.utc)
         return expires_at <= now
 
     @staticmethod

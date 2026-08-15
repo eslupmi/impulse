@@ -1,6 +1,6 @@
 """Prometheus metrics for IMPulse application."""
 import time
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from functools import wraps
 
 import aiohttp
@@ -84,7 +84,7 @@ async def update_queue_latency(queue: AsyncQueue):
     if first_item_datetime is None:
         QUEUE_LATENCY.set(0.0)
     else:
-        now = datetime.now(UTC)
+        now = datetime.now(timezone.utc)
         delay = max(0.0, (now - first_item_datetime).total_seconds())
         QUEUE_LATENCY.set(delay)
 

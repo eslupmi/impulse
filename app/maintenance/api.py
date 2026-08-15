@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import HTTPException
@@ -74,8 +74,8 @@ def window_from_ws_item(
 
     return {
         "id": str(window_id),
-        "start": starts_at.astimezone(UTC).isoformat(),
-        "end": ends_at.astimezone(UTC).isoformat(),
+        "start": starts_at.astimezone(timezone.utc).isoformat(),
+        "end": ends_at.astimezone(timezone.utc).isoformat(),
         "matchers": matchers,
         "comment": comment,
         "owner_id": owner_id,

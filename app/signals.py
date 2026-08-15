@@ -22,7 +22,7 @@ def setup_sighup_handler(fastapi_app: FastAPI, create_main_objects, cleanup_appl
                     asyncio.get_running_loop().create_task(reload())
                 except RuntimeError:
                     asyncio.run(reload())
-        except OSError as e:
+        except Exception as e:  # noqa: BLE001
             logger.error("Configuration reload error", extra={'error': str(e)})
             logger.warning("Configuration reload aborted")
 

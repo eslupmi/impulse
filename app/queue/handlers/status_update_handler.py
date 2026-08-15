@@ -1,5 +1,5 @@
 from copy import deepcopy
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 from app.logging import logger
 from app.queue.constants import QueueItemType
@@ -44,4 +44,4 @@ class StatusUpdateHandler(BaseHandler):
             await self.queue.update(uniq_id, incident.status_update_datetime, incident.status)
             await self.queue.delete_by_id(uniq_id, delete_steps=True, delete_status=False)
         
-        await self.queue.put_first(datetime.now(UTC), QueueItemType.STATUS_CHECK, uniq_id)
+        await self.queue.put_first(datetime.now(timezone.utc), QueueItemType.STATUS_CHECK, uniq_id)

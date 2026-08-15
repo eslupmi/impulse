@@ -43,9 +43,9 @@ class MainRoute:
 
 
 class Route(MainRoute):
-    def __init__(self, channel: str, chain: str | None, routes_list: list[RouteConfig] | None, matchers: list[str] | None):
+    def __init__(self, channel: str, chain: str | None, routes_list: list[RouteConfig] | None, matchers: list[str]):
         super().__init__(channel, chain, routes_list)
-        self.matchers = [Matcher(m) for m in matchers or []]
+        self.matchers = [Matcher(m) for m in matchers]
 
     def get_channels(self, channels):
         channels.append(self.channel)

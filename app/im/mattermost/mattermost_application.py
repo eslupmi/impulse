@@ -3,7 +3,7 @@ import asyncio
 from fastapi.responses import JSONResponse
 
 from app.config.environment import get_environment_config
-from app.config.validation import ApplicationConfig
+from app.config.validation import ApplicationConfig, MattermostApplicationConfig
 from app.http_client.errors import MESSENGER_TRANSPORT_ERRORS
 from app.im.application import Application
 from app.im.mattermost.threads import (
@@ -174,13 +174,16 @@ class MattermostApplication(Application):
         return mattermost_get_create_thread_payload(incident, body, header, status_icons)
 
     async def _get_public_url(self, app_config: ApplicationConfig):
-        return getattr(app_config, "address", None)
+        assert isinstance(app_config, MattermostApplicationConfig)
+        return app_config.address
 
     def _get_team_name(self, app_config: ApplicationConfig):
-        return getattr(app_config, "team", None)
+        assert isinstance(app_config, MattermostApplicationConfig)
+        return app_config.team
 
     def _get_url(self, app_config: ApplicationConfig):
-        return getattr(app_config, "address", None)
+        assert isinstance(app_config, MattermostApplicationConfig)
+        return app_config.address
 
     def _build_user_profile_url(self, user_id: str, user: BaseUser) -> str | None:
         return f"{self.public_url}/{self.team}/users/{user_id}"
