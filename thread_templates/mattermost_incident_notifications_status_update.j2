@@ -1,0 +1,1 @@
+update: status **{% if incident.status == 'unknown' %}[unknown](https://docs.impulse.bot/stable/warnings/StatusUnknown/){% else %}{{ incident.status }}{% endif %}**{%- if incident.status == 'unknown' %}  |  :bell: admins ({%- for u in users.values() if u and 'admin' in u.roles %}@{{ u.username }}{% if not loop.last %},{% endif %}{% endfor -%}){% endif %}

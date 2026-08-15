@@ -114,7 +114,7 @@ class TestUnfreezeHandler:
             incident, unfreeze_handler.queue, source=FreezeSource.TIME
         )
         mock_maintenance_manager.reconcile_incident.assert_awaited_once_with(incident, update_message=False)
-        unfreeze_handler.app.post_unfreeze_notification.assert_called_once_with(incident)
+        unfreeze_handler.app.post_unfreeze_notification.assert_called_once_with(incident, ui_user=None)
         create_task.assert_called_once()
         unfreeze_handler.app.track_async_task.assert_called_once_with("unfreeze-task")
         unfreeze_handler.app.update_incident_message.assert_awaited_once_with(incident)

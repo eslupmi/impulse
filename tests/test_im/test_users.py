@@ -159,9 +159,10 @@ class TestTelegramUser:
         user = TelegramUser("john", id_="12345", exists=True, full_name="John Doe", username="johnny")
         payload = user.serialize()
         assert payload == {
+            "exists": True,
             "full_name": "John Doe",
             "id": 12345,
-            "name": "john",
+            "roles": [],
             "username": "johnny",
         }
         assert isinstance(payload["id"], int)
@@ -207,9 +208,10 @@ class TestSlackUser:
         payload = user.serialize()
         assert payload == {
             "email": "jane@example.com",
+            "exists": True,
             "full_name": "Jane Smith",
             "id": "U12345",
-            "name": "jane",
+            "roles": [],
             "timezone": "America/New_York",
             "username": "jane",
         }
@@ -257,9 +259,10 @@ class TestMattermostUser:
         payload = user.serialize()
         assert payload == {
             "email": "bob@example.com",
+            "exists": True,
             "full_name": "Bob Johnson",
             "id": "abc123",
-            "name": "bob",
+            "roles": [],
             "timezone": "UTC",
             "username": "bjohnson",
         }

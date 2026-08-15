@@ -219,8 +219,34 @@ class IncidentMigrator:
         return migrated
 
     @staticmethod
+    def reshape_chain_steps(data: Dict) -> Dict:
+        if 'chain' not in data and 'chain_steps' not in data:
+            return data
+
+        migrated = data.copy()
+        chain = migrated.pop('chain', None)
+        if chain is None:
+            chain = migrated.get('chain_steps', [])
+
+        new_steps = []
+        for step in chain:
+            step_copy = step.copy()
+            if 'type' in step_copy:
+                step_copy['name'] = step_copy.pop('type')
+            if 'identifier' in step_copy:
+                step_copy['value'] = step_copy.pop('identifier')
+            if step_copy.get('name') == 'webhook' and 'status' not in step_copy:
+                result = step_copy.get('result')
+                step_copy['status'] = 'ok' if isinstance(result, int) else None
+            new_steps.append(step_copy)
+
+        migrated['chain_steps'] = new_steps
+        migrated.pop('chain', None)
+        return migrated
+
+    @staticmethod
     def _migrate_v3_6_0_to_v3_7_0(data: Dict) -> Dict:
-        return data.copy()
+        return IncidentMigrator.reshape_chain_steps(data)
 
     def _apply_filename_migrations(self, file_path: str, incident_data: Dict, from_version: str, to_version: str) -> str:
         if not self.MIGRATION_CHAIN:

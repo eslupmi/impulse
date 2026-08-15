@@ -171,3 +171,15 @@ class TestUserUpdateHandler:
             # Verify correct messenger type passed to save
             save_call = mock_user_store.save.call_args
             assert save_call[0][1] == messenger_type
+
+    @pytest.mark.asyncio
+    async def test_handle_applies_admin_role(self, handler, mock_application):
+        user = Mock()
+        mock_application.get_user_details.return_value = {'exists': True, 'full_name': 'Alice'}
+        mock_application.get_config_name_by_user_id.return_value = 'alice'
+        mock_application.create_user.return_value = user
+
+        with patch('app.queue.handlers.user_update_handler.get_user_store', return_value=Mock()):
+            await handler.handle("U123")
+
+        mock_application._apply_admin_role.assert_called_once_with(user, 'alice')

@@ -90,14 +90,22 @@ class TestEntitySerialize:
         payload = sample_user.serialize()
         assert payload == {
             "email": None,
+            "exists": True,
             "full_name": "Alice",
             "id": "U123",
-            "name": "alice",
+            "roles": [],
             "timezone": None,
             "username": "alice",
         }
         assert list(payload) == sorted(payload)
         assert isinstance(payload["id"], str)
+
+    def test_user_serialize_includes_admin_role(self, sample_user):
+        sample_user.roles = ['admin']
+        payload = sample_user.serialize()
+        assert payload["roles"] == ["admin"]
+        assert payload["exists"] is True
+        assert list(payload) == sorted(payload)
 
     def test_user_group_serialize(self, sample_user_group):
         assert sample_user_group.serialize() == {

@@ -29,6 +29,7 @@ class UserUpdateHandler(BaseHandler):
             config_name = self.app.get_config_name_by_user_id(user_id)
             user = self.app.create_user(config_name, user_details)
             if user:
+                self.app._apply_admin_role(user, config_name)
                 self.app.users.add_user(user_id, user)
             logger.info('User data refreshed', extra={'user_id': user_id})
         except Exception as e:

@@ -335,6 +335,40 @@ class TestIncidentMigrator:
         mock_rename.assert_not_called()
         assert result == file_path
 
+    def test_reshape_chain_steps_renames_fields(self, migrator):
+        data = {
+            'version': 'v3.6.0',
+            'chain': [
+                {'delay': 0.0, 'type': 'user', 'identifier': 'alice', 'done': True, 'result': 200},
+                {'delay': 300.0, 'type': 'webhook', 'identifier': 'notify', 'done': True, 'result': 201},
+                {'delay': 600.0, 'type': 'webhook', 'identifier': 'missing', 'done': True, 'result': None},
+            ],
+        }
+
+        result = migrator._migrate_v3_6_0_to_v3_7_0(data)
+
+        assert 'chain' not in result
+        assert len(result['chain_steps']) == 3
+        assert result['chain_steps'][0]['name'] == 'user'
+        assert result['chain_steps'][0]['value'] == 'alice'
+        assert result['chain_steps'][1]['name'] == 'webhook'
+        assert result['chain_steps'][1]['value'] == 'notify'
+        assert result['chain_steps'][1]['status'] == 'ok'
+        assert result['chain_steps'][2]['status'] is None
+
+    def test_reshape_chain_steps_idempotent(self, migrator):
+        data = {
+            'version': 'v3.7.0',
+            'chain_steps': [
+                {'delay': 0.0, 'name': 'user', 'value': 'alice', 'done': False, 'result': None, 'status': None},
+            ],
+        }
+
+        result = IncidentMigrator.reshape_chain_steps(data)
+
+        assert result['chain_steps'][0]['name'] == 'user'
+        assert result['chain_steps'][0]['value'] == 'alice'
+
     def test_migrate_file_returns_renamed_path(self, migrator):
         uniq_id = 'renamed-uniq-id'
         incident_data = {

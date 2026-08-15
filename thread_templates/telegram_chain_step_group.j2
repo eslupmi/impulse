@@ -1,0 +1,7 @@
+{%- set unit = groups.get(step.value) -%}
+🔔 group <b>{{ step.value }}</b>
+{%- if not unit.exists -%}
+ (<a href="https://docs.impulse.bot/stable/warnings/NotFound/">NotFound</a>)  |  🔔 admins ({%- for u in users.values() if u and 'admin' in u.roles %}<a href="tg://user?id={{ u.id }}">{{ u.name }}</a>{% if not loop.last %},{% endif %}{% endfor -%})
+{%- else -%}
+ ({{ unit.name }})
+{%- endif -%}

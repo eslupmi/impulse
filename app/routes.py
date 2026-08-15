@@ -127,21 +127,21 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
 
     def _get_acting_user(request: Request):
         if not auth_manager:
-            return None
+            return {}
         session_id = request.cookies.get(auth_manager.session_cookie_name)
         auth_result = auth_manager.get_current_user(session_id=session_id)
-        if not auth_result.get("authenticated"):
+        if not auth_result["authenticated"]:
             raise HTTPException(status_code=401, detail=_MSG_AUTHENTICATION_REQUIRED)
-        return auth_result.get("user", {})
+        return auth_result["user"]
 
     def _get_acting_user_from_websocket(websocket: WebSocket):
         if not auth_manager:
             return None
         session_id = websocket.cookies.get(auth_manager.session_cookie_name)
         auth_result = auth_manager.get_current_user(session_id=session_id)
-        if not auth_result.get("authenticated"):
+        if not auth_result["authenticated"]:
             return None
-        return auth_result.get("user", {})
+        return auth_result["user"]
 
     @router.get("/chains_config", responses={
         401: {"description": _MSG_AUTHENTICATION_REQUIRED},
@@ -165,7 +165,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
             "week_start": app.general.week_start if app.general else "Mon",
             "timezone": app.general.timezone if app.general else "UTC",
             "messenger_type": runtime_messenger.type.value,
-            "user_timezone": (acting_user or {}).get("timezone"),
+            "user_timezone": acting_user.get("timezone"),
             "ui_chains": ui_chains,
         }
 
@@ -174,8 +174,8 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
         return _get_assignable_users(request.app.state.messenger)
 
     def _log_ui_action(action_name, incident, acting_user, **extra):
-        acting_name = (acting_user or {}).get("full_name") or (acting_user or {}).get("username") or "unknown"
-        acting_id = (acting_user or {}).get("id") or "unknown"
+        acting_name = acting_user.get("full_name") or acting_user.get("username") or "unknown"
+        acting_id = acting_user.get("id") or "unknown"
         log_extra = {"uniq_id": incident.uniq_id, "acting_user": acting_name, "acting_user_id": acting_id}
         log_extra.update(extra)
         logger.info(f"UI {action_name}", extra=log_extra)
@@ -204,12 +204,12 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
         queue = request.app.state.queue
         if user_id == "":
             _log_ui_action("unassignment", incident, acting_user)
-            unassigned = await messenger.handle_ui_unassign(incident, queue)
+            unassigned = await messenger.handle_ui_unassign(incident, queue, ui_user=acting_user)
             return {"success": unassigned}
 
         _log_ui_action("assignment", incident, acting_user, target_user_id=user_id)
 
-        assigned = await messenger.handle_ui_assignment(incident, user_id, queue)
+        assigned = await messenger.handle_ui_assignment(incident, user_id, queue, ui_user=acting_user)
         return {"success": assigned}
 
     @router.post("/task", responses={
@@ -266,13 +266,16 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
         if incident.is_frozen:
             raise HTTPException(status_code=409, detail="Incident is already frozen")
 
-        user_tz = (acting_user or {}).get("timezone")
+        user_tz = acting_user.get("timezone")
         _log_ui_action("freeze", incident, acting_user, freeze_option=freeze_option)
 
         messenger = request.app.state.messenger
         queue = request.app.state.queue
         incidents = request.app.state.incidents
-        await messenger.handle_ui_freeze(incident, freeze_option, str((acting_user or {}).get("id", "")), incidents, queue, user_timezone=user_tz)
+        await messenger.handle_ui_freeze(
+            incident, freeze_option, str(acting_user.get("id", "")), incidents, queue,
+            user_timezone=user_tz, ui_user=acting_user,
+        )
         return {"success": True}
 
     @router.post("/unfreeze", responses={
@@ -327,7 +330,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
         _log_ui_action("release", incident, acting_user)
 
         messenger = request.app.state.messenger
-        await messenger.handle_ui_release(incident)
+        await messenger.handle_ui_release(incident, ui_user=acting_user)
         return {"success": True}
 
     @router.post("/-/reload")

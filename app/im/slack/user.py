@@ -23,9 +23,10 @@ class User(BaseUser):
     def serialize(self):
         return {
             'email': self.email,
+            'exists': self.exists,
             'full_name': self.full_name,
             'id': str(self.id),
-            'name': self.name,
+            'roles': list(self.roles),
             'timezone': self.timezone,
             'username': self.username,
         }

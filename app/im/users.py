@@ -5,7 +5,7 @@ from typing import Union, Optional, Dict, List
 class BaseUser(ABC):
     """Base class for all messenger users."""
     
-    def __init__(self, name: str, id_: Union[int, str, None] = None, exists: bool = False, full_name: str = None, username: str = None, timezone: Optional[str] = None):
+    def __init__(self, name: str, id_: Union[int, str, None] = None, exists: bool = False, full_name: str = None, username: str = None, timezone: Optional[str] = None, roles: Optional[List[str]] = None):
         self.name = name
         self.id = id_
         self.exists = exists
@@ -13,6 +13,7 @@ class BaseUser(ABC):
         self.full_name = full_name
         self.username = username
         self.timezone = timezone
+        self.roles = roles or []
 
     def __repr__(self):
         return self.name
@@ -38,9 +39,10 @@ class UndefinedUser(BaseUser):
 
     def serialize(self) -> Dict:
         return {
+            'exists': self.exists,
             'full_name': None,
             'id': None,
-            'name': self.name,
+            'roles': list(self.roles),
             'username': None,
         }
 

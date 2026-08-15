@@ -1,0 +1,8 @@
+:bell: webhook **{{ step.value -}}**
+{%- if step.status == 'ok' -%}
+ ({% if step.result < 400 %}{{ step.result }}{% else %}[{{ step.result }}](https://docs.impulse.bot/stable/warnings/ResponseCode/){% endif %})
+{%- elif step.status == 'Timeout' -%}
+ ([TimeoutError](https://docs.impulse.bot/stable/warnings/TimeoutError/))  |  :bell: admins ({%- for u in users.values() if u and 'admin' in u.roles %}@{{ u.username }}{% if not loop.last %},{% endif %}{% endfor -%})
+{%- else -%}
+ ([ConnectionError](https://docs.impulse.bot/stable/warnings/ConnectionError/))  |  :bell: admins ({%- for u in users.values() if u and 'admin' in u.roles %}@{{ u.username }}{% if not loop.last %},{% endif %}{% endfor -%})
+{%- endif -%}

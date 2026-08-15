@@ -1,202 +1,77 @@
 """Instant messaging templates for notifications and messages."""
-notification_user = """
-{%- if fields.type == 'slack' -%}
-:loudspeaker: user *{{ fields.name -}}*
-{#--#}{%- if not fields.unit -%}
-{#-   #} (<https://docs.impulse.bot/stable/warnings/NotDefined/|NotDefined>)  |  :loudspeaker: admins ({%- for a in fields.admins %}<@{{ a }}>{% if not loop.last %},{% endif %}{% endfor -%})
-{#--#}{%- else -%}
-{#-  -#}{%- if fields.unit.exists -%}
-{#-     #} (<@{{ fields.unit.id }}>)
-{#-  -#}{%- else -%}
-{#      #} (<https://docs.impulse.bot/stable/warnings/NotFound/|NotFound>)  |  :loudspeaker: admins ({%- for a in fields.admins %}<@{{ a }}>{% if not loop.last %},{% endif %}{% endfor -%})
-{#-  -#}{%- endif -%}
-{#--#}{%- endif -%}
-{%- elif fields.type == 'mattermost' -%}
-:bell: user **{{ fields.name -}}**
-{#--#}{%- if not fields.unit -%}
-{#-   #} ([NotDefined](https://docs.impulse.bot/stable/warnings/NotDefined/))  |  :bell: admins ({%- for a in fields.admins %}@{{ a }}{% if not loop.last %},{% endif %}{% endfor -%})
-{#--#}{%- else -%}
-{#-  -#}{%- if fields.unit.exists -%}
-{#-     #} (@{{ fields.unit.username }})
-{#-  -#}{%- else -%}
-{#      #} ([NotFound](https://docs.impulse.bot/stable/warnings/NotFound/))  |  :bell: admins ({%- for a in fields.admins %}@{{ a }}{% if not loop.last %},{% endif %}{% endfor -%})
-{#-  -#}{%- endif -%}
-{#--#}{%- endif -%}
-{%- elif fields.type == 'telegram' -%}
-🔔 user
-{#--#}{%- if not fields.unit -%}
-{#-   #} <b>{{ fields.name }}</b> (<a href="https://docs.impulse.bot/stable/warnings/NotDefined/">NotDefined</a>)  |  🔔 admins ({%- for a in fields.admins %}<a href="tg://user?id={{ a.id }}">{{ a.name }}</a>{% if not loop.last %},{% endif %}{% endfor -%})
-{#--#}{%- else -%}
-{#-  -#}{%- if fields.unit.exists -%}
-{#-     #} <b><a href="tg://user?id={{ fields.unit.id }}">{{ fields.name }}</a></b>
-{#-  -#}{%- else -%}
-{#      #} <b>{{ fields.name }}</b> (<a href="https://docs.impulse.bot/stable/warnings/NotFound/">NotFound</a>)  |  🔔 admins ({%- for a in fields.admins %}<a href="tg://user?id={{ a.id }}">{{ a.name }}</a>{% if not loop.last %},{% endif %}{% endfor -%})
-{#-  -#}{%- endif -%}
-{#--#}{%- endif -%}
-{%- endif -%}
-"""
+from typing import TYPE_CHECKING
 
-notification_user_group = """
-{%- set undefined_users = [] -%}
-{%- set absent_users = [] -%}
-{%- for u in fields.unit.users -%}
-{%-   if not u.defined -%}
-{%-     set _ = undefined_users.append(u.name) -%}
-{%-   elif not u.exists -%}
-{%-     set _ = absent_users.append(u.name) -%}
-{%-   endif -%}
-{%- endfor -%}
-{%- if fields.type == 'slack' -%}
-{%- set existing_users = [] -%}
-{%- for u in fields.unit.users if u.exists %}{% set _ = existing_users.append(u.id) %}{% endfor -%}
-:loudspeaker: user_group *{{ fields.name -}}*
-{#--#}{%- if not fields.unit -%}
-{#-   #} (<https://docs.impulse.bot/stable/warnings/NotDefined/|NotDefined>)  |  :loudspeaker: admins ({%- for a in fields.admins %}<@{{ a }}>{% if not loop.last %},{% endif %}{% endfor -%})
-{#--#}{%- else -%}
-{#-   #} ({%- for u in existing_users %}<@{{ u }}>{% if not loop.last %}, {% endif %}{% endfor -%})
-{#-  -#}{% if absent_users | length > 0 %}  |  {% for u in absent_users %}*{{ u }}* (<https://docs.impulse.bot/stable/warnings/NotFound/|NotFound>){% if not loop.last %}, {% endif %}{% endfor %}{% endif %}
-{#-  -#}{% if undefined_users | length > 0 %}  |  {% for u in undefined_users %}*{{ u }}* (<https://docs.impulse.bot/stable/warnings/NotDefined/|NotDefined>){% if not loop.last %}, {% endif %}{% endfor %}{% endif %}
-{#-  -#}{% if absent_users | length > 0 or undefined_users | length > 0 %}  |  :loudspeaker: admins ({% for a in fields.admins %}<@{{ a }}>{% if not loop.last %},{% endif %}{% endfor -%}){% endif -%}
-{#--#}{%- endif -%}
-{%- elif fields.type == 'mattermost' -%}
-{%- set existing_users = [] -%}
-{%- for u in fields.unit.users if u.exists %}{% set _ = existing_users.append(u.username) %}{% endfor -%}
-:bell: user_group **{{ fields.name -}}**
-{#--#}{%- if not fields.unit -%}
-{#-   #} ([NotDefined](https://docs.impulse.bot/stable/warnings/NotDefined/))  |  :bell: admins ({%- for a in fields.admins %}@{{ a }}{% if not loop.last %},{% endif %}{% endfor -%})
-{#--#}{%- else -%}
-{#-   #} ({%- for u in existing_users %}@{{ u }}{% if not loop.last %}, {% endif %}{% endfor -%})
-{#-  -#}{% if absent_users | length > 0 %}  |  {% for u in absent_users %}**{{ u }}** ([NotFound](https://docs.impulse.bot/stable/warnings/NotFound/)){% if not loop.last %}, {% endif %}{% endfor %}{% endif %}
-{#-  -#}{% if undefined_users | length > 0 %}  |  {% for u in undefined_users %}**{{ u }}** ([NotDefined](https://docs.impulse.bot/stable/warnings/NotDefined/)){% if not loop.last %}, {% endif %}{% endfor %}{% endif %}
-{#-  -#}{% if absent_users | length > 0 or undefined_users | length > 0 %}  |  :bell: admins ({% for a in fields.admins %}@{{ a }}{% if not loop.last %},{% endif %}{% endfor -%}){% endif -%}
-{#--#}{%- endif -%}
-{%- elif fields.type == 'telegram' -%}
-{%- set existing_users = [] -%}
-{%- for u in fields.get('unit').users if u.exists %}{% set _ = existing_users.append(u) %}{% endfor -%}
-🔔 user_group <b>{{ fields.name }}</b>
-{#--#}{%- if not fields.unit -%}
-{#-   #} (<a href="https://docs.impulse.bot/stable/warnings/NotDefined/">NotDefined</a>)  |  🔔 admins ({%- for a in fields.admins %}<a href="tg://user?id={{ a.id }}">{{ a.name }}</a>{% if not loop.last %},{% endif %}{% endfor -%})
-{#--#}{%- else -%}
-{#-   #} ({%- for u in existing_users %}<a href="tg://user?id={{ u.id }}">{{ u.name }}</a>{% if not loop.last %}, {% endif %}{% endfor -%})
-{#-  -#}{% if absent_users | length > 0 %}  |  {% for u in absent_users %}<b>{{ u }}</b> (<a href="https://docs.impulse.bot/stable/warnings/NotFound/">NotFound</a>){% if not loop.last %}, {% endif %}{% endfor %}{% endif %}
-{#-  -#}{% if undefined_users | length > 0 %}  |  {% for u in undefined_users %}<b>{{ u }}</b> (<a href="https://docs.impulse.bot/stable/warnings/NotDefined/">NotDefined</a>){% if not loop.last %}, {% endif %}{% endfor %}{% endif %}
-{#-  -#}{% if absent_users | length > 0 or undefined_users | length > 0 %}  |  🔔 admins ({%- for a in fields.admins %}<a href="tg://user?id={{ a.id }}">{{ a.name }}</a>{% if not loop.last %},{% endif %}{% endfor -%}){% endif -%}
-{#--#}{%- endif -%}
-{%- endif -%}
-"""
+from app.incident.freeze import MAINTENANCE_PARENT_SENTINEL
+from app.jinja_template import JinjaTemplate
 
-notification_group = """
-{%- if fields.type == 'slack' -%}
-:loudspeaker: group *{{ fields.name }}*
-{#--#}{%- if not fields.unit -%}
-{#-   #} (<https://docs.impulse.bot/stable/warnings/NotDefined/|NotDefined>)  |  :loudspeaker: admins ({%- for a in fields.admins %}<@{{ a }}>{% if not loop.last %},{% endif %}{% endfor -%})
-{#--#}{%- elif not fields.unit.exists -%}
-{#-   #} (<https://docs.impulse.bot/stable/warnings/NotFound/|NotFound>)  |  :loudspeaker: admins ({%- for a in fields.admins %}<@{{ a }}>{% if not loop.last %},{% endif %}{% endfor -%})
-{#--#}{%- else -%}
-{#-     #} (<!subteam^{{ fields.unit.id }}>)
-{#--#}{%- endif -%}
-{%- elif fields.type == 'mattermost' -%}
-:bell: group **{{ fields.name }}**
-{#--#}{%- if not fields.unit -%}
-{#-   #} ([NotDefined](https://docs.impulse.bot/stable/warnings/NotDefined/))  |  :bell: admins ({%- for a in fields.admins %}@{{ a }}{% if not loop.last %},{% endif %}{% endfor -%})
-{#--#}{%- elif not fields.unit.exists -%}
-{#-   #} ([NotFound](https://docs.impulse.bot/stable/warnings/NotFound/))  |  :bell: admins ({%- for a in fields.admins %}@{{ a }}{% if not loop.last %},{% endif %}{% endfor -%})
-{#--#}{%- else -%}
-{#-     #} (@{{ fields.unit.name }})
-{#--#}{%- endif -%}
-{%- endif -%}
-"""
+if TYPE_CHECKING:
+    from app.incident.incident import Incident
 
-update_status = """
-{%- if fields.type == 'slack' -%}
-update: status *{% if fields.status == 'unknown' %}<https://docs.impulse.bot/stable/warnings/StatusUnknown/|unknown>{% else %}{{ fields.status }}{% endif %}*
-{#--#}{%- if fields.status == 'unknown' -%}
-{#-   #}  |  :loudspeaker: admins ({%- for a in fields.admins %}<@{{ a }}>{% if not loop.last %},{% endif %}{% endfor -%})
-{#--#}{%- endif -%}
-{%- elif fields.type == 'mattermost' -%}
-update: status **{% if fields.status == 'unknown' %}[unknown](https://docs.impulse.bot/stable/warnings/StatusUnknown/){% else %}{{ fields.status }}{% endif %}**
-{#--#}{%- if fields.status == 'unknown' -%}
-{#-   #}  |  :bell: admins ({%- for a in fields.admins %}@{{ a }}{% if not loop.last %},{% endif %}{% endfor -%})
-{#--#}{%- endif -%}
-{%- elif fields.type == 'telegram' -%}
-update: status <b>{% if fields.status == 'unknown' %}<a href="https://docs.impulse.bot/stable/warnings/StatusUnknown/">unknown</a>{% else %}{{ fields.status }}{% endif %}</b>
-{#--#}{%- if fields.status == 'unknown' -%}
-{#-   #}  |  🔔 admins ({%- for a in fields.admins %}<a href="tg://user?id={{ a.id }}">{{ a.name }}</a>{% if not loop.last %},{% endif %}{% endfor -%})
-{#--#}{%- endif -%}
-{%- endif -%}
-"""
+_THREAD_TEMPLATES_DIR = './thread_templates/'
+_MESSENGERS = ('slack', 'mattermost', 'telegram')
 
-update_alerts = """
-{%- if fields.type == 'slack' -%}
-update: {% if fields.firing %}new alerts *firing*{% else %}some alerts *resolved*{% endif %}
-{%- elif fields.type == 'mattermost' -%}
-update: {% if fields.firing %}new alerts **firing**{% else %}some alerts **resolved**{% endif %}
-{%- elif fields.type == 'telegram' -%}
-update: {% if fields.firing %}new alerts <b>firing</b>{% else %}some alerts <b>resolved</b>{% endif %}
-{%- endif -%}
-"""
 
-notification_webhook = """
-{%- if fields.type == 'slack' -%}
-:loudspeaker: webhook *{{ fields.name -}}*
-{#--#}{%- if fields.unit is none -%}
-{#-   #} (<https://docs.impulse.bot/stable/warnings/NotDefined/|NotDefined>)  |  :loudspeaker: admins ({%- for a in fields.admins %}<@{{ a }}>{% if not loop.last %},{% endif %}{% endfor -%})
-{#--#}{%- else -%}
-{#-  -#}{%- if fields.result == 'ok' -%}
-{#-     #} ({% if fields.response < 400 %}{{ fields.response }}{% else %}<https://docs.impulse.bot/stable/warnings/ResponseCode/|{{ fields.response }}>{% endif %})
-{#-  -#}{%- elif fields.result == 'Timeout' -%}
-{#      #} (<https://docs.impulse.bot/stable/warnings/TimeoutError/|TimeoutError>)  |  :loudspeaker: admins ({%- for a in fields.admins %}<@{{ a }}>{% if not loop.last %},{% endif %}{% endfor -%})
-{#-  -#}{%- else -%}
-{#      #} (<https://docs.impulse.bot/stable/warnings/ConnectionError/|ConnectionError>)  |  :loudspeaker: admins ({%- for a in fields.admins %}<@{{ a }}>{% if not loop.last %},{% endif %}{% endfor -%})
-{#-  -#}{%- endif -%}
-{#--#}{%- endif -%}
-{%- elif fields.type == 'mattermost' -%}
-:bell: webhook **{{ fields.name -}}**
-{#--#}{%- if fields.unit is none -%}
-{#-   #} ([NotDefined](https://docs.impulse.bot/stable/warnings/NotDefined/))  |  :bell: admins ({%- for a in fields.admins %}@{{ a }}{% if not loop.last %},{% endif %}{% endfor -%})
-{#--#}{%- else -%}
-{#-  -#}{%- if fields.result == 'ok' -%}
-{#-     #} ({% if fields.response < 400 %}{{ fields.response }}{% else %}[{{ fields.response }}](https://docs.impulse.bot/stable/warnings/ResponseCode/){% endif %})
-{#-  -#}{%- elif fields.result == 'Timeout' -%}
-{#      #} ([TimeoutError](https://docs.impulse.bot/stable/warnings/TimeoutError/))  |  :bell: admins ({%- for a in fields.admins %}@{{ a }}{% if not loop.last %},{% endif %}{% endfor -%})
-{#-  -#}{%- else -%}
-{#      #} ([ConnectionError](https://docs.impulse.bot/stable/warnings/ConnectionError/))  |  :bell: admins ({%- for a in fields.admins %}@{{ a }}{% if not loop.last %},{% endif %}{% endfor -%})
-{#-  -#}{%- endif -%}
-{#--#}{%- endif -%}
-{%- elif fields.type == 'telegram' -%}
-🔔 webhook <b>{{ fields.name }}</b>
-{#--#}{%- if fields.unit is none -%}
-{#-   #} (<a href="https://docs.impulse.bot/stable/warnings/NotDefined/">NotDefined</a>)  |  🔔 admins ({%- for a in fields.admins %}<a href="tg://user?id={{ a.id }}">{{ a.name }}</a>{% if not loop.last %},{% endif %}{% endfor -%})
-{#--#}{%- else -%}
-{#-  -#}{%- if fields.result == 'ok' -%}
-{#-     #} ({% if fields.response < 400 %}{{ fields.response }}{% else %}<a href="https://docs.impulse.bot/stable/warnings/ResponseCode/">{{ fields.response }}</a>{% endif %})
-{#-  -#}{%- elif fields.result == 'Timeout' -%}
-{#      #} (<a href="https://docs.impulse.bot/stable/warnings/TimeoutError/">TimeoutError</a>)  |  🔔 admins ({%- for a in fields.admins %}<a href="tg://user?id={{ a.id }}">{{ a.name }}</a>{% if not loop.last %},{% endif %}{% endfor -%})
-{#-  -#}{%- else -%}
-{#      #} (<a href="https://docs.impulse.bot/stable/warnings/ConnectionError/">ConnectionError</a>)  |  🔔 admins ({%- for a in fields.admins %}<a href="tg://user?id={{ a.id }}">{{ a.name }}</a>{% if not loop.last %},{% endif %}{% endfor -%})
-{#-  -#}{%- endif -%}
-{#--#}{%- endif -%}
-{%- endif -%}
-"""
+def _load_thread_template(messenger: str, name: str) -> str:
+    with open(f'{_THREAD_TEMPLATES_DIR}{messenger}_{name}.j2') as f:
+        return f.read()
 
-notification_assignment = """
-{%- if fields.type == 'slack' -%}
-update: assigned to <@{{ fields.id }}>
-{%- elif fields.type == 'mattermost' -%}
-update: assigned to @{{ fields.username }}
-{%- elif fields.type == 'telegram' -%}
-update: assigned to <a href="tg://user?id={{ fields.id }}">{{ fields.full_name }}</a>
-{%- endif -%}
-"""
 
-notification_unassignment = """update: unassigned"""
+def _load_messenger_templates(name: str) -> dict:
+    return {messenger: _load_thread_template(messenger, name) for messenger in _MESSENGERS}
 
-notification_unfreeze = """
-{%- if fields.type == 'slack' -%}
-update: *unfrozen*
-{%- elif fields.type == 'mattermost' -%}
-update: **unfrozen**
-{%- elif fields.type == 'telegram' -%}
-update: <b>unfrozen</b>
-{%- endif -%}
-"""
+
+def template_users(messenger) -> dict:
+    """Config-name → user map for templates. Missing lookups stay None (NotDefined)."""
+    return {
+        config_name: messenger.users.get(config_name)
+        for config_name in messenger._users_config
+    }
+
+
+def chain_template_context(messenger, incident: 'Incident', step: dict) -> dict:
+    return {
+        'step': step,
+        'incident': incident.serialize(),
+        'users': template_users(messenger),
+        'user_groups': messenger.user_groups,
+        'groups': messenger.groups,
+        'webhooks': messenger.webhooks,
+    }
+
+
+def assignment_template_context(messenger, incident: 'Incident', ui_user=None) -> dict:
+    return {
+        'incident': incident.serialize(),
+        'users': template_users(messenger),
+        'ui_user': ui_user,
+    }
+
+
+def status_update_template_context(messenger, incident: 'Incident', payload, previous_payload) -> dict:
+    return {
+        'payload': payload,
+        'previous_payload': previous_payload,
+        'incident': incident.serialize(),
+        'users': template_users(messenger),
+    }
+
+
+def freeze_template_context(incident: 'Incident', ui_user=None) -> dict:
+    return {
+        'incident': incident.serialize(),
+        'parents': JinjaTemplate.related_incidents(incident.parents, skip=(MAINTENANCE_PARENT_SENTINEL,)),
+        'childs': JinjaTemplate.related_incidents(incident.childs),
+        'ui_user': ui_user,
+    }
+
+
+chain_step_user = _load_messenger_templates('chain_step_user')
+chain_step_user_group = _load_messenger_templates('chain_step_user_group')
+chain_step_group = _load_messenger_templates('chain_step_group')
+chain_step_webhook = _load_messenger_templates('chain_step_webhook')
+incident_notifications_assignment = _load_messenger_templates('incident_notifications_assignment')
+incident_notifications_status_update = _load_messenger_templates('incident_notifications_status_update')
+incident_notifications_new_firing = _load_messenger_templates('incident_notifications_new_firing')
+incident_notifications_partial_resolved = _load_messenger_templates('incident_notifications_partial_resolved')
+incident_notifications_freeze = _load_messenger_templates('incident_notifications_freeze')
+incident_notifications_unfreeze = _load_messenger_templates('incident_notifications_unfreeze')

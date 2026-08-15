@@ -1,0 +1,8 @@
+🔔 webhook <b>{{ step.value }}</b>
+{%- if step.status == 'ok' -%}
+ ({% if step.result < 400 %}{{ step.result }}{% else %}<a href="https://docs.impulse.bot/stable/warnings/ResponseCode/">{{ step.result }}</a>{% endif %})
+{%- elif step.status == 'Timeout' -%}
+ (<a href="https://docs.impulse.bot/stable/warnings/TimeoutError/">TimeoutError</a>)  |  🔔 admins ({%- for u in users.values() if u and 'admin' in u.roles %}<a href="tg://user?id={{ u.id }}">{{ u.name }}</a>{% if not loop.last %},{% endif %}{% endfor -%})
+{%- else -%}
+ (<a href="https://docs.impulse.bot/stable/warnings/ConnectionError/">ConnectionError</a>)  |  🔔 admins ({%- for u in users.values() if u and 'admin' in u.roles %}<a href="tg://user?id={{ u.id }}">{{ u.name }}</a>{% if not loop.last %},{% endif %}{% endfor -%})
+{%- endif -%}

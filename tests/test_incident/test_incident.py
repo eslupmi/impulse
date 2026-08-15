@@ -53,7 +53,7 @@ class TestIncident:
         assert incident.assigned_user == ""
         assert incident.assigned_fullname == ""
         assert incident.messenger_type == "slack"
-        assert incident.chain == []
+        assert incident.chain_steps == []
         assert incident.chain_enabled is False
         assert incident.status_enabled is False
         assert incident.uuid is not None
@@ -299,7 +299,7 @@ class TestIncident:
 
     def test_release(self, sample_incident):
         """Test releasing an incident."""
-        sample_incident.chain = [{"test": "data"}]
+        sample_incident.chain_steps = [{"test": "data"}]
         sample_incident.assigned_user_id = "U123456"
         sample_incident.assigned_user = "john.doe"
         sample_incident.assigned_fullname = "John Doe"
@@ -307,7 +307,7 @@ class TestIncident:
         with patch.object(sample_incident, 'dump'):
             sample_incident.release()
 
-        assert sample_incident.chain == []
+        assert sample_incident.chain_steps == []
         assert sample_incident.assigned_user_id == ""
         assert sample_incident.assigned_user == ""
         assert sample_incident.assigned_fullname == ""
@@ -316,7 +316,7 @@ class TestIncident:
     def test_get_chain_enabled(self, sample_incident):
         """Test getting chain when enabled."""
         sample_incident.chain_enabled = True
-        sample_incident.chain = [{"test": "data"}]
+        sample_incident.chain_steps = [{"test": "data"}]
 
         result = sample_incident.get_chain()
         assert result == [{"test": "data"}]
@@ -324,7 +324,7 @@ class TestIncident:
     def test_get_chain_disabled(self, sample_incident):
         """Test getting chain when disabled."""
         sample_incident.chain_enabled = False
-        sample_incident.chain = [{"test": "data"}]
+        sample_incident.chain_steps = [{"test": "data"}]
 
         result = sample_incident.get_chain()
         assert result == []
@@ -333,12 +333,13 @@ class TestIncident:
         """Test putting item in chain."""
         sample_incident.chain_put(0, 300.0, "test_type", "test_id")
 
-        assert len(sample_incident.chain) == 1
-        assert sample_incident.chain[0]['delay'] - 300.0 < 0.000001
-        assert sample_incident.chain[0]['type'] == "test_type"
-        assert sample_incident.chain[0]['identifier'] == "test_id"
-        assert sample_incident.chain[0]['done'] is False
-        assert sample_incident.chain[0]['result'] is None
+        assert len(sample_incident.chain_steps) == 1
+        assert sample_incident.chain_steps[0]['delay'] - 300.0 < 0.000001
+        assert sample_incident.chain_steps[0]['name'] == "test_type"
+        assert sample_incident.chain_steps[0]['value'] == "test_id"
+        assert sample_incident.chain_steps[0]['done'] is False
+        assert sample_incident.chain_steps[0]['result'] is None
+        assert sample_incident.chain_steps[0]['status'] is None
 
     def test_chain_update(self, sample_incident):
         """Test updating chain item."""
@@ -347,8 +348,8 @@ class TestIncident:
         with patch.object(sample_incident, 'dump'):
             sample_incident.chain_update(0, True, "test_result")
 
-        assert sample_incident.chain[0]['done'] is True
-        assert sample_incident.chain[0]['result'] == "test_result"
+        assert sample_incident.chain_steps[0]['done'] is True
+        assert sample_incident.chain_steps[0]['result'] == "test_result"
 
     @patch('app.incident.incident.get_environment_config')
     @patch('app.incident.incident.get_config')
@@ -402,7 +403,7 @@ class TestIncident:
         assert result['version'] == sample_incident.version
         assert result['uuid'] == sample_incident.uuid
         assert 'chain_enabled' in result
-        assert 'chain' in result
+        assert 'chain_steps' in result
         assert 'status_enabled' in result
         assert 'status_update_datetime' in result
         assert 'updated' in result
@@ -429,13 +430,13 @@ class TestIncident:
 
         # The chain generation processes steps and creates chain items
         # Wait steps don't create chain items, they just adjust timing
-        assert len(sample_incident.chain) == 2  # Only user steps create chain items
-        assert sample_incident.chain[0]['type'] == 'user'
-        assert sample_incident.chain[0]['identifier'] == 'testuser'
-        assert sample_incident.chain[1]['type'] == 'user'
-        assert sample_incident.chain[1]['identifier'] == 'admin'
-        assert sample_incident.chain[0]['delay'] == pytest.approx(0.0)
-        assert sample_incident.chain[1]['delay'] == pytest.approx(300.0)
+        assert len(sample_incident.chain_steps) == 2  # Only user steps create chain items
+        assert sample_incident.chain_steps[0]['name'] == 'user'
+        assert sample_incident.chain_steps[0]['value'] == 'testuser'
+        assert sample_incident.chain_steps[1]['name'] == 'user'
+        assert sample_incident.chain_steps[1]['value'] == 'admin'
+        assert sample_incident.chain_steps[0]['delay'] == pytest.approx(0.0)
+        assert sample_incident.chain_steps[1]['delay'] == pytest.approx(300.0)
 
     def test_generate_chain_with_leading_wait(self, sample_incident):
         """Leading wait delays the first actionable step; wait itself is not queued."""
@@ -451,13 +452,13 @@ class TestIncident:
         with patch.object(sample_incident, 'dump'):
             sample_incident.generate_chain(chains, 'test_chain')
 
-        assert len(sample_incident.chain) == 2
-        assert sample_incident.chain[0]['type'] == 'user'
-        assert sample_incident.chain[0]['identifier'] == 'testuser'
-        assert sample_incident.chain[0]['delay'] == pytest.approx(300.0)
-        assert sample_incident.chain[1]['type'] == 'user'
-        assert sample_incident.chain[1]['identifier'] == 'admin'
-        assert sample_incident.chain[1]['delay'] == pytest.approx(900.0)
+        assert len(sample_incident.chain_steps) == 2
+        assert sample_incident.chain_steps[0]['name'] == 'user'
+        assert sample_incident.chain_steps[0]['value'] == 'testuser'
+        assert sample_incident.chain_steps[0]['delay'] == pytest.approx(300.0)
+        assert sample_incident.chain_steps[1]['name'] == 'user'
+        assert sample_incident.chain_steps[1]['value'] == 'admin'
+        assert sample_incident.chain_steps[1]['delay'] == pytest.approx(900.0)
 
     def test_generate_chain_with_none_chain_name(self, sample_incident):
         """Test generating chain with None chain name."""
@@ -466,7 +467,7 @@ class TestIncident:
         with patch.object(sample_incident, 'dump'):
             sample_incident.generate_chain(chains, None)
 
-        assert len(sample_incident.chain) == 0
+        assert len(sample_incident.chain_steps) == 0
 
     def test_generate_chain_with_missing_chain(self, sample_incident):
         """Test generating chain with missing chain name."""
@@ -476,7 +477,7 @@ class TestIncident:
             sample_incident.generate_chain(chains, 'missing_chain')
 
         mock_logger.warning.assert_called_once()
-        assert len(sample_incident.chain) == 0
+        assert len(sample_incident.chain_steps) == 0
 
     def test_generate_chain_with_none_chain(self, sample_incident):
         """Test generating chain with None chain object."""
@@ -486,7 +487,7 @@ class TestIncident:
             sample_incident.generate_chain(chains, 'test_chain')
 
         mock_logger.warning.assert_called_once()
-        assert len(sample_incident.chain) == 0
+        assert len(sample_incident.chain_steps) == 0
 
     def test_generate_chain_with_no_steps_attribute(self, sample_incident):
         """Test generating chain with chain that has no steps attribute."""
@@ -497,7 +498,7 @@ class TestIncident:
             sample_incident.generate_chain(chains, 'test_chain')
 
         mock_logger.error.assert_called_once()
-        assert len(sample_incident.chain) == 0
+        assert len(sample_incident.chain_steps) == 0
 
     def test_generate_chain_with_empty_steps(self, sample_incident):
         """Test generating chain with empty steps."""
@@ -507,7 +508,7 @@ class TestIncident:
             sample_incident.generate_chain(chains, 'test_chain')
 
         mock_logger.debug.assert_called_once()
-        assert len(sample_incident.chain) == 0
+        assert len(sample_incident.chain_steps) == 0
 
     def test_generate_chain_with_nested_chains(self, sample_incident):
         """Test generating chain with nested chain references."""
@@ -527,11 +528,11 @@ class TestIncident:
             sample_incident.generate_chain(chains, 'main_chain')
 
         # Should have 2 user steps (wait steps don't create chain items)
-        assert len(sample_incident.chain) == 2
-        assert sample_incident.chain[0]['type'] == 'user'
-        assert sample_incident.chain[0]['identifier'] == 'testuser'
-        assert sample_incident.chain[1]['type'] == 'user'
-        assert sample_incident.chain[1]['identifier'] == 'admin'
+        assert len(sample_incident.chain_steps) == 2
+        assert sample_incident.chain_steps[0]['name'] == 'user'
+        assert sample_incident.chain_steps[0]['value'] == 'testuser'
+        assert sample_incident.chain_steps[1]['name'] == 'user'
+        assert sample_incident.chain_steps[1]['value'] == 'admin'
 
 
     def test_get_step_type_and_value_with_dict(self, sample_incident):

@@ -1,0 +1,7 @@
+{%- set user = users.get(step.value) -%}
+:loudspeaker: user *{{ step.value -}}*
+{%- if user.exists -%}
+ (<@{{ user.id }}>)
+{%- else -%}
+ (<https://docs.impulse.bot/stable/warnings/NotFound/|NotFound>)  |  :loudspeaker: admins ({%- for u in users.values() if u and 'admin' in u.roles %}<@{{ u.id }}>{% if not loop.last %},{% endif %}{% endfor -%})
+{%- endif -%}

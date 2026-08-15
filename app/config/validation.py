@@ -420,6 +420,7 @@ class IncidentNotifications(BaseModel):
     new_firing: Optional[bool] = Field(True, description="New firing notifications")
     partial_resolved: Optional[bool] = Field(True, description="Partial resolved notifications")
     status_update: Optional[bool] = Field(True, description="Status update notifications")
+    freeze: Optional[bool] = Field(False, description="Freeze notifications")
 
     def get(self, key: str) -> bool:
         return getattr(self, key) or False
