@@ -1,7 +1,6 @@
 import re
 from enum import Enum
-from typing import Annotated, Any
-from typing import Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import AfterValidator, BaseModel, Field, field_validator, model_validator
 
@@ -504,7 +503,7 @@ class UIConfig(BaseModel):
             return v
 
         if not isinstance(v, list):
-            raise ValueError("Sorting must be a list of sort rules")
+            raise TypeError("Sorting must be a list of sort rules")
 
         sorting_objects = []
         for sort_rule in v:
@@ -513,7 +512,7 @@ class UIConfig(BaseModel):
             elif isinstance(sort_rule, UISorting):
                 sorting_objects.append(sort_rule)
             else:
-                raise ValueError("Each sorting rule must be a dictionary or UISorting object")
+                raise TypeError("Each sorting rule must be a dictionary or UISorting object")
 
         return sorting_objects
 

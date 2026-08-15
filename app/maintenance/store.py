@@ -1,17 +1,16 @@
+import builtins
 import os
 import threading
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from typing import Any
 
-from icalendar import Calendar, Event, Component
+from icalendar import Calendar, Component, Event
 
 from app.config.config import get_config
 from app.config.environment import get_environment_config
 from app.logging import logger
 from app.maintenance.models import MaintenanceWindow
 from app.time import unix_sleep_to_timedelta
-
-import builtins
 
 
 def _ical_dt_to_iso(dt) -> str:
@@ -85,7 +84,7 @@ class MaintenanceStore:
                     if window:
                         windows.append(window)
             return windows
-        except Exception as e:
+        except (OSError, ValueError, TypeError) as e:
             logger.error("Failed to load maintenance store", extra={"error": str(e), "path": self._file})
             return []
 
@@ -107,7 +106,7 @@ class MaintenanceStore:
 
             logger.debug("Saved maintenance windows", extra={"count": len(windows)})
             return True
-        except Exception as e:
+        except (OSError, ValueError, TypeError) as e:
             logger.error("Failed to save maintenance store", extra={"error": str(e), "path": self._file})
             return False
 
@@ -142,7 +141,7 @@ class MaintenanceStore:
                 event.add("x-owner-id", str(owner_id))
 
             return event
-        except Exception as e:
+        except (ValueError, TypeError, KeyError) as e:
             logger.error(
                 "Failed to convert maintenance window to iCal event",
                 extra={"error": str(e), "window_id": window.get("id")},
@@ -185,7 +184,7 @@ class MaintenanceStore:
                 "comment": str(x_comment) if x_comment else "",
                 "owner_id": str(x_owner_id) if x_owner_id else None,
             }
-        except Exception as e:
+        except (ValueError, TypeError, KeyError) as e:
             logger.error("Failed to convert iCal event to maintenance window", extra={"error": str(e)})
             return None
 
@@ -198,7 +197,7 @@ class MaintenanceStore:
             if dt_str.endswith("Z"):
                 dt_str = dt_str[:-1] + "+00:00"
             return datetime.fromisoformat(dt_str)
-        except Exception:
+        except ValueError:
             return None
 
     def _retention_cutoff(self, now: datetime) -> datetime:

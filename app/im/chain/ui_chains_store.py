@@ -1,9 +1,9 @@
-import os
 import json
-from datetime import datetime, UTC, timedelta
+import os
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from icalendar import Calendar, Event, Component
+from icalendar import Calendar, Component, Event
 
 from app.config.config import get_config
 from app.config.environment import get_environment_config
@@ -158,7 +158,7 @@ class UIChainsStore:
                     if shift:
                         shifts.append(shift)
             return shifts
-        except Exception as e:
+        except (OSError, ValueError, TypeError) as e:
             logger.error("Failed to load ui chains", extra={"error": str(e), "chain": chain_name})
             return []
 
@@ -181,7 +181,7 @@ class UIChainsStore:
 
             logger.debug("Saved ui chains", extra={"chain": chain_name, "count": len(shifts)})
             return True
-        except Exception as e:
+        except (OSError, ValueError, TypeError) as e:
             logger.error("Failed to save ui chains", extra={"error": str(e), "chain": chain_name})
             return False
 
@@ -311,7 +311,7 @@ class UIChainsStore:
                 event.add("x-priority", str(priority))
 
             return event
-        except Exception as e:
+        except (ValueError, TypeError, OSError) as e:
             logger.error("Failed to convert chain to iCal event", extra={"error": str(e), "chain_id": chain.get("id")})
             return None
 
@@ -358,7 +358,7 @@ class UIChainsStore:
             chain["priority"] = _parse_x_priority(event.get("x-priority"))
 
             return chain
-        except Exception as e:
+        except (ValueError, TypeError, KeyError) as e:
             logger.error("Failed to convert iCal event to chain", extra={"error": str(e)})
             return None
 
@@ -372,10 +372,10 @@ class UIChainsStore:
             if dt_str.endswith("Z"):
                 dt_str = dt_str[:-1] + "+00:00"
             return datetime.fromisoformat(dt_str)
-        except Exception:
+        except ValueError:
             try:
                 return datetime.strptime(dt_str, "%Y-%m-%dT%H:%M:%S.%f%z")
-            except Exception:
+            except ValueError:
                 return None
 
     def _is_chain_active_now(self, chain: dict[str, Any], now: datetime) -> bool:

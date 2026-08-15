@@ -1,7 +1,7 @@
 
 
 from app.config.environment import get_environment_config
-from app.config.loader import load_and_validate_config, ConfigValidationError
+from app.config.loader import ConfigValidationError, load_and_validate_config
 from app.config.validation import ImpulseConfig
 from app.logging import logger
 
@@ -84,16 +84,12 @@ def reload_config() -> bool:
         logger.warning("Config validation failed, keeping current config", extra={'error': str(e)})
         _config = current_config
         return False
-    except Exception as e:
+    except OSError as e:
         logger.warning("Config reload failed, keeping current config", extra={'error': str(e)})
         _config = current_config
         return False
 
 
 def validate_config_only():
-    try:
-        get_config()
-        logger.info("Configuration valid")
-    except Exception as e:
-        logger.error("Configuration validation failed", extra={'error': str(e)})
-        raise SystemExit(1)
+    get_config()
+    logger.info("Configuration valid")

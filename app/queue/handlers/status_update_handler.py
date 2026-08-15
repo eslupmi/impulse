@@ -1,5 +1,5 @@
 from copy import deepcopy
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 
 from app.logging import logger
 from app.queue.constants import QueueItemType

@@ -7,7 +7,10 @@ import jwt
 
 from app.http_client.session import create_client_session
 from app.ui.authentication.models.auth_user import AuthUser
-from app.ui.authentication.providers.base_provider import AuthenticationProvider, AuthenticationProviderError
+from app.ui.authentication.providers.base_provider import (
+    AuthenticationProvider,
+    AuthenticationProviderError,
+)
 
 
 class TelegramAuthenticationProvider(AuthenticationProvider):

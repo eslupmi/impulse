@@ -2,13 +2,17 @@ import asyncio
 import time
 
 import aiohttp
-from aiohttp import ClientTimeout, ClientSession, ClientResponse
+from aiohttp import ClientResponse, ClientSession, ClientTimeout
 from aiohttp_retry import ExponentialRetry, RetryClient
 
 from app.http_client.errors import MESSENGER_TRANSPORT_ERRORS
 from app.http_client.session import create_client_session
 from app.logging import logger
-from app.logging_context import messenger_init_log_fields, redact_messenger_url, transport_failure_fields
+from app.logging_context import (
+    messenger_init_log_fields,
+    redact_messenger_url,
+    transport_failure_fields,
+)
 from app.metrics import measure_request
 
 

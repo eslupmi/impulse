@@ -2,9 +2,10 @@ import logging
 import os
 import sys
 import warnings
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 
 from pythonjsonlogger import jsonlogger
+
 from app.config.environment import get_environment_config
 
 DEFAULT_JSON_FORMAT = '%(time)s %(level)s %(module)s %(message)s'

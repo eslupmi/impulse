@@ -1,17 +1,21 @@
 import secrets
-from datetime import datetime, timedelta, UTC
-from typing import TYPE_CHECKING, Any, Optional
 from collections.abc import Mapping
+from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING, Any, Optional
 from urllib.parse import urlsplit, urlunsplit
 from uuid import uuid4
 
+import aiohttp
 from fastapi.responses import RedirectResponse, Response
 
 from app.logging import logger
 from app.ui.authentication.models.auth_session import AuthSession
 from app.ui.authentication.models.auth_state import AuthState
 from app.ui.authentication.models.auth_user import AuthUser
-from app.ui.authentication.providers.base_provider import AuthenticationProvider, AuthenticationProviderError
+from app.ui.authentication.providers.base_provider import (
+    AuthenticationProvider,
+    AuthenticationProviderError,
+)
 from app.ui.authentication.session_store import FileSessionStore
 
 if TYPE_CHECKING:
@@ -66,15 +70,7 @@ class UserAuthenticationManager:
             created_at=self._now(),
         )
 
-        try:
-            authorization_url = self.provider.build_authorization_url(state, self.redirect_uri)
-        except Exception as exc:
-            logger.warning(
-                "Failed to build authorization URL",
-                extra={"provider": self.provider.name, "error": str(exc)},
-            )
-            return self._build_error_redirect(safe_next_path, "auth_start_failed")
-
+        authorization_url = self.provider.build_authorization_url(state, self.redirect_uri)
         return RedirectResponse(url=authorization_url, status_code=302)
 
     async def handle_callback(
@@ -98,7 +94,7 @@ class UserAuthenticationManager:
         except AuthenticationProviderError as exc:
             error_code = self._sanitize_error(exc.code) if exc.code else "auth_failed"
             return self._build_error_redirect(auth_state.next_path, error_code)
-        except Exception as exc:
+        except (aiohttp.ClientError, TimeoutError, ValueError) as exc:
             logger.warning(
                 "Authentication callback failed",
                 extra={"provider": self.provider.name, "error": str(exc)},
@@ -119,7 +115,7 @@ class UserAuthenticationManager:
         )
         try:
             self.session_store.save_session(session)
-        except Exception as exc:
+        except OSError as exc:
             logger.warning("Failed to save auth session", extra={"error": str(exc)})
             return self._build_error_redirect(auth_state.next_path, "auth_failed")
 

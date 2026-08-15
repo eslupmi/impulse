@@ -1,4 +1,4 @@
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 
 
 def get_attr_by_key_chain(obj, default=None, *keys):

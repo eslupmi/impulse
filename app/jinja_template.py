@@ -1,5 +1,5 @@
-from typing import Optional, TYPE_CHECKING
 from collections.abc import Iterable
+from typing import TYPE_CHECKING, Optional
 
 from jinja2 import Template
 

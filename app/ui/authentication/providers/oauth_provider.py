@@ -1,12 +1,15 @@
 from abc import abstractmethod
-from collections.abc import Sequence, Mapping
+from collections.abc import Mapping, Sequence
 from urllib.parse import urlencode
 
 import aiohttp
 
 from app.http_client.session import create_client_session
 from app.ui.authentication.models.auth_user import AuthUser
-from app.ui.authentication.providers.base_provider import AuthenticationProvider, AuthenticationProviderError
+from app.ui.authentication.providers.base_provider import (
+    AuthenticationProvider,
+    AuthenticationProviderError,
+)
 
 
 class OAuthProvider(AuthenticationProvider):

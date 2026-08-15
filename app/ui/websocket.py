@@ -1,6 +1,7 @@
 import json
 
 from fastapi import WebSocket
+from starlette.websockets import WebSocketDisconnect
 
 from app.config.config import get_config
 from app.logging import logger
@@ -35,7 +36,7 @@ class AsyncIncidentWS:
         for websocket in self.connections:
             try:
                 await websocket.send_text(message)
-            except Exception as e:
+            except (WebSocketDisconnect, RuntimeError) as e:
                 logger.warning(f"Failed to send message to WebSocket: {e}")
                 disconnected.add(websocket)
 
@@ -72,7 +73,7 @@ class AsyncIncidentWS:
                 data = incidents.get_active_table(self._get_values())
             message = json.dumps({"event": "update_data", "data": data})
             await websocket.send_text(message)
-        except Exception as e:
+        except (WebSocketDisconnect, RuntimeError) as e:
             logger.error(f"Failed to send full table data: {e}")
 
     @staticmethod

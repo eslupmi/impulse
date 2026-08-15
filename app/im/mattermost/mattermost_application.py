@@ -4,8 +4,13 @@ from fastapi.responses import JSONResponse
 
 from app.config.environment import get_environment_config
 from app.config.validation import ApplicationConfig
+from app.http_client.errors import MESSENGER_TRANSPORT_ERRORS
 from app.im.application import Application
-from app.im.mattermost.threads import mattermost_get_button_update_payload, mattermost_get_update_payload, mattermost_get_create_thread_payload
+from app.im.mattermost.threads import (
+    mattermost_get_button_update_payload,
+    mattermost_get_create_thread_payload,
+    mattermost_get_update_payload,
+)
 from app.im.mattermost.user import User
 from app.im.users import BaseUser
 from app.logging import logger
@@ -93,7 +98,7 @@ class MattermostApplication(Application):
                 return {'id': group_id, 'name': group_name, 'exists': True}
             finally:
                 response.close()
-        except Exception as e:
+        except MESSENGER_TRANSPORT_ERRORS as e:
             logger.error("Group details fetch error", extra={'group_id': group_id, 'error': str(e)})
             return {'id': group_id, 'name': None, 'exists': False}
 

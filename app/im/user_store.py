@@ -1,13 +1,13 @@
 import asyncio
 import os
-from datetime import datetime, UTC, timedelta
-from typing import Any, TYPE_CHECKING
+from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING, Any
 
 import yaml
 
 from app.config.environment import get_environment_config
 from app.logging import logger
-from app.queue.constants import QueueItemType, USER_UPDATE_GAP_SECONDS
+from app.queue.constants import USER_UPDATE_GAP_SECONDS, QueueItemType
 
 if TYPE_CHECKING:
     from app.queue.queue import AsyncQueue

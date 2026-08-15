@@ -1,8 +1,9 @@
-from datetime import datetime, UTC, timedelta
+from datetime import UTC, datetime, timedelta
 
-from app.im.user_store import get_user_store, USER_REFRESH_HOURS
+from app.http_client.errors import MESSENGER_TRANSPORT_ERRORS
+from app.im.user_store import USER_REFRESH_HOURS, get_user_store
 from app.logging import logger
-from app.queue.constants import QueueItemType, USER_UPDATE_GAP_SECONDS
+from app.queue.constants import USER_UPDATE_GAP_SECONDS, QueueItemType
 from app.queue.handlers.base_handler import BaseHandler
 
 
@@ -32,7 +33,7 @@ class UserUpdateHandler(BaseHandler):
                 self.app._apply_admin_role(user, config_name)
                 self.app.users.add_user(user_id, user)
             logger.info('User data refreshed', extra={'user_id': user_id})
-        except Exception as e:
+        except MESSENGER_TRANSPORT_ERRORS + (OSError,) as e:
             logger.error('Failed to update user', extra={'user_id': user_id, 'error': str(e)})
         await self._schedule_next_refresh(user_id)
 

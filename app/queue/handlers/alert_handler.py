@@ -1,10 +1,14 @@
 from copy import deepcopy
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
-from app.config.validation import MessengerType
+
 from app.config.config import get_config
-from app.im.template import incident_notifications_new_firing, incident_notifications_partial_resolved
-from app.incident.incident import IncidentConfig, Incident
+from app.config.validation import MessengerType
+from app.im.template import (
+    incident_notifications_new_firing,
+    incident_notifications_partial_resolved,
+)
+from app.incident.incident import Incident, IncidentConfig
 from app.jinja_template import JinjaTemplate
 from app.logging import logger
 from app.queue.constants import QueueItemType

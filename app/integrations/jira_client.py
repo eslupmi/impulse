@@ -1,6 +1,7 @@
 """Jira Cloud API client with Basic Authentication"""
 import base64
 
+from app.http_client.errors import MESSENGER_TRANSPORT_ERRORS
 from app.http_client.rate_limited_client import RateLimitedClient
 from app.logging import logger
 
@@ -106,7 +107,7 @@ class JiraClient:
                 error_text = await response.text()
                 logger.error(f"Failed to create Jira issue: {response.status} - {error_text}")
                 return None
-        except Exception as e:
+        except MESSENGER_TRANSPORT_ERRORS as e:
             logger.error(f"Error creating Jira issue: {e}")
             return None
     

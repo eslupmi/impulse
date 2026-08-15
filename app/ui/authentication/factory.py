@@ -1,15 +1,21 @@
-from typing import TYPE_CHECKING
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from app.config.validation import MessengerType
 from app.im.user_store import get_user_store
 from app.logging import logger
 from app.ui.authentication.manager import UserAuthenticationManager
 from app.ui.authentication.models.auth_user import AuthUser
-from app.ui.authentication.providers.mattermost_provider import MattermostAuthenticationProvider
+from app.ui.authentication.providers.mattermost_provider import (
+    MattermostAuthenticationProvider,
+)
 from app.ui.authentication.providers.slack_provider import SlackAuthenticationProvider
-from app.ui.authentication.providers.telegram_provider import TelegramAuthenticationProvider
-from app.ui.authentication.providers.unsupported_provider import UnsupportedAuthenticationProvider
+from app.ui.authentication.providers.telegram_provider import (
+    TelegramAuthenticationProvider,
+)
+from app.ui.authentication.providers.unsupported_provider import (
+    UnsupportedAuthenticationProvider,
+)
 from app.ui.authentication.session_store import FileSessionStore
 
 if TYPE_CHECKING:

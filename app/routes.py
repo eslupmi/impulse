@@ -1,22 +1,33 @@
 import asyncio
 import json
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 
-from fastapi import APIRouter, FastAPI, Request, WebSocket, WebSocketDisconnect, HTTPException
+from fastapi import (
+    APIRouter,
+    FastAPI,
+    HTTPException,
+    Request,
+    WebSocket,
+    WebSocketDisconnect,
+)
 from fastapi.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from app.api.router import create_api_router
 from app.config.config import get_config, reload_config
+from app.im.chain.ui_chains_store import ui_chains_store
 from app.logging import logger
 from app.maintenance.api import removed_windows, windows_from_ws_payload
 from app.maintenance.store import get_maintenance_store
 from app.metrics import generate_metrics_response
-from app.middleware import is_standby_mode, service_unavailable_response, STANDBY_MODE_MESSAGE
+from app.middleware import (
+    STANDBY_MODE_MESSAGE,
+    is_standby_mode,
+    service_unavailable_response,
+)
 from app.ui.table_config import get_all_ui_config
 from app.ui.websocket import incident_ws
-from app.im.chain.ui_chains_store import ui_chains_store
 
 _MSG_INCIDENT_NOT_FOUND = "Incident not found"
 _MSG_UNIQ_ID_REQUIRED = "uniq_id is required"
@@ -24,10 +35,7 @@ _MSG_AUTHENTICATION_REQUIRED = "Authentication required"
 
 
 async def _maintenance_save_side_effects(app, existing, saved, deleted):
-    try:
-        await app.state.maintenance_manager.apply_save_side_effects(existing, saved, deleted)
-    except Exception as e:
-        logger.error("Maintenance save side effects failed", extra={"error": str(e)})
+    await app.state.maintenance_manager.apply_save_side_effects(existing, saved, deleted)
 
 
 def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_manager=None) -> APIRouter:
@@ -87,7 +95,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
             logger.debug("Alert received", extra={'payload': alert_state})
             await request.app.state.queue.put_first(datetime.now(UTC), 'alert', None, None, alert_state)
             return alert_state
-        except Exception as e:
+        except json.JSONDecodeError as e:
             logger.error("Alert processing error", extra={'error': str(e)})
             raise HTTPException(status_code=400, detail=str(e))
 
@@ -107,7 +115,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
                 request.app.state.queue,
                 request.app.state.route
             )
-        except Exception as e:
+        except (json.JSONDecodeError, KeyError) as e:
             logger.error("App buttons error", extra={'error': str(e)})
             raise HTTPException(status_code=400, detail=str(e))
 
@@ -353,7 +361,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
                 )
             else:
                 raise HTTPException(status_code=400, detail="Configuration reload failed")
-        except Exception as e:
+        except OSError as e:
             logger.error("Configuration reload error via API", extra={'error': str(e)})
             raise HTTPException(status_code=500, detail=str(e))
 
@@ -459,12 +467,14 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
 
                 except json.JSONDecodeError:
                     logger.warning("Invalid WebSocket JSON", extra={'data': data})
-                except Exception as e:
+                except WebSocketDisconnect:
+                    raise
+                except (KeyError, TypeError, ValueError, OSError, RuntimeError) as e:
                     logger.error("WebSocket message error", extra={'error': str(e)})
 
         except WebSocketDisconnect:
             incident_ws.disconnect(websocket)
-        except Exception as e:
+        except RuntimeError as e:
             logger.error("WebSocket error", extra={'error': str(e)})
             incident_ws.disconnect(websocket)
 

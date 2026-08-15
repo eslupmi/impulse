@@ -1,4 +1,5 @@
-from app.config.validation import CloudChain, ScheduleChain as ScheduleChainType
+from app.config.validation import CloudChain
+from app.config.validation import ScheduleChain as ScheduleChainType
 from app.im.chain.chain import Chain
 from app.im.chain.google_calendar_chain import GoogleCalendarChain
 from app.im.chain.schedule_chain import ScheduleChain
@@ -42,7 +43,7 @@ class ChainFactory:
                     chains[name] = chain
                 else:
                     logger.warning(f"Skipping chain '{name}' because it is handled outside runtime chain creation")
-            except Exception as e:
+            except ValueError as e:
                 logger.exception(f"Failed to create chain '{name}'")
                 logger.warning(f"Skipping chain '{name}' due to creation failure: {e}")
         return chains

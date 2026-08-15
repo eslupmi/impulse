@@ -3,23 +3,44 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import TYPE_CHECKING
 
+from jinja2 import TemplateError
+
 from app.config.config import get_config
-from app.config.validation import ApplicationConfig, MattermostUser, SlackUser, TelegramUser, MessengerType
+from app.config.validation import (
+    ApplicationConfig,
+    MattermostUser,
+    MessengerType,
+    SlackUser,
+    TelegramUser,
+)
+from app.http_client.errors import MESSENGER_TRANSPORT_ERRORS
 from app.http_client.rate_limited_client import RateLimitedClient
 from app.im.chain.chain_factory import ChainFactory
-from app.im.messenger_init import messenger_init_step_async, messenger_init_step_sync
-from app.logging_context import redact_messenger_url
 from app.im.groups import Group
-from app.im.template import chain_step_user, chain_step_user_group, chain_step_group, incident_notifications_assignment, incident_notifications_status_update, incident_notifications_freeze, incident_notifications_unfreeze, chain_template_context, assignment_template_context, freeze_template_context, status_update_template_context
+from app.im.messenger_init import messenger_init_step_async, messenger_init_step_sync
+from app.im.template import (
+    assignment_template_context,
+    chain_step_group,
+    chain_step_user,
+    chain_step_user_group,
+    chain_template_context,
+    freeze_template_context,
+    incident_notifications_assignment,
+    incident_notifications_freeze,
+    incident_notifications_status_update,
+    incident_notifications_unfreeze,
+    status_update_template_context,
+)
 from app.im.user_groups import generate_user_groups
-from app.im.user_store import get_user_store, UserUpdateScheduler
-from app.im.users import UserManager, UndefinedUser, BaseUser
+from app.im.user_store import UserUpdateScheduler, get_user_store
+from app.im.users import BaseUser, UndefinedUser, UserManager
+from app.incident.freeze import FreezeSource
+from app.incident.incident import unfreeze_incident
 from app.integrations.jira_integration import JiraIntegration
 from app.jinja_template import JinjaTemplate
 from app.logging import logger
+from app.logging_context import redact_messenger_url
 from app.queue.constants import QueueItemType
-from app.incident.freeze import FreezeSource
-from app.incident.incident import unfreeze_incident
 from app.time import calculate_freeze_time
 
 if TYPE_CHECKING:
@@ -97,18 +118,14 @@ class Application(ABC):
         pass
 
     def fetch_and_assign_user_name(self, incident, user_id, dump=True):
-        try:
-            cached_user = self.users.get_user_by_id(user_id)
-            if cached_user and cached_user.exists:
-                incident.assigned_user_id = user_id
-                incident.assigned_user = cached_user.username
-                incident.assigned_fullname = cached_user.full_name or '(empty)'
-            logger.debug(f'Incident {incident.uniq_id} assigned', extra={'user_id': user_id})
-        except Exception as e:
-            logger.error(f'Failed to fetch user name for incident {incident.uniq_id}: {e}')
-        finally:
-            if dump:
-                incident.dump()
+        cached_user = self.users.get_user_by_id(user_id)
+        if cached_user and cached_user.exists:
+            incident.assigned_user_id = user_id
+            incident.assigned_user = cached_user.username
+            incident.assigned_fullname = cached_user.full_name or '(empty)'
+        logger.debug(f'Incident {incident.uniq_id} assigned', extra={'user_id': user_id})
+        if dump:
+            incident.dump()
 
     def form_body_header_status_icons(self, incident):
         body = self.body_template.form_message(incident.payload, incident)
@@ -294,7 +311,7 @@ class Application(ABC):
             await self.post_to_thread(incident.channel_id, incident.ts, message)
             logger.debug(f'Posted assignment notification for incident {incident.uniq_id}')
 
-        except Exception as e:
+        except MESSENGER_TRANSPORT_ERRORS + (TemplateError, KeyError) as e:
             logger.error(f'Failed to post assignment notification for incident {incident.uniq_id}: {e}')
 
     async def post_to_thread(self, channel_id, id_, text):
@@ -322,7 +339,7 @@ class Application(ABC):
             await self.post_to_thread(incident_obj.channel_id, incident_obj.ts, message)
             logger.debug(f'Posted unassignment notification for incident {incident_obj.uniq_id}: {message}')
 
-        except Exception as e:
+        except MESSENGER_TRANSPORT_ERRORS + (TemplateError, KeyError) as e:
             logger.error(f'Failed to post unassignment notification for incident {incident_obj.uniq_id}: {e}')
 
     async def post_freeze_notification(self, incident_: 'Incident', ui_user=None):

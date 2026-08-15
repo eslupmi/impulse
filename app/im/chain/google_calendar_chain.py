@@ -10,7 +10,12 @@ from requests.adapters import HTTPAdapter
 from urllib3 import Retry
 
 from app.config.environment import get_environment_config
-from app.config.validation import CloudChain, ScheduleEntry, ScheduleMatcherExpression, SimpleChainStep
+from app.config.validation import (
+    CloudChain,
+    ScheduleEntry,
+    ScheduleMatcherExpression,
+    SimpleChainStep,
+)
 from app.im.chain.schedule_chain import ScheduleChain
 from app.logging import logger
 from app.tools import HTMLTextExtractor
@@ -89,7 +94,7 @@ class GoogleCalendarChain(ScheduleChain):
             events = self._fetch_events()
             self._update_schedule(events)
             logger.debug(f"Initial sync: {len(events)} events", extra={'provider': 'google'})
-        except Exception as e:
+        except (requests.exceptions.RequestException, jwt.InvalidTokenError, KeyError, ValueError) as e:
             logger.error(f"Initial sync failed: {e!s}", extra={'provider': 'google'})
             # Initialize with empty schedule if sync fails
             self.schedule = []
@@ -265,8 +270,6 @@ class GoogleCalendarChain(ScheduleChain):
             logger.warning(f"Description parse error: {e!s}", extra={'provider': 'google'})
         except MemoryError as e:
             logger.error(f"Description too large: {e!s}", extra={'provider': 'google'})
-        except Exception as e:
-            logger.warning(f"Description parse failed: {e!s}", extra={'provider': 'google'})
 
         steps = []
         for line in description.strip().split('\n'):
@@ -316,7 +319,7 @@ class GoogleCalendarChain(ScheduleChain):
                 self._update_schedule(events)
                 logger.debug(f"Synced {len(events)} events", extra={'provider': 'google'})
 
-            except Exception as e:
+            except (requests.exceptions.RequestException, jwt.InvalidTokenError, KeyError, ValueError) as e:
                 logger.error(f"Calendar sync error: {e!s}", extra={'provider': 'google'})
                 await asyncio.sleep(min(self._env_config.provider_sync_interval * 2, 300))  # Max 5 minutes
                 continue

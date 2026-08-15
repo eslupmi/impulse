@@ -30,7 +30,7 @@ def load_and_validate_config(config_path: str | None = None) -> tuple[ImpulseCon
             raw_config = yaml.safe_load(file)
     except yaml.YAMLError as e:
         raise ConfigValidationError(f"YAML parsing failed: {e}")
-    except Exception as e:
+    except OSError as e:
         raise ConfigValidationError(f"Failed to read config file: {e}")
     
     if raw_config is None:

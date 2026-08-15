@@ -1,4 +1,6 @@
 import sys
+
+from google.auth.exceptions import GoogleAuthError
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
@@ -23,7 +25,7 @@ def authenticate_service_account():
         print(f"Error: Service account key file not found at: {SERVICE_ACCOUNT_FILE}")
         print("Please make sure the path is correct and the file exists.")
         sys.exit(1)
-    except Exception as e:
+    except (GoogleAuthError, OSError, ValueError) as e:
         print(f"Error during service account authentication: {e}")
         sys.exit(1)
 

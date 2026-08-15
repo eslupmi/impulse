@@ -1,11 +1,10 @@
 from typing import TYPE_CHECKING
 
 from app.config.validation import InhibitRule, MessengerType
-from app.inhibition.rule import InhibitionRule
-from app.incident.freeze import FreezeSource, MAINTENANCE_PARENT_SENTINEL
-from app.logging import logger
-
+from app.incident.freeze import MAINTENANCE_PARENT_SENTINEL, FreezeSource
 from app.incident.incident import remove_freeze_source
+from app.inhibition.rule import InhibitionRule
+from app.logging import logger
 
 _INACTIVE_INHIBITION_STATUSES = frozenset({'resolved', 'closed', 'deleted'})
 

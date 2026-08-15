@@ -1,6 +1,6 @@
 
 
-from app.config.validation import SlackChannel, MattermostChannel, TelegramChannel
+from app.config.validation import MattermostChannel, SlackChannel, TelegramChannel
 from app.logging import logger
 
 

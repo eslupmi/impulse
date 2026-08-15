@@ -1,13 +1,13 @@
-from datetime import datetime, UTC
-from typing import Any, TYPE_CHECKING
 from collections.abc import Callable
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Any
 
+from app.incident.freeze import MAINTENANCE_PARENT_SENTINEL, FreezeSource
+from app.incident.incident import remove_freeze_source
 from app.logging import logger
 from app.maintenance.models import MaintenanceWindow
 from app.maintenance.store import MaintenanceStore
 from app.queue.constants import QueueItemType
-from app.incident.freeze import FreezeSource, MAINTENANCE_PARENT_SENTINEL
-from app.incident.incident import remove_freeze_source
 from app.ui.websocket import incident_ws
 
 if TYPE_CHECKING:
