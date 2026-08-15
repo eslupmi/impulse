@@ -1,5 +1,4 @@
 import os
-from typing import Dict, Union
 
 import yaml
 
@@ -13,25 +12,27 @@ from app.ui.websocket import incident_ws
 
 class Incidents:
     def __init__(self, incidents_list):
-        self.active_map: Dict[str, str] = {}  # {uuid: uniq_id}
-        self.uniq_ids: Dict[str, Incident] = {}
+        self.active_map: dict[str, str] = {}  # {uuid: uniq_id}
+        self.uniq_ids: dict[str, Incident] = {}
         for i in incidents_list:
             self.uniq_ids[i.uniq_id] = i
             if (i.status != 'closed' and i.status != 'deleted') or i.is_frozen:
                 self.active_map[i.uuid] = i.uniq_id
 
-    def get(self, alert: Dict) -> Union[Incident, None]:
-        uuid = Incident.gen_uuid(alert.get('groupLabels'))
+    def get(self, alert: dict) -> Incident | None:
+        uuid = Incident.gen_uuid(alert.get('groupLabels') or {})
         return self.get_by_uuid(uuid)
 
-    def get_by_uuid(self, uuid: str) -> Union[Incident, None]:
+    def get_by_uuid(self, uuid: str) -> Incident | None:
         uniq_id = self.active_map.get(uuid)
+        if uniq_id is None:
+            return None
         return self.uniq_ids.get(uniq_id)
 
-    def get_by_uniq_id(self, uniq_id: str) -> Union[Incident, None]:
+    def get_by_uniq_id(self, uniq_id: str) -> Incident | None:
         return self.uniq_ids.get(uniq_id)
 
-    def get_by_ts(self, ts: str) -> Union[Incident, None]:
+    def get_by_ts(self, ts: str) -> Incident | None:
         for uuid_ in self.active_map.values():
             incident = self.uniq_ids.get(uuid_)
             if incident and incident.ts == ts:
@@ -56,7 +57,7 @@ class Incidents:
             incident_filename = incident.get_current_filename()
             os.remove(incident_filename)
         except (OSError, PermissionError, FileNotFoundError) as e:
-            logger.error(f'Failed to delete incident file for uniq_id: {incident.uniq_id}: {str(e)}')
+            logger.error(f'Failed to delete incident file for uniq_id: {incident.uniq_id}: {e!s}')
 
     def del_by_uniq_id(self, uniq_id: str):
         incident = self.uniq_ids.pop(uniq_id, None)
@@ -75,7 +76,7 @@ class Incidents:
         else:
             logger.warning("Incident not found", extra={'uniq_id': uniq_id})
 
-    def serialize(self) -> Dict[str, Dict]:
+    def serialize(self) -> dict[str, dict]:
         return {str(uuid_): incident.serialize() for uuid_, incident in self.uniq_ids.items()}
 
     def get_active_table(self, params):
@@ -148,5 +149,5 @@ class Incidents:
             return file_path
 
         except Exception as e:
-            logger.error(f'Failed to check/migrate file {file_path}: {str(e)}')
+            logger.error(f'Failed to check/migrate file {file_path}: {e!s}')
             raise

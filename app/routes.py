@@ -1,6 +1,6 @@
 import asyncio
 import json
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 
 from fastapi import APIRouter, FastAPI, Request, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.responses import HTMLResponse, Response
@@ -18,7 +18,6 @@ from app.ui.table_config import get_all_ui_config
 from app.ui.websocket import incident_ws
 from app.im.chain.ui_chains_store import ui_chains_store
 
-
 _MSG_INCIDENT_NOT_FOUND = "Incident not found"
 _MSG_UNIQ_ID_REQUIRED = "uniq_id is required"
 _MSG_AUTHENTICATION_REQUIRED = "Authentication required"
@@ -31,7 +30,7 @@ async def _maintenance_save_side_effects(app, existing, saved, deleted):
         logger.error("Maintenance save side effects failed", extra={"error": str(e)})
 
 
-def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=None) -> APIRouter:
+def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_manager=None) -> APIRouter:
     router = APIRouter(prefix=http_prefix)
 
     ui_templates = None
@@ -86,7 +85,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
         try:
             alert_state = await request.json()
             logger.debug("Alert received", extra={'payload': alert_state})
-            await request.app.state.queue.put_first(datetime.now(timezone.utc), 'alert', None, None, alert_state)
+            await request.app.state.queue.put_first(datetime.now(UTC), 'alert', None, None, alert_state)
             return alert_state
         except Exception as e:
             logger.error("Alert processing error", extra={'error': str(e)})
@@ -98,7 +97,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
         try:
             if request.app.state.messenger.type == 'slack':
                 form_data = await request.form()
-                payload = json.loads(form_data['payload'])
+                payload = json.loads(str(form_data['payload']))
             else:
                 payload = await request.json()
 
@@ -161,7 +160,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
             "user_groups": list(runtime_messenger.user_groups.keys()) if getattr(runtime_messenger, "user_groups", None) else [],
             "groups": list(runtime_messenger.groups.keys()) if getattr(runtime_messenger, "groups", None) else [],
             "chains": list(runtime_chains.keys()),
-            "webhooks": list(app.webhooks.keys()) if getattr(app, "webhooks", None) else [],
+            "webhooks": list((app.webhooks or {}).keys()),
             "week_start": app.general.week_start if app.general else "Mon",
             "timezone": app.general.timezone if app.general else "UTC",
             "messenger_type": runtime_messenger.type.value,
@@ -339,7 +338,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
             raise HTTPException(status_code=503, detail=STANDBY_MODE_MESSAGE)
         
         try:
-            from app.lifespan import create_main_objects, _cleanup_application_objects
+            from app.lifespan import _cleanup_application_objects, create_main_objects
             
             logger.info("Reloading configuration via API")
             success = reload_config()

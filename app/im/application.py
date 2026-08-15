@@ -1,7 +1,7 @@
 import asyncio
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Union, Dict, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 from app.config.config import get_config
 from app.config.validation import ApplicationConfig, MattermostUser, SlackUser, TelegramUser, MessengerType
@@ -10,13 +10,7 @@ from app.im.chain.chain_factory import ChainFactory
 from app.im.messenger_init import messenger_init_step_async, messenger_init_step_sync
 from app.logging_context import redact_messenger_url
 from app.im.groups import Group
-from app.im.template import (
-    chain_step_user, chain_step_user_group, chain_step_group,
-    incident_notifications_assignment, incident_notifications_status_update,
-    incident_notifications_freeze, incident_notifications_unfreeze,
-    chain_template_context, assignment_template_context, freeze_template_context,
-    status_update_template_context,
-)
+from app.im.template import chain_step_user, chain_step_user_group, chain_step_group, incident_notifications_assignment, incident_notifications_status_update, incident_notifications_freeze, incident_notifications_unfreeze, chain_template_context, assignment_template_context, freeze_template_context, status_update_template_context
 from app.im.user_groups import generate_user_groups
 from app.im.user_store import get_user_store, UserUpdateScheduler
 from app.im.users import UserManager, UndefinedUser, BaseUser
@@ -36,10 +30,10 @@ log_button_pressed = 'Button pressed'
 
 
 class Application(ABC):
-    task_management_integration: Optional[JiraIntegration] = None
+    task_management_integration: JiraIntegration | None = None
 
     def __init__(self, app_config: ApplicationConfig, channels, default_channel):
-        self.http: Optional[RateLimitedClient] = None
+        self.http: RateLimitedClient | None = None
         self.type = app_config.type
         self.url = self.get_url(app_config)
         self.public_url = None
@@ -58,20 +52,20 @@ class Application(ABC):
 
         self.channels = channels
         self.default_channel_id = self.channels[default_channel]['id']
-        self.users = None
+        self.users: UserManager | None = None
         self.user_groups = None
-        self.groups = {}
+        self.groups: dict = {}
         self.admin_users = None
-        self.webhooks = {}
+        self.webhooks: dict = {}
 
-        self._users_config = app_config.users
+        self._users_config = app_config.users or {}
         self._user_groups_config = app_config.user_groups
         self._groups_config = getattr(app_config, 'groups', {})
         self._admin_users_config = app_config.admin_users
 
         self._async_tasks: set = set()
         
-        self._user_scheduler: Optional[UserUpdateScheduler] = None
+        self._user_scheduler: UserUpdateScheduler | None = None
 
     @abstractmethod
     async def buttons_handler(self, payload, incidents, queue_, route):
@@ -137,7 +131,7 @@ class Application(ABC):
     async def get_all_groups(self):
         pass
 
-    def get_config_name_by_user_id(self, user_id: Union[int, str]) -> Optional[str]:
+    def get_config_name_by_user_id(self, user_id: int | str) -> str | None:
         str_user_id = str(user_id)
         for config_name, user_info in self._users_config.items():
             if str(user_info.id) == str_user_id:
@@ -157,7 +151,7 @@ class Application(ABC):
         return self._get_team_name(app_config)
 
     @abstractmethod
-    async def get_user_details(self, user_info: Union[SlackUser, MattermostUser, TelegramUser, Dict]):
+    async def get_user_details(self, user_info: SlackUser | MattermostUser | TelegramUser | dict):
         pass
 
     def get_url(self, app_config: ApplicationConfig):
@@ -433,10 +427,10 @@ class Application(ABC):
         return "(empty)"
 
     @abstractmethod
-    async def _generate_groups(self, groups_dict: Dict):
+    async def _generate_groups(self, groups_dict: dict):
         pass
 
-    async def _generate_users(self, users_dict: Dict[str, Union[SlackUser, MattermostUser, TelegramUser]]):
+    async def _generate_users(self, users_dict: dict[str, SlackUser | MattermostUser | TelegramUser]):
         logger.info('Creating users')
         user_store = get_user_store()
         messenger_type = self.type.value
@@ -478,19 +472,20 @@ class Application(ABC):
     def _get_url(self, app_config: ApplicationConfig):
         pass
 
-    def _get_user_timezone_str(self, user_id: Optional[str] = None) -> str:
+    def _get_user_timezone_str(self, user_id: str | None = None) -> str:
         if user_id and self.users:
             user_tz = self.users.get_user_timezone(user_id)
             if user_tz:
                 return user_tz
         config = get_config()
-        return config.app.general.timezone
+        general = config.app.general
+        return (general.timezone if general else None) or "UTC"
 
-    def get_user_profile_url(self, user_id: str, user: BaseUser) -> Optional[str]:
+    def get_user_profile_url(self, user_id: str, user: BaseUser) -> str | None:
         return self._build_user_profile_url(str(user_id), user)
 
     @abstractmethod
-    def _build_user_profile_url(self, user_id: str, user: BaseUser) -> Optional[str]:
+    def _build_user_profile_url(self, user_id: str, user: BaseUser) -> str | None:
         pass
 
     async def apply_time_freeze(
@@ -504,15 +499,16 @@ class Application(ABC):
 
     async def _handle_freeze_action(
             self, incident_: 'Incident', freeze_option: str, user_id: str, incidents, queue_: 'AsyncQueue',
-            user_timezone: Optional[str] = None, ui_user=None,
+            user_timezone: str | None = None, ui_user=None,
     ):
         logger.info(log_button_pressed, extra={'uniq_id': incident_.uniq_id, 'button': 'freeze', 'user_id': user_id})
 
         config = get_config()
-        timezone_str = user_timezone or config.app.general.timezone
-        freeze_time = calculate_freeze_time(freeze_option, config.app.general, timezone_str)
+        general = config.app.general
+        timezone_str = user_timezone or ((general.timezone if general else None) or "UTC")
+        freeze_time = calculate_freeze_time(freeze_option, general, timezone_str)
         self.fetch_and_assign_user_name(incident_, user_id, dump=False)
-        cached_user = self.users.get_user_by_id(user_id)
+        cached_user = self.users.get_user_by_id(user_id) if self.users else None
         await self.apply_time_freeze(incident_, freeze_time, cached_user, queue_, source=FreezeSource.TIME)
         await self.post_freeze_notification(incident_, ui_user=ui_user)
 

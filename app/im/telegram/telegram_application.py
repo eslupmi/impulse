@@ -1,5 +1,5 @@
 import asyncio
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, ClassVar
 
 import aiohttp
 from fastapi.responses import JSONResponse
@@ -9,18 +9,18 @@ from app.im.messenger_init import messenger_init_step_async
 
 if TYPE_CHECKING:
     from app.incident.incident import Incident
+from app.config.config import get_config
+from app.config.environment import get_environment_config
+from app.config.validation import ApplicationConfig
 from app.im.telegram.config import buttons
 from app.im.telegram.user import User
 from app.im.users import BaseUser
 from app.logging import logger
-from app.config.config import get_config
-from app.config.environment import get_environment_config
-from app.config.validation import ApplicationConfig
 from app.time import format_freeze_expiration
 
 
 class TelegramApplication(Application):
-    icon_map = { #!
+    icon_map: ClassVar[dict[str, str]] = {
         '5312241539987020022': '🔥', # firing
         '5379748062124056162': '❗️', # unknown
         '5237699328843200968': '✅', # resolved
@@ -247,7 +247,7 @@ class TelegramApplication(Application):
             return response_json.get('result', {}).get('message_thread_id')
         except aiohttp.ClientError as e:
             logger.error("Topic creation failed", extra={'error': str(e)})
-            raise e
+            raise
 
     def _format_tg_icon(self, icon):
         return f'{self.icon_map.get(icon)}'
@@ -293,7 +293,7 @@ class TelegramApplication(Application):
     def _get_url(self, app_config: ApplicationConfig):
         return 'https://api.telegram.org/bot'
 
-    def _build_user_profile_url(self, user_id: str, user: BaseUser) -> Optional[str]:
+    def _build_user_profile_url(self, user_id: str, user: BaseUser) -> str | None:
         if not user.username:
             return None
         return f"https://t.me/{user.username}"
@@ -389,7 +389,7 @@ class TelegramApplication(Application):
         body, header, status_icons = self.form_body_header_status_icons(incident_)
         payload = self.update_incident_payload(incident_, body, header, status_icons, show_freeze_menu=True)
         await self._update_incident_message(incident_.ts, payload)
-        await self.http.post(
+        await self.http.post(  # type: ignore[union-attr]
             f'{self.url}/answerCallbackQuery',
             json={'callback_query_id': callback['id']},
             headers=self.headers

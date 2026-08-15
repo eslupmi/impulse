@@ -14,7 +14,7 @@ class StepHandler(BaseHandler):
     :param incidents: Incidents instance
     :param webhooks: Webhooks instance
     """
-    __slots__ = ['queue', 'application', 'incidents', 'webhooks']
+    __slots__ = ['application', 'incidents', 'queue', 'webhooks']
 
     def __init__(self, queue, application, incidents, webhooks):
         super().__init__(queue, application, incidents)

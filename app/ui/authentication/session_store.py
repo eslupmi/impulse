@@ -1,9 +1,8 @@
 import os
 import re
 import tempfile
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
-from typing import Optional
 
 import yaml
 
@@ -39,7 +38,7 @@ class FileSessionStore:
         os.replace(temp_path, path)
         self._fsync_dir(path.parent)
 
-    def load_session(self, session_id: str) -> Optional[AuthSession]:
+    def load_session(self, session_id: str) -> AuthSession | None:
         path = self._session_path(session_id)
         if not path or not path.exists():
             return None
@@ -72,7 +71,7 @@ class FileSessionStore:
             return 0
 
         removed = 0
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         for path in self.root_dir.glob("*.yaml"):
             try:
                 raw = path.read_text(encoding="utf-8")
@@ -81,6 +80,7 @@ class FileSessionStore:
                     continue
                 session = AuthSession.model_validate(data)
             except Exception:
+                logger.warning("Failed to load session file", extra={"path": str(path)})
                 continue
 
             if self._is_expired(session.expires_at, now):
@@ -88,16 +88,16 @@ class FileSessionStore:
                 removed += 1
         return removed
 
-    def _session_path(self, session_id: str) -> Optional[Path]:
+    def _session_path(self, session_id: str) -> Path | None:
         if not _SESSION_ID_PATTERN.fullmatch(session_id):
             return None
         return self.root_dir / f"{session_id}.yaml"
 
     @staticmethod
-    def _is_expired(expires_at: datetime, now: Optional[datetime] = None) -> bool:
+    def _is_expired(expires_at: datetime, now: datetime | None = None) -> bool:
         if expires_at.tzinfo is None:
-            expires_at = expires_at.replace(tzinfo=timezone.utc)
-        now = now or datetime.now(timezone.utc)
+            expires_at = expires_at.replace(tzinfo=UTC)
+        now = now or datetime.now(UTC)
         return expires_at <= now
 
     @staticmethod

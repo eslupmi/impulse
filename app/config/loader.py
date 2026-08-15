@@ -1,5 +1,5 @@
 import os
-from typing import Dict, Any, Tuple
+from typing import Any
 
 import yaml
 from pydantic import ValidationError
@@ -10,12 +10,12 @@ from app.config.validation import ImpulseConfig, validate_config
 class ConfigValidationError(Exception):
     """Custom exception for configuration validation errors"""
     
-    def __init__(self, message: str, validation_errors: list = None):
+    def __init__(self, message: str, validation_errors: list | None = None):
         super().__init__(message)
         self.validation_errors = validation_errors or []
 
 
-def load_and_validate_config(config_path: str = None) -> Tuple[ImpulseConfig, Dict[str, Any]]:
+def load_and_validate_config(config_path: str | None = None) -> tuple[ImpulseConfig, dict[str, Any]]:
     # Determine config path
     if config_path is None:
         config_path = os.getenv('CONFIG_PATH', './') + '/impulse.yml'

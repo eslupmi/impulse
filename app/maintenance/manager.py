@@ -1,5 +1,6 @@
-from datetime import datetime, timezone
-from typing import Any, Callable, Dict, List, Optional, TYPE_CHECKING, Tuple
+from datetime import datetime, UTC
+from typing import Any, TYPE_CHECKING
+from collections.abc import Callable
 
 from app.logging import logger
 from app.maintenance.models import MaintenanceWindow
@@ -10,9 +11,9 @@ from app.incident.incident import remove_freeze_source
 from app.ui.websocket import incident_ws
 
 if TYPE_CHECKING:
+    from app.im.application import Application
     from app.incident.incident import Incident
     from app.incident.incidents import Incidents
-    from app.im.application import Application
     from app.queue.queue import AsyncQueue
 
 
@@ -25,7 +26,7 @@ class MaintenanceManager:
     Maintenance has higher display priority (frozen_by_maintenance) when both apply.
     """
 
-    __slots__ = ["store", "incidents", "application", "queue", "_now"]
+    __slots__ = ["_now", "application", "incidents", "queue", "store"]
 
     def __init__(
         self,
@@ -33,17 +34,17 @@ class MaintenanceManager:
         incidents: "Incidents",
         application: "Application",
         queue: "AsyncQueue",
-        now: Optional[Callable[[], datetime]] = None,
+        now: Callable[[], datetime] | None = None,
     ):
         self.store = store
         self.incidents = incidents
         self.application = application
         self.queue = queue
-        self._now = now or (lambda: datetime.now(timezone.utc))
+        self._now = now or (lambda: datetime.now(UTC))
 
     def _first_matching_window_with_coverage_end(
         self, incident: "Incident", require_future_end: bool = False
-    ) -> Optional[Tuple[MaintenanceWindow, datetime]]:
+    ) -> tuple[MaintenanceWindow, datetime] | None:
         now = self._now()
         windows = self.store.list()
         active = [w for w in windows if w.is_active(now)]
@@ -57,13 +58,13 @@ class MaintenanceManager:
 
     def _first_matching_window(
         self, incident: "Incident", require_future_end: bool = False
-    ) -> Optional[MaintenanceWindow]:
+    ) -> MaintenanceWindow | None:
         match = self._first_matching_window_with_coverage_end(incident, require_future_end)
         return match[0] if match else None
 
     @staticmethod
     def _continuous_matching_end(
-        incident: "Incident", initial_window: MaintenanceWindow, windows: List[MaintenanceWindow]
+        incident: "Incident", initial_window: MaintenanceWindow, windows: list[MaintenanceWindow]
     ) -> datetime:
         coverage_end = initial_window.ends_at
         candidates = sorted(windows, key=lambda w: (w.starts_at, w.ends_at, w.id))
@@ -86,14 +87,14 @@ class MaintenanceManager:
     def would_match_active_window(self, incident: "Incident") -> bool:
         return self._first_matching_window(incident) is not None
 
-    def active_windows_payload(self) -> List[dict]:
+    def active_windows_payload(self) -> list[dict]:
         now = self._now()
         active = [w for w in self.store.list() if w.is_active(now)]
         active.sort(key=lambda w: w.starts_at)
         return [self._active_window_payload(w) for w in active]
 
     def _active_window_payload(self, window: MaintenanceWindow) -> dict:
-        payload = {
+        payload: dict = {
             "start": window.starts_at.isoformat(),
             "end": window.ends_at.isoformat(),
             "comment": window.comment,
@@ -104,7 +105,8 @@ class MaintenanceManager:
         owner_id = str(window.owner_id)
         payload["owner_id"] = owner_id
 
-        user = self.application.users.get_user_by_id(owner_id)
+        users = self.application.users
+        user = users.get_user_by_id(owner_id) if users else None
         if not user or not user.exists:
             payload["owner_full_name"] = owner_id
             return payload
@@ -134,11 +136,11 @@ class MaintenanceManager:
                     identifier=window.id,
                 )
 
-    async def handle_window_start(self, _window_id: Optional[str]):
+    async def handle_window_start(self, _window_id: str | None):
         await self.reconcile_all()
         await self.broadcast_active_maintenance()
 
-    async def handle_window_end(self, _window_id: Optional[str]):
+    async def handle_window_end(self, _window_id: str | None):
         await self.broadcast_active_maintenance()
 
     async def process_incident(self, incident: "Incident"):
@@ -211,7 +213,7 @@ class MaintenanceManager:
             await self.application.update_incident_message(incident)
 
     async def reconcile_after_window_removed(self, removed_window: MaintenanceWindow):
-        for uniq_id in self.incidents.uniq_ids.keys():
+        for uniq_id in self.incidents.uniq_ids:
             incident = self.incidents.uniq_ids.get(uniq_id)
             if incident is None or incident.status in ("closed", "deleted"):
                 continue
@@ -229,8 +231,8 @@ class MaintenanceManager:
 
     def needs_reconcile_after_save(
         self,
-        existing: List[Dict[str, Any]],
-        saved: List[Dict[str, Any]],
+        existing: list[dict[str, Any]],
+        saved: list[dict[str, Any]],
     ) -> bool:
         now = self._now()
         existing_by_id = {w["id"]: w for w in existing}
@@ -245,9 +247,9 @@ class MaintenanceManager:
 
     async def apply_save_side_effects(
         self,
-        existing: List[Dict[str, Any]],
-        saved: List[Dict[str, Any]],
-        deleted: List[Dict[str, Any]],
+        existing: list[dict[str, Any]],
+        saved: list[dict[str, Any]],
+        deleted: list[dict[str, Any]],
     ) -> None:
         for window_dict in deleted:
             await self.reconcile_after_window_removed(
@@ -266,7 +268,7 @@ class MaintenanceManager:
         )
 
     async def reconcile_all(self):
-        for uniq_id in self.incidents.uniq_ids.keys():
+        for uniq_id in self.incidents.uniq_ids:
             incident = self.incidents.uniq_ids.get(uniq_id)
             if incident is None or incident.status in ("closed", "deleted"):
                 continue

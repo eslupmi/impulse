@@ -1,4 +1,4 @@
-from typing import List, Optional
+
 
 from app.config.validation import RouteConfig
 from app.logging import logger
@@ -6,7 +6,7 @@ from app.route.matcher import Matcher
 
 
 class MainRoute:
-    def __init__(self, channel: str, chain: str = None, routes_list: List[RouteConfig] = None):
+    def __init__(self, channel: str, chain: str | None = None, routes_list: list[RouteConfig] | None = None):
         self.channel = channel
         self.chain = chain
         self.routes = []
@@ -43,9 +43,9 @@ class MainRoute:
 
 
 class Route(MainRoute):
-    def __init__(self, channel: str, chain: str, routes_list: List[RouteConfig], matchers: List[str]):
+    def __init__(self, channel: str, chain: str | None, routes_list: list[RouteConfig] | None, matchers: list[str] | None):
         super().__init__(channel, chain, routes_list)
-        self.matchers = [Matcher(m) for m in matchers]
+        self.matchers = [Matcher(m) for m in matchers or []]
 
     def get_channels(self, channels):
         channels.append(self.channel)
@@ -68,7 +68,7 @@ class Route(MainRoute):
             return True, self.channel, self.chain
 
 
-def generate_route(route_config: Optional[RouteConfig]):
+def generate_route(route_config: RouteConfig | None):
     logger.info('Creating route')
     if not route_config:
         return MainRoute('default')

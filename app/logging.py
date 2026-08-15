@@ -2,7 +2,7 @@ import logging
 import os
 import sys
 import warnings
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 
 from pythonjsonlogger import jsonlogger
 from app.config.environment import get_environment_config
@@ -14,7 +14,7 @@ class JSONFormatter(jsonlogger.JsonFormatter):
     def add_fields(self, log_record, record, message_dict):
         super().add_fields(log_record, record, message_dict)
         # Custom timestamp format
-        dt = datetime.fromtimestamp(record.created, tz=timezone.utc)
+        dt = datetime.fromtimestamp(record.created, tz=UTC)
         log_record['time'] = dt.strftime('%Y-%m-%dT%H:%M:%S') + f'.{int(record.msecs):03d}Z'
         log_record['level'] = record.levelname
         log_record['module'] = record.module

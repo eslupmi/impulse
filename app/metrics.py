@@ -1,7 +1,6 @@
 """Prometheus metrics for IMPulse application."""
-import asyncio
 import time
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from functools import wraps
 
 import aiohttp
@@ -60,7 +59,7 @@ def measure_request(func):
             error = 'none'
             return response
 
-        except (asyncio.TimeoutError, aiohttp.ClientError) as exc:
+        except (TimeoutError, aiohttp.ClientError) as exc:
             error = classify_messenger_http_error(exc)
             raise
 
@@ -86,7 +85,7 @@ async def update_queue_latency(queue: AsyncQueue):
     if first_item_datetime is None:
         QUEUE_LATENCY.set(0.0)
     else:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         delay = max(0.0, (now - first_item_datetime).total_seconds())
         QUEUE_LATENCY.set(delay)
 

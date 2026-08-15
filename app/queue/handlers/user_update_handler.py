@@ -1,4 +1,4 @@
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, UTC, timedelta
 
 from app.im.user_store import get_user_store, USER_REFRESH_HOURS
 from app.logging import logger
@@ -8,7 +8,7 @@ from app.queue.handlers.base_handler import BaseHandler
 
 class UserUpdateHandler(BaseHandler):
     """Handle user data refresh via messenger API and persist to UserStore."""
-    __slots__ = []
+    __slots__: list[str] = []
 
     async def handle(self, user_id: str):
         if not user_id:
@@ -28,7 +28,7 @@ class UserUpdateHandler(BaseHandler):
             user_store.save(user_id, messenger_type, user_details)
             config_name = self.app.get_config_name_by_user_id(user_id)
             user = self.app.create_user(config_name, user_details)
-            if user:
+            if user and self.app.users:
                 self.app._apply_admin_role(user, config_name)
                 self.app.users.add_user(user_id, user)
             logger.info('User data refreshed', extra={'user_id': user_id})
@@ -41,7 +41,7 @@ class UserUpdateHandler(BaseHandler):
         gap_seconds = USER_UPDATE_GAP_SECONDS.get(self.app.type.value, 1.0)
         latest = await self.queue.get_latest_item_by_type(QueueItemType.UPDATE_USER)
         
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         next_refresh_base = now + timedelta(hours=USER_REFRESH_HOURS)
         
         if latest and latest > next_refresh_base:

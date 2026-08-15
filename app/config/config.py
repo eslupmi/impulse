@@ -1,4 +1,4 @@
-from typing import Optional
+
 
 from app.config.environment import get_environment_config
 from app.config.loader import load_and_validate_config, ConfigValidationError
@@ -31,7 +31,7 @@ class UnifiedConfig:
     def ui_config(self):
         return self.app.ui
 
-_config: Optional[UnifiedConfig] = None
+_config: UnifiedConfig | None = None
 
 
 def get_config() -> UnifiedConfig:
@@ -69,7 +69,7 @@ def load_unified_config(exit_on_error: bool = True) -> UnifiedConfig:
 
 def reload_config() -> bool:
     global _config
-    current_config = _config
+    current_config = get_config()
 
     try:
         new_config = load_unified_config(exit_on_error=False)

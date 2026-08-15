@@ -2,8 +2,8 @@ import asyncio
 import json
 import uuid
 from dataclasses import KW_ONLY, dataclass, field, fields
-from datetime import datetime, timezone
-from typing import ClassVar, List, Dict, Optional, TYPE_CHECKING
+from datetime import datetime, UTC
+from typing import ClassVar, TYPE_CHECKING
 
 import yaml
 
@@ -36,7 +36,7 @@ class IncidentConfig:
 @dataclass
 class Incident:
     # --- Serializable fields ---
-    payload: Dict
+    payload: dict
     status: str
     channel_id: str
     status_update_datetime: datetime
@@ -45,23 +45,23 @@ class Incident:
     assigned_fullname: str
     messenger_type: str
     _: KW_ONLY
-    chain_steps: List[Dict] = field(default_factory=list)
+    chain_steps: list[dict] = field(default_factory=list)
     chain_enabled: bool = False
     status_enabled: bool = False
-    updated: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
-    created: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    updated: datetime = field(default_factory=lambda: datetime.now(UTC))
+    created: datetime = field(default_factory=lambda: datetime.now(UTC))
     version: str = get_config().INCIDENT_ACTUAL_VERSION
     uniq_id: str = field(default='')
     uuid: str = field(init=False)
     ts: str = field(default='')
     link: str = field(default='')
     task_link: str = field(default='')
-    closed: Optional[datetime] = field(default=None)
-    frozen_until: Optional[datetime] = field(default=None)
-    frozen_until_source: Optional[str] = field(default=None)
+    closed: datetime | None = field(default=None)
+    frozen_until: datetime | None = field(default=None)
+    frozen_until_source: str | None = field(default=None)
     chain_active_seconds: float = 0.0
-    childs: List[str] = field(default_factory=list)  # Target incident uniq_ids that this incident inhibits
-    parents: List[str] = field(default_factory=list)  # Source incident uniq_ids that inhibit this incident
+    childs: list[str] = field(default_factory=list)  # Target incident uniq_ids that this incident inhibits
+    parents: list[str] = field(default_factory=list)  # Source incident uniq_ids that inhibit this incident
 
     # --- Runtime fields ---
     config: IncidentConfig = field(metadata=_RUNTIME)
@@ -84,13 +84,13 @@ class Incident:
 
     def __post_init__(self):
         if not self.created:
-            self.created = datetime.now(timezone.utc)
+            self.created = datetime.now(UTC)
         self.uuid = self.gen_uuid(self.payload.get('groupLabels'))
         if not self.uniq_id:
             self.uniq_id = self.gen_uniq_id(self.payload.get('groupLabels'), self.created)
 
     @property
-    def channel_name(self) -> Optional[str]:
+    def channel_name(self) -> str | None:
         return ChannelManager().get_channel_name_by_id(self.channel_id)
 
     @property
@@ -220,12 +220,12 @@ class Incident:
     def accumulate_chain_time(self, updated):
         """Accumulate chain active time from self.updated until now. Updates self.updated.
         Must be called before any state change that affects chain activity."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         delta = (now - updated).total_seconds()
         if delta > 0:
             self.chain_active_seconds += delta
 
-    def get_chain(self) -> List[Dict]:
+    def get_chain(self) -> list[dict]:
         if not self.chain_enabled:
             return []
         return self.chain_steps
@@ -286,7 +286,7 @@ class Incident:
         env_config = get_environment_config()
         return f'{env_config.incidents_path}/{self.uniq_id}.yml'
 
-    def serialize(self) -> Dict:
+    def serialize(self) -> dict:
         data = {
             f.name: getattr(self, f.name)
             for f in fields(self)
@@ -308,7 +308,7 @@ class Incident:
         except RuntimeError:
             pass
 
-    def get_table_data(self, params) -> Dict:
+    def get_table_data(self, params) -> dict:
         alerts = self.payload.get('alerts', [])
         if len(alerts) > 1:
             group_labels = self.payload.get('groupLabels', {})
@@ -364,7 +364,7 @@ class Incident:
         return data
 
     def update_status(self, status: str) -> bool:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         self._schedule_status_change_by_timeout(status, now)
         if self.status != status:
             self._set_status(status)
@@ -374,7 +374,7 @@ class Incident:
         self.dump()
         return False
 
-    def update_state(self, alert_state: Dict) -> tuple[bool, bool]:
+    def update_state(self, alert_state: dict) -> tuple[bool, bool]:
         update_status = self.update_status(alert_state['status'])
         state_updated = self.payload != alert_state
         if state_updated:
@@ -382,22 +382,22 @@ class Incident:
             self.dump()
         return update_status, state_updated
 
-    def is_new_firing_alerts_added(self, alert_state: Dict) -> bool:
+    def is_new_firing_alerts_added(self, alert_state: dict) -> bool:
         old_alerts_labels = self._get_firing_alerts_labels(self.payload)
         new_alerts_labels = self._get_firing_alerts_labels(alert_state)
         return any(label not in old_alerts_labels for label in new_alerts_labels)
 
-    def is_some_firing_alerts_removed(self, alert_state: Dict) -> bool:
+    def is_some_firing_alerts_removed(self, alert_state: dict) -> bool:
         old_alerts_labels = self._get_firing_alerts_labels(self.payload)
         new_alerts_labels = self._get_firing_alerts_labels(alert_state)
         return any(label not in new_alerts_labels for label in old_alerts_labels)
 
     @staticmethod
-    def gen_uuid(group_labels: Dict) -> str:
+    def gen_uuid(group_labels: dict) -> str:
         return str(uuid.uuid5(uuid.NAMESPACE_OID, json.dumps(group_labels)))
 
     @staticmethod
-    def gen_uniq_id(group_labels: Dict, datetime_: datetime) -> str:
+    def gen_uniq_id(group_labels: dict, datetime_: datetime) -> str:
         return str(uuid.uuid5(
             uuid.NAMESPACE_OID,
             json.dumps({'group_labels': group_labels, 'datetime': datetime_.isoformat()})
@@ -409,7 +409,7 @@ class Incident:
         self.status = status
         logger.debug("Status updated", extra={'uniq_id': self.uniq_id, 'status': status})
         if status == 'closed' and not self.closed:
-            self.closed = datetime.now(timezone.utc)
+            self.closed = datetime.now(UTC)
 
     def _schedule_status_change_by_timeout(self, status, now):
         if status != 'deleted':
@@ -467,7 +467,7 @@ async def remove_freeze_source(
     incident: 'Incident',
     queue: 'AsyncQueue',
     source: FreezeSource,
-    parent: Optional[str] = None,
+    parent: str | None = None,
 ):
     if not incident.is_frozen and source != FreezeSource.PARENT:
         logger.info(f'Incident {incident.uniq_id} is not frozen, skipping unfreeze')
@@ -498,14 +498,14 @@ async def remove_freeze_source(
 async def sync_after_freeze_change(
     incident: 'Incident',
     queue: 'AsyncQueue',
-    incident_status: Optional[str] = None,
+    incident_status: str | None = None,
 ):
     if incident.is_frozen:
         await queue.delete_by_id(incident.uniq_id, delete_steps=True, delete_status=False)
         return
 
     incident_status = incident_status or incident.status
-    await queue.put_first(datetime.now(timezone.utc), QueueItemType.STATUS_CHECK, incident.uniq_id)
+    await queue.put_first(datetime.now(UTC), QueueItemType.STATUS_CHECK, incident.uniq_id)
     await queue.recreate(incident.status, incident.uniq_id, incident.get_chain(), incident.chain_active_seconds)
     if incident_status != 'deleted':
         await queue.put(incident.status_update_datetime, QueueItemType.UPDATE_STATUS, incident.uniq_id)

@@ -1,6 +1,5 @@
 import asyncio
 import re
-from typing import Optional
 
 from fastapi.responses import JSONResponse
 
@@ -144,7 +143,7 @@ class SlackApplication(Application):
         return JSONResponse(response_payload, status_code=200)
 
     async def _get_public_url(self, app_config: ApplicationConfig):
-        response = await self.http.get(
+        response = await self.http.get(  # type: ignore[union-attr]
             'https://slack.com/api/auth.test',
             headers=self.headers
         )
@@ -158,7 +157,7 @@ class SlackApplication(Application):
     def _get_url(self, app_config: ApplicationConfig):
         return 'https://slack.com'
 
-    def _build_user_profile_url(self, user_id: str, user: BaseUser) -> Optional[str]:
+    def _build_user_profile_url(self, user_id: str, user: BaseUser) -> str | None:
         return f"{self.public_url}/team/{user_id}"
 
     async def _handle_chain_action(self, incident_, user_id, queue_):

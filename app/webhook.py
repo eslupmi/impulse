@@ -1,7 +1,5 @@
-import asyncio
 import os
 import re
-from typing import Dict
 
 import aiohttp
 from aiohttp import BasicAuth, ClientTimeout
@@ -24,7 +22,7 @@ class Webhook:
         self._json_payload = json_payload
         self._auth = auth
 
-    async def push(self, incident: Incident = None):
+    async def push(self, incident: Incident | None = None):
         rendered_data = self._render_data(incident)
         rendered_json = self._render_json(incident)
         auth = self._get_auth() if self._auth else None
@@ -66,7 +64,7 @@ class Webhook:
             async with session.post(**request_params) as response:
                 return 'ok', response.status
                 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return 'Timeout', None
         except aiohttp.ClientConnectionError:
             return 'ConnectionError', None
@@ -76,7 +74,7 @@ class Webhook:
 
     ### PRIVATE METHODS ###
 
-    def _render_data(self, incident: Incident = None):
+    def _render_data(self, incident: Incident | None = None):
         rendered_data = {}
         if self._data:
             serialized_incident = incident.serialize() if incident else {}
@@ -84,7 +82,7 @@ class Webhook:
                 rendered_data[key] = self.render(value, incident=serialized_incident)
         return rendered_data
 
-    def _render_json(self, incident: Incident = None):
+    def _render_json(self, incident: Incident | None = None):
         if not self._json_payload:
             return None
             
@@ -150,10 +148,10 @@ class Webhook:
         return tmplt.render(env=os.environ, **kwargs)
 
 
-def generate_webhooks(webhooks_config: Dict[str, WebhookConfig] = None):
+def generate_webhooks(webhooks_config: dict[str, WebhookConfig] | None = None):
     webhooks = {}
     if webhooks_config:
-        for name in webhooks_config.keys():
+        for name in webhooks_config:
             webhook_obj = webhooks_config[name]
             url = webhook_obj.url
             data = webhook_obj.data

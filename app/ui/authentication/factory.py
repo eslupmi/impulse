@@ -13,8 +13,8 @@ from app.ui.authentication.providers.unsupported_provider import UnsupportedAuth
 from app.ui.authentication.session_store import FileSessionStore
 
 if TYPE_CHECKING:
-    from app.config.validation import ImpulseConfig
     from app.config.environment import EnvironmentConfig
+    from app.config.validation import ImpulseConfig
 
 def build_auth_redirect_uri(env_config: 'EnvironmentConfig', http_prefix: str = "") -> str:
     if env_config.auth_redirect_url:

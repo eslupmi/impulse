@@ -1,4 +1,4 @@
-from typing import Optional
+
 
 from app.config.environment import EnvironmentConfig, get_environment_config
 from app.config.validation import ApplicationConfig, TaskManagementConfig
@@ -36,8 +36,9 @@ def create_task_management_integration(
 
 
 def get_application(app_config: ApplicationConfig, channels, default_channel,
-                   task_management_config: Optional[TaskManagementConfig] = None):
+                   task_management_config: TaskManagementConfig | None = None):
     app_type = app_config.type
+    messenger: Application
     if app_type == 'slack':
         messenger = SlackApplication(app_config, channels, default_channel)
     elif app_type == 'mattermost':

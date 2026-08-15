@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Sequence, Mapping
+from collections.abc import Sequence, Mapping
 from urllib.parse import urlencode
 
 import aiohttp
@@ -49,22 +49,21 @@ class OAuthProvider(AuthenticationProvider):
             "redirect_uri": redirect_uri,
         }
         timeout = aiohttp.ClientTimeout(total=self.timeout_seconds)
-        async with create_client_session(timeout=timeout) as session:
-            async with session.post(self.token_url, data=payload) as response:
-                data = await response.json(content_type=None)
-                if response.status != 200:
-                    raise AuthenticationProviderError(
-                        "auth_failed",
-                        f"{self.name} token exchange failed with status {response.status}",
-                    )
-                self._validate_token_response(data)
-                token = data.get("access_token")
-                if not token:
-                    raise AuthenticationProviderError(
-                        "auth_failed",
-                        f"{self.name} access token not found in response",
-                    )
-                return token
+        async with create_client_session(timeout=timeout) as session, session.post(self.token_url, data=payload) as response:
+            data = await response.json(content_type=None)
+            if response.status != 200:
+                raise AuthenticationProviderError(
+                    "auth_failed",
+                    f"{self.name} token exchange failed with status {response.status}",
+                )
+            self._validate_token_response(data)
+            token = data.get("access_token")
+            if not token:
+                raise AuthenticationProviderError(
+                    "auth_failed",
+                    f"{self.name} access token not found in response",
+                )
+            return token
 
     def _validate_token_response(self, data: dict) -> None:
         """Override to add provider-specific token response checks."""
@@ -72,15 +71,14 @@ class OAuthProvider(AuthenticationProvider):
     async def _fetch_user(self, access_token: str) -> AuthUser:
         headers = {"Authorization": f"Bearer {access_token}"}
         timeout = aiohttp.ClientTimeout(total=self.timeout_seconds)
-        async with create_client_session(timeout=timeout) as session:
-            async with session.get(self.user_url, headers=headers) as response:
-                data = await response.json(content_type=None)
-                if response.status != 200:
-                    raise AuthenticationProviderError(
-                        "auth_failed",
-                        f"{self.name} user fetch failed with status {response.status}",
-                    )
-                return self._parse_user_response(data)
+        async with create_client_session(timeout=timeout) as session, session.get(self.user_url, headers=headers) as response:
+            data = await response.json(content_type=None)
+            if response.status != 200:
+                raise AuthenticationProviderError(
+                    "auth_failed",
+                    f"{self.name} user fetch failed with status {response.status}",
+                )
+            return self._parse_user_response(data)
 
     @abstractmethod
     def _parse_user_response(self, data: dict) -> AuthUser:

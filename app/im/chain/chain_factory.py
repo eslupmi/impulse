@@ -1,6 +1,4 @@
-from typing import Union
-
-from app.config.validation import ChainType, CloudChain, ScheduleChain as ScheduleChainType
+from app.config.validation import CloudChain, ScheduleChain as ScheduleChainType
 from app.im.chain.chain import Chain
 from app.im.chain.google_calendar_chain import GoogleCalendarChain
 from app.im.chain.schedule_chain import ScheduleChain
@@ -11,27 +9,25 @@ class ChainFactory:
     ### PRIVATE METHODS ###
 
     @staticmethod
-    def _create_chain(name: str, config: Union[ScheduleChainType, CloudChain, list]):
+    def _create_chain(name: str, config: ScheduleChainType | CloudChain | list):
         """
         Create and return a Chain, ScheduleChain or GoogleCalendarChain instance 
         based on the configuration.
         """
         if isinstance(config, dict) and config.get('type') == 'ui':
             return None
+        if isinstance(config, CloudChain) and config.provider == 'google':
+            chain = GoogleCalendarChain(name, config)
+            chain.start_sync()
+            return chain
+        if isinstance(config, ScheduleChainType):
+            return ScheduleChain(
+                name=name,
+                timezone_=config.timezone or ScheduleChain.DEFAULT_TIMEZONE,
+                schedule=config.schedule,
+            )
         if hasattr(config, 'type'):
-            if config.type == ChainType.CLOUD and config.provider == 'google':
-                chain = GoogleCalendarChain(name, config)
-                if isinstance(chain, GoogleCalendarChain):
-                    chain.start_sync()
-                return chain
-            elif config.type == ChainType.SCHEDULE:
-                return ScheduleChain(
-                    name=name,
-                    timezone_=config.timezone,
-                    schedule=config.schedule,
-                )
-            else:
-                raise ValueError(f"Unknown chain type '{config.type.value}' for chain '{name}'. Check impulse.yml")
+            raise ValueError(f"Unknown chain type '{config.type.value}' for chain '{name}'. Check impulse.yml")
         else:
             return Chain(name, config)
 

@@ -1,5 +1,4 @@
 import json
-from typing import Set
 
 from fastapi import WebSocket
 
@@ -11,7 +10,7 @@ class AsyncIncidentWS:
     """Async WebSocket manager for incident updates"""
     
     def __init__(self):
-        self.connections: Set[WebSocket] = set()
+        self.connections: set[WebSocket] = set()
         self.table_config = get_config().ui_config
 
     async def connect(self, websocket: WebSocket):

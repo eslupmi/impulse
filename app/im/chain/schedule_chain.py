@@ -1,6 +1,6 @@
 import re
-from datetime import datetime, timedelta, timezone
-from typing import List, Tuple, Optional
+from datetime import datetime, timedelta, UTC
+from typing import ClassVar
 from zoneinfo import ZoneInfo
 
 from app.config.validation import ScheduleEntry, ScheduleMatcherExpression, SimpleChainStep
@@ -9,10 +9,10 @@ from app.time import unix_sleep_to_timedelta
 
 
 class ScheduleChain:
-    DAY_MAP = {0: "Sun", 1: "Mon", 2: "Tue", 3: "Wed", 4: "Thu", 5: "Fri", 6: "Sat", 7: "Sun"}
+    DAY_MAP: ClassVar[dict[int, str]] = {0: "Sun", 1: "Mon", 2: "Tue", 3: "Wed", 4: "Thu", 5: "Fri", 6: "Sat", 7: "Sun"}
     DEFAULT_TIMEZONE = "UTC"
 
-    def __init__(self, name, timezone_: str = DEFAULT_TIMEZONE, schedule: List[ScheduleEntry] = None):
+    def __init__(self, name, timezone_: str = DEFAULT_TIMEZONE, schedule: list[ScheduleEntry] | None = None):
         self.name = name
         self.timezone = timezone_ or self.DEFAULT_TIMEZONE
         self.schedule = schedule if schedule else []
@@ -22,16 +22,16 @@ class ScheduleChain:
         return self.name
 
     @property
-    def steps(self) -> List[SimpleChainStep]:
+    def steps(self) -> list[SimpleChainStep]:
         """
         Get the steps for the current time.
         """
-        current_time = datetime.now(timezone.utc)
+        current_time = datetime.now(UTC)
         return self._get_steps(current_time)
 
     ### PRIVATE METHODS ###
 
-    def _get_steps(self, current_time: datetime) -> List[SimpleChainStep]:
+    def _get_steps(self, current_time: datetime) -> list[SimpleChainStep]:
         """
         Get the steps based on the matchers and schedule.
         """
@@ -46,9 +46,9 @@ class ScheduleChain:
         return []
 
     def _match_shift_window(
-        self, start_day_expr: str, start_day_values: List, start_time: str,
-        duration: Optional[str], current_time: datetime, is_day_match: bool
-    ) -> Optional[bool]:
+        self, start_day_expr: str, start_day_values: list, start_time: str,
+        duration: str | None, current_time: datetime, is_day_match: bool
+    ) -> bool | None:
         duration_ = self._get_duration(duration)
         if not (start_time and duration_):
             return None
@@ -60,9 +60,8 @@ class ScheduleChain:
             return False
         for i in range(days_difference + 1):
             check_time = current_time - timedelta(days=i)
-            if self._match_day_condition(start_day_expr, start_day_values, check_time):
-                if self._within_shift_time(start_time, duration_, check_time):
-                    return True
+            if self._match_day_condition(start_day_expr, start_day_values, check_time) and self._within_shift_time(start_time, duration_, check_time):
+                return True
         return False
 
     def _match_conditions(self, matcher: ScheduleMatcherExpression, current_time: datetime) -> bool:
@@ -80,11 +79,11 @@ class ScheduleChain:
             return shift_result
         return is_day_match
 
-    def _match_day_condition(self, start_day_expr: str, start_day_values: List, current_time: datetime) -> bool:
+    def _match_day_condition(self, start_day_expr: str, start_day_values: list, current_time: datetime) -> bool:
         """
         Check if the day condition is met.
         """
-        now = {
+        now: dict[str, int | str] = {
             'dow': (current_time.weekday() + 1) % 7,
             'dom': current_time.day,
             'date': current_time.strftime("%Y-%m-%d"),
@@ -101,14 +100,14 @@ class ScheduleChain:
 
         value = now[selector]
         if divider is not None:
-            value = value % int(divider)
+            value = int(value) % int(divider)
 
         if selector == 'dow':
-            return self._match_dow_condition(value, start_day_values)
+            return self._match_dow_condition(int(value), start_day_values)
         elif selector == "dom":
-            return self._match_dom_condition(value, start_day_values)
+            return self._match_dom_condition(int(value), start_day_values)
         elif selector == "date":
-            return self._match_date_condition(value, start_day_values)
+            return self._match_date_condition(str(value), start_day_values)
         return False
 
     def _within_shift_time(self, start_time: str, duration: str, current_time: datetime) -> bool:
@@ -119,7 +118,7 @@ class ScheduleChain:
         return shift_start <= datetime.now(self.tz) < shift_end
 
     @staticmethod
-    def _get_duration(duration: Optional[str]) -> Optional[str]:
+    def _get_duration(duration: str | None) -> str | None:
         """
         Get the duration from the condition.
         """
@@ -128,7 +127,7 @@ class ScheduleChain:
         return None
 
     @staticmethod
-    def _get_shift_time(start_time: str, duration: str, current_time: datetime) -> Tuple[datetime, datetime]:
+    def _get_shift_time(start_time: str, duration: str, current_time: datetime) -> tuple[datetime, datetime]:
         """
         Get the start and end time of the shift.
         """
@@ -139,7 +138,7 @@ class ScheduleChain:
         return shift_start, shift_end
 
     @staticmethod
-    def _match_dow_condition(value: int, start_day_values: List) -> bool:
+    def _match_dow_condition(value: int, start_day_values: list) -> bool:
         """
         Evaluate day of the week conditions.
         """
@@ -149,22 +148,18 @@ class ScheduleChain:
         return False
 
     @staticmethod
-    def _match_dom_condition(value: int, start_day_values: List) -> bool:
+    def _match_dom_condition(value: int, start_day_values: list) -> bool:
         """
         Evaluate day of the month conditions.
         """
-        if value in start_day_values:
-            return True
-        return False
+        return value in start_day_values
 
     @staticmethod
-    def _match_date_condition(value: str, start_day_values: List) -> bool:
+    def _match_date_condition(value: str, start_day_values: list) -> bool:
         """
         Evaluate specific date conditions.
         """
-        if value in start_day_values:
-            return True
-        return False
+        return value in start_day_values
 
     @staticmethod
     def calculate_days_difference(start_datetime: datetime, end_datetime: datetime) -> int:

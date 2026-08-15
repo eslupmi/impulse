@@ -1,7 +1,7 @@
 import asyncio
 import os
-from datetime import datetime, timezone, timedelta
-from typing import Optional, Dict, Any, TYPE_CHECKING
+from datetime import datetime, UTC, timedelta
+from typing import Any, TYPE_CHECKING
 
 import yaml
 
@@ -18,18 +18,18 @@ USER_REFRESH_HOURS = 12
 class UserStore:
     """File-based user data storage in data/users/<user_id>.yml"""
     
-    def get(self, user_id: str) -> Optional[Dict[str, Any]]:
+    def get(self, user_id: str) -> dict[str, Any] | None:
         file_path = self._get_user_file_path(user_id)
         if not os.path.exists(file_path):
             return None
         try:
             with open(file_path, 'r') as f:
                 return yaml.load(f, Loader=yaml.CLoader)
-        except (yaml.YAMLError, IOError) as e:
+        except (OSError, yaml.YAMLError) as e:
             logger.warning('Failed to read user file', extra={'user_id': user_id, 'error': str(e)})
             return None
 
-    def get_all_users_by_type(self, messenger_type: str) -> Dict[str, Dict[str, Any]]:
+    def get_all_users_by_type(self, messenger_type: str) -> dict[str, dict[str, Any]]:
         """Get all stored users for a specific messenger type."""
         return {
             user_id: user_data
@@ -37,8 +37,8 @@ class UserStore:
             if user_data.get('messenger_type') == messenger_type
         }
 
-    def get_all(self) -> Dict[str, Dict[str, Any]]:
-        users = {}
+    def get_all(self) -> dict[str, dict[str, Any]]:
+        users: dict[str, dict[str, Any]] = {}
         if not os.path.exists(self._users_path):
             return users
 
@@ -57,21 +57,21 @@ class UserStore:
         return self.get_refresh_time_from_data(user_data)
 
     @staticmethod
-    def get_refresh_time_from_data(user_data: Optional[Dict[str, Any]]) -> datetime:
+    def get_refresh_time_from_data(user_data: dict[str, Any] | None) -> datetime:
         if user_data is None:
-            return datetime.now(timezone.utc)
+            return datetime.now(UTC)
         updated_at = user_data.get('updated_at')
         if not updated_at:
-            return datetime.now(timezone.utc)
+            return datetime.now(UTC)
         try:
             if isinstance(updated_at, str):
                 updated_at = datetime.fromisoformat(updated_at)
             return updated_at + timedelta(hours=USER_REFRESH_HOURS)
         except (ValueError, TypeError):
-            return datetime.now(timezone.utc)
+            return datetime.now(UTC)
 
     @staticmethod
-    def is_data_expired(user_data: Dict[str, Any]) -> bool:
+    def is_data_expired(user_data: dict[str, Any]) -> bool:
         updated_at = user_data.get('updated_at')
         if not updated_at:
             return True
@@ -79,7 +79,7 @@ class UserStore:
             if isinstance(updated_at, str):
                 updated_at = datetime.fromisoformat(updated_at)
             expiry_time = updated_at + timedelta(hours=USER_REFRESH_HOURS)
-            return datetime.now(timezone.utc) > expiry_time
+            return datetime.now(UTC) > expiry_time
         except (ValueError, TypeError):
             return True
     
@@ -89,24 +89,24 @@ class UserStore:
             return True
         return self.is_data_expired(user_data)
 
-    def save(self, user_id: str, messenger_type: str, user_data: Dict[str, Any]) -> None:
+    def save(self, user_id: str, messenger_type: str, user_data: dict[str, Any]) -> None:
         file_path = self._get_user_file_path(user_id)
         data = self.serialize(messenger_type, user_data)
         try:
             with open(file_path, 'w') as f:
                 yaml.dump(data, f, default_flow_style=False, allow_unicode=True)
             logger.debug('Saved user data', extra={'user_id': user_id})
-        except IOError as e:
+        except OSError as e:
             logger.error('Failed to save user file', extra={'user_id': user_id, 'error': str(e)})
 
     @staticmethod
-    def serialize(messenger_type: str, user_data: Dict[str, Any], updated_at: datetime = None) -> Dict[str, Any]:
+    def serialize(messenger_type: str, user_data: dict[str, Any], updated_at: datetime | None = None) -> dict[str, Any]:
         return {
             'email': user_data.get('email'),
             'full_name': user_data.get('full_name'),
             'messenger_type': messenger_type,
             'timezone': user_data.get('timezone'),
-            'updated_at': updated_at or datetime.now(timezone.utc),
+            'updated_at': updated_at or datetime.now(UTC),
             'username': user_data.get('username'),
         }
     
@@ -127,7 +127,7 @@ class UserStore:
         self._ensure_directory()
     
 
-_user_store: Optional[UserStore] = None
+_user_store: UserStore | None = None
 
 
 def get_user_store() -> UserStore:
@@ -157,7 +157,7 @@ class UserUpdateScheduler:
         if not stored_users:
             return
         
-        last_immediate_schedule = datetime.now(timezone.utc)
+        last_immediate_schedule = datetime.now(UTC)
         for user_id, user_data in stored_users.items():
             if user_store.is_data_expired(user_data):
                 schedule_time = last_immediate_schedule + timedelta(seconds=self._gap_seconds)
@@ -173,7 +173,7 @@ class UserUpdateScheduler:
         """Schedule a user update with proper gap from last UPDATE_USER item."""
         async def schedule():
             latest = await self._queue.get_latest_item_by_type(QueueItemType.UPDATE_USER)
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             base_time = latest if latest and latest > now else now
             schedule_time = base_time + timedelta(seconds=self._gap_seconds)
             await self._queue.put(schedule_time, QueueItemType.UPDATE_USER, identifier=user_id)

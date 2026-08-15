@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Mapping
+from collections.abc import Mapping
 
 from app.ui.authentication.models.auth_user import AuthUser
 

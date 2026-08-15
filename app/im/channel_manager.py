@@ -1,4 +1,4 @@
-from typing import Dict, Optional, List, Union
+
 
 from app.config.validation import SlackChannel, MattermostChannel, TelegramChannel
 from app.logging import logger
@@ -14,24 +14,24 @@ class ChannelManager:
             return
         
         self._initialized = True
-        self._channels: Dict[str, Dict] = {}
+        self._channels: dict[str, dict] = {}
     
     def __new__(cls):
         if cls._instance is None:
-            cls._instance = super(ChannelManager, cls).__new__(cls)
+            cls._instance = super().__new__(cls)
             cls._instance._initialized = False
         return cls._instance
     
-    def get_channel_name_by_id(self, channel_id: str) -> Optional[str]:
+    def get_channel_name_by_id(self, channel_id: str) -> str | None:
         channel_data = self._channels.get(channel_id)
         return channel_data['name'] if channel_data else None
     
     @staticmethod
     def _resolve_channel_entry(
         channel: str,
-        channels_config: Dict[str, Union[SlackChannel, MattermostChannel, TelegramChannel, Dict]],
+        channels_config: dict[str, SlackChannel | MattermostChannel | TelegramChannel | dict],
         default_channel: str,
-    ) -> Dict:
+    ) -> dict:
         if channel not in channels_config:
             logger.warning('Channel not defined', extra={'channel': channel})
             default_channel_obj = channels_config.get(default_channel)
@@ -55,7 +55,7 @@ class ChannelManager:
             channel_dict['name'] = channel_obj.name
         return channel_dict
 
-    def initialize(self, channels_list: List[str], channels_config: Dict[str, Union[SlackChannel, MattermostChannel, TelegramChannel, Dict]], default_channel: str) -> Dict[str, Dict]:
+    def initialize(self, channels_list: list[str], channels_config: dict[str, SlackChannel | MattermostChannel | TelegramChannel | dict], default_channel: str) -> dict[str, dict]:
         logger.debug('Checking all channels defined')
 
         channels_dict = {

@@ -1,5 +1,4 @@
 import os
-from typing import List
 
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field, field_validator
@@ -98,7 +97,7 @@ class EnvironmentConfig(BaseModel):
     )
     
     # CORS configuration
-    cors_allowed_origins: List[str] = Field(
+    cors_allowed_origins: list[str] = Field(
         default_factory=lambda: os.getenv('CORS_ALLOWED_ORIGINS', 'https://localhost:5000').split(','),
         description="Comma-separated list of allowed CORS origins"
     )
@@ -184,7 +183,7 @@ class EnvironmentConfig(BaseModel):
 
 
 # Global instance - created once and reused
-_env_config: EnvironmentConfig = None
+_env_config: EnvironmentConfig | None = None
 
 
 def get_environment_config() -> EnvironmentConfig:

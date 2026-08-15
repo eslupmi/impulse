@@ -40,7 +40,8 @@ class SlackAuthenticationProvider(OAuthProvider):
                 f"Slack user fetch failed: {data.get('error', 'unknown')}",
             )
 
-        user_data = data.get("user") if isinstance(data.get("user"), dict) else data
+        user = data.get("user")
+        user_data = user if isinstance(user, dict) else data
         user_id = str(user_data.get("id") or user_data.get("user_id") or data.get("sub") or "")
         if not user_id:
             raise AuthenticationProviderError("auth_failed", "Slack user id not found in response")

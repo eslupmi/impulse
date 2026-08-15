@@ -7,12 +7,12 @@ class User(BaseUser):
     def __init__(
         self,
         name: str,
-        id_: str = None,
-        username: str = None,
+        id_: str | None = None,
+        username: str | None = None,
         exists: bool = False,
-        full_name: str = None,
-        email: str = None,
-        timezone_: str = None,
+        full_name: str | None = None,
+        email: str | None = None,
+        timezone_: str | None = None,
     ):
         super().__init__(name=name, id_=id_, exists=exists, full_name=full_name, username=username, timezone=timezone_)
         self.email = email

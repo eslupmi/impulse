@@ -13,7 +13,6 @@ from app.signals import setup_sighup_forwarder
 from app.ui.authentication.factory import build_auth_manager
 from app.ui.authentication.router import create_auth_router
 
-
 config = get_config()
 env_config = get_environment_config()
 http_prefix = env_config.http_prefix
@@ -29,7 +28,7 @@ app = FastAPI(
 )
 app.add_middleware(StandbyMiddleware)
 
-auth_manager = build_auth_manager(config=config, env_config=env_config, http_prefix=http_prefix)
+auth_manager = build_auth_manager(config=config.app, env_config=env_config, http_prefix=http_prefix)
 router = create_router(http_prefix=http_prefix, fastapi_app=app, auth_manager=auth_manager)
 router.include_router(create_auth_router(auth_manager))
 app.include_router(router)

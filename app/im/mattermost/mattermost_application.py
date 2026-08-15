@@ -1,13 +1,11 @@
 import asyncio
-from typing import Optional
 
 from fastapi.responses import JSONResponse
 
 from app.config.environment import get_environment_config
 from app.config.validation import ApplicationConfig
 from app.im.application import Application
-from app.im.mattermost.threads import mattermost_get_button_update_payload, \
-    mattermost_get_update_payload, mattermost_get_create_thread_payload
+from app.im.mattermost.threads import mattermost_get_button_update_payload, mattermost_get_update_payload, mattermost_get_create_thread_payload
 from app.im.mattermost.user import User
 from app.im.users import BaseUser
 from app.logging import logger
@@ -48,7 +46,7 @@ class MattermostApplication(Application):
         action = context.get('action')
         user_tz = self._get_user_timezone_str(user_id)
 
-        if incident_.is_frozen and (incident_.frozen_by_inhibition or not action == 'unfreeze'):
+        if incident_.is_frozen and (incident_.frozen_by_inhibition or action != 'unfreeze'):
             logger.debug('Incident frozen, blocking actions', extra={'uniq_id': incident_.uniq_id})
         else:
             early_return = await self._dispatch_button_action(incident_, payload, user_id, incidents, queue_, user_tz)
@@ -77,7 +75,7 @@ class MattermostApplication(Application):
             return {'id': None, 'name': None, 'exists': False}
         
         try:
-            response = await self.http.get(
+            response = await self.http.get(  # type: ignore[union-attr]
                 f'{self.url}/api/v4/groups/{group_id}',
                 headers=self.headers
             )
@@ -171,15 +169,15 @@ class MattermostApplication(Application):
         return mattermost_get_create_thread_payload(incident, body, header, status_icons)
 
     async def _get_public_url(self, app_config: ApplicationConfig):
-        return app_config.address
+        return getattr(app_config, "address", None)
 
     def _get_team_name(self, app_config: ApplicationConfig):
-        return app_config.team
+        return getattr(app_config, "team", None)
 
     def _get_url(self, app_config: ApplicationConfig):
-        return app_config.address
+        return getattr(app_config, "address", None)
 
-    def _build_user_profile_url(self, user_id: str, user: BaseUser) -> Optional[str]:
+    def _build_user_profile_url(self, user_id: str, user: BaseUser) -> str | None:
         return f"{self.public_url}/{self.team}/users/{user_id}"
 
     async def _handle_chain_action(self, incident_, user_id, queue_, payload):

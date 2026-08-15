@@ -1,5 +1,5 @@
 """Jira integration for task creation from incidents"""
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 
 from app.config.config import get_config
 from app.integrations.jira_client import JiraClient
@@ -112,7 +112,7 @@ class JiraIntegration:
 
         incident.task_creation_in_progress = False
         await queue_.put(
-            datetime_=datetime.now(timezone.utc),
+            datetime_=datetime.now(UTC),
             type_=QueueItemType.UPDATE_MESSAGE,
             uniq_id=incident.uniq_id,
             identifier=None,
