@@ -1,7 +1,6 @@
 """Jira Cloud API client with Basic Authentication"""
 import base64
 
-from app.http_client.errors import MESSENGER_TRANSPORT_ERRORS
 from app.http_client.rate_limited_client import RateLimitedClient
 from app.logging import logger
 

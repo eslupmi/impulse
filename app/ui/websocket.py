@@ -1,7 +1,6 @@
 import json
 
 from fastapi import WebSocket
-from starlette.websockets import WebSocketDisconnect
 
 from app.config.config import get_config
 from app.logging import logger
