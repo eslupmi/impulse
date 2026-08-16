@@ -57,7 +57,7 @@ class Incidents:
             incident_filename = incident.get_current_filename()
             os.remove(incident_filename)
         except (OSError, PermissionError, FileNotFoundError) as e:
-            logger.error(f'Failed to delete incident file for uniq_id: {incident.uniq_id}: {e!s}')
+            logger.error(f'Failed to delete incident file for uniq_id: {incident.uniq_id}: {e}')
 
     def del_by_uniq_id(self, uniq_id: str):
         incident = self.uniq_ids.pop(uniq_id, None)
@@ -149,5 +149,5 @@ class Incidents:
             return file_path
 
         except Exception as e:
-            logger.error(f'Failed to check/migrate file {file_path}: {e!s}')
+            logger.error(f'Failed to check/migrate file {file_path}: {e}')
             raise

@@ -71,7 +71,7 @@ class GoogleCalendarChain(ScheduleChain):
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as e:
-            logger.error(f"Calendar API request failed: {e!s}", extra={'provider': 'google'})
+            logger.error(f"Calendar API request failed: {e}", extra={'provider': 'google'})
             if e.response is not None:
                 logger.error(f"API response: {e.response.text}", extra={'provider': 'google'})
             raise
@@ -95,7 +95,7 @@ class GoogleCalendarChain(ScheduleChain):
             self._update_schedule(events)
             logger.debug(f"Initial sync: {len(events)} events", extra={'provider': 'google'})
         except Exception as e:  # noqa: BLE001
-            logger.error(f"Initial sync failed: {e!s}", extra={'provider': 'google'})
+            logger.error(f"Initial sync failed: {e}", extra={'provider': 'google'})
             # Initialize with empty schedule if sync fails
             self.schedule = []
 
@@ -205,15 +205,15 @@ class GoogleCalendarChain(ScheduleChain):
             return token
 
         except jwt.InvalidTokenError as e:
-            logger.error(f"JWT generation failed: {e!s}", extra={'provider': 'google'})
+            logger.error(f"JWT generation failed: {e}", extra={'provider': 'google'})
             raise
         except requests.exceptions.RequestException as e:
-            logger.error(f"Token request failed: {e!s}", extra={'provider': 'google'})
+            logger.error(f"Token request failed: {e}", extra={'provider': 'google'})
             if e.response is not None:
                 logger.error(f"Response: {e.response.text}", extra={'provider': 'google'})
             raise
         except KeyError as e:
-            logger.error(f"Missing response key: {e!s}", extra={'provider': 'google'})
+            logger.error(f"Missing response key: {e}", extra={'provider': 'google'})
             raise
 
     def _get_calendar_timezone(self) -> str:
@@ -226,7 +226,7 @@ class GoogleCalendarChain(ScheduleChain):
             data = self._make_api_request('GET', url, headers=headers)
             return data.get('timeZone', 'UTC')
         except requests.exceptions.RequestException as e:
-            logger.error(f"Timezone fetch failed: {e!s}", extra={'provider': 'google'})
+            logger.error(f"Timezone fetch failed: {e}", extra={'provider': 'google'})
             return 'UTC'  # Fallback to UTC
 
     def _fetch_events(self) -> list[dict[str, Any]]:
@@ -253,7 +253,7 @@ class GoogleCalendarChain(ScheduleChain):
             data = self._make_api_request('GET', url, headers=headers, params=params)
             return data.get('items', [])
         except requests.exceptions.RequestException as e:
-            logger.error(f"Events fetch failed: {e!s}", extra={'provider': 'google'})
+            logger.error(f"Events fetch failed: {e}", extra={'provider': 'google'})
             return []
 
     @staticmethod
@@ -267,9 +267,9 @@ class GoogleCalendarChain(ScheduleChain):
             parser.feed(description)
             description = parser.get_text()
         except MemoryError as e:
-            logger.error(f"Description too large: {e!s}", extra={'provider': 'google'})
+            logger.error(f"Description too large: {e}", extra={'provider': 'google'})
         except Exception as e:  # noqa: BLE001
-            logger.warning(f"Description parse error: {e!s}", extra={'provider': 'google'})
+            logger.warning(f"Description parse error: {e}", extra={'provider': 'google'})
 
         steps = []
         for line in description.strip().split('\n'):
@@ -320,7 +320,7 @@ class GoogleCalendarChain(ScheduleChain):
                 logger.debug(f"Synced {len(events)} events", extra={'provider': 'google'})
 
             except Exception as e:  # noqa: BLE001
-                logger.error(f"Calendar sync error: {e!s}", extra={'provider': 'google'})
+                logger.error(f"Calendar sync error: {e}", extra={'provider': 'google'})
                 await asyncio.sleep(min(self._env_config.provider_sync_interval * 2, 300))
                 continue
             await asyncio.sleep(self._env_config.provider_sync_interval)

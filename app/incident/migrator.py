@@ -62,7 +62,7 @@ class IncidentMigrator:
             with open(file_path, 'w') as f:
                 yaml.dump(migrated_data, f, NoAliasDumper, default_flow_style=False)
         except (OSError, PermissionError, FileNotFoundError) as e:
-            logger.error(f'Failed to write migrated incident file {os.path.basename(file_path)}: {e!s}')
+            logger.error(f'Failed to write migrated incident file {os.path.basename(file_path)}: {e}')
             return file_path
         
         final_path = self._apply_filename_migrations(file_path, migrated_data, current_version, target_version)
@@ -174,7 +174,7 @@ class IncidentMigrator:
 
         migrated['uniq_id'] = Incident.gen_uniq_id(
             migrated.get('payload', {}).get('groupLabels', {}),
-            migrated.get('created')
+            migrated.get('created')  # type: ignore[arg-type]
         )
 
         return migrated
