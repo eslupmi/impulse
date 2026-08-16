@@ -1,4 +1,5 @@
-from typing import Dict, Iterable, Optional, TYPE_CHECKING
+from collections.abc import Iterable
+from typing import TYPE_CHECKING, Optional
 
 from jinja2 import Template
 
@@ -35,14 +36,14 @@ class JinjaTemplate:
         cls._incidents = incidents
 
     @classmethod
-    def related_incidents(cls, uniq_ids: Iterable[str], skip: Iterable[str] = ()) -> Dict[str, 'Incident']:
+    def related_incidents(cls, uniq_ids: Iterable[str], skip: Iterable[str] = ()) -> dict[str, 'Incident']:
         """Resolve uniq_ids to live Incident objects from the shared incidents store."""
         skip_set = set(skip)
         result = {}
         for uniq_id in uniq_ids:
             if uniq_id in skip_set:
                 continue
-            incident = cls._incidents.uniq_ids.get(uniq_id)
+            incident = cls._incidents.uniq_ids.get(uniq_id) if cls._incidents else None
             if incident is not None:
                 result[uniq_id] = incident
         return result

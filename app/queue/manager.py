@@ -103,7 +103,7 @@ class AsyncQueueManager:
                 await self.handle_maintenance_end(identifier)
             elif type_ == QueueItemType.UPDATE_USER:
                 await self.handle_user_update(identifier)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error(f"Error handling queue item {type_}", extra={'error': repr(e)})
         
         # Always yield control after processing an item
@@ -131,7 +131,7 @@ class AsyncQueueManager:
         while self._running:
             try:
                 await self.queue_handle_once()
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.error(f"Error in queue processing loop: {e}")
                 if self._running:
                     await asyncio.sleep(1)

@@ -1,13 +1,14 @@
 from copy import deepcopy
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
-from app.config.validation import MessengerType
+
 from app.config.config import get_config
+from app.config.validation import MessengerType
 from app.im.template import (
     incident_notifications_new_firing,
     incident_notifications_partial_resolved,
 )
-from app.incident.incident import IncidentConfig, Incident
+from app.incident.incident import Incident, IncidentConfig
 from app.jinja_template import JinjaTemplate
 from app.logging import logger
 from app.queue.constants import QueueItemType
@@ -15,12 +16,12 @@ from app.queue.handlers.base_handler import BaseHandler
 from app.time import unix_sleep_to_timedelta
 
 if TYPE_CHECKING:
-    from app.queue.queue import AsyncQueue
     from app.im.application import Application
     from app.incident.incidents import Incidents
-    from app.route.route import Route
     from app.inhibition.manager import InhibitionManager
     from app.maintenance.manager import MaintenanceManager
+    from app.queue.queue import AsyncQueue
+    from app.route.route import Route
 
 class AlertHandler(BaseHandler):
     """
@@ -33,7 +34,7 @@ class AlertHandler(BaseHandler):
     :param inhibition_manager: InhibitionManager instance for inhibition rule handling
     :param maintenance_manager: MaintenanceManager instance for time-bounded maintenance windows
     """
-    __slots__ = ['route', 'inhibition_manager', 'maintenance_manager']
+    __slots__ = ['inhibition_manager', 'maintenance_manager', 'route']
 
     def __init__(self, queue: 'AsyncQueue', application: 'Application', incidents: 'Incidents', route: 'Route',
                  inhibition_manager: 'InhibitionManager', maintenance_manager: 'MaintenanceManager'):

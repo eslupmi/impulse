@@ -23,16 +23,12 @@ class HTMLTextExtractor(HTMLParser):
         self.in_br = False
 
     def handle_starttag(self, tag, attrs):
-        if tag.lower() == 'br':
+        if tag.lower() == 'br' or tag.lower() in ['p', 'div'] and self.text_parts and not self.text_parts[-1].endswith('\n'):
             self.text_parts.append('\n')
-        elif tag.lower() in ['p', 'div']:
-            if self.text_parts and not self.text_parts[-1].endswith('\n'):
-                self.text_parts.append('\n')
 
     def handle_endtag(self, tag):
-        if tag.lower() in ['p', 'div']:
-            if self.text_parts and not self.text_parts[-1].endswith('\n'):
-                self.text_parts.append('\n')
+        if tag.lower() in ['p', 'div'] and self.text_parts and not self.text_parts[-1].endswith('\n'):
+            self.text_parts.append('\n')
 
     def handle_data(self, data):
         self.text_parts.append(data)

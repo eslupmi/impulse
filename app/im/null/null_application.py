@@ -1,6 +1,5 @@
 import uuid
-from datetime import datetime
-from typing import TYPE_CHECKING, Dict, Optional
+from typing import TYPE_CHECKING
 
 from fastapi.responses import JSONResponse
 
@@ -93,7 +92,7 @@ class NullApplication(Application):
     def _get_team_name(self, app_config):
         return None
 
-    def _build_user_profile_url(self, user_id: str, user: BaseUser) -> Optional[str]:
+    def _build_user_profile_url(self, user_id: str, user: BaseUser) -> str | None:
         return None
 
     def _get_incident_message_payload(self, incident, body, header, status_icons):
@@ -108,11 +107,11 @@ class NullApplication(Application):
     async def _send_create_incident_message(self, payload):
         return str(uuid.uuid4())
 
-    async def _generate_groups(self, groups_dict: Dict):
+    async def _generate_groups(self, groups_dict: dict):
         return {}
 
     async def _handle_freeze_action(self, incident_: 'Incident', freeze_option: str, user_id: str, incidents,
-                                    queue_: 'AsyncQueue', user_timezone: Optional[str] = None, ui_user=None):
+                                    queue_: 'AsyncQueue', user_timezone: str | None = None, ui_user=None):
         return
 
     async def post_freeze_notification(self, incident_: 'Incident', ui_user=None):

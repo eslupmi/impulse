@@ -1,7 +1,10 @@
-from typing import Mapping
+from collections.abc import Mapping
 
 from app.ui.authentication.models.auth_user import AuthUser
-from app.ui.authentication.providers.base_provider import AuthenticationProvider, AuthenticationProviderError
+from app.ui.authentication.providers.base_provider import (
+    AuthenticationProvider,
+    AuthenticationProviderError,
+)
 
 
 class UnsupportedAuthenticationProvider(AuthenticationProvider):

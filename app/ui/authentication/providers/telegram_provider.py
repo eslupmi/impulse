@@ -1,5 +1,5 @@
 from base64 import b64encode
-from typing import Mapping, Optional, Sequence
+from collections.abc import Mapping, Sequence
 from urllib.parse import urlencode
 
 import aiohttp
@@ -7,7 +7,10 @@ import jwt
 
 from app.http_client.session import create_client_session
 from app.ui.authentication.models.auth_user import AuthUser
-from app.ui.authentication.providers.base_provider import AuthenticationProvider, AuthenticationProviderError
+from app.ui.authentication.providers.base_provider import (
+    AuthenticationProvider,
+    AuthenticationProviderError,
+)
 
 
 class TelegramAuthenticationProvider(AuthenticationProvider):
@@ -32,7 +35,7 @@ class TelegramAuthenticationProvider(AuthenticationProvider):
         self.token_url = token_url
         self.jwks_url = jwks_url
         self.timeout_seconds = timeout_seconds
-        self._jwks_cache: Optional[dict] = None
+        self._jwks_cache: dict | None = None
 
     def build_authorization_url(self, state: str, redirect_uri: str) -> str:
         params = {
@@ -55,29 +58,27 @@ class TelegramAuthenticationProvider(AuthenticationProvider):
         headers = {"Authorization": f"Basic {credentials}"}
 
         timeout = aiohttp.ClientTimeout(total=self.timeout_seconds)
-        async with create_client_session(timeout=timeout) as session:
-            async with session.post(self.token_url, data=payload, headers=headers) as response:
-                data = await response.json(content_type=None)
-                if response.status != 200:
-                    raise AuthenticationProviderError(
-                        "auth_failed", f"Telegram token exchange failed with status {response.status}"
-                    )
-                if not data.get("id_token"):
-                    raise AuthenticationProviderError("auth_failed", "Telegram id_token not found in response")
-                return data
+        async with create_client_session(timeout=timeout) as session, session.post(self.token_url, data=payload, headers=headers) as response:
+            data = await response.json(content_type=None)
+            if response.status != 200:
+                raise AuthenticationProviderError(
+                    "auth_failed", f"Telegram token exchange failed with status {response.status}"
+                )
+            if not data.get("id_token"):
+                raise AuthenticationProviderError("auth_failed", "Telegram id_token not found in response")
+            return data
 
     async def _fetch_jwks(self) -> dict:
         if self._jwks_cache is not None:
             return self._jwks_cache
 
         timeout = aiohttp.ClientTimeout(total=self.timeout_seconds)
-        async with create_client_session(timeout=timeout) as session:
-            async with session.get(self.jwks_url) as response:
-                if response.status != 200:
-                    raise AuthenticationProviderError("auth_failed", "Failed to fetch Telegram JWKS")
-                data = await response.json(content_type=None)
-                self._jwks_cache = data
-                return data
+        async with create_client_session(timeout=timeout) as session, session.get(self.jwks_url) as response:
+            if response.status != 200:
+                raise AuthenticationProviderError("auth_failed", "Failed to fetch Telegram JWKS")
+            data = await response.json(content_type=None)
+            self._jwks_cache = data
+            return data
 
     async def _decode_id_token(self, id_token: str) -> dict:
         try:
@@ -106,7 +107,7 @@ class TelegramAuthenticationProvider(AuthenticationProvider):
         except jwt.PyJWTError as exc:
             raise AuthenticationProviderError("auth_failed", f"id_token validation failed: {exc}") from exc
 
-    async def _find_signing_key(self, kid: Optional[str]):
+    async def _find_signing_key(self, kid: str | None):
         jwks_data = await self._fetch_jwks()
         for key_data in jwks_data.get("keys", []):
             if kid is None or key_data.get("kid") == kid:

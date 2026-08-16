@@ -1,6 +1,5 @@
 """Jira Cloud API client with Basic Authentication"""
 import base64
-from typing import Dict, Optional
 
 from app.http_client.rate_limited_client import RateLimitedClient
 from app.logging import logger
@@ -43,7 +42,7 @@ class JiraClient:
     
     ### PRIVATE METHODS ###
 
-    def _get_auth_headers(self) -> Dict[str, str]:
+    def _get_auth_headers(self) -> dict[str, str]:
         """
         Get authentication headers for Jira API requests.
         
@@ -61,7 +60,7 @@ class JiraClient:
         project_key: str,
         summary: str,
         description: str
-    ) -> Optional[Dict]:
+    ) -> dict | None:
         """
         Create a Jira issue using REST API v3.
         
@@ -107,7 +106,7 @@ class JiraClient:
                 error_text = await response.text()
                 logger.error(f"Failed to create Jira issue: {response.status} - {error_text}")
                 return None
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error(f"Error creating Jira issue: {e}")
             return None
     

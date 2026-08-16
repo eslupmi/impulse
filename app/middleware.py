@@ -4,7 +4,6 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.config.environment import get_environment_config
 
-
 STANDBY_MODE_MESSAGE = "Service Unavailable - Standby mode"
 
 

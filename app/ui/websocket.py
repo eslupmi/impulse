@@ -1,5 +1,4 @@
 import json
-from typing import Set
 
 from fastapi import WebSocket
 
@@ -11,7 +10,7 @@ class AsyncIncidentWS:
     """Async WebSocket manager for incident updates"""
     
     def __init__(self):
-        self.connections: Set[WebSocket] = set()
+        self.connections: set[WebSocket] = set()
         self.table_config = get_config().ui_config
 
     async def connect(self, websocket: WebSocket):
@@ -36,7 +35,7 @@ class AsyncIncidentWS:
         for websocket in self.connections:
             try:
                 await websocket.send_text(message)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.warning(f"Failed to send message to WebSocket: {e}")
                 disconnected.add(websocket)
 
@@ -73,7 +72,7 @@ class AsyncIncidentWS:
                 data = incidents.get_active_table(self._get_values())
             message = json.dumps({"event": "update_data", "data": data})
             await websocket.send_text(message)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error(f"Failed to send full table data: {e}")
 
     @staticmethod

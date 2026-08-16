@@ -1,20 +1,19 @@
-from typing import Dict, List, Set, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 from app.config.validation import InhibitRule, MessengerType
-from app.inhibition.rule import InhibitionRule
-from app.incident.freeze import FreezeSource, MAINTENANCE_PARENT_SENTINEL
-from app.logging import logger
-
+from app.incident.freeze import MAINTENANCE_PARENT_SENTINEL, FreezeSource
 from app.incident.incident import remove_freeze_source
+from app.inhibition.rule import InhibitionRule
+from app.logging import logger
 
 _INACTIVE_INHIBITION_STATUSES = frozenset({'resolved', 'closed', 'deleted'})
 
 if TYPE_CHECKING:
+    from app.im.application import Application
     from app.incident.incident import Incident
     from app.incident.incidents import Incidents
-    from app.im.application import Application
-    from app.queue.queue import AsyncQueue
     from app.maintenance.manager import MaintenanceManager
+    from app.queue.queue import AsyncQueue
 
 
 class InhibitionManager:
@@ -24,14 +23,14 @@ class InhibitionManager:
     Unlike AlertManager which just mutes alerts, Impulse freezes target incidents
     and tracks parent/child relationships.
     """
-    __slots__ = ['incidents', 'application', 'queue', 'rules', 'sources', 'targets', 'maintenance_manager']
+    __slots__ = ['application', 'incidents', 'maintenance_manager', 'queue', 'rules', 'sources', 'targets']
     
-    def __init__(self, rules: List[InhibitRule], incidents: 'Incidents', application: 'Application', 
+    def __init__(self, rules: list[InhibitRule], incidents: 'Incidents', application: 'Application', 
                  queue: 'AsyncQueue'):
         self.incidents = incidents
         self.application = application
         self.queue = queue
-        self.maintenance_manager: 'MaintenanceManager' = None
+        self.maintenance_manager: MaintenanceManager | None = None
         self._init_rules(rules)
 
     def attach_maintenance_manager(self, maintenance_manager: 'MaintenanceManager'):
@@ -46,9 +45,8 @@ class InhibitionManager:
                 await self._cleanup_source(incident)
                 self.sources[rule_idx].discard(incident.uniq_id)
             
-            if incident.uniq_id in self.targets[rule_idx]:
-                if not incident.is_frozen:
-                    self.targets[rule_idx].discard(incident.uniq_id)
+            if incident.uniq_id in self.targets[rule_idx] and not incident.is_frozen:
+                self.targets[rule_idx].discard(incident.uniq_id)
     
     async def handle_resolved(self, incident: 'Incident'):
         if not self.rules:
@@ -65,7 +63,7 @@ class InhibitionManager:
         for rule_idx, rule in enumerate(self.rules):
             await self._process_incident_for_rule(incident, rule_idx, rule)
     
-    def reload_rules(self, rules: List[InhibitRule]):
+    def reload_rules(self, rules: list[InhibitRule]):
         logger.info("Reloading inhibition rules")
         self._init_rules(rules)
         self.restore_from_incidents()
@@ -181,7 +179,7 @@ class InhibitionManager:
     async def _freeze_matching_targets(
         self,
         incident: 'Incident',
-        candidates: Set[str],
+        candidates: set[str],
         rule: InhibitionRule,
         incident_is_target: bool
     ):
@@ -199,9 +197,8 @@ class InhibitionManager:
             else:
                 source, target = incident, candidate
 
-            if rule.equal_labels_match(source, target) and source.status != 'resolved':
-                if await self._freeze_target(source, target):
-                    done = True
+            if rule.equal_labels_match(source, target) and source.status != 'resolved' and await self._freeze_target(source, target):
+                done = True
         return done
     
     async def _freeze_target(self, source: 'Incident', target: 'Incident'):
@@ -223,8 +220,8 @@ class InhibitionManager:
             await self.application.update_incident_message(target)
         return True
 
-    def _init_rules(self, rules: List[InhibitRule]):
-        self.rules: List[InhibitionRule] = [
+    def _init_rules(self, rules: list[InhibitRule]):
+        self.rules: list[InhibitionRule] = [
             InhibitionRule(
                 source_matchers=rule.source_matchers,
                 target_matchers=rule.target_matchers,
@@ -232,8 +229,8 @@ class InhibitionManager:
             )
             for rule in rules
         ]
-        self.sources: Dict[int, Set[str]] = {i: set() for i in range(len(self.rules))}
-        self.targets: Dict[int, Set[str]] = {i: set() for i in range(len(self.rules))}
+        self.sources: dict[int, set[str]] = {i: set() for i in range(len(self.rules))}
+        self.targets: dict[int, set[str]] = {i: set() for i in range(len(self.rules))}
 
     async def _process_incident_for_rule(self, incident: 'Incident', rule_idx: int, rule: InhibitionRule):
         if rule.is_target(incident):

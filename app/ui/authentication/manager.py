@@ -1,16 +1,22 @@
+import asyncio
 import secrets
+from collections.abc import Mapping
 from datetime import datetime, timedelta, timezone
-from typing import TYPE_CHECKING, Any, Dict, Mapping, Optional, Set
+from typing import TYPE_CHECKING, Any, Optional
 from urllib.parse import urlsplit, urlunsplit
 from uuid import uuid4
 
+import aiohttp
 from fastapi.responses import RedirectResponse, Response
 
 from app.logging import logger
 from app.ui.authentication.models.auth_session import AuthSession
 from app.ui.authentication.models.auth_state import AuthState
 from app.ui.authentication.models.auth_user import AuthUser
-from app.ui.authentication.providers.base_provider import AuthenticationProvider, AuthenticationProviderError
+from app.ui.authentication.providers.base_provider import (
+    AuthenticationProvider,
+    AuthenticationProviderError,
+)
 from app.ui.authentication.session_store import FileSessionStore
 
 if TYPE_CHECKING:
@@ -27,11 +33,11 @@ class UserAuthenticationManager:
         session_ttl_seconds: int = 90 * 24 * 60 * 60,
         cookie_secure: bool = False,
         cookie_path: str = "/",
-        allowed_user_ids: Optional[Set[str]] = None,
+        allowed_user_ids: set[str] | None = None,
         default_redirect_path: str = "/",
-        allowed_redirect_prefixes: Optional[Set[str]] = None,
-        configured_users: Optional[Dict[str, AuthUser]] = None,
-        session_store: Optional[FileSessionStore] = None,
+        allowed_redirect_prefixes: set[str] | None = None,
+        configured_users: dict[str, AuthUser] | None = None,
+        session_store: FileSessionStore | None = None,
         user_store: Optional['UserStore'] = None,
     ):
         self.provider = provider
@@ -51,9 +57,9 @@ class UserAuthenticationManager:
         self.session_store = session_store or FileSessionStore(root_dir="sessions")
         self._user_store = user_store
 
-        self._states: Dict[str, AuthState] = {}
+        self._states: dict[str, AuthState] = {}
 
-    def start_auth(self, next_path: Optional[str] = None) -> RedirectResponse:
+    def start_auth(self, next_path: str | None = None) -> RedirectResponse:
         safe_next_path = self._normalize_next_path(next_path)
         if not self.provider.is_supported():
             return self._build_error_redirect(safe_next_path, "not_supported")
@@ -65,20 +71,12 @@ class UserAuthenticationManager:
             created_at=self._now(),
         )
 
-        try:
-            authorization_url = self.provider.build_authorization_url(state, self.redirect_uri)
-        except Exception as exc:
-            logger.warning(
-                "Failed to build authorization URL",
-                extra={"provider": self.provider.name, "error": str(exc)},
-            )
-            return self._build_error_redirect(safe_next_path, "auth_start_failed")
-
+        authorization_url = self.provider.build_authorization_url(state, self.redirect_uri)
         return RedirectResponse(url=authorization_url, status_code=302)
 
     async def handle_callback(
         self,
-        params: Optional[Mapping[str, str]] = None,
+        params: Mapping[str, str] | None = None,
     ) -> RedirectResponse:
         params = dict(params or {})
         state = params.get("state")
@@ -97,7 +95,7 @@ class UserAuthenticationManager:
         except AuthenticationProviderError as exc:
             error_code = self._sanitize_error(exc.code) if exc.code else "auth_failed"
             return self._build_error_redirect(auth_state.next_path, error_code)
-        except Exception as exc:
+        except (aiohttp.ClientError, asyncio.TimeoutError, ValueError) as exc:
             logger.warning(
                 "Authentication callback failed",
                 extra={"provider": self.provider.name, "error": str(exc)},
@@ -118,7 +116,7 @@ class UserAuthenticationManager:
         )
         try:
             self.session_store.save_session(session)
-        except Exception as exc:
+        except OSError as exc:
             logger.warning("Failed to save auth session", extra={"error": str(exc)})
             return self._build_error_redirect(auth_state.next_path, "auth_failed")
 
@@ -134,7 +132,7 @@ class UserAuthenticationManager:
         )
         return response
 
-    def get_current_user(self, session_id: Optional[str] = None) -> dict:
+    def get_current_user(self, session_id: str | None = None) -> dict:
         session = self._get_session(session_id)
         if not session:
             return {"authenticated": False}
@@ -142,7 +140,7 @@ class UserAuthenticationManager:
         user_data = self._enrich_from_user_store(auth_user)
         return {"authenticated": True, "user": user_data}
 
-    def logout(self, session_id: Optional[str] = None) -> Response:
+    def logout(self, session_id: str | None = None) -> Response:
         if session_id:
             self.session_store.delete_session(session_id)
 
@@ -150,11 +148,11 @@ class UserAuthenticationManager:
         response.delete_cookie(key=self.session_cookie_name, path=self.cookie_path)
         return response
 
-    def _pop_state(self, state: str) -> Optional[AuthState]:
+    def _pop_state(self, state: str) -> AuthState | None:
         self._cleanup_states()
         return self._states.pop(state, None)
 
-    def _get_session(self, session_id: Optional[str]) -> Optional[AuthSession]:
+    def _get_session(self, session_id: str | None) -> AuthSession | None:
         if not session_id:
             return None
         return self.session_store.load_session(session_id)
@@ -172,7 +170,7 @@ class UserAuthenticationManager:
             return configured
         return AuthUser(id=str(user_id), messenger=self.provider.name)
 
-    def _enrich_from_user_store(self, auth_user: AuthUser) -> Dict[str, Any]:
+    def _enrich_from_user_store(self, auth_user: AuthUser) -> dict[str, Any]:
         data = auth_user.model_dump()
         if not self._user_store:
             return data
@@ -188,7 +186,7 @@ class UserAuthenticationManager:
     def _now() -> datetime:
         return datetime.now(timezone.utc)
 
-    def _normalize_next_path(self, next_path: Optional[str]) -> str:
+    def _normalize_next_path(self, next_path: str | None) -> str:
         canonical = self._canonicalize_local_path(next_path)
         if not canonical:
             return self.default_redirect_path
@@ -197,7 +195,7 @@ class UserAuthenticationManager:
         return canonical
 
     @staticmethod
-    def _canonicalize_local_path(path: Optional[str]) -> Optional[str]:
+    def _canonicalize_local_path(path: str | None) -> str | None:
         if not path or not path.startswith("/"):
             return None
         if path.startswith("//"):
@@ -239,11 +237,11 @@ class UserAuthenticationManager:
 
     @staticmethod
     def _coerce_allowed_redirect_prefixes(
-        prefixes: Optional[Set[str]],
+        prefixes: set[str] | None,
         default_redirect_path: str,
-    ) -> Set[str]:
+    ) -> set[str]:
         values = prefixes or {urlsplit(default_redirect_path).path or "/"}
-        normalized_prefixes: Set[str] = set()
+        normalized_prefixes: set[str] = set()
         for prefix in values:
             canonical = UserAuthenticationManager._canonicalize_local_path(prefix)
             if not canonical:

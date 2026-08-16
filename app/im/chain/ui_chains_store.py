@@ -1,9 +1,9 @@
-import os
 import json
-from datetime import datetime, timezone, timedelta
-from typing import Dict, List, Optional, Any, Tuple
+import os
+from datetime import datetime, timedelta, timezone
+from typing import Any
 
-from icalendar import Calendar, Event
+from icalendar import Calendar, Component, Event
 
 from app.config.config import get_config
 from app.config.environment import get_environment_config
@@ -58,7 +58,7 @@ def _ical_dt_to_iso(dt) -> str:
     return str(dt)
 
 
-def _parse_steps_description(description) -> Optional[List[Dict[str, Any]]]:
+def _parse_steps_description(description) -> list[dict[str, Any]] | None:
     if not description:
         return None
     try:
@@ -67,7 +67,7 @@ def _parse_steps_description(description) -> Optional[List[Dict[str, Any]]]:
         return None
 
 
-def _parse_x_priority(x_priority) -> Optional[int]:
+def _parse_x_priority(x_priority) -> int | None:
     if not x_priority:
         return None
     try:
@@ -79,7 +79,7 @@ def _parse_x_priority(x_priority) -> Optional[int]:
 def _occurrence_overlaps_range(
     occurrence_start: datetime,
     duration: timedelta,
-    repeat_end: Optional[datetime],
+    repeat_end: datetime | None,
     range_start: datetime,
     range_end: datetime,
 ) -> bool:
@@ -103,14 +103,14 @@ class UIChainsStore:
     def _calendar_path(self, chain_name: str) -> str:
         return os.path.join(self.ui_chains_dir, _chain_name_to_filename(chain_name))
 
-    def load_shifts(self, chain_name: str) -> List[Dict[str, Any]]:
+    def load_shifts(self, chain_name: str) -> list[dict[str, Any]]:
         if not chain_name:
             return []
         shifts = self._read_shifts_from_disk(chain_name)
         logger.debug("Loaded ui chains", extra={"chain": chain_name, "count": len(shifts)})
         return self.recalculate_priorities(shifts)
 
-    def prune_expired_shifts(self, chain_name: str, now: Optional[datetime] = None) -> int:
+    def prune_expired_shifts(self, chain_name: str, now: datetime | None = None) -> int:
         if not chain_name:
             return 0
         shifts = self._read_shifts_from_disk(chain_name)
@@ -126,7 +126,7 @@ class UIChainsStore:
         )
         return len(expired)
 
-    def prune_all(self, now: Optional[datetime] = None) -> int:
+    def prune_all(self, now: datetime | None = None) -> int:
         if not os.path.exists(self.ui_chains_dir):
             return 0
         removed = 0
@@ -137,19 +137,19 @@ class UIChainsStore:
         return removed
 
     def filter_retained_shifts(
-        self, shifts: List[Dict[str, Any]], now: Optional[datetime] = None
-    ) -> List[Dict[str, Any]]:
+        self, shifts: list[dict[str, Any]], now: datetime | None = None
+    ) -> list[dict[str, Any]]:
         retained, _ = self._partition_by_retention(shifts, now)
         return retained
 
-    def _read_shifts_from_disk(self, chain_name: str) -> List[Dict[str, Any]]:
+    def _read_shifts_from_disk(self, chain_name: str) -> list[dict[str, Any]]:
         path = self._calendar_path(chain_name)
         if not os.path.exists(path):
             return []
 
         try:
             with open(path, "rb") as f:
-                cal = Calendar.from_ical(f.read())
+                cal = Calendar.from_ical(f.read().decode())
 
             shifts = []
             for component in cal.walk():
@@ -158,11 +158,11 @@ class UIChainsStore:
                     if shift:
                         shifts.append(shift)
             return shifts
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error("Failed to load ui chains", extra={"error": str(e), "chain": chain_name})
             return []
 
-    def _write_shifts(self, chain_name: str, shifts: List[Dict[str, Any]]) -> bool:
+    def _write_shifts(self, chain_name: str, shifts: list[dict[str, Any]]) -> bool:
         path = self._calendar_path(chain_name)
         try:
             cal = Calendar()
@@ -181,7 +181,7 @@ class UIChainsStore:
 
             logger.debug("Saved ui chains", extra={"chain": chain_name, "count": len(shifts)})
             return True
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error("Failed to save ui chains", extra={"error": str(e), "chain": chain_name})
             return False
 
@@ -191,8 +191,8 @@ class UIChainsStore:
         return now - retention
 
     def _partition_by_retention(
-        self, shifts: List[Dict[str, Any]], now: Optional[datetime] = None
-    ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+        self, shifts: list[dict[str, Any]], now: datetime | None = None
+    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
         now = now or datetime.now(timezone.utc)
         if now.tzinfo is None:
             now = now.replace(tzinfo=timezone.utc)
@@ -206,7 +206,7 @@ class UIChainsStore:
                 retained.append(shift)
         return retained, expired
 
-    def _is_shift_expired(self, shift: Dict[str, Any], cutoff: datetime) -> bool:
+    def _is_shift_expired(self, shift: dict[str, Any], cutoff: datetime) -> bool:
         start = self._parse_datetime(shift.get("start"))
         if start is None:
             return True
@@ -215,7 +215,7 @@ class UIChainsStore:
             return False
         return effective_end < cutoff
 
-    def _shift_effective_end(self, shift: Dict[str, Any]) -> Optional[datetime]:
+    def _shift_effective_end(self, shift: dict[str, Any]) -> datetime | None:
         start = self._parse_datetime(shift.get("start"))
         if start is None:
             return None
@@ -241,7 +241,7 @@ class UIChainsStore:
             occurrence_end = occurrence_start + duration
         return last_end
 
-    def get_steps_for_now(self, chain_name: str, now: Optional[datetime] = None) -> List[Dict[str, Any]]:
+    def get_steps_for_now(self, chain_name: str, now: datetime | None = None) -> list[dict[str, Any]]:
         shifts = self.load_shifts(chain_name)
         if not shifts:
             return []
@@ -262,14 +262,14 @@ class UIChainsStore:
         steps = active[0].get("steps")
         return steps if isinstance(steps, list) else []
 
-    def save_shifts(self, chain_name: str, shifts: List[Dict[str, Any]]) -> bool:
+    def save_shifts(self, chain_name: str, shifts: list[dict[str, Any]]) -> bool:
         if not chain_name:
             return False
         shifts = self.filter_retained_shifts(shifts)
         shifts = self.recalculate_priorities(shifts)
         return self._write_shifts(chain_name, shifts)
 
-    def _chain_to_ical_event(self, chain: Dict[str, Any]) -> Optional[Event]:
+    def _chain_to_ical_event(self, chain: dict[str, Any]) -> Event | None:
         try:
             event = Event()
 
@@ -311,13 +311,13 @@ class UIChainsStore:
                 event.add("x-priority", str(priority))
 
             return event
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error("Failed to convert chain to iCal event", extra={"error": str(e), "chain_id": chain.get("id")})
             return None
 
-    def _ical_event_to_chain(self, event: Event) -> Optional[Dict[str, Any]]:
+    def _ical_event_to_chain(self, event: Component) -> dict[str, Any] | None:
         try:
-            chain = {}
+            chain: dict[str, Any] = {}
 
             uid = event.get("uid")
             if uid:
@@ -358,25 +358,27 @@ class UIChainsStore:
             chain["priority"] = _parse_x_priority(event.get("x-priority"))
 
             return chain
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error("Failed to convert iCal event to chain", extra={"error": str(e)})
             return None
 
-    def _parse_datetime(self, dt_str: str) -> Optional[datetime]:
+    def _parse_datetime(self, dt_str: str | None) -> datetime | None:
         if isinstance(dt_str, datetime):
             return dt_str
+        if not dt_str:
+            return None
 
         try:
             if dt_str.endswith("Z"):
                 dt_str = dt_str[:-1] + "+00:00"
             return datetime.fromisoformat(dt_str)
-        except Exception:
+        except ValueError:
             try:
                 return datetime.strptime(dt_str, "%Y-%m-%dT%H:%M:%S.%f%z")
-            except Exception:
+            except ValueError:
                 return None
 
-    def _is_chain_active_now(self, chain: Dict[str, Any], now: datetime) -> bool:
+    def _is_chain_active_now(self, chain: dict[str, Any], now: datetime) -> bool:
         start = self._parse_datetime(chain.get("start"))
         if start is None:
             return False
@@ -403,15 +405,15 @@ class UIChainsStore:
     def _next_occurrence_start(base_start: datetime, current_start: datetime, repeat: str) -> datetime:
         return _next_occurrence_start(base_start, current_start, repeat)
 
-    def recalculate_priorities(self, chains: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def recalculate_priorities(self, chains: list[dict[str, Any]]) -> list[dict[str, Any]]:
         return [
             {**c, "priority": self._calculate_new_priority(c, self._find_overlapping_chains_for_chain(chains, c, c.get("id")))}
             for c in chains
         ]
 
     def _find_overlapping_chains_for_chain(
-        self, chains: List[Dict[str, Any]], candidate_chain: Dict[str, Any], exclude_id: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
+        self, chains: list[dict[str, Any]], candidate_chain: dict[str, Any], exclude_id: str | None = None
+    ) -> list[dict[str, Any]]:
         if not candidate_chain.get("start"):
             return []
         normalized = {
@@ -430,7 +432,7 @@ class UIChainsStore:
                 out.append(chain)
         return out
 
-    def _do_chains_overlap(self, first_chain: Dict[str, Any], second_chain: Dict[str, Any]) -> bool:
+    def _do_chains_overlap(self, first_chain: dict[str, Any], second_chain: dict[str, Any]) -> bool:
         fs = self._parse_datetime(first_chain["start"])
         ss = self._parse_datetime(second_chain["start"])
         if fs is None or ss is None:
@@ -440,7 +442,7 @@ class UIChainsStore:
         return self._does_chain_overlap_range(first_chain, ss, se) or self._does_chain_overlap_range(second_chain, fs, fe)
 
     def _does_chain_overlap_range(
-        self, chain: Dict[str, Any], range_start: datetime, range_end: datetime
+        self, chain: dict[str, Any], range_start: datetime, range_end: datetime
     ) -> bool:
         chain_start = self._parse_datetime(chain["start"])
         if chain_start is None:
@@ -473,7 +475,7 @@ class UIChainsStore:
         return False
 
     @staticmethod
-    def _calculate_new_priority(chain: Dict[str, Any], overlapping_chains: List[Dict[str, Any]]) -> int:
+    def _calculate_new_priority(chain: dict[str, Any], overlapping_chains: list[dict[str, Any]]) -> int:
         if not overlapping_chains:
             return 2
         has_repeat = bool(chain.get("repeat"))
@@ -487,7 +489,7 @@ class UIChainsStore:
         max_id = max(overlapping_ids)
         return 1 if chain_id >= max_id else 2
 
-    def _repeat_to_rrule(self, repeat: str) -> Optional[Dict]:
+    def _repeat_to_rrule(self, repeat: str) -> dict | None:
         repeat_map = {
             "daily": {"FREQ": "DAILY"},
             "weekly": {"FREQ": "WEEKLY"},
@@ -496,7 +498,7 @@ class UIChainsStore:
         }
         return repeat_map.get(repeat.lower()) if repeat else None
 
-    def _rrule_to_repeat(self, rrule) -> Optional[str]:
+    def _rrule_to_repeat(self, rrule) -> str | None:
         if not rrule:
             return None
 

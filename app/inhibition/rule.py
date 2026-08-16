@@ -1,4 +1,4 @@
-from typing import List
+
 
 from app.incident.incident import Incident
 from app.route.matcher import Matcher
@@ -11,7 +11,7 @@ class InhibitionRule:
     all AlertManager matcher syntax (=, !=, =~, !~).
     """
     
-    def __init__(self, source_matchers: List[str], target_matchers: List[str], equal_labels: List[str]):
+    def __init__(self, source_matchers: list[str], target_matchers: list[str], equal_labels: list[str]):
         """Initialize an inhibition rule.
         
         Args:
