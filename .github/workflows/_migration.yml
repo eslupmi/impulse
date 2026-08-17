@@ -21,7 +21,7 @@ on:
 
 jobs:
   migration:
-    runs-on: ubuntu-24.04
+    runs-on: self-hosted
     steps:
       - name: Get latest release
         id: latest
@@ -41,34 +41,38 @@ jobs:
           username: ${{ secrets.USER }}
           key: ${{ secrets.SSH_KEY }}
           envs: BRANCH,DEPLOY_PATH,LATEST_RELEASE
-          command_timeout: 15m
+          command_timeout: 45m
           script_stop: true
           script: |
             set -euo pipefail
-            cd "$DEPLOY_PATH"
-            REF=/tmp/impulse-migration-incidents
-            COMPOSE_BAK=/tmp/impulse-migration-compose.yml
-            rm -rf "$REF"
-            cp -a data/incidents "$REF"
-            cp -a docker-compose.yml "$COMPOSE_BAK"
-            sed -i "s|ghcr.io/eslupmi/impulse:[^ ]*|ghcr.io/eslupmi/impulse:${BRANCH}|" docker-compose.yml
-            docker compose pull
-            docker compose up -d
-            ok=0
-            for i in $(seq 1 60); do
-              if docker compose exec -T app python -c "import os,urllib.request; urllib.request.urlopen('http://127.0.0.1:5000'+os.environ.get('HTTP_PREFIX','')+'/readyz')" 2>/dev/null; then
-                ok=1
-                break
+            for messenger in mattermost slack telegram; do
+              echo "::group::migration check: $messenger"
+              cd "$DEPLOY_PATH/$messenger"
+              REF=/tmp/impulse-migration-incidents-$messenger
+              COMPOSE_BAK=/tmp/impulse-migration-compose-$messenger.yml
+              rm -rf "$REF"
+              cp -a data/incidents "$REF"
+              cp -a docker-compose.yml "$COMPOSE_BAK"
+              sed -i "s|ghcr.io/eslupmi/impulse:[^ ]*|ghcr.io/eslupmi/impulse:${BRANCH}|" docker-compose.yml
+              docker compose pull
+              docker compose up -d
+              ok=0
+              for i in $(seq 1 60); do
+                if docker compose exec -T app python -c "import os,urllib.request; urllib.request.urlopen('http://127.0.0.1:5000'+os.environ.get('HTTP_PREFIX','')+'/readyz')" 2>/dev/null; then
+                  ok=1
+                  break
+                fi
+                sleep 1
+              done
+              if [ "$ok" -ne 1 ]; then
+                docker compose logs
+                exit 1
               fi
-              sleep 1
+              docker compose stop
+              docker compose run --rm --no-deps app python -m main --downgrade "$LATEST_RELEASE"
+              diff -ru "$REF" data/incidents
+              echo "::endgroup::"
             done
-            if [ "$ok" -ne 1 ]; then
-              docker compose logs
-              exit 1
-            fi
-            docker compose stop
-            docker compose run --rm --no-deps app python -m main --downgrade "$LATEST_RELEASE"
-            diff -ru "$REF" data/incidents
 
       - name: Restore impulse prod
         if: always()
@@ -81,17 +85,21 @@ jobs:
           username: ${{ secrets.USER }}
           key: ${{ secrets.SSH_KEY }}
           envs: DEPLOY_PATH
-          command_timeout: 10m
+          command_timeout: 15m
           script: |
             set -euo pipefail
-            cd "$DEPLOY_PATH"
-            docker compose stop || true
-            if [ -d /tmp/impulse-migration-incidents ]; then
-              rm -rf data/incidents
-              cp -a /tmp/impulse-migration-incidents data/incidents
-            fi
-            if [ -f /tmp/impulse-migration-compose.yml ]; then
-              cp -a /tmp/impulse-migration-compose.yml docker-compose.yml
-            fi
-            docker compose up -d
-            rm -rf /tmp/impulse-migration-incidents /tmp/impulse-migration-compose.yml
+            for messenger in mattermost slack telegram; do
+              cd "$DEPLOY_PATH/$messenger"
+              docker compose stop || true
+              REF=/tmp/impulse-migration-incidents-$messenger
+              COMPOSE_BAK=/tmp/impulse-migration-compose-$messenger.yml
+              if [ -d "$REF" ]; then
+                rm -rf data/incidents
+                cp -a "$REF" data/incidents
+              fi
+              if [ -f "$COMPOSE_BAK" ]; then
+                cp -a "$COMPOSE_BAK" docker-compose.yml
+              fi
+              docker compose up -d
+              rm -rf "$REF" "$COMPOSE_BAK"
+            done
