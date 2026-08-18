@@ -15,5 +15,4 @@ jobs:
     uses: ./.github/workflows/_autotests.yml
     with:
       branch: ${{ inputs.branch || format('pr-{0}', inputs.pr_number) }}
-      runs-on: self-hosted
     secrets: inherit

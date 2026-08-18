@@ -8,11 +8,11 @@ on:
         type: string
       runs-on:
         type: string
-        default: ubuntu-24.04
+        default: self-hosted
 
 jobs:
   autotests:
-    runs-on: ${{ inputs.runs-on }}
+    runs-on: self-hosted
     strategy:
       fail-fast: true
       matrix:

@@ -38,5 +38,13 @@ jobs:
     uses: ./.github/workflows/_autotests.yml
     with:
       branch: pr-${{ github.event.pull_request.number }}
-      runs-on: self-hosted
+    secrets: inherit
+
+  migrations:
+    if: github.event.pull_request.draft == false && github.base_ref == 'master'
+    needs: build-and-push-image
+    uses: ./.github/workflows/_migration.yml
+    with:
+      branch: pr-${{ github.event.pull_request.number }}
+      deploy-path: /opt/impulse/prod
     secrets: inherit

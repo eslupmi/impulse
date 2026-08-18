@@ -19,6 +19,11 @@ on:
       SSH_KEY:
         required: true
 
+env:
+  MESSENGERS: slack mattermost telegram
+  YELLOW: '\033[33m'
+  RESET: '\033[0m'
+
 jobs:
   migration:
     runs-on: self-hosted
@@ -33,12 +38,13 @@ jobs:
         uses: appleboy/ssh-action@v1.0.3
         env:
           DEPLOY_PATH: ${{ inputs.deploy-path }}
+          MESSENGERS: ${{ env.MESSENGERS }}
         with:
           host: ${{ secrets.HOST }}
           port: ${{ secrets.PORT }}
           username: ${{ secrets.USER }}
           key: ${{ secrets.SSH_KEY }}
-          envs: DEPLOY_PATH
+          envs: DEPLOY_PATH,MESSENGERS
           command_timeout: 15m
           script_stop: true
           script: |
@@ -47,7 +53,7 @@ jobs:
             rm -rf "$ROOT"
             mkdir -p "$ROOT"
             cp -a "$DEPLOY_PATH/docker-compose.yml" "$ROOT/docker-compose.yml"
-            for messenger in mattermost slack telegram; do
+            for messenger in $MESSENGERS; do
               mkdir -p "$ROOT/$messenger"
               cp -a "$DEPLOY_PATH/$messenger/data/incidents" "$ROOT/$messenger/0_original"
             done
@@ -58,12 +64,15 @@ jobs:
           BRANCH: ${{ inputs.branch }}
           DEPLOY_PATH: ${{ inputs.deploy-path }}
           LATEST_RELEASE: ${{ steps.latest.outputs.tag }}
+          MESSENGERS: ${{ env.MESSENGERS }}
+          YELLOW: ${{ env.YELLOW }}
+          RESET: ${{ env.RESET }}
         with:
           host: ${{ secrets.HOST }}
           port: ${{ secrets.PORT }}
           username: ${{ secrets.USER }}
           key: ${{ secrets.SSH_KEY }}
-          envs: BRANCH,DEPLOY_PATH,LATEST_RELEASE
+          envs: BRANCH,DEPLOY_PATH,LATEST_RELEASE,MESSENGERS,YELLOW,RESET
           command_timeout: 45m
           script_stop: true
           script: |
@@ -72,18 +81,22 @@ jobs:
             sed -i "s|ghcr.io/eslupmi/impulse:[^ ]*|ghcr.io/eslupmi/impulse:${BRANCH}|" "$DEPLOY_PATH/docker-compose.yml"
             cd "$DEPLOY_PATH"
             docker compose pull
+            printf "${YELLOW}%s${RESET}\n" "::group::migration update"
             echo "::group::migration update"
             docker compose up -d
             sleep 30s
             docker compose stop
+            printf "${YELLOW}%s${RESET}\n" "::endgroup::"
             echo "::endgroup::"
-            for messenger in mattermost slack telegram; do
+            for messenger in $MESSENGERS; do
               cp -a "$DEPLOY_PATH/$messenger/data/incidents" "$ROOT/$messenger/1_upgrade"
             done
-            for messenger in mattermost slack telegram; do
+            for messenger in $MESSENGERS; do
+              printf "${YELLOW}%s${RESET}\n" "::group::migration downgrade: $messenger"
               echo "::group::migration downgrade: $messenger"
               docker compose run --rm --no-deps impulse-"$messenger" python -m main --downgrade "$LATEST_RELEASE"
               cp -a "$DEPLOY_PATH/$messenger/data/incidents" "$ROOT/$messenger/2_downgrade"
+              printf "${YELLOW}%s${RESET}\n" "::endgroup::"
               echo "::endgroup::"
             done
 
@@ -91,20 +104,25 @@ jobs:
         uses: appleboy/ssh-action@v1.0.3
         env:
           DEPLOY_PATH: ${{ inputs.deploy-path }}
+          MESSENGERS: ${{ env.MESSENGERS }}
+          YELLOW: ${{ env.YELLOW }}
+          RESET: ${{ env.RESET }}
         with:
           host: ${{ secrets.HOST }}
           port: ${{ secrets.PORT }}
           username: ${{ secrets.USER }}
           key: ${{ secrets.SSH_KEY }}
-          envs: DEPLOY_PATH
+          envs: DEPLOY_PATH,MESSENGERS,YELLOW,RESET
           command_timeout: 15m
           script_stop: true
           script: |
             set -euo pipefail
             ROOT=/tmp/impulse-migration
-            for messenger in mattermost slack telegram; do
-              echo "::group::migration compare: $messenger"
+            for messenger in $MESSENGERS; do
+              printf "${YELLOW}%s${RESET}\n" "::group::migration compare downgrade: $messenger"
+              echo "::group::migration compare downgrade: $messenger"
               diff --color=always -ru "$ROOT/$messenger/0_original" "$ROOT/$messenger/2_downgrade"
+              printf "${YELLOW}%s${RESET}\n" "::endgroup::"
               echo "::endgroup::"
             done
 
@@ -113,19 +131,20 @@ jobs:
         uses: appleboy/ssh-action@v1.0.3
         env:
           DEPLOY_PATH: ${{ inputs.deploy-path }}
+          MESSENGERS: ${{ env.MESSENGERS }}
         with:
           host: ${{ secrets.HOST }}
           port: ${{ secrets.PORT }}
           username: ${{ secrets.USER }}
           key: ${{ secrets.SSH_KEY }}
-          envs: DEPLOY_PATH
+          envs: DEPLOY_PATH,MESSENGERS
           command_timeout: 15m
           script: |
             set -euo pipefail
             ROOT=/tmp/impulse-migration
             cd "$DEPLOY_PATH"
             docker compose stop || true
-            for messenger in mattermost slack telegram; do
+            for messenger in $MESSENGERS; do
               ORIG="$ROOT/$messenger/0_original"
               if [ -d "$ORIG" ]; then
                 rm -rf "$DEPLOY_PATH/$messenger/data/incidents"
@@ -136,3 +155,30 @@ jobs:
               cp -a "$ROOT/docker-compose.yml" "$DEPLOY_PATH/docker-compose.yml"
             fi
             docker compose up -d
+
+      - name: Compare incidents migration (final upgrade)
+        if: always()
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          DEPLOY_PATH: ${{ inputs.deploy-path }}
+          MESSENGERS: ${{ env.MESSENGERS }}
+          YELLOW: ${{ env.YELLOW }}
+          RESET: ${{ env.RESET }}
+        with:
+          host: ${{ secrets.HOST }}
+          port: ${{ secrets.PORT }}
+          username: ${{ secrets.USER }}
+          key: ${{ secrets.SSH_KEY }}
+          envs: DEPLOY_PATH,MESSENGERS,YELLOW,RESET
+          command_timeout: 15m
+          script_stop: true
+          script: |
+            set -euo pipefail
+            ROOT=/tmp/impulse-migration
+            for messenger in $MESSENGERS; do
+              printf "${YELLOW}%s${RESET}\n" "::group::migration compare original and upgrade for $messenger"
+              echo "::group::migration compare original and upgrade for $messenger"
+              diff --color=always -ru "$ROOT/$messenger/0_original" "$ROOT/$messenger/1_upgrade"
+              printf "${YELLOW}%s${RESET}\n" "::endgroup::"
+              echo "::endgroup::"
+            done
