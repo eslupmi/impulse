@@ -1,5 +1,5 @@
 from collections.abc import Iterable
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from jinja2 import Template
 
@@ -9,12 +9,12 @@ if TYPE_CHECKING:
 
 
 class JinjaTemplate:
-    _incidents: Optional['Incidents'] = None
+    _incidents: 'Incidents | None' = None
 
     def __init__(self, template: str):
         self.template = template
 
-    def form_message(self, alert_state, incident: Optional['Incident'] = None):
+    def form_message(self, alert_state, incident: 'Incident | None' = None):
         """Render a message template with alert state and incident data."""
         template = Template(self.template)
         incident_data = incident.serialize() if incident else {}
@@ -31,7 +31,7 @@ class JinjaTemplate:
         return template.render(**kwargs)
 
     @classmethod
-    def set_incidents(cls, incidents: Optional['Incidents']):
+    def set_incidents(cls, incidents: 'Incidents | None'):
         """Set incidents storage used to resolve parent/child incident objects in templates."""
         cls._incidents = incidents
 

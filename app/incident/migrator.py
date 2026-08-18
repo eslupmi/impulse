@@ -349,7 +349,7 @@ class IncidentMigrator:
         return set(cls.MIGRATION_CHAIN.keys()) | set(cls.MIGRATION_CHAIN.values())
 
     @classmethod
-    def resolve_downgrade_target(cls, version_arg: Optional[str]) -> str:
+    def resolve_downgrade_target(cls, version_arg: str | None) -> str:
         """Resolve CLI --downgrade argument to a schema version."""
         if version_arg is None or version_arg == '':
             actual = get_config().INCIDENT_ACTUAL_VERSION
@@ -404,7 +404,7 @@ class IncidentMigrator:
         ) is not None
 
 
-def downgrade_incidents_only(version_arg: Optional[str] = None) -> None:
+def downgrade_incidents_only(version_arg: str | None = None) -> None:
     """Downgrade all incident files to the resolved target schema and exit."""
     try:
         target_version = IncidentMigrator.resolve_downgrade_target(version_arg)
