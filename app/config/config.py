@@ -69,7 +69,7 @@ def load_unified_config(exit_on_error: bool = True) -> UnifiedConfig:
 
 def reload_config() -> bool:
     global _config
-    current_config = _config
+    current_config = get_config()
 
     try:
         new_config = load_unified_config(exit_on_error=False)

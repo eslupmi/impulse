@@ -393,7 +393,7 @@ class Incident:
         return any(label not in new_alerts_labels for label in old_alerts_labels)
 
     @staticmethod
-    def gen_uuid(group_labels: dict) -> str:
+    def gen_uuid(group_labels: dict | None) -> str:
         return str(uuid.uuid5(uuid.NAMESPACE_OID, json.dumps(group_labels)))
 
     @staticmethod
