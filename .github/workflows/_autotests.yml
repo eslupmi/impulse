@@ -94,7 +94,7 @@ jobs:
           source venv/bin/activate
           MESSENGER_TYPE="${{ matrix.messenger_type }}"
           MESSENGER_CLASS="${MESSENGER_TYPE^}"
-          pytest --maxfail=1 --exitfirst -v -s "tests/test_${{ matrix.messenger_type }}_application.py::Test${MESSENGER_CLASS}Application"
+          python -m autotest.runner --suite external --messenger "${{ matrix.messenger_type }}"
 
       - name: Stop impulse container
         if: always()
