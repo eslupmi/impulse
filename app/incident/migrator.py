@@ -3,8 +3,8 @@ import re
 from datetime import datetime, timezone
 from typing import ClassVar
 
-from requests.utils import dict_from_cookiejar
 import yaml
+from requests.utils import dict_from_cookiejar
 
 from app.config.config import get_config
 from app.config.environment import get_environment_config
@@ -33,7 +33,7 @@ class IncidentMigrator:
         'v3.4.0': 'v3.6.0',
         'v3.6.0': 'v3.7.0',
     }
-    REVERSE_MIGRATION_CHAIN = {dst: src for src, dst in MIGRATION_CHAIN.items()}
+    REVERSE_MIGRATION_CHAIN: ClassVar[dict[str, str]] = {dst: src for src, dst in MIGRATION_CHAIN.items()}
     
     def __init__(self):
         """Initialize the migrator with available migration methods."""
