@@ -1,14 +1,20 @@
 import os
+import re
 from datetime import datetime, timezone
 from typing import ClassVar
 
+from requests.utils import dict_from_cookiejar
 import yaml
 
 from app.config.config import get_config
+from app.config.environment import get_environment_config
 from app.incident.freeze import FreezeSource
 from app.incident.incident import Incident
 from app.logging import logger
 from app.tools import NoAliasDumper
+
+DOWNGRADE_FLOOR = 'v3.6.0'
+_VERSION_RE = re.compile(r'^v(\d+)\.(\d+)\.(\d+)$')
 
 
 class IncidentMigrator:
@@ -27,6 +33,7 @@ class IncidentMigrator:
         'v3.4.0': 'v3.6.0',
         'v3.6.0': 'v3.7.0',
     }
+    REVERSE_MIGRATION_CHAIN = {dst: src for src, dst in MIGRATION_CHAIN.items()}
     
     def __init__(self):
         """Initialize the migrator with available migration methods."""
@@ -36,9 +43,11 @@ class IncidentMigrator:
             'v3.2.0_to_v3.4.0': self._migrate_v3_2_0_to_v3_4_0,
             'v3.4.0_to_v3.6.0': self._migrate_v3_4_0_to_v3_6_0,
             'v3.6.0_to_v3.7.0': self._migrate_v3_6_0_to_v3_7_0,
+            'v3.7.0_to_v3.6.0': self._migrate_v3_7_0_to_v3_6_0,
         }
         self._filename_migration_methods = {
             'v3.6.0_to_v3.7.0': self._migrate_filename_v3_6_0_to_v3_7_0,
+            'v3.7.0_to_v3.6.0': self._migrate_filename_v3_7_0_to_v3_6_0,
         }
     
     def migrate_file(self, file_path: str, incident_data: dict, current_version: str, target_version: str) -> str:
@@ -100,7 +109,7 @@ class IncidentMigrator:
     
     def _get_migration_path(self, from_version: str, to_version: str) -> list[str]:
         """
-        Find the migration path from from_version to to_version.
+        Find the migration path from from_version to to_version (upgrade or downgrade).
         
         Args:
             from_version: Starting version
@@ -109,14 +118,29 @@ class IncidentMigrator:
         Returns:
             List of versions in migration path
         """
+        if from_version == to_version:
+            return [from_version]
+
+        forward = self._walk_chain(from_version, to_version, self.MIGRATION_CHAIN)
+        if forward is not None:
+            return forward
+
+        reverse = self._walk_chain(from_version, to_version, self.REVERSE_MIGRATION_CHAIN)
+        if reverse is not None:
+            return reverse
+
+        raise ValueError(f'No migration path from {from_version} to {to_version}')
+
+    @staticmethod
+    def _walk_chain(from_version: str, to_version: str, chain: dict[str, str]) -> list[str] | None:
         path = [from_version]
         current = from_version
-        
         while current != to_version:
-            next_version = self.MIGRATION_CHAIN[current]
+            next_version = chain.get(current)
+            if next_version is None:
+                return None
             path.append(next_version)
             current = next_version
-        
         return path
     
     def _apply_single_migration(self, data: dict, from_version: str, to_version: str) -> dict:
@@ -245,8 +269,36 @@ class IncidentMigrator:
         return migrated
 
     @staticmethod
-    def _migrate_v3_6_0_to_v3_7_0(data: dict) -> dict:
+    def reshape_chain_steps_v3_6(data: dict) -> dict:
+        if 'chain' not in data and 'chain_steps' not in data:
+            return data
+
+        migrated = data.copy()
+        steps = migrated.pop('chain_steps', None)
+        if steps is None:
+            steps = migrated.get('chain', [])
+
+        new_chain = []
+        for step in steps:
+            step_copy = step.copy()
+            if 'name' in step_copy:
+                step_copy['type'] = step_copy.pop('name')
+            if 'value' in step_copy:
+                step_copy['identifier'] = step_copy.pop('value')
+            step_copy.pop('status', None)
+            new_chain.append(step_copy)
+
+        migrated['chain'] = new_chain
+        migrated.pop('chain_steps', None)
+        return migrated
+
+    @staticmethod
+    def _migrate_v3_6_0_to_v3_7_0(data: dict_from_cookiejar) -> dict_from_cookiejar:
         return IncidentMigrator.reshape_chain_steps(data)
+
+    @staticmethod
+    def _migrate_v3_7_0_to_v3_6_0(data: dict_from_cookiejar) -> dict_from_cookiejar:
+        return IncidentMigrator.reshape_chain_steps_v3_6(data)
 
     def _apply_filename_migrations(self, file_path: str, incident_data: dict, from_version: str, to_version: str) -> str:
         if not self.MIGRATION_CHAIN:
@@ -272,9 +324,113 @@ class IncidentMigrator:
         return IncidentMigrator._rename_file(file_path, new_path)
 
     @staticmethod
+    def _migrate_filename_v3_7_0_to_v3_6_0(file_path: str, incident_data: dict) -> str:
+        uuid = Incident.gen_uuid(incident_data.get('payload', {}).get('groupLabels', {}))
+        status = incident_data.get('status')
+        closed = incident_data.get('closed')
+        if status in ('closed', 'deleted') and isinstance(closed, datetime):
+            closed_str = closed.strftime('%Y_%m_%d__%H_%M_%S')
+            basename = f'{uuid}__{closed_str}.yml'
+        else:
+            basename = f'{uuid}.yml'
+        new_path = os.path.join(os.path.dirname(file_path), basename)
+        return IncidentMigrator._rename_file(file_path, new_path)
+
+    @staticmethod
     def _rename_file(old_path: str, new_path: str) -> str:
         if old_path == new_path:
             return old_path
         logger.info(f'Renaming incident file {os.path.basename(old_path)} to {os.path.basename(new_path)}')
         os.rename(old_path, new_path)
         return new_path
+
+    @classmethod
+    def schema_versions(cls) -> set:
+        return set(cls.MIGRATION_CHAIN.keys()) | set(cls.MIGRATION_CHAIN.values())
+
+    @classmethod
+    def resolve_downgrade_target(cls, version_arg: str | None) -> str:
+        """Resolve CLI --downgrade argument to a schema version."""
+        if version_arg is None or version_arg == '':
+            actual = get_config().INCIDENT_ACTUAL_VERSION
+            previous = cls.REVERSE_MIGRATION_CHAIN.get(actual)
+            if previous is None:
+                raise ValueError(f'No previous schema version to downgrade from {actual}')
+            target = previous
+        else:
+            target = cls._map_release_to_schema(version_arg)
+
+        if not cls._version_at_or_above_floor(target):
+            raise ValueError(
+                f'Downgrade target {target} is below supported floor {DOWNGRADE_FLOOR}'
+            )
+        return target
+
+    @classmethod
+    def _map_release_to_schema(cls, version: str) -> str:
+        schemas = cls.schema_versions()
+        if version in schemas:
+            return version
+
+        match = _VERSION_RE.match(version)
+        if not match:
+            raise ValueError(f'Unknown version: {version}')
+
+        major, minor, _ = match.groups()
+        prefix = f'v{major}.{minor}.'
+        candidates = sorted(
+            v for v in schemas
+            if v.startswith(prefix) and _VERSION_RE.match(v)
+        )
+        if not candidates:
+            raise ValueError(f'No schema version for release {version}')
+        return candidates[0]
+
+    @staticmethod
+    def _version_at_or_above_floor(version: str) -> bool:
+        match = _VERSION_RE.match(version)
+        if not match:
+            return False
+        floor = _VERSION_RE.match(DOWNGRADE_FLOOR)
+        return tuple(int(x) for x in match.groups()) >= tuple(int(x) for x in floor.groups())
+
+    @staticmethod
+    def _version_newer_than(current: str, target: str) -> bool:
+        """Return True if current is strictly newer than target along the migration chain."""
+        if current == target:
+            return False
+        return IncidentMigrator._walk_chain(
+            current, target, IncidentMigrator.REVERSE_MIGRATION_CHAIN
+        ) is not None
+
+
+def downgrade_incidents_only(version_arg: str | None = None) -> None:
+    """Downgrade all incident files to the resolved target schema and exit."""
+    try:
+        target_version = IncidentMigrator.resolve_downgrade_target(version_arg)
+    except ValueError as e:
+        logger.error(str(e))
+        raise SystemExit(1)
+
+    env_config = get_environment_config()
+    incidents_path = env_config.incidents_path
+    if not os.path.exists(incidents_path):
+        logger.info(f'Incidents directory does not exist: {incidents_path}')
+        return
+
+    migrator = IncidentMigrator()
+    logger.info(f'Downgrading incident files to {target_version}')
+
+    for path, _, files in os.walk(incidents_path):
+        for filename in files:
+            file_path = os.path.join(path, filename)
+            with open(file_path, 'r') as f:
+                content = yaml.load(f, Loader=yaml.CLoader)
+            current_version = content.get('version', 'v0.4')
+
+            if not IncidentMigrator._version_newer_than(current_version, target_version):
+                continue
+
+            migrator.migrate_file(file_path, content, current_version, target_version)
+
+    logger.info(f'Downgrade to {target_version} complete')

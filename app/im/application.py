@@ -100,12 +100,10 @@ class Application(ABC):
         self._user_scheduler = scheduler
 
     def create_group(self, config_name, group_details):
-        group_id = group_details.get('id') if group_details.get('exists') else None
-        group_name = group_details.get('name')
         return Group(
             config_name=config_name,
-            name=group_name,
-            id_=group_id,
+            name=group_details.get('name'),
+            id_=group_details.get('id'),
             exists=group_details.get('exists', False)
         )
 

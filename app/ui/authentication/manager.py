@@ -2,7 +2,7 @@ import asyncio
 import secrets
 from collections.abc import Mapping
 from datetime import datetime, timedelta, timezone
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit, urlunsplit
 from uuid import uuid4
 
@@ -38,7 +38,7 @@ class UserAuthenticationManager:
         allowed_redirect_prefixes: set[str] | None = None,
         configured_users: dict[str, AuthUser] | None = None,
         session_store: FileSessionStore | None = None,
-        user_store: Optional['UserStore'] = None,
+        user_store: 'UserStore | None' = None,
     ):
         self.provider = provider
         self.redirect_uri = redirect_uri

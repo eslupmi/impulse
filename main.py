@@ -5,6 +5,7 @@ from app.api.openapi import configure_api_openapi
 from app.cli import parse_arguments
 from app.config.config import get_config, validate_config_only
 from app.config.environment import get_environment_config
+from app.incident.migrator import downgrade_incidents_only
 from app.lifespan import lifespan
 from app.logging import configure_logging
 from app.middleware import StandbyMiddleware
@@ -43,6 +44,10 @@ if __name__ == "__main__":
     setup_sighup_forwarder()
 
     configure_logging()
+
+    if args.downgrade is not None:
+        downgrade_incidents_only(args.downgrade)
+        raise SystemExit(0)
 
     env_config = get_environment_config()
     uvicorn.run(

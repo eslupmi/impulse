@@ -24,3 +24,16 @@ Other upgrades can be done without manual operations.
     1. See `impulse.yml`[↰](config_file.md) upgrade instructions in [CHANGELOG.md](https://github.com/DiTsi/impulse/blob/develop/CHANGELOG.md) (**for major version upgrade**).
     2. Set the new tag in `docker-compose.yml`.
     3. Execute `docker compose up -d`.
+
+### Downgrade process
+
+=== "Docker"
+
+    1. Stop the app (`docker compose stop`).
+    2. Downgrade incident files one schema step, or to a specific version:
+        ```
+        python -m main --downgrade
+        python -m main --downgrade v3.6.0
+        ```
+    3. Set the previous image tag in `docker-compose.yml`.
+    4. Execute `docker compose up -d`.

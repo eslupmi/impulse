@@ -125,11 +125,13 @@ class SlackApplication(Application):
         for config_name, group_info in groups_dict.items():
             group_name = all_groups.get(group_info.id)
             group_exists = group_name is not None
-            group_details = {'id': group_info.id, 'name': group_name, 'exists': group_exists}
             if not group_exists:
                 logger.warning('Group not found in Slack', extra={'group': config_name})
-                group_details = {'id': None, 'name': None, 'exists': False}
-            groups[config_name] = self.create_group(config_name, group_details)
+            groups[config_name] = self.create_group(config_name, {
+                'id': group_info.id,
+                'name': group_name,
+                'exists': group_exists,
+            })
 
         return groups
 
