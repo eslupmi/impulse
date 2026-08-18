@@ -5,6 +5,7 @@ import warnings
 from datetime import datetime, timezone
 
 from pythonjsonlogger import jsonlogger
+
 from app.config.environment import get_environment_config
 
 DEFAULT_JSON_FORMAT = '%(time)s %(level)s %(module)s %(message)s'

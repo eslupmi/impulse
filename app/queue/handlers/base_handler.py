@@ -2,9 +2,9 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from app.queue.queue import AsyncQueue
     from app.im.application import Application
     from app.incident.incidents import Incidents
+    from app.queue.queue import AsyncQueue
 
 
 class BaseHandler(ABC):
@@ -15,7 +15,7 @@ class BaseHandler(ABC):
     :param application: Application instance
     :param incidents: Incidents instance
     """
-    __slots__ = ['queue', 'app', 'incidents']
+    __slots__ = ['app', 'incidents', 'queue']
 
     def __init__(self, queue: 'AsyncQueue', application: 'Application', incidents: 'Incidents'):
         self.queue = queue

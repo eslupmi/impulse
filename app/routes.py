@@ -2,22 +2,32 @@ import asyncio
 import json
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, FastAPI, Request, WebSocket, WebSocketDisconnect, HTTPException
+from fastapi import (
+    APIRouter,
+    FastAPI,
+    HTTPException,
+    Request,
+    WebSocket,
+    WebSocketDisconnect,
+)
 from fastapi.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from app.api.router import create_api_router
 from app.config.config import get_config, reload_config
+from app.im.chain.ui_chains_store import ui_chains_store
 from app.logging import logger
 from app.maintenance.api import removed_windows, windows_from_ws_payload
 from app.maintenance.store import get_maintenance_store
 from app.metrics import generate_metrics_response
-from app.middleware import is_standby_mode, service_unavailable_response, STANDBY_MODE_MESSAGE
+from app.middleware import (
+    STANDBY_MODE_MESSAGE,
+    is_standby_mode,
+    service_unavailable_response,
+)
 from app.ui.table_config import get_all_ui_config
 from app.ui.websocket import incident_ws
-from app.im.chain.ui_chains_store import ui_chains_store
-
 
 _MSG_INCIDENT_NOT_FOUND = "Incident not found"
 _MSG_UNIQ_ID_REQUIRED = "uniq_id is required"
@@ -25,13 +35,10 @@ _MSG_AUTHENTICATION_REQUIRED = "Authentication required"
 
 
 async def _maintenance_save_side_effects(app, existing, saved, deleted):
-    try:
-        await app.state.maintenance_manager.apply_save_side_effects(existing, saved, deleted)
-    except Exception as e:
-        logger.error("Maintenance save side effects failed", extra={"error": str(e)})
+    await app.state.maintenance_manager.apply_save_side_effects(existing, saved, deleted)
 
 
-def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=None) -> APIRouter:
+def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_manager=None) -> APIRouter:
     router = APIRouter(prefix=http_prefix)
 
     ui_templates = None
@@ -88,7 +95,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
             logger.debug("Alert received", extra={'payload': alert_state})
             await request.app.state.queue.put_first(datetime.now(timezone.utc), 'alert', None, None, alert_state)
             return alert_state
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error("Alert processing error", extra={'error': str(e)})
             raise HTTPException(status_code=400, detail=str(e))
 
@@ -108,7 +115,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
                 request.app.state.queue,
                 request.app.state.route
             )
-        except Exception as e:
+        except (json.JSONDecodeError, KeyError) as e:
             logger.error("App buttons error", extra={'error': str(e)})
             raise HTTPException(status_code=400, detail=str(e))
 
@@ -121,9 +128,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
         return get_all_ui_config()
 
     def _get_assignable_users(messenger):
-        if messenger and hasattr(messenger, 'users') and hasattr(messenger.users, 'get_assignable_users'):
-            return messenger.users.get_assignable_users()
-        return []
+        return messenger.users.get_assignable_users()
 
     def _get_acting_user(request: Request):
         if not auth_manager:
@@ -151,19 +156,19 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
         app = config.app
         runtime_messenger = request.app.state.messenger
         configured_messenger = config.messenger
-        runtime_chains = runtime_messenger.chains if getattr(runtime_messenger, "chains", None) else {}
-        configured_chains = configured_messenger.chains if getattr(configured_messenger, "chains", None) else {}
+        runtime_chains = runtime_messenger.chains
+        configured_chains = configured_messenger.chains
         ui_chains = [n for n, c in configured_chains.items() if isinstance(c, dict) and c.get("type") == "ui"]
         assignable_users = _get_assignable_users(runtime_messenger)
         acting_user = _get_acting_user(request)
         return {
             "users": [user["config_name"] for user in assignable_users if user.get("config_name")],
-            "user_groups": list(runtime_messenger.user_groups.keys()) if getattr(runtime_messenger, "user_groups", None) else [],
-            "groups": list(runtime_messenger.groups.keys()) if getattr(runtime_messenger, "groups", None) else [],
+            "user_groups": list(runtime_messenger.user_groups.keys()),
+            "groups": list(runtime_messenger.groups.keys()),
             "chains": list(runtime_chains.keys()),
-            "webhooks": list(app.webhooks.keys()) if getattr(app, "webhooks", None) else [],
-            "week_start": app.general.week_start if app.general else "Mon",
-            "timezone": app.general.timezone if app.general else "UTC",
+            "webhooks": list(app.webhooks.keys()),
+            "week_start": app.general.week_start,
+            "timezone": app.general.timezone,
             "messenger_type": runtime_messenger.type.value,
             "user_timezone": acting_user.get("timezone"),
             "ui_chains": ui_chains,
@@ -339,7 +344,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
             raise HTTPException(status_code=503, detail=STANDBY_MODE_MESSAGE)
         
         try:
-            from app.lifespan import create_main_objects, _cleanup_application_objects
+            from app.lifespan import _cleanup_application_objects, create_main_objects
             
             logger.info("Reloading configuration via API")
             success = reload_config()
@@ -354,7 +359,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
                 )
             else:
                 raise HTTPException(status_code=400, detail="Configuration reload failed")
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error("Configuration reload error via API", extra={'error': str(e)})
             raise HTTPException(status_code=500, detail=str(e))
 
@@ -460,12 +465,14 @@ def create_router(http_prefix: str, fastapi_app: FastAPI = None, auth_manager=No
 
                 except json.JSONDecodeError:
                     logger.warning("Invalid WebSocket JSON", extra={'data': data})
-                except Exception as e:
+                except WebSocketDisconnect:
+                    raise
+                except (KeyError, TypeError, ValueError, OSError, RuntimeError) as e:
                     logger.error("WebSocket message error", extra={'error': str(e)})
 
         except WebSocketDisconnect:
             incident_ws.disconnect(websocket)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error("WebSocket error", extra={'error': str(e)})
             incident_ws.disconnect(websocket)
 

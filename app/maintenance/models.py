@@ -1,7 +1,6 @@
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import List, Optional
 
 from app.route.matcher import Matcher
 
@@ -10,18 +9,18 @@ from app.route.matcher import Matcher
 class MaintenanceWindow:
     starts_at: datetime
     ends_at: datetime
-    matchers: List[str]
+    matchers: list[str]
     comment: str = ""
-    owner_id: Optional[str] = None
+    owner_id: str | None = None
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
 
     def __post_init__(self):
         self.starts_at = _ensure_utc(self.starts_at)
         self.ends_at = _ensure_utc(self.ends_at)
-        self._compiled: List[Matcher] = [Matcher(m) for m in self.matchers]
+        self._compiled: list[Matcher] = [Matcher(m) for m in self.matchers]
 
     @property
-    def compiled_matchers(self) -> List[Matcher]:
+    def compiled_matchers(self) -> list[Matcher]:
         return self._compiled
 
     def is_active(self, now: datetime) -> bool:

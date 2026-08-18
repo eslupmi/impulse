@@ -2,10 +2,11 @@ import asyncio
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+
 from app.config.config import get_config
 from app.config.validation import MessengerType
-from app.signals import setup_sighup_handler
 from app.file_lock import FileLock
+from app.im.chain.ui_chains_store import ui_chains_store
 from app.im.channel_manager import ChannelManager
 from app.im.helpers import get_application
 from app.im.user_store import UserUpdateScheduler
@@ -19,8 +20,8 @@ from app.metrics import STATUS
 from app.queue.manager import AsyncQueueManager
 from app.queue.queue import AsyncQueue
 from app.route import generate_route
+from app.signals import setup_sighup_handler
 from app.webhook import generate_webhooks
-from app.im.chain.ui_chains_store import ui_chains_store
 
 
 async def _initialize_primary_server(fastapi_app: FastAPI, file_lock: FileLock) -> bool:
@@ -35,7 +36,7 @@ async def _initialize_primary_server(fastapi_app: FastAPI, file_lock: FileLock) 
         STATUS.set(1)
         logger.info('Started as primary server')
         return True
-    except Exception:
+    except Exception:  # noqa: BLE001
         logger.error("Primary server initialization failed")
         await file_lock.release_lock()
         return False

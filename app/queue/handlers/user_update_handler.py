@@ -1,14 +1,14 @@
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 
-from app.im.user_store import get_user_store, USER_REFRESH_HOURS
+from app.im.user_store import USER_REFRESH_HOURS, get_user_store
 from app.logging import logger
-from app.queue.constants import QueueItemType, USER_UPDATE_GAP_SECONDS
+from app.queue.constants import USER_UPDATE_GAP_SECONDS, QueueItemType
 from app.queue.handlers.base_handler import BaseHandler
 
 
 class UserUpdateHandler(BaseHandler):
     """Handle user data refresh via messenger API and persist to UserStore."""
-    __slots__ = []
+    __slots__: list[str] = []
 
     async def handle(self, user_id: str):
         if not user_id:
@@ -28,11 +28,11 @@ class UserUpdateHandler(BaseHandler):
             user_store.save(user_id, messenger_type, user_details)
             config_name = self.app.get_config_name_by_user_id(user_id)
             user = self.app.create_user(config_name, user_details)
-            if user:
+            if user and self.app.users:
                 self.app._apply_admin_role(user, config_name)
                 self.app.users.add_user(user_id, user)
             logger.info('User data refreshed', extra={'user_id': user_id})
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error('Failed to update user', extra={'user_id': user_id, 'error': str(e)})
         await self._schedule_next_refresh(user_id)
 

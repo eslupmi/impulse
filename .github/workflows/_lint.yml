@@ -30,7 +30,8 @@ jobs:
             sh -c "
               python -m pip install --upgrade pip && \
               pip install -r requirements.txt && \
-              pip install ruff mypy && \
-              ruff check . --exclude tests && \
-              mypy --cache-dir=/tmp/mypy_cache --exclude '^tests/' --color-output --pretty .
+              pip install ruff mypy types-PyYAML types-icalendar types-requests && \
+              ruff check . --target-version py310 --exclude tests --exclude docs && \
+              printf '%s\n' '[mypy]' 'python_version = 3.10' 'exclude = (?x)(^tests/|^docs/)' 'plugins = pydantic.mypy' > /tmp/mypy.ini && \
+              mypy --config-file /tmp/mypy.ini --cache-dir=/tmp/mypy_cache --color-output --pretty .
             "

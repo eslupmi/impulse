@@ -1,20 +1,26 @@
-from typing import TYPE_CHECKING
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from app.config.validation import MessengerType
+from app.config.validation import MattermostApplicationConfig, MessengerType
 from app.im.user_store import get_user_store
 from app.logging import logger
 from app.ui.authentication.manager import UserAuthenticationManager
 from app.ui.authentication.models.auth_user import AuthUser
-from app.ui.authentication.providers.mattermost_provider import MattermostAuthenticationProvider
+from app.ui.authentication.providers.mattermost_provider import (
+    MattermostAuthenticationProvider,
+)
 from app.ui.authentication.providers.slack_provider import SlackAuthenticationProvider
-from app.ui.authentication.providers.telegram_provider import TelegramAuthenticationProvider
-from app.ui.authentication.providers.unsupported_provider import UnsupportedAuthenticationProvider
+from app.ui.authentication.providers.telegram_provider import (
+    TelegramAuthenticationProvider,
+)
+from app.ui.authentication.providers.unsupported_provider import (
+    UnsupportedAuthenticationProvider,
+)
 from app.ui.authentication.session_store import FileSessionStore
 
 if TYPE_CHECKING:
-    from app.config.validation import ImpulseConfig
     from app.config.environment import EnvironmentConfig
+    from app.config.validation import ImpulseConfig
 
 def build_auth_redirect_uri(env_config: 'EnvironmentConfig', http_prefix: str = "") -> str:
     if env_config.auth_redirect_url:
@@ -24,11 +30,11 @@ def build_auth_redirect_uri(env_config: 'EnvironmentConfig', http_prefix: str = 
 
 
 def _build_configured_users(config: 'ImpulseConfig') -> dict[str, AuthUser]:
-    users = getattr(config.messenger, "users", {}) or {}
+    users = config.messenger.users
     messenger = config.messenger.type.value
     configured_users: dict[str, AuthUser] = {}
     for user_name, user in users.items():
-        user_id = str(getattr(user, "id", "")).strip()
+        user_id = str(user.id).strip()
         if not user_id:
             continue
         configured_users[user_id] = AuthUser(
@@ -47,7 +53,8 @@ def _build_provider(messenger_type: MessengerType, client_id: str, client_secret
             return SlackAuthenticationProvider(client_id=client_id, client_secret=client_secret)
         logger.warning("Auth disabled for Slack: AUTH_CLIENT_ID and AUTH_CLIENT_SECRET are required")
     elif messenger_type == MessengerType.MATTERMOST:
-        mattermost_url = getattr(config.messenger, "address", "").strip()
+        assert isinstance(config.messenger, MattermostApplicationConfig)
+        mattermost_url = config.messenger.address.strip()
         if client_id and client_secret and mattermost_url:
             return MattermostAuthenticationProvider(
                 base_url=mattermost_url,
@@ -65,8 +72,8 @@ def _build_provider(messenger_type: MessengerType, client_id: str, client_secret
 
 
 def _build_allowed_user_ids(config: 'ImpulseConfig', messenger_type: MessengerType) -> set[str] | None:
-    users = getattr(config.messenger, "users", {}) or {}
-    allowed_user_ids = {str(user.id) for user in users.values() if hasattr(user, "id")}
+    users = config.messenger.users
+    allowed_user_ids = {str(user.id) for user in users.values()}
     logger.info(
         "Auth whitelist enabled",
         extra={"allowed_users_count": len(allowed_user_ids), "messenger_type": messenger_type.value},

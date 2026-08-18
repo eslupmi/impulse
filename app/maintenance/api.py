@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 
 from fastapi import HTTPException
 
@@ -31,8 +31,8 @@ def matchers_from_payload(payload: dict) -> list:
 
 def validate_owner_id(
     owner_id: str,
-    assignable_user_ids: Set[str],
-    existing_owner_id: Optional[str] = None,
+    assignable_user_ids: set[str],
+    existing_owner_id: str | None = None,
 ) -> None:
     if owner_id in assignable_user_ids:
         return
@@ -50,8 +50,8 @@ def owner_id_from_payload(payload: dict) -> str:
 
 def window_from_ws_item(
     payload: dict,
-    assignable_user_ids: Set[str],
-    existing_owner_id: Optional[str] = None,
+    assignable_user_ids: set[str],
+    existing_owner_id: str | None = None,
 ) -> dict:
     if "start" not in payload or "end" not in payload:
         raise HTTPException(status_code=400, detail="start and end are required")
@@ -84,9 +84,9 @@ def window_from_ws_item(
 
 def windows_from_ws_payload(
     data: list,
-    assignable_user_ids: Set[str],
-    existing_by_id: Dict[str, dict],
-) -> List[Dict[str, Any]]:
+    assignable_user_ids: set[str],
+    existing_by_id: dict[str, dict],
+) -> list[dict[str, Any]]:
     windows = []
     for item in data:
         if not isinstance(item, dict):
@@ -99,6 +99,6 @@ def windows_from_ws_payload(
     return windows
 
 
-def removed_windows(existing: List[Dict[str, Any]], saved: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def removed_windows(existing: list[dict[str, Any]], saved: list[dict[str, Any]]) -> list[dict[str, Any]]:
     saved_ids = {w["id"] for w in saved}
     return [w for w in existing if w["id"] not in saved_ids]

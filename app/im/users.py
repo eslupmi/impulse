@@ -1,11 +1,10 @@
 from abc import ABC, abstractmethod
-from typing import Union, Optional, Dict, List
 
 
 class BaseUser(ABC):
     """Base class for all messenger users."""
     
-    def __init__(self, name: str, id_: Union[int, str, None] = None, exists: bool = False, full_name: str = None, username: str = None, timezone: Optional[str] = None, roles: Optional[List[str]] = None):
+    def __init__(self, name: str, id_: int | str | None = None, exists: bool = False, full_name: str | None = None, username: str | None = None, timezone: str | None = None, roles: list[str] | None = None):
         self.name = name
         self.id = id_
         self.exists = exists
@@ -19,14 +18,12 @@ class BaseUser(ABC):
         return self.name
     
     @abstractmethod
-    def get_notification_identifier(self) -> Union[int, str, None]:
+    def get_notification_identifier(self) -> int | str | None:
         """Return the platform-specific identifier used for mentions/notifications."""
-        pass
 
     @abstractmethod
-    def serialize(self) -> Dict:
+    def serialize(self) -> dict:
         """Return the messenger-specific API payload for this user."""
-        pass
 
 
 class UndefinedUser(BaseUser):
@@ -37,7 +34,7 @@ class UndefinedUser(BaseUser):
     def get_notification_identifier(self):
         return None
 
-    def serialize(self) -> Dict:
+    def serialize(self) -> dict:
         return {
             'exists': self.exists,
             'full_name': None,
@@ -55,34 +52,34 @@ class UserManager:
     """
     
     def __init__(self):
-        self._users: Dict[str, BaseUser] = {}  # user_id -> BaseUser
-        self._config_names: Dict[str, str] = {}  # config_name -> user_id
+        self._users: dict[str, BaseUser] = {}  # user_id -> BaseUser
+        self._config_names: dict[str, str] = {}  # config_name -> user_id
     
     def add_config_name(self, config_name: str, user_id: str) -> None:
         """Add a config name mapping for an existing user."""
         self._config_names[config_name] = user_id
     
-    def add_user(self, user_id: str, user: BaseUser, config_name: str = None) -> None:
+    def add_user(self, user_id: str, user: BaseUser, config_name: str | None = None) -> None:
         """Add a user by user_id, optionally with a config name mapping."""
         self._users[user_id] = user
         if config_name:
             self._config_names[config_name] = user_id
 
-    def get(self, name: str, default=None) -> Optional[BaseUser]:
+    def get(self, name: str, default=None) -> BaseUser | None:
         """Get user by config name or user_id. Returns default if not found."""
         user = self._resolve_user(name)
         if isinstance(user, UndefinedUser):
             return default
         return user
     
-    def get_user_by_id(self, user_id: Union[int, str]) -> Optional[BaseUser]:
+    def get_user_by_id(self, user_id: int | str) -> BaseUser | None:
         """Get user by their messenger ID."""
         str_id = str(user_id)
         if str_id in self._users:
             return self._users[str_id]
         return None
 
-    def get_assignable_users(self) -> List[Dict]:
+    def get_assignable_users(self) -> list[dict]:
         """Return list of users available for assignment in the UI."""
         config_id_to_name = {uid: name for name, uid in self._config_names.items()}
         result = []
@@ -96,13 +93,13 @@ class UserManager:
             })
         return result
 
-    def get_user_timezone(self, user_id: str) -> Optional[str]:
+    def get_user_timezone(self, user_id: str) -> str | None:
         user = self.get_user_by_id(user_id)
         if user and user.timezone:
             return user.timezone
         return None
 
-    def serialize(self) -> Dict[str, Dict]:
+    def serialize(self) -> dict[str, dict]:
         result = {}
         for config_name in sorted(self._config_names):
             user = self._users.get(self._config_names[config_name])
@@ -111,7 +108,7 @@ class UserManager:
             result[config_name] = user.serialize()
         return result
 
-    def serialize_one(self, name: str) -> Optional[Dict]:
+    def serialize_one(self, name: str) -> dict | None:
         user_id = self._config_names.get(name)
         if user_id is None:
             return None
@@ -129,7 +126,7 @@ class UserManager:
             return UndefinedUser(name)
         return self._users.get(user_id, UndefinedUser(name))
 
-    def _resolve_user_id(self, name: str) -> Optional[str]:
+    def _resolve_user_id(self, name: str) -> str | None:
         if name in self._config_names:
             return self._config_names[name]
         str_name = str(name)

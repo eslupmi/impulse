@@ -45,7 +45,7 @@ class TestMainApplication:
             mock_inhibition_manager_class.return_value = mock_inhibition_manager
 
             mock_maintenance_store = Mock()
-            mock_maintenance_store.list.return_value = []
+            mock_maintenance_store.windows_list.return_value = []
             mock_get_maintenance_store.return_value = mock_maintenance_store
 
             mock_maintenance_manager = Mock()

@@ -1,7 +1,7 @@
 import os
 import re
 from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from typing import ClassVar
 
 import yaml
 
@@ -25,7 +25,7 @@ class IncidentMigrator:
     """
     
     # Define migration path - each version knows how to migrate to the next
-    MIGRATION_CHAIN = {
+    MIGRATION_CHAIN: ClassVar[dict[str, str]] = {
         'v0.4': 'v3.0.0',
         'v3.0.0': 'v3.2.0',
         'v3.2.0': 'v3.4.0',
@@ -49,7 +49,7 @@ class IncidentMigrator:
             'v3.7.0_to_v3.6.0': self._migrate_filename_v3_7_0_to_v3_6_0,
         }
     
-    def migrate_file(self, file_path: str, incident_data: Dict, current_version: str, target_version: str) -> str:
+    def migrate_file(self, file_path: str, incident_data: dict, current_version: str, target_version: str) -> str:
         """
         Migrate an incident file to the target version.
         
@@ -70,16 +70,16 @@ class IncidentMigrator:
             with open(file_path, 'w') as f:
                 yaml.dump(migrated_data, f, NoAliasDumper, default_flow_style=False)
         except (OSError, PermissionError, FileNotFoundError) as e:
-            logger.error(f'Failed to write migrated incident file {os.path.basename(file_path)}: {str(e)}')
-            raise
-
+            logger.error(f'Failed to write migrated incident file {os.path.basename(file_path)}: {e}')
+            return file_path
+        
         final_path = self._apply_filename_migrations(file_path, migrated_data, current_version, target_version)
         logger.info(f'Successfully migrated {os.path.basename(final_path)}')
         return final_path
     
     ### PRIVATE METHODS ###
 
-    def _migrate_data(self, incident_data: Dict, from_version: str, to_version: str) -> Dict:
+    def _migrate_data(self, incident_data: dict, from_version: str, to_version: str) -> dict:
         """
         Apply sequential migrations from from_version to to_version.
         
@@ -106,7 +106,7 @@ class IncidentMigrator:
             current_data = self._apply_single_migration(current_data, current_version, next_version)
         return current_data
     
-    def _get_migration_path(self, from_version: str, to_version: str) -> List[str]:
+    def _get_migration_path(self, from_version: str, to_version: str) -> list[str]:
         """
         Find the migration path from from_version to to_version (upgrade or downgrade).
         
@@ -142,7 +142,7 @@ class IncidentMigrator:
             current = next_version
         return path
     
-    def _apply_single_migration(self, data: Dict, from_version: str, to_version: str) -> Dict:
+    def _apply_single_migration(self, data: dict, from_version: str, to_version: str) -> dict:
         """
         Apply a single migration step.
         
@@ -161,7 +161,7 @@ class IncidentMigrator:
         return migrated_data
 
     @staticmethod
-    def _migrate_v0_4_to_v3_0_0(data: Dict) -> Dict:
+    def _migrate_v0_4_to_v3_0_0(data: dict) -> dict:
         migrated = data.copy()
         migrated['payload'] = migrated.pop('last_state')
         
@@ -179,7 +179,7 @@ class IncidentMigrator:
             return value.astimezone(timezone.utc)
         return value
 
-    def _migrate_v3_0_0_to_v3_2_0(self, data: Dict) -> Dict:
+    def _migrate_v3_0_0_to_v3_2_0(self, data: dict) -> dict:
         migrated = data.copy()
 
         for key in ('status_update_datetime', 'updated', 'created'):
@@ -197,13 +197,13 @@ class IncidentMigrator:
 
         migrated['uniq_id'] = Incident.gen_uniq_id(
             migrated.get('payload', {}).get('groupLabels', {}),
-            migrated.get('created')
+            migrated.get('created')  # type: ignore[arg-type]
         )
 
         return migrated
 
     @staticmethod
-    def _migrate_v3_2_0_to_v3_4_0(data: Dict) -> Dict:
+    def _migrate_v3_2_0_to_v3_4_0(data: dict) -> dict:
         """Migrate chain steps from absolute datetime to relative delay.
         Computes delay as the difference from the first step's datetime.
         Sets chain_active_seconds to the delay of the last completed step."""
@@ -232,7 +232,7 @@ class IncidentMigrator:
         return migrated
 
     @staticmethod
-    def _migrate_v3_4_0_to_v3_6_0(data: Dict) -> Dict:
+    def _migrate_v3_4_0_to_v3_6_0(data: dict) -> dict:
         """Add frozen_until_source for source-aware time freeze ownership."""
         migrated = data.copy()
         if migrated.get('frozen_until') is not None and migrated.get('frozen_until_source') is None:
@@ -242,7 +242,7 @@ class IncidentMigrator:
         return migrated
 
     @staticmethod
-    def reshape_chain_steps(data: Dict) -> Dict:
+    def reshape_chain_steps(data: dict) -> dict:
         if 'chain' not in data and 'chain_steps' not in data:
             return data
 
@@ -317,7 +317,7 @@ class IncidentMigrator:
         return current_path
 
     @staticmethod
-    def _migrate_filename_v3_6_0_to_v3_7_0(file_path: str, incident_data: Dict) -> str:
+    def _migrate_filename_v3_6_0_to_v3_7_0(file_path: str, incident_data: dict) -> str:
         uniq_id = incident_data['uniq_id']
         new_path = os.path.join(os.path.dirname(file_path), f'{uniq_id}.yml')
         return IncidentMigrator._rename_file(file_path, new_path)

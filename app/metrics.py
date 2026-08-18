@@ -1,21 +1,19 @@
 """Prometheus metrics for IMPulse application."""
-import asyncio
 import time
 from datetime import datetime, timezone
 from functools import wraps
 
 import aiohttp
 from fastapi.responses import Response
-
-from app.http_client.errors import classify_messenger_http_error
 from prometheus_client import (
-    CollectorRegistry,
     CONTENT_TYPE_LATEST,
+    CollectorRegistry,
     Gauge,
     Histogram,
-    generate_latest
+    generate_latest,
 )
 
+from app.http_client.errors import classify_messenger_http_error
 from app.queue.queue import AsyncQueue
 
 # Create a separate registry for our metrics only
@@ -60,7 +58,7 @@ def measure_request(func):
             error = 'none'
             return response
 
-        except (asyncio.TimeoutError, aiohttp.ClientError) as exc:
+        except (TimeoutError, aiohttp.ClientError) as exc:
             error = classify_messenger_http_error(exc)
             raise
 

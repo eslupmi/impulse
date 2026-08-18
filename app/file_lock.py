@@ -4,7 +4,6 @@ import shutil
 import socket
 import time
 from pathlib import Path
-from typing import Optional, Tuple
 
 from app.config.environment import get_environment_config
 from app.logging import logger
@@ -34,7 +33,7 @@ class FileLock:
         self.host_path = self.lock_dir / "host"
         self.boot_id_path = self.lock_dir / "boot_id"
         self._active = False
-        self._heartbeat_task: Optional[asyncio.Task] = None
+        self._heartbeat_task: asyncio.Task | None = None
         self._heartbeat_failures = 0
         self._hostname = socket.gethostname()
         self._pid = os.getpid()
@@ -62,7 +61,7 @@ class FileLock:
                     f.write(self._hostname)
                 with open(self.boot_id_path, "w") as f:
                     f.write(self._boot_id or "")
-            except (OSError, IOError) as e:
+            except OSError as e:
                 logger.error(f"Lock file write failed: {e}")
                 self._cleanup_failed_acquisition()
                 return False
@@ -86,7 +85,7 @@ class FileLock:
         except FileExistsError:
             logger.debug("Lock held by another instance")
             return False
-        except (OSError, IOError) as e:
+        except OSError as e:
             logger.error(f"Lock acquisition failed: {e}")
             return False
 
@@ -112,10 +111,10 @@ class FileLock:
             
             logger.debug(f"Previous master (PID {stored_pid}) on same host/boot is dead, taking over")
             return True
-        except (ValueError, OSError, IOError):
+        except (ValueError, OSError):
             return False
 
-    def get_lock_info(self) -> Tuple[Optional[str], Optional[str]]:
+    def get_lock_info(self) -> tuple[str | None, str | None]:
         """
         Get information about the current lock holder.
         
@@ -166,7 +165,7 @@ class FileLock:
             try:
                 shutil.rmtree(self.lock_dir)
                 logger.info("Lock released")
-            except (OSError, IOError) as e:
+            except OSError as e:
                 logger.warning(f"Lock release failed: {e}")
 
     async def wait_for_unlock(self):
@@ -181,7 +180,7 @@ class FileLock:
         try:
             if self.lock_dir.exists():
                 shutil.rmtree(self.lock_dir, ignore_errors=True)
-        except (OSError, IOError):
+        except OSError:
             pass
 
     def _cleanup_stale_lock(self):
@@ -197,10 +196,10 @@ class FileLock:
         logger.debug("Removing stale lock")
         shutil.rmtree(self.lock_dir, ignore_errors=True)
 
-    def _get_boot_id(self) -> Optional[str]:
+    def _get_boot_id(self) -> str | None:
         try:
             return self.BOOT_ID_FILE_PATH.read_text().strip()
-        except (OSError, IOError):
+        except OSError:
             return None
 
     async def _heartbeat(self):
@@ -243,7 +242,7 @@ class FileLock:
             with open(self.heartbeat_path, "w") as f:
                 f.write(str(locktime))
             return True
-        except (OSError, IOError) as e:
+        except OSError as e:
             logger.debug(f"Heartbeat update failed: {e}")
             return False
 
@@ -258,5 +257,5 @@ class FileLock:
             hostname = self.host_path.read_text().strip()
             pid = self.pid_path.read_text().strip()
             return hostname == self._hostname and pid == str(self._pid)
-        except (FileNotFoundError, OSError, IOError):
+        except (FileNotFoundError, OSError):
             return False

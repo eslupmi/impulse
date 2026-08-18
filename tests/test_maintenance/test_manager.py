@@ -52,7 +52,7 @@ def _fixed_window(starts_at, ends_at, matchers=None):
 @pytest.fixture
 def maintenance_setup():
     store = Mock()
-    store.list = Mock(return_value=[])
+    store.windows_list = Mock(return_value=[])
     incidents = Mock()
     incidents.uniq_ids = {}
     application = Mock()
@@ -76,7 +76,7 @@ class TestMaintenanceManager:
         manager, store, _, queue = maintenance_setup
         active = _fixed_window(TEST_NOW - timedelta(hours=1), TEST_NOW + timedelta(hours=1))
         future = _fixed_window(TEST_NOW + timedelta(minutes=5), TEST_NOW + timedelta(hours=2))
-        store.list.return_value = [future, active]
+        store.windows_list.return_value = [future, active]
 
         await manager.schedule_window_starts()
 
@@ -97,7 +97,7 @@ class TestMaintenanceManager:
     async def test_handle_window_start_reconciles_when_window_is_active(self, maintenance_setup):
         manager, store, _, _ = maintenance_setup
         window = _window()
-        store.list.return_value = [window]
+        store.windows_list.return_value = [window]
         incident = _incident()
         manager.incidents.uniq_ids = {incident.uniq_id: incident}
 
@@ -110,7 +110,7 @@ class TestMaintenanceManager:
     async def test_process_incident_applies_freeze_when_window_matches(self, maintenance_setup):
         manager, store, application, _ = maintenance_setup
         window = _window()
-        store.list.return_value = [window]
+        store.windows_list.return_value = [window]
         incident = _incident()
 
         await manager.process_incident(incident)
@@ -125,7 +125,7 @@ class TestMaintenanceManager:
     async def test_process_incident_updates_posted_message_after_freeze(self, maintenance_setup):
         manager, store, application, _ = maintenance_setup
         window = _window()
-        store.list.return_value = [window]
+        store.windows_list.return_value = [window]
         incident = _incident()
         incident.ts = "1.2"
 
@@ -142,7 +142,7 @@ class TestMaintenanceManager:
         manager, store, application, _ = maintenance_setup
         first = _fixed_window(TEST_NOW - timedelta(hours=1), TEST_NOW + timedelta(hours=1))
         second = _fixed_window(first.ends_at, first.ends_at + timedelta(hours=2))
-        store.list.return_value = [first, second]
+        store.windows_list.return_value = [first, second]
         incident = _incident()
 
         await manager.process_incident(incident)
@@ -155,7 +155,7 @@ class TestMaintenanceManager:
     async def test_process_incident_defers_when_inhibition_holds(self, maintenance_setup):
         manager, store, application, _ = maintenance_setup
         window = _window()
-        store.list.return_value = [window]
+        store.windows_list.return_value = [window]
         incident = _incident()
         incident.parents.append("source-uniq-id")
 
@@ -179,7 +179,7 @@ class TestMaintenanceManager:
         self, maintenance_setup
     ):
         manager, store, application, _ = maintenance_setup
-        store.list.return_value = [_window()]
+        store.windows_list.return_value = [_window()]
         incident = _incident()
         incident.parents.append("source-uniq-id")
         incident.ts = "1.2"
@@ -195,7 +195,7 @@ class TestMaintenanceManager:
     async def test_reconcile_schedules_maintenance_for_inhibited_incident(self, maintenance_setup):
         manager, store, _, _ = maintenance_setup
         window = _window()
-        store.list.return_value = [window]
+        store.windows_list.return_value = [window]
         incident = _incident()
         incident.parents = ["source-uniq-id"]
 
@@ -215,7 +215,7 @@ class TestMaintenanceManager:
     async def test_reconcile_preserves_manual_freeze_when_maintenance_starts(self, maintenance_setup):
         manager, store, _, _ = maintenance_setup
         window = _window()
-        store.list.return_value = [window]
+        store.windows_list.return_value = [window]
         incident = _incident()
         manual_until = TEST_NOW + timedelta(hours=4)
         incident.frozen_until = manual_until
@@ -236,7 +236,7 @@ class TestMaintenanceManager:
     @pytest.mark.asyncio
     async def test_reconcile_clears_sentinel_when_no_active_window(self, maintenance_setup):
         manager, store, application, _ = maintenance_setup
-        store.list.return_value = []
+        store.windows_list.return_value = []
         incident = _incident()
         incident.parents = [MAINTENANCE_PARENT_SENTINEL]
 
@@ -249,7 +249,7 @@ class TestMaintenanceManager:
     @pytest.mark.asyncio
     async def test_reconcile_removes_maintenance_source_when_no_other_window(self, maintenance_setup):
         manager, store, _, _ = maintenance_setup
-        store.list.return_value = []
+        store.windows_list.return_value = []
         incident = _incident()
         incident.parents = [MAINTENANCE_PARENT_SENTINEL]
         incident.frozen_until = datetime.now(timezone.utc) + timedelta(hours=1)
@@ -264,7 +264,7 @@ class TestMaintenanceManager:
     @pytest.mark.asyncio
     async def test_reconcile_preserves_manual_freeze_when_maintenance_deleted(self, maintenance_setup):
         manager, store, _, _ = maintenance_setup
-        store.list.return_value = []
+        store.windows_list.return_value = []
         incident = _incident()
         manual_until = datetime.now(timezone.utc) + timedelta(hours=1)
         incident.parents = [MAINTENANCE_PARENT_SENTINEL]
@@ -281,7 +281,7 @@ class TestMaintenanceManager:
     async def test_reconcile_schedules_maintenance_when_window_matches(self, maintenance_setup):
         manager, store, application, _ = maintenance_setup
         window = _window()
-        store.list.return_value = [window]
+        store.windows_list.return_value = [window]
         incident = _incident()
         incident.parents = [MAINTENANCE_PARENT_SENTINEL]
 
@@ -301,7 +301,7 @@ class TestMaintenanceManager:
         other = _incident(alertname="OtherAlert")
         other.parents = [MAINTENANCE_PARENT_SENTINEL]
         manager.incidents.uniq_ids = {"a": matching, "b": other}
-        store.list.return_value = []
+        store.windows_list.return_value = []
 
         await manager.reconcile_after_window_removed(removed)
 
@@ -312,7 +312,7 @@ class TestMaintenanceManager:
     async def test_reconcile_reschedules_when_overlap_window_exists(self, maintenance_setup):
         manager, store, application, _ = maintenance_setup
         window = _window(duration_hours=1)
-        store.list.return_value = [window]
+        store.windows_list.return_value = [window]
         incident = _incident()
         incident.ts = "1.2"
 
@@ -336,7 +336,7 @@ class TestMaintenanceManager:
         manager, store, _, _ = maintenance_setup
         first = _fixed_window(TEST_NOW - timedelta(hours=1), TEST_NOW + timedelta(hours=1))
         second = _fixed_window(first.ends_at, first.ends_at + timedelta(hours=2))
-        store.list.return_value = [second, first]
+        store.windows_list.return_value = [second, first]
         incident = _incident()
         incident.parents = [MAINTENANCE_PARENT_SENTINEL]
         incident.frozen_until = first.ends_at
@@ -355,7 +355,7 @@ class TestMaintenanceManager:
     @pytest.mark.asyncio
     async def test_reconcile_strips_sentinel_when_window_ended(self, maintenance_setup):
         manager, store, application, _ = maintenance_setup
-        store.list.return_value = []
+        store.windows_list.return_value = []
         incident = _incident()
         incident.parents = [MAINTENANCE_PARENT_SENTINEL]
         incident.ts = "1.2"
@@ -368,7 +368,7 @@ class TestMaintenanceManager:
     @pytest.mark.asyncio
     async def test_reconcile_all_includes_maintenance_time_freeze_without_sentinel(self, maintenance_setup):
         manager, store, _, _ = maintenance_setup
-        store.list.return_value = []
+        store.windows_list.return_value = []
         incident = _incident()
         incident.frozen_until = datetime.now(timezone.utc) + timedelta(hours=1)
         incident.frozen_until_source = FreezeSource.MAINTENANCE.value
@@ -495,7 +495,7 @@ class TestActiveWindowsPayload:
             duration_hours=2,
         )
         active_window.owner_id = "U123"
-        store.list.return_value = [active_window]
+        store.windows_list.return_value = [active_window]
 
         payload = manager.active_windows_payload()
 
@@ -512,7 +512,7 @@ class TestActiveWindowsPayload:
 
         active_window = _window(start_offset_hours=1, duration_hours=2)
         active_window.owner_id = "U123"
-        store.list.return_value = [active_window]
+        store.windows_list.return_value = [active_window]
 
         payload = manager.active_windows_payload()
 

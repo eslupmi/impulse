@@ -5,7 +5,6 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 
 from app.integrations.jira_client import JiraClient
-from tests.utils import MockContextManager
 
 
 class TestJiraClient:
@@ -104,16 +103,13 @@ class TestJiraClient:
         mock_response.text = AsyncMock(return_value="Bad Request")
         
         # Mock HTTP client
-        with patch.object(jira_client._http_client, 'post') as mock_post:
-            mock_post.return_value = MockContextManager(mock_response)
-            
-            with patch.object(jira_client._http_client, '__aenter__', return_value=jira_client._http_client):
-                with patch.object(jira_client._http_client, '__aexit__', return_value=None):
-                    result = await jira_client.create_issue(
-                        project_key="DTS",
-                        summary="Test Issue",
-                        description="Test Description"
-                    )
+        with patch.object(jira_client._http_client, 'post', new_callable=AsyncMock) as mock_post:
+            mock_post.return_value = mock_response
+            result = await jira_client.create_issue(
+                project_key="DTS",
+                summary="Test Issue",
+                description="Test Description"
+            )
         
         assert result is None
     
@@ -122,13 +118,11 @@ class TestJiraClient:
         """Test issue creation with exception"""
         # Mock HTTP client to raise exception
         with patch.object(jira_client._http_client, 'post', side_effect=Exception("Network error")):
-            with patch.object(jira_client._http_client, '__aenter__', return_value=jira_client._http_client):
-                with patch.object(jira_client._http_client, '__aexit__', return_value=None):
-                    result = await jira_client.create_issue(
-                        project_key="DTS",
-                        summary="Test Issue",
-                        description="Test Description"
-                    )
+            result = await jira_client.create_issue(
+                project_key="DTS",
+                summary="Test Issue",
+                description="Test Description"
+            )
         
         assert result is None
     
@@ -167,16 +161,13 @@ class TestJiraClient:
         mock_response.status = 201
         mock_response.json = AsyncMock(return_value={"key": "DTS-123"})
         
-        with patch.object(jira_client._http_client, 'post') as mock_post:
-            mock_post.return_value = MockContextManager(mock_response)
-            
-            with patch.object(jira_client._http_client, '__aenter__', return_value=jira_client._http_client):
-                with patch.object(jira_client._http_client, '__aexit__', return_value=None):
-                    await jira_client.create_issue(
-                        project_key="DTS",
-                        summary="Test Summary",
-                        description="Test Description"
-                    )
+        with patch.object(jira_client._http_client, 'post', new_callable=AsyncMock) as mock_post:
+            mock_post.return_value = mock_response
+            await jira_client.create_issue(
+                project_key="DTS",
+                summary="Test Summary",
+                description="Test Description"
+            )
             
             # Verify the call was made with correct payload
             call_args = mock_post.call_args

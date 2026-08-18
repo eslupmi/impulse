@@ -34,4 +34,4 @@ def configure_api_openapi(app: FastAPI, http_prefix: str = "") -> None:
         app.openapi_schema = openapi_schema
         return app.openapi_schema
 
-    app.openapi = custom_openapi
+    app.openapi = custom_openapi  # type: ignore[method-assign]

@@ -7,11 +7,11 @@ class User(BaseUser):
     def __init__(
         self,
         name: str,
-        id_: int = None,
+        id_: int | None = None,
         exists: bool = False,
-        full_name: str = None,
-        username: str = None,
-        timezone_: str = None,
+        full_name: str | None = None,
+        username: str | None = None,
+        timezone_: str | None = None,
     ):
         if id_ is not None and not isinstance(id_, int):
             id_ = int(id_)
