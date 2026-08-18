@@ -223,3 +223,16 @@ class TestGroup:
         assert group.id == "G123"
         assert group.exists is True
         assert repr(group) == "test_group"  # Falls back to config_name
+
+    def test_group_serialize_keeps_configured_id_when_missing(self):
+        group = Group(
+            config_name="group_1",
+            name=None,
+            id_="S0A3WML2S7P",
+            exists=False,
+        )
+
+        assert group.serialize() == {
+            "exists": False,
+            "id": "S0A3WML2S7P",
+        }

@@ -162,7 +162,6 @@ class MattermostApplication(Application):
             group_details = await self.get_group_details(group_info.id)
             if not group_details['exists']:
                 logger.warning('Group not found in Mattermost', extra={'group_id': group_info.id, 'group_name': config_name})
-                group_details = {'id': None, 'name': None, 'exists': False}
             groups[config_name] = self.create_group(config_name, group_details)
 
         return groups
