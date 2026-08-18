@@ -4,7 +4,6 @@ from datetime import datetime, timezone
 from typing import ClassVar
 
 import yaml
-from requests.utils import dict_from_cookiejar
 
 from app.config.config import get_config
 from app.config.environment import get_environment_config
@@ -293,11 +292,11 @@ class IncidentMigrator:
         return migrated
 
     @staticmethod
-    def _migrate_v3_6_0_to_v3_7_0(data: dict_from_cookiejar) -> dict_from_cookiejar:
+    def _migrate_v3_6_0_to_v3_7_0(data: dict) -> dict:
         return IncidentMigrator.reshape_chain_steps(data)
 
     @staticmethod
-    def _migrate_v3_7_0_to_v3_6_0(data: dict_from_cookiejar) -> dict_from_cookiejar:
+    def _migrate_v3_7_0_to_v3_6_0(data: dict) -> dict:
         return IncidentMigrator.reshape_chain_steps_v3_6(data)
 
     def _apply_filename_migrations(self, file_path: str, incident_data: dict, from_version: str, to_version: str) -> str:
@@ -392,6 +391,8 @@ class IncidentMigrator:
         if not match:
             return False
         floor = _VERSION_RE.match(DOWNGRADE_FLOOR)
+        if floor is None:
+            return False
         return tuple(int(x) for x in match.groups()) >= tuple(int(x) for x in floor.groups())
 
     @staticmethod

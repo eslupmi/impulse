@@ -437,8 +437,8 @@ class UIChainsStore:
         ss = self._parse_datetime(second_chain["start"])
         if fs is None or ss is None:
             return False
-        fe = self._parse_datetime(first_chain.get("end")) if first_chain.get("end") else fs + timedelta(days=1)
-        se = self._parse_datetime(second_chain.get("end")) if second_chain.get("end") else ss + timedelta(days=1)
+        fe = self._parse_datetime(first_chain.get("end")) or (fs + timedelta(days=1))
+        se = self._parse_datetime(second_chain.get("end")) or (ss + timedelta(days=1))
         return self._does_chain_overlap_range(first_chain, ss, se) or self._does_chain_overlap_range(second_chain, fs, fe)
 
     def _does_chain_overlap_range(
@@ -447,7 +447,7 @@ class UIChainsStore:
         chain_start = self._parse_datetime(chain["start"])
         if chain_start is None:
             return False
-        chain_end = self._parse_datetime(chain.get("end")) if chain.get("end") else chain_start + timedelta(days=1)
+        chain_end = self._parse_datetime(chain.get("end")) or (chain_start + timedelta(days=1))
         duration = chain_end - chain_start
         repeat = chain.get("repeat")
         if not repeat:
