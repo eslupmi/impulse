@@ -3,6 +3,7 @@ import re
 from datetime import datetime, timezone
 from typing import ClassVar
 
+from requests.utils import dict_from_cookiejar
 import yaml
 
 from app.config.config import get_config
@@ -131,7 +132,7 @@ class IncidentMigrator:
         raise ValueError(f'No migration path from {from_version} to {to_version}')
 
     @staticmethod
-    def _walk_chain(from_version: str, to_version: str, chain: Dict[str, str]) -> Optional[List[str]]:
+    def _walk_chain(from_version: str, to_version: str, chain: dict[str, str]) -> list[str] | None:
         path = [from_version]
         current = from_version
         while current != to_version:
@@ -268,7 +269,7 @@ class IncidentMigrator:
         return migrated
 
     @staticmethod
-    def reshape_chain_steps_v3_6(data: Dict) -> Dict:
+    def reshape_chain_steps_v3_6(data: dict) -> dict:
         if 'chain' not in data and 'chain_steps' not in data:
             return data
 
@@ -292,14 +293,14 @@ class IncidentMigrator:
         return migrated
 
     @staticmethod
-    def _migrate_v3_6_0_to_v3_7_0(data: Dict) -> Dict:
+    def _migrate_v3_6_0_to_v3_7_0(data: dict_from_cookiejar) -> dict_from_cookiejar:
         return IncidentMigrator.reshape_chain_steps(data)
 
     @staticmethod
-    def _migrate_v3_7_0_to_v3_6_0(data: Dict) -> Dict:
+    def _migrate_v3_7_0_to_v3_6_0(data: dict_from_cookiejar) -> dict_from_cookiejar:
         return IncidentMigrator.reshape_chain_steps_v3_6(data)
 
-    def _apply_filename_migrations(self, file_path: str, incident_data: Dict, from_version: str, to_version: str) -> str:
+    def _apply_filename_migrations(self, file_path: str, incident_data: dict, from_version: str, to_version: str) -> str:
         if not self.MIGRATION_CHAIN:
             return file_path
 
@@ -323,7 +324,7 @@ class IncidentMigrator:
         return IncidentMigrator._rename_file(file_path, new_path)
 
     @staticmethod
-    def _migrate_filename_v3_7_0_to_v3_6_0(file_path: str, incident_data: Dict) -> str:
+    def _migrate_filename_v3_7_0_to_v3_6_0(file_path: str, incident_data: dict) -> str:
         uuid = Incident.gen_uuid(incident_data.get('payload', {}).get('groupLabels', {}))
         status = incident_data.get('status')
         closed = incident_data.get('closed')
