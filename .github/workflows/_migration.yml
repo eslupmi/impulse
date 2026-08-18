@@ -68,12 +68,14 @@ jobs:
             set -euo pipefail
             sed -i "s|ghcr.io/eslupmi/impulse:[^ ]*|ghcr.io/eslupmi/impulse:${BRANCH}|" "$DEPLOY_PATH/docker-compose.yml"
             cd "$DEPLOY_PATH"
+            docker compose pull
+            echo "::group::migration update"
+            docker compose up -d
+            sleep 30s
+            docker compose stop
+            echo "::endgroup::"
             for messenger in mattermost slack telegram; do
-              echo "::group::migration update: $messenger"
-              docker compose pull
-              docker compose up -d
-              sleep 30s
-              docker compose stop
+              echo "::group::migration downgrade: $messenger"
               docker compose run --rm --no-deps impulse-"$messenger" python -m main --downgrade "$LATEST_RELEASE"
               echo "::endgroup::"
             done
@@ -95,7 +97,7 @@ jobs:
             for messenger in mattermost slack telegram; do
               echo "::group::migration compare: $messenger"
               REF=/tmp/impulse-migration-incidents-$messenger
-              diff -ru "$REF" "$DEPLOY_PATH/$messenger/data/incidents"
+              diff --color=always -ru "$REF" "$DEPLOY_PATH/$messenger/data/incidents"
               echo "::endgroup::"
             done
 
