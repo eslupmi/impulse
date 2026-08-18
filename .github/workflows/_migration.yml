@@ -43,11 +43,13 @@ jobs:
           script_stop: true
           script: |
             set -euo pipefail
-            cp -a "$DEPLOY_PATH/docker-compose.yml" /tmp/impulse-migration-compose.yml
+            ROOT=/tmp/impulse-migration
+            rm -rf "$ROOT"
+            mkdir -p "$ROOT"
+            cp -a "$DEPLOY_PATH/docker-compose.yml" "$ROOT/docker-compose.yml"
             for messenger in mattermost slack telegram; do
-              REF=/tmp/impulse-migration-incidents-$messenger
-              rm -rf "$REF"
-              cp -a "$DEPLOY_PATH/$messenger/data/incidents" "$REF"
+              mkdir -p "$ROOT/$messenger"
+              cp -a "$DEPLOY_PATH/$messenger/data/incidents" "$ROOT/$messenger/0_original"
             done
 
       - name: Update incidents migration
@@ -66,6 +68,7 @@ jobs:
           script_stop: true
           script: |
             set -euo pipefail
+            ROOT=/tmp/impulse-migration
             sed -i "s|ghcr.io/eslupmi/impulse:[^ ]*|ghcr.io/eslupmi/impulse:${BRANCH}|" "$DEPLOY_PATH/docker-compose.yml"
             cd "$DEPLOY_PATH"
             docker compose pull
@@ -75,8 +78,12 @@ jobs:
             docker compose stop
             echo "::endgroup::"
             for messenger in mattermost slack telegram; do
+              cp -a "$DEPLOY_PATH/$messenger/data/incidents" "$ROOT/$messenger/1_upgrade"
+            done
+            for messenger in mattermost slack telegram; do
               echo "::group::migration downgrade: $messenger"
               docker compose run --rm --no-deps impulse-"$messenger" python -m main --downgrade "$LATEST_RELEASE"
+              cp -a "$DEPLOY_PATH/$messenger/data/incidents" "$ROOT/$messenger/2_downgrade"
               echo "::endgroup::"
             done
 
@@ -94,10 +101,10 @@ jobs:
           script_stop: true
           script: |
             set -euo pipefail
+            ROOT=/tmp/impulse-migration
             for messenger in mattermost slack telegram; do
               echo "::group::migration compare: $messenger"
-              REF=/tmp/impulse-migration-incidents-$messenger
-              diff --color=always -ru "$REF" "$DEPLOY_PATH/$messenger/data/incidents"
+              diff --color=always -ru "$ROOT/$messenger/0_original" "$ROOT/$messenger/2_downgrade"
               echo "::endgroup::"
             done
 
@@ -115,19 +122,17 @@ jobs:
           command_timeout: 15m
           script: |
             set -euo pipefail
+            ROOT=/tmp/impulse-migration
             cd "$DEPLOY_PATH"
             docker compose stop || true
-            COMPOSE_BAK=/tmp/impulse-migration-compose.yml
             for messenger in mattermost slack telegram; do
-              REF=/tmp/impulse-migration-incidents-$messenger
-              if [ -d "$REF" ]; then
+              ORIG="$ROOT/$messenger/0_original"
+              if [ -d "$ORIG" ]; then
                 rm -rf "$DEPLOY_PATH/$messenger/data/incidents"
-                cp -a "$REF" "$DEPLOY_PATH/$messenger/data/incidents"
+                cp -a "$ORIG" "$DEPLOY_PATH/$messenger/data/incidents"
               fi
-              rm -rf "$REF"
             done
-            if [ -f "$COMPOSE_BAK" ]; then
-              cp -a "$COMPOSE_BAK" "$DEPLOY_PATH/docker-compose.yml"
+            if [ -f "$ROOT/docker-compose.yml" ]; then
+              cp -a "$ROOT/docker-compose.yml" "$DEPLOY_PATH/docker-compose.yml"
             fi
             docker compose up -d
-            rm -rf "$COMPOSE_BAK"
