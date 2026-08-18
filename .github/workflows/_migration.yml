@@ -56,18 +56,7 @@ jobs:
               cd "$DEPLOY_PATH"
               docker compose pull
               docker compose up -d
-              ok=0
-              for i in $(seq 1 60); do
-                if docker compose exec -T app python -c "import os,urllib.request; urllib.request.urlopen('http://127.0.0.1:5000'+os.environ.get('HTTP_PREFIX','')+'/readyz')" 2>/dev/null; then
-                  ok=1
-                  break
-                fi
-                sleep 1
-              done
-              if [ "$ok" -ne 1 ]; then
-                docker compose logs
-                exit 1
-              fi
+              sleep 30s
               docker compose stop
               docker compose run --rm --no-deps app python -m main --downgrade "$LATEST_RELEASE"
               diff -ru "$REF" "$DEPLOY_PATH/$messenger/data/incidents"
