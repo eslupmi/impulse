@@ -45,15 +45,15 @@ jobs:
           script_stop: true
           script: |
             set -euo pipefail
+            COMPOSE_BAK=/tmp/impulse-migration-compose.yml
+            cp -a "$DEPLOY_PATH/docker-compose.yml" "$COMPOSE_BAK"
+            sed -i "s|ghcr.io/eslupmi/impulse:[^ ]*|ghcr.io/eslupmi/impulse:${BRANCH}|" "$DEPLOY_PATH/docker-compose.yml"
             for messenger in mattermost slack telegram; do
               echo "::group::migration check: $messenger"
-              cd "$DEPLOY_PATH/$messenger"
               REF=/tmp/impulse-migration-incidents-$messenger
-              COMPOSE_BAK=/tmp/impulse-migration-compose-$messenger.yml
               rm -rf "$REF"
-              cp -a data/incidents "$REF"
-              cp -a docker-compose.yml "$COMPOSE_BAK"
-              sed -i "s|ghcr.io/eslupmi/impulse:[^ ]*|ghcr.io/eslupmi/impulse:${BRANCH}|" docker-compose.yml
+              cp -a "$DEPLOY_PATH/$messenger/data/incidents" "$REF"
+              cd "$DEPLOY_PATH"
               docker compose pull
               docker compose up -d
               ok=0
@@ -70,7 +70,7 @@ jobs:
               fi
               docker compose stop
               docker compose run --rm --no-deps app python -m main --downgrade "$LATEST_RELEASE"
-              diff -ru "$REF" data/incidents
+              diff -ru "$REF" "$DEPLOY_PATH/$messenger/data/incidents"
               echo "::endgroup::"
             done
 
@@ -88,18 +88,19 @@ jobs:
           command_timeout: 15m
           script: |
             set -euo pipefail
+            cd "$DEPLOY_PATH"
+            docker compose stop || true
+            COMPOSE_BAK=/tmp/impulse-migration-compose.yml
             for messenger in mattermost slack telegram; do
-              cd "$DEPLOY_PATH/$messenger"
-              docker compose stop || true
               REF=/tmp/impulse-migration-incidents-$messenger
-              COMPOSE_BAK=/tmp/impulse-migration-compose-$messenger.yml
               if [ -d "$REF" ]; then
-                rm -rf data/incidents
-                cp -a "$REF" data/incidents
+                rm -rf "$DEPLOY_PATH/$messenger/data/incidents"
+                cp -a "$REF" "$DEPLOY_PATH/$messenger/data/incidents"
               fi
-              if [ -f "$COMPOSE_BAK" ]; then
-                cp -a "$COMPOSE_BAK" docker-compose.yml
-              fi
-              docker compose up -d
-              rm -rf "$REF" "$COMPOSE_BAK"
+              rm -rf "$REF"
             done
+            if [ -f "$COMPOSE_BAK" ]; then
+              cp -a "$COMPOSE_BAK" "$DEPLOY_PATH/docker-compose.yml"
+            fi
+            docker compose up -d
+            rm -rf "$COMPOSE_BAK"
