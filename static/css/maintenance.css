@@ -48,7 +48,7 @@
     border: 1.5px solid var(--status-badge-firing);
     border-radius: 6px;
     min-width: 360px;
-    max-width: 500px;
+    max-width: 600px;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
     overflow: hidden;
 }
@@ -137,8 +137,8 @@
 
 .maintenance-active-popup-owner {
     grid-column: 3;
-    width: 88px;
-    max-width: 88px;
+    width: 120px;
+    max-width: 120px;
     padding: 10px 12px 10px 0;
     display: block;
     color: var(--link-primary);
