@@ -105,7 +105,10 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
         try:
             if request.app.state.messenger.type == 'slack':
                 form_data = await request.form()
-                payload = json.loads(form_data['payload'])
+                raw = form_data['payload']
+                if not isinstance(raw, str):
+                    raise HTTPException(status_code=400, detail="Invalid payload")
+                payload = json.loads(raw)
             else:
                 payload = await request.json()
 
