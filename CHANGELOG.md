@@ -1,5 +1,16 @@
 # Changelog
 
+## v3.7.0
+Changes:
+- Added templates for all [thread messages](https://docs.impulse.bot/stable/concepts/templates/#thread-messages)
+- Added [owner](https://docs.impulse.bot/stable/concepts/maintenance/#owner) field for maintenance windows
+- Added [`--downgrade` option](https://docs.impulse.bot/stable/versioning/#downgrade-process) to roll back to the previous minor version
+- Added [API](https://docs.impulse.bot/stable/concepts/api/) support
+- Added support for standard `HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY` [environment variables](https://docs.impulse.bot/stable/envs/)
+- Added support for `wait` as the first step of any chain
+- **Archive** button state is now stored in the browser
+- Switched logs and incident file names to `uniq_id` instead of `uuid`
+
 ## v3.6.3
 Changes:
 - Clean up orphaned parent/child incidents on startup and reload

@@ -1,9 +1,16 @@
-# API
-
-IMPulse provides simple API and WebSocket endpoints for incident management and system interaction.
+# API & Endpoints
 
 !!! info
     All endpoints use the [HTTP_PREFIX](../envs.md) prefix if configured.
+
+Except for `/livez`, `/readyz` and `/metrics`, all endpoints return `503 Service Unavailable` while the server is in **standby** mode (see [High Availability](ha.md)).
+
+## API
+
+The API is available under the `/api` endpoint. Interactive and schema documentation:
+
+- `/api/docs` - Swagger UI
+- `/api/openapi.json` - OpenAPI schema
 
 ## General endpoints
 
@@ -11,111 +18,26 @@ IMPulse provides simple API and WebSocket endpoints for incident management and 
 
 Main page of the IMPulse web interface.
 
+**Requirements:**
+
+- UI must be enabled in configuration ([[ui](../config_file.md#ui) section])
+
 ### HTTP `/` [POST]
 
 Send a new alert for processing.
 
 **Requirements:**
 
-- Server must be in **primary** mode
 - Request body must contain valid JSON with alert data
-
-**Requirements:**
-
-- UI must be enabled in configuration ([[ui](../config_file.md#ui) section])
 
 ### HTTP `/app` [POST]
 ### HTTP `/app` [PUT]
 
 Handle button interactions in messengers (Slack, Mattermost, Telegram).
 
-### HTTP `/incidents` [GET]
-
-Get list of all incidents.
-
-### HTTP `/metrics` [GET]
-
-Prometheus metrics endpoint. Returns metrics in Prometheus format for monitoring and observability.
-
 **Responses:**
 
 - `200 OK` - Returns metrics in Prometheus format
-
-### HTTP `/queue` [GET]
-
-Get current processing queue state.
-
-## Storage read API
-
-Read-only endpoints under `/api` return the same payloads as each entity's `serialize()` method. Collection keys match path identifiers (`uniq_id` for incidents; config names for groups, users, user groups, and webhooks).
-
-### HTTP `/api/incidents` [GET]
-
-Get all incidents. Returns `{uniq_id: incident.serialize()}`.
-
-### HTTP `/api/incidents/{uniq_id}` [GET]
-
-Get one incident by `uniq_id`.
-
-**Responses:**
-
-- `200 OK` - Incident payload
-- `404 Not Found` - Incident not found
-
-### HTTP `/api/groups` [GET]
-
-Get all messenger groups. Returns `{config_name: group.serialize()}` (`exists`, `id`).
-
-### HTTP `/api/groups/{group_name}` [GET]
-
-Get one group by config name.
-
-**Responses:**
-
-- `200 OK` - Group payload
-- `404 Not Found` - Group not found
-
-### HTTP `/api/users` [GET]
-
-Get configured users only as `{config_name: User.serialize()}`. Runtime/UserStore-only users are omitted. `messenger_type` is not included. `roles` is runtime-only (`["admin"]` when the user is listed in `admin_users`); it is not stored in config or on disk.
-
-- Slack / Mattermost: `email`, `exists`, `full_name`, `id` (string), `roles`, `timezone`, `username`
-- Telegram: `exists`, `full_name`, `id` (int), `roles`, `username`
-
-### HTTP `/api/users/{user_name}` [GET]
-
-Get one configured user by config name.
-
-**Responses:**
-
-- `200 OK` - User payload
-- `404 Not Found` - User not found
-
-### HTTP `/api/user_groups` [GET]
-
-Get all user groups. Returns `{name: user_group.serialize()}` (`users`).
-
-### HTTP `/api/user_groups/{user_group_name}` [GET]
-
-Get one user group by name.
-
-**Responses:**
-
-- `200 OK` - User group payload
-- `404 Not Found` - User group not found
-
-### HTTP `/api/webhooks` [GET]
-
-Get all webhooks. Returns `{name: webhook.serialize()}` without authentication credentials (`data`, `json`, `url`). URL/body templates are returned without environment rendering; Jinja expressions that reference `env` are replaced with `***`.
-
-### HTTP `/api/webhooks/{webhook_name}` [GET]
-
-Get one webhook by name.
-
-**Responses:**
-
-- `200 OK` - Webhook payload
-- `404 Not Found` - Webhook not found
 
 ### WebSocket `/ws`
 
@@ -125,7 +47,6 @@ WebSocket connection for receiving real-time incident updates.
 
 - Server must be in **primary** mode (see [High Availability](ha.md))
 - Connection will be closed with code `1008` if server is in **standby** mode
-
 
 ## Service endpoints
 
@@ -137,6 +58,15 @@ Server liveness check. Used for Kubernetes liveness probes to determine if the c
 
 - `200 OK` - Container is alive (returns `200` in both **primary** and **standby** modes)
 
+### HTTP `/metrics` [GET]
+
+Prometheus metrics endpoint. Returns metrics in Prometheus format for monitoring and observability.
+
+### HTTP `/queue` [GET]
+
+Get current processing queue state.
+
+
 ### HTTP `/readyz` [GET]
 
 Server readiness check. Used for health checks and determining server state (see [High Availability](ha.md)).
@@ -145,6 +75,8 @@ Server readiness check. Used for health checks and determining server state (see
 
 - `200 OK` - Server is ready and running in **primary** mode
 - `503 Service Unavailable` - Server is in **standby** mode or initializing
+
+## Administer endpoints
 
 ### HTTP `/-/reload` [POST]
 
