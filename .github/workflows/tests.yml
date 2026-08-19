@@ -20,6 +20,12 @@ permissions:
   packages: write
 
 jobs:
+  lint:
+    if: github.event.pull_request.draft == false && github.base_ref == 'develop'
+    uses: ./.github/workflows/_lint.yml
+    with:
+      runs-on: self-hosted
+
   tests:
     if: github.event.pull_request.draft == false
     uses: ./.github/workflows/_tests.yml
