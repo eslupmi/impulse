@@ -66,9 +66,6 @@ class NullApplication(Application):
                      frozen_until, task_link='', previous_payload=None):
         return
 
-    async def new_version_notification(self, channel_id, new_tag):
-        return
-
     async def notify(self, incident, step):
         return 200
 

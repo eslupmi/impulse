@@ -153,12 +153,6 @@ class Application(ABC):
                 return config_name
         return None
 
-    def get_configured_user_name(self, user_id):
-        user = self.users.get_user_by_id(user_id)
-        if user and user.exists:
-            return user.name
-        return None
-
     def get_notification_destinations(self):
         return [a.get_notification_identifier() for a in self.admin_users]
 
@@ -422,16 +416,6 @@ class Application(ABC):
             if self._user_scheduler:
                 self._user_scheduler.schedule_update(user_id_str)
 
-    async def _assign_from_api(self, incident, user_id):
-        user_details = await self.get_user_details({'id': user_id})
-        assigned_name = self._format_display_name(user_details)
-        incident.assign_fullname(assigned_name)
-        
-        if user_details.get('username'):
-            incident.assign_user(user_details.get('username'))
-        if user_details.get('exists'):
-            self._add_discovered_user(user_id, user_details)
-    
     @staticmethod
     def _format_display_name(user_details: dict) -> str:
         full_name = user_details.get('full_name')
@@ -616,17 +600,6 @@ class Application(ABC):
         )
         client.initialize_client()
         return client
-
-    def _try_assign_from_user_manager(self, incident, user_id):
-        cached_user = self.users.get_user_by_id(user_id)
-        if not (cached_user and cached_user.exists):
-            return False
-        
-        incident.assign_fullname(cached_user.name)
-        notification_id = cached_user.get_notification_identifier()
-        if notification_id and notification_id != cached_user.id:
-            incident.assign_user(notification_id)
-        return True
 
     @abstractmethod
     async def _update_incident_message(self, id_, payload):
