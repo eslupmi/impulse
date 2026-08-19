@@ -26,24 +26,6 @@ class BaseUser(ABC):
         """Return the messenger-specific API payload for this user."""
 
 
-class UndefinedUser(BaseUser):
-    def __init__(self, name: str):
-        super().__init__(name, None, False)
-        self.defined = False
-    
-    def get_notification_identifier(self):
-        return None
-
-    def serialize(self) -> dict:
-        return {
-            'exists': self.exists,
-            'full_name': None,
-            'id': None,
-            'roles': list(self.roles),
-            'username': None,
-        }
-
-
 class UserManager:
     def __init__(self):
         self._users: dict[str, BaseUser] = {}  # user_id -> BaseUser
@@ -55,10 +37,7 @@ class UserManager:
             self._named[config_name] = user
 
     def get(self, name: str, default=None) -> BaseUser | None:
-        user = self._named.get(name) or self._users.get(name)
-        if user is None or isinstance(user, UndefinedUser):
-            return default
-        return user
+        return self._named.get(name) or self._users.get(name) or default
 
     def get_user_by_id(self, user_id: int | str) -> BaseUser | None:
         return self._users.get(str(user_id))

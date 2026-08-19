@@ -33,7 +33,7 @@ from app.im.template import (
 )
 from app.im.user_groups import generate_user_groups
 from app.im.user_store import UserUpdateScheduler, get_user_store
-from app.im.users import BaseUser, UndefinedUser, UserManager
+from app.im.users import BaseUser, UserManager
 from app.incident.freeze import FreezeSource
 from app.incident.incident import unfreeze_incident
 from app.integrations.jira_integration import JiraIntegration
@@ -265,7 +265,10 @@ class Application(ABC):
     def _init_admin_users(self):
         admins = []
         for admin in self._admin_users_config:
-            user = self.users.get(admin) or UndefinedUser(admin)
+            user = self.users.get(admin)
+            if user is None:
+                logger.warning('Admin user not found', extra={'user': admin})
+                continue
             self._apply_admin_role(user, admin)
             admins.append(user)
         return admins
