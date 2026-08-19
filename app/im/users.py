@@ -48,8 +48,8 @@ class UserManager:
             if not user.exists:
                 continue
             result.append({
-                'user_id': str(user.id) if user.id is not None else '',
-                'full_name': user.full_name or user.name or '',
+                'user_id': str(user.id),
+                'full_name': user.full_name,
                 'config_name': config_name,
             })
         return result
