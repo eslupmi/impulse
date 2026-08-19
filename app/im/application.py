@@ -449,13 +449,14 @@ class Application(ABC):
         messenger_type = self.type.value
 
         user_manager = UserManager()
-        stored_user_ids = self._load_stored_users(user_manager, user_store, messenger_type)
+        stored = self._load_stored_users(user_store, messenger_type)
 
         for name, user_info in users_dict.items():
             user_id = str(user_info.id)
-            if user_id in stored_user_ids:
-                user_manager.add_config_name(name, user_id)
-                self._apply_admin_role(user_manager.get(name), name)
+            if user_id in stored:
+                user = self.create_user(name, stored[user_id])
+                self._apply_admin_role(user, name)
+                user_manager.add_user(user_id, user, config_name=name)
                 continue
 
             user_details = await self.get_user_details(user_info)
@@ -538,12 +539,11 @@ class Application(ABC):
     def _initialize_specific_params(self):
         pass
 
-    def _load_stored_users(self, user_manager: UserManager, user_store, messenger_type: str) -> set:
+    def _load_stored_users(self, user_store, messenger_type: str) -> dict:
         stored_users = user_store.get_all_users_by_type(messenger_type)
-        loaded_ids = set()
-
+        result = {}
         for user_id, stored_data in stored_users.items():
-            user_details = {
+            result[user_id] = {
                 'id': user_id,
                 'exists': True,
                 'full_name': stored_data.get('full_name'),
@@ -551,17 +551,9 @@ class Application(ABC):
                 'email': stored_data.get('email'),
                 'timezone': stored_data.get('timezone'),
             }
-            config_name = self.get_config_name_by_user_id(user_id)
-            user = self.create_user(config_name, user_details)
-            if user:
-                self._apply_admin_role(user, config_name)
-                user_manager.add_user(user_id, user)
-                loaded_ids.add(user_id)
-
-        if loaded_ids:
-            logger.info(f'Loaded {len(loaded_ids)} users from storage')
-
-        return loaded_ids
+        if result:
+            logger.info(f'Loaded {len(result)} users from storage')
+        return result
 
     @abstractmethod
     def _markdown_links_to_native_format(self, text):
