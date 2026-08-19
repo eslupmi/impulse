@@ -39,8 +39,8 @@ def stored_user():
 
 
 @pytest.fixture
-def sample_user_group(sample_user):
-    return UserGroup("ops", [sample_user])
+def sample_user_group():
+    return UserGroup("ops", ["alice"])
 
 
 @pytest.fixture
