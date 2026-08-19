@@ -55,7 +55,7 @@ Below are all the configuration options supported by IMPulse.
 
 ### incident.notifications
 
-- **description:** incident notifications settings
+- **description:** incident notifications settings. Each notification is rendered from its own [thread template](concepts/templates.md#thread-messages)
 - **type:** dict
 
 #### incident.notifications.assignment
@@ -63,6 +63,12 @@ Below are all the configuration options supported by IMPulse.
 - **description:** enable/disable notifications about incident assignment changes
 - **type:** bool
 - **default value:** True
+
+#### incident.notifications.freeze
+
+- **description:** notifications about incident [freeze] by button (concepts/incident.md#frozen)
+- **type:** bool
+- **default value:** False
 
 #### incident.notifications.new_firing
 
@@ -236,6 +242,7 @@ Below are all the configuration options supported by IMPulse.
     messenger:
       chains:
         programmers:
+          - wait: 2m
           - user: Valery
           - wait: 5m
           - chain: devops
@@ -617,6 +624,8 @@ Below are all the configuration options supported by IMPulse.
         IMPulse uses [jinja2 templates](https://pypi.org/project/Jinja2/) to set messages format. And you can modify it.
 
         Incident message contains three parts ([picture](concepts/incident.md#messages-structure)). Default template files for theese parts is [here](https://github.com/DiTsi/impulse/tree/develop/templates). You can copy the default templates, modify them, and specify custom paths.
+
+        Messages posted into the incident thread use separate templates that are not configured here (see [thread messages](concepts/templates.md#thread-messages)).
 
 - **examples:**
 
