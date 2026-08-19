@@ -6,13 +6,10 @@ on:
       pr_number:
         required: false
         type: number
-      branch:
-        required: false
-        type: string
 
 jobs:
   autotests:
     uses: ./.github/workflows/_autotests.yml
     with:
-      branch: ${{ inputs.branch || format('pr-{0}', inputs.pr_number) }}
+      branch: ${{ format('pr-{0}', inputs.pr_number) }}
     secrets: inherit
