@@ -3,6 +3,8 @@ from typing import TYPE_CHECKING
 
 from jinja2 import Template
 
+from app.incident.freeze import MAINTENANCE_PARENT_SENTINEL
+
 if TYPE_CHECKING:
     from app.incident.incident import Incident
     from app.incident.incidents import Incidents
@@ -17,8 +19,21 @@ class JinjaTemplate:
     def form_message(self, alert_state, incident: 'Incident | None' = None):
         """Render a message template with alert state and incident data."""
         template = Template(self.template)
-        incident_data = incident.serialize() if incident else {}
-        return template.render(payload=alert_state, incident=incident_data, incidents=self._incidents)
+        if incident:
+            incident_data = incident.serialize()
+            parents = self.related_incidents(incident.parents, skip=(MAINTENANCE_PARENT_SENTINEL,))
+            childs = self.related_incidents(incident.childs)
+        else:
+            incident_data = {}
+            parents = {}
+            childs = {}
+        return template.render(
+            payload=alert_state,
+            incident=incident_data,
+            incidents=self._incidents,
+            parents=parents,
+            childs=childs,
+        )
 
     def form_notification(self, **kwargs):
         """Render a thread notification template with the provided context kwargs."""

@@ -30,22 +30,17 @@ _{{ commonAnnotations.description }}_{% endif %}
     {{ k }}=`{{ v }}`
 {%- endfor -%}
 {% endif -%}
-{%- set parent_incidents = incident.parents | reject("equalto", "maintenance") | list -%}
-{%- if parent_incidents | length > 0 %}
+{%- if parents %}
 
 **Parent incidents:**
-{%- for parent_id in parent_incidents %}
-{%- if parent_id in incidents.uniq_ids %}
-    [{{ incidents.uniq_ids[parent_id].payload.commonLabels.alertname }}]({{ incidents.uniq_ids[parent_id].link | urlencode }})
-{%- else %}
-    {{ parent_id }}
-{%- endif %}
+{%- for parent in parents.values() %}
+    [{{ parent.payload.commonLabels.alertname }}]({{ parent.link | urlencode }})
 {%- endfor -%}
 {% endif -%}
-{%- if incident.childs | length > 0 %}
+{%- if childs %}
 
 **Inhibited incidents:**
-{%- for uniq_id in incident.childs %}
-    [{{ incidents.uniq_ids[uniq_id].payload.commonLabels.alertname }}]({{ incidents.uniq_ids[uniq_id].link }})
+{%- for child in childs.values() %}
+    [{{ child.payload.commonLabels.alertname }}]({{ child.link }})
 {%- endfor -%}
 {% endif -%}

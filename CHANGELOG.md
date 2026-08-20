@@ -10,6 +10,7 @@ Changes:
 - Added support for `wait` as the first step of any chain
 - **Archive** button state is now stored in the browser
 - Switched logs and incident file names to `uniq_id` instead of `uuid`
+- Deprecated special variable `incidents` in [body templates](https://docs.impulse.bot/stable/concepts/templates/#messages), use `parents` / `childs` instead
 
 ## v3.6.3
 Changes:
