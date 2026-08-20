@@ -5,7 +5,6 @@
 {%-     set _ = absent_users.append(name) -%}
 {%-   endif -%}
 {%- endfor -%}
-:bell: user_group **{{ step.value -}}**
- ({%- for name in user_groups.get(step.value).users %}{%- set u = users.get(name) %}{%- if u and u.exists %}@{{ u.username }}{% if not loop.last %}, {% endif %}{%- endif %}{%- endfor -%})
+:bell: user_group **{{ step.value }}** ({% for name in user_groups.get(step.value).users %}{%- set u = users.get(name) %}{%- if u and u.exists %}@{{ u.username }}{% if not loop.last %}, {% endif %}{%- endif %}{%- endfor -%})
 {% if absent_users | length > 0 %}  |  {% for u in absent_users %}**{{ u }}** ([NotFound](https://docs.impulse.bot/stable/warnings/NotFound/)){% if not loop.last %}, {% endif %}{% endfor %}{% endif %}
 {% if absent_users | length > 0 %}  |  :bell: admins ({%- for u in users.values() if u and 'admin' in u.roles %}@{{ u.username }}{% if not loop.last %},{% endif %}{% endfor -%}){% endif -%}
