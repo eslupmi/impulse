@@ -12,6 +12,8 @@ There are 3 templates that users can customize as needed (see [messages structur
 - **header**
 - **body**
 
+**[special variables](special_variables.md):** `incident`, `payload`, `parents`, `childs` (`incidents` is deprecated)
+
 ### Default template
 
 The default **body** template supports 3 links:
