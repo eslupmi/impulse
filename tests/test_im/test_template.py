@@ -33,13 +33,29 @@ class TestThreadTemplates:
         )
         assert 'U1' in text
         assert 'assigned' in text
+        assert ' by ' not in text
 
         text = JinjaTemplate(template.incident_notifications_assignment['slack']).form_notification(
             incident={'assigned_user_id': ''},
             users={},
-            ui_user=None,
+            ui_user={'id': 'U2', 'username': 'alice'},
         )
         assert 'unassigned' in text
+        assert 'by <@U2>' in text
+
+        text = JinjaTemplate(template.incident_notifications_assignment['slack']).form_notification(
+            incident={'assigned_user_id': 'U1'},
+            users={},
+            ui_user={'id': 'U1'},
+        )
+        assert ' by ' not in text
+
+        text = JinjaTemplate(template.incident_notifications_assignment['slack']).form_notification(
+            incident={'assigned_user_id': 'U1'},
+            users={},
+            ui_user={'id': 'U2'},
+        )
+        assert 'by <@U2>' in text
 
     def test_chain_step_user_template_uses_step_and_users(self):
         class Unit:
