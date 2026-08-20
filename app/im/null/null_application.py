@@ -18,8 +18,8 @@ class NullApplication(Application):
     for all messenger functionality. Allows running the application with UI only.
     """
 
-    def __init__(self, app_config, channels, default_channel):
-        super().__init__(app_config, channels, default_channel)
+    def __init__(self, app_config, channels, default_channel, webhooks=None):
+        super().__init__(app_config, channels, default_channel, webhooks=webhooks)
 
     def generate_template(self):
         """Override template generation to avoid requiring template files"""

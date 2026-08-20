@@ -53,14 +53,20 @@ log_button_pressed = 'Button pressed'
 class Application(ABC):
     task_management_integration: JiraIntegration | None = None
 
-    def __init__(self, app_config: ApplicationConfig, channels, default_channel):
+    def __init__(self, app_config: ApplicationConfig, channels, default_channel, webhooks=None):
         self.http: RateLimitedClient | None = None
         self.type = app_config.type
         self.url = self.get_url(app_config)
         self.public_url = None
         self.team = self.get_team_name(app_config)
         self._app_config = app_config
-        self.chains = ChainFactory.generate(app_config.chains)
+        self.chains = ChainFactory.generate(
+            app_config.chains,
+            users=app_config.users or {},
+            user_groups=app_config.user_groups or {},
+            groups=app_config.groups or {},
+            webhooks=webhooks or {},
+        )
         self.templates = app_config.template_files
         self.body_template, self.header_template, self.status_icons_template = self.generate_template()
 

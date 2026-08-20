@@ -14,8 +14,8 @@ from app.logging import logger
 
 class SlackApplication(Application):
 
-    def __init__(self, app_config: ApplicationConfig, channels, default_channel):
-        super().__init__(app_config, channels, default_channel)
+    def __init__(self, app_config: ApplicationConfig, channels, default_channel, webhooks=None):
+        super().__init__(app_config, channels, default_channel, webhooks=webhooks)
 
     def create_user(self, name, user_details):
         return User(
