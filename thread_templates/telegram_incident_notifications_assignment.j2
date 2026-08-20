@@ -3,3 +3,4 @@ update: assigned to <a href="tg://user?id={{ incident.assigned_user_id }}">{{ in
 {%- else -%}
 update: unassigned
 {%- endif -%}
+{%- if ui_user and ui_user.id != incident.assigned_user_id %} by <a href="tg://user?id={{ ui_user.id }}">{{ ui_user.full_name }}</a>{%- endif -%}
