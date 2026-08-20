@@ -86,6 +86,7 @@ jobs:
           TELEGRAM_SESSION_BASE64: ${{ secrets.AUTOTESTS_TELEGRAM_SESSION_BASE64 }}
           IMPULSE_URL: http://localhost:${{ matrix.port }}/${{ matrix.messenger_type }}
           MESSENGER_TYPE: ${{ matrix.messenger_type }}
+          PYTHONUNBUFFERED: "1"
         run: |
           cd autotests-${{ matrix.messenger_type }}
           if [ "${{ matrix.messenger_type }}" = "telegram" ]; then
