@@ -615,9 +615,12 @@ Below are all the configuration options supported by IMPulse.
 
 ### messenger.template_files
 
+!!! warning
+    Deprecated and will be removed in `v4.0.0`
+
 - **description:** path to custom template files for `status_icons`, `header`, and `body` (see [Incident Structure](concepts/incident.md#messages-structure))
 - **type:** dict
-- **[special variables](concepts/special_variables.md):** `incident`, `payload`, `parents`, `childs` (`incidents` is deprecated)
+- **[special variables](concepts/special_variables.md):** `incident`, `payload`, `parents`, `childs`, `incidents` (deprecated)
 - **details:**
     
     !!! note ""
@@ -639,17 +642,26 @@ Below are all the configuration options supported by IMPulse.
 
 #### messenger.template_files.body
 
+!!! warning
+    Deprecated and will be removed in `v4.0.0`
+
 - **description:** path to the custom template file that defines the format of `body`
 - **type:** string
 - **default value:** `./templates/<messenger.type>_body.j2`
 
 #### messenger.template_files.header
 
+!!! warning
+    Deprecated and will be removed in `v4.0.0`
+
 - **description:** path to the custom template file that defines the format of `header`
 - **type:** string
 - **default value:** `./templates/<messenger.type>_header.j2`
 
 #### messenger.template_files.status_icons
+
+!!! warning
+    Deprecated and will be removed in `v4.0.0`
 
 - **description:** path to the custom template file that defines the format of `status_icons`
 - **type:** string
@@ -781,6 +793,9 @@ Below are all the configuration options supported by IMPulse.
 
 ### task_management.template_files
 
+!!! warning
+    Deprecated and will be removed in `v4.0.0`
+
 - **description:** path to custom template files for task creation
 - **type:** dict
 - **[special variables](concepts/special_variables.md):** `incident` supported
@@ -803,11 +818,17 @@ Below are all the configuration options supported by IMPulse.
 
 #### task_management.template_files.summary
 
+!!! warning
+    Deprecated and will be removed in `v4.0.0`
+
 - **description:** path to the custom template file that defines the format of task summary
 - **type:** string
 - **default value:** `./templates/<task_management.type>_summary.j2`
 
 #### task_management.template_files.description
+
+!!! warning
+    Deprecated and will be removed in `v4.0.0`
 
 - **description:** path to the custom template file that defines the format of task description
 - **type:** string

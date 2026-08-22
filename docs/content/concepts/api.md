@@ -76,6 +76,37 @@ Server readiness check. Used for health checks and determining server state (see
 - `200 OK` - Server is ready and running in **primary** mode
 - `503 Service Unavailable` - Server is in **standby** mode or initializing
 
+GET `/ui_config` — UI table and display configuration.
+
+GET `/chains_config` — messenger chains, users, groups, webhooks, and timezone settings used by the UI. Authentication required when auth is enabled.
+
+### other
+
+!!! warning
+    Will be moved under `/api` since `v4.0.0`
+
+GET `/assignment_users` — users that can be assigned to incidents.
+
+GET `/incidents` — serialized list of current incidents.
+
+POST `/assign` — assign or unassign a user on an incident (`uniq_id`, `user_id`; `""` to unassign). Authentication required when auth is enabled.
+
+POST `/task` — create a task for an incident (`uniq_id`). Authentication required when auth is enabled.
+
+POST `/freeze` — freeze an incident (`uniq_id`, `freeze_option`: `tomorrow`, `next_monday`, `month`, `6months`). Authentication required when auth is enabled.
+
+POST `/unfreeze` — unfreeze a manually frozen incident (`uniq_id`). Authentication required when auth is enabled.
+
+POST `/release` — release a resolved assigned incident (`uniq_id`). Authentication required when auth is enabled.
+
+GET `/auth/login` — start UI authentication. Optional query parameter `next`.
+
+GET `/auth/callback` — OAuth callback for UI authentication.
+
+GET `/auth/me` — current UI session user.
+
+POST `/auth/logout` — end the UI session.
+
 ## Administer endpoints
 
 ### HTTP `/-/reload` [POST]
