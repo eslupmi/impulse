@@ -183,3 +183,4 @@ class TestUserUpdateHandler:
             await handler.handle("U123")
 
         mock_application._apply_admin_role.assert_called_once_with(user, 'alice')
+        mock_application.users.add_user.assert_called_once_with("U123", user, config_name='alice')
