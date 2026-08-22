@@ -26,70 +26,31 @@ class BaseUser(ABC):
         """Return the messenger-specific API payload for this user."""
 
 
-class UndefinedUser(BaseUser):
-    def __init__(self, name: str):
-        super().__init__(name, None, False)
-        self.defined = False
-    
-    def get_notification_identifier(self):
-        return None
-
-    def serialize(self) -> dict:
-        return {
-            'exists': self.exists,
-            'full_name': None,
-            'id': None,
-            'roles': list(self.roles),
-            'username': None,
-        }
-
-
 class UserManager:
-    """User registry for BaseUser objects.
-    
-    Users are stored by user_id as the primary key.
-    Config names are mapped to user_ids for lookup compatibility.
-    """
-    
     def __init__(self):
         self._users: dict[str, BaseUser] = {}  # user_id -> BaseUser
-        self._config_names: dict[str, str] = {}  # config_name -> user_id
-    
-    def add_config_name(self, config_name: str, user_id: str) -> None:
-        """Add a config name mapping for an existing user."""
-        self._config_names[config_name] = user_id
-    
+        self._named: dict[str, BaseUser] = {}  # config_name -> BaseUser
+
     def add_user(self, user_id: str, user: BaseUser, config_name: str | None = None) -> None:
-        """Add a user by user_id, optionally with a config name mapping."""
         self._users[user_id] = user
         if config_name:
-            self._config_names[config_name] = user_id
+            self._named[config_name] = user
 
     def get(self, name: str, default=None) -> BaseUser | None:
-        """Get user by config name or user_id. Returns default if not found."""
-        user = self._resolve_user(name)
-        if isinstance(user, UndefinedUser):
-            return default
-        return user
-    
+        return self._named.get(name) or self._users.get(name) or default
+
     def get_user_by_id(self, user_id: int | str) -> BaseUser | None:
-        """Get user by their messenger ID."""
-        str_id = str(user_id)
-        if str_id in self._users:
-            return self._users[str_id]
-        return None
+        return self._users.get(str(user_id))
 
     def get_assignable_users(self) -> list[dict]:
-        """Return list of users available for assignment in the UI."""
-        config_id_to_name = {uid: name for name, uid in self._config_names.items()}
         result = []
-        for user_id, user in self._users.items():
+        for config_name, user in self._named.items():
             if not user.exists:
                 continue
             result.append({
-                'user_id': str(user_id),
-                'full_name': user.full_name or user.name or str(user_id),
-                'config_name': config_id_to_name.get(user_id, ''),
+                'user_id': str(user.id),
+                'full_name': user.full_name or user.name or str(user.id),
+                'config_name': config_name,
             })
         return result
 
@@ -100,36 +61,8 @@ class UserManager:
         return None
 
     def serialize(self) -> dict[str, dict]:
-        result = {}
-        for config_name in sorted(self._config_names):
-            user = self._users.get(self._config_names[config_name])
-            if user is None:
-                continue
-            result[config_name] = user.serialize()
-        return result
+        return {name: user.serialize() for name, user in sorted(self._named.items())}
 
     def serialize_one(self, name: str) -> dict | None:
-        user_id = self._config_names.get(name)
-        if user_id is None:
-            return None
-        user = self._users.get(user_id)
-        if user is None:
-            return None
-        return user.serialize()
-    
-    ### PRIVATE METHODS ###
-
-    def _resolve_user(self, name: str) -> BaseUser:
-        """Resolve a name to a user, checking config names first, then user_ids."""
-        user_id = self._resolve_user_id(name)
-        if user_id is None:
-            return UndefinedUser(name)
-        return self._users.get(user_id, UndefinedUser(name))
-
-    def _resolve_user_id(self, name: str) -> str | None:
-        if name in self._config_names:
-            return self._config_names[name]
-        str_name = str(name)
-        if str_name in self._users:
-            return str_name
-        return None
+        user = self._named.get(name)
+        return user.serialize() if user else None

@@ -14,7 +14,7 @@ jobs:
   autotests:
     runs-on: self-hosted
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         include:
           - messenger_type: slack
@@ -55,7 +55,8 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.AUTOTESTS_TELEGRAM_BOT_TOKEN }}
           IMPULSE_IMAGE_TAG: ${{ inputs.branch }}
         run: |
-          docker run -d --pull always --rm --name impulse-autotests-${{ matrix.messenger_type }} \
+          NAME="impulse-autotests-${{ matrix.messenger_type }}"
+          docker run -d --pull always --rm --name "$NAME-${{ github.run_id }}" \
             -p ${{ matrix.port }}:5000 \
             -v "${{ github.workspace }}/autotests-${{ matrix.messenger_type }}:/config:ro" \
             -e SLACK_VERIFICATION_TOKEN="$SLACK_VERIFICATION_TOKEN" \
@@ -86,6 +87,7 @@ jobs:
           TELEGRAM_SESSION_BASE64: ${{ secrets.AUTOTESTS_TELEGRAM_SESSION_BASE64 }}
           IMPULSE_URL: http://localhost:${{ matrix.port }}/${{ matrix.messenger_type }}
           MESSENGER_TYPE: ${{ matrix.messenger_type }}
+          PYTHONUNBUFFERED: "1"
         run: |
           cd autotests-${{ matrix.messenger_type }}
           if [ "${{ matrix.messenger_type }}" = "telegram" ]; then
@@ -99,7 +101,7 @@ jobs:
       - name: Stop impulse container
         if: always()
         run: |
-          docker stop impulse-autotests-${{ matrix.messenger_type }} || true
+          docker rm -f impulse-autotests-${{ matrix.messenger_type }}-${{ github.run_id }} || true
 
       - name: Cleanup workspace
         if: always()

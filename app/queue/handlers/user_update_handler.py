@@ -30,7 +30,7 @@ class UserUpdateHandler(BaseHandler):
             user = self.app.create_user(config_name, user_details)
             if user and self.app.users:
                 self.app._apply_admin_role(user, config_name)
-                self.app.users.add_user(user_id, user)
+                self.app.users.add_user(user_id, user, config_name=config_name)
             logger.info('User data refreshed', extra={'user_id': user_id})
         except Exception as e:  # noqa: BLE001
             logger.error('Failed to update user', extra={'user_id': user_id, 'error': str(e)})

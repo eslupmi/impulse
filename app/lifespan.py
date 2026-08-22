@@ -56,7 +56,9 @@ async def create_main_objects(fastapi_app: FastAPI, reload=False):
     channels = channel_manager.initialize(route.get_uniq_channels(), config_data.messenger.channels, route.channel)
     default_channel = route.channel
     messenger = get_application(
-        config_data.messenger, channels, default_channel, task_management_config=config_data.app.task_management
+        config_data.messenger, channels, default_channel,
+        task_management_config=config_data.app.task_management,
+        webhooks=webhooks_config,
     )
     await messenger.initialize_async()
     webhooks = generate_webhooks(webhooks_config)

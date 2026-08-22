@@ -33,7 +33,7 @@ from app.im.template import (
 )
 from app.im.user_groups import generate_user_groups
 from app.im.user_store import UserUpdateScheduler, get_user_store
-from app.im.users import BaseUser, UndefinedUser, UserManager
+from app.im.users import BaseUser, UserManager
 from app.incident.freeze import FreezeSource
 from app.incident.incident import unfreeze_incident
 from app.integrations.jira_integration import JiraIntegration
@@ -53,14 +53,20 @@ log_button_pressed = 'Button pressed'
 class Application(ABC):
     task_management_integration: JiraIntegration | None = None
 
-    def __init__(self, app_config: ApplicationConfig, channels, default_channel):
+    def __init__(self, app_config: ApplicationConfig, channels, default_channel, webhooks=None):
         self.http: RateLimitedClient | None = None
         self.type = app_config.type
         self.url = self.get_url(app_config)
         self.public_url = None
         self.team = self.get_team_name(app_config)
         self._app_config = app_config
-        self.chains = ChainFactory.generate(app_config.chains)
+        self.chains = ChainFactory.generate(
+            app_config.chains,
+            users=app_config.users or {},
+            user_groups=app_config.user_groups or {},
+            groups=app_config.groups or {},
+            webhooks=webhooks or {},
+        )
         self.templates = app_config.template_files
         self.body_template, self.header_template, self.status_icons_template = self.generate_template()
 
@@ -151,12 +157,6 @@ class Application(ABC):
         for config_name, user_info in self._users_config.items():
             if str(user_info.id) == str_user_id:
                 return config_name
-        return None
-
-    def get_configured_user_name(self, user_id):
-        user = self.users.get_user_by_id(user_id)
-        if user and user.exists:
-            return user.name
         return None
 
     def get_notification_destinations(self):
@@ -265,7 +265,10 @@ class Application(ABC):
     def _init_admin_users(self):
         admins = []
         for admin in self._admin_users_config:
-            user = self.users.get(admin) or UndefinedUser(admin)
+            user = self.users.get(admin)
+            if user is None:
+                logger.warning('Admin user not found', extra={'user': admin})
+                continue
             self._apply_admin_role(user, admin)
             admins.append(user)
         return admins
@@ -419,16 +422,6 @@ class Application(ABC):
             if self._user_scheduler:
                 self._user_scheduler.schedule_update(user_id_str)
 
-    async def _assign_from_api(self, incident, user_id):
-        user_details = await self.get_user_details({'id': user_id})
-        assigned_name = self._format_display_name(user_details)
-        incident.assign_fullname(assigned_name)
-        
-        if user_details.get('username'):
-            incident.assign_user(user_details.get('username'))
-        if user_details.get('exists'):
-            self._add_discovered_user(user_id, user_details)
-    
     @staticmethod
     def _format_display_name(user_details: dict) -> str:
         full_name = user_details.get('full_name')
@@ -449,13 +442,14 @@ class Application(ABC):
         messenger_type = self.type.value
 
         user_manager = UserManager()
-        stored_user_ids = self._load_stored_users(user_manager, user_store, messenger_type)
+        stored = self._load_stored_users(user_store, messenger_type)
 
         for name, user_info in users_dict.items():
             user_id = str(user_info.id)
-            if user_id in stored_user_ids:
-                user_manager.add_config_name(name, user_id)
-                self._apply_admin_role(user_manager.get(name), name)
+            if user_id in stored:
+                user = self.create_user(name, stored[user_id])
+                self._apply_admin_role(user, name)
+                user_manager.add_user(user_id, user, config_name=name)
                 continue
 
             user_details = await self.get_user_details(user_info)
@@ -538,12 +532,11 @@ class Application(ABC):
     def _initialize_specific_params(self):
         pass
 
-    def _load_stored_users(self, user_manager: UserManager, user_store, messenger_type: str) -> set:
+    def _load_stored_users(self, user_store, messenger_type: str) -> dict:
         stored_users = user_store.get_all_users_by_type(messenger_type)
-        loaded_ids = set()
-
+        result = {}
         for user_id, stored_data in stored_users.items():
-            user_details = {
+            result[user_id] = {
                 'id': user_id,
                 'exists': True,
                 'full_name': stored_data.get('full_name'),
@@ -551,17 +544,9 @@ class Application(ABC):
                 'email': stored_data.get('email'),
                 'timezone': stored_data.get('timezone'),
             }
-            config_name = self.get_config_name_by_user_id(user_id)
-            user = self.create_user(config_name, user_details)
-            if user:
-                self._apply_admin_role(user, config_name)
-                user_manager.add_user(user_id, user)
-                loaded_ids.add(user_id)
-
-        if loaded_ids:
-            logger.info(f'Loaded {len(loaded_ids)} users from storage')
-
-        return loaded_ids
+        if result:
+            logger.info(f'Loaded {len(result)} users from storage')
+        return result
 
     @abstractmethod
     def _markdown_links_to_native_format(self, text):
@@ -621,17 +606,6 @@ class Application(ABC):
         )
         client.initialize_client()
         return client
-
-    def _try_assign_from_user_manager(self, incident, user_id):
-        cached_user = self.users.get_user_by_id(user_id)
-        if not (cached_user and cached_user.exists):
-            return False
-        
-        incident.assign_fullname(cached_user.name)
-        notification_id = cached_user.get_notification_identifier()
-        if notification_id and notification_id != cached_user.id:
-            incident.assign_user(notification_id)
-        return True
 
     @abstractmethod
     async def _update_incident_message(self, id_, payload):

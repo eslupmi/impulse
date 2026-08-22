@@ -28,8 +28,8 @@ class TelegramApplication(Application):
         '5309958691854754293': '💎', # frozen 
     }
 
-    def __init__(self, app_config: ApplicationConfig, channels, users):
-        super().__init__(app_config, channels, users)
+    def __init__(self, app_config: ApplicationConfig, channels, users, webhooks=None):
+        super().__init__(app_config, channels, users, webhooks=webhooks)
 
     async def buttons_handler(self, payload, incidents, queue_, route):
         if 'callback_query' not in payload:

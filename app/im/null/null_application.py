@@ -18,8 +18,8 @@ class NullApplication(Application):
     for all messenger functionality. Allows running the application with UI only.
     """
 
-    def __init__(self, app_config, channels, default_channel):
-        super().__init__(app_config, channels, default_channel)
+    def __init__(self, app_config, channels, default_channel, webhooks=None):
+        super().__init__(app_config, channels, default_channel, webhooks=webhooks)
 
     def generate_template(self):
         """Override template generation to avoid requiring template files"""
@@ -64,9 +64,6 @@ class NullApplication(Application):
 
     async def update(self, incident, incident_status, alert_state, updated_status, chain_enabled,
                      frozen_until, task_link='', previous_payload=None):
-        return
-
-    async def new_version_notification(self, channel_id, new_tag):
         return
 
     async def notify(self, incident, step):

@@ -16,6 +16,7 @@ from app.config.validation import (
     ScheduleMatcherExpression,
     SimpleChainStep,
 )
+from app.im.chain.filter_steps import filter_undeclared_steps
 from app.im.chain.schedule_chain import ScheduleChain
 from app.logging import logger
 from app.tools import HTMLTextExtractor
@@ -25,11 +26,11 @@ class GoogleCalendarChain(ScheduleChain):
     _UTC_OFFSET = '+00:00'
     _Z_TIMEZONE = 'Z'
 
-    def __init__(self, name, config: CloudChain):
+    def __init__(self, name, config: CloudChain, registries: dict | None = None):
         super().__init__(name)
-        
-        # Get environment configuration
+
         self._env_config = get_environment_config()
+        self._registries = registries or {}
 
         self.calendar_id = config.calendar_id
         if not self.calendar_id:
@@ -296,9 +297,12 @@ class GoogleCalendarChain(ScheduleChain):
         duration_str = f"{int(duration.total_seconds() / 60)}m"
 
         steps_dicts = self._parse_steps_from_description(event.get('description', ''))
-        steps = [SimpleChainStep(**step_dict) for step_dict in steps_dicts]
+        steps = filter_undeclared_steps(
+            self.name,
+            [SimpleChainStep(**step_dict) for step_dict in steps_dicts],
+            **(getattr(self, '_registries', None) or {}),
+        )
 
-        # Create matcher expression
         matcher = ScheduleMatcherExpression(
             start_day_expr='date',
             start_day_values=[start_dt.strftime('%Y-%m-%d')],

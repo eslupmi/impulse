@@ -18,8 +18,8 @@ from app.logging import logger
 
 class MattermostApplication(Application):
 
-    def __init__(self, app_config: ApplicationConfig, channels, default_channel):
-        super().__init__(app_config, channels, default_channel)
+    def __init__(self, app_config: ApplicationConfig, channels, default_channel, webhooks=None):
+        super().__init__(app_config, channels, default_channel, webhooks=webhooks)
 
     async def _dispatch_button_action(self, incident_, payload, user_id, incidents, queue_, user_tz):
         context = payload.get('context', {})

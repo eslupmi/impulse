@@ -224,6 +224,13 @@ class TestGoogleCalendarChainConvertEvent:
                 with patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data'):
                     chain = GoogleCalendarChain.__new__(GoogleCalendarChain)
                     chain.name = "test"
+                    chain._registries = {
+                        'users': {'test_user': {}, 'user1': {}, 'user2': {}},
+                        'user_groups': {},
+                        'groups': {},
+                        'webhooks': {},
+                        'chains': {},
+                    }
 
                     result = chain._convert_event_to_matcher(sample_calendar_event)
 
@@ -241,6 +248,13 @@ class TestGoogleCalendarChainConvertEvent:
                 with patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data'):
                     chain = GoogleCalendarChain.__new__(GoogleCalendarChain)
                     chain.name = "test"
+                    chain._registries = {
+                        'users': {'test_user': {}, 'user1': {}, 'user2': {}},
+                        'user_groups': {},
+                        'groups': {},
+                        'webhooks': {},
+                        'chains': {},
+                    }
 
                     result = chain._convert_event_to_matcher(sample_calendar_event)
 
@@ -264,6 +278,13 @@ class TestGoogleCalendarChainConvertEvent:
                 with patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data'):
                     chain = GoogleCalendarChain.__new__(GoogleCalendarChain)
                     chain.name = "test"
+                    chain._registries = {
+                        'users': {'test_user': {}, 'user1': {}, 'user2': {}},
+                        'user_groups': {},
+                        'groups': {},
+                        'webhooks': {},
+                        'chains': {},
+                    }
 
                     result = chain._convert_event_to_matcher(event)
 
@@ -285,6 +306,13 @@ class TestGoogleCalendarChainConvertEvent:
                 with patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data'):
                     chain = GoogleCalendarChain.__new__(GoogleCalendarChain)
                     chain.name = "test"
+                    chain._registries = {
+                        'users': {'test_user': {}, 'user1': {}, 'user2': {}},
+                        'user_groups': {},
+                        'groups': {},
+                        'webhooks': {},
+                        'chains': {},
+                    }
 
                     result = chain._convert_event_to_matcher(event)
 
@@ -306,6 +334,13 @@ class TestGoogleCalendarChainConvertEvent:
                 with patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data'):
                     chain = GoogleCalendarChain.__new__(GoogleCalendarChain)
                     chain.name = "test"
+                    chain._registries = {
+                        'users': {'test_user': {}, 'user1': {}, 'user2': {}},
+                        'user_groups': {},
+                        'groups': {},
+                        'webhooks': {},
+                        'chains': {},
+                    }
 
                     result = chain._convert_event_to_matcher(event)
 
@@ -328,6 +363,13 @@ class TestGoogleCalendarChainConvertEvent:
                 with patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data'):
                     chain = GoogleCalendarChain.__new__(GoogleCalendarChain)
                     chain.name = "test"
+                    chain._registries = {
+                        'users': {'test_user': {}, 'user1': {}, 'user2': {}},
+                        'user_groups': {},
+                        'groups': {},
+                        'webhooks': {},
+                        'chains': {},
+                    }
 
                     result = chain._convert_event_to_matcher(event)
 
@@ -704,6 +746,13 @@ class TestGoogleCalendarChainEdgeCases:
                 with patch('app.im.chain.google_calendar_chain.GoogleCalendarChain._fetch_initial_data'):
                     chain = GoogleCalendarChain.__new__(GoogleCalendarChain)
                     chain.name = "test"
+                    chain._registries = {
+                        'users': {'test_user': {}, 'user1': {}, 'user2': {}},
+                        'user_groups': {},
+                        'groups': {},
+                        'webhooks': {},
+                        'chains': {},
+                    }
 
                     result = chain._convert_event_to_matcher(event)
 
