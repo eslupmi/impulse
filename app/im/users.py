@@ -49,7 +49,7 @@ class UserManager:
                 continue
             result.append({
                 'user_id': str(user.id),
-                'full_name': user.full_name,
+                'full_name': user.full_name or user.name or str(user.id),
                 'config_name': config_name,
             })
         return result
