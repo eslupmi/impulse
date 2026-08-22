@@ -55,7 +55,8 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.AUTOTESTS_TELEGRAM_BOT_TOKEN }}
           IMPULSE_IMAGE_TAG: ${{ inputs.branch }}
         run: |
-          docker run -d --pull always --rm --name impulse-autotests-${{ matrix.messenger_type }} \
+          NAME="impulse-autotests-${{ matrix.messenger_type }}"
+          docker run -d --pull always --rm --name "$NAME-${{ github.run_id }}" \
             -p ${{ matrix.port }}:5000 \
             -v "${{ github.workspace }}/autotests-${{ matrix.messenger_type }}:/config:ro" \
             -e SLACK_VERIFICATION_TOKEN="$SLACK_VERIFICATION_TOKEN" \
@@ -100,7 +101,7 @@ jobs:
       - name: Stop impulse container
         if: always()
         run: |
-          docker rm -f impulse-autotests-${{ matrix.messenger_type }} || true
+          docker rm -f impulse-autotests-${{ matrix.messenger_type }}-${{ github.run_id }} || true
 
       - name: Cleanup workspace
         if: always()
