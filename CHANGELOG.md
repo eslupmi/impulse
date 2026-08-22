@@ -3,6 +3,7 @@
 ## v3.7.0
 Changes:
 - Added templates for all [thread messages](https://docs.impulse.bot/stable/concepts/templates/#thread-messages)
+- Added instance names to [new_firing](https://docs.impulse.bot/stable/config_file/#incidentnotificationsnew_firing) and [partial_resolved](https://docs.impulse.bot/stable/config_file/#incidentnotificationspartial_resolved) notifications
 - Added [owner](https://docs.impulse.bot/stable/concepts/maintenance/#owner) field for maintenance windows
 - Added [`--downgrade` option](https://docs.impulse.bot/stable/versioning/#downgrade-process) to roll back to the previous minor version
 - Added [API](https://docs.impulse.bot/stable/concepts/api/) support
