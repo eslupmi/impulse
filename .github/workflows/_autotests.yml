@@ -100,7 +100,7 @@ jobs:
       - name: Stop impulse container
         if: always()
         run: |
-          docker stop impulse-autotests-${{ matrix.messenger_type }} || true
+          docker rm -f impulse-autotests-${{ matrix.messenger_type }} || true
 
       - name: Cleanup workspace
         if: always()
