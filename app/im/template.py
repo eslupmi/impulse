@@ -21,7 +21,6 @@ def _load_messenger_templates(name: str) -> dict:
 
 
 def template_users(messenger) -> dict:
-    """Config-name → user map for templates. Missing lookups stay None (NotDefined)."""
     return {
         config_name: messenger.users.get(config_name)
         for config_name in messenger._users_config

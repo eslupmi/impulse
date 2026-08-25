@@ -55,7 +55,7 @@ Below are all the configuration options supported by IMPulse.
 
 ### incident.notifications
 
-- **description:** incident notifications settings
+- **description:** incident notifications settings. Each notification is rendered from its own [thread template](concepts/templates.md#thread-messages)
 - **type:** dict
 
 #### incident.notifications.assignment
@@ -63,6 +63,12 @@ Below are all the configuration options supported by IMPulse.
 - **description:** enable/disable notifications about incident assignment changes
 - **type:** bool
 - **default value:** True
+
+#### incident.notifications.freeze
+
+- **description:** notifications about incident [freeze] by button (concepts/incident.md#frozen)
+- **type:** bool
+- **default value:** False
 
 #### incident.notifications.new_firing
 
@@ -236,6 +242,7 @@ Below are all the configuration options supported by IMPulse.
     messenger:
       chains:
         programmers:
+          - wait: 2m
           - user: Valery
           - wait: 5m
           - chain: devops
@@ -532,7 +539,7 @@ Below are all the configuration options supported by IMPulse.
 - **details:**
     
     !!! note ""
-        Instructions how to get groups `id`: [Slack](integrations/messengers/slack.md#get-group-id), [Mattermost](integrations/messengers/mattermost.md#get-group-ids)
+        Instructions how to get groups `id`: [Slack](integrations/messengers/slack.md#get-group-id), [Mattermost](integrations/messengers/mattermost.md#get-group-id)
 
 - **examples:**
 
@@ -608,15 +615,20 @@ Below are all the configuration options supported by IMPulse.
 
 ### messenger.template_files
 
+!!! warning
+    Deprecated and will be removed in `v4.0.0`
+
 - **description:** path to custom template files for `status_icons`, `header`, and `body` (see [Incident Structure](concepts/incident.md#messages-structure))
 - **type:** dict
-- **[special variables](concepts/special_variables.md):** `incident`, `incidents` and `payload` supported
+- **[special variables](concepts/special_variables.md):** `incident`, `payload`, `parents`, `childs`, `incidents` (deprecated)
 - **details:**
     
     !!! note ""
         IMPulse uses [jinja2 templates](https://pypi.org/project/Jinja2/) to set messages format. And you can modify it.
 
         Incident message contains three parts ([picture](concepts/incident.md#messages-structure)). Default template files for theese parts is [here](https://github.com/DiTsi/impulse/tree/develop/templates). You can copy the default templates, modify them, and specify custom paths.
+
+        Messages posted into the incident thread use separate templates that are not configured here (see [thread messages](concepts/templates.md#thread-messages)).
 
 - **examples:**
 
@@ -630,17 +642,26 @@ Below are all the configuration options supported by IMPulse.
 
 #### messenger.template_files.body
 
+!!! warning
+    Deprecated and will be removed in `v4.0.0`
+
 - **description:** path to the custom template file that defines the format of `body`
 - **type:** string
 - **default value:** `./templates/<messenger.type>_body.j2`
 
 #### messenger.template_files.header
 
+!!! warning
+    Deprecated and will be removed in `v4.0.0`
+
 - **description:** path to the custom template file that defines the format of `header`
 - **type:** string
 - **default value:** `./templates/<messenger.type>_header.j2`
 
 #### messenger.template_files.status_icons
+
+!!! warning
+    Deprecated and will be removed in `v4.0.0`
 
 - **description:** path to the custom template file that defines the format of `status_icons`
 - **type:** string
@@ -772,6 +793,9 @@ Below are all the configuration options supported by IMPulse.
 
 ### task_management.template_files
 
+!!! warning
+    Deprecated and will be removed in `v4.0.0`
+
 - **description:** path to custom template files for task creation
 - **type:** dict
 - **[special variables](concepts/special_variables.md):** `incident` supported
@@ -794,11 +818,17 @@ Below are all the configuration options supported by IMPulse.
 
 #### task_management.template_files.summary
 
+!!! warning
+    Deprecated and will be removed in `v4.0.0`
+
 - **description:** path to the custom template file that defines the format of task summary
 - **type:** string
 - **default value:** `./templates/<task_management.type>_summary.j2`
 
 #### task_management.template_files.description
+
+!!! warning
+    Deprecated and will be removed in `v4.0.0`
 
 - **description:** path to the custom template file that defines the format of task description
 - **type:** string

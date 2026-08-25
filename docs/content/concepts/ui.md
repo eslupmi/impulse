@@ -28,13 +28,13 @@ The footer can be divided into 3 parts:
 
 - on the left is an "online" / "offline" indicator to help you understand how current the information you're viewing is.
 - in the center is a page switcher
-- on the right are 4 buttons :
+- on the right are 6 buttons :
 
     - **maintenance** (visible when authenticated)
     - **ui chains** (visible when authenticated)
     - **theme switcher**
-    - **archive** - for displaying historical data (incidents in [closed](incident.md#closed) status)
-    - **login** (**logout**) (see [Authentication](../guides/authentication.md))
+    - **archive** - for displaying historical data ([closed](incident.md#closed) incidents)
+    - **login / logout** (see [Authentication](../guides/authentication.md))
     - **notifications icon** (visible when maintenance is active)
 
 ## Features

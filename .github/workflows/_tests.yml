@@ -5,7 +5,7 @@ on:
     inputs:
       runs-on:
         type: string
-        default: ubuntu-24.04
+        default: self-hosted
       python-versions:
         type: string
         default: '["3.12"]'
