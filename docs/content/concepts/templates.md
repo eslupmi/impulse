@@ -3,7 +3,7 @@
 !!! warning
     Optional paths for templates will be removed in `v4.0.0`
 
-IMPulse uses Jinja2 templates. Templates allow you to modify incident [messages](#messages) and [thread messages](#thread-messages).
+IMPulse uses Jinja2 templates. Templates allow you to modify incident [messages](#incident-messages) and [thread messages](#thread-messages).
 
 Also you can modify templates for [task management](#task-management).
 

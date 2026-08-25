@@ -539,7 +539,7 @@ Below are all the configuration options supported by IMPulse.
 - **details:**
     
     !!! note ""
-        Instructions how to get groups `id`: [Slack](integrations/messengers/slack.md#get-group-id), [Mattermost](integrations/messengers/mattermost.md#get-group-ids)
+        Instructions how to get groups `id`: [Slack](integrations/messengers/slack.md#get-group-id), [Mattermost](integrations/messengers/mattermost.md#get-group-id)
 
 - **examples:**
 
