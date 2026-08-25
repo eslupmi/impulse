@@ -178,7 +178,7 @@ jobs:
             for messenger in $MESSENGERS; do
               printf "${YELLOW}%s${RESET}\n" "::group::migration compare original and upgrade for $messenger"
               echo "::group::migration compare original and upgrade for $messenger"
-              diff --color=always -ru "$ROOT/$messenger/0_original" "$ROOT/$messenger/1_upgrade"
+              diff --color=always -ru "$ROOT/$messenger/0_original" "$ROOT/$messenger/1_upgrade" || true
               printf "${YELLOW}%s${RESET}\n" "::endgroup::"
               echo "::endgroup::"
             done
