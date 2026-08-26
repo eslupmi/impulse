@@ -75,12 +75,11 @@ Server readiness check. Used for health checks and determining server state (see
 
 - `200 OK` - Server is ready and running in **primary** mode
 - `503 Service Unavailable` - Server is in **standby** mode or initializing
+### other
 
 GET `/ui_config` — UI table and display configuration.
 
 GET `/chains_config` — messenger chains, users, groups, webhooks, and timezone settings used by the UI. Authentication required when auth is enabled.
-
-### other
 
 !!! warning
     Will be moved under `/api` since `v4.0.0`
