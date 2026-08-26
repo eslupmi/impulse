@@ -63,6 +63,18 @@ class TestSlackApplicationConfig:
         assert config.users["admin1"].id == "U123456"
         assert config.template_files.status_icons is None
 
+    def test_slack_strips_trailing_slash_from_impulse_address(self):
+        config = SlackApplicationConfig(
+            type=MessengerType.SLACK,
+            admin_users=["admin1"],
+            channels={"default": {"id": "C123456789"}},
+            users={"admin1": {"id": "U123456"}},
+            template_files={},
+            impulse_address="https://impulse.example.com/",
+        )
+
+        assert config.impulse_address == "https://impulse.example.com"
+
     def test_slack_config_with_template_files(self):
         """Test SlackApplicationConfig with template files."""
         template_files = {
@@ -119,6 +131,21 @@ class TestMattermostApplicationConfig:
         assert config.team == "test-team"
         assert config.impulse_address == "https://impulse.example.com"
 
+    def test_mattermost_strips_trailing_slashes_from_addresses(self):
+        config = MattermostApplicationConfig(
+            type=MessengerType.MATTERMOST,
+            admin_users=["admin1"],
+            channels={"default": {"id": "channel123"}},
+            users={"admin1": {"id": "user123"}},
+            template_files={},
+            address="https://mattermost.example.com/",
+            team="test-team",
+            impulse_address="https://impulse.example.com/prefix/"
+        )
+
+        assert config.address == "https://mattermost.example.com"
+        assert config.impulse_address == "https://impulse.example.com/prefix"
+
 
 class TestTelegramApplicationConfig:
     """Test cases for TelegramApplicationConfig."""
@@ -140,6 +167,20 @@ class TestTelegramApplicationConfig:
         assert "admin1" in config.users
         assert config.users["admin1"].id == 123456789
         assert config.template_files.status_icons is None
+        assert config.impulse_address == "https://impulse.example.com"
+
+    def test_telegram_strips_trailing_slashes_from_addresses(self):
+        config = TelegramApplicationConfig(
+            type=MessengerType.TELEGRAM,
+            admin_users=["admin1"],
+            channels={"default": {"id": -1001234567890}},
+            users={"admin1": {"id": 123456789}},
+            template_files={},
+            address="https://telegram-api.example.com/",
+            impulse_address="https://impulse.example.com/"
+        )
+
+        assert config.address == "https://telegram-api.example.com"
         assert config.impulse_address == "https://impulse.example.com"
 
 
@@ -434,6 +475,7 @@ class TestValidateConfig:
         assert config.incident.notifications.new_firing is True
         assert config.incident.notifications.partial_resolved is True
         assert config.incident.notifications.status_update is True
+        assert config.incident.notifications.freeze is False
         assert config.incident.timeouts.firing == "6h"
         assert config.incident.timeouts.unknown == "1h"
         assert config.incident.timeouts.resolved == "5m"
@@ -631,6 +673,7 @@ class TestIncidentNotifications:
         assert notifications.new_firing is True
         assert notifications.partial_resolved is True
         assert notifications.status_update is True
+        assert notifications.freeze is False
 
     def test_incident_notifications_get_method(self):
         """Test IncidentNotifications get method."""

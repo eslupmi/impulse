@@ -8,21 +8,21 @@ on:
         type: string
       runs-on:
         type: string
-        default: ubuntu-24.04
+        default: self-hosted
 
 jobs:
   autotests:
-    runs-on: ${{ inputs.runs-on }}
+    runs-on: self-hosted
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         include:
           - messenger_type: slack
             port: 15100
           - messenger_type: mattermost
             port: 15101
-          # - messenger_type: telegram
-          #   port: 15102
+          - messenger_type: telegram
+            port: 15102
     permissions:
       contents: read
       packages: read
@@ -55,7 +55,8 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.AUTOTESTS_TELEGRAM_BOT_TOKEN }}
           IMPULSE_IMAGE_TAG: ${{ inputs.branch }}
         run: |
-          docker run -d --pull always --rm --name impulse-autotests-${{ matrix.messenger_type }} \
+          NAME="impulse-autotests-${{ matrix.messenger_type }}"
+          docker run -d --pull always --rm --name "$NAME-${{ github.run_id }}" \
             -p ${{ matrix.port }}:5000 \
             -v "${{ github.workspace }}/autotests-${{ matrix.messenger_type }}:/config:ro" \
             -e SLACK_VERIFICATION_TOKEN="$SLACK_VERIFICATION_TOKEN" \
@@ -63,11 +64,16 @@ jobs:
             -e MATTERMOST_ACCESS_TOKEN="$MATTERMOST_ACCESS_TOKEN" \
             -e TELEGRAM_BOT_TOKEN="$TELEGRAM_BOT_TOKEN" \
             -e CONFIG_PATH="/config" \
+            -e HTTP_PREFIX="/${{ matrix.messenger_type }}" \
             ghcr.io/eslupmi/impulse:"${IMPULSE_IMAGE_TAG}"
 
-      - name: Wait 60 seconds for impulse container to be ready
+      - name: Wait for impulse container to be ready
         run: |
-          sleep 60
+          for i in $(seq 1 60); do
+            curl -sf "http://localhost:${{ matrix.port }}/${{ matrix.messenger_type }}/readyz" && exit 0
+            sleep 1
+          done
+          exit 1
 
       - name: Run autotests for ${{ matrix.messenger_type }}
         env:
@@ -79,8 +85,9 @@ jobs:
           API_ID: ${{ secrets.AUTOTESTS_API_ID }}
           API_HASH: ${{ secrets.AUTOTESTS_API_HASH }}
           TELEGRAM_SESSION_BASE64: ${{ secrets.AUTOTESTS_TELEGRAM_SESSION_BASE64 }}
-          IMPULSE_URL: http://localhost:${{ matrix.port }}
+          IMPULSE_URL: http://localhost:${{ matrix.port }}/${{ matrix.messenger_type }}
           MESSENGER_TYPE: ${{ matrix.messenger_type }}
+          PYTHONUNBUFFERED: "1"
         run: |
           cd autotests-${{ matrix.messenger_type }}
           if [ "${{ matrix.messenger_type }}" = "telegram" ]; then
@@ -94,7 +101,7 @@ jobs:
       - name: Stop impulse container
         if: always()
         run: |
-          docker stop impulse-autotests-${{ matrix.messenger_type }} || true
+          docker rm -f impulse-autotests-${{ matrix.messenger_type }}-${{ github.run_id }} || true
 
       - name: Cleanup workspace
         if: always()

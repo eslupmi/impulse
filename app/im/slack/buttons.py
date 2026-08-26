@@ -1,7 +1,4 @@
-from app.config.config import get_config
-from app.config.environment import get_environment_config
 from app.im.slack.config import buttons
-from app.time import format_freeze_expiration
 
 
 def chain_attrs(chain_enabled, status):

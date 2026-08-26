@@ -5,133 +5,10 @@ from unittest.mock import Mock
 
 import pytest
 
-from app.im.users import BaseUser, UndefinedUser, UserManager
+from app.im.users import BaseUser, UserManager
 from app.im.telegram.user import User as TelegramUser
 from app.im.slack.user import User as SlackUser
 from app.im.mattermost.user import User as MattermostUser
-
-
-class TestUndefinedUser:
-    """Test cases for UndefinedUser class."""
-
-    def test_undefined_user_creation(self):
-        """Test creating an UndefinedUser instance."""
-        user = UndefinedUser("testuser")
-
-        assert user.name == "testuser"
-        assert user.defined is False
-
-    def test_undefined_user_with_empty_name(self):
-        """Test creating an UndefinedUser with empty name."""
-        user = UndefinedUser("")
-
-        assert user.name == ""
-        assert user.defined is False
-
-    def test_undefined_user_with_none_name(self):
-        """Test creating an UndefinedUser with None name."""
-        user = UndefinedUser(None)
-
-        assert user.name is None
-        assert user.defined is False
-
-    def test_undefined_user_with_special_characters(self):
-        """Test creating an UndefinedUser with special characters in name."""
-        user = UndefinedUser("user@domain.com")
-
-        assert user.name == "user@domain.com"
-        assert user.defined is False
-
-    def test_undefined_user_with_unicode_name(self):
-        """Test creating an UndefinedUser with unicode characters."""
-        user = UndefinedUser("用户")
-
-        assert user.name == "用户"
-        assert user.defined is False
-
-    def test_undefined_user_with_long_name(self):
-        """Test creating an UndefinedUser with long name."""
-        long_name = "a" * 1000
-        user = UndefinedUser(long_name)
-
-        assert user.name == long_name
-        assert user.defined is False
-
-    def test_undefined_user_attributes_immutable(self):
-        """Test that UndefinedUser attributes are properly set and immutable."""
-        user = UndefinedUser("testuser")
-
-        # Test that attributes are set correctly
-        assert user.name == "testuser"
-        assert user.defined is False
-
-        # Test that defined is always False (immutable behavior)
-        assert user.defined is False
-
-    def test_undefined_user_string_representation(self):
-        """Test string representation of UndefinedUser."""
-        user = UndefinedUser("testuser")
-
-        # The class doesn't define __str__ or __repr__, so we test the attributes
-        assert hasattr(user, 'name')
-        assert hasattr(user, 'defined')
-        assert user.name == "testuser"
-        assert user.defined is False
-
-    def test_undefined_user_equality(self):
-        """Test equality comparison of UndefinedUser instances."""
-        user1 = UndefinedUser("testuser")
-        user2 = UndefinedUser("testuser")
-        user3 = UndefinedUser("different")
-
-        # Since no __eq__ is defined, instances are compared by identity
-        assert user1 is not user2
-        assert user1 != user2  # Different instances
-        assert user1 != user3  # Different names
-
-    def test_undefined_user_hash(self):
-        """Test hash behavior of UndefinedUser instances."""
-        user1 = UndefinedUser("testuser")
-        user2 = UndefinedUser("testuser")
-
-        # Since no __hash__ is defined, instances should be hashable
-        # (default object hash behavior)
-        assert hash(user1) != hash(user2)  # Different instances have different hashes
-
-    def test_undefined_user_type(self):
-        """Test that UndefinedUser is of correct type."""
-        user = UndefinedUser("testuser")
-
-        assert isinstance(user, UndefinedUser)
-        assert type(user).__name__ == "UndefinedUser"
-
-    def test_undefined_user_module_import(self):
-        """Test that UndefinedUser can be imported from the module."""
-        from app.im.users import UndefinedUser
-
-        user = UndefinedUser("testuser")
-        assert user.name == "testuser"
-        assert user.defined is False
-    
-    def test_undefined_user_inherits_from_base(self):
-        """Test that UndefinedUser inherits from BaseUser."""
-        user = UndefinedUser("testuser")
-        assert isinstance(user, BaseUser)
-    
-    def test_undefined_user_has_required_attributes(self):
-        """Test that UndefinedUser has all required attributes."""
-        user = UndefinedUser("testuser")
-        assert hasattr(user, 'name')
-        assert hasattr(user, 'id')
-        assert hasattr(user, 'exists')
-        assert hasattr(user, 'defined')
-        assert user.id is None
-        assert user.exists is False
-    
-    def test_undefined_user_get_notification_identifier(self):
-        """Test that UndefinedUser returns None for notification identifier."""
-        user = UndefinedUser("testuser")
-        assert user.get_notification_identifier() is None
 
 
 class TestTelegramUser:
@@ -154,6 +31,19 @@ class TestTelegramUser:
         """Test that Telegram user returns ID for notifications."""
         user = TelegramUser("John Doe", id_=12345)
         assert user.get_notification_identifier() == 12345
+
+    def test_telegram_user_serialize(self):
+        user = TelegramUser("john", id_="12345", exists=True, full_name="John Doe", username="johnny")
+        payload = user.serialize()
+        assert payload == {
+            "exists": True,
+            "full_name": "John Doe",
+            "id": 12345,
+            "roles": [],
+            "username": "johnny",
+        }
+        assert isinstance(payload["id"], int)
+        assert list(payload) == sorted(payload)
     
     def test_telegram_user_repr(self):
         """Test string representation of Telegram user."""
@@ -181,6 +71,29 @@ class TestSlackUser:
         """Test that Slack user returns ID for notifications."""
         user = SlackUser("Jane Smith", id_="U12345")
         assert user.get_notification_identifier() == "U12345"
+
+    def test_slack_user_serialize(self):
+        user = SlackUser(
+            "jane",
+            id_="U12345",
+            exists=True,
+            full_name="Jane Smith",
+            username="jane",
+            email="jane@example.com",
+            timezone_="America/New_York",
+        )
+        payload = user.serialize()
+        assert payload == {
+            "email": "jane@example.com",
+            "exists": True,
+            "full_name": "Jane Smith",
+            "id": "U12345",
+            "roles": [],
+            "timezone": "America/New_York",
+            "username": "jane",
+        }
+        assert isinstance(payload["id"], str)
+        assert list(payload) == sorted(payload)
     
     def test_slack_user_repr(self):
         """Test string representation of Slack user."""
@@ -209,6 +122,29 @@ class TestMattermostUser:
         """Test that Mattermost user returns username for notifications."""
         user = MattermostUser("Bob Johnson", id_="abc123", username="bjohnson")
         assert user.get_notification_identifier() == "bjohnson"
+
+    def test_mattermost_user_serialize(self):
+        user = MattermostUser(
+            "bob",
+            id_="abc123",
+            username="bjohnson",
+            exists=True,
+            full_name="Bob Johnson",
+            email="bob@example.com",
+            timezone_="UTC",
+        )
+        payload = user.serialize()
+        assert payload == {
+            "email": "bob@example.com",
+            "exists": True,
+            "full_name": "Bob Johnson",
+            "id": "abc123",
+            "roles": [],
+            "timezone": "UTC",
+            "username": "bjohnson",
+        }
+        assert isinstance(payload["id"], str)
+        assert list(payload) == sorted(payload)
     
     def test_mattermost_user_repr(self):
         """Test string representation of Mattermost user."""

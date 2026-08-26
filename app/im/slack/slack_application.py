@@ -8,13 +8,14 @@ from app.config.validation import ApplicationConfig
 from app.im.application import Application
 from app.im.slack.threads import get_incident_message_payload, slack_get_update_payload
 from app.im.slack.user import User
+from app.im.users import BaseUser
 from app.logging import logger
 
 
 class SlackApplication(Application):
 
-    def __init__(self, app_config: ApplicationConfig, channels, default_channel):
-        super().__init__(app_config, channels, default_channel)
+    def __init__(self, app_config: ApplicationConfig, channels, default_channel, webhooks=None):
+        super().__init__(app_config, channels, default_channel, webhooks=webhooks)
 
     def create_user(self, name, user_details):
         return User(
@@ -22,6 +23,8 @@ class SlackApplication(Application):
             id_=user_details.get('id'),
             exists=user_details.get('exists'),
             full_name=user_details.get('full_name'),
+            username=user_details.get('username'),
+            email=user_details.get('email'),
             timezone_=user_details.get('timezone')
         )
 
@@ -89,8 +92,8 @@ class SlackApplication(Application):
         is_freeze_action = any(action['name'] == 'freeze' for action in actions)
 
         # Block non-freeze actions if incident is frozen
-        if incident_.is_frozen() and (incident_.frozen_by_inhibition or not is_freeze_action):
-            logger.debug('Incident frozen, blocking actions', extra={'incident': incident_.uuid})
+        if incident_.is_frozen and (incident_.frozen_by_inhibition or not is_freeze_action):
+            logger.debug('Incident frozen, blocking actions', extra={'incident': incident_.uniq_id})
             return JSONResponse(original_message, status_code=200)
         else:
             user_tz = self._get_user_timezone_str(user_id)
@@ -122,11 +125,13 @@ class SlackApplication(Application):
         for config_name, group_info in groups_dict.items():
             group_name = all_groups.get(group_info.id)
             group_exists = group_name is not None
-            group_details = {'id': group_info.id, 'name': group_name, 'exists': group_exists}
             if not group_exists:
                 logger.warning('Group not found in Slack', extra={'group': config_name})
-                group_details = {'id': None, 'name': None, 'exists': False}
-            groups[config_name] = self.create_group(config_name, group_details)
+            groups[config_name] = self.create_group(config_name, {
+                'id': group_info.id,
+                'name': group_name,
+                'exists': group_exists,
+            })
 
         return groups
 
@@ -140,7 +145,7 @@ class SlackApplication(Application):
         return JSONResponse(response_payload, status_code=200)
 
     async def _get_public_url(self, app_config: ApplicationConfig):
-        response = await self.http.get(
+        response = await self.http.get(  # type: ignore[union-attr]
             'https://slack.com/api/auth.test',
             headers=self.headers
         )
@@ -154,19 +159,22 @@ class SlackApplication(Application):
     def _get_url(self, app_config: ApplicationConfig):
         return 'https://slack.com'
 
+    def _build_user_profile_url(self, user_id: str, user: BaseUser) -> str | None:
+        return f"{self.public_url}/team/{user_id}"
+
     async def _handle_chain_action(self, incident_, user_id, queue_):
         """Handle chain-related button actions"""
         await queue_.delete_by_id(incident_.uniq_id, delete_steps=True, delete_status=False)
         if incident_.chain_enabled or incident_.status != 'resolved':
             if incident_.assigned_user_id == user_id:
-                logger.info('Button pressed: user already assigned', extra={'incident': incident_.uuid, 'button': 'take_it', 'user_id': user_id})
+                logger.info('Button pressed: user already assigned', extra={'incident': incident_.uniq_id, 'button': 'take_it', 'user_id': user_id})
             else:
-                logger.info('Button pressed: assigning to user', extra={'incident': incident_.uuid, 'button': 'take_it', 'user_id': user_id})
+                logger.info('Button pressed: assigning to user', extra={'incident': incident_.uniq_id, 'button': 'take_it', 'user_id': user_id})
                 self.fetch_and_assign_user_name(incident_, user_id, dump=False)
                 self.track_async_task(asyncio.create_task(self.post_assignment_notification(incident_)))
             incident_.chain_enabled = False
         else:
-            logger.info('Button pressed', extra={'incident': incident_.uuid, 'button': 'release', 'user_id': user_id})
+            logger.info('Button pressed', extra={'incident': incident_.uniq_id, 'button': 'release', 'user_id': user_id})
             self.track_async_task(asyncio.create_task(self.post_unassignment_notification(incident_)))
             incident_.release()
 

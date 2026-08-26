@@ -1,24 +1,26 @@
 import asyncio
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 import aiohttp
 from fastapi.responses import JSONResponse
 
 from app.im.application import Application
+from app.im.messenger_init import messenger_init_step_async
 
 if TYPE_CHECKING:
     from app.incident.incident import Incident
-from app.im.telegram.config import buttons
-from app.im.telegram.user import User
-from app.logging import logger
 from app.config.config import get_config
 from app.config.environment import get_environment_config
 from app.config.validation import ApplicationConfig
+from app.im.telegram.config import buttons
+from app.im.telegram.user import User
+from app.im.users import BaseUser
+from app.logging import logger
 from app.time import format_freeze_expiration
 
 
 class TelegramApplication(Application):
-    icon_map = { #!
+    icon_map: ClassVar[dict[str, str]] = {
         '5312241539987020022': '🔥', # firing
         '5379748062124056162': '❗️', # unknown
         '5237699328843200968': '✅', # resolved
@@ -26,8 +28,8 @@ class TelegramApplication(Application):
         '5309958691854754293': '💎', # frozen 
     }
 
-    def __init__(self, app_config: ApplicationConfig, channels, users):
-        super().__init__(app_config, channels, users)
+    def __init__(self, app_config: ApplicationConfig, channels, users, webhooks=None):
+        super().__init__(app_config, channels, users, webhooks=webhooks)
 
     async def buttons_handler(self, payload, incidents, queue_, route):
         if 'callback_query' not in payload:
@@ -48,8 +50,8 @@ class TelegramApplication(Application):
 
         is_freeze_action = action.startswith('freeze_')
 
-        if incident_.is_frozen() and not is_freeze_action:
-            logger.debug('Incident frozen, blocking actions', extra={'incident': incident_.uuid})
+        if incident_.is_frozen and not is_freeze_action:
+            logger.debug('Incident frozen, blocking actions', extra={'incident': incident_.uniq_id})
             await self._answer_callback(callback['id'])
             return JSONResponse({}, status_code=200)
 
@@ -90,7 +92,8 @@ class TelegramApplication(Application):
             name=name,
             id_=user_details.get('id'),
             exists=user_details.get('exists', False),
-            full_name=user_details.get('full_name')
+            full_name=user_details.get('full_name'),
+            username=user_details.get('username'),
         )
 
     async def get_all_groups(self):
@@ -132,6 +135,10 @@ class TelegramApplication(Application):
 
     async def initialize_async(self):
         await super().initialize_async()
+        await self._init_webhook()
+
+    @messenger_init_step_async('webhook')
+    async def _init_webhook(self):
         await self._setup_webhook()
 
     async def update_incident_message(self, incident):
@@ -240,7 +247,7 @@ class TelegramApplication(Application):
             return response_json.get('result', {}).get('message_thread_id')
         except aiohttp.ClientError as e:
             logger.error("Topic creation failed", extra={'error': str(e)})
-            raise e
+            raise
 
     def _format_tg_icon(self, icon):
         return f'{self.icon_map.get(icon)}'
@@ -277,7 +284,7 @@ class TelegramApplication(Application):
             }
         }
 
-    def _get_public_url(self, app_config: ApplicationConfig):
+    async def _get_public_url(self, app_config: ApplicationConfig):
         return 'https://api.telegram.org/bot'
 
     def _get_team_name(self, app_config: ApplicationConfig):
@@ -286,18 +293,23 @@ class TelegramApplication(Application):
     def _get_url(self, app_config: ApplicationConfig):
         return 'https://api.telegram.org/bot'
 
+    def _build_user_profile_url(self, user_id: str, user: BaseUser) -> str | None:
+        if not user.username:
+            return None
+        return f"https://t.me/{user.username}"
+
     async def _handle_chain_action(self, action, incident_, user_id, queue_, payload):
         await queue_.delete_by_id(incident_.uniq_id, delete_steps=True, delete_status=False)
         if action == 'stop_chain':
             if incident_.assigned_user_id == user_id:
-                logger.info('Button TAKE IT: user already assigned', extra={'uuid': incident_.uuid, 'user_id': user_id})
+                logger.info('Button TAKE IT: user already assigned', extra={'uniq_id': incident_.uniq_id, 'user_id': user_id})
                 return JSONResponse(payload, status_code=200)
-            logger.info('Button TAKE IT: assigning to user', extra={'uuid': incident_.uuid, 'user_id': user_id})
+            logger.info('Button TAKE IT: assigning to user', extra={'uniq_id': incident_.uniq_id, 'user_id': user_id})
             self.fetch_and_assign_user_name(incident_, user_id, dump=False)
             self.track_async_task(asyncio.create_task(self.post_assignment_notification(incident_)))
             incident_.chain_enabled = False
         else:
-            logger.info('Button pressed', extra={'uuid': incident_.uuid, 'button': 'release', 'user_id': user_id})
+            logger.info('Button pressed', extra={'uniq_id': incident_.uniq_id, 'button': 'release', 'user_id': user_id})
             self.track_async_task(asyncio.create_task(self.post_unassignment_notification(incident_)))
             incident_.release()
         return None
@@ -366,22 +378,18 @@ class TelegramApplication(Application):
 
     async def _setup_webhook(self):
         config = get_config()
-        try:
-            response = await self.http.post(
-                f'{self.url}/setWebhook',
-                params={'url': f"{config.messenger.impulse_address}/app"},
-                headers=self.headers
-            )
-            response.close()
-        except aiohttp.ClientError as e:
-            logger.error("Webhook setup failed", extra={'error': str(e)})
-            raise e
+        response = await self.http.post(
+            f'{self.url}/setWebhook',
+            params={'url': f"{config.messenger.impulse_address}/app"},
+            headers=self.headers
+        )
+        response.close()
 
     async def _show_freeze_menu(self, incident_: 'Incident', callback):
         body, header, status_icons = self.form_body_header_status_icons(incident_)
         payload = self.update_incident_payload(incident_, body, header, status_icons, show_freeze_menu=True)
         await self._update_incident_message(incident_.ts, payload)
-        await self.http.post(
+        await self.http.post(  # type: ignore[union-attr]
             f'{self.url}/answerCallbackQuery',
             json={'callback_query_id': callback['id']},
             headers=self.headers

@@ -1,11 +1,10 @@
 from abc import ABC, abstractmethod
-from typing import Union, Optional, Dict, List
 
 
 class BaseUser(ABC):
     """Base class for all messenger users."""
     
-    def __init__(self, name: str, id_: Union[int, str, None] = None, exists: bool = False, full_name: str = None, username: str = None, timezone: Optional[str] = None):
+    def __init__(self, name: str, id_: int | str | None = None, exists: bool = False, full_name: str | None = None, username: str | None = None, timezone: str | None = None, roles: list[str] | None = None):
         self.name = name
         self.id = id_
         self.exists = exists
@@ -13,86 +12,57 @@ class BaseUser(ABC):
         self.full_name = full_name
         self.username = username
         self.timezone = timezone
+        self.roles = roles or []
 
     def __repr__(self):
         return self.name
     
     @abstractmethod
-    def get_notification_identifier(self) -> Union[int, str, None]:
+    def get_notification_identifier(self) -> int | str | None:
         """Return the platform-specific identifier used for mentions/notifications."""
-        pass
 
-
-class UndefinedUser(BaseUser):
-    def __init__(self, name: str):
-        super().__init__(name, None, False)
-        self.defined = False
-    
-    def get_notification_identifier(self):
-        return None
+    @abstractmethod
+    def serialize(self) -> dict:
+        """Return the messenger-specific API payload for this user."""
 
 
 class UserManager:
-    """User registry for BaseUser objects.
-    
-    Users are stored by user_id as the primary key.
-    Config names are mapped to user_ids for lookup compatibility.
-    """
-    
     def __init__(self):
-        self._users: Dict[str, BaseUser] = {}  # user_id -> BaseUser
-        self._config_names: Dict[str, str] = {}  # config_name -> user_id
-    
-    def add_config_name(self, config_name: str, user_id: str) -> None:
-        """Add a config name mapping for an existing user."""
-        self._config_names[config_name] = user_id
-    
-    def add_user(self, user_id: str, user: BaseUser, config_name: str = None) -> None:
-        """Add a user by user_id, optionally with a config name mapping."""
+        self._users: dict[str, BaseUser] = {}  # user_id -> BaseUser
+        self._named: dict[str, BaseUser] = {}  # config_name -> BaseUser
+
+    def add_user(self, user_id: str, user: BaseUser, config_name: str | None = None) -> None:
         self._users[user_id] = user
         if config_name:
-            self._config_names[config_name] = user_id
+            self._named[config_name] = user
 
-    def get(self, name: str, default=None) -> Optional[BaseUser]:
-        """Get user by config name or user_id. Returns default if not found."""
-        user = self._resolve_user(name)
-        if isinstance(user, UndefinedUser):
-            return default
-        return user
-    
-    def get_user_by_id(self, user_id: Union[int, str]) -> Optional[BaseUser]:
-        """Get user by their messenger ID."""
-        str_id = str(user_id)
-        if str_id in self._users:
-            return self._users[str_id]
-        return None
+    def get(self, name: str, default=None) -> BaseUser | None:
+        return self._named.get(name) or self._users.get(name) or default
 
-    def get_assignable_users(self) -> List[Dict]:
-        """Return list of users available for assignment in the UI."""
-        config_id_to_name = {uid: name for name, uid in self._config_names.items()}
+    def get_user_by_id(self, user_id: int | str) -> BaseUser | None:
+        return self._users.get(str(user_id))
+
+    def get_assignable_users(self) -> list[dict]:
         result = []
-        for user_id, user in self._users.items():
+        for config_name, user in self._named.items():
             if not user.exists:
                 continue
             result.append({
-                'user_id': str(user_id),
-                'full_name': user.full_name or user.name or str(user_id),
-                'config_name': config_id_to_name.get(user_id, ''),
+                'user_id': str(user.id),
+                'full_name': user.full_name or user.name or str(user.id),
+                'config_name': config_name,
             })
         return result
 
-    def get_user_timezone(self, user_id: str) -> Optional[str]:
+    def get_user_timezone(self, user_id: str) -> str | None:
         user = self.get_user_by_id(user_id)
         if user and user.timezone:
             return user.timezone
         return None
-    
-    ### PRIVATE METHODS ###
 
-    def _resolve_user(self, name: str) -> BaseUser:
-        """Resolve a name to a user, checking config names first, then user_ids."""
-        if name in self._config_names:
-            user_id = self._config_names[name]
-            user = self._users.get(user_id)
-            return user if user else UndefinedUser(name)
-        return UndefinedUser(name)
+    def serialize(self) -> dict[str, dict]:
+        return {name: user.serialize() for name, user in sorted(self._named.items())}
+
+    def serialize_one(self, name: str) -> dict | None:
+        user = self._named.get(name)
+        return user.serialize() if user else None

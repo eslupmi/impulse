@@ -1,13 +1,13 @@
 import asyncio
 import os
-from datetime import datetime, timezone, timedelta
-from typing import Optional, Dict, Any, TYPE_CHECKING
+from datetime import datetime, timedelta, timezone
+from typing import TYPE_CHECKING, Any
 
 import yaml
 
 from app.config.environment import get_environment_config
 from app.logging import logger
-from app.queue.constants import QueueItemType, USER_UPDATE_GAP_SECONDS
+from app.queue.constants import USER_UPDATE_GAP_SECONDS, QueueItemType
 
 if TYPE_CHECKING:
     from app.queue.queue import AsyncQueue
@@ -18,31 +18,38 @@ USER_REFRESH_HOURS = 12
 class UserStore:
     """File-based user data storage in data/users/<user_id>.yml"""
     
-    def get(self, user_id: str) -> Optional[Dict[str, Any]]:
+    def get(self, user_id: str) -> dict[str, Any] | None:
         file_path = self._get_user_file_path(user_id)
         if not os.path.exists(file_path):
             return None
         try:
             with open(file_path, 'r') as f:
                 return yaml.load(f, Loader=yaml.CLoader)
-        except (yaml.YAMLError, IOError) as e:
+        except (OSError, yaml.YAMLError) as e:
             logger.warning('Failed to read user file', extra={'user_id': user_id, 'error': str(e)})
             return None
 
-    def get_all_users_by_type(self, messenger_type: str) -> Dict[str, Dict[str, Any]]:
+    def get_all_users_by_type(self, messenger_type: str) -> dict[str, dict[str, Any]]:
         """Get all stored users for a specific messenger type."""
-        users = {}
+        return {
+            user_id: user_data
+            for user_id, user_data in self.get_all().items()
+            if user_data.get('messenger_type') == messenger_type
+        }
+
+    def get_all(self) -> dict[str, dict[str, Any]]:
+        users: dict[str, dict[str, Any]] = {}
         if not os.path.exists(self._users_path):
             return users
-        
+
         for filename in os.listdir(self._users_path):
             if not filename.endswith('.yml'):
                 continue
             user_id = filename[:-4]
             user_data = self.get(user_id)
-            if user_data and user_data.get('messenger_type') == messenger_type:
+            if user_data:
                 users[user_id] = user_data
-        
+
         return users
     
     def get_next_refresh_time(self, user_id: str) -> datetime:
@@ -50,7 +57,7 @@ class UserStore:
         return self.get_refresh_time_from_data(user_data)
 
     @staticmethod
-    def get_refresh_time_from_data(user_data: Optional[Dict[str, Any]]) -> datetime:
+    def get_refresh_time_from_data(user_data: dict[str, Any] | None) -> datetime:
         if user_data is None:
             return datetime.now(timezone.utc)
         updated_at = user_data.get('updated_at')
@@ -64,7 +71,7 @@ class UserStore:
             return datetime.now(timezone.utc)
 
     @staticmethod
-    def is_data_expired(user_data: Dict[str, Any]) -> bool:
+    def is_data_expired(user_data: dict[str, Any]) -> bool:
         updated_at = user_data.get('updated_at')
         if not updated_at:
             return True
@@ -82,22 +89,26 @@ class UserStore:
             return True
         return self.is_data_expired(user_data)
 
-    def save(self, user_id: str, messenger_type: str, user_data: Dict[str, Any]) -> None:
+    def save(self, user_id: str, messenger_type: str, user_data: dict[str, Any]) -> None:
         file_path = self._get_user_file_path(user_id)
-        data = {
-            'updated_at': datetime.now(timezone.utc),
-            'messenger_type': messenger_type,
-            'username': user_data.get('username'),
-            'email': user_data.get('email'),
-            'full_name': user_data.get('full_name'),
-            'timezone': user_data.get('timezone'),
-        }
+        data = self.serialize(messenger_type, user_data)
         try:
             with open(file_path, 'w') as f:
                 yaml.dump(data, f, default_flow_style=False, allow_unicode=True)
             logger.debug('Saved user data', extra={'user_id': user_id})
-        except IOError as e:
+        except OSError as e:
             logger.error('Failed to save user file', extra={'user_id': user_id, 'error': str(e)})
+
+    @staticmethod
+    def serialize(messenger_type: str, user_data: dict[str, Any], updated_at: datetime | None = None) -> dict[str, Any]:
+        return {
+            'email': user_data.get('email'),
+            'full_name': user_data.get('full_name'),
+            'messenger_type': messenger_type,
+            'timezone': user_data.get('timezone'),
+            'updated_at': updated_at or datetime.now(timezone.utc),
+            'username': user_data.get('username'),
+        }
     
     ### PRIVATE METHODS ###
 
@@ -116,7 +127,7 @@ class UserStore:
         self._ensure_directory()
     
 
-_user_store: Optional[UserStore] = None
+_user_store: UserStore | None = None
 
 
 def get_user_store() -> UserStore:

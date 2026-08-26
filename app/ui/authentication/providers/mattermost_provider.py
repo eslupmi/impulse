@@ -1,4 +1,4 @@
-from typing import Sequence
+from collections.abc import Sequence
 
 from app.ui.authentication.models.auth_user import AuthUser
 from app.ui.authentication.providers.base_provider import AuthenticationProviderError
@@ -14,13 +14,12 @@ class MattermostAuthenticationProvider(OAuthProvider):
         client_id: str,
         client_secret: str,
         scopes: Sequence[str] = ("openid", "profile", "email"),
-        authorize_url: str = None,
-        token_url: str = None,
-        user_url: str = None,
+        authorize_url: str | None = None,
+        token_url: str | None = None,
+        user_url: str | None = None,
         timeout_seconds: float = 10.0,
     ):
         base_url = base_url.rstrip("/")
-        self.base_url = base_url
         super().__init__(
             client_id=client_id,
             client_secret=client_secret,

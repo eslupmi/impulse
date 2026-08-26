@@ -1,0 +1,15 @@
+name: "[m] autotests"
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        required: false
+        type: number
+
+jobs:
+  autotests:
+    uses: ./.github/workflows/_autotests.yml
+    with:
+      branch: ${{ format('pr-{0}', inputs.pr_number) }}
+    secrets: inherit

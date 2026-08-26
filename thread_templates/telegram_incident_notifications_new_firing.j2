@@ -1,0 +1,3 @@
+update: new alerts <b>firing</b>{%- set prev = previous_payload.alerts | selectattr('status', 'equalto', 'firing') | map(attribute='labels.instance') | list -%}
+{%- set added = payload.alerts | selectattr('status', 'equalto', 'firing') | map(attribute='labels.instance') | reject('in', prev) | unique | list -%}
+{%- if added %} ({{ added | join(', ') }}){% endif %}

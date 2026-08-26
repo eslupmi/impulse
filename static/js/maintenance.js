@@ -12,6 +12,7 @@ import {
 import {createEditableFilterBadge} from "./filters.js";
 import {validateAndFormatMatcher, validateMatcher} from "./matcher.js";
 import {getIsAuthenticated, onAuthChange} from "./auth.js";
+import {createUserSelector, getAssignableUserById, initUserSelector} from "./user_selector.js";
 import {
     captureCalendarViewAnchor,
     formatDateTime,
@@ -33,6 +34,7 @@ let currentWindowId = null;
 let pendingSelectStart = null;
 let pendingSelectEnd = null;
 let modalMatchers = [];
+let ownerSelector = null;
 let configTimezone = "UTC";
 let configWeekStart = "Mon";
 let messengerType = "";
@@ -134,8 +136,8 @@ function renderActiveMaintenancePopup(windows) {
     if (!list) return;
     list.replaceChildren();
     const now = new Date();
-    for (const window of windows) {
-        if (!isMaintenanceWindowActive(window.start, window.end, now)) continue;
+    const activeWindows = windows.filter((window) => isMaintenanceWindowActive(window.start, window.end, now));
+    activeWindows.forEach((window, index) => {
         const row = document.createElement("div");
         row.className = "maintenance-active-popup-row";
 
@@ -157,8 +159,26 @@ function renderActiveMaintenancePopup(windows) {
         comment.textContent = window.comment || "";
 
         row.append(times, comment);
+
+        const owner = document.createElement(window.owner_url ? "a" : "span");
+        owner.className = "maintenance-active-popup-owner";
+        owner.textContent = window.owner_full_name || "";
+        owner.title = window.owner_full_name || "";
+        if (window.owner_url) {
+            owner.href = window.owner_url;
+            owner.target = "_blank";
+            owner.rel = "noopener noreferrer";
+        }
+        row.append(owner);
+
         list.appendChild(row);
-    }
+        if (index < activeWindows.length - 1) {
+            const divider = document.createElement("div");
+            divider.className = "maintenance-active-popup-row-divider";
+            divider.setAttribute("aria-hidden", "true");
+            list.appendChild(divider);
+        }
+    });
 }
 
 function refreshActiveMaintenanceDisplay() {
@@ -381,7 +401,7 @@ function windowsToEvents(windows) {
         extendedProps: {
             matchers: window.matchers || [],
             comment: window.comment || "",
-            created_by: window.created_by || null,
+            owner_id: window.owner_id || null,
         },
         display: "block",
         backgroundColor: eventBg,
@@ -477,7 +497,7 @@ function buildMainCalendarOptions(events, firstDay, timezone) {
                 end: info.event.end?.toISOString() ?? null,
                 matchers: props.matchers || [],
                 comment: props.comment || "",
-                created_by: props.created_by || null,
+                owner_id: props.owner_id || null,
             });
         },
 
@@ -624,6 +644,32 @@ function commitMatcherInput() {
     return true;
 }
 
+function ensureOwnerSelector() {
+    if (ownerSelector) {
+        return ownerSelector;
+    }
+    const wrap = document.getElementById("maintenance-window-owner-wrap");
+    ownerSelector = createUserSelector({
+        inputId: "maintenance-window-owner",
+        allowClear: false,
+    });
+    wrap.replaceChildren(ownerSelector.element);
+    return ownerSelector;
+}
+
+function setOwnerSelectorValue(ownerId, defaultToAuthUser = false) {
+    const selector = ensureOwnerSelector();
+    if (ownerId) {
+        selector.setValue(ownerId, getAssignableUserById(ownerId)?.full_name || "");
+        return;
+    }
+    if (defaultToAuthUser) {
+        selector.setDefaultToAuthUser();
+        return;
+    }
+    selector.setValue("", "");
+}
+
 function openWindowModal(windowData = null) {
     const modal = document.getElementById("maintenance-window-modal");
     const title = document.getElementById("maintenance-window-modal-title");
@@ -640,6 +686,7 @@ function openWindowModal(windowData = null) {
         commentInput.value = windowData.comment || "";
         modalMatchers = [...(windowData.matchers || [])];
         deleteBtn.classList.remove("hidden");
+        setOwnerSelectorValue(windowData.owner_id);
     } else {
         currentWindowId = null;
         title.textContent = "New maintenance";
@@ -650,6 +697,7 @@ function openWindowModal(windowData = null) {
         commentInput.value = "";
         modalMatchers = [];
         deleteBtn.classList.add("hidden");
+        setOwnerSelectorValue("", true);
     }
     renderMatcherBadges();
     clearMatcherInputError();
@@ -706,10 +754,15 @@ function validateWindowModalInput() {
         showNotification("Comment is required");
         return null;
     }
+    const ownerValue = ensureOwnerSelector().getValue();
+    if (!ownerValue.userId) {
+        showNotification("Owner is required");
+        return null;
+    }
     commentBox?.classList.remove("maintenance-field-error");
     clearMatcherInputError();
     if (matchersWrap) matchersWrap.classList.remove("maintenance-field-error");
-    return {start, end, comment, matchers};
+    return {start, end, comment, matchers, owner_id: ownerValue.userId};
 }
 
 async function saveWindowModal() {
@@ -728,6 +781,7 @@ async function saveWindowModal() {
             end: input.end,
             matchers: input.matchers,
             comment: input.comment,
+            owner_id: input.owner_id,
         };
     } else {
         windows.push({
@@ -736,7 +790,7 @@ async function saveWindowModal() {
             end: input.end,
             matchers: input.matchers,
             comment: input.comment,
-            created_by: null,
+            owner_id: input.owner_id,
         });
     }
 
@@ -937,6 +991,7 @@ export const MaintenanceManager = {
         if (this.initialized) return;
 
         setupActiveMaintenanceUI();
+        initUserSelector(getBaseUrl()).then(() => ensureOwnerSelector());
 
         onAuthChange((authenticated) => {
             if (authenticated) {

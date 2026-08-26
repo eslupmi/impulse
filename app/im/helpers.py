@@ -1,4 +1,4 @@
-from typing import Optional
+
 
 from app.config.environment import EnvironmentConfig, get_environment_config
 from app.config.validation import ApplicationConfig, TaskManagementConfig
@@ -36,22 +36,24 @@ def create_task_management_integration(
 
 
 def get_application(app_config: ApplicationConfig, channels, default_channel,
-                   task_management_config: Optional[TaskManagementConfig] = None):
+                   task_management_config: TaskManagementConfig | None = None,
+                   webhooks=None):
     app_type = app_config.type
+    messenger: Application
     if app_type == 'slack':
-        messenger = SlackApplication(app_config, channels, default_channel)
+        messenger = SlackApplication(app_config, channels, default_channel, webhooks=webhooks)
     elif app_type == 'mattermost':
-        messenger = MattermostApplication(app_config, channels, default_channel)
+        messenger = MattermostApplication(app_config, channels, default_channel, webhooks=webhooks)
     elif app_type == 'telegram':
-        messenger = TelegramApplication(app_config, channels, default_channel)
+        messenger = TelegramApplication(app_config, channels, default_channel, webhooks=webhooks)
     elif app_type == 'none':
-        messenger = NullApplication(app_config, channels, default_channel)
+        messenger = NullApplication(app_config, channels, default_channel, webhooks=webhooks)
     else:
         raise ValueError(f'Unknown application type: {app_type}')
-    
+
     if task_management_config:
         initialize_task_management_integration(messenger, task_management_config)
-    
+
     return messenger
 
 

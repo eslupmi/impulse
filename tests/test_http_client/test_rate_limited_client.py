@@ -1,12 +1,13 @@
 import asyncio
 import time
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, AsyncMock
 
 import pytest
 import pytest_asyncio
+import aiohttp
 from aiohttp import web
 
-from app.http_client import RateLimitedClient
+from app.http_client.rate_limited_client import RateLimitedClient
 from app.http_client.rate_limited_client import RetryAfterRetry
 from tests.utils import FakeTime, create_test_server_url, make_requests_and_close
 
@@ -305,6 +306,59 @@ class TestRateLimitedClient:
         async with RateLimitedClient(rate_limit=None, rate_window=1.0) as client:
             assert client.rate_limit is None
             assert abs(client.rate_window - 1.0) < 0.001
+
+    async def test_logs_when_messenger_is_not_responding(self):
+        """Transport failures are logged with structured context."""
+        telegram_url = 'https://api.telegram.org/botsecret-token/getChat'
+
+        with patch('app.http_client.rate_limited_client.logger') as mock_logger:
+            async with RateLimitedClient(retry_attempts=1) as client:
+                with patch.object(
+                    client._client,
+                    'request',
+                    new=AsyncMock(side_effect=asyncio.TimeoutError()),
+                ):
+                    with pytest.raises(asyncio.TimeoutError):
+                        await client.get(telegram_url)
+
+                mock_logger.error.assert_called_once()
+                message, = mock_logger.error.call_args[0]
+                assert message == 'Messenger is not responding'
+                extra = mock_logger.error.call_args[1]['extra']
+                assert extra['method'] == 'GET'
+                assert extra['url'] == 'https://api.telegram.org/bot***/getChat'
+                assert extra['failure'] == 'timeout'
+                assert extra['detail'] == 'timeout'
+                assert 'step' not in extra
+                assert 'messenger' not in extra
+
+    async def test_logs_connection_failed(self):
+        with patch('app.http_client.rate_limited_client.logger') as mock_logger:
+            async with RateLimitedClient(retry_attempts=1) as client:
+                with patch.object(
+                    client._client,
+                    'request',
+                    new=AsyncMock(side_effect=aiohttp.ClientConnectionError('connection failed')),
+                ):
+                    with pytest.raises(aiohttp.ClientConnectionError):
+                        await client.get('https://mattermost.example.com/api/v4/users')
+
+                extra = mock_logger.error.call_args[1]['extra']
+                assert extra['failure'] == 'connection_failed'
+                assert extra['detail'] == 'connection failed'
+
+
+class TestRateLimitedClientConfiguration:
+    def test_initialize_client_uses_trust_env_session(self):
+        """Test that sessions are created via create_client_session (env proxies)."""
+        with patch('app.http_client.rate_limited_client.aiohttp.TCPConnector'), \
+             patch('app.http_client.rate_limited_client.create_client_session') as mock_create_session, \
+             patch('app.http_client.rate_limited_client.RetryClient'):
+            client = RateLimitedClient()
+            client.initialize_client()
+
+            mock_create_session.assert_called_once()
+            assert 'proxy' not in mock_create_session.call_args.kwargs
 
 
 class TestRetryAfterRetry:

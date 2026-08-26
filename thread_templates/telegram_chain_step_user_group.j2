@@ -1,0 +1,10 @@
+{%- set absent_users = [] -%}
+{%- for name in user_groups.get(step.value).users -%}
+{%-   set u = users.get(name) -%}
+{%-   if not u or not u.exists -%}
+{%-     set _ = absent_users.append(name) -%}
+{%-   endif -%}
+{%- endfor -%}
+🔔 user_group <b>{{ step.value }}</b> ({%- for name in user_groups.get(step.value).users if users.get(name) and users.get(name).exists %}{%- set u = users.get(name) -%}<a href="tg://user?id={{ u.id }}">{{ u.name }}</a>{% if not loop.last %}, {% endif %}{%- endfor -%})
+{%- if absent_users | length > 0 %}  |  {% for u in absent_users %}<b>{{ u }}</b> (<a href="https://docs.impulse.bot/stable/warnings/NotFound/">NotFound</a>){% if not loop.last %}, {% endif %}{% endfor %}{% endif %}
+{%- if absent_users | length > 0 %}  |  🔔 admins ({%- for u in users.values() if u and 'admin' in u.roles %}<a href="tg://user?id={{ u.id }}">{{ u.name }}</a>{% if not loop.last %},{% endif %}{% endfor -%}){% endif -%}

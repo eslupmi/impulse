@@ -1,0 +1,3 @@
+update: some alerts *resolved*{%- set curr = payload.alerts | selectattr('status', 'equalto', 'firing') | map(attribute='labels.instance') | list -%}
+{%- set removed = previous_payload.alerts | selectattr('status', 'equalto', 'firing') | map(attribute='labels.instance') | reject('in', curr) | unique | list -%}
+{%- if removed %} ({{ removed | join(', ') }}){% endif %}

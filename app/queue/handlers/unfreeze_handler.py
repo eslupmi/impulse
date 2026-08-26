@@ -41,7 +41,7 @@ class UnfreezeHandler(BaseHandler):
             logger.info(
                 "Ignoring stale unfreeze event",
                 extra={
-                    'uuid': incident.uuid,
+                    'uniq_id': incident.uniq_id,
                     'event_source': freeze_source.value,
                     'active_source': incident.frozen_until_source,
                 },
@@ -50,8 +50,8 @@ class UnfreezeHandler(BaseHandler):
 
         await remove_freeze_source(incident, self.queue, source=freeze_source)
         await self.maintenance_manager.reconcile_incident(incident, update_message=False)
-        if freeze_source == FreezeSource.TIME and not incident.is_frozen():
+        if freeze_source == FreezeSource.TIME and not incident.is_frozen:
             self.app.track_async_task(
-                asyncio.create_task(self.app.post_unfreeze_notification(incident))
+                asyncio.create_task(self.app.post_unfreeze_notification(incident, ui_user=None))
             )
         await self.app.update_incident_message(incident)

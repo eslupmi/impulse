@@ -1,7 +1,7 @@
 import asyncio
 from collections import namedtuple
 from datetime import datetime, timedelta, timezone
-from typing import Optional, Tuple, Any
+from typing import Any
 
 from app.logging import logger
 from app.queue.constants import QueueItemType
@@ -36,7 +36,7 @@ class AsyncQueue:
         async with self._lock:
             self._delete_by_type_internal(type_)
 
-    async def get_first_item_datetime(self) -> Optional[datetime]:
+    async def get_first_item_datetime(self) -> datetime | None:
         """Get datetime of the next item that's ready to be processed (if any)."""
         async with self._lock:
             if self._items:
@@ -48,17 +48,16 @@ class AsyncQueue:
         async with self._lock:
             return len(self._items)
 
-    async def get_latest_item_by_type(self, type_: str) -> Optional[datetime]:
+    async def get_latest_item_by_type(self, type_: str) -> datetime | None:
         """Get the datetime of the latest scheduled item of a specific type."""
         async with self._lock:
             latest = None
             for item in self._items:
-                if item.type == type_:
-                    if latest is None or item.datetime > latest:
-                        latest = item.datetime
+                if item.type == type_ and (latest is None or item.datetime > latest):
+                    latest = item.datetime
             return latest
 
-    async def get_next_ready_item(self) -> Optional[Tuple[str, str, str, Any]]:
+    async def get_next_ready_item(self) -> tuple[str, str, str, Any] | None:
         """Get the next item that's ready to be processed (datetime <= now)"""
         now = datetime.now(timezone.utc)
         async with self._lock:
@@ -72,15 +71,15 @@ class AsyncQueue:
         """Get current items (for compatibility) - WARNING: Not thread-safe, use len() for count checks"""
         return self._items
 
-    async def put(self, datetime_: datetime, type_: str, uniq_id: str = None,
-                 identifier: str = None, data: Any = None):
+    async def put(self, datetime_: datetime, type_: str, uniq_id: str | None = None,
+                 identifier: str | None = None, data: Any = None):
         """Put item in the queue with priority sorting by datetime"""
         new_item = QueueItem(datetime_, type_, uniq_id, identifier, data)
         async with self._lock:
             self._insert_item_sorted(new_item)
 
-    async def put_first(self, datetime_: datetime, type_: str, uniq_id: str = None,
-                       identifier: str = None, data: Any = None):
+    async def put_first(self, datetime_: datetime, type_: str, uniq_id: str | None = None,
+                       identifier: str | None = None, data: Any = None):
         """Put item at the front of the queue"""
         new_item = QueueItem(datetime_, type_, uniq_id, identifier, data)
         async with self._lock:
@@ -108,14 +107,14 @@ class AsyncQueue:
         queue = cls()
 
         for uniq_id, incident in incidents.uniq_ids.items():
-            if incident.is_frozen() and incident.frozen_until:
+            if incident.is_frozen and incident.frozen_until:
                 await queue.put(
                     incident.frozen_until,
                     QueueItemType.UNFREEZE,
                     uniq_id,
                     data=incident.frozen_until_source
                 )
-            elif not incident.is_frozen():
+            elif not incident.is_frozen:
                 await queue.recreate(incident.status, uniq_id, incident.get_chain(), incident.chain_active_seconds)
             if incident.status != 'deleted':
                 await queue.put(incident.status_update_datetime, QueueItemType.UPDATE_STATUS, uniq_id)

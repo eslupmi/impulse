@@ -114,7 +114,7 @@ class TestUnfreezeHandler:
             incident, unfreeze_handler.queue, source=FreezeSource.TIME
         )
         mock_maintenance_manager.reconcile_incident.assert_awaited_once_with(incident, update_message=False)
-        unfreeze_handler.app.post_unfreeze_notification.assert_called_once_with(incident)
+        unfreeze_handler.app.post_unfreeze_notification.assert_called_once_with(incident, ui_user=None)
         create_task.assert_called_once()
         unfreeze_handler.app.track_async_task.assert_called_once_with("unfreeze-task")
         unfreeze_handler.app.update_incident_message.assert_awaited_once_with(incident)
@@ -159,14 +159,14 @@ class TestUnfreezeHandler:
         def reconcile_refreeze(incident_, update_message=False):
             incident_.frozen_until = datetime.now(timezone.utc) + timedelta(hours=2)
             incident_.frozen_until_source = FreezeSource.MAINTENANCE.value
-            incident_.is_frozen = Mock(return_value=True)
+            incident_.is_frozen = True
 
         mock_maintenance_manager.reconcile_incident = AsyncMock(side_effect=reconcile_refreeze)
 
         def clear_time_freeze(incident_, queue, source):
             incident_.frozen_until = None
             incident_.frozen_until_source = None
-            incident_.is_frozen = Mock(return_value=False)
+            incident_.is_frozen = False
 
         with patch(
             "app.queue.handlers.unfreeze_handler.remove_freeze_source",

@@ -1,8 +1,14 @@
+from copy import deepcopy
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
+
 from app.config.config import get_config
-from app.im.template import update_alerts
-from app.incident.incident import IncidentConfig, Incident
+from app.config.validation import MessengerType
+from app.im.template import (
+    incident_notifications_new_firing,
+    incident_notifications_partial_resolved,
+)
+from app.incident.incident import Incident, IncidentConfig
 from app.jinja_template import JinjaTemplate
 from app.logging import logger
 from app.queue.constants import QueueItemType
@@ -10,12 +16,12 @@ from app.queue.handlers.base_handler import BaseHandler
 from app.time import unix_sleep_to_timedelta
 
 if TYPE_CHECKING:
-    from app.queue.queue import AsyncQueue
     from app.im.application import Application
     from app.incident.incidents import Incidents
-    from app.route.route import Route
     from app.inhibition.manager import InhibitionManager
     from app.maintenance.manager import MaintenanceManager
+    from app.queue.queue import AsyncQueue
+    from app.route.route import Route
 
 class AlertHandler(BaseHandler):
     """
@@ -28,7 +34,7 @@ class AlertHandler(BaseHandler):
     :param inhibition_manager: InhibitionManager instance for inhibition rule handling
     :param maintenance_manager: MaintenanceManager instance for time-bounded maintenance windows
     """
-    __slots__ = ['route', 'inhibition_manager', 'maintenance_manager']
+    __slots__ = ['inhibition_manager', 'maintenance_manager', 'route']
 
     def __init__(self, queue: 'AsyncQueue', application: 'Application', incidents: 'Incidents', route: 'Route',
                  inhibition_manager: 'InhibitionManager', maintenance_manager: 'MaintenanceManager'):
@@ -42,7 +48,7 @@ class AlertHandler(BaseHandler):
         if incident_ is None:
             await self._handle_create(alert_state)
         else:
-            await self._handle_update(incident_.uuid, incident_, alert_state)
+            await self._handle_update(incident_, alert_state)
 
     async def _handle_create(self, alert_state):
         config = get_config()
@@ -65,7 +71,7 @@ class AlertHandler(BaseHandler):
             status=status,
             channel_id=channel['id'],
             config=incident_config,
-            chain=[],
+            chain_steps=[],
             chain_enabled=True,
             status_enabled=True,
             updated=updated_datetime,
@@ -94,26 +100,27 @@ class AlertHandler(BaseHandler):
         incident_.dump()
 
         if will_match_maintenance:
-            logger.info("Incident created (maintenance)", extra={'uuid': incident_.uuid, 'link': incident_.link})
+            logger.info("Incident created (maintenance)", extra={'uniq_id': incident_.uniq_id, 'link': incident_.link})
         elif will_be_inhibited:
-            logger.info("Incident created (inhibited)", extra={'uuid': incident_.uuid, 'link': incident_.link})
+            logger.info("Incident created (inhibited)", extra={'uniq_id': incident_.uniq_id, 'link': incident_.link})
         else:
-            logger.info("Incident created", extra={'uuid': incident_.uuid, 'link': incident_.link})
+            logger.info("Incident created", extra={'uniq_id': incident_.uniq_id, 'link': incident_.link})
 
         await self.queue.put(status_update_datetime, QueueItemType.UPDATE_STATUS, incident_.uniq_id)
 
         incident_.generate_chain(self.app.chains, chain_name)
         if not (will_be_inhibited or will_match_maintenance):
-            await self.queue.recreate(status, incident_.uniq_id, incident_.chain, incident_.chain_active_seconds)
+            await self.queue.recreate(status, incident_.uniq_id, incident_.chain_steps, incident_.chain_active_seconds)
 
-    async def _handle_update(self, uuid_, incident_, alert_state):
+    async def _handle_update(self, incident_, alert_state):
         config = get_config()
 
-        if incident_.is_frozen() and incident_.status in ['closed', 'deleted']:
-            logger.debug("Ignoring alert for frozen incident", extra={'uuid': uuid_})
+        if incident_.is_frozen and incident_.status in ['closed', 'deleted']:
+            logger.debug("Ignoring alert for frozen incident", extra={'uniq_id': incident_.uniq_id})
             return
 
         prev_status = incident_.status
+        previous_payload = deepcopy(incident_.payload)
         self._regenerate_chain_if_needed(incident_, alert_state, prev_status)
         await self.queue.recreate(alert_state.get('status'), incident_.uniq_id, incident_.get_chain(), incident_.chain_active_seconds)
 
@@ -128,19 +135,28 @@ class AlertHandler(BaseHandler):
         if is_state_updated or is_status_updated:
             await self.app.update(
                 incident_, alert_state['status'], alert_state, is_status_updated,
-                incident_.chain_enabled, incident_.frozen_until, incident_.task_link
+                incident_.chain_enabled, incident_.frozen_until, incident_.task_link,
+                previous_payload=previous_payload,
             )
 
-        should_notify = prev_status == 'firing' and incident_.status == 'firing' and not incident_.is_frozen()
-        if should_notify and (is_new_firing_alerts_added or is_some_firing_alerts_removed):
-            await self._notify_new_fire_alert(incident_, is_new_firing_alerts_added, is_some_firing_alerts_removed, uuid_)
+        should_notify = prev_status == 'firing' and incident_.status == 'firing' and not incident_.is_frozen
+        if should_notify and is_new_firing_alerts_added:
+            await self._notify_alert_change(
+                incident_, incident_notifications_new_firing, 'new alerts firing',
+                alert_state, previous_payload,
+            )
+        if should_notify and is_some_firing_alerts_removed:
+            await self._notify_alert_change(
+                incident_, incident_notifications_partial_resolved, 'some alerts resolved',
+                alert_state, previous_payload,
+            )
         await self.queue.update(incident_.uniq_id, incident_.status_update_datetime, incident_.status)
 
     ### PRIVATE METHODS ###
 
     def _regenerate_chain_if_needed(self, incident_, alert_state, prev_status):
         """Generate chain from scratch if incident chain is empty and was resolved."""
-        if prev_status == 'resolved' and incident_.chain_enabled and incident_.chain == []:
+        if prev_status == 'resolved' and incident_.chain_enabled and incident_.chain_steps == []:
             _, chain_name = self.route.get_route(alert_state)
             incident_.generate_chain(self.app.chains, chain_name)
 
@@ -159,26 +175,19 @@ class AlertHandler(BaseHandler):
             await self.inhibition_manager.process_incident(incident_)
             await self.maintenance_manager.process_incident(incident_)
 
-    async def _notify_new_fire_alert(self, incident_, new_alerts_f, new_alerts_r, uuid_):
-        """
-        Notify about new firing alerts added to the incident
-        """
+    async def _notify_alert_change(self, incident_, templates, log_message, payload, previous_payload):
         header = self.app.header_template.form_message(incident_.payload, incident_)
-        fields = {
-            'type': self.app.type,
-            'firing': new_alerts_f,
-            'resolved': new_alerts_r
-        }
-        text = JinjaTemplate(update_alerts).form_notification(fields)
-        if self.app.type == 'telegram':
+        text = JinjaTemplate(templates[self.app.type.value]).form_notification(
+            payload=payload,
+            previous_payload=previous_payload,
+            incident=incident_.serialize(),
+        )
+        if self.app.type == MessengerType.TELEGRAM:
             message = text
         else:
             message = header + '\n' + text
         await self.app.post_to_thread(incident_.channel_id, incident_.ts, message)
-        if new_alerts_f:
-            logger.info("Incident updated with new alerts firing", extra={'uuid': uuid_})
-        elif new_alerts_r:
-            logger.info("Incident updated with some alerts resolved", extra={'uuid': uuid_})
+        logger.info(f'Incident updated with {log_message}', extra={'uniq_id': incident_.uniq_id})
 
     async def _create_thread(self, incident_):
         body, header, status_icons = self.app.form_body_header_status_icons(incident_)

@@ -1,9 +1,11 @@
 import uvicorn
 from fastapi import FastAPI
 
+from app.api.openapi import configure_api_openapi
 from app.cli import parse_arguments
 from app.config.config import get_config, validate_config_only
 from app.config.environment import get_environment_config
+from app.incident.migrator import downgrade_incidents_only
 from app.lifespan import lifespan
 from app.logging import configure_logging
 from app.middleware import StandbyMiddleware
@@ -12,25 +14,26 @@ from app.signals import setup_sighup_forwarder
 from app.ui.authentication.factory import build_auth_manager
 from app.ui.authentication.router import create_auth_router
 
-
-app = FastAPI(
-    title="IMPulse",
-    description="Incident Management Platform",
-    version="0.0.0",
-    lifespan=lifespan,
-    docs_url=None,
-    redoc_url=None
-)
-app.add_middleware(StandbyMiddleware)
-
 config = get_config()
 env_config = get_environment_config()
 http_prefix = env_config.http_prefix
+api_base = f"{http_prefix}/api"
 
-auth_manager = build_auth_manager(config=config, env_config=env_config, http_prefix=http_prefix)
+app = FastAPI(
+    title="IMPulse",
+    version="1.0.0",
+    lifespan=lifespan,
+    docs_url=f"{api_base}/docs",
+    redoc_url=None,
+    openapi_url=f"{api_base}/openapi.json",
+)
+app.add_middleware(StandbyMiddleware)
+
+auth_manager = build_auth_manager(config=config.app, env_config=env_config, http_prefix=http_prefix)
 router = create_router(http_prefix=http_prefix, fastapi_app=app, auth_manager=auth_manager)
 router.include_router(create_auth_router(auth_manager))
 app.include_router(router)
+configure_api_openapi(app, http_prefix)
 
 
 if __name__ == "__main__":
@@ -41,6 +44,10 @@ if __name__ == "__main__":
     setup_sighup_forwarder()
 
     configure_logging()
+
+    if args.downgrade is not None:
+        downgrade_incidents_only(args.downgrade)
+        raise SystemExit(0)
 
     env_config = get_environment_config()
     uvicorn.run(

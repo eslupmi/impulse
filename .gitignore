@@ -1,12 +1,14 @@
 __pycache__
 .pytest_cache
+.mypy_cache
+.ruff_cache
 
 .idea
 .vscode
 .zed
 
-env*
-venv*
+/env*
+/venv*
 .venv*
 
 .env

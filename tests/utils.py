@@ -5,7 +5,7 @@ This module provides reusable utilities for testing, particularly for mocking
 aiohttp requests and other async operations.
 """
 from datetime import datetime, timezone
-from typing import Dict, List, Any, Optional
+from typing import Any
 from unittest.mock import Mock, AsyncMock
 
 # Constants for test configuration
@@ -133,7 +133,7 @@ def setup_mock_session_class_patch(mock_session_class, status_code=200, patch_re
 # Incident and Alert Test Utilities
 # ============================================================================
 
-def create_mock_chain(steps: List[Dict[str, Any]]) -> Mock:
+def create_mock_chain(steps: list[dict[str, Any]]) -> Mock:
     """
     Create a mock chain object with the specified steps.
     
@@ -148,7 +148,7 @@ def create_mock_chain(steps: List[Dict[str, Any]]) -> Mock:
     return mock_chain
 
 
-def create_mock_chains_config(chain_configs: Dict[str, List[Dict[str, Any]]]) -> Dict[str, Mock]:
+def create_mock_chains_config(chain_configs: dict[str, list[dict[str, Any]]]) -> dict[str, Mock]:
     """
     Create a mock chains configuration dictionary.
     
@@ -168,7 +168,7 @@ def create_alert_payload(
         severity: str = "critical",
         instance: str = "test-instance",
         multiple_alerts: bool = False
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Create a standardized alert payload for testing.
     
@@ -234,7 +234,7 @@ def create_alert_payload(
 def create_firing_alerts_payload(
         alert_count: int = 2,
         base_alertname: str = "TestAlert"
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Create an alert payload with multiple firing alerts for testing.
     
@@ -295,7 +295,7 @@ def create_test_datetime(
         hour: int = 12,
         minute: int = 0,
         second: int = 0,
-        tz: Optional[timezone] = timezone.utc
+        tz: timezone | None = timezone.utc
 ) -> datetime:
     """
     Create a standardized test datetime.
@@ -318,7 +318,7 @@ def create_test_datetime(
 def create_mock_config(
         messenger_type: str = "slack",
         incidents_path: str = "/test/incidents",
-        timeouts: Optional[Dict[str, str]] = None
+        timeouts: dict[str, str] | None = None
 ) -> Mock:
     """
     Create a mock configuration object for testing.
@@ -336,7 +336,7 @@ def create_mock_config(
 
     mock_config = Mock()
     mock_config.incidents_path = incidents_path
-    mock_config.INCIDENT_ACTUAL_VERSION = "v3.6.0"
+    mock_config.INCIDENT_ACTUAL_VERSION = "v3.7.0"
 
     # Mock incident config
     mock_incident_config = Mock()
@@ -355,8 +355,8 @@ def create_mock_chain_step(
         step_type: str = "user",
         identifier: str = "testuser",
         has_chain: bool = False,
-        chain_name: Optional[str] = None
-) -> Dict[str, Any]:
+        chain_name: str | None = None
+) -> dict[str, Any]:
     """
     Create a mock chain step for testing.
     
@@ -376,8 +376,8 @@ def create_mock_chain_step(
 
 
 def create_mock_chain_steps(
-        steps_config: List[Dict[str, Any]]
-) -> List[Dict[str, Any]]:
+        steps_config: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
     """
     Create a list of mock chain steps from configuration.
     
@@ -398,8 +398,8 @@ def create_mock_incident_data(
         assigned_fullname: str = "Test User",
         messenger_type: str = "slack",
         ts: str = "1234567890.123456",
-        link: str = "https://test.slack.comarchives/C123456789/p1234567890123456"
-) -> Dict[str, Any]:
+        link: str = "https://test.slack.com/archives/C123456789/p1234567890123456"
+) -> dict[str, Any]:
     """
     Create mock incident data for testing.
     
@@ -423,7 +423,7 @@ def create_mock_incident_data(
         'status': status,
         'channel_id': channel_id,
         'payload': {'alertname': 'TestAlert', 'severity': 'critical'},
-        'chain': [],
+        'chain_steps': [],
         'chain_enabled': False,
         'chain_active_seconds': 0.0,
         'status_enabled': False,
@@ -478,8 +478,8 @@ def create_mock_application(
         messenger_type: str = "slack",
         url: str = "https://test.slack.com",
         team: str = "test-team",
-        channels: Optional[Dict[str, Dict[str, str]]] = None,
-        chains: Optional[Dict[str, Any]] = None,
+        channels: dict[str, dict[str, str]] | None = None,
+        chains: dict[str, Any] | None = None,
         include_http_session: bool = False
 ) -> Mock:
     """
@@ -532,7 +532,7 @@ def create_mock_application(
 
 
 def create_mock_incidents_collection(
-        by_uuid: Optional[Dict[str, Mock]] = None,
+        by_uuid: dict[str, Mock] | None = None,
         include_get_method: bool = True
 ) -> Mock:
     """
@@ -598,11 +598,11 @@ def create_mock_incident_for_handlers(
         status: str = "firing",
         channel_id: str = "C123456789",
         ts: str = "1234567890.123456",
-        payload: Optional[Dict[str, Any]] = None,
-        chain: Optional[List[Dict[str, Any]]] = None,
+        payload: dict[str, Any] | None = None,
+        chain: list[dict[str, Any]] | None = None,
         chain_enabled: bool = True,
         status_enabled: bool = True,
-        frozen_until: Optional[datetime] = None,
+        frozen_until: datetime | None = None,
         frozen_by_inhibition: bool = False,
         frozen_by_maintenance: bool = False,
         update_state_return: tuple = (True, True),
@@ -640,13 +640,13 @@ def create_mock_incident_for_handlers(
     incident.channel_id = channel_id
     incident.ts = ts
     incident.payload = payload
-    incident.chain = chain
+    incident.chain_steps = chain
     incident.chain_enabled = chain_enabled
     incident.status_enabled = status_enabled
     incident.frozen_until = frozen_until
     incident.frozen_by_inhibition = frozen_by_inhibition
     incident.frozen_by_maintenance = frozen_by_maintenance
-    incident.is_frozen = Mock(return_value=frozen_by_inhibition or frozen_by_maintenance or frozen_until is not None)
+    incident.is_frozen = frozen_by_inhibition or frozen_by_maintenance or frozen_until is not None
     incident.status_update_datetime = create_test_datetime()
     incident.next_status = {
         'firing': 'unknown',
@@ -715,11 +715,11 @@ def create_mock_webhook(
 
 def create_mock_impulse_config(
         messenger_type: str = "slack",
-        channels: Optional[Dict[str, Dict[str, str]]] = None,
-        users: Optional[Dict[str, Dict[str, str]]] = None,
-        admin_users: Optional[List[str]] = None,
-        incident_config: Optional[Dict[str, Any]] = None,
-        ui_config: Optional[Dict[str, Any]] = None
+        channels: dict[str, dict[str, str]] | None = None,
+        users: dict[str, dict[str, str]] | None = None,
+        admin_users: list[str] | None = None,
+        incident_config: dict[str, Any] | None = None,
+        ui_config: dict[str, Any] | None = None
 ) -> Mock:
     """
     Create a mock ImpulseConfig for testing.
@@ -874,13 +874,13 @@ def create_mock_environment_config(**overrides) -> Mock:
 
 
 def create_slack_config_data(
-        admin_users: Optional[List[str]] = None,
-        channels: Optional[Dict[str, Dict[str, str]]] = None,
-        users: Optional[Dict[str, Dict[str, str]]] = None,
-        chains: Optional[Dict[str, Any]] = None,
-        ui_columns: Optional[List[Dict[str, str]]] = None,
+        admin_users: list[str] | None = None,
+        channels: dict[str, dict[str, str]] | None = None,
+        users: dict[str, dict[str, str]] | None = None,
+        chains: dict[str, Any] | None = None,
+        ui_columns: list[dict[str, str]] | None = None,
         impulse_address: str = DEFAULT_IMPULSE_ADDRESS,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Create a standardized Slack configuration data for testing.
     
@@ -928,13 +928,13 @@ def create_slack_config_data(
 
 
 def create_mattermost_config_data(
-        admin_users: Optional[List[str]] = None,
-        channels: Optional[Dict[str, Dict[str, str]]] = None,
-        users: Optional[Dict[str, Dict[str, str]]] = None,
+        admin_users: list[str] | None = None,
+        channels: dict[str, dict[str, str]] | None = None,
+        users: dict[str, dict[str, str]] | None = None,
         address: str = "https://mattermost.example.com",
         team: str = "test-team",
         impulse_address: str = DEFAULT_IMPULSE_ADDRESS
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Create a standardized Mattermost configuration data for testing.
     
@@ -980,11 +980,11 @@ def create_mattermost_config_data(
 
 
 def create_telegram_config_data(
-        admin_users: Optional[List[str]] = None,
-        channels: Optional[Dict[str, Dict[str, int]]] = None,
-        users: Optional[Dict[str, Dict[str, int]]] = None,
+        admin_users: list[str] | None = None,
+        channels: dict[str, dict[str, int]] | None = None,
+        users: dict[str, dict[str, int]] | None = None,
         impulse_address: str = DEFAULT_IMPULSE_ADDRESS
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Create a standardized Telegram configuration data for testing.
     
@@ -1026,9 +1026,9 @@ def create_telegram_config_data(
 
 
 def create_incident_config_data(
-        notifications: Optional[Dict[str, bool]] = None,
-        timeouts: Optional[Dict[str, str]] = None
-) -> Dict[str, Any]:
+        notifications: dict[str, bool] | None = None,
+        timeouts: dict[str, str] | None = None
+) -> dict[str, Any]:
     """
     Create a standardized incident configuration data for testing.
     
@@ -1044,7 +1044,8 @@ def create_incident_config_data(
             "assignment": True,
             "new_firing": True,
             "partial_resolved": True,
-            "status_update": True
+            "status_update": True,
+            "freeze": False
         }
     if timeouts is None:
         timeouts = {
@@ -1062,10 +1063,10 @@ def create_incident_config_data(
 def create_webhook_config_data(
         name: str = "test_webhook",
         url: str = "https://example.com/webhook",
-        data: Optional[Dict[str, Any]] = None,
-        json_payload: Optional[Dict[str, Any]] = None,
-        auth: Optional[str] = None
-) -> Dict[str, Any]:
+        data: dict[str, Any] | None = None,
+        json_payload: dict[str, Any] | None = None,
+        auth: str | None = None
+) -> dict[str, Any]:
     """
     Create a standardized webhook configuration data for testing.
     
@@ -1100,11 +1101,11 @@ def create_webhook_config_data(
 
 
 def create_ui_config_data(
-        columns: Optional[List[Dict[str, str]]] = None,
-        colors: Optional[Dict[str, Dict[str, str]]] = None,
-        filters: Optional[List[str]] = None,
-        sorting: Optional[List[Dict[str, str]]] = None
-) -> Dict[str, Any]:
+        columns: list[dict[str, str]] | None = None,
+        colors: dict[str, dict[str, str]] | None = None,
+        filters: list[str] | None = None,
+        sorting: list[dict[str, str]] | None = None
+) -> dict[str, Any]:
     """
     Create a standardized UI configuration data for testing.
     
@@ -1427,7 +1428,7 @@ def _cleanup_all_patches(patches_context):
         patch_context.stop()
 
 
-def _prepare_button_handler_patches(app, additional_patches: Optional[dict] = None, app_specific_patches: Optional[list] = None):
+def _prepare_button_handler_patches(app, additional_patches: dict | None = None, app_specific_patches: list | None = None):
     """
     Prepare patches for button handler tests.
     
@@ -1463,8 +1464,8 @@ def _prepare_button_handler_patches(app, additional_patches: Optional[dict] = No
 
 
 def create_buttons_handler_context_manager(app, payload, incidents, queue, route,
-                                         expected_log_message: Optional[str] = None,
-                                         additional_patches: Optional[dict] = None,
+                                         expected_log_message: str | None = None,
+                                         additional_patches: dict | None = None,
                                          app_specific_setup=None,
                                          app_specific_patches=None):
     """
@@ -1549,8 +1550,8 @@ def create_slack_mock_config(token: str = "valid_token"):
 # ============================================================================
 
 def create_mattermost_buttons_handler_context(app, payload, incidents, queue, route, 
-                                             expected_log_message: Optional[str] = None,
-                                             additional_patches: Optional[dict] = None,
+                                             expected_log_message: str | None = None,
+                                             additional_patches: dict | None = None,
                                              patch_get_config: bool = True):
     """
     Create a context manager for testing Mattermost buttons_handler with common setup.
@@ -1631,8 +1632,8 @@ def create_telegram_buttons_mock():
 
 
 def create_telegram_buttons_handler_context(app, payload, incidents, queue, route, 
-                                           expected_log_message: Optional[str] = None,
-                                           additional_patches: Optional[dict] = None):
+                                           expected_log_message: str | None = None,
+                                           additional_patches: dict | None = None):
     """
     Create a context manager for testing Telegram buttons_handler with common setup.
     

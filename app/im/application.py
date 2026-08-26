@@ -1,24 +1,46 @@
 import asyncio
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Union, Dict, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
+
+from jinja2 import TemplateError
 
 from app.config.config import get_config
-from app.config.validation import ApplicationConfig, MattermostUser, SlackUser, TelegramUser, MessengerType
-from app.http_client import RateLimitedClient
+from app.config.validation import (
+    ApplicationConfig,
+    MattermostUser,
+    MessengerType,
+    SlackUser,
+    TelegramUser,
+)
+from app.http_client.errors import MESSENGER_TRANSPORT_ERRORS
+from app.http_client.rate_limited_client import RateLimitedClient
 from app.im.chain.chain_factory import ChainFactory
 from app.im.groups import Group
-from app.im.template import notification_user, notification_user_group, notification_group, update_status, \
-    notification_assignment, notification_unassignment, notification_unfreeze
+from app.im.messenger_init import messenger_init_step_async, messenger_init_step_sync
+from app.im.template import (
+    assignment_template_context,
+    chain_step_group,
+    chain_step_user,
+    chain_step_user_group,
+    chain_template_context,
+    freeze_template_context,
+    incident_notifications_assignment,
+    incident_notifications_freeze,
+    incident_notifications_status_update,
+    incident_notifications_unfreeze,
+    status_update_template_context,
+)
 from app.im.user_groups import generate_user_groups
-from app.im.user_store import get_user_store, UserUpdateScheduler
-from app.im.users import UserManager, UndefinedUser
+from app.im.user_store import UserUpdateScheduler, get_user_store
+from app.im.users import BaseUser, UserManager
+from app.incident.freeze import FreezeSource
+from app.incident.incident import unfreeze_incident
 from app.integrations.jira_integration import JiraIntegration
 from app.jinja_template import JinjaTemplate
 from app.logging import logger
+from app.logging_context import redact_messenger_url
 from app.queue.constants import QueueItemType
-from app.incident.freeze import FreezeSource
-from app.incident.incident import unfreeze_incident
 from app.time import calculate_freeze_time
 
 if TYPE_CHECKING:
@@ -29,16 +51,22 @@ log_button_pressed = 'Button pressed'
 
 
 class Application(ABC):
-    task_management_integration: Optional[JiraIntegration] = None
+    task_management_integration: JiraIntegration | None = None
 
-    def __init__(self, app_config: ApplicationConfig, channels, default_channel):
-        self.http: Optional[RateLimitedClient] = None
+    def __init__(self, app_config: ApplicationConfig, channels, default_channel, webhooks=None):
+        self.http: RateLimitedClient | None = None
         self.type = app_config.type
         self.url = self.get_url(app_config)
         self.public_url = None
         self.team = self.get_team_name(app_config)
         self._app_config = app_config
-        self.chains = ChainFactory.generate(app_config.chains)
+        self.chains = ChainFactory.generate(
+            app_config.chains,
+            users=app_config.users or {},
+            user_groups=app_config.user_groups or {},
+            groups=app_config.groups or {},
+            webhooks=webhooks or {},
+        )
         self.templates = app_config.template_files
         self.body_template, self.header_template, self.status_icons_template = self.generate_template()
 
@@ -51,19 +79,20 @@ class Application(ABC):
 
         self.channels = channels
         self.default_channel_id = self.channels[default_channel]['id']
-        self.users = None
+        self.users: UserManager | None = None
         self.user_groups = None
-        self.groups = {}
+        self.groups: dict = {}
         self.admin_users = None
+        self.webhooks: dict = {}
 
         self._users_config = app_config.users
         self._user_groups_config = app_config.user_groups
-        self._groups_config = getattr(app_config, 'groups', {})
+        self._groups_config = app_config.groups
         self._admin_users_config = app_config.admin_users
 
         self._async_tasks: set = set()
         
-        self._user_scheduler: Optional[UserUpdateScheduler] = None
+        self._user_scheduler: UserUpdateScheduler | None = None
 
     @abstractmethod
     async def buttons_handler(self, payload, incidents, queue_, route):
@@ -77,12 +106,10 @@ class Application(ABC):
         self._user_scheduler = scheduler
 
     def create_group(self, config_name, group_details):
-        group_id = group_details.get('id') if group_details.get('exists') else None
-        group_name = group_details.get('name')
         return Group(
             config_name=config_name,
-            name=group_name,
-            id_=group_id,
+            name=group_details.get('name'),
+            id_=group_details.get('id'),
             exists=group_details.get('exists', False)
         )
 
@@ -95,18 +122,14 @@ class Application(ABC):
         pass
 
     def fetch_and_assign_user_name(self, incident, user_id, dump=True):
-        try:
-            cached_user = self.users.get_user_by_id(user_id)
-            if cached_user and cached_user.exists:
-                incident.assigned_user_id = user_id
-                incident.assigned_user = cached_user.username
-                incident.assigned_fullname = cached_user.full_name or '(empty)'
-            logger.debug(f'Incident {incident.uuid} assigned', extra={'user_id': user_id})
-        except Exception as e:
-            logger.error(f'Failed to fetch user name for incident {incident.uuid}: {e}')
-        finally:
-            if dump:
-                incident.dump()
+        cached_user = self.users.get_user_by_id(user_id)
+        if cached_user and cached_user.exists:
+            incident.assigned_user_id = user_id
+            incident.assigned_user = cached_user.username
+            incident.assigned_fullname = cached_user.full_name or '(empty)'
+        logger.debug(f'Incident {incident.uniq_id} assigned', extra={'user_id': user_id})
+        if dump:
+            incident.dump()
 
     def form_body_header_status_icons(self, incident):
         body = self.body_template.form_message(incident.payload, incident)
@@ -129,17 +152,11 @@ class Application(ABC):
     async def get_all_groups(self):
         pass
 
-    def get_config_name_by_user_id(self, user_id: Union[int, str]) -> Optional[str]:
+    def get_config_name_by_user_id(self, user_id: int | str) -> str | None:
         str_user_id = str(user_id)
         for config_name, user_info in self._users_config.items():
             if str(user_info.id) == str_user_id:
                 return config_name
-        return None
-
-    def get_configured_user_name(self, user_id):
-        user = self.users.get_user_by_id(user_id)
-        if user and user.exists:
-            return user.name
         return None
 
     def get_notification_destinations(self):
@@ -149,11 +166,11 @@ class Application(ABC):
         return self._get_team_name(app_config)
 
     @abstractmethod
-    async def get_user_details(self, user_info: Union[SlackUser, MattermostUser, TelegramUser, Dict]):
+    async def get_user_details(self, user_info: SlackUser | MattermostUser | TelegramUser | dict):
         pass
 
     def get_url(self, app_config: ApplicationConfig):
-        return self._get_url(app_config)
+        return self._get_url(app_config).rstrip("/")
 
     async def handle_task_button(self, incident, queue_):
         if not self.task_management_integration:
@@ -162,20 +179,20 @@ class Application(ABC):
 
         return await self.task_management_integration.handle_button_press(incident, queue_)
 
-    async def handle_ui_assignment(self, incident, user_id, queue):
+    async def handle_ui_assignment(self, incident, user_id, queue, ui_user=None):
         str_user_id = str(user_id)
         if incident.assigned_user_id == str_user_id:
             return False
 
         await queue.delete_by_id(incident.uniq_id, delete_steps=True, delete_status=False)
         self.fetch_and_assign_user_name(incident, str_user_id)
-        self.track_async_task(asyncio.create_task(self.post_assignment_notification(incident)))
+        self.track_async_task(asyncio.create_task(self.post_assignment_notification(incident, ui_user=ui_user)))
         incident.chain_enabled = False
         incident.dump()
         await self.update_incident_message(incident)
         return True
 
-    async def handle_ui_unassign(self, incident, queue):
+    async def handle_ui_unassign(self, incident, queue, ui_user=None):
         if not incident.assigned_user_id:
             return False
 
@@ -184,86 +201,119 @@ class Application(ABC):
         incident.assigned_user = ""
         incident.assigned_fullname = ""
         incident.chain_enabled = True
-        self.track_async_task(asyncio.create_task(self.post_unassignment_notification(incident)))
+        self.track_async_task(asyncio.create_task(self.post_unassignment_notification(incident, ui_user=ui_user)))
         incident.dump()
         await self.update_incident_message(incident)
         return True
 
-    async def handle_ui_freeze(self, incident, freeze_option, user_id, incidents, queue, user_timezone=None):
-        await self._handle_freeze_action(incident, freeze_option, user_id, incidents, queue, user_timezone=user_timezone)
+    async def handle_ui_freeze(self, incident, freeze_option, user_id, incidents, queue, user_timezone=None, ui_user=None):
+        await self._handle_freeze_action(
+            incident, freeze_option, user_id, incidents, queue, user_timezone=user_timezone, ui_user=ui_user,
+        )
         await self.update_incident_message(incident)
 
     async def handle_ui_unfreeze(self, incident, queue):
         await self._handle_unfreeze_action(incident, '', queue)
 
-    async def handle_ui_release(self, incident):
+    async def handle_ui_release(self, incident, ui_user=None):
         incident.release()
-        self.track_async_task(asyncio.create_task(self.post_unassignment_notification(incident)))
+        self.track_async_task(asyncio.create_task(self.post_unassignment_notification(incident, ui_user=ui_user)))
         await self.update_incident_message(incident)
 
     async def initialize_async(self):
-        self.http = self._setup_http()
-        if hasattr(self, '_get_public_url') and callable(getattr(self, '_get_public_url')):
-            if asyncio.iscoroutinefunction(self._get_public_url):
-                self.public_url = await self._get_public_url(self._app_config)
-            else:
-                self.public_url = self._get_public_url(self._app_config)
-        self.users = await self._generate_users(self._users_config)
-        self.user_groups = generate_user_groups(self._user_groups_config, self.users)
-        self.groups = await self._generate_groups(self._groups_config)
+        logger.info(
+            'Initializing messenger',
+            extra={'messenger': self.type.value, 'url': redact_messenger_url(self.url)},
+        )
+
+        self.http = self._init_http_client()
+        self.public_url = await self._init_public_url()
+        self.users = await self._init_users()
+        self.user_groups = self._init_user_groups()
+        self.groups = await self._init_groups()
         if self.groups:
             logger.debug(f'Initialized {len(self.groups)} groups: {", ".join(self.groups.keys())}')
-        self.admin_users = [self.users.get(admin) or UndefinedUser(admin) for admin in self._admin_users_config]
+        self.admin_users = self._init_admin_users()
 
-    async def notify(self, incident, notify_type, identifier):
-        destinations = self.get_notification_destinations()
+        logger.info('Messenger initialized', extra={'messenger': self.type.value})
+
+    @messenger_init_step_sync('http_client')
+    def _init_http_client(self) -> RateLimitedClient:
+        return self._setup_http()
+
+    @messenger_init_step_async('public_url')
+    async def _init_public_url(self):
+        url = await self._get_public_url(self._app_config)
+        return url.rstrip("/") if url else url
+
+    @messenger_init_step_async('users')
+    async def _init_users(self):
+        return await self._generate_users(self._users_config)
+
+    @messenger_init_step_sync('user_groups')
+    def _init_user_groups(self):
+        return generate_user_groups(self._user_groups_config, self.users)
+
+    @messenger_init_step_async('groups')
+    async def _init_groups(self):
+        return await self._generate_groups(self._groups_config)
+
+    def _apply_admin_role(self, user, config_name):
+        user.roles = ['admin'] if config_name in self._admin_users_config else []
+
+    @messenger_init_step_sync('admin_users')
+    def _init_admin_users(self):
+        admins = []
+        for admin in self._admin_users_config:
+            user = self.users.get(admin)
+            if user is None:
+                logger.warning('Admin user not found', extra={'user': admin})
+                continue
+            self._apply_admin_role(user, admin)
+            admins.append(user)
+        return admins
+
+    async def notify(self, incident, step):
+        messenger = self.type.value
+        notify_type = step['name']
         if notify_type == 'user':
-            unit = self.users.get(identifier)
-            text_template = JinjaTemplate(notification_user)
+            text_template = JinjaTemplate(chain_step_user[messenger])
         elif notify_type == 'user_group':
-            unit = self.user_groups.get(identifier)
-            text_template = JinjaTemplate(notification_user_group)
+            text_template = JinjaTemplate(chain_step_user_group[messenger])
         elif notify_type == 'group':
-            unit = self.groups.get(identifier)
-            text_template = JinjaTemplate(notification_group)
+            text_template = JinjaTemplate(chain_step_group[messenger])
         else:
-            unit = None
-            text_template = JinjaTemplate(notification_user_group)
-        fields = {'type': self.type.value, 'name': identifier, 'unit': unit, 'admins': destinations}
-        text = text_template.form_notification(fields)
+            text_template = JinjaTemplate(chain_step_user_group[messenger])
+        text = text_template.form_notification(**chain_template_context(self, incident, step))
         _, header, _ = self.form_body_header_status_icons(incident)
         if self.type == MessengerType.TELEGRAM:
             message = text
         else:
             message = header + '\n' + text
         response_code = await self.post_to_thread(incident.channel_id, incident.ts, message)
-        logger.info(f'Chain step {notify_type} \'{identifier}\'', extra={'uuid': incident.uuid})
+        logger.info(f'Chain step {notify_type} \'{step["value"]}\'', extra={'uniq_id': incident.uniq_id})
         return response_code
 
-    async def post_assignment_notification(self, incident):
+    async def post_assignment_notification(self, incident, ui_user=None):
         config = get_config()
         if not config.incident.notifications.assignment or not incident.assigned_user_id:
             return
 
         try:
             header = self.header_template.form_message(incident.payload, incident)
-            fields = {
-                'type': self.type.value,
-                'full_name': incident.assigned_fullname,
-                'username': incident.assigned_user,
-                'id': incident.assigned_user_id
-            }
-            text = JinjaTemplate(notification_assignment).form_notification(fields)
+            text = JinjaTemplate(incident_notifications_assignment[self.type.value]).form_notification(
+                **assignment_template_context(self, incident, ui_user)
+            )
             if self.type == MessengerType.TELEGRAM:
                 message = text
             else:
                 message = header + '\n' + text
 
             await self.post_to_thread(incident.channel_id, incident.ts, message)
-            logger.debug(f'Posted assignment notification for incident {incident.uuid}')
+            logger.debug(f'Posted assignment notification for incident {incident.uniq_id}')
 
-        except Exception as e:
-            logger.error(f'Failed to post assignment notification for incident {incident.uuid}: {e}')
+        except MESSENGER_TRANSPORT_ERRORS + (TemplateError, KeyError) as e:
+            logger.error(f'Failed to post assignment notification for incident {incident.uniq_id}: {e}')
 
     async def post_to_thread(self, channel_id, id_, text):
         payload = self._post_thread_payload(channel_id, id_, text)
@@ -272,28 +322,47 @@ class Application(ABC):
         response.close()
         return status
 
-    async def post_unassignment_notification(self, incident_obj):
+    async def post_unassignment_notification(self, incident_obj, ui_user=None):
         config = get_config()
         if not config.incident.notifications.assignment:
             return
 
         try:
             header = self.header_template.form_message(incident_obj.payload, incident_obj)
-            text = JinjaTemplate(notification_unassignment).form_notification({})
-            if self.type.value == MessengerType.TELEGRAM:
+            text = JinjaTemplate(incident_notifications_assignment[self.type.value]).form_notification(
+                **assignment_template_context(self, incident_obj, ui_user)
+            )
+            if self.type == MessengerType.TELEGRAM:
                 message = text
             else:
                 message = header + '\n' + text
 
             await self.post_to_thread(incident_obj.channel_id, incident_obj.ts, message)
-            logger.debug(f'Posted unassignment notification for incident {incident_obj.uuid}: {message}')
+            logger.debug(f'Posted unassignment notification for incident {incident_obj.uniq_id}: {message}')
 
-        except Exception as e:
-            logger.error(f'Failed to post unassignment notification for incident {incident_obj.uuid}: {e}')
+        except MESSENGER_TRANSPORT_ERRORS + (TemplateError, KeyError) as e:
+            logger.error(f'Failed to post unassignment notification for incident {incident_obj.uniq_id}: {e}')
 
-    async def post_unfreeze_notification(self, incident_: 'Incident'):
-        text_template = JinjaTemplate(notification_unfreeze)
-        text = text_template.form_notification({'type': self.type.value})
+    async def post_freeze_notification(self, incident_: 'Incident', ui_user=None):
+        config = get_config()
+        if not config.incident.notifications.freeze:
+            return
+
+        text = JinjaTemplate(incident_notifications_freeze[self.type.value]).form_notification(
+            **freeze_template_context(incident_, ui_user)
+        )
+        if self.type != MessengerType.TELEGRAM:
+            header = self.header_template.form_message(incident_.payload, incident_)
+            message = header + '\n' + text
+        else:
+            message = text
+
+        await self.post_to_thread(incident_.channel_id, incident_.ts, message)
+
+    async def post_unfreeze_notification(self, incident_: 'Incident', ui_user=None):
+        text = JinjaTemplate(incident_notifications_unfreeze[self.type.value]).form_notification(
+            **freeze_template_context(incident_, ui_user)
+        )
 
         if self.type != MessengerType.TELEGRAM:
             header = self.header_template.form_message(incident_.payload, incident_)
@@ -304,22 +373,20 @@ class Application(ABC):
         await self.post_to_thread(incident_.channel_id, incident_.ts, message)
 
     def track_async_task(self, task):
-        if not hasattr(self, '_async_tasks'):
-            self._async_tasks = set()
         self._async_tasks.add(task)
         task.add_done_callback(self._async_tasks.discard)
 
     async def update(self, incident, incident_status, alert_state, updated_status, chain_enabled,
-                     frozen_until, task_link=''):
-        if not incident.is_frozen():
+                     frozen_until, task_link='', previous_payload=None):
+        if not incident.is_frozen:
             await self.update_incident_message(incident)
 
             config = get_config()
             if updated_status and incident_status != 'closed' and config.incident.notifications.status_update:
-                text_template = JinjaTemplate(update_status)
-                admins = self.get_notification_destinations()
-                fields = {'type': self.type.value, 'status': incident_status, 'admins': admins}
-                text = text_template.form_notification(fields)
+                text_template = JinjaTemplate(incident_notifications_status_update[self.type.value])
+                text = text_template.form_notification(
+                    **status_update_template_context(self, incident, alert_state, previous_payload)
+                )
 
                 _, header, _ = self.form_body_header_status_icons(incident)
                 message = text if self.type == MessengerType.TELEGRAM else header + '\n' + text
@@ -350,20 +417,11 @@ class Application(ABC):
         display_name = self._format_display_name(user_details)
         user = self.create_user(display_name, user_details)
         if user:
+            self._apply_admin_role(user, self.get_config_name_by_user_id(user_id_str))
             self.users.add_user(user_id_str, user)
             if self._user_scheduler:
                 self._user_scheduler.schedule_update(user_id_str)
 
-    async def _assign_from_api(self, incident, user_id):
-        user_details = await self.get_user_details({'id': user_id})
-        assigned_name = self._format_display_name(user_details)
-        incident.assign_fullname(assigned_name)
-        
-        if user_details.get('username'):
-            incident.assign_user(user_details.get('username'))
-        if user_details.get('exists'):
-            self._add_discovered_user(user_id, user_details)
-    
     @staticmethod
     def _format_display_name(user_details: dict) -> str:
         full_name = user_details.get('full_name')
@@ -375,21 +433,23 @@ class Application(ABC):
         return "(empty)"
 
     @abstractmethod
-    async def _generate_groups(self, groups_dict: Dict):
+    async def _generate_groups(self, groups_dict: dict):
         pass
 
-    async def _generate_users(self, users_dict: Dict[str, Union[SlackUser, MattermostUser, TelegramUser]]):
+    async def _generate_users(self, users_dict: dict[str, SlackUser | MattermostUser | TelegramUser]):
         logger.info('Creating users')
         user_store = get_user_store()
         messenger_type = self.type.value
 
         user_manager = UserManager()
-        stored_user_ids = self._load_stored_users(user_manager, user_store, messenger_type)
+        stored = self._load_stored_users(user_store, messenger_type)
 
         for name, user_info in users_dict.items():
             user_id = str(user_info.id)
-            if user_id in stored_user_ids:
-                user_manager.add_config_name(name, user_id)
+            if user_id in stored:
+                user = self.create_user(name, stored[user_id])
+                self._apply_admin_role(user, name)
+                user_manager.add_user(user_id, user, config_name=name)
                 continue
 
             user_details = await self.get_user_details(user_info)
@@ -398,6 +458,7 @@ class Application(ABC):
             else:
                 user_store.save(user_id, messenger_type, user_details)
             user = self.create_user(name, user_details)
+            self._apply_admin_role(user, name)
             user_manager.add_user(user_id, user, config_name=name)
 
         return user_manager
@@ -407,7 +468,7 @@ class Application(ABC):
         pass
 
     @abstractmethod
-    def _get_public_url(self, app_config: ApplicationConfig):
+    async def _get_public_url(self, app_config: ApplicationConfig):
         pass
 
     @abstractmethod
@@ -418,13 +479,19 @@ class Application(ABC):
     def _get_url(self, app_config: ApplicationConfig):
         pass
 
-    def _get_user_timezone_str(self, user_id: Optional[str] = None) -> str:
+    def _get_user_timezone_str(self, user_id: str | None = None) -> str:
         if user_id and self.users:
             user_tz = self.users.get_user_timezone(user_id)
             if user_tz:
                 return user_tz
-        config = get_config()
-        return config.app.general.timezone
+        return get_config().app.general.timezone
+
+    def get_user_profile_url(self, user_id: str, user: BaseUser) -> str | None:
+        return self._build_user_profile_url(str(user_id), user)
+
+    @abstractmethod
+    def _build_user_profile_url(self, user_id: str, user: BaseUser) -> str | None:
+        pass
 
     async def apply_time_freeze(
             self, incident_: 'Incident', until: datetime, user, queue_: 'AsyncQueue',
@@ -437,25 +504,26 @@ class Application(ABC):
 
     async def _handle_freeze_action(
             self, incident_: 'Incident', freeze_option: str, user_id: str, incidents, queue_: 'AsyncQueue',
-            user_timezone: Optional[str] = None
+            user_timezone: str | None = None, ui_user=None,
     ):
-        logger.info(log_button_pressed, extra={'uuid': incident_.uuid, 'button': 'freeze', 'user_id': user_id})
+        logger.info(log_button_pressed, extra={'uniq_id': incident_.uniq_id, 'button': 'freeze', 'user_id': user_id})
 
-        config = get_config()
-        timezone_str = user_timezone or config.app.general.timezone
-        freeze_time = calculate_freeze_time(freeze_option, config.app.general, timezone_str)
+        general = get_config().app.general
+        timezone_str = user_timezone or general.timezone
+        freeze_time = calculate_freeze_time(freeze_option, general, timezone_str)
         self.fetch_and_assign_user_name(incident_, user_id, dump=False)
-        cached_user = self.users.get_user_by_id(user_id)
+        cached_user = self.users.get_user_by_id(user_id) if self.users else None
         await self.apply_time_freeze(incident_, freeze_time, cached_user, queue_, source=FreezeSource.TIME)
+        await self.post_freeze_notification(incident_, ui_user=ui_user)
 
     def _handle_task_action(self, incident_, user_id, queue_):
-        logger.info(log_button_pressed, extra={'uuid': incident_.uuid, 'button': 'task', 'user_id': user_id})
+        logger.info(log_button_pressed, extra={'uniq_id': incident_.uniq_id, 'button': 'task', 'user_id': user_id})
         self.track_async_task(asyncio.create_task(self.handle_task_button(incident_, queue_)))
 
     async def _handle_unfreeze_action(self, incident_: 'Incident', user_id: str, queue_: 'AsyncQueue'):
         if not incident_.can_manual_unfreeze():
             return
-        logger.info(log_button_pressed, extra={'uuid': incident_.uuid, 'button': 'unfreeze', 'user_id': user_id})
+        logger.info(log_button_pressed, extra={'uniq_id': incident_.uniq_id, 'button': 'unfreeze', 'user_id': user_id})
         await queue_.delete_by_id_and_type(incident_.uniq_id, QueueItemType.UNFREEZE)
         await unfreeze_incident(incident_, queue_)
         await self.update_incident_message(incident_)
@@ -464,28 +532,21 @@ class Application(ABC):
     def _initialize_specific_params(self):
         pass
 
-    def _load_stored_users(self, user_manager: UserManager, user_store, messenger_type: str) -> set:
+    def _load_stored_users(self, user_store, messenger_type: str) -> dict:
         stored_users = user_store.get_all_users_by_type(messenger_type)
-        loaded_ids = set()
-
+        result = {}
         for user_id, stored_data in stored_users.items():
-            user_details = {
+            result[user_id] = {
                 'id': user_id,
                 'exists': True,
                 'full_name': stored_data.get('full_name'),
                 'username': stored_data.get('username'),
+                'email': stored_data.get('email'),
                 'timezone': stored_data.get('timezone'),
             }
-            config_name = self.get_config_name_by_user_id(user_id)
-            user = self.create_user(config_name, user_details)
-            if user:
-                user_manager.add_user(user_id, user)
-                loaded_ids.add(user_id)
-
-        if loaded_ids:
-            logger.info(f'Loaded {len(loaded_ids)} users from storage')
-
-        return loaded_ids
+        if result:
+            logger.info(f'Loaded {len(result)} users from storage')
+        return result
 
     @abstractmethod
     def _markdown_links_to_native_format(self, text):
@@ -545,17 +606,6 @@ class Application(ABC):
         )
         client.initialize_client()
         return client
-
-    def _try_assign_from_user_manager(self, incident, user_id):
-        cached_user = self.users.get_user_by_id(user_id)
-        if not (cached_user and cached_user.exists):
-            return False
-        
-        incident.assign_fullname(cached_user.name)
-        notification_id = cached_user.get_notification_identifier()
-        if notification_id and notification_id != cached_user.id:
-            incident.assign_user(notification_id)
-        return True
 
     @abstractmethod
     async def _update_incident_message(self, id_, payload):

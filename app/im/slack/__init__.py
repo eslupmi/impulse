@@ -1,1 +1,1 @@
-from app.im.slack.config import buttons
+from app.im.slack.config import buttons as buttons

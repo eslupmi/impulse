@@ -1,0 +1,53 @@
+name: tests
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+on:
+  pull_request:
+    branches:
+    - master
+    - develop
+    types:
+    - opened
+    - synchronize
+    - reopened
+    - ready_for_review
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  lint:
+    if: github.event.pull_request.draft == false && github.base_ref == 'develop'
+    uses: ./.github/workflows/_lint.yml
+
+  tests:
+    if: github.event.pull_request.draft == false
+    uses: ./.github/workflows/_tests.yml
+    with:
+      python-versions: ${{ github.base_ref == 'master' && '["3.10","3.11","3.12","3.13"]' || '["3.12"]' }}
+
+  build-and-push-image:
+    if: github.event.pull_request.draft == false
+    needs: tests
+    uses: ./.github/workflows/_build-and-push-image.yml
+
+  autotests:
+    if: github.event.pull_request.draft == false
+    needs: build-and-push-image
+    uses: ./.github/workflows/_autotests.yml
+    with:
+      branch: pr-${{ github.event.pull_request.number }}
+    secrets: inherit
+
+  migrations:
+    if: github.event.pull_request.draft == false && github.base_ref == 'master'
+    needs: build-and-push-image
+    uses: ./.github/workflows/_migration.yml
+    with:
+      branch: pr-${{ github.event.pull_request.number }}
+      deploy-path: /opt/impulse/prod
+    secrets: inherit

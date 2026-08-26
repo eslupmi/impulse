@@ -1,26 +1,29 @@
 import {table} from "./table.js";
 import {updateZoomIcons} from "./filters.js";
 import {getBaseUrl} from "./utils.js";
+import {SHOW_FULL_TABLE_KEY} from "./constants.js";
+
+function loadShowFullTablePreference() {
+    return localStorage.getItem(SHOW_FULL_TABLE_KEY) === "true";
+}
 
 let socket;
 let heartbeatInterval;
 let heartbeatTimeout;
-let showFullTable = false;
+let showFullTable = loadShowFullTablePreference();
 const HEARTBEAT_INTERVAL = 10000;
 const HEARTBEAT_TIMEOUT = 5000;
 const RECONNECT_DELAY = 3000;
 
 // Update online status indicator
 function updateOnlineStatus(isOnline) {
-    const indicator = document.querySelector('.online-status-indicator');
-    if (indicator) {
-        if (isOnline) {
-            indicator.textContent = 'online';
-            indicator.className = 'online-status-indicator online';
-        } else {
-            indicator.textContent = 'offline';
-            indicator.className = 'online-status-indicator offline';
-        }
+    const indicator = document.querySelector(".online-status-indicator");
+    if (isOnline) {
+        indicator.textContent = "online";
+        indicator.className = "online-status-indicator online";
+    } else {
+        indicator.textContent = "offline";
+        indicator.className = "online-status-indicator offline";
     }
 }
 
@@ -33,7 +36,7 @@ function startHeartbeat() {
             socket.send(JSON.stringify({event: "ping"}));
 
             heartbeatTimeout = setTimeout(() => {
-                console.log('Heartbeat timeout - no pong received, connection appears dead');
+                console.log("Heartbeat timeout - no pong received, connection appears dead");
                 updateOnlineStatus(false);
                 socket.close();
             }, HEARTBEAT_TIMEOUT);
@@ -102,21 +105,19 @@ const WEBSOCKET_MESSAGE_FIELD_HANDLERS = {
 
 function dispatchOptionalGlobalHandler(message) {
     const dataHandler = WEBSOCKET_DATA_HANDLERS[message.event];
-    if (dataHandler && typeof globalThis[dataHandler] === "function") {
+    if (dataHandler) {
         globalThis[dataHandler](message.data);
         return true;
     }
-    if (message.event === "maintenance_saved" && typeof globalThis.handleMaintenanceSaved === "function") {
+    if (message.event === "maintenance_saved") {
         globalThis.handleMaintenanceSaved(message.success, message.detail);
         return true;
     }
     const fieldHandler = WEBSOCKET_MESSAGE_FIELD_HANDLERS[message.event];
     if (fieldHandler) {
         const [handlerName, field] = fieldHandler;
-        if (typeof globalThis[handlerName] === "function") {
-            globalThis[handlerName](message[field]);
-            return true;
-        }
+        globalThis[handlerName](message[field]);
+        return true;
     }
     return false;
 }
@@ -132,7 +133,7 @@ function handleWebSocketMessage(message) {
     switch (eventType) {
         case "add_row":
             preserveScrollDuringOperation(() => {
-                if (showFullTable || (data.indicator !== 'closed' && data.indicator !== 'deleted')) {
+                if (showFullTable || (data.indicator !== "closed" && data.indicator !== "deleted")) {
                     table.addRow(data);
                     table.setSort(table.getSorters());
                     updateZoomIcons();
@@ -142,13 +143,13 @@ function handleWebSocketMessage(message) {
 
         case "update_row":
             preserveScrollDuringOperation(() => {
-                if (showFullTable || (data.indicator !== 'closed' && data.indicator !== 'deleted')) {
+                if (showFullTable || (data.indicator !== "closed" && data.indicator !== "deleted")) {
                     table.updateOrAddData([data]);
                     table.setSort(table.getSorters());
                     table.refreshFilter();
                     updateZoomIcons();
                 } else {
-                    const rows = table.searchRows('uniq_id', '=', data.uniq_id);
+                    const rows = table.searchRows("uniq_id", "=", data.uniq_id);
                     rows.forEach(row => row.delete());
                     updateZoomIcons();
                 }
@@ -157,7 +158,7 @@ function handleWebSocketMessage(message) {
 
         case "remove_row":
             preserveScrollDuringOperation(() => {
-                const rows = table.searchRows('uniq_id', '=', data.uniq_id);
+                const rows = table.searchRows("uniq_id", "=", data.uniq_id);
                 rows.forEach(row => row.delete());
                 updateZoomIcons();
             });
@@ -165,12 +166,10 @@ function handleWebSocketMessage(message) {
 
         case "update_data":
             preserveScrollDuringOperation(() => {
-                if (!table.initialDataLoaded) {
-                    table.initialDataLoaded = true;
-                }
+                table.initialDataLoaded = true;
                 let tableData = data;
                 if (!showFullTable) {
-                    tableData = data.filter(row => row.indicator !== 'closed' && row.indicator !== 'deleted');
+                    tableData = data.filter(row => row.indicator !== "closed" && row.indicator !== "deleted");
                 }
                 table.replaceData(tableData);
                 updateZoomIcons();
@@ -180,23 +179,20 @@ function handleWebSocketMessage(message) {
         case "pong":
             handlePong();
             break;
-
-        default:
-            console.log('Unknown WebSocket event:', eventType);
     }
 }
 
 // Handle WebSocket Events
 function setupWebSocketEvents() {
     // Create WebSocket connection
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const baseUrl = getBaseUrl();
     const wsUrl = `${protocol}//${window.location.host}${baseUrl}/ws`;
     
     socket = new WebSocket(wsUrl);
 
     socket.onopen = function(event) {
-        console.log('WebSocket connected');
+        console.log("WebSocket connected");
         updateOnlineStatus(true);
         startHeartbeat();
         table.initialDataLoaded = false;
@@ -208,50 +204,52 @@ function setupWebSocketEvents() {
         try {
             handleWebSocketMessage(JSON.parse(event.data));
         } catch (error) {
-            console.error('Error parsing WebSocket message:', error);
+            console.error("Error parsing WebSocket message:", error);
         }
     };
 
     socket.onclose = function(event) {
-        console.log('WebSocket disconnected');
+        console.log("WebSocket disconnected");
         updateOnlineStatus(false);
         stopHeartbeat();
         setTimeout(setupWebSocketEvents, RECONNECT_DELAY);
     };
 
     socket.onerror = function(error) {
-        console.error('WebSocket error:', error);
+        console.error("WebSocket error:", error);
         updateOnlineStatus(false);
         stopHeartbeat();
     };
 }
 
-function toggleHistoryView() {
-    showFullTable = !showFullTable;
-    const button = document.getElementById('history-toggle');
-    if (button) {
-        if (showFullTable) {
-            button.classList.add('active');
-            button.title = 'Hide archive';
-        } else {
-            button.classList.remove('active');
-            button.title = 'Show archive';
-        }
-    }
-    
-    if (socket && socket.readyState === WebSocket.OPEN) {
-        socket.send(JSON.stringify({event: "request_data", show_full_table: showFullTable}));
+function updateHistoryToggleButton() {
+    const button = document.getElementById("history-toggle");
+    if (showFullTable) {
+        button.classList.add("active");
+        button.title = "Hide archive";
     } else {
-        console.warn('WebSocket not connected, cannot reload table');
+        button.classList.remove("active");
+        button.title = "Show archive";
+    }
+}
+
+function setShowFullTable(value) {
+    showFullTable = value;
+    localStorage.setItem(SHOW_FULL_TABLE_KEY, value ? "true" : "false");
+    updateHistoryToggleButton();
+}
+
+function toggleHistoryView() {
+    setShowFullTable(!showFullTable);
+
+    if (socket?.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({event: "request_data", show_full_table: showFullTable}));
     }
 }
 
 function initHistoryToggle() {
-    const button = document.getElementById('history-toggle');
-    if (button) {
-        button.addEventListener('click', toggleHistoryView);
-        button.title = 'Show archive';
-    }
+    document.getElementById("history-toggle").addEventListener("click", toggleHistoryView);
+    updateHistoryToggleButton();
 }
 
 function getSocket() {

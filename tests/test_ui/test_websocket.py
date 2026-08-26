@@ -179,7 +179,7 @@ class TestAsyncIncidentWS:
         ws = AsyncIncidentWS()
         mock_websocket = AsyncMock()
         mock_incidents = Mock()
-        mock_incidents.get_table.side_effect = Exception("Database error")
+        mock_incidents.get_active_table.side_effect = Exception("Database error")
 
         with patch.object(ws, '_get_values', return_value={'field1': 'value1'}), \
                 patch('app.ui.websocket.logger') as mock_logger:

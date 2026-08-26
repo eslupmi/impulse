@@ -99,15 +99,17 @@ class TestInhibitionManager:
         ):
             incident.parents.append("inhibition-source")
 
+        def _sync_is_frozen():
+            incident.is_frozen = incident.frozen_until is not None or len(incident.parents) > 0
+
         def remove_freeze_parent(parent):
             if parent in incident.parents:
                 incident.parents.remove(parent)
+            _sync_is_frozen()
 
         incident.remove_freeze_parent = Mock(side_effect=remove_freeze_parent)
-        incident.is_frozen = Mock(
-            side_effect=lambda: incident.frozen_until is not None or len(incident.parents) > 0
-        )
-        incident.freeze_by_inhibition = Mock()
+        _sync_is_frozen()
+        incident.freeze_by_inhibition = Mock(side_effect=_sync_is_frozen)
         incident.dump = Mock()
         return incident
 
@@ -371,7 +373,7 @@ class TestInhibitionManager:
             "target-1", "warning", "api",
             frozen_by_inhibition=False
         )
-        target.is_frozen = Mock(return_value=False)
+        target.is_frozen = False
         
         mock_incidents.uniq_ids = {"target-1": target}
         inhibition_manager.targets[0].add("target-1")
@@ -390,7 +392,7 @@ class TestInhibitionManager:
             parents=["source-1"],
             frozen_by_inhibition=True
         )
-        target.is_frozen = Mock(return_value=True)
+        target.is_frozen = True
         
         mock_incidents.uniq_ids = {"target-1": target}
         inhibition_manager.targets[0].add("target-1")

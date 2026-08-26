@@ -1,28 +1,29 @@
 import asyncio
 import json
-import os
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import KW_ONLY, dataclass, field, fields
 from datetime import datetime, timezone
-from typing import ClassVar, List, Dict, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 import yaml
 
 from app.config.config import get_config
 from app.config.environment import get_environment_config
 from app.config.validation import MessengerType
-from app.im.channel_manager import ChannelManager
 from app.im.chain.ui_chains_store import ui_chains_store
-from app.incident.freeze import FreezeSource, MAINTENANCE_PARENT_SENTINEL
+from app.im.channel_manager import ChannelManager
+from app.incident.freeze import MAINTENANCE_PARENT_SENTINEL, FreezeSource
 from app.logging import logger
 from app.queue.constants import QueueItemType
 from app.time import unix_sleep_to_timedelta
 from app.tools import NoAliasDumper
 from app.ui.websocket import incident_ws
-from app.utils import get_attr_by_key_chain, normalize_param, filter_dict_keys
+from app.utils import filter_dict_keys, get_attr_by_key_chain, normalize_param
 
 if TYPE_CHECKING:
     from app.queue.queue import AsyncQueue
+
+_RUNTIME = {'runtime': True}
 
 
 @dataclass
@@ -34,33 +35,45 @@ class IncidentConfig:
 
 @dataclass
 class Incident:
-    payload: Dict
+    # --- Serializable fields ---
+    payload: dict
     status: str
     channel_id: str
-    config: IncidentConfig
     status_update_datetime: datetime
     assigned_user_id: str
     assigned_user: str
     assigned_fullname: str
     messenger_type: str
-    chain: List[Dict] = field(default_factory=list)
+    _: KW_ONLY
+    chain_steps: list[dict] = field(default_factory=list)
     chain_enabled: bool = False
     status_enabled: bool = False
     updated: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     created: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     version: str = get_config().INCIDENT_ACTUAL_VERSION
-    uniq_id: str = field(default=None)
+    uniq_id: str = field(default='')
     uuid: str = field(init=False)
     ts: str = field(default='')
     link: str = field(default='')
     task_link: str = field(default='')
-    task_creation_in_progress: bool = False
-    closed: Optional[datetime] = field(default=None)
-    frozen_until: Optional[datetime] = field(default=None)
-    frozen_until_source: Optional[str] = field(default=None)
+    closed: datetime | None = field(default=None)
+    frozen_until: datetime | None = field(default=None)
+    frozen_until_source: str | None = field(default=None)
     chain_active_seconds: float = 0.0
-    childs: List[str] = field(default_factory=list)  # Target incident uniq_ids that this incident inhibits
-    parents: List[str] = field(default_factory=list)  # Source incident uniq_ids that inhibit this incident
+    childs: list[str] = field(default_factory=list)  # Target incident uniq_ids that this incident inhibits
+    parents: list[str] = field(default_factory=list)  # Source incident uniq_ids that inhibit this incident
+
+    # --- Runtime fields ---
+    config: IncidentConfig = field(metadata=_RUNTIME)
+    task_creation_in_progress: bool = field(default=False, metadata=_RUNTIME)
+
+    # Computed values included in dump()/serialize()
+    _COMPUTED_SERIALIZABLE: ClassVar[tuple[str, ...]] = (
+        'channel_name',
+        'frozen_by_inhibition',
+        'frozen_by_maintenance',
+        'is_frozen',
+    )
 
     next_status: ClassVar[dict[str, str]] = {
         'firing': 'unknown',
@@ -77,6 +90,10 @@ class Incident:
             self.uniq_id = self.gen_uniq_id(self.payload.get('groupLabels'), self.created)
 
     @property
+    def channel_name(self) -> str | None:
+        return ChannelManager().get_channel_name_by_id(self.channel_id)
+
+    @property
     def frozen_by_maintenance(self) -> bool:
         return MAINTENANCE_PARENT_SENTINEL in self.parents
 
@@ -84,9 +101,13 @@ class Incident:
     def frozen_by_inhibition(self) -> bool:
         return any(parent != MAINTENANCE_PARENT_SENTINEL for parent in self.parents)
 
+    @property
+    def is_frozen(self) -> bool:
+        return self.frozen_until is not None or len(self.parents) > 0
+
     def generate_link(self, public_url) -> str:
         if self.config.application_type == MessengerType.SLACK:
-            return f'{public_url}' + f'archives/{self.channel_id}/p{self.ts.replace(".", "")}'
+            return f'{public_url}/archives/{self.channel_id}/p{self.ts.replace(".", "")}'
         elif self.config.application_type == MessengerType.MATTERMOST:
             return f'{self.config.application_url}/{self.config.application_team.lower()}/pl/{self.ts}'
         elif self.config.application_type == MessengerType.TELEGRAM:
@@ -101,9 +122,11 @@ class Incident:
             except AttributeError:
                 logger.error(f'Chain {chain_name} does not have steps attribute')
                 return None
-        chain_config = get_config().messenger.chains.get(chain_name) if get_config().messenger.chains else None
-        if isinstance(chain_config, dict) and chain_config.get("type") == "ui":
-            return ui_chains_store.get_steps_for_now(chain_name)
+        messenger_chains = get_config().messenger.chains
+        if messenger_chains:
+            chain_config = messenger_chains.get(chain_name)
+            if isinstance(chain_config, dict) and chain_config.get("type") == "ui":
+                return ui_chains_store.get_steps_for_now(chain_name)
         logger.warning("Chain not found", extra={'chain': chain_name})
         return None
 
@@ -127,12 +150,12 @@ class Incident:
             if type_ == 'wait':
                 cumulative_delay += unix_sleep_to_timedelta(value).total_seconds()
             else:
-                self.chain_put(index=index, delay=cumulative_delay, type_=type_, identifier=value)
+                self.chain_put(index=index, delay=cumulative_delay, name=type_, value=value)
         self.chain_active_seconds = 0.0
         self.dump()
 
     def release(self):
-        self.chain = []
+        self.chain_steps = []
         self.chain_active_seconds = 0.0
         self.assigned_user_id = ""
         self.assigned_user = ""
@@ -153,7 +176,7 @@ class Incident:
             self.assigned_fullname = user.name
         self.chain_enabled = False
         self.dump()
-        logger.info("Incident frozen", extra={'uuid': self.uuid, 'frozen_until': until})
+        logger.info("Incident frozen", extra={'uniq_id': self.uniq_id, 'frozen_until': until})
 
     def unfreeze(self):
         """Clear all freeze sources."""
@@ -161,20 +184,20 @@ class Incident:
         self.frozen_until_source = None
         self.parents = []
         self.dump()
-        logger.info("Incident unfrozen", extra={'uuid': self.uuid})
+        logger.info("Incident unfrozen", extra={'uniq_id': self.uniq_id})
 
     def clear_time_freeze(self):
         """Clear only time-based freeze state, preserving parent-based freezes."""
         self.frozen_until = None
         self.frozen_until_source = None
         self.dump()
-        logger.info("Incident time freeze cleared", extra={'uuid': self.uuid})
+        logger.info("Incident time freeze cleared", extra={'uniq_id': self.uniq_id})
 
     def remove_freeze_parent(self, parent: str):
         if parent in self.parents:
             self.parents.remove(parent)
             self.dump()
-            logger.info("Incident freeze parent removed", extra={'uuid': self.uuid, 'parent': parent})
+            logger.info("Incident freeze parent removed", extra={'uniq_id': self.uniq_id, 'parent': parent})
 
     def set_maintenance_parent(self):
         if MAINTENANCE_PARENT_SENTINEL not in self.parents:
@@ -185,10 +208,7 @@ class Incident:
         """Sync inhibition freeze side effects after caller records source uniq_id in parents."""
         self.accumulate_chain_time(self.updated)
         self.dump()
-        logger.info("Incident frozen by inhibition", extra={'uuid': self.uuid})
-
-    def is_frozen(self) -> bool:
-        return self.frozen_until is not None or len(self.parents) > 0
+        logger.info("Incident frozen by inhibition", extra={'uniq_id': self.uniq_id})
 
     def can_manual_unfreeze(self) -> bool:
         return (
@@ -205,23 +225,26 @@ class Incident:
         if delta > 0:
             self.chain_active_seconds += delta
 
-    def get_chain(self) -> List[Dict]:
+    def get_chain(self) -> list[dict]:
         if not self.chain_enabled:
             return []
-        return self.chain
+        return self.chain_steps
 
-    def chain_put(self, index: int, delay: float, type_: str, identifier: str):
-        self.chain.insert(index, {
+    def chain_put(self, index: int, delay: float, name: str, value: str):
+        self.chain_steps.insert(index, {
             'delay': delay,
-            'type': type_,
-            'identifier': identifier,
+            'name': name,
+            'value': value,
             'done': False,
-            'result': None
+            'result': None,
+            'status': None,
         })
 
-    def chain_update(self, index: int, done: bool, result: Optional[str]):
-        self.chain[index]['done'] = done
-        self.chain[index]['result'] = result
+    def chain_update(self, index: int, done: bool, result, status=None):
+        self.chain_steps[index]['done'] = done
+        self.chain_steps[index]['result'] = result
+        if status is not None:
+            self.chain_steps[index]['status'] = status
         self.dump()
 
     @classmethod
@@ -234,7 +257,7 @@ class Incident:
             status=content.get('status'),
             channel_id=content.get('channel_id'),
             config=incident_config,
-            chain=content.get('chain', []),
+            chain_steps=content.get('chain_steps', []),
             chain_enabled=content.get('chain_enabled', False),
             closed=content.get('closed', None),
             status_enabled=content.get('status_enabled', False),
@@ -261,87 +284,31 @@ class Incident:
     def get_current_filename(self) -> str:
         """Get the current filename based on incident state"""
         env_config = get_environment_config()
-        if self.status == 'closed' or self.status == 'deleted':
-            closed_str = self._datetime_serialize(self.closed)
-            return f'{env_config.incidents_path}/{self.uuid}__{closed_str}.yml'
-        else:
-            return f'{env_config.incidents_path}/{self.uuid}.yml'
+        return f'{env_config.incidents_path}/{self.uniq_id}.yml'
+
+    def serialize(self) -> dict:
+        data = {
+            f.name: getattr(self, f.name)
+            for f in fields(self)
+            if not f.metadata.get('runtime')
+        }
+        data.update({name: getattr(self, name) for name in self._COMPUTED_SERIALIZABLE})
+        return dict(sorted(data.items()))
 
     def dump(self):
-        data = {
-            "chain_enabled": self.chain_enabled,
-            "chain": self.chain,
-            "channel_id": self.channel_id,
-            "closed": self.closed,
-            "payload": self.payload,
-            "status_enabled": self.status_enabled,
-            "status_update_datetime": self.status_update_datetime,
-            "status": self.status,
-            "ts": self.ts,
-            "updated": self.updated,
-            "created": self.created,
-            "assigned_user_id": self.assigned_user_id,
-            "assigned_user": self.assigned_user,
-            "assigned_fullname": self.assigned_fullname,
-            "messenger_type": self.messenger_type,
-            "uniq_id": self.uniq_id,
-            "version": self.version,
-            "task_link": self.task_link,
-            "frozen_until": self.frozen_until,
-            "frozen_until_source": self.frozen_until_source,
-            "chain_active_seconds": self.chain_active_seconds,
-            "childs": self.childs,
-            "parents": self.parents,
-        }
-        incident_filename = self.get_current_filename()
+        path = self.get_current_filename()
         try:
-            with open(incident_filename, 'w') as f:
-                yaml.dump(data, f, NoAliasDumper, default_flow_style=False)
+            with open(path, 'w') as f:
+                yaml.dump(self.serialize(), f, NoAliasDumper, default_flow_style=False)
         except OSError as e:
-            logger.error("Failed to write incident file", extra={'file': incident_filename, 'error': str(e)})
-        # Schedule async websocket update
-        import asyncio
+            logger.error("Failed to write incident file", extra={'file': path, 'error': str(e)})
         try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
+            if asyncio.get_event_loop().is_running():
                 _ws_task = asyncio.create_task(incident_ws.update_row(self))
         except RuntimeError:
-            # No event loop running, skip websocket update
             pass
 
-    def serialize(self) -> Dict:
-        return {
-            "chain_enabled": self.chain_enabled,
-            "chain": self.chain,
-            "channel_id": self.channel_id,
-            "channel_name": ChannelManager().get_channel_name_by_id(self.channel_id),
-            "closed": self.closed,
-            "payload": self.payload,
-            "status_enabled": self.status_enabled,
-            "status_update_datetime": self.status_update_datetime,
-            "status": self.status,
-            "updated": self.updated,
-            "created": self.created,
-            "assigned_user_id": self.assigned_user_id,
-            "assigned_user": self.assigned_user,
-            "assigned_fullname": self.assigned_fullname,
-            "messenger_type": self.messenger_type,
-            "link": self.link,
-            "ts": self.ts,
-            "task_link": self.task_link,
-            "uuid": self.uuid,
-            "uniq_id": self.uniq_id,
-            "frozen_until": self.frozen_until,
-            "frozen_until_source": self.frozen_until_source,
-            "is_frozen": self.is_frozen(),
-            "frozen_by_inhibition": self.frozen_by_inhibition,
-            "frozen_by_maintenance": self.frozen_by_maintenance,
-            "chain_active_seconds": self.chain_active_seconds,
-            "childs": self.childs,
-            "parents": self.parents,
-        }
-
-    def get_table_data(self, params) -> Dict:
+    def get_table_data(self, params) -> dict:
         alerts = self.payload.get('alerts', [])
         if len(alerts) > 1:
             group_labels = self.payload.get('groupLabels', {})
@@ -352,14 +319,14 @@ class Incident:
             common_labels = {}
             common_annotations = {}
         
-        display_status = 'frozen' if self.is_frozen() else self.status
+        display_status = 'frozen' if self.is_frozen else self.status
         
         data = {
             'uniq_id': self.uniq_id,
             'indicator': display_status,
             '_alerts_count': len(self.payload.get('alerts', [])),
-            '_is_frozen': self.is_frozen(),
-            '_action_state': f"{self.is_frozen()}|{self.status}|{self.assigned_user_id or ''}|{bool(self.task_link)}|{self.frozen_by_inhibition}|{self.frozen_by_maintenance}",
+            '_is_frozen': self.is_frozen,
+            '_action_state': f"{self.is_frozen}|{self.status}|{self.assigned_user_id or ''}|{bool(self.task_link)}|{self.frozen_by_inhibition}|{self.frozen_by_maintenance}",
             '_assigned_user_id': self.assigned_user_id or '',
             '_assigned_fullname': self.assigned_fullname or '',
             '_responsive_data': {
@@ -400,18 +367,14 @@ class Incident:
         now = datetime.now(timezone.utc)
         self._schedule_status_change_by_timeout(status, now)
         if self.status != status:
-            old_filename = self.get_current_filename()
             self._set_status(status)
             self.updated = now
             self.dump()
-            new_filename = self.get_current_filename()
-            if old_filename != new_filename:
-                self._remove_old_file(old_filename)
             return True
         self.dump()
         return False
 
-    def update_state(self, alert_state: Dict) -> tuple[bool, bool]:
+    def update_state(self, alert_state: dict) -> tuple[bool, bool]:
         update_status = self.update_status(alert_state['status'])
         state_updated = self.payload != alert_state
         if state_updated:
@@ -419,22 +382,22 @@ class Incident:
             self.dump()
         return update_status, state_updated
 
-    def is_new_firing_alerts_added(self, alert_state: Dict) -> bool:
+    def is_new_firing_alerts_added(self, alert_state: dict) -> bool:
         old_alerts_labels = self._get_firing_alerts_labels(self.payload)
         new_alerts_labels = self._get_firing_alerts_labels(alert_state)
         return any(label not in old_alerts_labels for label in new_alerts_labels)
 
-    def is_some_firing_alerts_removed(self, alert_state: Dict) -> bool:
+    def is_some_firing_alerts_removed(self, alert_state: dict) -> bool:
         old_alerts_labels = self._get_firing_alerts_labels(self.payload)
         new_alerts_labels = self._get_firing_alerts_labels(alert_state)
         return any(label not in new_alerts_labels for label in old_alerts_labels)
 
     @staticmethod
-    def gen_uuid(group_labels: Dict) -> str:
+    def gen_uuid(group_labels: dict | None) -> str:
         return str(uuid.uuid5(uuid.NAMESPACE_OID, json.dumps(group_labels)))
 
     @staticmethod
-    def gen_uniq_id(group_labels: Dict, datetime_: datetime) -> str:
+    def gen_uniq_id(group_labels: dict, datetime_: datetime) -> str:
         return str(uuid.uuid5(
             uuid.NAMESPACE_OID,
             json.dumps({'group_labels': group_labels, 'datetime': datetime_.isoformat()})
@@ -444,7 +407,7 @@ class Incident:
 
     def _set_status(self, status: str):
         self.status = status
-        logger.debug("Status updated", extra={'uuid': self.uuid, 'status': status})
+        logger.debug("Status updated", extra={'uniq_id': self.uniq_id, 'status': status})
         if status == 'closed' and not self.closed:
             self.closed = datetime.now(timezone.utc)
 
@@ -492,24 +455,8 @@ class Incident:
         return False
 
     @staticmethod
-    def _remove_old_file(old_filename: str):
-        """Remove old incident file"""
-        try:
-            if os.path.exists(old_filename):
-                os.remove(old_filename)
-                logger.debug("Removed incident file", extra={'file': old_filename})
-        except OSError as e:
-            logger.error("Failed to remove incident file", extra={'file': old_filename, 'error': str(e)})
-
-    @staticmethod
     def _get_firing_alerts_labels(alert_state):
         return [a.get('labels') for a in alert_state['alerts'] if a['status'] == 'firing']
-
-    @staticmethod
-    def _datetime_serialize(datetime_: Optional[datetime]) -> str:
-        if datetime_ is None:
-            return ''
-        return datetime_.strftime('%Y_%m_%d__%H_%M_%S')
 
 
 async def unfreeze_incident(incident: 'Incident', queue: 'AsyncQueue'):
@@ -520,10 +467,10 @@ async def remove_freeze_source(
     incident: 'Incident',
     queue: 'AsyncQueue',
     source: FreezeSource,
-    parent: Optional[str] = None,
+    parent: str | None = None,
 ):
-    if not incident.is_frozen() and source != FreezeSource.PARENT:
-        logger.info(f'Incident {incident.uuid} is not frozen, skipping unfreeze')
+    if not incident.is_frozen and source != FreezeSource.PARENT:
+        logger.info(f'Incident {incident.uniq_id} is not frozen, skipping unfreeze')
         return
 
     incident_status = incident.status
@@ -551,9 +498,9 @@ async def remove_freeze_source(
 async def sync_after_freeze_change(
     incident: 'Incident',
     queue: 'AsyncQueue',
-    incident_status: Optional[str] = None,
+    incident_status: str | None = None,
 ):
-    if incident.is_frozen():
+    if incident.is_frozen:
         await queue.delete_by_id(incident.uniq_id, delete_steps=True, delete_status=False)
         return
 

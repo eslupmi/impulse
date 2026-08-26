@@ -2,12 +2,11 @@ import asyncio
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+
 from app.config.config import get_config
-from app.config.environment import get_environment_config
 from app.config.validation import MessengerType
-from app.signals import setup_sighup_handler
 from app.file_lock import FileLock
-from app.routes import create_router
+from app.im.chain.ui_chains_store import ui_chains_store
 from app.im.channel_manager import ChannelManager
 from app.im.helpers import get_application
 from app.im.user_store import UserUpdateScheduler
@@ -21,8 +20,8 @@ from app.metrics import STATUS
 from app.queue.manager import AsyncQueueManager
 from app.queue.queue import AsyncQueue
 from app.route import generate_route
+from app.signals import setup_sighup_handler
 from app.webhook import generate_webhooks
-from app.im.chain.ui_chains_store import ui_chains_store
 
 
 async def _initialize_primary_server(fastapi_app: FastAPI, file_lock: FileLock) -> bool:
@@ -37,8 +36,8 @@ async def _initialize_primary_server(fastapi_app: FastAPI, file_lock: FileLock) 
         STATUS.set(1)
         logger.info('Started as primary server')
         return True
-    except Exception as e:
-        logger.error("Primary server initialization failed", extra={'error': str(e)})
+    except Exception:  # noqa: BLE001
+        logger.error("Primary server initialization failed")
         await file_lock.release_lock()
         return False
 
@@ -57,10 +56,13 @@ async def create_main_objects(fastapi_app: FastAPI, reload=False):
     channels = channel_manager.initialize(route.get_uniq_channels(), config_data.messenger.channels, route.channel)
     default_channel = route.channel
     messenger = get_application(
-        config_data.messenger, channels, default_channel, task_management_config=config_data.app.task_management
+        config_data.messenger, channels, default_channel,
+        task_management_config=config_data.app.task_management,
+        webhooks=webhooks_config,
     )
     await messenger.initialize_async()
     webhooks = generate_webhooks(webhooks_config)
+    messenger.webhooks = webhooks
 
     if reload:
         user_scheduler = fastapi_app.state.messenger._user_scheduler
@@ -131,11 +133,6 @@ async def _cleanup_application_objects(fastapi_app: FastAPI, reload = False):
 @asynccontextmanager
 async def lifespan(fastapi_app: FastAPI):
     setup_sighup_handler(fastapi_app, create_main_objects, _cleanup_application_objects)
-
-    env_config = get_environment_config()
-    http_prefix = env_config.http_prefix
-    router = create_router(http_prefix, fastapi_app)
-    fastapi_app.include_router(router)
 
     file_lock = FileLock()
     shutdown_event = asyncio.Event()

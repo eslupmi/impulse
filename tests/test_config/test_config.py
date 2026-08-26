@@ -18,7 +18,7 @@ class TestUnifiedConfig:
         config = UnifiedConfig(mock_impulse_config)
 
         assert config.app == mock_impulse_config
-        assert config.INCIDENT_ACTUAL_VERSION == 'v3.6.0'
+        assert config.INCIDENT_ACTUAL_VERSION == 'v3.7.0'
         assert config.check_updates is True
 
     def test_messenger_property(self, mock_impulse_config):
@@ -133,16 +133,15 @@ class TestConfigFunctions:
 
         mock_logger.warning.assert_called_once()
 
-    @patch('app.config.config._config')
+    @patch('app.config.config.get_config')
     @patch('app.config.config.load_unified_config')
     @patch('app.config.config.logger')
-    def test_reload_config_success(self, mock_logger, mock_load_unified_config,
-                                   mock_current_config, mock_unified_config):
+    def test_reload_config_success(self, mock_logger, mock_load_unified_config, mock_get_config):
         """Test successful config reload."""
-        # Setup current config
-        mock_current_config.messenger.type = MessengerType.SLACK
+        current_config = Mock()
+        current_config.messenger.type = MessengerType.SLACK
+        mock_get_config.return_value = current_config
 
-        # Setup new config
         mock_new_config = Mock()
         mock_new_config.messenger.type = MessengerType.SLACK
         mock_load_unified_config.return_value = mock_new_config
@@ -152,16 +151,15 @@ class TestConfigFunctions:
         assert result is True
         mock_load_unified_config.assert_called_once_with(exit_on_error=False)
 
-    @patch('app.config.config._config')
+    @patch('app.config.config.get_config')
     @patch('app.config.config.load_unified_config')
     @patch('app.config.config.logger')
-    def test_reload_config_type_change(self, mock_logger, mock_load_unified_config,
-                                       mock_current_config, mock_unified_config):
+    def test_reload_config_type_change(self, mock_logger, mock_load_unified_config, mock_get_config):
         """Test config reload with messenger type change."""
-        # Setup current config
-        mock_current_config.messenger.type = MessengerType.SLACK
+        current_config = Mock()
+        current_config.messenger.type = MessengerType.SLACK
+        mock_get_config.return_value = current_config
 
-        # Setup new config with different type
         mock_new_config = Mock()
         mock_new_config.messenger.type = MessengerType.MATTERMOST
         mock_load_unified_config.return_value = mock_new_config
@@ -197,13 +195,17 @@ class TestConfigFunctions:
         assert result is False
         assert "Config reload failed, keeping current config" in mock_logger.warning.call_args[0][0]
 
-    @patch('app.config.config._config')
+    @patch('app.config.config.get_config')
     @patch('app.config.config.load_unified_config')
-    def test_force_reload_config(self, mock_load_unified_config, mock_current_config, mock_unified_config):
+    def test_force_reload_config(self, mock_load_unified_config, mock_get_config):
         """Test force reload config."""
-        mock_current_config.messenger.type = MessengerType.SLACK
-        mock_unified_config.messenger.type = MessengerType.SLACK
-        mock_load_unified_config.return_value = mock_unified_config
+        current_config = Mock()
+        current_config.messenger.type = MessengerType.SLACK
+        mock_get_config.return_value = current_config
+
+        mock_new_config = Mock()
+        mock_new_config.messenger.type = MessengerType.SLACK
+        mock_load_unified_config.return_value = mock_new_config
 
         result = reload_config()
 

@@ -1,12 +1,18 @@
 import asyncio
 import time
-from typing import Optional
 
 import aiohttp
-from aiohttp import ClientTimeout, ClientSession, ClientResponse
+from aiohttp import ClientResponse, ClientSession, ClientTimeout
 from aiohttp_retry import ExponentialRetry, RetryClient
 
+from app.http_client.errors import MESSENGER_TRANSPORT_ERRORS
+from app.http_client.session import create_client_session
 from app.logging import logger
+from app.logging_context import (
+    messenger_init_log_fields,
+    redact_messenger_url,
+    transport_failure_fields,
+)
 from app.metrics import measure_request
 
 
@@ -21,7 +27,7 @@ class RetryAfterRetry(ExponentialRetry):
     def get_timeout(
         self,
         attempt: int,
-        response: Optional[ClientResponse] = None
+        response: ClientResponse | None = None
     ) -> float:
         """
         Calculate timeout before next retry attempt.
@@ -74,7 +80,7 @@ class RateLimitedClient:
     
     def __init__(
         self,
-        rate_limit: Optional[int] = None,
+        rate_limit: int | None = None,
         rate_window: float = 1.0,
         retry_attempts: int = 3,
         timeout: float = 30.0,
@@ -97,8 +103,8 @@ class RateLimitedClient:
         self._connector_limit_per_host = connector_limit_per_host
         
         # HTTP client (will be initialized in async context)
-        self._client: Optional[RetryClient] = None
-        self._session: Optional[ClientSession] = None
+        self._client: RetryClient | None = None
+        self._session: ClientSession | None = None
     
     async def __aenter__(self):
         """Async context manager entry"""
@@ -148,10 +154,10 @@ class RateLimitedClient:
         """Make a HEAD request with rate limiting"""
         return await self.request('HEAD', url, **kwargs)
     
-    def initialize_client(self):
+    def initialize_client(self) -> RetryClient:
         """Initialize the HTTP client if not already initialized"""
         if self._client is not None:
-            return
+            return self._client
         
         retry_options = RetryAfterRetry(
             attempts=self._retry_attempts,
@@ -166,16 +172,18 @@ class RateLimitedClient:
             limit_per_host=self._connector_limit_per_host
         )
         
-        self._session = ClientSession(
+        self._session = create_client_session(
             timeout=timeout,
             connector=connector,
-            raise_for_status=False
+            raise_for_status=False,
         )
         
-        self._client = RetryClient(
+        client = RetryClient(
             client_session=self._session,
             retry_options=retry_options
         )
+        self._client = client
+        return client
     
     async def options(self, url: str, **kwargs):
         """Make an OPTIONS request with rate limiting"""
@@ -206,9 +214,21 @@ class RateLimitedClient:
         Returns:
             aiohttp.ClientResponse
         """
-        self.initialize_client()
+        client = self.initialize_client()
         await self._wait_for_rate_limit()
-        return await self._client.request(method, url, **kwargs)
+        try:
+            return await client.request(method, url, **kwargs)
+        except MESSENGER_TRANSPORT_ERRORS as exc:
+            logger.error(
+                "Messenger is not responding",
+                extra={
+                    'method': method,
+                    'url': redact_messenger_url(url),
+                    **transport_failure_fields(exc),
+                    **messenger_init_log_fields(),
+                },
+            )
+            raise
     
     async def _wait_for_rate_limit(self):
         """

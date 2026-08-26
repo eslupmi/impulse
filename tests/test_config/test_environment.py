@@ -51,7 +51,7 @@ class TestEnvironmentConfig:
             'LOG_LEVEL': 'DEBUG',
             'HTTP_PREFIX': '/api/v1',
             'LISTEN_HOST': '127.0.0.1',
-            'LISTEN_PORT': '8080'
+            'LISTEN_PORT': '8080',
         }
 
         with patch.dict('os.environ', env_vars, clear=True):
@@ -315,6 +315,10 @@ class TestEnvironmentConfig:
         with pytest.raises(ValidationError,
                            match="HTTP prefix must not end with '/' \\(e.g., '/impulse' not '/impulse/'\\)"):
             EnvironmentConfig(**config_data)
+
+    def test_jira_base_url_strips_trailing_slash(self):
+        config = EnvironmentConfig(jira_base_url="https://test.atlassian.net/")
+        assert config.jira_base_url == "https://test.atlassian.net"
 
 
 class TestEnvironmentConfigFunctions:

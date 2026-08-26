@@ -1,0 +1,5 @@
+{%- set user = users.get(step.value) -%}
+🔔 user
+{%- if user.exists %} <b><a href="tg://user?id={{ user.id }}">{{ step.value }}</a></b>
+{%- else %} <b>{{ step.value }}</b> (<a href="https://docs.impulse.bot/stable/warnings/NotFound/">NotFound</a>)  |  🔔 admins ({%- for u in users.values() if u and 'admin' in u.roles %}<a href="tg://user?id={{ u.id }}">{{ u.name }}</a>{% if not loop.last %},{% endif %}{% endfor -%})
+{%- endif -%}

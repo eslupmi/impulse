@@ -108,10 +108,8 @@ class TestTelegramApplication:
 
     @pytest.fixture
     def users(self):
-        """Create mock users configuration."""
-        user1 = Mock(spec=TelegramUser)
-        user1.id = 123456789
-        return {"admin1": user1}
+        """Create users configuration."""
+        return {"admin1": TelegramUser(id=123456789)}
 
     def test_telegram_application_initialization(self, app_config, channels, users):
         """Test TelegramApplication initialization."""
@@ -148,10 +146,11 @@ class TestTelegramApplication:
 
         assert url == "https://api.telegram.org/bot"
 
-    def test_get_public_url(self, app_config, channels, users):
+    @pytest.mark.asyncio
+    async def test_get_public_url(self, app_config, channels, users):
         """Test _get_public_url method."""
         app = self.create_telegram_app(app_config, channels, users)
-        url = app._get_public_url(app_config)
+        url = await app._get_public_url(app_config)
 
         assert url == "https://api.telegram.org/bot"
 
@@ -611,6 +610,8 @@ class TestTelegramApplication:
             await app._setup_webhook()
 
             mock_post.assert_called_once()
+            _, kwargs = mock_post.call_args
+            assert kwargs['params']['url'] == 'https://impulse.example.com/app'
 
     @pytest.mark.asyncio
     async def test_setup_webhook_error_handling(self, app_config, channels, users):

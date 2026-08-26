@@ -1,7 +1,6 @@
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import List, Optional
 
 from app.route.matcher import Matcher
 
@@ -10,18 +9,18 @@ from app.route.matcher import Matcher
 class MaintenanceWindow:
     starts_at: datetime
     ends_at: datetime
-    matchers: List[str]
+    matchers: list[str]
     comment: str = ""
-    created_by: Optional[str] = None
+    owner_id: str | None = None
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
 
     def __post_init__(self):
         self.starts_at = _ensure_utc(self.starts_at)
         self.ends_at = _ensure_utc(self.ends_at)
-        self._compiled: List[Matcher] = [Matcher(m) for m in self.matchers]
+        self._compiled: list[Matcher] = [Matcher(m) for m in self.matchers]
 
     @property
-    def compiled_matchers(self) -> List[Matcher]:
+    def compiled_matchers(self) -> list[Matcher]:
         return self._compiled
 
     def is_active(self, now: datetime) -> bool:
@@ -32,16 +31,6 @@ class MaintenanceWindow:
             return False
         return all(m.matches(incident.payload) for m in self._compiled)
 
-    def to_window_dict(self) -> dict:
-        return {
-            "id": self.id,
-            "start": self.starts_at.isoformat(),
-            "end": self.ends_at.isoformat(),
-            "matchers": list(self.matchers),
-            "comment": self.comment,
-            "created_by": self.created_by,
-        }
-
     @classmethod
     def from_window_dict(cls, data: dict) -> "MaintenanceWindow":
         return cls(
@@ -49,19 +38,9 @@ class MaintenanceWindow:
             ends_at=_parse_iso(data["end"]),
             matchers=list(data.get("matchers", [])),
             comment=data.get("comment", ""),
-            created_by=data.get("created_by"),
+            owner_id=data.get("owner_id"),
             id=data.get("id") or str(uuid.uuid4()),
         )
-
-    def to_dict(self) -> dict:
-        return {
-            "id": self.id,
-            "starts_at": self.starts_at.isoformat(),
-            "ends_at": self.ends_at.isoformat(),
-            "matchers": list(self.matchers),
-            "comment": self.comment,
-            "created_by": self.created_by,
-        }
 
     @classmethod
     def from_dict(cls, data: dict) -> "MaintenanceWindow":
@@ -72,7 +51,7 @@ class MaintenanceWindow:
             ends_at=_parse_iso(data["ends_at"]),
             matchers=list(data.get("matchers", [])),
             comment=data.get("comment", ""),
-            created_by=data.get("created_by"),
+            owner_id=data.get("owner_id"),
             id=data.get("id") or str(uuid.uuid4()),
         )
 

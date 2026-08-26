@@ -21,7 +21,7 @@ class TestGetApplication:
         with patch('app.im.helpers.SlackApplication') as mock_slack_app:
             result = get_application(mock_config, channels, default_channel)
 
-            mock_slack_app.assert_called_once_with(mock_config, channels, default_channel)
+            mock_slack_app.assert_called_once_with(mock_config, channels, default_channel, webhooks=None)
             assert result == mock_slack_app.return_value
 
     def test_get_application_mattermost(self):
@@ -34,7 +34,7 @@ class TestGetApplication:
         with patch('app.im.helpers.MattermostApplication') as mock_mattermost_app:
             result = get_application(mock_config, channels, default_channel)
 
-            mock_mattermost_app.assert_called_once_with(mock_config, channels, default_channel)
+            mock_mattermost_app.assert_called_once_with(mock_config, channels, default_channel, webhooks=None)
             assert result == mock_mattermost_app.return_value
 
     def test_get_application_telegram(self):
@@ -47,7 +47,7 @@ class TestGetApplication:
         with patch('app.im.helpers.TelegramApplication') as mock_telegram_app:
             result = get_application(mock_config, channels, default_channel)
 
-            mock_telegram_app.assert_called_once_with(mock_config, channels, default_channel)
+            mock_telegram_app.assert_called_once_with(mock_config, channels, default_channel, webhooks=None)
             assert result == mock_telegram_app.return_value
 
     def test_get_application_none(self):
@@ -60,7 +60,7 @@ class TestGetApplication:
         with patch('app.im.helpers.NullApplication') as mock_null_app:
             result = get_application(mock_config, channels, default_channel)
 
-            mock_null_app.assert_called_once_with(mock_config, channels, default_channel)
+            mock_null_app.assert_called_once_with(mock_config, channels, default_channel, webhooks=None)
             assert result == mock_null_app.return_value
 
     def test_get_application_unknown_type(self):

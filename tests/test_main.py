@@ -45,7 +45,7 @@ class TestMainApplication:
             mock_inhibition_manager_class.return_value = mock_inhibition_manager
 
             mock_maintenance_store = Mock()
-            mock_maintenance_store.list.return_value = []
+            mock_maintenance_store.windows_list.return_value = []
             mock_get_maintenance_store.return_value = mock_maintenance_store
 
             mock_maintenance_manager = Mock()
@@ -150,8 +150,11 @@ class TestMainApplication:
         """Test that the FastAPI app is created correctly."""
         assert main.app is not None
         assert main.app.title == "IMPulse"
-        assert main.app.description == "Incident Management Platform"
-        assert main.app.version == "0.0.0"
+        assert main.app.description is None or main.app.description == ""
+        assert main.app.version == "1.0.0"
+        assert main.app.docs_url.endswith("/api/docs")
+        assert main.app.redoc_url is None
+        assert main.app.openapi_url.endswith("/api/openapi.json")
 
     @patch('app.config.environment.get_environment_config')
     @patch('app.config.config.get_config')

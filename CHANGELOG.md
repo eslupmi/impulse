@@ -1,5 +1,20 @@
 # Changelog
 
+## v3.7.0
+Changes:
+- Added templates for all [thread messages](https://docs.impulse.bot/stable/concepts/templates/#thread-messages)
+- Added instance names to [new_firing](https://docs.impulse.bot/stable/config_file/#incidentnotificationsnew_firing) and [partial_resolved](https://docs.impulse.bot/stable/config_file/#incidentnotificationspartial_resolved) notifications
+- Updated [assignment](https://docs.impulse.bot/stable/concepts/templates/#incident_notifications_assignment) template to show who assigned the incident
+- Added [owner](https://docs.impulse.bot/stable/concepts/maintenance/#owner) field for maintenance windows
+- Added `--downgrade` [option](https://docs.impulse.bot/stable/versioning/#downgrade-process) to roll back to the previous minor version
+- Added [API](https://docs.impulse.bot/stable/concepts/api/) support
+- Added support for standard `HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY` [environment variables](https://docs.impulse.bot/stable/envs/)
+- Added support for `wait` as the first step of any chain
+- **Archive** button state is now stored in the browser
+- Switched logs and incident file names to `uniq_id` instead of `uuid`
+- Deprecated special variable `incidents` in [body templates](https://docs.impulse.bot/stable/concepts/templates/#messages), use `parents` / `childs` instead
+- Removed **NotDefined** thread messages for chain objects not defined in the config; a WARNING log is emitted instead
+
 ## v3.6.3
 Changes:
 - Clean up orphaned parent/child incidents on startup and reload

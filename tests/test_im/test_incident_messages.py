@@ -33,7 +33,7 @@ def _maintenance_incident():
         frozen_until=datetime.now(timezone.utc) + timedelta(hours=1),
         task_link="",
         can_manual_unfreeze=lambda: False,
-        is_frozen=lambda: True,
+        is_frozen=True,
     )
 
 
@@ -62,6 +62,13 @@ def _incident_data(parents):
     }
 
 
+def _incident(parents, childs=None):
+    data = _incident_data(parents)
+    if childs is not None:
+        data["childs"] = childs
+    return SimpleNamespace(serialize=lambda: data, parents=parents, childs=data["childs"])
+
+
 @pytest.mark.parametrize(
     ("builder", "config_patch", "env_patch", "label_key"),
     [
@@ -85,7 +92,7 @@ def test_maintenance_freeze_button_label_is_maintenance(builder, config_patch, e
 @pytest.mark.parametrize("template_name", ["slack_body.j2", "mattermost_body.j2", "telegram_body.j2"])
 def test_parent_section_hidden_for_maintenance_sentinel_only(template_name):
     template = JinjaTemplate((TEMPLATES_DIR / template_name).read_text())
-    incident = SimpleNamespace(serialize=lambda: _incident_data(["maintenance"]))
+    incident = _incident(["maintenance"])
     JinjaTemplate.set_incidents(SimpleNamespace(uniq_ids={}))
     try:
         rendered = template.form_message(_payload(), incident)
@@ -100,7 +107,7 @@ def test_parent_section_hidden_for_maintenance_sentinel_only(template_name):
 @pytest.mark.parametrize("template_name", ["slack_body.j2", "mattermost_body.j2", "telegram_body.j2"])
 def test_parent_section_shows_only_real_parent_incidents(template_name):
     template = JinjaTemplate((TEMPLATES_DIR / template_name).read_text())
-    incident = SimpleNamespace(serialize=lambda: _incident_data(["maintenance", "parent-1"]))
+    incident = _incident(["maintenance", "parent-1"])
     parent = SimpleNamespace(
         link="https://example.test/parent",
         payload={"commonLabels": {"alertname": "ParentAlert"}},

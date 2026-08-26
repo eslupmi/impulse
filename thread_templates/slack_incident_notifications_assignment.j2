@@ -1,0 +1,6 @@
+{%- if incident.assigned_user_id -%}
+update: assigned to <@{{ incident.assigned_user_id }}>
+{%- else -%}
+update: unassigned
+{%- endif -%}
+{%- if ui_user and ui_user.id != incident.assigned_user_id %} by <@{{ ui_user.id }}>{%- endif -%}

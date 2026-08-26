@@ -974,7 +974,7 @@ strong {
     box-sizing: border-box;
     height: 23px;
     margin: 0;
-    background: transparent;
+    background-color: transparent;
     border: 1px solid var(--user-selector-border);
     border-radius: 4px;
     color: var(--fg-primary);
@@ -989,12 +989,20 @@ strong {
     background-position: right 6px center;
 }
 
+.user-selector:hover,
+.user-selector:focus {
+    background-repeat: no-repeat;
+    background-position: right 6px center;
+}
+
 .user-selector:hover {
     background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%233293C3' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 }
 
 [data-theme="dark"] .user-selector:hover {
     background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%2338ADE6' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 6px center;
 }
 
 .user-selector-options {

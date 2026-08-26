@@ -3,18 +3,23 @@ import asyncio
 from fastapi.responses import JSONResponse
 
 from app.config.environment import get_environment_config
-from app.config.validation import ApplicationConfig
+from app.config.validation import ApplicationConfig, MattermostApplicationConfig
+from app.http_client.errors import MESSENGER_TRANSPORT_ERRORS
 from app.im.application import Application
-from app.im.mattermost.threads import mattermost_get_button_update_payload, \
-    mattermost_get_update_payload, mattermost_get_create_thread_payload
+from app.im.mattermost.threads import (
+    mattermost_get_button_update_payload,
+    mattermost_get_create_thread_payload,
+    mattermost_get_update_payload,
+)
 from app.im.mattermost.user import User
+from app.im.users import BaseUser
 from app.logging import logger
 
 
 class MattermostApplication(Application):
 
-    def __init__(self, app_config: ApplicationConfig, channels, default_channel):
-        super().__init__(app_config, channels, default_channel)
+    def __init__(self, app_config: ApplicationConfig, channels, default_channel, webhooks=None):
+        super().__init__(app_config, channels, default_channel, webhooks=webhooks)
 
     async def _dispatch_button_action(self, incident_, payload, user_id, incidents, queue_, user_tz):
         context = payload.get('context', {})
@@ -46,8 +51,8 @@ class MattermostApplication(Application):
         action = context.get('action')
         user_tz = self._get_user_timezone_str(user_id)
 
-        if incident_.is_frozen() and (incident_.frozen_by_inhibition or not action == 'unfreeze'):
-            logger.debug('Incident frozen, blocking actions', extra={'uuid': incident_.uuid})
+        if incident_.is_frozen and (incident_.frozen_by_inhibition or action != 'unfreeze'):
+            logger.debug('Incident frozen, blocking actions', extra={'uniq_id': incident_.uniq_id})
         else:
             early_return = await self._dispatch_button_action(incident_, payload, user_id, incidents, queue_, user_tz)
             if early_return is not None:
@@ -61,6 +66,7 @@ class MattermostApplication(Application):
             username=user_details.get('username'),
             exists=user_details.get('exists'),
             full_name=user_details.get('full_name'),
+            email=user_details.get('email'),
             timezone_=user_details.get('timezone')
         )
 
@@ -74,7 +80,7 @@ class MattermostApplication(Application):
             return {'id': None, 'name': None, 'exists': False}
         
         try:
-            response = await self.http.get(
+            response = await self.http.get(  # type: ignore[union-attr]
                 f'{self.url}/api/v4/groups/{group_id}',
                 headers=self.headers
             )
@@ -92,7 +98,7 @@ class MattermostApplication(Application):
                 return {'id': group_id, 'name': group_name, 'exists': True}
             finally:
                 response.close()
-        except Exception as e:
+        except MESSENGER_TRANSPORT_ERRORS as e:
             logger.error("Group details fetch error", extra={'group_id': group_id, 'error': str(e)})
             return {'id': group_id, 'name': None, 'exists': False}
 
@@ -159,7 +165,6 @@ class MattermostApplication(Application):
             group_details = await self.get_group_details(group_info.id)
             if not group_details['exists']:
                 logger.warning('Group not found in Mattermost', extra={'group_id': group_info.id, 'group_name': config_name})
-                group_details = {'id': None, 'name': None, 'exists': False}
             groups[config_name] = self.create_group(config_name, group_details)
 
         return groups
@@ -167,28 +172,34 @@ class MattermostApplication(Application):
     def _get_incident_message_payload(self, incident, body, header, status_icons):
         return mattermost_get_create_thread_payload(incident, body, header, status_icons)
 
-    def _get_public_url(self, app_config: ApplicationConfig):
+    async def _get_public_url(self, app_config: ApplicationConfig):
+        assert isinstance(app_config, MattermostApplicationConfig)
         return app_config.address
 
     def _get_team_name(self, app_config: ApplicationConfig):
+        assert isinstance(app_config, MattermostApplicationConfig)
         return app_config.team
 
     def _get_url(self, app_config: ApplicationConfig):
+        assert isinstance(app_config, MattermostApplicationConfig)
         return app_config.address
+
+    def _build_user_profile_url(self, user_id: str, user: BaseUser) -> str | None:
+        return f"{self.public_url}/{self.team}/users/{user_id}"
 
     async def _handle_chain_action(self, incident_, user_id, queue_, payload):
         """Handle chain-related button actions"""
         await queue_.delete_by_id(incident_.uniq_id, delete_steps=True, delete_status=False)
         if incident_.chain_enabled or incident_.status != 'resolved':
             if incident_.assigned_user_id == user_id:
-                logger.info('Button pressed. User already assigned', extra={'incident': incident_.uuid, 'button': 'take_it', 'user_id': user_id})
+                logger.info('Button pressed. User already assigned', extra={'incident': incident_.uniq_id, 'button': 'take_it', 'user_id': user_id})
                 return JSONResponse(payload, status_code=200)
-            logger.info('Button pressed: assigning to user', extra={'incident': incident_.uuid, 'button': 'take_it', 'user_id': user_id})
+            logger.info('Button pressed: assigning to user', extra={'incident': incident_.uniq_id, 'button': 'take_it', 'user_id': user_id})
             self.fetch_and_assign_user_name(incident_, user_id, dump=False)
             self.track_async_task(asyncio.create_task(self.post_assignment_notification(incident_)))
             incident_.chain_enabled = False
         else:
-            logger.info('Button pressed', extra={'uuid': incident_.uuid, 'button': 'release', 'user_id': user_id})
+            logger.info('Button pressed', extra={'uniq_id': incident_.uniq_id, 'button': 'release', 'user_id': user_id})
             self.track_async_task(asyncio.create_task(self.post_unassignment_notification(incident_)))
             incident_.release()
         return None

@@ -1,5 +1,4 @@
 import os
-from typing import List
 
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field, field_validator
@@ -98,7 +97,7 @@ class EnvironmentConfig(BaseModel):
     )
     
     # CORS configuration
-    cors_allowed_origins: List[str] = Field(
+    cors_allowed_origins: list[str] = Field(
         default_factory=lambda: os.getenv('CORS_ALLOWED_ORIGINS', 'https://localhost:5000').split(','),
         description="Comma-separated list of allowed CORS origins"
     )
@@ -124,7 +123,7 @@ class EnvironmentConfig(BaseModel):
         default_factory=lambda: int(os.getenv('LISTEN_PORT', '5000')),
         description="Port to listen on"
     )
-    
+
     @field_validator('provider_sync_interval', 'provider_max_events', 'provider_days_to_sync', 'listen_port')
     @classmethod
     def validate_positive_integers(cls, v):
@@ -157,6 +156,11 @@ class EnvironmentConfig(BaseModel):
         if v and v.endswith('/'):
             raise ValueError("HTTP prefix must not end with '/' (e.g., '/impulse' not '/impulse/')")
         return v
+
+    @field_validator('jira_base_url')
+    @classmethod
+    def normalize_jira_base_url(cls, v):
+        return v.rstrip("/") if v else v
     
     @property
     def incidents_path(self) -> str:
@@ -179,7 +183,7 @@ class EnvironmentConfig(BaseModel):
 
 
 # Global instance - created once and reused
-_env_config: EnvironmentConfig = None
+_env_config: EnvironmentConfig | None = None
 
 
 def get_environment_config() -> EnvironmentConfig:

@@ -1,5 +1,4 @@
 import os
-from typing import Dict, Union
 
 import yaml
 
@@ -13,25 +12,27 @@ from app.ui.websocket import incident_ws
 
 class Incidents:
     def __init__(self, incidents_list):
-        self.active_map: Dict[str, str] = {}  # {uuid: uniq_id}
-        self.uniq_ids: Dict[str, Incident] = {}
+        self.active_map: dict[str, str] = {}  # {uuid: uniq_id}
+        self.uniq_ids: dict[str, Incident] = {}
         for i in incidents_list:
             self.uniq_ids[i.uniq_id] = i
-            if (i.status != 'closed' and i.status != 'deleted') or i.is_frozen():
+            if (i.status != 'closed' and i.status != 'deleted') or i.is_frozen:
                 self.active_map[i.uuid] = i.uniq_id
 
-    def get(self, alert: Dict) -> Union[Incident, None]:
+    def get(self, alert: dict) -> Incident | None:
         uuid = Incident.gen_uuid(alert.get('groupLabels'))
         return self.get_by_uuid(uuid)
 
-    def get_by_uuid(self, uuid: str) -> Union[Incident, None]:
+    def get_by_uuid(self, uuid: str) -> Incident | None:
         uniq_id = self.active_map.get(uuid)
+        if uniq_id is None:
+            return None
         return self.uniq_ids.get(uniq_id)
 
-    def get_by_uniq_id(self, uniq_id: str) -> Union[Incident, None]:
+    def get_by_uniq_id(self, uniq_id: str) -> Incident | None:
         return self.uniq_ids.get(uniq_id)
 
-    def get_by_ts(self, ts: str) -> Union[Incident, None]:
+    def get_by_ts(self, ts: str) -> Incident | None:
         for uuid_ in self.active_map.values():
             incident = self.uniq_ids.get(uuid_)
             if incident and incident.ts == ts:
@@ -41,13 +42,13 @@ class Incidents:
     def remove_from_active_map(self, uuid: str):
         if uuid in self.active_map:
             incident = self.uniq_ids.get(self.active_map[uuid])
-            if incident and incident.is_frozen():
+            if incident and incident.is_frozen:
                 return
             del self.active_map[uuid]
     
     def add(self, incident: Incident):
         self.uniq_ids[incident.uniq_id] = incident
-        if (incident.status != 'closed' and incident.status != 'deleted') or incident.is_frozen():
+        if (incident.status != 'closed' and incident.status != 'deleted') or incident.is_frozen:
             self.active_map[incident.uuid] = incident.uniq_id
 
     def remove_file(self, incident: Incident):
@@ -56,7 +57,7 @@ class Incidents:
             incident_filename = incident.get_current_filename()
             os.remove(incident_filename)
         except (OSError, PermissionError, FileNotFoundError) as e:
-            logger.error(f'Failed to delete incident file for uuid: {incident.uuid}: {str(e)}')
+            logger.error(f'Failed to delete incident file for uniq_id: {incident.uniq_id}: {e}')
 
     def del_by_uniq_id(self, uniq_id: str):
         incident = self.uniq_ids.pop(uniq_id, None)
@@ -71,11 +72,11 @@ class Incidents:
             except RuntimeError:
                 # No event loop running, skip websocket update
                 pass
-            logger.info("Incident deleted", extra={'uuid': incident.uuid})
+            logger.info("Incident deleted", extra={'uniq_id': incident.uniq_id})
         else:
             logger.warning("Incident not found", extra={'uniq_id': uniq_id})
 
-    def serialize(self) -> Dict[str, Dict]:
+    def serialize(self) -> dict[str, dict]:
         return {str(uuid_): incident.serialize() for uuid_, incident in self.uniq_ids.items()}
 
     def get_active_table(self, params):
@@ -101,7 +102,7 @@ class Incidents:
             for filename in files:
                 file_path = os.path.join(path, filename)
 
-                cls._migrate_file_if_needed(migrator, file_path)
+                file_path = cls._migrate_file_if_needed(migrator, file_path)
 
                 incident_config = IncidentConfig(
                     application_type=application_type,
@@ -114,25 +115,28 @@ class Incidents:
                     incident_config=incident_config
                 )
                 if incident_.messenger_type == config.messenger.type.value:
-                    if incident_.status != 'deleted' or incident_.is_frozen():
+                    if incident_.status != 'deleted' or incident_.is_frozen:
                         incidents.add(incident_)
                     else:
                         os.remove(file_path)
                 else:
-                    logger.warning(f'Skipping incident {filename}: messenger_type mismatch')
+                    logger.warning(f'Skipping incident {os.path.basename(file_path)}: messenger_type mismatch')
 
         return incidents
 
     ### PRIVATE METHODS ###
 
     @staticmethod
-    def _migrate_file_if_needed(migrator: IncidentMigrator, file_path: str):
+    def _migrate_file_if_needed(migrator: IncidentMigrator, file_path: str) -> str:
         """
         Check if a file needs migration and migrate it if necessary.
 
         Args:
             migrator: The IncidentMigrator instance
             file_path: Path to the incident file
+            
+        Returns:
+            Path to the incident file (may differ after filename migration)
         """
         config = get_config()
         try:
@@ -141,8 +145,9 @@ class Incidents:
                 current_version = content.get('version', 'v0.4')
 
             if current_version != config.INCIDENT_ACTUAL_VERSION:
-                migrator.migrate_file(file_path, content, current_version, config.INCIDENT_ACTUAL_VERSION)
+                return migrator.migrate_file(file_path, content, current_version, config.INCIDENT_ACTUAL_VERSION)
+            return file_path
 
         except Exception as e:
-            logger.error(f'Failed to check/migrate file {file_path}: {str(e)}')
+            logger.error(f'Failed to check/migrate file {file_path}: {e}')
             raise

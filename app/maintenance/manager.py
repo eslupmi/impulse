@@ -1,18 +1,19 @@
+from collections.abc import Callable
 from datetime import datetime, timezone
-from typing import Any, Callable, Dict, List, Optional, TYPE_CHECKING, Tuple
+from typing import TYPE_CHECKING, Any
 
+from app.incident.freeze import MAINTENANCE_PARENT_SENTINEL, FreezeSource
+from app.incident.incident import remove_freeze_source
 from app.logging import logger
 from app.maintenance.models import MaintenanceWindow
 from app.maintenance.store import MaintenanceStore
 from app.queue.constants import QueueItemType
-from app.incident.freeze import FreezeSource, MAINTENANCE_PARENT_SENTINEL
-from app.incident.incident import remove_freeze_source
 from app.ui.websocket import incident_ws
 
 if TYPE_CHECKING:
+    from app.im.application import Application
     from app.incident.incident import Incident
     from app.incident.incidents import Incidents
-    from app.im.application import Application
     from app.queue.queue import AsyncQueue
 
 
@@ -25,7 +26,7 @@ class MaintenanceManager:
     Maintenance has higher display priority (frozen_by_maintenance) when both apply.
     """
 
-    __slots__ = ["store", "incidents", "application", "queue", "_now"]
+    __slots__ = ["_now", "application", "incidents", "queue", "store"]
 
     def __init__(
         self,
@@ -33,7 +34,7 @@ class MaintenanceManager:
         incidents: "Incidents",
         application: "Application",
         queue: "AsyncQueue",
-        now: Optional[Callable[[], datetime]] = None,
+        now: Callable[[], datetime] | None = None,
     ):
         self.store = store
         self.incidents = incidents
@@ -43,9 +44,9 @@ class MaintenanceManager:
 
     def _first_matching_window_with_coverage_end(
         self, incident: "Incident", require_future_end: bool = False
-    ) -> Optional[Tuple[MaintenanceWindow, datetime]]:
+    ) -> tuple[MaintenanceWindow, datetime] | None:
         now = self._now()
-        windows = self.store.list()
+        windows = self.store.windows_list()
         active = [w for w in windows if w.is_active(now)]
         active.sort(key=lambda w: (w.starts_at, w.ends_at, w.id))
         for window in active:
@@ -57,13 +58,13 @@ class MaintenanceManager:
 
     def _first_matching_window(
         self, incident: "Incident", require_future_end: bool = False
-    ) -> Optional[MaintenanceWindow]:
+    ) -> MaintenanceWindow | None:
         match = self._first_matching_window_with_coverage_end(incident, require_future_end)
         return match[0] if match else None
 
     @staticmethod
     def _continuous_matching_end(
-        incident: "Incident", initial_window: MaintenanceWindow, windows: List[MaintenanceWindow]
+        incident: "Incident", initial_window: MaintenanceWindow, windows: list[MaintenanceWindow]
     ) -> datetime:
         coverage_end = initial_window.ends_at
         candidates = sorted(windows, key=lambda w: (w.starts_at, w.ends_at, w.id))
@@ -86,14 +87,33 @@ class MaintenanceManager:
     def would_match_active_window(self, incident: "Incident") -> bool:
         return self._first_matching_window(incident) is not None
 
-    def active_windows_payload(self) -> List[dict]:
+    def active_windows_payload(self) -> list[dict]:
         now = self._now()
-        active = [w for w in self.store.list() if w.is_active(now)]
+        active = [w for w in self.store.windows_list() if w.is_active(now)]
         active.sort(key=lambda w: w.starts_at)
-        return [
-            {"start": w.starts_at.isoformat(), "end": w.ends_at.isoformat(), "comment": w.comment}
-            for w in active
-        ]
+        return [self._active_window_payload(w) for w in active]
+
+    def _active_window_payload(self, window: MaintenanceWindow) -> dict:
+        payload: dict = {
+            "start": window.starts_at.isoformat(),
+            "end": window.ends_at.isoformat(),
+            "comment": window.comment,
+        }
+        if not window.owner_id:
+            return payload
+
+        owner_id = str(window.owner_id)
+        payload["owner_id"] = owner_id
+
+        users = self.application.users
+        user = users.get_user_by_id(owner_id) if users else None
+        if not user or not user.exists:
+            payload["owner_full_name"] = owner_id
+            return payload
+
+        payload["owner_full_name"] = user.full_name or user.name
+        payload["owner_url"] = self.application.get_user_profile_url(owner_id, user)
+        return payload
 
     async def broadcast_active_maintenance(self):
         await incident_ws.broadcast("active_maintenance", self.active_windows_payload())
@@ -102,7 +122,7 @@ class MaintenanceManager:
         now = self._now()
         await self.queue.delete_by_type(QueueItemType.MAINTENANCE_START)
         await self.queue.delete_by_type(QueueItemType.MAINTENANCE_END)
-        for window in self.store.list():
+        for window in self.store.windows_list():
             if window.starts_at > now:
                 await self.queue.put(
                     window.starts_at,
@@ -116,11 +136,11 @@ class MaintenanceManager:
                     identifier=window.id,
                 )
 
-    async def handle_window_start(self, _window_id: Optional[str]):
+    async def handle_window_start(self, _window_id: str | None):
         await self.reconcile_all()
         await self.broadcast_active_maintenance()
 
-    async def handle_window_end(self, _window_id: Optional[str]):
+    async def handle_window_end(self, _window_id: str | None):
         await self.broadcast_active_maintenance()
 
     async def process_incident(self, incident: "Incident"):
@@ -129,14 +149,14 @@ class MaintenanceManager:
             return
         window, coverage_end = match
 
-        was_frozen = incident.is_frozen()
+        was_frozen = incident.is_frozen
         incident.set_maintenance_parent()
 
         if was_frozen:
             await self._schedule_maintenance_freeze(incident, coverage_end)
             logger.info(
                 "Maintenance source recorded on frozen incident",
-                extra={"uuid": incident.uuid, "window_id": window.id, "until": coverage_end},
+                extra={"uniq_id": incident.uniq_id, "window_id": window.id, "until": coverage_end},
             )
             if incident.ts:
                 await self.application.update_incident_message(incident)
@@ -147,7 +167,7 @@ class MaintenanceManager:
         )
         logger.info(
             "Maintenance time freeze applied",
-            extra={"uuid": incident.uuid, "window_id": window.id, "until": coverage_end},
+            extra={"uniq_id": incident.uniq_id, "window_id": window.id, "until": coverage_end},
         )
         if incident.ts:
             await self.application.update_incident_message(incident)
@@ -186,14 +206,14 @@ class MaintenanceManager:
 
         logger.info(
             "Maintenance time freeze scheduled",
-            extra={"uuid": incident.uuid, "window_id": window.id, "until": coverage_end},
+            extra={"uniq_id": incident.uniq_id, "window_id": window.id, "until": coverage_end},
         )
 
         if update_message and incident.ts:
             await self.application.update_incident_message(incident)
 
     async def reconcile_after_window_removed(self, removed_window: MaintenanceWindow):
-        for uniq_id in self.incidents.uniq_ids.keys():
+        for uniq_id in self.incidents.uniq_ids:
             incident = self.incidents.uniq_ids.get(uniq_id)
             if incident is None or incident.status in ("closed", "deleted"):
                 continue
@@ -211,8 +231,8 @@ class MaintenanceManager:
 
     def needs_reconcile_after_save(
         self,
-        existing: List[Dict[str, Any]],
-        saved: List[Dict[str, Any]],
+        existing: list[dict[str, Any]],
+        saved: list[dict[str, Any]],
     ) -> bool:
         now = self._now()
         existing_by_id = {w["id"]: w for w in existing}
@@ -227,9 +247,9 @@ class MaintenanceManager:
 
     async def apply_save_side_effects(
         self,
-        existing: List[Dict[str, Any]],
-        saved: List[Dict[str, Any]],
-        deleted: List[Dict[str, Any]],
+        existing: list[dict[str, Any]],
+        saved: list[dict[str, Any]],
+        deleted: list[dict[str, Any]],
     ) -> None:
         for window_dict in deleted:
             await self.reconcile_after_window_removed(
@@ -248,7 +268,7 @@ class MaintenanceManager:
         )
 
     async def reconcile_all(self):
-        for uniq_id in self.incidents.uniq_ids.keys():
+        for uniq_id in self.incidents.uniq_ids:
             incident = self.incidents.uniq_ids.get(uniq_id)
             if incident is None or incident.status in ("closed", "deleted"):
                 continue
