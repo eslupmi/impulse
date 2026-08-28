@@ -4,11 +4,11 @@
 
 IMPulse helps SRE, DevOps, and platform teams route alerts, escalate incidents, coordinate responders, and manage incident workflows without introducing a heavy operational stack. It integrates with Alertmanager and Grafana, works directly in Slack, Mattermost, Telegram, or its built-in web UI, and keeps response logic under your control.
 
-![Website](https://img.shields.io/badge/website-impulse.bot-blue)
-![Documentation](https://img.shields.io/badge/docs-docs.impulse.bot-blue)
-![Container](https://img.shields.io/badge/container-ghcr.io%2Feslupmi%2Fimpulse-blue?logo=docker)
-![Community Helm chart](https://img.shields.io/badge/community_chart-Artifact_Hub-blue?logo=helm)
-![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue)
+[![Website](https://img.shields.io/badge/website-impulse.bot-blue)](https://impulse.bot)
+[![Documentation](https://img.shields.io/badge/docs-docs.impulse.bot-blue)](https://docs.impulse.bot/stable/)
+[![Container](https://img.shields.io/badge/container-ghcr.io%2Feslupmi%2Fimpulse-blue?logo=docker)](https://github.com/eslupmi/impulse/pkgs/container/impulse)
+[![Community Helm chart](https://img.shields.io/badge/community_chart-Artifact_Hub-blue?logo=helm)](https://artifacthub.io/packages/helm/impulse/impulse)
+[![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue)](LICENSE.md)
 
 ![IMPulse incident management interface](https://github.com/eslupmi/site/blob/main/static/preview.png?raw=true)
 
@@ -160,7 +160,7 @@ For production deployments, review:
 
 - [environment variables](https://docs.impulse.bot/stable/envs/) for listen addresses, data/config paths, proxy settings, and credentials;
 - [high availability](https://docs.impulse.bot/stable/concepts/ha/) for primary/standby behavior and readiness routing;
-- `/livez`[,](https://docs.impulse.bot/stable/concepts/api/) `/readyz`[, and](https://docs.impulse.bot/stable/concepts/api/) `/metrics` for health checks and monitoring; and
+- [`/livez`](https://docs.impulse.bot/stable/concepts/api/), [`/readyz`](https://docs.impulse.bot/stable/concepts/api/), and [`/metrics`](https://docs.impulse.bot/stable/concepts/api/) for health checks and monitoring; and
 - [versioning and upgrades](https://docs.impulse.bot/stable/versioning/) before changing major versions.
 
 
