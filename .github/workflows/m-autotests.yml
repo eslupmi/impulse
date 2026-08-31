@@ -6,10 +6,18 @@ on:
       pr_number:
         required: false
         type: number
+      suite:
+        description: deterministic (pr + browser) or external (live messengers)
+        type: choice
+        options:
+          - deterministic
+          - external
+        default: deterministic
 
 jobs:
   autotests:
     uses: ./.github/workflows/_autotests.yml
     with:
-      branch: ${{ format('pr-{0}', inputs.pr_number) }}
+      image-tag: ${{ format('pr-{0}', inputs.pr_number) }}
+      suite: ${{ inputs.suite }}
     secrets: inherit

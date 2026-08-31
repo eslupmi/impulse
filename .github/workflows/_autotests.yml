@@ -3,25 +3,86 @@ name: _autotests
 on:
   workflow_call:
     inputs:
-      branch:
+      image-tag:
         required: true
         type: string
-      runs-on:
+      suite:
+        description: deterministic (pr + browser) or external (live messengers)
+        required: true
         type: string
-        default: self-hosted
+      tests-ref:
+        type: string
+        default: main
 
 jobs:
-  autotests:
+  deterministic:
+    if: inputs.suite == 'deterministic'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Checkout tests repository
+        uses: actions/checkout@v5
+        with:
+          repository: eslupmi/tests
+          ref: ${{ inputs.tests-ref }}
+          token: ${{ secrets.ESLUPMI_TESTS_REPO_TOKEN_READ }}
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-browser.txt
+          playwright install --with-deps chromium
+          if ! grep -q host.docker.internal /etc/hosts; then
+            echo "127.0.0.1 host.docker.internal" | sudo tee -a /etc/hosts
+          fi
+
+      - name: Run deterministic PR suite
+        env:
+          IMPULSE_IMAGE: ghcr.io/eslupmi/impulse:${{ inputs.image-tag }}
+          KEEP_RUNTIME: "1"
+        run: |
+          mkdir -p reports
+          python -m autotest.runner --suite pr --junit reports/junit-pr.xml
+          python -m autotest.runner --suite browser --junit reports/junit-browser.xml
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deterministic-artifacts
+          path: |
+            reports/
+            .runtime/
+          if-no-files-found: ignore
+
+  external:
+    if: inputs.suite == 'external'
     runs-on: self-hosted
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
         include:
-          - messenger_type: slack
+          - messenger: slack
             port: 15100
-          - messenger_type: mattermost
+          - messenger: mattermost
             port: 15101
-          - messenger_type: telegram
+          - messenger: telegram
             port: 15102
     permissions:
       contents: read
@@ -31,20 +92,21 @@ jobs:
         uses: actions/checkout@v5
         with:
           repository: eslupmi/tests
-          ref: main
+          ref: ${{ inputs.tests-ref }}
           token: ${{ secrets.ESLUPMI_TESTS_REPO_TOKEN_READ }}
-          path: autotests-${{ matrix.messenger_type }}
+          persist-credentials: false
+          path: autotests-${{ matrix.messenger }}
 
       - name: Generate impulse.yml configuration
         env:
-          INPUT_PATH: ${{ github.workspace }}/autotests-${{ matrix.messenger_type }}/templates/impulse.yml.j2
-          OUTPUT_PATH: ${{ github.workspace }}/autotests-${{ matrix.messenger_type }}/impulse.yml
-          MESSENGER_TYPE: ${{ matrix.messenger_type }}
+          INPUT_PATH: ${{ github.workspace }}/autotests-${{ matrix.messenger }}/templates/impulse.yml.j2
+          OUTPUT_PATH: ${{ github.workspace }}/autotests-${{ matrix.messenger }}/impulse.yml
+          MESSENGER_TYPE: ${{ matrix.messenger }}
         run: |
-          cd autotests-${{ matrix.messenger_type }}
+          cd autotests-${{ matrix.messenger }}
           python3 -m venv venv
           source venv/bin/activate
-          pip install -r requirements.txt
+          pip install -r requirements.txt -r requirements-external.txt
           python templates/gen.py
 
       - name: Start impulse container
@@ -53,29 +115,28 @@ jobs:
           SLACK_BOT_USER_OAUTH_TOKEN: ${{ secrets.AUTOTESTS_SLACK_BOT_USER_OAUTH_TOKEN }}
           MATTERMOST_ACCESS_TOKEN: ${{ secrets.AUTOTESTS_MATTERMOST_ACCESS_TOKEN }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.AUTOTESTS_TELEGRAM_BOT_TOKEN }}
-          IMPULSE_IMAGE_TAG: ${{ inputs.branch }}
+          IMPULSE_IMAGE_TAG: ${{ inputs.image-tag }}
         run: |
-          NAME="impulse-autotests-${{ matrix.messenger_type }}"
+          NAME="impulse-autotests-${{ matrix.messenger }}"
           docker run -d --pull always --rm --name "$NAME-${{ github.run_id }}" \
             -p ${{ matrix.port }}:5000 \
-            -v "${{ github.workspace }}/autotests-${{ matrix.messenger_type }}:/config:ro" \
+            -v "${{ github.workspace }}/autotests-${{ matrix.messenger }}:/config:ro" \
             -e SLACK_VERIFICATION_TOKEN="$SLACK_VERIFICATION_TOKEN" \
             -e SLACK_BOT_USER_OAUTH_TOKEN="$SLACK_BOT_USER_OAUTH_TOKEN" \
             -e MATTERMOST_ACCESS_TOKEN="$MATTERMOST_ACCESS_TOKEN" \
             -e TELEGRAM_BOT_TOKEN="$TELEGRAM_BOT_TOKEN" \
             -e CONFIG_PATH="/config" \
-            -e HTTP_PREFIX="/${{ matrix.messenger_type }}" \
             ghcr.io/eslupmi/impulse:"${IMPULSE_IMAGE_TAG}"
 
       - name: Wait for impulse container to be ready
         run: |
           for i in $(seq 1 60); do
-            curl -sf "http://localhost:${{ matrix.port }}/${{ matrix.messenger_type }}/readyz" && exit 0
+            curl -sf "http://localhost:${{ matrix.port }}/readyz" && exit 0
             sleep 1
           done
           exit 1
 
-      - name: Run autotests for ${{ matrix.messenger_type }}
+      - name: Run external suite for ${{ matrix.messenger }}
         env:
           SLACK_VERIFICATION_TOKEN: ${{ secrets.AUTOTESTS_SLACK_VERIFICATION_TOKEN }}
           SLACK_BOT_USER_OAUTH_TOKEN: ${{ secrets.AUTOTESTS_SLACK_BOT_USER_OAUTH_TOKEN }}
@@ -85,25 +146,23 @@ jobs:
           API_ID: ${{ secrets.AUTOTESTS_API_ID }}
           API_HASH: ${{ secrets.AUTOTESTS_API_HASH }}
           TELEGRAM_SESSION_BASE64: ${{ secrets.AUTOTESTS_TELEGRAM_SESSION_BASE64 }}
-          IMPULSE_URL: http://localhost:${{ matrix.port }}/${{ matrix.messenger_type }}
-          MESSENGER_TYPE: ${{ matrix.messenger_type }}
+          IMPULSE_URL: http://localhost:${{ matrix.port }}
+          MESSENGER: ${{ matrix.messenger }}
           PYTHONUNBUFFERED: "1"
         run: |
-          cd autotests-${{ matrix.messenger_type }}
-          if [ "${{ matrix.messenger_type }}" = "telegram" ]; then
+          cd autotests-${{ matrix.messenger }}
+          if [ "${{ matrix.messenger }}" = "telegram" ]; then
             echo "$TELEGRAM_SESSION_BASE64" | base64 -d > session.session
           fi
           source venv/bin/activate
-          MESSENGER_TYPE="${{ matrix.messenger_type }}"
-          MESSENGER_CLASS="${MESSENGER_TYPE^}"
-          pytest --maxfail=1 --exitfirst -v -s "tests/test_${{ matrix.messenger_type }}_application.py::Test${MESSENGER_CLASS}Application"
+          python -m autotest.runner --suite external --messenger "${{ matrix.messenger }}"
 
       - name: Stop impulse container
         if: always()
         run: |
-          docker rm -f impulse-autotests-${{ matrix.messenger_type }}-${{ github.run_id }} || true
+          docker rm -f impulse-autotests-${{ matrix.messenger }}-${{ github.run_id }} || true
 
       - name: Cleanup workspace
         if: always()
         run: |
-          rm -rf autotests-${{ matrix.messenger_type }}
+          rm -rf autotests-${{ matrix.messenger }}
