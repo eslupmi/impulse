@@ -18,20 +18,11 @@ Incident management platforms often grow into large control planes with their ow
 
 IMPulse takes a different approach: start with the parts teams need most — alert routing, escalation, incident coordination, maintenance workflows, and ChatOps — while keeping deployment lightweight and response policy versionable as code.
 
-- **ChatOps-first incident response.** In a messenger, each incident becomes a message and its lifecycle stays in the thread. Responders can take, release, assign, freeze, and create Jira tasks directly from incident controls.
-- **Configuration as code.** Recursive routes, escalation chains, schedules, inhibition rules, webhooks, and Jinja templates can be defined in `impulse.yml`, reviewed, and versioned alongside the rest of your infrastructure.
-- **Lightweight self-hosting.** The default deployment is one application service with mounted configuration and data directories. There is no separate database server, message broker, or cache to provision.
-- **Flexible escalation workflows.** Escalation policies — called chains in configuration — can notify users and groups, wait between steps, call webhooks, nest other policies, follow schedules, use Google Calendar, or use shifts managed in the web UI.
-- **Integrates with your existing stack.** Keep Alertmanager or Grafana as your alert source and Slack, Mattermost, or Telegram as your response workspace instead of replacing everything at once.
-
 IMPulse is designed to grow with your incident-management workflow while preserving a lightweight, automation-friendly architecture.
 
 ![Alertmanager sends alerts to IMPulse, which routes incidents to a messenger](docs/content/media/impulse.excalidraw.svg)
 
-![A firing IMPulse incident with responder controls in Slack](docs/content/media/slack_firing.excalidraw.svg)
-
 ## Core capabilities
-
 
 | Area                    | What IMPulse provides                                                                                                                                                                                    |
 | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -44,8 +35,7 @@ IMPulse is designed to grow with your incident-management workflow while preserv
 | Incident visibility     | Real-time web UI with configurable columns, filters, sorting, highlighting, incident details, and historical incidents                                                                                   |
 | Operations              | One-service deployment, local persistent state, configuration validation on startup and reload, REST API with OpenAPI documentation, Prometheus metrics, health endpoints, and primary/standby operation |
 
-
-Explore the [incident lifecycle](https://docs.impulse.bot/stable/concepts/incident/), [configuration reference](https://docs.impulse.bot/stable/config_file/), and [API and service endpoints](https://docs.impulse.bot/stable/concepts/api/) for the complete behavior.
+See the [features](https://impulse.bot/#features) for details.
 
 ## Integrations
 
@@ -57,10 +47,6 @@ Explore the [incident lifecycle](https://docs.impulse.bot/stable/concepts/incide
 | Escalation scheduling | [Google Calendar](https://docs.impulse.bot/stable/integrations/calendars/google/)                                                                                                                                                         |
 | Task management       | [Jira](https://docs.impulse.bot/stable/integrations/task_management/jira/)                                                                                                                                                                |
 | Outbound automation   | Templated HTTP webhooks, with examples for Instatus, Twilio, Zvonok, and custom integrations                                                                                                                                              |
-
-
-
-
 ## Quick start
 
 This path starts the latest tagged release with Docker Compose and the built-in web UI, without connecting a messenger.
@@ -101,40 +87,7 @@ Open [http://localhost:5000/](http://localhost:5000/). The online indicator in t
 ### 3. Send a test alert
 
 ```bash
-curl --fail-with-body \
-  --header 'Content-Type: application/json' \
-  --data '{
-    "version": "4",
-    "groupKey": "InstanceDown-node",
-    "status": "firing",
-    "receiver": "webhook-alerts",
-    "groupLabels": {
-      "alertname": "InstanceDown"
-    },
-    "commonLabels": {
-      "alertname": "InstanceDown",
-      "severity": "warning"
-    },
-    "commonAnnotations": {
-      "summary": "A node exporter instance is unavailable"
-    },
-    "alerts": [
-      {
-        "status": "firing",
-        "labels": {
-          "alertname": "InstanceDown",
-          "severity": "warning",
-          "instance": "localhost:9100"
-        },
-        "annotations": {
-          "summary": "A node exporter instance is unavailable"
-        },
-        "startsAt": "2024-07-28T19:26:43.604Z",
-        "endsAt": "0001-01-01T00:00:00Z"
-      }
-    ]
-  }' \
-  http://localhost:5000/
+curl -XPOST -H "Content-Type: application/json" http://localhost:5000/ -d '{"receiver":"webhook-alerts","status":"firing","alerts":[{"status":"firing","labels":{"alertname":"InstanceDown4","instance":"localhost:9100","job":"node","severity":"warning"},"annotations":{"summary":"Instanceunavailable"},"startsAt":"2024-07-28T19:26:43.604Z","endsAt":"0001-01-01T00:00:00Z","generatorURL":"http://eva:9090/graph?g0.expr=up+%3D%3D+0&g0.tab=1","fingerprint":"a7ddb1de342424cb"}],"groupLabels":{"alertname":"InstanceDown"},"commonLabels":{"alertname":"InstanceDown","instance":"localhost:9100","job":"node","severity":"warning"},"commonAnnotations":{"summary":"Instanceunavailable"},"externalURL":"http://eva:9093","version":"4","groupKey":"{}:{alertname=\"InstanceDown\"}","truncatedAlerts":0}'
 ```
 
 The new `firing` incident appears in the UI.
@@ -163,8 +116,6 @@ For production deployments, review:
 - [`/livez`](https://docs.impulse.bot/stable/concepts/api/), [`/readyz`](https://docs.impulse.bot/stable/concepts/api/), and [`/metrics`](https://docs.impulse.bot/stable/concepts/api/) for health checks and monitoring; and
 - [versioning and upgrades](https://docs.impulse.bot/stable/versioning/) before changing major versions.
 
-
-
 ## Documentation and support
 
 - [Documentation](https://docs.impulse.bot/stable/)
@@ -172,8 +123,6 @@ For production deployments, review:
 - [GitHub Discussions](https://github.com/orgs/eslupmi/discussions)
 - [Issue tracker](https://github.com/eslupmi/impulse/issues)
 - [support@impulse.bot](mailto:support@impulse.bot)
-
-
 
 ## License
 
