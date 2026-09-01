@@ -24,38 +24,29 @@ IMPulse is designed to grow with your incident-management workflow while preserv
 
 ## Quick start
 
-This path starts the latest tagged release with Docker Compose and the built-in web UI, without connecting a messenger.
+This path starts IMPulse with Docker Compose and the built-in web UI, without connecting a messenger.
 
 ### Prerequisites
 
-- Git
 - Docker with the Compose plugin
 
-### 1. Prepare the release
+### 1. Start IMPulse
 
 ```bash
-git clone https://github.com/eslupmi/impulse.git
-cd impulse
+# Create directory structure
+mkdir -p impulse/{config,data} && cd impulse
 
-release_tag="$(git tag --sort=-v:refname | head -n 1)"
-git checkout --detach "$release_tag"
+# Get Docker compose file and configuration example
+curl -fsSL -o docker-compose.yml https://raw.githubusercontent.com/eslupmi/impulse/master/examples/docker-compose.none.yml
+curl -fsSL -o config/impulse.yml https://raw.githubusercontent.com/eslupmi/impulse/master/examples/impulse.none.yml
 
-mkdir -p runtime/config runtime/data
-cp examples/docker-compose.yml runtime/docker-compose.yml
-cp examples/impulse.none.yml runtime/config/impulse.yml
-sed -i "s|<release_tag>|$release_tag|" runtime/docker-compose.yml
-```
-
-### 2. Start IMPulse
-
-```bash
-cd runtime
+# Run IMPulse
 docker compose up -d
 ```
 
 Open [http://localhost:5000/](http://localhost:5000/). The online indicator in the UI confirms that IMPulse is running and receiving live updates.
 
-### 3. Send a test alert
+### 2. Send a test alert
 
 ```bash
 curl -XPOST -H "Content-Type: application/json" http://localhost:5000/ -d '{"receiver":"webhook-alerts","status":"firing","alerts":[{"status":"firing","labels":{"alertname":"InstanceDown4","instance":"localhost:9100","job":"node","severity":"warning"},"annotations":{"summary":"Instanceunavailable"},"startsAt":"2024-07-28T19:26:43.604Z","endsAt":"0001-01-01T00:00:00Z","generatorURL":"http://eva:9090/graph?g0.expr=up+%3D%3D+0&g0.tab=1","fingerprint":"a7ddb1de342424cb"}],"groupLabels":{"alertname":"InstanceDown"},"commonLabels":{"alertname":"InstanceDown","instance":"localhost:9100","job":"node","severity":"warning"},"commonAnnotations":{"summary":"Instanceunavailable"},"externalURL":"http://eva:9093","version":"4","groupKey":"{}:{alertname=\"InstanceDown\"}","truncatedAlerts":0}'
