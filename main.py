@@ -40,6 +40,7 @@ if __name__ == "__main__":
     args = parse_arguments()
     if args.check:
         validate_config_only()
+        raise SystemExit(0)
 
     setup_sighup_forwarder()
 
