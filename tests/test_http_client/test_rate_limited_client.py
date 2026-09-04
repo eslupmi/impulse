@@ -7,6 +7,7 @@ import pytest_asyncio
 import aiohttp
 from aiohttp import web
 
+from app.config.environment import EnvironmentConfig
 from app.http_client.rate_limited_client import RateLimitedClient
 from app.http_client.rate_limited_client import RetryAfterRetry
 from tests.utils import FakeTime, create_test_server_url, make_requests_and_close
@@ -306,6 +307,26 @@ class TestRateLimitedClient:
         async with RateLimitedClient(rate_limit=None, rate_window=1.0) as client:
             assert client.rate_limit is None
             assert abs(client.rate_window - 1.0) < 0.001
+
+    async def test_environment_overrides_constructor_limits(self):
+        config = EnvironmentConfig(messenger_rate_limit=1000, messenger_rate_window=1.0)
+        with patch(
+            'app.http_client.rate_limited_client.get_environment_config',
+            return_value=config,
+        ):
+            async with RateLimitedClient(rate_limit=20, rate_window=60.0) as client:
+                assert client.rate_limit == 1000
+                assert client.rate_window == 1.0
+
+    async def test_environment_zero_limit_disables(self):
+        config = EnvironmentConfig(messenger_rate_limit=0, messenger_rate_window=0.5)
+        with patch(
+            'app.http_client.rate_limited_client.get_environment_config',
+            return_value=config,
+        ):
+            async with RateLimitedClient(rate_limit=20, rate_window=60.0) as client:
+                assert client.rate_limit is None
+                assert client.rate_window == 0.5
 
     async def test_logs_when_messenger_is_not_responding(self):
         """Transport failures are logged with structured context."""

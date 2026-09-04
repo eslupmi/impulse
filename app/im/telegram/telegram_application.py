@@ -291,7 +291,7 @@ class TelegramApplication(Application):
         return None
 
     def _get_url(self, app_config: ApplicationConfig):
-        return 'https://api.telegram.org/bot'
+        return app_config.address or 'https://api.telegram.org/bot'
 
     def _build_user_profile_url(self, user_id: str, user: BaseUser) -> str | None:
         if not user.username:

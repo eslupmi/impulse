@@ -235,6 +235,7 @@ HttpBase = Annotated[str, AfterValidator(lambda v: v.rstrip("/"))]
 class BaseApplicationConfig(BaseModel):
     """Base messenger configuration with common fields"""
     type: MessengerType = Field(..., description="Application type")
+    address: HttpBase | None = Field(None, description="Messenger API address")
     impulse_address: HttpBase | None = Field(None, description="Impulse callback address")
     admin_users: list[str] = Field(..., description="Admin users")
     user_groups: dict[str, UserGroup] = Field({}, description="User groups")
@@ -309,7 +310,6 @@ class TelegramApplicationConfig(AddressRequiredApplicationConfig):
     type: Literal[MessengerType.TELEGRAM] = Field(MessengerType.TELEGRAM, description="Application type")
     channels: dict[str, TelegramChannel] = Field(..., description="Channel definitions")
     users: dict[str, TelegramUser] = Field(..., description="User definitions")
-    address: HttpBase | None = Field(None, description="Telegram API address (optional)")
 
 
 class NullApplicationConfig(BaseApplicationConfig):
