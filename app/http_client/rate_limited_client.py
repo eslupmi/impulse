@@ -5,6 +5,7 @@ import aiohttp
 from aiohttp import ClientResponse, ClientSession, ClientTimeout
 from aiohttp_retry import ExponentialRetry, RetryClient
 
+from app.config.environment import get_environment_config
 from app.http_client.errors import MESSENGER_TRANSPORT_ERRORS
 from app.http_client.session import create_client_session
 from app.logging import logger
@@ -87,8 +88,9 @@ class RateLimitedClient:
         connector_limit: int = 100,
         connector_limit_per_host: int = 30
     ):
-        self.rate_limit = rate_limit
-        self.rate_window = rate_window
+        self.rate_limit, self.rate_window = get_environment_config().apply_messenger_rate_limits(
+            rate_limit, rate_window
+        )
         
         # Rate limiting state
         self._request_count = 0

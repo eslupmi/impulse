@@ -146,7 +146,7 @@ class SlackApplication(Application):
 
     async def _get_public_url(self, app_config: ApplicationConfig):
         response = await self.http.get(  # type: ignore[union-attr]
-            'https://slack.com/api/auth.test',
+            f'{self.url}/api/auth.test',
             headers=self.headers
         )
         json_ = await response.json()
@@ -157,7 +157,7 @@ class SlackApplication(Application):
         return None
 
     def _get_url(self, app_config: ApplicationConfig):
-        return 'https://slack.com'
+        return app_config.address or 'https://slack.com'
 
     def _build_user_profile_url(self, user_id: str, user: BaseUser) -> str | None:
         return f"{self.public_url}/team/{user_id}"

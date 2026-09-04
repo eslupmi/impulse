@@ -588,14 +588,6 @@ class Application(ABC):
         return response_json.get(self.thread_id_key)
 
     def _setup_http(self) -> RateLimitedClient:
-        if self.rate_limit:
-            logger.debug(
-                f"Rate limit: "
-                f"{self.rate_limit} requests per {self.rate_window}s", extra={'messenger': self.type.value}
-            )
-        else:
-            logger.info(f"{self.type.value.capitalize()} rate limiting disabled")
-
         client = RateLimitedClient(
             rate_limit=self.rate_limit,
             rate_window=self.rate_window,
@@ -604,6 +596,13 @@ class Application(ABC):
             connector_limit=100,
             connector_limit_per_host=30
         )
+        if client.rate_limit:
+            logger.debug(
+                f"Rate limit: "
+                f"{client.rate_limit} requests per {client.rate_window}s", extra={'messenger': self.type.value}
+            )
+        else:
+            logger.info(f"{self.type.value.capitalize()} rate limiting disabled")
         client.initialize_client()
         return client
 

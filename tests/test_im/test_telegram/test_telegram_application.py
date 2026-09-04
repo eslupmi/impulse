@@ -99,6 +99,7 @@ class TestTelegramApplication:
         config.template_files.header = None
         config.template_files.body = None
         config.impulse_address = "https://impulse.example.com"
+        config.address = None
         return config
 
     @pytest.fixture
@@ -145,6 +146,11 @@ class TestTelegramApplication:
         url = app._get_url(app_config)
 
         assert url == "https://api.telegram.org/bot"
+
+    def test_get_url_uses_configured_address(self, app_config, channels, users):
+        app = self.create_telegram_app(app_config, channels, users)
+        app_config.address = "http://mock-telegram:8080/bot"
+        assert app._get_url(app_config) == "http://mock-telegram:8080/bot"
 
     @pytest.mark.asyncio
     async def test_get_public_url(self, app_config, channels, users):

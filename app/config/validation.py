@@ -292,6 +292,7 @@ class SlackApplicationConfig(BaseApplicationConfig):
     channels: dict[str, SlackChannel] = Field(..., description="Channel definitions")
     groups: dict[str, SlackGroup] = Field({}, description="Slack group definitions")
     users: dict[str, SlackUser] = Field(..., description="User definitions")
+    address: HttpBase | None = Field(None, description="Slack API address (optional)")
 
 
 class MattermostApplicationConfig(AddressRequiredApplicationConfig):
