@@ -105,6 +105,14 @@ class UserAuthenticationManager:
         if self.allowed_user_ids and str(user.id) not in self.allowed_user_ids:
             return self._build_error_redirect(auth_state.next_path, "not_allowed")
 
+        # Save user in user store if not known already:
+        if self._user_store and not self._user_store.get(user.id):
+            try:
+                self._user_store.save(user.id, user.messenger, dict(user))
+            except OSError as exc:
+                logger.warning("Failed to save user", extra={"error": str(exc)})
+                return self._build_error_redirect(auth_state.next_path, "auth_failed")
+
         session_id = secrets.token_hex(32)
         now = self._now()
         expires_at = now + timedelta(seconds=self.session_ttl_seconds)
