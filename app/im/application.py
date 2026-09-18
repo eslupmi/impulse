@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 from jinja2 import TemplateError
 
 from app.config.config import get_config
+from app.config.environment import get_environment_config
 from app.config.validation import (
     ApplicationConfig,
     MattermostUser,
@@ -588,21 +589,30 @@ class Application(ABC):
         return response_json.get(self.thread_id_key)
 
     def _setup_http(self) -> RateLimitedClient:
+        env = get_environment_config()
+        rate_limit = self.rate_limit
+        rate_window = self.rate_window
+        if env.dev_messenger_rate_limit is not None:
+            rate_limit = env.dev_messenger_rate_limit if env.dev_messenger_rate_limit > 0 else None
+        if env.dev_messenger_rate_window is not None:
+            rate_window = env.dev_messenger_rate_window
+
+        if rate_limit:
+            logger.debug(
+                f"Rate limit: "
+                f"{rate_limit} requests per {rate_window}s", extra={'messenger': self.type.value}
+            )
+        else:
+            logger.info(f"{self.type.value.capitalize()} rate limiting disabled")
+
         client = RateLimitedClient(
-            rate_limit=self.rate_limit,
-            rate_window=self.rate_window,
+            rate_limit=rate_limit,
+            rate_window=rate_window,
             retry_attempts=3,
             timeout=30.0,
             connector_limit=100,
             connector_limit_per_host=30
         )
-        if client.rate_limit:
-            logger.debug(
-                f"Rate limit: "
-                f"{client.rate_limit} requests per {client.rate_window}s", extra={'messenger': self.type.value}
-            )
-        else:
-            logger.info(f"{self.type.value.capitalize()} rate limiting disabled")
         client.initialize_client()
         return client
 

@@ -235,7 +235,6 @@ HttpBase = Annotated[str, AfterValidator(lambda v: v.rstrip("/"))]
 class BaseApplicationConfig(BaseModel):
     """Base messenger configuration with common fields"""
     type: MessengerType = Field(..., description="Application type")
-    address: HttpBase | None = Field(None, description="Messenger API address")
     impulse_address: HttpBase | None = Field(None, description="Impulse callback address")
     admin_users: list[str] = Field(..., description="Admin users")
     user_groups: dict[str, UserGroup] = Field({}, description="User groups")

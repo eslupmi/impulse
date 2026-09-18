@@ -157,7 +157,7 @@ class SlackApplication(Application):
         return None
 
     def _get_url(self, app_config: ApplicationConfig):
-        return app_config.address or 'https://slack.com'
+        return get_environment_config().dev_messenger_custom_address or 'https://slack.com'
 
     def _build_user_profile_url(self, user_id: str, user: BaseUser) -> str | None:
         return f"{self.public_url}/team/{user_id}"

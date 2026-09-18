@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, Mock, patch
 import aiohttp
 import pytest
 
+from app.config.environment import EnvironmentConfig
 from app.config.validation import MessengerType, SlackApplicationConfig, SlackUser
 from app.im.slack.slack_application import SlackApplication
 
@@ -19,7 +20,6 @@ class TestApplicationInitLogging:
         config.user_groups = {}
         config.groups = {}
         config.admin_users = []
-        config.address = 'https://slack.example.com'
 
         channels = {'default': {'id': 'C1'}}
 
@@ -95,6 +95,30 @@ class TestApplicationInitLogging:
             assert extra['step'] == 'public_url'
             assert extra['messenger'] == 'slack'
             assert extra['failure'] == 'connection_failed'
+
+    def test_setup_http_applies_dev_rate_overrides(self, slack_app):
+        env = EnvironmentConfig(dev_messenger_rate_limit=1000, dev_messenger_rate_window=1.0)
+        mock_client = Mock()
+        mock_client.rate_limit = 1000
+        mock_client.rate_window = 1.0
+        with patch('app.im.application.get_environment_config', return_value=env), \
+                patch('app.im.application.RateLimitedClient', return_value=mock_client) as mock_cls:
+            slack_app._setup_http()
+
+        assert mock_cls.call_args.kwargs['rate_limit'] == 1000
+        assert mock_cls.call_args.kwargs['rate_window'] == 1.0
+
+    def test_setup_http_zero_rate_limit_disables(self, slack_app):
+        env = EnvironmentConfig(dev_messenger_rate_limit=0, dev_messenger_rate_window=0.5)
+        mock_client = Mock()
+        mock_client.rate_limit = None
+        mock_client.rate_window = 0.5
+        with patch('app.im.application.get_environment_config', return_value=env), \
+                patch('app.im.application.RateLimitedClient', return_value=mock_client) as mock_cls:
+            slack_app._setup_http()
+
+        assert mock_cls.call_args.kwargs['rate_limit'] is None
+        assert mock_cls.call_args.kwargs['rate_window'] == 0.5
 
 
 class TestMeasureRequestMetrics:

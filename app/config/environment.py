@@ -27,6 +27,13 @@ def _env_optional_float(name: str) -> float | None:
     return float(value)
 
 
+def _env_optional_str(name: str) -> str | None:
+    value = os.getenv(name)
+    if value is None or value.strip() == "":
+        return None
+    return value.strip()
+
+
 class EnvironmentConfig(BaseModel):
     """Environment-based configuration loaded from environment variables"""
     
@@ -137,13 +144,17 @@ class EnvironmentConfig(BaseModel):
         default_factory=lambda: int(os.getenv('LISTEN_PORT', '5000')),
         description="Port to listen on"
     )
-    messenger_rate_limit: int | None = Field(
-        default_factory=lambda: _env_optional_int('MESSENGER_RATE_LIMIT'),
+    dev_messenger_rate_limit: int | None = Field(
+        default_factory=lambda: _env_optional_int('DEV_MESSENGER_RATE_LIMIT'),
         description="Override messenger HTTP request limit (0 disables limiting)"
     )
-    messenger_rate_window: float | None = Field(
-        default_factory=lambda: _env_optional_float('MESSENGER_RATE_WINDOW'),
+    dev_messenger_rate_window: float | None = Field(
+        default_factory=lambda: _env_optional_float('DEV_MESSENGER_RATE_WINDOW'),
         description="Override messenger HTTP rate-limit window in seconds"
+    )
+    dev_messenger_custom_address: str | None = Field(
+        default_factory=lambda: _env_optional_str('DEV_MESSENGER_CUSTOM_ADDRESS'),
+        description="Override Slack/Telegram API base URL"
     )
 
     @field_validator('provider_sync_interval', 'provider_max_events', 'provider_days_to_sync', 'listen_port')
@@ -169,19 +180,24 @@ class EnvironmentConfig(BaseModel):
             raise ValueError(f"Log level must be one of: {', '.join(valid_levels)}")
         return v.upper()
     
-    @field_validator('messenger_rate_limit')
+    @field_validator('dev_messenger_rate_limit')
     @classmethod
-    def validate_messenger_rate_limit(cls, v):
+    def validate_dev_messenger_rate_limit(cls, v):
         if v is not None and v < 0:
-            raise ValueError("MESSENGER_RATE_LIMIT must be >= 0")
+            raise ValueError("DEV_MESSENGER_RATE_LIMIT must be >= 0")
         return v
 
-    @field_validator('messenger_rate_window')
+    @field_validator('dev_messenger_rate_window')
     @classmethod
-    def validate_messenger_rate_window(cls, v):
+    def validate_dev_messenger_rate_window(cls, v):
         if v is not None and v <= 0:
-            raise ValueError("MESSENGER_RATE_WINDOW must be positive")
+            raise ValueError("DEV_MESSENGER_RATE_WINDOW must be positive")
         return v
+
+    @field_validator('dev_messenger_custom_address')
+    @classmethod
+    def normalize_dev_messenger_custom_address(cls, v):
+        return v.rstrip("/") if v else v
 
     @field_validator('http_prefix')
     @classmethod
@@ -197,15 +213,6 @@ class EnvironmentConfig(BaseModel):
     @classmethod
     def normalize_jira_base_url(cls, v):
         return v.rstrip("/") if v else v
-    
-    def apply_messenger_rate_limits(
-        self, rate_limit: int | None, rate_window: float
-    ) -> tuple[int | None, float]:
-        if self.messenger_rate_limit is not None:
-            rate_limit = self.messenger_rate_limit if self.messenger_rate_limit > 0 else None
-        if self.messenger_rate_window is not None:
-            rate_window = self.messenger_rate_window
-        return rate_limit, rate_window
 
     @property
     def incidents_path(self) -> str:

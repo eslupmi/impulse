@@ -13,6 +13,9 @@ Environment variables are created in `.env` file for python installation or in `
 | CONFIG_PATH | Path to `impulse.yml`[↰](config_file.md) directory | `./` | - |
 | CORS_ALLOWED_ORIGINS | Сomma-separated list of origins<br> allowed to make cross-origin<br> requests to the server | [http://localhost:5000](http://localhost:5000) | for UI |
 | DATA_PATH | Path to data directory | `./data` | - |
+| DEV_MESSENGER_CUSTOM_ADDRESS | Override Slack/Telegram API base URL for local/mocked messengers | | - |
+| DEV_MESSENGER_RATE_LIMIT | Override messenger HTTP request limit (`0` disables limiting) | | - |
+| DEV_MESSENGER_RATE_WINDOW | Override messenger HTTP rate-limit window, seconds | | - |
 | GOOGLE_SERVICE_ACCOUNT_FILE | Path to Google service account file<br/>(for [cloud chain](config_file.md#cloud-chains)) | `./key.json` | - |
 | HTTP_PREFIX | HTTP prefix for reverse proxy deployments<br/>(e.g., `/impulse`) | | - |
 | HTTP_PROXY | HTTP proxy URL for outbound HTTP requests<br/> | | - |
