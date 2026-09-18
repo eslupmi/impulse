@@ -18,7 +18,6 @@ from app.api.router import create_api_router
 from app.config.config import get_config, reload_config
 from app.im.chain.ui_chains_store import ui_chains_store
 from app.logging import logger
-from app.maintenance.api import removed_windows, windows_from_ws_payload
 from app.maintenance.store import get_maintenance_store
 from app.metrics import generate_metrics_response
 from app.middleware import (
@@ -34,8 +33,11 @@ _MSG_UNIQ_ID_REQUIRED = "uniq_id is required"
 _MSG_AUTHENTICATION_REQUIRED = "Authentication required"
 
 
-async def _maintenance_save_side_effects(app, existing, saved, deleted):
-    await app.state.maintenance_manager.apply_save_side_effects(existing, saved, deleted)
+async def _send_maintenance_saved(websocket, success, detail=None):
+    message = {"event": "maintenance_saved", "success": success}
+    if detail is not None:
+        message["detail"] = detail
+    await websocket.send_text(json.dumps(message))
 
 
 def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_manager=None) -> APIRouter:
@@ -426,43 +428,44 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
                             await websocket.send_text(json.dumps({"event": "maintenance_data", "data": windows}))
                     elif event_type == "save_maintenance":
                         if auth_manager and _get_acting_user_from_websocket(websocket) is None:
-                            await websocket.send_text(json.dumps({
-                                "event": "maintenance_saved",
-                                "success": False,
-                                "detail": _MSG_AUTHENTICATION_REQUIRED,
-                            }))
+                            await _send_maintenance_saved(websocket, False, _MSG_AUTHENTICATION_REQUIRED)
                         else:
-                            windows_payload = message.get("data", [])
+                            payload = message.get("data")
                             store = get_maintenance_store()
-                            existing = store.load_windows()
-                            existing_by_id = {w["id"]: w for w in existing}
                             assignable_user_ids = {
                                 str(user["user_id"])
                                 for user in _get_assignable_users(websocket.app.state.messenger)
                             }
                             try:
-                                windows = windows_from_ws_payload(
-                                    windows_payload,
+                                success, existing_before, saved = store.upsert_window(
+                                    payload,
                                     assignable_user_ids,
-                                    existing_by_id,
                                 )
                             except HTTPException as exc:
-                                await websocket.send_text(json.dumps({
-                                    "event": "maintenance_saved",
-                                    "success": False,
-                                    "detail": exc.detail,
-                                }))
+                                await _send_maintenance_saved(websocket, False, exc.detail)
                             else:
-                                deleted = removed_windows(existing, windows)
-                                success = store.save_windows(windows)
-                                await websocket.send_text(json.dumps({
-                                    "event": "maintenance_saved",
-                                    "success": success,
-                                }))
+                                await _send_maintenance_saved(websocket, success)
                                 if success:
                                     _maintenance_save_task = asyncio.create_task(
-                                        _maintenance_save_side_effects(
-                                            websocket.app, existing, windows, deleted
+                                        websocket.app.state.maintenance_manager.apply_save_side_effects(
+                                            existing_before, saved, []
+                                        )
+                                    )
+                    elif event_type == "delete_maintenance":
+                        if auth_manager and _get_acting_user_from_websocket(websocket) is None:
+                            await _send_maintenance_saved(websocket, False, _MSG_AUTHENTICATION_REQUIRED)
+                        else:
+                            window_id = message.get("id")
+                            if not window_id:
+                                await _send_maintenance_saved(websocket, False, "id is required")
+                            else:
+                                store = get_maintenance_store()
+                                success, existing_before, saved, deleted = store.delete_window(str(window_id))
+                                await _send_maintenance_saved(websocket, success)
+                                if success and deleted:
+                                    _maintenance_save_task = asyncio.create_task(
+                                        websocket.app.state.maintenance_manager.apply_save_side_effects(
+                                            existing_before, saved, [deleted]
                                         )
                                     )
 
