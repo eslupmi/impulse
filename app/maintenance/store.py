@@ -8,7 +8,8 @@ from icalendar import Calendar, Component, Event
 from app.config.config import get_config
 from app.config.environment import get_environment_config
 from app.logging import logger
-from app.maintenance.models import MaintenanceWindow
+from app.maintenance.api import window_from_ws_item
+from app.maintenance.models import MaintenanceWindow, _parse_iso
 from app.time import unix_sleep_to_timedelta
 
 
@@ -41,10 +42,54 @@ class MaintenanceStore:
         with self._lock:
             return self._read_windows_from_disk()
 
-    def save_windows(self, windows: list[dict[str, Any]]) -> bool:
+    def upsert_window(
+        self,
+        payload,
+        assignable_user_ids: set[str],
+    ) -> tuple[bool, list[dict[str, Any]], list[dict[str, Any]]]:
         with self._lock:
-            retained = self._filter_retained_windows(windows)
-            return self._write_windows_unlocked(retained)
+            existing = self._read_windows_from_disk()
+            existing_owner_id = None
+            if isinstance(payload, dict) and payload.get("id"):
+                window_id = str(payload["id"])
+                for existing_window in existing:
+                    if existing_window["id"] == window_id:
+                        existing_owner_id = existing_window.get("owner_id")
+                        break
+            window = window_from_ws_item(payload, assignable_user_ids, existing_owner_id)
+            merged = []
+            replaced = False
+            for existing_window in existing:
+                if existing_window["id"] == window["id"]:
+                    merged.append(window)
+                    replaced = True
+                else:
+                    merged.append(existing_window)
+            if not replaced:
+                merged.append(window)
+            retained = self._filter_retained_windows(merged)
+            if not self._write_windows_unlocked(retained):
+                return False, existing, existing
+            return True, existing, retained
+
+    def delete_window(
+        self, window_id: str
+    ) -> tuple[bool, list[dict[str, Any]], list[dict[str, Any]], dict[str, Any] | None]:
+        with self._lock:
+            existing = self._read_windows_from_disk()
+            deleted = None
+            remaining = []
+            for existing_window in existing:
+                if existing_window["id"] == str(window_id):
+                    deleted = existing_window
+                else:
+                    remaining.append(existing_window)
+            if deleted is None:
+                return True, existing, existing, None
+            retained = self._filter_retained_windows(remaining)
+            if not self._write_windows_unlocked(retained):
+                return False, existing, existing, None
+            return True, existing, retained, deleted
 
     def windows_list(self) -> list[MaintenanceWindow]:
         windows = self.load_windows()
@@ -193,9 +238,7 @@ class MaintenanceStore:
         if not dt_str:
             return None
         try:
-            if dt_str.endswith("Z"):
-                dt_str = dt_str[:-1] + "+00:00"
-            return datetime.fromisoformat(dt_str)
+            return _parse_iso(dt_str)
         except ValueError:
             return None
 
