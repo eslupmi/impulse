@@ -169,18 +169,16 @@ class TestTelegramApplicationConfig:
         assert config.template_files.status_icons is None
         assert config.impulse_address == "https://impulse.example.com"
 
-    def test_telegram_strips_trailing_slashes_from_addresses(self):
+    def test_telegram_strips_trailing_slash_from_impulse_address(self):
         config = TelegramApplicationConfig(
             type=MessengerType.TELEGRAM,
             admin_users=["admin1"],
             channels={"default": {"id": -1001234567890}},
             users={"admin1": {"id": 123456789}},
             template_files={},
-            address="https://telegram-api.example.com/",
             impulse_address="https://impulse.example.com/"
         )
 
-        assert config.address == "https://telegram-api.example.com"
         assert config.impulse_address == "https://impulse.example.com"
 
 

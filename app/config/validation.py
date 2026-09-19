@@ -309,7 +309,6 @@ class TelegramApplicationConfig(AddressRequiredApplicationConfig):
     type: Literal[MessengerType.TELEGRAM] = Field(MessengerType.TELEGRAM, description="Application type")
     channels: dict[str, TelegramChannel] = Field(..., description="Channel definitions")
     users: dict[str, TelegramUser] = Field(..., description="User definitions")
-    address: HttpBase | None = Field(None, description="Telegram API address (optional)")
 
 
 class NullApplicationConfig(BaseApplicationConfig):

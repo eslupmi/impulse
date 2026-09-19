@@ -142,9 +142,19 @@ class TestTelegramApplication:
     def test_get_url(self, app_config, channels, users):
         """Test _get_url method."""
         app = self.create_telegram_app(app_config, channels, users)
-        url = app._get_url(app_config)
+        with patch(
+            'app.im.telegram.telegram_application.get_environment_config',
+            return_value=Mock(dev_messenger_custom_address=None),
+        ):
+            assert app._get_url(app_config) == "https://api.telegram.org/bot"
 
-        assert url == "https://api.telegram.org/bot"
+    def test_get_url_uses_dev_custom_address(self, app_config, channels, users):
+        app = self.create_telegram_app(app_config, channels, users)
+        with patch(
+            'app.im.telegram.telegram_application.get_environment_config',
+            return_value=Mock(dev_messenger_custom_address="http://mock-telegram:8080/bot"),
+        ):
+            assert app._get_url(app_config) == "http://mock-telegram:8080/bot"
 
     @pytest.mark.asyncio
     async def test_get_public_url(self, app_config, channels, users):
