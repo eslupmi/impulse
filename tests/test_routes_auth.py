@@ -273,10 +273,10 @@ class TestUiChainsWebsocketAuth:
                     ws.send_json({
                         "event": "save_ui_chains",
                         "chain_name": "primary",
-                        "data": [],
+                        "data": {"id": "shift-1"},
                     })
                     message = ws.receive_json()
-            mock_store.save_shifts.assert_not_called()
+            mock_store.upsert_shift.assert_not_called()
         assert message == {
             "event": "ui_chains_saved",
             "success": False,
@@ -305,9 +305,32 @@ class TestUiChainsWebsocketAuth:
     def test_save_ui_chains_allowed_when_authenticated(self, config, messenger):
         auth_manager = _mock_auth_manager(authenticated=True)
         app = _build_app(config, messenger, auth_manager)
+        shift = {
+            "id": "shift-1",
+            "start": "2026-06-10T10:00:00+00:00",
+            "end": "2026-06-10T12:00:00+00:00",
+        }
+        saved = [{**shift, "priority": 2}]
         with patch("app.routes.get_config", return_value=config), \
                 patch("app.routes.ui_chains_store") as mock_store:
-            mock_store.save_shifts.return_value = True
+            mock_store.upsert_shift.return_value = (True, saved)
+            with TestClient(app, cookies={SESSION_COOKIE: "valid-session"}) as client:
+                with client.websocket_connect("/ws") as ws:
+                    ws.receive_json()
+                    ws.send_json({
+                        "event": "save_ui_chains",
+                        "chain_name": "primary",
+                        "data": shift,
+                    })
+                    message = ws.receive_json()
+            mock_store.upsert_shift.assert_called_once_with("primary", shift)
+        assert message == {"event": "ui_chains_saved", "success": True, "data": saved}
+
+    def test_save_ui_chains_rejects_list_payload(self, config, messenger):
+        auth_manager = _mock_auth_manager(authenticated=True)
+        app = _build_app(config, messenger, auth_manager)
+        with patch("app.routes.get_config", return_value=config), \
+                patch("app.routes.ui_chains_store") as mock_store:
             with TestClient(app, cookies={SESSION_COOKIE: "valid-session"}) as client:
                 with client.websocket_connect("/ws") as ws:
                     ws.receive_json()
@@ -317,5 +340,49 @@ class TestUiChainsWebsocketAuth:
                         "data": [{"id": "shift-1"}],
                     })
                     message = ws.receive_json()
-            mock_store.save_shifts.assert_called_once_with("primary", [{"id": "shift-1"}])
-        assert message == {"event": "ui_chains_saved", "success": True}
+            mock_store.upsert_shift.assert_not_called()
+        assert message == {
+            "event": "ui_chains_saved",
+            "success": False,
+            "detail": "shift must be an object",
+        }
+
+    def test_delete_ui_chain_rejected_when_unauthenticated(self, config, messenger):
+        auth_manager = _mock_auth_manager(authenticated=False)
+        app = _build_app(config, messenger, auth_manager)
+        with patch("app.routes.get_config", return_value=config), \
+                patch("app.routes.ui_chains_store") as mock_store:
+            with TestClient(app) as client:
+                with client.websocket_connect("/ws") as ws:
+                    ws.receive_json()
+                    ws.send_json({
+                        "event": "delete_ui_chain",
+                        "chain_name": "primary",
+                        "id": "shift-1",
+                    })
+                    message = ws.receive_json()
+            mock_store.delete_shift.assert_not_called()
+        assert message == {
+            "event": "ui_chains_saved",
+            "success": False,
+            "detail": "Authentication required",
+        }
+
+    def test_delete_ui_chain_returns_remaining_shifts(self, config, messenger):
+        auth_manager = _mock_auth_manager(authenticated=True)
+        app = _build_app(config, messenger, auth_manager)
+        remaining = [{"id": "shift-2", "priority": 2}]
+        with patch("app.routes.get_config", return_value=config), \
+                patch("app.routes.ui_chains_store") as mock_store:
+            mock_store.delete_shift.return_value = (True, remaining)
+            with TestClient(app, cookies={SESSION_COOKIE: "valid-session"}) as client:
+                with client.websocket_connect("/ws") as ws:
+                    ws.receive_json()
+                    ws.send_json({
+                        "event": "delete_ui_chain",
+                        "chain_name": "primary",
+                        "id": "shift-1",
+                    })
+                    message = ws.receive_json()
+            mock_store.delete_shift.assert_called_once_with("primary", "shift-1")
+        assert message == {"event": "ui_chains_saved", "success": True, "data": remaining}

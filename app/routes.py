@@ -33,10 +33,12 @@ _MSG_UNIQ_ID_REQUIRED = "uniq_id is required"
 _MSG_AUTHENTICATION_REQUIRED = "Authentication required"
 
 
-async def _send_maintenance_saved(websocket, success, detail=None):
-    message = {"event": "maintenance_saved", "success": success}
+async def _send_saved_event(websocket, event, success, detail=None, data=None):
+    message = {"event": event, "success": success}
     if detail is not None:
         message["detail"] = detail
+    if data is not None:
+        message["data"] = data
     await websocket.send_text(json.dumps(message))
 
 
@@ -405,16 +407,34 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
                             await websocket.send_text(json.dumps({"event": "ui_chains_data", "data": shifts}))
                     elif event_type == "save_ui_chains":
                         if auth_manager and _get_acting_user_from_websocket(websocket) is None:
-                            await websocket.send_text(json.dumps({
-                                "event": "ui_chains_saved",
-                                "success": False,
-                                "detail": _MSG_AUTHENTICATION_REQUIRED,
-                            }))
+                            await _send_saved_event(websocket, "ui_chains_saved", False, _MSG_AUTHENTICATION_REQUIRED)
                         else:
                             chain_name = message.get("chain_name", "")
-                            shifts = message.get("data", [])
-                            success = ui_chains_store.save_shifts(chain_name, shifts)
-                            await websocket.send_text(json.dumps({"event": "ui_chains_saved", "success": success}))
+                            payload = message.get("data")
+                            if not isinstance(payload, dict):
+                                await _send_saved_event(websocket, "ui_chains_saved", False, "shift must be an object")
+                            elif not payload.get("id"):
+                                await _send_saved_event(websocket, "ui_chains_saved", False, "id is required")
+                            else:
+                                success, saved = ui_chains_store.upsert_shift(chain_name, payload)
+                                if success:
+                                    await _send_saved_event(websocket, "ui_chains_saved", True, data=saved)
+                                else:
+                                    await _send_saved_event(websocket, "ui_chains_saved", False)
+                    elif event_type == "delete_ui_chain":
+                        if auth_manager and _get_acting_user_from_websocket(websocket) is None:
+                            await _send_saved_event(websocket, "ui_chains_saved", False, _MSG_AUTHENTICATION_REQUIRED)
+                        else:
+                            chain_name = message.get("chain_name", "")
+                            shift_id = message.get("id")
+                            if not shift_id:
+                                await _send_saved_event(websocket, "ui_chains_saved", False, "id is required")
+                            else:
+                                success, saved = ui_chains_store.delete_shift(chain_name, str(shift_id))
+                                if success:
+                                    await _send_saved_event(websocket, "ui_chains_saved", True, data=saved)
+                                else:
+                                    await _send_saved_event(websocket, "ui_chains_saved", False)
                     elif event_type == "request_maintenance":
                         if auth_manager and _get_acting_user_from_websocket(websocket) is None:
                             await websocket.send_text(json.dumps({
@@ -428,7 +448,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
                             await websocket.send_text(json.dumps({"event": "maintenance_data", "data": windows}))
                     elif event_type == "save_maintenance":
                         if auth_manager and _get_acting_user_from_websocket(websocket) is None:
-                            await _send_maintenance_saved(websocket, False, _MSG_AUTHENTICATION_REQUIRED)
+                            await _send_saved_event(websocket, "maintenance_saved", False, _MSG_AUTHENTICATION_REQUIRED)
                         else:
                             payload = message.get("data")
                             store = get_maintenance_store()
@@ -442,9 +462,9 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
                                     assignable_user_ids,
                                 )
                             except HTTPException as exc:
-                                await _send_maintenance_saved(websocket, False, exc.detail)
+                                await _send_saved_event(websocket, "maintenance_saved", False, exc.detail)
                             else:
-                                await _send_maintenance_saved(websocket, success)
+                                await _send_saved_event(websocket, "maintenance_saved", success)
                                 if success:
                                     _maintenance_save_task = asyncio.create_task(
                                         websocket.app.state.maintenance_manager.apply_save_side_effects(
@@ -453,15 +473,15 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
                                     )
                     elif event_type == "delete_maintenance":
                         if auth_manager and _get_acting_user_from_websocket(websocket) is None:
-                            await _send_maintenance_saved(websocket, False, _MSG_AUTHENTICATION_REQUIRED)
+                            await _send_saved_event(websocket, "maintenance_saved", False, _MSG_AUTHENTICATION_REQUIRED)
                         else:
                             window_id = message.get("id")
                             if not window_id:
-                                await _send_maintenance_saved(websocket, False, "id is required")
+                                await _send_saved_event(websocket, "maintenance_saved", False, "id is required")
                             else:
                                 store = get_maintenance_store()
                                 success, existing_before, saved, deleted = store.delete_window(str(window_id))
-                                await _send_maintenance_saved(websocket, success)
+                                await _send_saved_event(websocket, "maintenance_saved", success)
                                 if success and deleted:
                                     _maintenance_save_task = asyncio.create_task(
                                         websocket.app.state.maintenance_manager.apply_save_side_effects(
