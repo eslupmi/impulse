@@ -6,6 +6,9 @@ on:
       branch:
         required: true
         type: string
+      suite:
+        required: true
+        type: string
       runs-on:
         type: string
         default: self-hosted
@@ -96,7 +99,7 @@ jobs:
           source venv/bin/activate
           MESSENGER_TYPE="${{ matrix.messenger_type }}"
           MESSENGER_CLASS="${MESSENGER_TYPE^}"
-          python -m autotest.runner --suite external --messenger "${{ matrix.messenger_type }}"
+          python -m autotest.runner --suite "${{ inputs.suite }}" --messenger "${{ matrix.messenger_type }}" --image ghcr.io/eslupmi/impulse:"${IMPULSE_IMAGE_TAG}"
 
       - name: Stop impulse container
         if: always()

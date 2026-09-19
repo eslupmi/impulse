@@ -41,6 +41,7 @@ jobs:
     uses: ./.github/workflows/_autotests.yml
     with:
       branch: pr-${{ github.event.pull_request.number }}
+      suite: ${{ github.base_ref == 'master' && 'external' || 'internal' }}
     secrets: inherit
 
   migrations:
