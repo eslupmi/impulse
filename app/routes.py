@@ -31,6 +31,7 @@ from app.ui.websocket import incident_ws
 _MSG_INCIDENT_NOT_FOUND = "Incident not found"
 _MSG_UNIQ_ID_REQUIRED = "uniq_id is required"
 _MSG_AUTHENTICATION_REQUIRED = "Authentication required"
+_MSG_ID_REQUIRED = "id is required"
 
 
 async def _send_saved_event(websocket, event, success, detail=None, data=None):
@@ -414,7 +415,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
                             if not isinstance(payload, dict):
                                 await _send_saved_event(websocket, "ui_chains_saved", False, "shift must be an object")
                             elif not payload.get("id"):
-                                await _send_saved_event(websocket, "ui_chains_saved", False, "id is required")
+                                await _send_saved_event(websocket, "ui_chains_saved", False, _MSG_ID_REQUIRED)
                             else:
                                 success, saved = ui_chains_store.upsert_shift(chain_name, payload)
                                 if success:
@@ -428,7 +429,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
                             chain_name = message.get("chain_name", "")
                             shift_id = message.get("id")
                             if not shift_id:
-                                await _send_saved_event(websocket, "ui_chains_saved", False, "id is required")
+                                await _send_saved_event(websocket, "ui_chains_saved", False, _MSG_ID_REQUIRED)
                             else:
                                 success, saved = ui_chains_store.delete_shift(chain_name, str(shift_id))
                                 if success:
@@ -477,7 +478,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
                         else:
                             window_id = message.get("id")
                             if not window_id:
-                                await _send_saved_event(websocket, "maintenance_saved", False, "id is required")
+                                await _send_saved_event(websocket, "maintenance_saved", False, _MSG_ID_REQUIRED)
                             else:
                                 store = get_maintenance_store()
                                 success, existing_before, saved, deleted = store.delete_window(str(window_id))

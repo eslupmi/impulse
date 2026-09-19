@@ -66,6 +66,7 @@ def test_window_from_ws_item_allows_existing_owner_not_assignable():
 
 
 def test_window_from_ws_item_rejects_list():
+    payload = [_window_payload()]
     with pytest.raises(HTTPException) as exc:
-        window_from_ws_item([_window_payload()], assignable_user_ids=ASSIGNABLE)
+        window_from_ws_item(payload, assignable_user_ids=ASSIGNABLE)
     assert exc.value.detail == "window must be an object"

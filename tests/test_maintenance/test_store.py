@@ -259,8 +259,9 @@ def test_upsert_rejects_invalid_payload_without_writing(tmp_path: Path):
 
 def test_upsert_rejects_list_without_writing(tmp_path: Path):
     store = _make_store(tmp_path)
+    payload = [_sample_window()]
     with pytest.raises(HTTPException) as exc:
-        store.upsert_window([_sample_window()], ASSIGNABLE)
+        store.upsert_window(payload, ASSIGNABLE)
     assert exc.value.detail == "window must be an object"
     assert store.load_windows() == []
     assert not Path(store._file).exists()
