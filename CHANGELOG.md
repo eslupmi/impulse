@@ -1,5 +1,9 @@
 # Changelog
 
+## v3.7.1
+Changes:
+- Fix `--check` to exit after validating the configuration
+
 ## v3.7.0
 Changes:
 - Added templates for all [thread messages](https://docs.impulse.bot/stable/concepts/templates/#thread-messages)
