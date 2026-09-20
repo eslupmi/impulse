@@ -48,6 +48,7 @@ jobs:
           python templates/gen.py
 
       - name: Start impulse container
+        if: github.base_ref == 'master'
         env:
           SLACK_VERIFICATION_TOKEN: ${{ secrets.AUTOTESTS_SLACK_VERIFICATION_TOKEN }}
           SLACK_BOT_USER_OAUTH_TOKEN: ${{ secrets.AUTOTESTS_SLACK_BOT_USER_OAUTH_TOKEN }}
@@ -68,6 +69,7 @@ jobs:
             ghcr.io/eslupmi/impulse:"${IMPULSE_IMAGE_TAG}"
 
       - name: Wait for impulse container to be ready
+        if: github.base_ref == 'master'
         run: |
           for i in $(seq 1 60); do
             curl -sf "http://localhost:${{ matrix.port }}/${{ matrix.messenger_type }}/readyz" && exit 0
@@ -96,13 +98,13 @@ jobs:
           source venv/bin/activate
           MESSENGER_TYPE="${{ matrix.messenger_type }}"
           MESSENGER_CLASS="${MESSENGER_TYPE^}"
-          python -m autotest.runner --suite external --messenger "${{ matrix.messenger_type }}"
+          python -m autotest.runner --suite "${{ github.base_ref == 'master' && 'external' || 'internal' }}" --messenger "${{ matrix.messenger_type }}"
 
       - name: Stop impulse container
-        if: always()
+        if: always() && github.base_ref == 'master'
         run: |
           docker rm -f impulse-autotests-${{ matrix.messenger_type }}-${{ github.run_id }} || true
-
+ 
       - name: Cleanup workspace
         if: always()
         run: |
