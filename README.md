@@ -43,7 +43,7 @@ curl -fsSL -o config/impulse.yml https://raw.githubusercontent.com/eslupmi/impul
 docker compose up -d
 ```
 
-Now IMPulse is available at [http://localhost:5000/].
+Now IMPulse is available at [http://localhost:5000/](http://localhost:5000/).
 
 You can try to send a test alert with:
 
