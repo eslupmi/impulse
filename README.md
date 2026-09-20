@@ -8,8 +8,6 @@ It is open-source, self-hosted, and IaC-ready. Designed with the KISS principle 
 
 IMPulse helps SRE, DevOps, and platform teams create and route incidents, track their status, and coordinate responders at the right time according to escalation chains.
 
-Key features are listed on our website: https://impulse.bot/
-
 Documentation here: https://docs.impulse.bot/stable/
 
 ![IMPulse incident management interface](https://github.com/eslupmi/site/blob/main/static/preview.png?raw=true)
@@ -29,7 +27,7 @@ Documentation here: https://docs.impulse.bot/stable/
 
 ## Quick start
 
-This path starts IMPulse with Docker Compose and the built-in web UI, without connecting a messenger.
+The following steps will start IMPulse using Docker Compose with the built-in web UI, without integrating a chat messenger.
 
 ```bash
 # Create directory structure
@@ -44,6 +42,8 @@ docker compose up -d
 ```
 
 Now IMPulse is available at [http://localhost:5000/](http://localhost:5000/).
+
+### Test alert
 
 You can try to send a test alert with:
 
