@@ -30,9 +30,8 @@ jobs:
     steps:
       - name: Get latest release
         id: latest
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: echo "tag=$(gh api "repos/${{ github.repository }}/releases/latest" --jq .tag_name)" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "tag=$(curl -sSf -H "Accept: application/json" "https://api.github.com/repos/${{ github.repository }}/releases/latest" | grep -m1 '"tag_name"' | cut -d'"' -f4)" >> "$GITHUB_OUTPUT"
 
       - name: Backup incidents migration
         uses: appleboy/ssh-action@v1.0.3
