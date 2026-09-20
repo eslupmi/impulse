@@ -47,6 +47,36 @@ jobs:
           pip install -r requirements.txt
           python templates/gen.py
 
+      - name: Start impulse container
+        if: github.base_ref == 'master'
+        env:
+          SLACK_VERIFICATION_TOKEN: ${{ secrets.AUTOTESTS_SLACK_VERIFICATION_TOKEN }}
+          SLACK_BOT_USER_OAUTH_TOKEN: ${{ secrets.AUTOTESTS_SLACK_BOT_USER_OAUTH_TOKEN }}
+          MATTERMOST_ACCESS_TOKEN: ${{ secrets.AUTOTESTS_MATTERMOST_ACCESS_TOKEN }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.AUTOTESTS_TELEGRAM_BOT_TOKEN }}
+          IMPULSE_IMAGE_TAG: ${{ inputs.branch }}
+        run: |
+          NAME="impulse-autotests-${{ matrix.messenger_type }}"
+          docker run -d --pull always --rm --name "$NAME-${{ github.run_id }}" \
+            -p ${{ matrix.port }}:5000 \
+            -v "${{ github.workspace }}/autotests-${{ matrix.messenger_type }}:/config:ro" \
+            -e SLACK_VERIFICATION_TOKEN="$SLACK_VERIFICATION_TOKEN" \
+            -e SLACK_BOT_USER_OAUTH_TOKEN="$SLACK_BOT_USER_OAUTH_TOKEN" \
+            -e MATTERMOST_ACCESS_TOKEN="$MATTERMOST_ACCESS_TOKEN" \
+            -e TELEGRAM_BOT_TOKEN="$TELEGRAM_BOT_TOKEN" \
+            -e CONFIG_PATH="/config" \
+            -e HTTP_PREFIX="/${{ matrix.messenger_type }}" \
+            ghcr.io/eslupmi/impulse:"${IMPULSE_IMAGE_TAG}"
+
+      - name: Wait for impulse container to be ready
+        if: github.base_ref == 'master'
+        run: |
+          for i in $(seq 1 60); do
+            curl -sf "http://localhost:${{ matrix.port }}/${{ matrix.messenger_type }}/readyz" && exit 0
+            sleep 1
+          done
+          exit 1
+
       - name: Run autotests for ${{ matrix.messenger_type }}
         env:
           SLACK_VERIFICATION_TOKEN: ${{ secrets.AUTOTESTS_SLACK_VERIFICATION_TOKEN }}
@@ -70,6 +100,11 @@ jobs:
           MESSENGER_CLASS="${MESSENGER_TYPE^}"
           python -m autotest.runner --suite "${{ github.base_ref == 'master' && 'external' || 'internal' }}" --messenger "${{ matrix.messenger_type }}"
 
+      - name: Stop impulse container
+        if: always() && github.base_ref == 'master'
+        run: |
+          docker rm -f impulse-autotests-${{ matrix.messenger_type }}-${{ github.run_id }} || true
+ 
       - name: Cleanup workspace
         if: always()
         run: |
