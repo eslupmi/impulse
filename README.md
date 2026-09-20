@@ -43,9 +43,9 @@ curl -fsSL -o config/impulse.yml https://raw.githubusercontent.com/eslupmi/impul
 docker compose up -d
 ```
 
-Open [http://localhost:5000/](http://localhost:5000/). The online indicator in the UI confirms that IMPulse is running and receiving live updates.
+Now IMPulse is available at [http://localhost:5000/].
 
-**Send a test alert**
+You can try to send a test alert with:
 
 ```bash
 curl -XPOST -H "Content-Type: application/json" http://localhost:5000/ -d '{"receiver":"webhook-alerts","status":"firing","alerts":[{"status":"firing","labels":{"alertname":"InstanceDown4","instance":"localhost:9100","job":"node","severity":"warning"},"annotations":{"summary":"Instanceunavailable"},"startsAt":"2024-07-28T19:26:43.604Z","endsAt":"0001-01-01T00:00:00Z","generatorURL":"http://eva:9090/graph?g0.expr=up+%3D%3D+0&g0.tab=1","fingerprint":"a7ddb1de342424cb"}],"groupLabels":{"alertname":"InstanceDown"},"commonLabels":{"alertname":"InstanceDown","instance":"localhost:9100","job":"node","severity":"warning"},"commonAnnotations":{"summary":"Instanceunavailable"},"externalURL":"http://eva:9093","version":"4","groupKey":"{}:{alertname=\"InstanceDown\"}","truncatedAlerts":0}'
@@ -53,8 +53,4 @@ curl -XPOST -H "Content-Type: application/json" http://localhost:5000/ -d '{"rec
 
 The new `firing` incident appears in the UI.
 
-Follow the [installation guide](https://docs.impulse.bot/stable/installation/) for production deployment or start from the [Slack configuration example](examples/impulse.slack.yml) to connect a messenger and route real alerts.
-
-## License
-
-IMPulse is licensed under the [GNU General Public License v3.0](LICENSE.md).
+Follow the [installation guide](https://docs.impulse.bot/stable/installation/) for production deployment.
