@@ -4,7 +4,7 @@
 
 **IMPulse is a ChatOps Incident Management Platform.**
 
-It is open-source, self-hosted, and IaC-ready. Designed with the KISS principle as a lightweight, single-component utility.
+It is open source, self-hosted, and IaC-ready. Designed with the KISS principle as a lightweight, single-component utility.
 
 IMPulse helps SRE, DevOps, and platform teams create and route incidents, track their status, and coordinate responders at the right time according to escalation chains.
 
