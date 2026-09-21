@@ -2,11 +2,9 @@
 
 [![Website](https://img.shields.io/badge/website-impulse.bot-blue)](https://impulse.bot) [![Documentation](https://img.shields.io/badge/docs-docs.impulse.bot-blue)](https://docs.impulse.bot) [![Container](https://img.shields.io/badge/docker-ghcr.io%2Feslupmi%2Fimpulse-blue?logo=docker)](https://ghcr.io/eslupmi/impulse) [![Community Helm](https://img.shields.io/badge/community-artifacthub.io-blue?style=flat&logo=helm)](https://artifacthub.io/packages/helm/impulse/impulse)
 
-**IMPulse is a ChatOps Incident Management Platform.**
+**IMPulse** is a ChatOps Incident Management Platform. 
 
-It is open source, self-hosted, and IaC-ready. Designed with the KISS principle as a lightweight, single-component utility.
-
-IMPulse helps SRE, DevOps, and platform teams create and route incidents, track their status, and coordinate responders at the right time according to escalation chains.
+It is open source, self-hosted, and IaC-ready. Designed with the KISS principle as a lightweight, single-component utility. IMPulse helps SRE, DevOps, and platform teams create and route incidents, track their status, and coordinate responders at the right time according to escalation chains.
 
 Documentation here: https://docs.impulse.bot/stable/
 
@@ -14,16 +12,16 @@ Documentation here: https://docs.impulse.bot/stable/
 
 ## Features
 
-- Snoozed incidents: [freeze](https://docs.impulse.bot/stable/concepts/incident/#freeze) incidents to handle them later
-- Inhibition rules: [suppress](https://docs.impulse.bot/stable/concepts/inhibition/#inhibition) child incidents when a parent incident is active
-- No chaos: incidents have a [lifecycle](https://docs.impulse.bot/stable/concepts/incident/#lifecycle) that automatically prevents duplicate incidents and reduces noise
-- Maintenance: mute incidents during [maintenance](https://docs.impulse.bot/stable/concepts/maintenance)
-- Single Sign-On: no extra accounts - [sign in](https://docs.impulse.bot/stable/guides/authentication/) with your chat platform
-- Templating: Jinja2 [templates](https://docs.impulse.bot/stable/concepts/templates/) for incidents, thread messages, and Jira tasks
-- Unlimited escalation policies: create as many [escalation policies](https://docs.impulse.bot/stable/config_file/#messengerchains) as you need, including nested
-- External notifications: connect anything via powerful [webhooks](https://docs.impulse.bot/stable/config_file/#webhooks)
-- High availability: run multiple IMPulse instances for [reliability](https://docs.impulse.bot/stable/concepts/ha/)
-- Minimal UI: simple by design, customizable where it matters
+- **Snoozed incidents:** [freeze](https://docs.impulse.bot/stable/concepts/incident/#freeze) incidents to handle them later
+- **Inhibition rules:** [suppress](https://docs.impulse.bot/stable/concepts/inhibition/#inhibition) child incidents when a parent incident is active
+- **No chaos:** incidents have a [lifecycle](https://docs.impulse.bot/stable/concepts/incident/#lifecycle) that automatically prevents duplicate incidents and reduces noise
+- **Maintenance:** mute incidents during [maintenance](https://docs.impulse.bot/stable/concepts/maintenance)
+- **Single Sign-On:** no extra accounts - [sign in](https://docs.impulse.bot/stable/guides/authentication/) with your chat platform
+- **Templating:** Jinja2 [templates](https://docs.impulse.bot/stable/concepts/templates/) for incidents, thread messages, and Jira tasks
+- **Unlimited escalation policies:** create as many [escalation policies](https://docs.impulse.bot/stable/config_file/#messengerchains) as you need, including nested
+- **External notifications:** connect anything via powerful [webhooks](https://docs.impulse.bot/stable/config_file/#webhooks)
+- **High availability:** run multiple IMPulse instances for [reliability](https://docs.impulse.bot/stable/concepts/ha/)
+- **Minimal UI:** simple by design, customizable where it matters
 
 ## Quick start
 
