@@ -32,8 +32,8 @@ The following steps will start IMPulse using Docker Compose with the built-in we
 mkdir -p impulse/{config,data} && cd impulse
 
 # Get Docker compose file and configuration example
-curl -fsSL -o docker-compose.yml https://raw.githubusercontent.com/eslupmi/impulse/master/examples/docker-compose.none.yml
-curl -fsSL -o config/impulse.yml https://raw.githubusercontent.com/eslupmi/impulse/master/examples/impulse.none.yml
+curl -fsSL -o docker-compose.yml https://raw.githubusercontent.com/eslupmi/impulse/develop/examples/docker-compose.none.yml
+curl -fsSL -o config/impulse.yml https://raw.githubusercontent.com/eslupmi/impulse/develop/examples/impulse.none.yml
 
 # Run IMPulse
 docker compose up -d
