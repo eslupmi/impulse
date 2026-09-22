@@ -40,6 +40,8 @@ class TestTelegramApplication:
                 mock_parent_init.return_value = None
                 app = TelegramApplication(app_config, channels, users)
                 # Manually set the attributes that would normally be set by parent init
+                app.provider = None
+                app._legacy = None
                 app.type = app_config.type
                 app.url = "https://api.telegram.org/bot"
                 app.team = None
@@ -125,7 +127,7 @@ class TestTelegramApplication:
 
     def test_initialize_specific_params(self, app_config, channels, users):
         """Test _initialize_specific_params method."""
-        with patch('app.im.telegram.telegram_application.get_environment_config') as mock_get_env_config:
+        with patch('app.im.providers.telegram.get_environment_config') as mock_get_env_config:
             mock_env_config = Mock()
             mock_env_config.telegram_bot_token = "test-token"
             mock_get_env_config.return_value = mock_env_config
@@ -143,7 +145,7 @@ class TestTelegramApplication:
         """Test _get_url method."""
         app = self.create_telegram_app(app_config, channels, users)
         with patch(
-            'app.im.telegram.telegram_application.get_environment_config',
+            'app.im.providers.telegram.get_environment_config',
             return_value=Mock(dev_messenger_custom_address=None),
         ):
             assert app._get_url(app_config) == "https://api.telegram.org/bot"
@@ -151,7 +153,7 @@ class TestTelegramApplication:
     def test_get_url_uses_dev_custom_address(self, app_config, channels, users):
         app = self.create_telegram_app(app_config, channels, users)
         with patch(
-            'app.im.telegram.telegram_application.get_environment_config',
+            'app.im.providers.telegram.get_environment_config',
             return_value=Mock(dev_messenger_custom_address="http://mock-telegram:8080/bot"),
         ):
             assert app._get_url(app_config) == "http://mock-telegram:8080/bot"
@@ -227,8 +229,8 @@ class TestTelegramApplication:
         app = self.create_telegram_app(app_config, channels, users)
         incident = create_mock_incident_for_handlers(status="closed", ts="123456/789012")
 
-        with patch('app.im.telegram.telegram_application.get_config') as mock_get_config, \
-                patch('app.im.telegram.telegram_application.get_environment_config') as mock_get_env_config:
+        with patch('app.im.providers.telegram.get_config') as mock_get_config, \
+                patch('app.im.providers.telegram.get_environment_config') as mock_get_env_config:
             mock_get_config.return_value = Mock(
                 app=Mock(
                     general=Mock(timezone="UTC"),
@@ -612,7 +614,7 @@ class TestTelegramApplication:
         # Mock successful HTTP response
         mock_response = create_mock_http_response()
         with patch.object(app.http, 'post', new=AsyncMock(return_value=mock_response)) as mock_post, \
-                patch('app.im.telegram.telegram_application.get_config') as mock_get_config:
+                patch('app.im.providers.telegram.get_config') as mock_get_config:
             mock_config = Mock()
             mock_config.messenger.impulse_address = "https://impulse.example.com"
             mock_get_config.return_value = mock_config
@@ -629,7 +631,7 @@ class TestTelegramApplication:
         app = self.create_telegram_app(app_config, channels, users)
 
         with patch.object(app.http, 'post') as mock_post, \
-                patch('app.im.telegram.telegram_application.get_config') as mock_get_config:
+                patch('app.im.providers.telegram.get_config') as mock_get_config:
             mock_config = Mock()
             mock_config.messenger.impulse_address = "https://impulse.example.com"
             mock_get_config.return_value = mock_config

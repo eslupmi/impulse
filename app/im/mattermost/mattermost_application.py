@@ -2,24 +2,23 @@ import asyncio
 
 from fastapi.responses import JSONResponse
 
-from app.config.environment import get_environment_config
-from app.config.validation import ApplicationConfig, MattermostApplicationConfig
-from app.http_client.errors import MESSENGER_TRANSPORT_ERRORS
+from app.config.validation import ApplicationConfig
 from app.im.application import Application
 from app.im.mattermost.threads import (
     mattermost_get_button_update_payload,
-    mattermost_get_create_thread_payload,
-    mattermost_get_update_payload,
 )
 from app.im.mattermost.user import User
-from app.im.users import BaseUser
 from app.logging import logger
 
 
-class MattermostApplication(Application):
+from app.im.providers.mattermost import MattermostProvider
+
+
+class MattermostApplication(MattermostProvider, Application):
+    """Legacy callback/user adapter; startup uses the composed Application."""
 
     def __init__(self, app_config: ApplicationConfig, channels, default_channel, webhooks=None):
-        super().__init__(app_config, channels, default_channel, webhooks=webhooks)
+        Application.__init__(self, app_config, channels, default_channel, webhooks=webhooks)
 
     async def _dispatch_button_action(self, incident_, payload, user_id, incidents, queue_, user_tz):
         context = payload.get('context', {})
@@ -70,73 +69,6 @@ class MattermostApplication(Application):
             timezone_=user_details.get('timezone')
         )
 
-    async def get_all_groups(self):
-        """Unused function for Mattermost"""
-        return {}
-
-    async def get_group_details(self, group_id: str):
-        """Fetch a single group from Mattermost API using /api/v4/groups/<group_id>"""
-        if not group_id:
-            return {'id': None, 'name': None, 'exists': False}
-        
-        try:
-            response = await self.http.get(  # type: ignore[union-attr]
-                f'{self.url}/api/v4/groups/{group_id}',
-                headers=self.headers
-            )
-            try:
-                if response.status == 404:
-                    logger.debug("Group not found", extra={'group_id': group_id})
-                    return {'id': group_id, 'name': None, 'exists': False}
-                
-                if response.status != 200:
-                    logger.debug("Group details fetch failed", extra={'group_id': group_id, 'status': response.status})
-                    return {'id': group_id, 'name': None, 'exists': False}
-                
-                data = await response.json()
-                group_name = data.get('name')
-                return {'id': group_id, 'name': group_name, 'exists': True}
-            finally:
-                response.close()
-        except MESSENGER_TRANSPORT_ERRORS as e:
-            logger.error("Group details fetch error", extra={'group_id': group_id, 'error': str(e)})
-            return {'id': group_id, 'name': None, 'exists': False}
-
-    async def get_user_details(self, user_details):
-        id_ = user_details.get('id')
-        response = await self.http.get(f'{self.url}/api/v4/users/{id_}?user_id={id_}', headers=self.headers)
-
-        if response.status == 404:
-            logger.debug("User not found", extra={'user_id': id_})
-            response.close()
-            return {'id': id_, 'username': None, 'exists': False, 'full_name': None,
-                    'email': None, 'timezone': None}
-
-        if response.status != 200:
-            logger.debug("User details fetch failed", extra={'user_id': id_, 'status': response.status})
-            response.close()
-            return {'id': id_, 'username': None, 'exists': False, 'full_name': None,
-                    'email': None, 'timezone': None}
-
-        data = await response.json()
-        response.close()
-        first_name = data.get('first_name', '').strip()
-        last_name = data.get('last_name', '').strip()
-        full_name = f"{first_name} {last_name}".strip()
-        return {
-            'id': id_,
-            'username': data.get('username'),
-            'exists': True,
-            'full_name': full_name,
-            'email': data.get('email'),
-            'timezone': self._extract_timezone(data.get('timezone'))
-        }
-
-    def update_incident_payload(self, incident, body, header, status_icons, tz_str):
-        return mattermost_get_update_payload(incident, body, header, status_icons, tz_str)
-
-    ### PRIVATE METHODS ###
-
     def _build_button_response(self, incident_, user_timezone='UTC'):
         """Build JSON response with updated incident message"""
         incident_.dump()
@@ -144,22 +76,13 @@ class MattermostApplication(Application):
         response_payload = mattermost_get_button_update_payload(incident_, body, header, status_icons, user_timezone)
         return JSONResponse(response_payload, status_code=200)
 
-    @staticmethod
-    def _extract_timezone(timezone_data):
-        if not timezone_data or not isinstance(timezone_data, dict):
-            return None
-        use_automatic = timezone_data.get('useAutomaticTimezone')
-        if use_automatic == 'true':
-            return timezone_data.get('automaticTimezone') or None
-        return timezone_data.get('manualTimezone') or None
-
     async def _generate_groups(self, groups_dict):
         """Generate groups by checking each group individually via API"""
         if not groups_dict:
             return {}
-        
+
         logger.info('Creating groups')
-        
+
         groups = {}
         for config_name, group_info in groups_dict.items():
             group_details = await self.get_group_details(group_info.id)
@@ -168,24 +91,6 @@ class MattermostApplication(Application):
             groups[config_name] = self.create_group(config_name, group_details)
 
         return groups
-
-    def _get_incident_message_payload(self, incident, body, header, status_icons):
-        return mattermost_get_create_thread_payload(incident, body, header, status_icons)
-
-    async def _get_public_url(self, app_config: ApplicationConfig):
-        assert isinstance(app_config, MattermostApplicationConfig)
-        return app_config.address
-
-    def _get_team_name(self, app_config: ApplicationConfig):
-        assert isinstance(app_config, MattermostApplicationConfig)
-        return app_config.team
-
-    def _get_url(self, app_config: ApplicationConfig):
-        assert isinstance(app_config, MattermostApplicationConfig)
-        return app_config.address
-
-    def _build_user_profile_url(self, user_id: str, user: BaseUser) -> str | None:
-        return f"{self.public_url}/{self.team}/users/{user_id}"
 
     async def _handle_chain_action(self, incident_, user_id, queue_, payload):
         """Handle chain-related button actions"""
@@ -203,27 +108,3 @@ class MattermostApplication(Application):
             self.track_async_task(asyncio.create_task(self.post_unassignment_notification(incident_)))
             incident_.release()
         return None
-
-    def _initialize_specific_params(self):
-        self.post_message_url = f'{self.url}/api/v4/posts'
-        env_config = get_environment_config()
-        self.headers = {
-            'Content-Type': 'application/json',
-            'Authorization': f'Bearer {env_config.mattermost_access_token}',
-        }
-        self.rate_limit = 10
-        self.thread_id_key = 'id'
-
-    def _markdown_links_to_native_format(self, text):
-        return text
-
-    def _post_thread_payload(self, channel_id, id_, text):
-        return {'channel_id': channel_id, 'root_id': id_, 'message': text}
-
-    async def _update_incident_message(self, id_, payload):
-        response = await self.http.put(
-            f'{self.url}/api/v4/posts/{id_}',
-            headers=self.headers,
-            json=payload
-        )
-        response.close()

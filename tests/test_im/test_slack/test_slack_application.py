@@ -126,7 +126,7 @@ class TestSlackApplication:
     def test_get_url_defaults_to_slack(self):
         app = SlackApplication.__new__(SlackApplication)
         with patch(
-            'app.im.slack.slack_application.get_environment_config',
+            'app.im.providers.slack.get_environment_config',
             return_value=Mock(dev_messenger_custom_address=None),
         ):
             assert app._get_url(Mock()) == 'https://slack.com'
@@ -134,7 +134,7 @@ class TestSlackApplication:
     def test_get_url_uses_dev_custom_address(self):
         app = SlackApplication.__new__(SlackApplication)
         with patch(
-            'app.im.slack.slack_application.get_environment_config',
+            'app.im.providers.slack.get_environment_config',
             return_value=Mock(dev_messenger_custom_address='http://mock-slack:8080'),
         ):
             assert app._get_url(Mock()) == 'http://mock-slack:8080'

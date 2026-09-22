@@ -1,5 +1,5 @@
 import asyncio
-from abc import ABC, abstractmethod
+from dataclasses import asdict
 from datetime import datetime
 from typing import TYPE_CHECKING
 
@@ -18,6 +18,11 @@ from app.http_client.errors import MESSENGER_TRANSPORT_ERRORS
 from app.http_client.rate_limited_client import RateLimitedClient
 from app.im.chain.chain_factory import ChainFactory
 from app.im.groups import Group
+from app.im.interaction_service import LegacyInteractionService
+from app.im.plugin_api import (
+    IncidentPresentation, MessageRef, MessengerProvider, NotificationContent,
+    ProviderContext, ProviderIdentity, UserProfile,
+)
 from app.im.messenger_init import messenger_init_step_async, messenger_init_step_sync
 from app.im.template import (
     assignment_template_context,
@@ -51,10 +56,13 @@ if TYPE_CHECKING:
 log_button_pressed = 'Button pressed'
 
 
-class Application(ABC):
+class Application:
     task_management_integration: JiraIntegration | None = None
 
-    def __init__(self, app_config: ApplicationConfig, channels, default_channel, webhooks=None):
+    def __init__(self, app_config: ApplicationConfig, channels, default_channel, webhooks=None,
+                 *, provider: MessengerProvider | None = None, legacy_application: type | None = None):
+        self.provider = provider
+        self._legacy = LegacyInteractionService(self, legacy_application) if legacy_application else None
         self.http: RateLimitedClient | None = None
         self.type = app_config.type
         self.url = self.get_url(app_config)
@@ -71,8 +79,8 @@ class Application(ABC):
         self.templates = app_config.template_files
         self.body_template, self.header_template, self.status_icons_template = self.generate_template()
 
-        self.post_message_url = None
-        self.headers = None
+        self.post_message_url: str | None = None
+        self.headers: dict | None = None
         self.rate_limit = None
         self.rate_window = 1.0
         self.thread_id_key = None
@@ -95,9 +103,8 @@ class Application(ABC):
         
         self._user_scheduler: UserUpdateScheduler | None = None
 
-    @abstractmethod
     async def buttons_handler(self, payload, incidents, queue_, route):
-        pass
+        return await self._legacy.handle(payload, incidents, queue_, route)
 
     async def close(self):
         if self.http:
@@ -107,6 +114,8 @@ class Application(ABC):
         self._user_scheduler = scheduler
 
     def create_group(self, config_name, group_details):
+        if self._legacy and 'create_group' in self._legacy.legacy_type.__dict__:
+            return self._legacy.create_group(config_name, group_details)
         return Group(
             config_name=config_name,
             name=group_details.get('name'),
@@ -115,12 +124,15 @@ class Application(ABC):
         )
 
     async def create_incident_message(self, incident, body, header, status_icons):
+        if self.provider is not None:
+            message = self._presentation(incident, body, header, status_icons)
+            result = await self.provider.create_incident(message)
+            return result.thread_id if result else None
         payload = self._get_incident_message_payload(incident, body, header, status_icons)
         return await self._send_create_incident_message(payload)
 
-    @abstractmethod
     def create_user(self, name, user_details):
-        pass
+        return self._legacy.create_user(name, user_details)
 
     def fetch_and_assign_user_name(self, incident, user_id, dump=True):
         cached_user = self.users.get_user_by_id(user_id)
@@ -139,6 +151,9 @@ class Application(ABC):
         return body, header, status_icons
 
     def generate_template(self):
+        if self.provider is not None and not self.provider.descriptor.messaging_enabled:
+            return JinjaTemplate(''), JinjaTemplate(''), JinjaTemplate('')
+
         def read_template(file_key, default_path):
             file_path = self.templates.get(file_key, default_path)
             return JinjaTemplate(open(file_path).read())
@@ -149,9 +164,8 @@ class Application(ABC):
 
         return body_template, header_template, status_icons_template
 
-    @abstractmethod
     async def get_all_groups(self):
-        pass
+        return {group.id: group.name for group in await self.provider.fetch_groups()}
 
     def get_config_name_by_user_id(self, user_id: int | str) -> str | None:
         str_user_id = str(user_id)
@@ -161,14 +175,22 @@ class Application(ABC):
         return None
 
     def get_notification_destinations(self):
+        if self._legacy and 'get_notification_destinations' in self._legacy.legacy_type.__dict__:
+            return self._legacy.get_notification_destinations()
         return [a.get_notification_identifier() for a in self.admin_users]
 
     def get_team_name(self, app_config: ApplicationConfig):
         return self._get_team_name(app_config)
 
-    @abstractmethod
     async def get_user_details(self, user_info: SlackUser | MattermostUser | TelegramUser | dict):
-        pass
+        assert self.provider is not None
+        user_id = user_info.get('id')
+        assert isinstance(user_id, (str, int))
+        return asdict(await self.provider.fetch_user(user_id))
+
+    async def get_group_details(self, group_id):
+        # Temporary support for the Mattermost configured-group adapter.
+        return await self._legacy.get_group_details(group_id)
 
     def get_url(self, app_config: ApplicationConfig):
         return self._get_url(app_config).rstrip("/")
@@ -222,6 +244,12 @@ class Application(ABC):
         await self.update_incident_message(incident)
 
     async def initialize_async(self):
+        if self.provider is not None and not self.provider.descriptor.messaging_enabled:
+            self.public_url = ''
+            self.users = UserManager()
+            self.user_groups = {}
+            self.groups = {}
+            return
         logger.info(
             'Initializing messenger',
             extra={'messenger': self.type.value, 'url': redact_messenger_url(self.url)},
@@ -237,6 +265,15 @@ class Application(ABC):
         self.admin_users = self._init_admin_users()
 
         logger.info('Messenger initialized', extra={'messenger': self.type.value})
+        if self.provider is not None:
+            await self._start_provider()
+
+    async def _start_provider(self):
+        # The legacy Telegram hook keeps its existing init-step log context.
+        if self._legacy and '_init_webhook' in self._legacy.legacy_type.__dict__:
+            await self._legacy._init_webhook()
+        else:
+            await self.provider.start()
 
     @messenger_init_step_sync('http_client')
     def _init_http_client(self) -> RateLimitedClient:
@@ -275,6 +312,8 @@ class Application(ABC):
         return admins
 
     async def notify(self, incident, step):
+        if self.provider is not None and not self.provider.descriptor.messaging_enabled:
+            return 200
         messenger = self.type.value
         notify_type = step['name']
         if notify_type == 'user':
@@ -287,11 +326,7 @@ class Application(ABC):
             text_template = JinjaTemplate(chain_step_user_group[messenger])
         text = text_template.form_notification(**chain_template_context(self, incident, step))
         _, header, _ = self.form_body_header_status_icons(incident)
-        if self.type == MessengerType.TELEGRAM:
-            message = text
-        else:
-            message = header + '\n' + text
-        response_code = await self.post_to_thread(incident.channel_id, incident.ts, message)
+        response_code = await self._post_notification(incident, header, text)
         logger.info(f'Chain step {notify_type} \'{step["value"]}\'', extra={'uniq_id': incident.uniq_id})
         return response_code
 
@@ -305,18 +340,26 @@ class Application(ABC):
             text = JinjaTemplate(incident_notifications_assignment[self.type.value]).form_notification(
                 **assignment_template_context(self, incident, ui_user)
             )
-            if self.type == MessengerType.TELEGRAM:
-                message = text
-            else:
-                message = header + '\n' + text
-
-            await self.post_to_thread(incident.channel_id, incident.ts, message)
+            await self._post_notification(incident, header, text)
             logger.debug(f'Posted assignment notification for incident {incident.uniq_id}')
 
         except MESSENGER_TRANSPORT_ERRORS + (TemplateError, KeyError) as e:
             logger.error(f'Failed to post assignment notification for incident {incident.uniq_id}: {e}')
 
+    async def _post_notification(self, incident, header, text):
+        if self.provider is not None:
+            result = await self.provider.post_notification(
+                MessageRef(incident.channel_id, incident.ts), NotificationContent(text=text, header=header),
+            )
+            return result.status_code
+        # Compatibility for callers constructing the old built-in classes.
+        message = text if self.type == MessengerType.TELEGRAM else header + '\n' + text
+        return await self.post_to_thread(incident.channel_id, incident.ts, message)
+
     async def post_to_thread(self, channel_id, id_, text):
+        if self.provider is not None:
+            result = await self.provider.post_notification(MessageRef(channel_id, id_), NotificationContent(text=text))
+            return result.status_code
         payload = self._post_thread_payload(channel_id, id_, text)
         response = await self.http.post(self.post_message_url, headers=self.headers, json=payload)
         status = response.status
@@ -333,18 +376,15 @@ class Application(ABC):
             text = JinjaTemplate(incident_notifications_assignment[self.type.value]).form_notification(
                 **assignment_template_context(self, incident_obj, ui_user)
             )
-            if self.type == MessengerType.TELEGRAM:
-                message = text
-            else:
-                message = header + '\n' + text
-
-            await self.post_to_thread(incident_obj.channel_id, incident_obj.ts, message)
-            logger.debug(f'Posted unassignment notification for incident {incident_obj.uniq_id}: {message}')
+            await self._post_notification(incident_obj, header, text)
+            logger.debug(f'Posted unassignment notification for incident {incident_obj.uniq_id}')
 
         except MESSENGER_TRANSPORT_ERRORS + (TemplateError, KeyError) as e:
             logger.error(f'Failed to post unassignment notification for incident {incident_obj.uniq_id}: {e}')
 
     async def post_freeze_notification(self, incident_: 'Incident', ui_user=None):
+        if self.provider is not None and not self.provider.descriptor.messaging_enabled:
+            return
         config = get_config()
         if not config.incident.notifications.freeze:
             return
@@ -352,26 +392,22 @@ class Application(ABC):
         text = JinjaTemplate(incident_notifications_freeze[self.type.value]).form_notification(
             **freeze_template_context(incident_, ui_user)
         )
-        if self.type != MessengerType.TELEGRAM:
-            header = self.header_template.form_message(incident_.payload, incident_)
-            message = header + '\n' + text
-        else:
-            message = text
-
-        await self.post_to_thread(incident_.channel_id, incident_.ts, message)
+        # Preserve the legacy template contract: these Telegram notifications
+        # have never evaluated the user-supplied header template.
+        header = None if self.type == MessengerType.TELEGRAM else self.header_template.form_message(incident_.payload, incident_)
+        await self._post_notification(incident_, header, text)
 
     async def post_unfreeze_notification(self, incident_: 'Incident', ui_user=None):
+        if self.provider is not None and not self.provider.descriptor.messaging_enabled:
+            return
         text = JinjaTemplate(incident_notifications_unfreeze[self.type.value]).form_notification(
             **freeze_template_context(incident_, ui_user)
         )
 
-        if self.type != MessengerType.TELEGRAM:
-            header = self.header_template.form_message(incident_.payload, incident_)
-            message = header + '\n' + text
-        else:
-            message = text
-
-        await self.post_to_thread(incident_.channel_id, incident_.ts, message)
+        # Preserve the legacy template contract: these Telegram notifications
+        # have never evaluated the user-supplied header template.
+        header = None if self.type == MessengerType.TELEGRAM else self.header_template.form_message(incident_.payload, incident_)
+        await self._post_notification(incident_, header, text)
 
     def track_async_task(self, task):
         self._async_tasks.add(task)
@@ -379,6 +415,8 @@ class Application(ABC):
 
     async def update(self, incident, incident_status, alert_state, updated_status, chain_enabled,
                      frozen_until, task_link='', previous_payload=None):
+        if self.provider is not None and not self.provider.descriptor.messaging_enabled:
+            return
         if not incident.is_frozen:
             await self.update_incident_message(incident)
 
@@ -390,18 +428,32 @@ class Application(ABC):
                 )
 
                 _, header, _ = self.form_body_header_status_icons(incident)
-                message = text if self.type == MessengerType.TELEGRAM else header + '\n' + text
-                await self.post_to_thread(incident.channel_id, incident.ts, message)
+                await self._post_notification(incident, header, text)
 
     async def update_incident_message(self, incident):
+        if self.provider is not None and not self.provider.descriptor.messaging_enabled:
+            return
         body, header, status_icons = self.form_body_header_status_icons(incident)
         tz_str = self._get_user_timezone_str(incident.assigned_user_id)
+        if self.provider is not None:
+            await self.provider.update_incident(self._presentation(incident, body, header, status_icons, tz_str))
+            return
         payload = self.update_incident_payload(incident, body, header, status_icons, tz_str)
         await self._update_incident_message(incident.ts, payload)
 
-    @abstractmethod
-    def update_incident_payload(self, incident, body, header, status_icons, tz_str):
-        pass
+    def update_incident_payload(self, incident, body, header, status_icons, tz_str=None, **kwargs):
+        return self._legacy.update_payload(incident, body, header, status_icons, tz_str, **kwargs)
+
+    @staticmethod
+    def _presentation(incident, body, header, status_icons, tz_str=None):
+        return IncidentPresentation(
+            channel_id=incident.channel_id, thread_id=incident.ts, status=incident.status,
+            header=header, body=body, status_icon=status_icons, chain_enabled=incident.chain_enabled,
+            frozen=incident.is_frozen, frozen_by_inhibition=incident.frozen_by_inhibition,
+            frozen_by_maintenance=incident.frozen_by_maintenance,
+            frozen_until=incident.frozen_until.isoformat() if incident.frozen_until else None,
+            can_unfreeze=incident.can_manual_unfreeze(), task_link=incident.task_link, timezone=tz_str,
+        )
 
     ### PRIVATE METHODS ###
 
@@ -433,9 +485,9 @@ class Application(ABC):
             return f"@{username}"
         return "(empty)"
 
-    @abstractmethod
     async def _generate_groups(self, groups_dict: dict):
-        pass
+        assert self._legacy is not None
+        return await self._legacy._generate_groups(groups_dict)
 
     async def _generate_users(self, users_dict: dict[str, SlackUser | MattermostUser | TelegramUser]):
         logger.info('Creating users')
@@ -464,21 +516,24 @@ class Application(ABC):
 
         return user_manager
 
-    @abstractmethod
     def _get_incident_message_payload(self, incident, body, header, status_icons):
-        pass
+        return self._legacy.create_payload(incident, body, header, status_icons)
 
-    @abstractmethod
     async def _get_public_url(self, app_config: ApplicationConfig):
-        pass
+        address = getattr(app_config, 'impulse_address', None)
+        callback_url = f'{address}/app' if address else None
+        assert self.provider is not None and self.http is not None
+        identity = await self.provider.initialize(ProviderContext(self.http, callback_url))
+        self.team = identity.team
+        return identity.public_url
 
-    @abstractmethod
     def _get_team_name(self, app_config: ApplicationConfig):
-        pass
+        assert self.provider is not None
+        return self.provider.team
 
-    @abstractmethod
     def _get_url(self, app_config: ApplicationConfig):
-        pass
+        assert self.provider is not None
+        return self.provider.url
 
     def _get_user_timezone_str(self, user_id: str | None = None) -> str:
         if user_id and self.users:
@@ -490,9 +545,10 @@ class Application(ABC):
     def get_user_profile_url(self, user_id: str, user: BaseUser) -> str | None:
         return self._build_user_profile_url(str(user_id), user)
 
-    @abstractmethod
     def _build_user_profile_url(self, user_id: str, user: BaseUser) -> str | None:
-        pass
+        profile = UserProfile(id=user_id, exists=user.exists, username=user.username)
+        assert self.provider is not None
+        return self.provider.user_url(profile, ProviderIdentity(self.public_url, self.team))
 
     async def apply_time_freeze(
             self, incident_: 'Incident', until: datetime, user, queue_: 'AsyncQueue',
@@ -507,6 +563,8 @@ class Application(ABC):
             self, incident_: 'Incident', freeze_option: str, user_id: str, incidents, queue_: 'AsyncQueue',
             user_timezone: str | None = None, ui_user=None,
     ):
+        if self.provider is not None and not self.provider.descriptor.messaging_enabled:
+            return
         logger.info(log_button_pressed, extra={'uniq_id': incident_.uniq_id, 'button': 'freeze', 'user_id': user_id})
 
         general = get_config().app.general
@@ -529,9 +587,11 @@ class Application(ABC):
         await unfreeze_incident(incident_, queue_)
         await self.update_incident_message(incident_)
 
-    @abstractmethod
     def _initialize_specific_params(self):
-        pass
+        self.rate_limit = self.provider.descriptor.rate_limit
+        self.rate_window = self.provider.descriptor.rate_window_seconds
+        # Callback compatibility only; normal delivery uses the provider contract.
+        self.headers = getattr(self.provider, 'headers', None)
 
     def _load_stored_users(self, user_store, messenger_type: str) -> dict:
         stored_users = user_store.get_all_users_by_type(messenger_type)
@@ -549,13 +609,11 @@ class Application(ABC):
             logger.info(f'Loaded {len(result)} users from storage')
         return result
 
-    @abstractmethod
     def _markdown_links_to_native_format(self, text):
-        pass
+        return self._legacy.markdown_links(text)
 
-    @abstractmethod
     def _post_thread_payload(self, channel_id, id_, text):
-        pass
+        return self._legacy.thread_payload(channel_id, id_, text)
 
     async def _send_create_incident_message(self, payload):
         response = await self.http.post(self.post_message_url, headers=self.headers, json=payload)
@@ -616,6 +674,11 @@ class Application(ABC):
         client.initialize_client()
         return client
 
-    @abstractmethod
     async def _update_incident_message(self, id_, payload):
-        pass
+        await self._legacy.update_payload_message(id_, payload)
+
+    async def _setup_webhook(self):
+        await self.provider.start()
+
+    async def _answer_callback(self, callback_id):
+        await self._legacy.answer_callback(callback_id)
