@@ -1,33 +1,47 @@
 <h1><img alt="IMPulse" src="logo.svg" width="50"> IMPulse</h1>
 
-[![Website](https://img.shields.io/badge/website-impulse.bot-blue)](https://impulse.bot) [![Docs](https://img.shields.io/badge/docs-docs.impulse.bot-blue)](https://docs.impulse.bot)
+[![Website](https://img.shields.io/badge/website-impulse.bot-blue)](https://impulse.bot) [![Documentation](https://img.shields.io/badge/docs-docs.impulse.bot-blue)](https://docs.impulse.bot) [![Container](https://img.shields.io/badge/docker-ghcr.io%2Feslupmi%2Fimpulse-blue?logo=docker)](https://ghcr.io/eslupmi/impulse) [![Community Helm](https://img.shields.io/badge/community-artifacthub.io-blue?style=flat&logo=helm)](https://artifacthub.io/packages/helm/impulse/impulse)
 
-[![Container](https://img.shields.io/badge/docker-ghcr.io%2Feslupmi%2Fimpulse-blue?logo=docker)](https://ghcr.io/eslupmi/impulse) [![Community Helm](https://img.shields.io/badge/community-artifacthub.io-blue?style=flat&logo=helm)](https://artifacthub.io/packages/helm/impulse/impulse)
+**IMPulse** is a ChatOps Incident Management Platform. 
 
-<div align="center"><img src="https://github.com/eslupmi/site/blob/main/static/preview.png?raw=true" width="960"></div>
+It is open source, self-hosted, and IaC-ready. Designed with the KISS principle as a lightweight, single-component utility. IMPulse helps SRE, DevOps, and platform teams create and route incidents, track their status, and coordinate responders at the right time according to escalation chains.
 
-## Quick Start
+Documentation here: https://docs.impulse.bot/stable/
 
-Run without messenger integration:
+![IMPulse incident management interface](https://github.com/eslupmi/site/blob/main/static/preview.png?raw=true)
+
+## Features
+
+- **Snoozed incidents:** [freeze](https://docs.impulse.bot/stable/concepts/incident/#freeze) incidents to handle them later
+- **Inhibition rules:** [suppress](https://docs.impulse.bot/stable/concepts/inhibition/#inhibition) child incidents when a parent incident is active
+- **No chaos:** incidents have a [lifecycle](https://docs.impulse.bot/stable/concepts/incident/#lifecycle) that automatically prevents duplicate incidents and reduces noise
+- **Maintenance:** mute incidents during [maintenance](https://docs.impulse.bot/stable/concepts/maintenance)
+- **Single Sign-On:** no extra accounts - [sign in](https://docs.impulse.bot/stable/guides/authentication/) with your chat platform
+- **Templating:** Jinja2 [templates](https://docs.impulse.bot/stable/concepts/templates/) for incidents, thread messages, and Jira tasks
+- **Unlimited escalation policies:** create as many [escalation policies](https://docs.impulse.bot/stable/config_file/#messengerchains) as you need, including nested
+- **External notifications:** connect anything via powerful [webhooks](https://docs.impulse.bot/stable/config_file/#webhooks)
+- **High availability:** run multiple IMPulse instances for [reliability](https://docs.impulse.bot/stable/concepts/ha/)
+- **Minimal UI:** simple by design, customizable where it matters
+
+## Quick start
+
+The following steps will start IMPulse using Docker Compose with the built-in web UI, without integrating a chat messenger.
 
 ```bash
-# Prepare "impulse" directory
-git clone https://github.com/eslupmi/impulse.git impulse.bak
-mkdir -p impulse/config impulse/data
-cp impulse.bak/examples/docker-compose.yml impulse/docker-compose.yml
-cp impulse.bak/examples/impulse.none.yml impulse/config/impulse.yml
-rm -rf impulse.bak
+# Create directory structure
+mkdir -p impulse/{config,data} && cd impulse
 
-# Replace "<release_tag>" with the latest stable Docker tag
-tag=$(git ls-remote --tags https://github.com/eslupmi/impulse.git | awk -F/ '{print $NF}' | tail -n1)
-sed -i "s|<release_tag>|$tag|" impulse/docker-compose.yml
+# Get Docker compose file and configuration example
+curl -fsSL -o docker-compose.yml https://raw.githubusercontent.com/eslupmi/impulse/develop/examples/docker-compose.none.yml
+curl -fsSL -o config/impulse.yml https://raw.githubusercontent.com/eslupmi/impulse/develop/examples/impulse.none.yml
 
-# Run IMPulse without messenger integration
-cd impulse
-docker compose up
+# Run IMPulse
+docker compose up -d
 ```
 
-Now IMPulse is available at http://localhost:5000/.
+Now IMPulse is available at [http://localhost:5000/](http://localhost:5000/).
+
+### Test alert
 
 You can try to send a test alert with:
 
@@ -35,4 +49,6 @@ You can try to send a test alert with:
 curl -XPOST -H "Content-Type: application/json" http://localhost:5000/ -d '{"receiver":"webhook-alerts","status":"firing","alerts":[{"status":"firing","labels":{"alertname":"InstanceDown4","instance":"localhost:9100","job":"node","severity":"warning"},"annotations":{"summary":"Instanceunavailable"},"startsAt":"2024-07-28T19:26:43.604Z","endsAt":"0001-01-01T00:00:00Z","generatorURL":"http://eva:9090/graph?g0.expr=up+%3D%3D+0&g0.tab=1","fingerprint":"a7ddb1de342424cb"}],"groupLabels":{"alertname":"InstanceDown"},"commonLabels":{"alertname":"InstanceDown","instance":"localhost:9100","job":"node","severity":"warning"},"commonAnnotations":{"summary":"Instanceunavailable"},"externalURL":"http://eva:9093","version":"4","groupKey":"{}:{alertname=\"InstanceDown\"}","truncatedAlerts":0}'
 ```
 
-See [documentation](https://docs.impulse.bot) and the Slack [example](https://github.com/eslupmi/impulse/blob/develop/examples/impulse.slack.yml) to configure IMPulse for your messenger.
+The new `firing` incident appears in the UI.
+
+Follow the [installation guide](https://docs.impulse.bot/stable/installation/) for production deployment.

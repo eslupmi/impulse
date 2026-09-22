@@ -56,6 +56,11 @@ nav:
     - concepts/messengers.md
     - concepts/special_variables.md
     - concepts/templates.md
+  - Development:
+    - development/branching.md
+    - development/ci-cd.md
+    - development/rules.md
+    - development/release.md
 - IMPULSE SERVER:
   - installation.md
   - Configuration:
