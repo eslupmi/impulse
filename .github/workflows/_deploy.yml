@@ -20,6 +20,21 @@ jobs:
   deploy:
     runs-on: ubuntu-24.04
     steps:
+      - name: Check
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.HOST }}
+          port: ${{ secrets.PORT }}
+          username: ${{ secrets.USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script_stop: true
+          script: |
+            cd ${{ inputs.deploy-path }}
+            docker compose pull
+            for messenger in slack mattermost telegram; do
+              docker compose run --rm --no-deps impulse-"$messenger" python -m main --check
+            done
+
       - name: Recreate IMPulse
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -29,5 +44,4 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           script: |
             cd ${{ inputs.deploy-path }}
-            docker compose pull
             docker compose up -d
