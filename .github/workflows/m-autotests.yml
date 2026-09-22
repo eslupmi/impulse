@@ -6,10 +6,17 @@ on:
       pr_number:
         required: false
         type: number
+      suite:
+        required: true
+        type: choice
+        options:
+          - external
+          - internal
 
 jobs:
   autotests:
     uses: ./.github/workflows/_autotests.yml
     with:
       branch: ${{ format('pr-{0}', inputs.pr_number) }}
+      suite: ${{ inputs.suite }}
     secrets: inherit

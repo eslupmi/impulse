@@ -28,3 +28,13 @@ Environment variables are created in `.env` file for python installation or in `
 | SLACK_BOT_USER_OAUTH_TOKEN | [Slack 'Bot User OAuth Token'](integrations/messengers/slack.md) | | for Slack |
 | SLACK_VERIFICATION_TOKEN | [Slack 'Verification Token'](integrations/messengers/slack.md) | | for Slack |
 | TELEGRAM_BOT_TOKEN | [Telegram 'Bot Token'](integrations/messengers/telegram.md) | | for Telegram |
+
+??? warning "Development variables"
+
+    Optional `DEV_` overrides for local development and mocked messengers. Unset values keep the built-in defaults.
+
+    | Variable | Description | Default | Required |
+    |-|-|-|-|
+    | DEV_MESSENGER_CUSTOM_ADDRESS | Override Slack/Telegram API base URL | | - |
+    | DEV_MESSENGER_RATE_LIMIT | Override messenger HTTP request limit (`0` disables limiting) | | - |
+    | DEV_MESSENGER_RATE_WINDOW | Override messenger HTTP rate-limit window, seconds | | - |

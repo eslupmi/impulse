@@ -29,6 +29,7 @@ extra:
     property: G-LL3R99ZZGW
 markdown_extensions:
   - admonition
+  - pymdownx.details
   - toc:
       permalink: true
       toc_depth: 2-6

@@ -33,6 +33,9 @@ class TestEnvironmentConfig:
         assert config.http_prefix == ""
         assert config.listen_host == "0.0.0.0"
         assert config.listen_port == 5000
+        assert config.dev_messenger_rate_limit is None
+        assert config.dev_messenger_rate_window is None
+        assert config.dev_messenger_custom_address is None
 
     def test_environment_variable_loading(self):
         """Test loading values from environment variables."""
@@ -52,6 +55,9 @@ class TestEnvironmentConfig:
             'HTTP_PREFIX': '/api/v1',
             'LISTEN_HOST': '127.0.0.1',
             'LISTEN_PORT': '8080',
+            'DEV_MESSENGER_RATE_LIMIT': '1000',
+            'DEV_MESSENGER_RATE_WINDOW': '1',
+            'DEV_MESSENGER_CUSTOM_ADDRESS': 'http://mock-slack:8080',
         }
 
         with patch.dict('os.environ', env_vars, clear=True):
@@ -72,6 +78,9 @@ class TestEnvironmentConfig:
         assert config.http_prefix == '/api/v1'
         assert config.listen_host == '127.0.0.1'
         assert config.listen_port == 8080
+        assert config.dev_messenger_rate_limit == 1000
+        assert config.dev_messenger_rate_window == 1.0
+        assert config.dev_messenger_custom_address == 'http://mock-slack:8080'
 
     def test_positive_integer_validation(self):
         """Test validation of positive integer fields."""
@@ -319,6 +328,10 @@ class TestEnvironmentConfig:
     def test_jira_base_url_strips_trailing_slash(self):
         config = EnvironmentConfig(jira_base_url="https://test.atlassian.net/")
         assert config.jira_base_url == "https://test.atlassian.net"
+
+    def test_dev_messenger_custom_address_strips_trailing_slash(self):
+        config = EnvironmentConfig(dev_messenger_custom_address="http://mock-slack:8080/")
+        assert config.dev_messenger_custom_address == "http://mock-slack:8080"
 
 
 class TestEnvironmentConfigFunctions:
