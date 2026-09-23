@@ -26,7 +26,7 @@ class TestGetApplication:
         facade.assert_called_once_with(
             config, channels, 'default', webhooks=None,
             provider=registration.factory.return_value,
-            legacy_application=registration.legacy_application,
+            legacy_application=registration.legacy_application.return_value,
         )
         assert result is facade.return_value
 
@@ -57,5 +57,5 @@ class TestGetApplication:
         channels = Mock()
         default_channel = Mock()
 
-        with pytest.raises(ValueError, match="Unknown application type: None"):
+        with pytest.raises(ValueError, match="Invalid messenger provider ID: expected a string"):
             get_application(mock_config, channels, default_channel)

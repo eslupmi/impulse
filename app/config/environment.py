@@ -38,14 +38,6 @@ class EnvironmentConfig(BaseModel):
     """Environment-based configuration loaded from environment variables"""
     
     # Authentication tokens and secrets
-    slack_bot_user_oauth_token: str = Field(
-        default_factory=lambda: os.getenv('SLACK_BOT_USER_OAUTH_TOKEN', ''),
-        description="Slack Bot User OAuth Token"
-    )
-    slack_verification_token: str = Field(
-        default_factory=lambda: os.getenv('SLACK_VERIFICATION_TOKEN', ''),
-        description="Slack Verification Token"
-    )
     mattermost_access_token: str = Field(
         default_factory=lambda: os.getenv('MATTERMOST_ACCESS_TOKEN', ''),
         description="Mattermost Access Token"

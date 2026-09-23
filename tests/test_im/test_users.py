@@ -7,7 +7,7 @@ import pytest
 
 from app.im.users import BaseUser, UserManager
 from app.im.telegram.user import User as TelegramUser
-from app.im.slack.user import User as SlackUser
+from app.im.users import ProfileUser as SlackUser
 from app.im.mattermost.user import User as MattermostUser
 
 

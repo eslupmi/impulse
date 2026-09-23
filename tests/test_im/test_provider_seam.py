@@ -1,6 +1,8 @@
 """Exercise the production composition root, not the legacy subclass constructors."""
 
 import ast
+import json
+from urllib.parse import urlencode
 from dataclasses import FrozenInstanceError, replace
 from datetime import datetime, timezone
 from pathlib import Path
@@ -10,17 +12,19 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 
 from app.config.environment import EnvironmentConfig
-from app.config.validation import (
-    MattermostApplicationConfig, NullApplicationConfig, SlackApplicationConfig,
-    TelegramApplicationConfig,
-)
+from app.config.validation import MattermostApplicationConfig, NullApplicationConfig, TelegramApplicationConfig
+from app.im.providers.slack.config import SlackApplicationConfig
 from app.im.application import Application
 from app.im.helpers import get_application
 from app.im.plugin_api import (
-    MessengerProvider, ProviderDescriptor, ProviderIdentity, UserProfile,
+    MessengerProvider, ProviderDescriptor, ProviderIdentity, UserProfile, InteractionRequest,
 )
 from app.im.registry import ProviderRegistry, get_provider_registry
 from app.im.users import UserManager
+
+
+def interaction_request(payload):
+    return InteractionRequest('POST', (), (), urlencode({'payload': json.dumps(payload)}).encode())
 
 
 class Response:
@@ -102,14 +106,13 @@ def incident_for(provider_id):
 
 @pytest.fixture
 def runtime(monkeypatch):
-    env = EnvironmentConfig(slack_bot_user_oauth_token='test-token', slack_verification_token='verify',
-                            mattermost_access_token='test-token', telegram_bot_token='test-token')
-    for module in ('app.im.providers.slack', 'app.im.providers.mattermost', 'app.im.providers.telegram',
-                   'app.im.slack.slack_application', 'app.im.slack.threads', 'app.im.mattermost.threads'):
+    monkeypatch.setenv('SLACK_VERIFICATION_TOKEN', 'verify')
+    env = EnvironmentConfig(mattermost_access_token='test-token', telegram_bot_token='test-token')
+    for module in ('app.im.providers.mattermost', 'app.im.providers.telegram', 'app.im.mattermost.threads'):
         monkeypatch.setattr(module + '.get_environment_config', lambda: env)
     config = SimpleNamespace(app=SimpleNamespace(task_management=None, general=SimpleNamespace(timezone='UTC')),
                              messenger=SimpleNamespace(impulse_address='http://impulse.test'))
-    for module in ('app.im.application', 'app.im.providers.telegram', 'app.im.slack.threads', 'app.im.mattermost.threads'):
+    for module in ('app.im.application', 'app.im.providers.telegram', 'app.im.mattermost.threads'):
         monkeypatch.setattr(module + '.get_config', lambda: config)
     store = Mock()
     store.get_all_users_by_type.return_value = {}
@@ -123,6 +126,7 @@ async def test_registry_facade_initialization_delivery_and_cleanup(provider_id, 
     config = config_for(provider_id)
     app = get_application(config, {k: v.model_dump() if hasattr(v, 'model_dump') else v for k, v in config.channels.items()}, 'default')
     assert type(app) is Application
+    assert get_provider_registry().resolve(provider_id).descriptor == app.provider.descriptor
     assert isinstance(app.provider, MessengerProvider)
     assert not isinstance(app.provider, Application)
     transport = Transport()
@@ -178,6 +182,8 @@ async def test_callbacks_use_facade_state_and_preserve_assignment(provider_id, r
     else:
         payload = {'callback_query': {'id': 'ack-1', 'data': 'stop_chain', 'from': {'id': user_id},
                                      'message': {'message_id': 20, 'message_thread_id': 10}}}
+    if provider_id == 'slack':
+        payload = interaction_request(payload)
     response = await app.buttons_handler(payload, incidents, queue, Mock())
     assert response.status_code == 200
     assert incident.assigned_user_id == user_id
@@ -202,7 +208,7 @@ async def test_none_keeps_manual_freeze_a_noop(runtime):
 def test_presentation_is_detached_and_immutable():
     incident = incident_for('slack')
     incident.frozen_until = datetime(2026, 1, 1, tzinfo=timezone.utc)
-    message = Application._presentation(incident, 'body', 'header', 'icon')
+    message = Application._presentation(incident, 'body', 'header', 'icon', 'UTC')
     incident.status = 'closed'
     assert message.status == 'firing'
     assert message.frozen_until == '2026-01-01T00:00:00+00:00'
@@ -227,7 +233,7 @@ def test_contract_does_not_import_core_or_external_runtime():
     import app.im.plugin_api as api
     tree = ast.parse(Path(api.__file__).read_text())
     imports = [node.module for node in ast.walk(tree) if isinstance(node, ast.ImportFrom)]
-    assert set(imports) <= {'dataclasses', 'typing'}
+    assert set(imports) <= {'dataclasses', 'typing', 'enum', 'collections.abc', 'app.im.plugin_config'}
     forbidden = ('app.incident', 'app.queue', 'app.route', 'app.maintenance', 'app.inhibition', 'app.http_client')
     for path in (Path(api.__file__).parent / 'providers').glob('*.py'):
         tree = ast.parse(path.read_text())
@@ -241,7 +247,7 @@ async def test_slack_callback_rejects_invalid_token_before_lookup(runtime):
     config = config_for('slack')
     app = get_application(config, {'default': {'id': 'C1'}}, 'default')
     incidents = Mock()
-    response = await app.buttons_handler({'token': 'wrong'}, incidents, Mock(), Mock())
+    response = await app.buttons_handler(interaction_request({'token': 'wrong'}), incidents, Mock(), Mock())
     assert response.status_code == 401
     incidents.get_by_ts.assert_not_called()
 
@@ -266,7 +272,7 @@ async def test_blocked_callbacks_do_not_assign_or_schedule(provider_id, runtime)
         payload = {'callback_query': {'id': 'ack-1', 'data': 'stop_chain', 'from': {'id': 123},
                                      'message': {'message_id': 20, 'message_thread_id': 10}}}
     queue = Mock(delete_by_id=AsyncMock())
-    response = await app.buttons_handler(payload, Mock(get_by_ts=Mock(return_value=incident)), queue, Mock())
+    response = await app.buttons_handler(interaction_request(payload) if provider_id == 'slack' else payload, Mock(get_by_ts=Mock(return_value=incident)), queue, Mock())
     assert response.status_code == 200
     assert incident.assigned_user_id == ''
     queue.delete_by_id.assert_not_called()
@@ -313,7 +319,7 @@ def test_custom_template_override_keeps_precedence(provider_id, runtime, tmp_pat
     ('telegram', 'https://t.me/alice'),
 ])
 def test_user_links_honor_supplied_identity(provider_id, expected, runtime):
-    provider = get_provider_registry().resolve(provider_id).factory(config_for(provider_id))
+    provider = get_application(config_for(provider_id), {'default': {'id': 'C1'}}, 'default').provider
     assert provider.user_url(UserProfile('U1', True, username='alice'),
                              ProviderIdentity('https://public.test', 'my-team')) == expected
 
@@ -321,7 +327,7 @@ def test_user_links_honor_supplied_identity(provider_id, expected, runtime):
 @pytest.mark.asyncio
 @pytest.mark.parametrize('provider_id', ['slack', 'mattermost', 'telegram'])
 async def test_provider_releases_response_when_user_json_is_invalid(provider_id, runtime):
-    provider = get_provider_registry().resolve(provider_id).factory(config_for(provider_id))
+    provider = get_application(config_for(provider_id), {'default': {'id': 'C1'}}, 'default').provider
     response = Response({})
     response.json = AsyncMock(side_effect=ValueError('invalid JSON'))
     provider.http = Mock(get=AsyncMock(return_value=response))

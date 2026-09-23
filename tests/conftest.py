@@ -9,7 +9,8 @@ import pytest
 
 from app.config.config import UnifiedConfig
 from app.config.environment import EnvironmentConfig
-from app.config.validation import ImpulseConfig, SlackApplicationConfig, MattermostApplicationConfig, MessengerType
+from app.config.validation import ImpulseConfig, MattermostApplicationConfig, MessengerType
+from app.im.providers.slack.config import SlackApplicationConfig
 from app.incident.incident import Incident, IncidentConfig
 
 
@@ -299,3 +300,10 @@ def mock_file_operations():
             pytest.mock.patch('yaml.dump'), \
             pytest.mock.patch('yaml.load'):
         yield
+
+
+@pytest.fixture(autouse=True)
+def provider_test_secrets(monkeypatch):
+    monkeypatch.setenv('SLACK_BOT_USER_OAUTH_TOKEN', 'test-slack-token')
+    monkeypatch.setenv('SLACK_VERIFICATION_TOKEN', 'test-verification-token')
+    monkeypatch.delenv('SLACK_SIGNING_SECRET', raising=False)

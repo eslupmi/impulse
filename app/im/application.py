@@ -1,4 +1,6 @@
 import asyncio
+import json
+from fastapi.responses import Response
 from dataclasses import asdict
 from datetime import datetime
 from typing import TYPE_CHECKING
@@ -9,10 +11,7 @@ from app.config.config import get_config
 from app.config.environment import get_environment_config
 from app.config.validation import (
     ApplicationConfig,
-    MattermostUser,
     MessengerType,
-    SlackUser,
-    TelegramUser,
 )
 from app.http_client.errors import MESSENGER_TRANSPORT_ERRORS
 from app.http_client.rate_limited_client import RateLimitedClient
@@ -21,7 +20,8 @@ from app.im.groups import Group
 from app.im.interaction_service import LegacyInteractionService
 from app.im.plugin_api import (
     IncidentPresentation, MessageRef, MessengerProvider, NotificationContent,
-    ProviderContext, ProviderIdentity, UserProfile,
+    ProviderContext, ProviderIdentity, UserProfile, InteractiveProvider, InteractionRequest, ProviderResponse,
+    BaseUser as UserConfig,
 )
 from app.im.messenger_init import messenger_init_step_async, messenger_init_step_sync
 from app.im.template import (
@@ -39,7 +39,7 @@ from app.im.template import (
 )
 from app.im.user_groups import generate_user_groups
 from app.im.user_store import UserUpdateScheduler, get_user_store
-from app.im.users import BaseUser, UserManager
+from app.im.users import BaseUser, UserManager, ProfileUser
 from app.incident.freeze import FreezeSource
 from app.incident.incident import unfreeze_incident
 from app.integrations.jira_integration import JiraIntegration
@@ -47,7 +47,7 @@ from app.jinja_template import JinjaTemplate
 from app.logging import logger
 from app.logging_context import redact_messenger_url
 from app.queue.constants import QueueItemType
-from app.time import calculate_freeze_time
+from app.time import calculate_freeze_time, format_freeze_expiration
 
 if TYPE_CHECKING:
     from app.incident.incident import Incident
@@ -104,6 +104,16 @@ class Application:
         self._user_scheduler: UserUpdateScheduler | None = None
 
     async def buttons_handler(self, payload, incidents, queue_, route):
+        if isinstance(self.provider, InteractiveProvider):
+            if not isinstance(payload, InteractionRequest):
+                raise TypeError('Provider callbacks require an InteractionRequest')
+            from app.im.interactions import apply_interaction
+            result = await self.provider.parse_interaction(payload)
+            if not isinstance(result, ProviderResponse):
+                result = await apply_interaction(self, result, incidents, queue_)
+            return Response(result.body, status_code=result.status_code, media_type=result.media_type)
+        if isinstance(payload, InteractionRequest):
+            payload = json.loads(payload.body)
         return await self._legacy.handle(payload, incidents, queue_, route)
 
     async def close(self):
@@ -132,7 +142,11 @@ class Application:
         return await self._send_create_incident_message(payload)
 
     def create_user(self, name, user_details):
-        return self._legacy.create_user(name, user_details)
+        if self._legacy:
+            return self._legacy.create_user(name, user_details)
+        return ProfileUser(name=name, id_=user_details.get('id'), exists=user_details.get('exists', False),
+                           full_name=user_details.get('full_name'), username=user_details.get('username'),
+                           email=user_details.get('email'), timezone_=user_details.get('timezone'))
 
     def fetch_and_assign_user_name(self, incident, user_id, dump=True):
         cached_user = self.users.get_user_by_id(user_id)
@@ -155,8 +169,14 @@ class Application:
             return JinjaTemplate(''), JinjaTemplate(''), JinjaTemplate('')
 
         def read_template(file_key, default_path):
-            file_path = self.templates.get(file_key, default_path)
-            return JinjaTemplate(open(file_path).read())
+            file_path = self.templates.get(file_key) if self.templates else None
+            if file_path:
+                with open(file_path) as source:
+                    return JinjaTemplate(source.read())
+            if isinstance(self.provider, InteractiveProvider):
+                return JinjaTemplate(self.provider.template_source(file_key))
+            with open(default_path) as source:
+                return JinjaTemplate(source.read())
 
         body_template = read_template('body', f'./templates/{self.type.value}_body.j2')
         header_template = read_template('header', f'./templates/{self.type.value}_header.j2')
@@ -182,7 +202,7 @@ class Application:
     def get_team_name(self, app_config: ApplicationConfig):
         return self._get_team_name(app_config)
 
-    async def get_user_details(self, user_info: SlackUser | MattermostUser | TelegramUser | dict):
+    async def get_user_details(self, user_info: UserConfig | dict):
         assert self.provider is not None
         user_id = user_info.get('id')
         assert isinstance(user_id, (str, int))
@@ -442,6 +462,9 @@ class Application:
         await self._update_incident_message(incident.ts, payload)
 
     def update_incident_payload(self, incident, body, header, status_icons, tz_str=None, **kwargs):
+        if isinstance(self.provider, InteractiveProvider):
+            response = self.provider.respond_to_interaction(self._presentation(incident, body, header, status_icons, tz_str))
+            return json.loads(response.body)
         return self._legacy.update_payload(incident, body, header, status_icons, tz_str, **kwargs)
 
     @staticmethod
@@ -453,6 +476,9 @@ class Application:
             frozen_by_maintenance=incident.frozen_by_maintenance,
             frozen_until=incident.frozen_until.isoformat() if incident.frozen_until else None,
             can_unfreeze=incident.can_manual_unfreeze(), task_link=incident.task_link, timezone=tz_str,
+            frozen_until_text=(format_freeze_expiration(incident.frozen_until, tz_str or get_config().app.general.timezone)
+                               if incident.frozen_until else None),
+            can_create_task=bool(get_config().app.task_management and get_environment_config().task_management_enabled),
         )
 
     ### PRIVATE METHODS ###
@@ -486,10 +512,20 @@ class Application:
         return "(empty)"
 
     async def _generate_groups(self, groups_dict: dict):
-        assert self._legacy is not None
-        return await self._legacy._generate_groups(groups_dict)
+        if self._legacy:
+            return await self._legacy._generate_groups(groups_dict)
+        if not groups_dict:
+            return {}
+        all_groups = await self.get_all_groups()
+        groups = {}
+        for name, info in groups_dict.items():
+            group_name = all_groups.get(info.id)
+            if group_name is None:
+                logger.warning('Group not found in messenger', extra={'group': name})
+            groups[name] = self.create_group(name, {'id': info.id, 'name': group_name, 'exists': group_name is not None})
+        return groups
 
-    async def _generate_users(self, users_dict: dict[str, SlackUser | MattermostUser | TelegramUser]):
+    async def _generate_users(self, users_dict: dict):
         logger.info('Creating users')
         user_store = get_user_store()
         messenger_type = self.type.value
@@ -541,6 +577,17 @@ class Application:
             if user_tz:
                 return user_tz
         return get_config().app.general.timezone
+
+    @staticmethod
+    def get_incident_link(provider_id, channel_id, thread_id, public_url):
+        from app.im.registry import get_provider_registry
+        try:
+            registration = get_provider_registry().resolve(provider_id)
+        except ValueError:
+            return None
+        if registration.incident_url:
+            return registration.incident_url(MessageRef(channel_id, thread_id), ProviderIdentity(public_url))
+        return None
 
     def get_user_profile_url(self, user_id: str, user: BaseUser) -> str | None:
         return self._build_user_profile_url(str(user_id), user)
@@ -610,6 +657,8 @@ class Application:
         return result
 
     def _markdown_links_to_native_format(self, text):
+        if isinstance(self.provider, InteractiveProvider):
+            return self.provider.markdown_links(text)
         return self._legacy.markdown_links(text)
 
     def _post_thread_payload(self, channel_id, id_, text):
@@ -632,7 +681,7 @@ class Application:
                 },
             )
             return None
-        if 'ok' in response_json and response_json.get('ok') is not True: # Slack
+        if 'ok' in response_json and response_json.get('ok') is not True:
             logger.error(
                 "Incident message creation failed",
                 extra={

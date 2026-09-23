@@ -1,28 +1,25 @@
+from app.im.plugin_config import (
+    MessengerType as MessengerType,
+    ChainType as ChainType,
+    CloudProvider as CloudProvider,
+    BaseUser as BaseUser,
+    SimpleChainStep as SimpleChainStep,
+    ScheduleMatcherExpression as ScheduleMatcherExpression,
+    ScheduleEntry as ScheduleEntry,
+    SimpleChain as SimpleChain,
+    ScheduleChain as ScheduleChain,
+    CloudChain as CloudChain,
+    UserGroup as UserGroup,
+    TemplateFiles as TemplateFiles,
+    BaseApplicationConfig as BaseApplicationConfig,
+    HttpBase as HttpBase,
+)
+
 import re
 from enum import Enum
-from typing import Annotated, Any, Literal
+from typing import Any, Literal
 
-from pydantic import AfterValidator, BaseModel, Field, field_validator, model_validator
-
-
-class MessengerType(str, Enum):
-    """Supported messenger types"""
-    SLACK = "slack"
-    MATTERMOST = "mattermost"
-    TELEGRAM = "telegram"
-    NONE = "none"
-
-
-class ChainType(str, Enum):
-    """Supported chain types"""
-    SCHEDULE = "schedule"
-    CLOUD = "cloud"
-    UI = "ui"
-
-
-class CloudProvider(str, Enum):
-    """Supported cloud providers"""
-    GOOGLE = "google"
+from pydantic import BaseModel, Field, SerializeAsAny, field_validator, model_validator
 
 
 class DatetimeFormat(str, Enum):
@@ -38,21 +35,11 @@ class SortOrder(str, Enum):
     NONE = "none"
 
 
-class BaseUser(BaseModel):
-    def get(self, key: str) -> Any:
-        return getattr(self, key)
-
-
 class TelegramUser(BaseUser):
     """Telegram user configuration"""
     id: int = Field(..., description="User ID")
     name: str | None = Field(None, description="User display name")
     username: str | None = Field(None, description="Username")
-
-
-class SlackUser(BaseUser):
-    """Slack user configuration"""
-    id: str = Field(..., description="User ID")
 
 
 class MattermostUser(BaseUser):
@@ -66,16 +53,6 @@ class TelegramChannel(BaseUser):
     name: str | None = Field(None, description="Channel name")
 
 
-class SlackChannel(BaseModel):
-    """Slack channel configuration"""
-    id: str = Field(..., description="Channel ID")
-
-
-class SlackGroup(BaseModel):
-    """Slack group configuration"""
-    id: str = Field(..., description="Group ID")
-
-
 class MattermostChannel(BaseModel):
     """Mattermost channel configuration"""
     id: str = Field(..., description="Channel ID")
@@ -86,107 +63,7 @@ class MattermostGroup(BaseModel):
     id: str = Field(..., description="Group ID")
 
 
-class SimpleChainStep(BaseModel):
-    """Base chain step"""
-    user: str | None = Field(None, description="User to notify")
-    user_group: str | None = Field(None, description="User group to notify")
-    group: str | None = Field(None, description="Slack group to notify")
-    webhook: str | None = Field(None, description="Webhook to call")
-    chain: str | None = Field(None, description="Nested chain to execute")
-    wait: str | None = Field(None, description="Wait duration (e.g., '5m', '1h')")
-
-    @model_validator(mode='after')
-    def validate_step_type(self):
-        """Validate that exactly one step type is specified"""
-        fields = [self.user, self.user_group, self.group, self.webhook, self.chain, self.wait]
-        non_none_fields = [f for f in fields if f is not None]
-
-        if len(non_none_fields) != 1:
-            raise ValueError("Exactly one of user, user_group, group, webhook, chain, or wait must be specified")
-
-        return self
-
-    @field_validator('wait')
-    @classmethod
-    def validate_wait_format(cls, v):
-        """Validate wait duration format"""
-        if v is None:
-            return v
-
-        # Check format like "5m", "1h", "30s", "2d"
-        if not re.match(r'^\d+[smhd]$', v):
-            raise ValueError("Wait duration must be in format like '5m', '1h', '30s', or '2d'")
-
-        return v
-
-    def get_type_and_value(self) -> tuple[str, str]:
-        """Get both type and value of this chain step"""
-        for field_name in ['user', 'user_group', 'group', 'webhook', 'chain', 'wait']:
-            value = getattr(self, field_name)
-            if value is not None:
-                return field_name, value
-        raise ValueError("SimpleChainStep has no valid type or value set")
-
-    def get_type(self) -> str:
-        """Get the type of this chain step"""
-        return self.get_type_and_value()[0]
-
-    def get_value(self) -> str:
-        """Get the value of this chain step"""
-        return self.get_type_and_value()[1]
-
-    def has_chain(self) -> bool:
-        """Check if this step references a nested chain"""
-        return self.chain is not None
-
-
-class ScheduleMatcherExpression(BaseModel):
-    """Schedule matcher expression - fully flexible"""
-    start_day_expr: str = Field(..., description="Start day expression")
-    start_day_values: list[Any] = Field(..., description="Start day values")
-    start_time: Any = Field(..., description="Start time in any format")
-    duration: Any = Field(..., description="Duration in any format")
-
-
-class ScheduleEntry(BaseModel):
-    """Schedule entry configuration"""
-    matcher: ScheduleMatcherExpression | None = Field(None, description="Matcher expression")
-    steps: list[SimpleChainStep] = Field(..., description="Chain steps")
-
-
-class SimpleChain(BaseModel):
-    """Simple chain configuration - just a list of steps"""
     # This will be handled as List[SimpleChainStep] directly
-
-
-class ScheduleChain(BaseModel):
-    """Schedule chain configuration"""
-    type: Literal[ChainType.SCHEDULE] = Field(..., description="Chain type")
-    timezone: str = Field("UTC", description="Timezone")
-    schedule: list[ScheduleEntry] = Field(..., description="Schedule entries")
-
-
-class CloudChain(BaseModel):
-    """Cloud chain configuration"""
-    type: Literal[ChainType.CLOUD] = Field(..., description="Chain type")
-    provider: CloudProvider = Field(..., description="Cloud provider")
-    calendar_id: str = Field(..., description="Calendar ID")
-    default_steps: list[SimpleChainStep] = Field([], description="Default steps")
-
-
-class UserGroup(BaseModel):
-    """User group configuration"""
-    users: list[str] = Field(..., description="List of user names")
-
-
-class TemplateFiles(BaseModel):
-    """Template files configuration"""
-    status_icons: str | None = Field(None, description="Status icons template path")
-    header: str | None = Field(None, description="Header template path")
-    body: str | None = Field(None, description="Body template path")
-
-    def get(self, key: str, default: str | None = None) -> str | None:
-        return getattr(self, key) or default
 
 
 class TaskManagementType(str, Enum):
@@ -213,69 +90,6 @@ class TaskManagementConfig(BaseModel):
     )
 
 
-def _validate_simple_chain(chain_config):
-    return [SimpleChainStep(**step) for step in chain_config]
-
-
-def _validate_schedule_chain(chain_config):
-    return ScheduleChain(**chain_config)
-
-
-def _validate_cloud_chain(chain_config):
-    return CloudChain(**chain_config)
-
-
-def _validate_ui_chain(chain_config):
-    return chain_config
-
-
-HttpBase = Annotated[str, AfterValidator(lambda v: v.rstrip("/"))]
-
-
-class BaseApplicationConfig(BaseModel):
-    """Base messenger configuration with common fields"""
-    type: MessengerType = Field(..., description="Application type")
-    impulse_address: HttpBase | None = Field(None, description="Impulse callback address")
-    admin_users: list[str] = Field(..., description="Admin users")
-    user_groups: dict[str, UserGroup] = Field({}, description="User groups")
-    chains: dict[str, Any] = Field({}, description="Chain definitions")
-    groups: dict[str, Any] = Field({}, description="Group definitions")
-    template_files: TemplateFiles | None = Field(TemplateFiles(status_icons=None, header=None, body=None),
-                                                    description="Template files")
-
-    @field_validator('admin_users')
-    @classmethod
-    def validate_admin_users_exist(cls, v, info):
-        """Validate that admin users exist in users"""
-        if info.data.get('users'):
-            for admin_user in v:
-                if admin_user not in info.data['users']:
-                    raise ValueError(f"Admin user '{admin_user}' not found in users")
-        return v
-
-    @field_validator('chains')
-    @classmethod
-    def validate_chains_structure_and_references(cls, v, info):
-        """Validate chain structure"""
-        validated_chains = {}
-
-        for chain_name, chain_config in v.items():
-            if isinstance(chain_config, list):
-                validated_chains[chain_name] = _validate_simple_chain(chain_config)
-            elif isinstance(chain_config, dict):
-                chain_type = chain_config.get('type')
-                if chain_type == 'schedule':
-                    validated_chains[chain_name] = _validate_schedule_chain(chain_config)
-                elif chain_type == 'cloud':
-                    validated_chains[chain_name] = _validate_cloud_chain(chain_config)
-                elif chain_type == 'ui':
-                    validated_chains[chain_name] = _validate_ui_chain(chain_config)
-                else:
-                    raise ValueError(f"Unknown chain type for chain '{chain_name}': {chain_type}")
-
-        return validated_chains
-
-
 class AddressRequiredApplicationConfig(BaseApplicationConfig):
     """Base for messenger types that require impulse_address"""
 
@@ -284,14 +98,6 @@ class AddressRequiredApplicationConfig(BaseApplicationConfig):
         if not self.impulse_address:
             raise ValueError(f"messenger.impulse_address is required for {self.type.value}")
         return self
-
-
-class SlackApplicationConfig(BaseApplicationConfig):
-    """Slack messenger configuration"""
-    type: Literal[MessengerType.SLACK] = Field(MessengerType.SLACK, description="Application type")
-    channels: dict[str, SlackChannel] = Field(..., description="Channel definitions")
-    groups: dict[str, SlackGroup] = Field({}, description="Slack group definitions")
-    users: dict[str, SlackUser] = Field(..., description="User definitions")
 
 
 class MattermostApplicationConfig(AddressRequiredApplicationConfig):
@@ -332,8 +138,7 @@ class NullApplicationConfig(BaseApplicationConfig):
         return v
 
 
-ApplicationConfig = (
-    SlackApplicationConfig | MattermostApplicationConfig | TelegramApplicationConfig | NullApplicationConfig)
+ApplicationConfig = BaseApplicationConfig
 
 
 class GeneralConfig(BaseModel):
@@ -507,13 +312,24 @@ class InhibitRule(BaseModel):
 class ImpulseConfig(BaseModel):
     """Main Impulse configuration"""
     general: GeneralConfig = Field(default_factory=GeneralConfig, description="General configuration")
-    messenger: ApplicationConfig = Field(..., description="Messenger configuration", discriminator='type')
+    messenger: SerializeAsAny[ApplicationConfig] = Field(..., description="Messenger configuration")
     incident: IncidentConfig | None = Field(None, description="Incident configuration")
     route: RouteConfig | None = Field(None, description="Route configuration")
     ui: UIConfig | None = Field(None, description="UI configuration")
     webhooks: dict[str, WebhookConfig] = Field({}, description="Webhook configurations")
     task_management: TaskManagementConfig | None = Field(None, description="Task management configuration")
     inhibit_rules: list[InhibitRule] = Field([], description="Inhibition rules for AlertManager-style inhibition")
+
+    @field_validator('messenger', mode='before')
+    @classmethod
+    def validate_messenger(cls, value):
+        from app.im.registry import get_provider_registry
+        if isinstance(value, BaseApplicationConfig):
+            return value
+        if not isinstance(value, dict):
+            raise ValueError('Messenger configuration must be a mapping')
+        registration = get_provider_registry().resolve(value.get('type', ''))
+        return registration.config_model.model_validate(value)
 
     @model_validator(mode='after')
     def validate_route_exists(self):

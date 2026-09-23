@@ -8,7 +8,6 @@ if TYPE_CHECKING:
     from app.incident.incident import Incident
 
 _THREAD_TEMPLATES_DIR = './thread_templates/'
-_MESSENGERS = ('slack', 'mattermost', 'telegram')
 
 
 def _load_thread_template(messenger: str, name: str) -> str:
@@ -16,8 +15,21 @@ def _load_thread_template(messenger: str, name: str) -> str:
         return f.read()
 
 
+class ProviderTemplates(dict):
+    def __init__(self, name):
+        super().__init__()
+        self.name = name
+
+    def __missing__(self, messenger):
+        from app.im.registry import get_provider_registry
+        registration = get_provider_registry().resolve(messenger)
+        if registration.template_source:
+            return registration.template_source(self.name)
+        return _load_thread_template(messenger, self.name)
+
+
 def _load_messenger_templates(name: str) -> dict:
-    return {messenger: _load_thread_template(messenger, name) for messenger in _MESSENGERS}
+    return ProviderTemplates(name)
 
 
 def template_users(messenger) -> dict:

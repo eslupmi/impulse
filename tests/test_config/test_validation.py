@@ -4,13 +4,8 @@ Unit tests for app.config.validation module.
 import pytest
 from pydantic import ValidationError
 
-from app.config.validation import (
-    ImpulseConfig, SlackApplicationConfig, MattermostApplicationConfig,
-    TelegramApplicationConfig, RouteConfig, WebhookConfig,
-    ScheduleChain, CloudChain, SimpleChainStep, UIConfig, UIColumn,
-    UISorting, IncidentTimeouts, IncidentNotifications,
-    UserGroup, TemplateFiles, validate_config, MessengerType
-)
+from app.config.validation import ImpulseConfig, MattermostApplicationConfig, TelegramApplicationConfig, RouteConfig, WebhookConfig, ScheduleChain, CloudChain, SimpleChainStep, UIConfig, UIColumn, UISorting, IncidentTimeouts, IncidentNotifications, UserGroup, TemplateFiles, validate_config, MessengerType
+from app.im.providers.slack.config import SlackApplicationConfig
 from tests.utils import (
     create_slack_config_data, create_mattermost_config_data,
     create_telegram_config_data, create_incident_config_data,

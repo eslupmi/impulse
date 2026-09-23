@@ -1,5 +1,8 @@
 
 
+import os
+from types import MappingProxyType
+
 from app.config.environment import EnvironmentConfig, get_environment_config
 from app.config.validation import ApplicationConfig, TaskManagementConfig
 from app.im.application import Application
@@ -36,10 +39,17 @@ def get_application(app_config: ApplicationConfig, channels, default_channel,
                    task_management_config: TaskManagementConfig | None = None,
                    webhooks=None):
     registration = get_provider_registry().resolve(app_config.type)
-    provider = registration.factory(app_config)
+    if registration.legacy_application is None:
+        environment = dict(os.environ)
+        override = get_environment_config().dev_messenger_custom_address
+        if override:
+            environment['DEV_MESSENGER_CUSTOM_ADDRESS'] = override
+        provider = registration.factory(app_config, MappingProxyType(environment))
+    else:
+        provider = registration.factory(app_config)
     messenger = Application(
         app_config, channels, default_channel, webhooks=webhooks,
-        provider=provider, legacy_application=registration.legacy_application,
+        provider=provider, legacy_application=registration.legacy_application() if registration.legacy_application else None,
     )
 
     if task_management_config:

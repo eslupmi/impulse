@@ -1,10 +1,10 @@
 # Messenger Provider Extraction Investigation
 
-Status: Phase 1 implemented in the working tree; Phase 0 remains deferred (decision on 2026-09-22). Phases 2–4 are not complete.
+Status: Phases 1–2 implemented in the working tree and verified with product tests and mocked Docker workflows. Live/browser gaps are recorded below. Phase 0 remains deferred (decision on 2026-09-22); Phases 3–4 have not started.
 
 ## Decision summary
 
-Extracting messenger integrations is feasible, but the current messenger folders cannot be moved to separate packages as-is. Provider implementations inherit the shared `Application` class and import Impulse configuration, incidents, queues, templates, logging, time helpers, and authentication internals. Impulse also hard-codes the supported messenger list in configuration validation, startup, HTTP callback decoding, template loading, incident links, and UI authentication.
+At the investigation baseline, messenger integrations could not be moved to separate packages as-is. Provider implementations inherited the shared `Application` class and imported Impulse configuration, incidents, queues, templates, logging, time helpers, and authentication internals. Impulse also hard-coded the supported messenger list in configuration validation, startup, HTTP callback decoding, template loading, incident links, and UI authentication.
 
 The recommended boundary is composition:
 
@@ -42,9 +42,9 @@ RUN pip install --no-cache-dir impulse-slack==<compatible-version>
 
 The current repository has no `pyproject.toml`, `setup.py`, or other Python distribution metadata, and the Docker image copies source directly into `/app`. Therefore, `pip install impulse` and external provider packaging are later delivery steps. They are not prerequisites for proving the internal split.
 
-## Current architecture and coupling
+## Baseline architecture and coupling (before Phase 1)
 
-Some useful separation already exists under `app/im/slack`, `app/im/mattermost`, and `app/im/telegram`, but the dependency direction is not suitable for external packages.
+The baseline already had some separation under `app/im/slack`, `app/im/mattermost`, and `app/im/telegram`, but its dependency direction was not suitable for external packages.
 
 | Area | Current state | Extraction problem |
 | --- | --- | --- |
@@ -295,7 +295,7 @@ The following findings are based on source inspection on 2026-09-22, including I
 - Impulse already has product tests for provider behavior, templates, incident/user links, HTTP retries and rate limiting, initialization logging, and URL redaction. Reuse these tests. Exact payload, response-decoding, normalization, template-rendering, and transport tests belong in this repository, including future golden tests.
 - The separate `eslupmi/tests` repository has an `internal` suite that runs real Impulse containers against fake Slack, Mattermost, and Telegram HTTP APIs. It contains lifecycle, routing, notification-chain, inhibition, and Take It/Release scenarios. Complete workflows belong there; product unit/integration tests stay in Impulse.
 - The internal suite currently checks endpoints, selected message content, channels, and incident state rather than full provider-body snapshots. Its button helpers do not expose Impulse's callback response body to the test. These checks provide useful workflow coverage but do not fully characterize payload structure, rendering, or callback acknowledgements.
-- `DEV_MESSENGER_CUSTOM_ADDRESS` is implemented for Slack and Telegram; Slack's `auth.test` initialization request also uses the overridden address. `DEV_MESSENGER_RATE_LIMIT` and `DEV_MESSENGER_RATE_WINDOW` are applied by the shared HTTP setup, with a zero limit disabling throttling. The mocked harness uses these overrides, so its normal runs do not establish production rate-limit behavior. See [environment configuration](../app/config/environment.py), [Slack](../app/im/slack/slack_application.py), [Telegram](../app/im/telegram/telegram_application.py), and [HTTP setup](../app/im/application.py).
+- `DEV_MESSENGER_CUSTOM_ADDRESS` is implemented for Slack and Telegram; Slack's `auth.test` initialization request also uses the overridden address. `DEV_MESSENGER_RATE_LIMIT` and `DEV_MESSENGER_RATE_WINDOW` are applied by the shared HTTP setup, with a zero limit disabling throttling. The mocked harness uses these overrides, so its normal runs do not establish production rate-limit behavior. See [environment configuration](../app/config/environment.py), [Slack](../app/im/providers/slack/__init__.py), [Telegram](../app/im/telegram/telegram_application.py), and [HTTP setup](../app/im/application.py).
 - CI already runs product tests, builds the PR image, and invokes a three-messenger autotest matrix. The invocation passes the candidate image explicitly through `--image`. CI checks out `eslupmi/tests` at `main`, so local or branch-only additions must be merged or explicitly selected to participate in a run. See [PR workflow](../.github/workflows/tests.yml) and [autotest workflow](../.github/workflows/_autotests.yml).
 
 #### Interim verification for the internal extraction
@@ -374,7 +374,7 @@ Full logs, source hashes, XML results, harness corrections, and failed runs are 
 
 Slack is the recommended first real provider because it exercises outbound messages, replies, user and group discovery, callback verification, form payloads, links, rate limits, templates, and optional UI authentication.
 
-Move all Slack-specific logic behind `SlackProvider`, including code currently in:
+The planned slice moves Slack-specific logic behind `SlackProvider`, covering these Phase 1 source locations:
 
 - `app/im/slack/slack_application.py`.
 - `app/im/slack/threads.py`, `buttons.py`, `config.py`, and `user.py`.
@@ -386,6 +386,66 @@ Move all Slack-specific logic behind `SlackProvider`, including code currently i
 - Slack files under `templates/` and `thread_templates/`.
 
 Mattermost and Telegram may temporarily use a `LegacyProviderAdapter`, but no new core type branch should be added.
+
+#### Phase 2 implementation record (2026-09-23)
+
+Work started from a clean `6c2ae34d35f9247efc72b8f3daadc390a6fa91c7` checkout. Slack is now implemented by the independent [SlackProvider](../app/im/providers/slack/__init__.py), with no `Application` inheritance, `LegacyProviderAdapter`, `LegacyInteractionService`, or private-core imports. The old Slack application, payload/user helpers, and UI authentication implementation were removed. Mattermost, Telegram, and `none` retain their Phase 1 paths; they were not migrated to the new Slack interaction/authentication contracts.
+
+```text
+HTTP /app raw request
+    -> Application -> SlackProvider verification and decoding
+    -> immutable Interaction commands -> core interaction service
+    -> incident/queue/task changes -> immutable presentation
+    -> SlackProvider acknowledgement -> HTTP response
+
+UI login -> core session manager -> registered authentication adapter
+    -> Slack OpenID protocol + injected core HTTP transport
+    -> normalized identity -> core whitelist/session/cookie/redirect policy
+```
+
+The public API now includes raw request and serialized response DTOs, ordered interaction commands, a secret resolver, a normalized authentication identity/protocol, and presentation fields for the formatted freeze expiration and task-button eligibility. The provider never receives incidents, queues, user stores, global configuration, an HTTP session, or a FastAPI object. Public shared configuration definitions live in `plugin_config.py` and are exposed to Slack through `plugin_api.py`; Pydantic was already a dependency.
+
+Configuration validation resolves `messenger.type` through the internal registry before validating the selected model. Slack owns its channel/user/group/config models. Shared chain/reference checks and persisted built-in IDs remain compatible. The original validation field order is preserved. `SerializeAsAny` retains provider-specific fields such as Mattermost `address` and `team` through outer configuration serialization; regression tests exercise all four model round trips. Legacy runtime factories are lazy so configuration validation cannot import incident/runtime state recursively. Their descriptor metadata is checked against the instantiated providers.
+
+Slack reads `SLACK_BOT_USER_OAUTH_TOKEN` and `SLACK_VERIFICATION_TOKEN` from the injected read-only environment snapshot; these names and existing YAML fields are unchanged. Missing required credentials produce errors containing variable names, never values. An optional `SLACK_SIGNING_SECRET` enables HMAC verification over the exact raw bytes with a five-minute timestamp bound; when configured, unsigned verification-token fallback is disabled. Existing verification-token installations continue to work. The implementation follows Slack's [request verification protocol](https://docs.slack.dev/authentication/verifying-requests-from-slack/). Malformed requests and failed verification are rejected before incident lookup. A callback carrying a different channel cannot act on a matching timestamp in another channel.
+
+Slack owns API endpoints, headers, response normalization, message/update/reply payloads, status colors, buttons, links, Markdown conversion, and all 13 default Jinja resources. Resources use `importlib.resources`; body/header/status-icon file overrides retain precedence. Existing mention syntax and rendered template sources are unchanged. Core owns user caching, admin roles, group orchestration, presentation rendering, freeze-time calculation, and task eligibility. Take It/Release, freeze/unfreeze, frozen-action guards, batch order, task dispatch, and callback acknowledgements retain their business behavior.
+
+UI authentication is selected by the registry's optional authentication factory. Slack's [OpenID flow](https://docs.slack.dev/authentication/sign-in-with-slack/) owns authorization URLs, token exchange, and user-info normalization. The core adapter injects and closes its HTTP transport, without automatic retries of one-use authorization codes. Whitelist enforcement, state consumption, sessions, cookies, redirect restrictions, and logout stay in the existing core manager. No frontend UI was redesigned.
+
+| Initial slice criterion | Phase 2 implementation and evidence |
+| --- | --- |
+| 1. Configuration/environment compatibility | Provider-owned Slack models; original YAML/secret names; blank development override fallback; config and round-trip regressions. |
+| 2. Core facade ownership | `/app` forwards raw DTOs to `Application`; incident links call the facade; state transitions live in `app/im/interactions.py`; queues/maintenance/inhibition continue using the facade. |
+| 3. Registry construction | `get_application` selects `SlackProvider` from the internal registry; Slack's legacy service is absent. |
+| 4. Injected transport | Slack receives only `MessengerHttpTransport`; initialization/delivery/auth tests cover response and client cleanup. |
+| 5. Generic callback commands | Verification and full decoding precede core lookup/mutation; callback tests cover malformed inputs, frozen guards, assignment/release, all freeze options, unfreeze, task actions, and response bodies. |
+| 6. Provider resources/overrides | All 13 resources load in a fresh process outside the repository cwd; all three file override keys are tested. No external package installation is claimed. |
+| 7. No core Slack branches | Core selection uses registration/protocol support; AST tests reject Slack equality branches and provider imports outside registration. The retained built-in enum is static schema, not discovery. |
+| 8. Import boundary | Recursive AST checks resolve relative imports; a fresh-process import guard blocks private configuration, incident, queue, logging, UI, HTTP, user, application, and legacy modules. |
+| 9. Product/workflow verification | Product suites, Docker matrices, and baseline/final HTTP operator walkthroughs are recorded below. Live-tenant and browser-rendering gaps remain explicit. |
+| 10. Other messengers | Original Mattermost/Telegram/none adapters remain; the three-messenger matrix and `none` contract/system suite provide regression evidence. |
+
+Verification uses the same task-local corrected harness as Phase 1, copied from the retained local `eslupmi/tests` snapshot based on `cc51838ca9bc2660be5bd36f354cc1ffb1d1c4ba`. It retains callback posts off the fake server's async event loop, the bounded observer wait with unchanged message/channel assertions, and the Windows selector loop. The source test repository was not edited. Messenger rate overrides remain enabled in these mocks; they do not establish live Slack throttling behavior.
+
+- Baseline image: `impulse:phase2-baseline`, `sha256:787bc32e73d3b4a232937d040f9384c299db17af7924923de62f09773d68904b`.
+- Final image: `impulse:phase2-final`, `sha256:be1dcb44c7a7f997cafdf6f6d72c7931eb6896bdedce4c62957469ee4e7fba63`.
+- All **195** selected product, dependency, static, and template files in the final image match their working-tree SHA-256 hashes.
+- Baseline product suite: **1,172 passed**. Final WSL/Python 3.10 product suite: **1,235 passed** (28 existing mock/deprecation warnings). Final Linux/Python 3.12 candidate-container product suite: **1,235 passed** (31 existing mock/deprecation warnings).
+- The baseline and final Docker messenger matrices each passed **47 tests**, with **1 existing Telegram group skip**.
+- The final Docker `none` contract/system suite passed **29 tests**, covering API/health, lifecycle, routing, reload, restart persistence, and WebSocket behavior.
+- Baseline and final Slack operator walkthroughs each passed **15 checks**, including Jira task creation and the UI authentication HTTP flow.
+- Ruff and mypy passed (122 product source files); `git diff --check` passed. The 13 moved Slack template files also match their baseline contents byte for byte.
+
+The operator walkthrough runs the actual Docker application with local fake Slack and Jira servers. It directly posts form callbacks and inspects acknowledgement bodies and persisted state. It covers creation, updates, resolution, Take It/Release, invalid-token rejection, freeze/unfreeze, the frozen task guard, task creation, links, threaded notifications/mentions, and the UI authentication HTTP flow: authorize redirect, token exchange, session cookie, `/auth/me`, replay rejection, logout, and whitelist rejection. Only the authentication endpoint URLs are redirected by a task-local bootstrap; session policy and product authentication code run unchanged. This is real HTTP/Docker execution against fake services, not a live Slack workspace or a browser-rendering check.
+
+Boundary regressions also cover immutable commands, signed-body tampering/staleness/malformed headers, response cleanup, non-JSON user/group HTTP errors, no reflected secrets in API failure logs, normalized users/groups/admins, malformed configuration IDs, and the strict raw-request facade contract. The original provider tests were retargeted to the new public boundary rather than retaining a second Slack application solely for tests.
+
+Failed preparation and intermediate runs are retained alongside the passing evidence. Docker initially treated a tar stdin context as Dockerfile text; building the isolated source directory corrected this. A prematurely started intermediate matrix reported 13 missing-image setup errors; it is not candidate workflow evidence. A Linux Docker CLI rejected Windows drive-letter mount syntax; container product tests use the native Windows CLI. Auth test assumptions were corrected to the existing local error redirects and secure-cookie policy. These harness/setup corrections are separate from product fixes. Configuration validation order and subclass serialization regressions exposed during implementation were fixed and retested.
+
+Full logs, XML, source hashes, callback response records, task-local scripts, and failures are retained under `/tmp/impulse-phase2/`. Container product tests use `PYTHONPYCACHEPREFIX=/tmp/isolated-pycache`, `--asyncio-mode=auto`, and function-scoped asyncio fixtures, retaining the Phase 1 bytecode correction.
+
+**Scope and gaps:** no live Slack/Mattermost/Telegram tenant requests were made. The browser tool could not start in this WSL workspace (`sandboxCwd is not a local file URI`); login was verified through the actual HTTP authentication flow, not visually in a browser or at Slack's hosted consent screen. The comprehensive Phase 0 golden suite and installed-wheel conformance remain deferred. No package discovery, external packaging, Phase 3 migration, commit, or push was performed.
 
 ### Phase 3: Migrate the remaining built-ins
 

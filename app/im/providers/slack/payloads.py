@@ -1,14 +1,17 @@
-from app.config.config import get_config
-from app.config.environment import get_environment_config
-from app.im.colors import status_colors
-from app.im.slack.buttons import chain_attrs
-from app.im.slack.config import buttons
-from app.time import format_freeze_expiration
+from .buttons import buttons, chain_attrs
 
+status_colors = {
+    'firing': '#f61f1f',
+    'unknown': '#c1a300',
+    'resolved': '#56c15e',
+    'closed': '#969696',
+    'deleted': '#969696',
+    'frozen': '#38ade6',
+}
 
 def get_incident_message_payload(incident, body, header, status_icons, tz_str):
     actions = _build_slack_actions(incident, tz_str)
-    display_status = 'frozen' if incident.is_frozen else incident.status
+    display_status = 'frozen' if incident.frozen else incident.status
 
     attachments = [
         {
@@ -34,7 +37,7 @@ def get_incident_message_payload(incident, body, header, status_icons, tz_str):
 
 def slack_get_update_payload(incident, body, header, status_icons, tz_str):
     actions = _build_slack_actions(incident, tz_str)
-    display_status = 'frozen' if incident.is_frozen else incident.status
+    display_status = 'frozen' if incident.frozen else incident.status
 
     attachments = [
         {
@@ -55,7 +58,7 @@ def slack_get_update_payload(incident, body, header, status_icons, tz_str):
         'channel': incident.channel_id,
         'text': f'{status_icons} {header}',
         'attachments': attachments,
-        'ts': incident.ts,
+        'ts': incident.thread_id,
     }
     return payload
 
@@ -64,8 +67,6 @@ def _build_slack_actions(incident, tz_str: str = "UTC"):
     if incident.status == 'closed':
         return []
 
-    env_config = get_environment_config()
-    config = get_config()
     chain_text, chain_style = chain_attrs(incident.chain_enabled, incident.status)
     if incident.frozen_by_inhibition:
         chain_style = 'normal'
@@ -94,8 +95,8 @@ def _build_slack_actions(incident, tz_str: str = "UTC"):
             "text": buttons['freeze']['inhibited']['text'],
             "style": buttons['freeze']['inhibited']['style'],
         })
-    elif incident.can_manual_unfreeze():
-        freeze_text = format_freeze_expiration(incident.frozen_until, tz_str)
+    elif incident.can_unfreeze:
+        freeze_text = incident.frozen_until_text
         actions.append({
             "name": 'freeze',
             "type": 'button',
@@ -116,7 +117,7 @@ def _build_slack_actions(incident, tz_str: str = "UTC"):
             "options": freeze_options
         })
     
-    if config.app.task_management and env_config.task_management_enabled and not incident.task_link:
+    if incident.can_create_task and not incident.task_link:
         actions.append({
             "name": "task",
             "text": buttons['task']['create']['text'],

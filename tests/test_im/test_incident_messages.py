@@ -6,7 +6,8 @@ from unittest.mock import patch
 import pytest
 
 from app.im.mattermost.threads import _build_mattermost_actions
-from app.im.slack.threads import _build_slack_actions
+from app.im.providers.slack.payloads import _build_slack_actions
+from app.im.providers.slack import SlackProvider
 from app.jinja_template import JinjaTemplate
 
 
@@ -33,6 +34,8 @@ def _maintenance_incident():
         frozen_until=datetime.now(timezone.utc) + timedelta(hours=1),
         task_link="",
         can_manual_unfreeze=lambda: False,
+        can_unfreeze=False,
+        can_create_task=False,
         is_frozen=True,
     )
 
@@ -72,7 +75,7 @@ def _incident(parents, childs=None):
 @pytest.mark.parametrize(
     ("builder", "config_patch", "env_patch", "label_key"),
     [
-        (_build_slack_actions, "app.im.slack.threads.get_config", "app.im.slack.threads.get_environment_config", "text"),
+        (_build_slack_actions, "app.im.mattermost.threads.get_config", "app.im.mattermost.threads.get_environment_config", "text"),
         (
             _build_mattermost_actions,
             "app.im.mattermost.threads.get_config",
@@ -91,7 +94,7 @@ def test_maintenance_freeze_button_label_is_maintenance(builder, config_patch, e
 
 @pytest.mark.parametrize("template_name", ["slack_body.j2", "mattermost_body.j2", "telegram_body.j2"])
 def test_parent_section_hidden_for_maintenance_sentinel_only(template_name):
-    template = JinjaTemplate((TEMPLATES_DIR / template_name).read_text())
+    template = JinjaTemplate(SlackProvider.template_source('body') if template_name == 'slack_body.j2' else (TEMPLATES_DIR / template_name).read_text())
     incident = _incident(["maintenance"])
     JinjaTemplate.set_incidents(SimpleNamespace(uniq_ids={}))
     try:
@@ -106,7 +109,7 @@ def test_parent_section_hidden_for_maintenance_sentinel_only(template_name):
 
 @pytest.mark.parametrize("template_name", ["slack_body.j2", "mattermost_body.j2", "telegram_body.j2"])
 def test_parent_section_shows_only_real_parent_incidents(template_name):
-    template = JinjaTemplate((TEMPLATES_DIR / template_name).read_text())
+    template = JinjaTemplate(SlackProvider.template_source('body') if template_name == 'slack_body.j2' else (TEMPLATES_DIR / template_name).read_text())
     incident = _incident(["maintenance", "parent-1"])
     parent = SimpleNamespace(
         link="https://example.test/parent",

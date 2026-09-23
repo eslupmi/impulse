@@ -12,7 +12,11 @@ from app.im.plugin_api import PLUGIN_API_VERSION, MessengerProvider, ProviderDes
 class ProviderRegistration:
     descriptor: ProviderDescriptor
     factory: Callable[..., MessengerProvider]
-    legacy_application: type
+    legacy_application: Callable[[], type] | None = None
+    config_model: type | None = None
+    authentication_factory: Callable | None = None
+    template_source: Callable | None = None
+    incident_url: Callable | None = None
 
 
 class ProviderRegistry:
@@ -35,6 +39,8 @@ class ProviderRegistry:
         self._providers[provider_id] = registration
 
     def resolve(self, provider_id: str) -> ProviderRegistration:
+        if not isinstance(provider_id, str):
+            raise ValueError('Invalid messenger provider ID: expected a string')
         try:
             return self._providers[provider_id]
         except KeyError:
@@ -45,21 +51,33 @@ class ProviderRegistry:
 def get_provider_registry() -> ProviderRegistry:
     # The sole built-in composition root. These imports are deliberately lazy:
     # config parsing and provider contracts do not import runtime applications.
-    from app.im.mattermost.mattermost_application import MattermostApplication
-    from app.im.null.null_application import NullApplication
-    from app.im.providers.mattermost import MattermostProvider
-    from app.im.providers.none import NoneProvider
     from app.im.providers.slack import SlackProvider
-    from app.im.providers.telegram import TelegramProvider
-    from app.im.slack.slack_application import SlackApplication
-    from app.im.telegram.telegram_application import TelegramApplication
+    from app.im.providers.slack.authentication import SlackAuthentication
+    from app.config.validation import MattermostApplicationConfig, TelegramApplicationConfig, NullApplicationConfig
+    from importlib import import_module
+
+    def factory(module, name):
+        def construct(config):
+            return getattr(import_module(module), name)(config)
+        return construct
+
+    def legacy(module, name):
+        return lambda: getattr(import_module(module), name)
 
     registry = ProviderRegistry()
-    for provider, legacy in (
-        (SlackProvider, SlackApplication),
-        (MattermostProvider, MattermostApplication),
-        (TelegramProvider, TelegramApplication),
-        (NoneProvider, NullApplication),
+    registry.register(ProviderRegistration(
+        SlackProvider.descriptor, SlackProvider, config_model=SlackProvider.config_model,
+        authentication_factory=SlackAuthentication, template_source=SlackProvider.template_source,
+        incident_url=SlackProvider.incident_url,
+    ))
+    for descriptor, provider_module, provider_name, legacy_module, legacy_name, config_model in (
+        (ProviderDescriptor('mattermost', rate_limit=10), 'app.im.providers.mattermost', 'MattermostProvider',
+         'app.im.mattermost.mattermost_application', 'MattermostApplication', MattermostApplicationConfig),
+        (ProviderDescriptor('telegram', rate_limit=20, rate_window_seconds=60), 'app.im.providers.telegram', 'TelegramProvider',
+         'app.im.telegram.telegram_application', 'TelegramApplication', TelegramApplicationConfig),
+        (ProviderDescriptor('none', messaging_enabled=False), 'app.im.providers.none', 'NoneProvider',
+         'app.im.null.null_application', 'NullApplication', NullApplicationConfig),
     ):
-        registry.register(ProviderRegistration(provider.descriptor, provider, legacy))
+        registry.register(ProviderRegistration(descriptor, factory(provider_module, provider_name),
+                                              legacy(legacy_module, legacy_name), config_model))
     return registry

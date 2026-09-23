@@ -18,8 +18,6 @@ class TestEnvironmentConfig:
         with patch.dict('os.environ', {}, clear=True):
             config = EnvironmentConfig()
 
-        assert config.slack_bot_user_oauth_token == ""
-        assert config.slack_verification_token == ""
         assert config.mattermost_access_token == ""
         assert config.telegram_bot_token == ""
         assert config.data_path == "./data"
@@ -63,8 +61,6 @@ class TestEnvironmentConfig:
         with patch.dict('os.environ', env_vars, clear=True):
             config = EnvironmentConfig()
 
-        assert config.slack_bot_user_oauth_token == 'xoxb-test-token'
-        assert config.slack_verification_token == 'test-verification'
         assert config.mattermost_access_token == 'mm-token'
         assert config.telegram_bot_token == 'tg-token'
         assert config.data_path == '/custom/data'
@@ -221,7 +217,8 @@ class TestEnvironmentConfig:
         # Check that fields have descriptions by examining the model class
         field_info = EnvironmentConfig.model_fields
 
-        assert 'slack_bot_user_oauth_token' in field_info
+        assert 'slack_bot_user_oauth_token' not in field_info
+        assert 'slack_verification_token' not in field_info
         assert 'data_path' in field_info
         assert 'provider_sync_interval' in field_info
         assert 'cors_allowed_origins' in field_info
@@ -245,7 +242,6 @@ class TestEnvironmentConfig:
 
         config = EnvironmentConfig(**config_data)
 
-        assert config.slack_bot_user_oauth_token == 'xoxb-custom-token'
         assert config.data_path == '/custom/data'
         assert config.provider_sync_interval == 600
         assert config.provider_max_events == 100
