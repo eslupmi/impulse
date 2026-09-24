@@ -42,7 +42,6 @@ extra_css:
 
 nav:
 - ABOUT:
-  - index.md
   - Concepts:
     - concepts/api.md
     - concepts/basics.md
