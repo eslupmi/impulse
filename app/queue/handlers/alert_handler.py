@@ -3,13 +3,11 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 from app.config.config import get_config
-from app.config.validation import MessengerType
 from app.im.template import (
     incident_notifications_new_firing,
     incident_notifications_partial_resolved,
 )
 from app.incident.incident import Incident, IncidentConfig
-from app.jinja_template import JinjaTemplate
 from app.logging import logger
 from app.queue.constants import QueueItemType
 from app.queue.handlers.base_handler import BaseHandler
@@ -176,17 +174,13 @@ class AlertHandler(BaseHandler):
             await self.maintenance_manager.process_incident(incident_)
 
     async def _notify_alert_change(self, incident_, templates, log_message, payload, previous_payload):
-        header = self.app.header_template.form_message(incident_.payload, incident_)
-        text = JinjaTemplate(templates[self.app.type.value]).form_notification(
+        header = self.app.notification_header(incident_)
+        text = self.app.notification_template(templates[self.app.type.value]).form_notification(
             payload=payload,
             previous_payload=previous_payload,
             incident=incident_.serialize(),
         )
-        if self.app.type == MessengerType.TELEGRAM:
-            message = text
-        else:
-            message = header + '\n' + text
-        await self.app.post_to_thread(incident_.channel_id, incident_.ts, message)
+        await self.app._post_notification(incident_, header, text)
         logger.info(f'Incident updated with {log_message}', extra={'uniq_id': incident_.uniq_id})
 
     async def _create_thread(self, incident_):

@@ -116,7 +116,7 @@ class TestUserUpdateHandler:
     @pytest.mark.asyncio
     async def test_schedule_next_refresh_with_existing_item(self, handler, mock_queue, mock_application):
         """Test _schedule_next_refresh respects gap from existing item."""
-        from app.queue.constants import USER_UPDATE_GAP_SECONDS
+        from app.im.registry import get_provider_registry
         
         user_id = "U123456"
         # Latest item is scheduled far in the future
@@ -130,7 +130,7 @@ class TestUserUpdateHandler:
         schedule_time = call_args[0][0]
         
         # Should be scheduled after the latest item plus gap
-        expected_gap = USER_UPDATE_GAP_SECONDS.get("slack", 1.0)
+        expected_gap = get_provider_registry().resolve("slack").descriptor.user_update_gap_seconds
         expected_min = future_time + timedelta(seconds=expected_gap - 0.1)
         
         assert schedule_time >= expected_min

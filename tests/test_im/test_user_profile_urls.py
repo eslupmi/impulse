@@ -1,14 +1,12 @@
 import pytest
 
 from app.config.validation import MessengerType
-from app.im.mattermost.user import User as MattermostUser
-from app.im.mattermost.mattermost_application import MattermostApplication
 from app.im.application import Application
+from app.im.providers.mattermost import MattermostProvider
 from app.im.providers.slack import SlackProvider
 from app.im.plugin_api import ProviderIdentity, UserProfile
 from app.im.users import ProfileUser as SlackUser
-from app.im.telegram.telegram_application import TelegramApplication
-from app.im.telegram.user import User as TelegramUser
+from app.im.providers.telegram import TelegramProvider
 
 
 @pytest.mark.asyncio
@@ -34,23 +32,14 @@ def test_slack_user_profile_url():
 
 
 def test_mattermost_user_profile_url():
-    app = MattermostApplication.__new__(MattermostApplication)
-    app.public_url = "https://mm.example.com"
-    app.team = "team1"
-    user = MattermostUser("alice", "U123", username="alice", exists=True, full_name="Alice")
-
-    assert app._build_user_profile_url("U123", user) == "https://mm.example.com/team1/users/U123"
+    assert MattermostProvider.user_url(
+        UserProfile("U123", True, username="alice"), ProviderIdentity("https://mm.example.com", "team1"),
+    ) == "https://mm.example.com/team1/users/U123"
 
 
 def test_telegram_user_profile_url_with_username():
-    app = TelegramApplication.__new__(TelegramApplication)
-    user = TelegramUser("alice", 12345, exists=True, full_name="Alice", username="alice")
-
-    assert app._build_user_profile_url("12345", user) == "https://t.me/alice"
+    assert TelegramProvider.user_url(UserProfile(12345, True, username='alice'), ProviderIdentity()) == 'https://t.me/alice'
 
 
 def test_telegram_user_profile_url_without_username():
-    app = TelegramApplication.__new__(TelegramApplication)
-    user = TelegramUser("alice", 12345, exists=True, full_name="Alice")
-
-    assert app._build_user_profile_url("12345", user) is None
+    assert TelegramProvider.user_url(UserProfile(12345, True), ProviderIdentity()) is None

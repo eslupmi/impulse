@@ -1,5 +1,4 @@
 import asyncio
-import json
 from fastapi.responses import Response
 from dataclasses import asdict
 from datetime import datetime
@@ -11,13 +10,12 @@ from app.config.config import get_config
 from app.config.environment import get_environment_config
 from app.config.validation import (
     ApplicationConfig,
-    MessengerType,
 )
 from app.http_client.errors import MESSENGER_TRANSPORT_ERRORS
 from app.http_client.rate_limited_client import RateLimitedClient
 from app.im.chain.chain_factory import ChainFactory
 from app.im.groups import Group
-from app.im.interaction_service import LegacyInteractionService
+from app.im.interactions import apply_interaction
 from app.im.plugin_api import (
     IncidentPresentation, MessageRef, MessengerProvider, NotificationContent,
     ProviderContext, ProviderIdentity, UserProfile, InteractiveProvider, InteractionRequest, ProviderResponse,
@@ -60,9 +58,8 @@ class Application:
     task_management_integration: JiraIntegration | None = None
 
     def __init__(self, app_config: ApplicationConfig, channels, default_channel, webhooks=None,
-                 *, provider: MessengerProvider | None = None, legacy_application: type | None = None):
+                 *, provider: MessengerProvider):
         self.provider = provider
-        self._legacy = LegacyInteractionService(self, legacy_application) if legacy_application else None
         self.http: RateLimitedClient | None = None
         self.type = app_config.type
         self.url = self.get_url(app_config)
@@ -79,11 +76,8 @@ class Application:
         self.templates = app_config.template_files
         self.body_template, self.header_template, self.status_icons_template = self.generate_template()
 
-        self.post_message_url: str | None = None
-        self.headers: dict | None = None
         self.rate_limit = None
         self.rate_window = 1.0
-        self.thread_id_key = None
         self._initialize_specific_params()
 
         self.channels = channels
@@ -104,17 +98,17 @@ class Application:
         self._user_scheduler: UserUpdateScheduler | None = None
 
     async def buttons_handler(self, payload, incidents, queue_, route):
-        if isinstance(self.provider, InteractiveProvider):
-            if not isinstance(payload, InteractionRequest):
-                raise TypeError('Provider callbacks require an InteractionRequest')
-            from app.im.interactions import apply_interaction
-            result = await self.provider.parse_interaction(payload)
-            if not isinstance(result, ProviderResponse):
-                result = await apply_interaction(self, result, incidents, queue_)
-            return Response(result.body, status_code=result.status_code, media_type=result.media_type)
-        if isinstance(payload, InteractionRequest):
-            payload = json.loads(payload.body)
-        return await self._legacy.handle(payload, incidents, queue_, route)
+        if not self.provider.descriptor.messaging_enabled:
+            return Response(b'{}', status_code=200, media_type='application/json')
+        if not isinstance(payload, InteractionRequest):
+            raise TypeError('Provider callbacks require an InteractionRequest')
+        provider = self.provider
+        if not isinstance(provider, InteractiveProvider):
+            raise TypeError(f'{provider.descriptor.provider_id} does not accept callbacks')
+        result = await provider.parse_interaction(payload)
+        if not isinstance(result, ProviderResponse):
+            result = await apply_interaction(self, result, incidents, queue_)
+        return Response(result.body, status_code=result.status_code, media_type=result.media_type)
 
     async def close(self):
         if self.http:
@@ -124,8 +118,6 @@ class Application:
         self._user_scheduler = scheduler
 
     def create_group(self, config_name, group_details):
-        if self._legacy and 'create_group' in self._legacy.legacy_type.__dict__:
-            return self._legacy.create_group(config_name, group_details)
         return Group(
             config_name=config_name,
             name=group_details.get('name'),
@@ -134,19 +126,22 @@ class Application:
         )
 
     async def create_incident_message(self, incident, body, header, status_icons):
-        if self.provider is not None:
-            message = self._presentation(incident, body, header, status_icons)
-            result = await self.provider.create_incident(message)
-            return result.thread_id if result else None
-        payload = self._get_incident_message_payload(incident, body, header, status_icons)
-        return await self._send_create_incident_message(payload)
+        message = self._presentation(incident, body, header, status_icons)
+        result = await self.provider.create_incident(message)
+        return result.thread_id if result else None
 
     def create_user(self, name, user_details):
-        if self._legacy:
-            return self._legacy.create_user(name, user_details)
+        profile = UserProfile(
+            id=user_details.get('id'), exists=bool(user_details.get('exists', False)),
+            full_name=user_details.get('full_name'), username=user_details.get('username'),
+            email=user_details.get('email'), timezone=user_details.get('timezone'),
+        )
+        notification_id = self.provider.mention_id(profile) if isinstance(self.provider, InteractiveProvider) else profile.id
         return ProfileUser(name=name, id_=user_details.get('id'), exists=user_details.get('exists', False),
                            full_name=user_details.get('full_name'), username=user_details.get('username'),
-                           email=user_details.get('email'), timezone_=user_details.get('timezone'))
+                           email=user_details.get('email'), timezone_=user_details.get('timezone'),
+                           notification_id=notification_id,
+                           serializer=getattr(self.provider, 'serialize_user', None))
 
     def fetch_and_assign_user_name(self, incident, user_id, dump=True):
         cached_user = self.users.get_user_by_id(user_id)
@@ -164,23 +159,31 @@ class Application:
         status_icons = self.status_icons_template.form_message(incident.payload, incident)
         return body, header, status_icons
 
-    def generate_template(self):
-        if self.provider is not None and not self.provider.descriptor.messaging_enabled:
-            return JinjaTemplate(''), JinjaTemplate(''), JinjaTemplate('')
+    def notification_template(self, source):
+        return JinjaTemplate(source, autoescape=self.provider.descriptor.html_autoescape)
 
-        def read_template(file_key, default_path):
+    def notification_header(self, incident):
+        if not self.provider.descriptor.notification_headers:
+            return None
+        return self.header_template.form_message(incident.payload, incident)
+
+    def generate_template(self):
+        if not self.provider.descriptor.messaging_enabled:
+            return JinjaTemplate(''), JinjaTemplate(''), JinjaTemplate('')
+        provider = self.provider
+        if not isinstance(provider, InteractiveProvider):
+            raise TypeError(f'{provider.descriptor.provider_id} does not provide templates')
+
+        def read_template(file_key):
             file_path = self.templates.get(file_key) if self.templates else None
             if file_path:
                 with open(file_path) as source:
-                    return JinjaTemplate(source.read())
-            if isinstance(self.provider, InteractiveProvider):
-                return JinjaTemplate(self.provider.template_source(file_key))
-            with open(default_path) as source:
-                return JinjaTemplate(source.read())
+                    return self.notification_template(source.read())
+            return self.notification_template(provider.template_source(file_key))
 
-        body_template = read_template('body', f'./templates/{self.type.value}_body.j2')
-        header_template = read_template('header', f'./templates/{self.type.value}_header.j2')
-        status_icons_template = read_template('status_icons', f'./templates/{self.type.value}_status_icons.j2')
+        body_template = read_template('body')
+        header_template = read_template('header')
+        status_icons_template = read_template('status_icons')
 
         return body_template, header_template, status_icons_template
 
@@ -195,22 +198,17 @@ class Application:
         return None
 
     def get_notification_destinations(self):
-        if self._legacy and 'get_notification_destinations' in self._legacy.legacy_type.__dict__:
-            return self._legacy.get_notification_destinations()
+        if not self.provider.descriptor.messaging_enabled:
+            return []
         return [a.get_notification_identifier() for a in self.admin_users]
 
     def get_team_name(self, app_config: ApplicationConfig):
         return self._get_team_name(app_config)
 
     async def get_user_details(self, user_info: UserConfig | dict):
-        assert self.provider is not None
         user_id = user_info.get('id')
         assert isinstance(user_id, (str, int))
         return asdict(await self.provider.fetch_user(user_id))
-
-    async def get_group_details(self, group_id):
-        # Temporary support for the Mattermost configured-group adapter.
-        return await self._legacy.get_group_details(group_id)
 
     def get_url(self, app_config: ApplicationConfig):
         return self._get_url(app_config).rstrip("/")
@@ -264,15 +262,16 @@ class Application:
         await self.update_incident_message(incident)
 
     async def initialize_async(self):
-        if self.provider is not None and not self.provider.descriptor.messaging_enabled:
+        if not self.provider.descriptor.messaging_enabled:
             self.public_url = ''
             self.users = UserManager()
             self.user_groups = {}
             self.groups = {}
             return
+        redact_url = getattr(self.provider, 'redact_url', redact_messenger_url)
         logger.info(
             'Initializing messenger',
-            extra={'messenger': self.type.value, 'url': redact_messenger_url(self.url)},
+            extra={'messenger': self.type.value, 'url': redact_url(self.url)},
         )
 
         self.http = self._init_http_client()
@@ -285,15 +284,10 @@ class Application:
         self.admin_users = self._init_admin_users()
 
         logger.info('Messenger initialized', extra={'messenger': self.type.value})
-        if self.provider is not None:
-            await self._start_provider()
+        await self._start_provider()
 
     async def _start_provider(self):
-        # The legacy Telegram hook keeps its existing init-step log context.
-        if self._legacy and '_init_webhook' in self._legacy.legacy_type.__dict__:
-            await self._legacy._init_webhook()
-        else:
-            await self.provider.start()
+        await self.provider.start()
 
     @messenger_init_step_sync('http_client')
     def _init_http_client(self) -> RateLimitedClient:
@@ -332,20 +326,20 @@ class Application:
         return admins
 
     async def notify(self, incident, step):
-        if self.provider is not None and not self.provider.descriptor.messaging_enabled:
+        if not self.provider.descriptor.messaging_enabled:
             return 200
         messenger = self.type.value
         notify_type = step['name']
         if notify_type == 'user':
-            text_template = JinjaTemplate(chain_step_user[messenger])
+            text_template = self.notification_template(chain_step_user[messenger])
         elif notify_type == 'user_group':
-            text_template = JinjaTemplate(chain_step_user_group[messenger])
+            text_template = self.notification_template(chain_step_user_group[messenger])
         elif notify_type == 'group':
-            text_template = JinjaTemplate(chain_step_group[messenger])
+            text_template = self.notification_template(chain_step_group[messenger])
         else:
-            text_template = JinjaTemplate(chain_step_user_group[messenger])
+            text_template = self.notification_template(chain_step_user_group[messenger])
         text = text_template.form_notification(**chain_template_context(self, incident, step))
-        _, header, _ = self.form_body_header_status_icons(incident)
+        header = self.notification_header(incident)
         response_code = await self._post_notification(incident, header, text)
         logger.info(f'Chain step {notify_type} \'{step["value"]}\'', extra={'uniq_id': incident.uniq_id})
         return response_code
@@ -356,8 +350,8 @@ class Application:
             return
 
         try:
-            header = self.header_template.form_message(incident.payload, incident)
-            text = JinjaTemplate(incident_notifications_assignment[self.type.value]).form_notification(
+            header = self.notification_header(incident)
+            text = self.notification_template(incident_notifications_assignment[self.type.value]).form_notification(
                 **assignment_template_context(self, incident, ui_user)
             )
             await self._post_notification(incident, header, text)
@@ -367,24 +361,10 @@ class Application:
             logger.error(f'Failed to post assignment notification for incident {incident.uniq_id}: {e}')
 
     async def _post_notification(self, incident, header, text):
-        if self.provider is not None:
-            result = await self.provider.post_notification(
-                MessageRef(incident.channel_id, incident.ts), NotificationContent(text=text, header=header),
-            )
-            return result.status_code
-        # Compatibility for callers constructing the old built-in classes.
-        message = text if self.type == MessengerType.TELEGRAM else header + '\n' + text
-        return await self.post_to_thread(incident.channel_id, incident.ts, message)
-
-    async def post_to_thread(self, channel_id, id_, text):
-        if self.provider is not None:
-            result = await self.provider.post_notification(MessageRef(channel_id, id_), NotificationContent(text=text))
-            return result.status_code
-        payload = self._post_thread_payload(channel_id, id_, text)
-        response = await self.http.post(self.post_message_url, headers=self.headers, json=payload)
-        status = response.status
-        response.close()
-        return status
+        result = await self.provider.post_notification(
+            MessageRef(incident.channel_id, incident.ts), NotificationContent(text=text, header=header),
+        )
+        return result.status_code
 
     async def post_unassignment_notification(self, incident_obj, ui_user=None):
         config = get_config()
@@ -392,8 +372,8 @@ class Application:
             return
 
         try:
-            header = self.header_template.form_message(incident_obj.payload, incident_obj)
-            text = JinjaTemplate(incident_notifications_assignment[self.type.value]).form_notification(
+            header = self.notification_header(incident_obj)
+            text = self.notification_template(incident_notifications_assignment[self.type.value]).form_notification(
                 **assignment_template_context(self, incident_obj, ui_user)
             )
             await self._post_notification(incident_obj, header, text)
@@ -403,30 +383,26 @@ class Application:
             logger.error(f'Failed to post unassignment notification for incident {incident_obj.uniq_id}: {e}')
 
     async def post_freeze_notification(self, incident_: 'Incident', ui_user=None):
-        if self.provider is not None and not self.provider.descriptor.messaging_enabled:
+        if not self.provider.descriptor.messaging_enabled:
             return
         config = get_config()
         if not config.incident.notifications.freeze:
             return
 
-        text = JinjaTemplate(incident_notifications_freeze[self.type.value]).form_notification(
+        text = self.notification_template(incident_notifications_freeze[self.type.value]).form_notification(
             **freeze_template_context(incident_, ui_user)
         )
-        # Preserve the legacy template contract: these Telegram notifications
-        # have never evaluated the user-supplied header template.
-        header = None if self.type == MessengerType.TELEGRAM else self.header_template.form_message(incident_.payload, incident_)
+        header = self.notification_header(incident_)
         await self._post_notification(incident_, header, text)
 
     async def post_unfreeze_notification(self, incident_: 'Incident', ui_user=None):
-        if self.provider is not None and not self.provider.descriptor.messaging_enabled:
+        if not self.provider.descriptor.messaging_enabled:
             return
-        text = JinjaTemplate(incident_notifications_unfreeze[self.type.value]).form_notification(
+        text = self.notification_template(incident_notifications_unfreeze[self.type.value]).form_notification(
             **freeze_template_context(incident_, ui_user)
         )
 
-        # Preserve the legacy template contract: these Telegram notifications
-        # have never evaluated the user-supplied header template.
-        header = None if self.type == MessengerType.TELEGRAM else self.header_template.form_message(incident_.payload, incident_)
+        header = self.notification_header(incident_)
         await self._post_notification(incident_, header, text)
 
     def track_async_task(self, task):
@@ -435,37 +411,27 @@ class Application:
 
     async def update(self, incident, incident_status, alert_state, updated_status, chain_enabled,
                      frozen_until, task_link='', previous_payload=None):
-        if self.provider is not None and not self.provider.descriptor.messaging_enabled:
+        if not self.provider.descriptor.messaging_enabled:
             return
         if not incident.is_frozen:
             await self.update_incident_message(incident)
 
             config = get_config()
             if updated_status and incident_status != 'closed' and config.incident.notifications.status_update:
-                text_template = JinjaTemplate(incident_notifications_status_update[self.type.value])
+                text_template = self.notification_template(incident_notifications_status_update[self.type.value])
                 text = text_template.form_notification(
                     **status_update_template_context(self, incident, alert_state, previous_payload)
                 )
 
-                _, header, _ = self.form_body_header_status_icons(incident)
+                header = self.notification_header(incident)
                 await self._post_notification(incident, header, text)
 
     async def update_incident_message(self, incident):
-        if self.provider is not None and not self.provider.descriptor.messaging_enabled:
+        if not self.provider.descriptor.messaging_enabled:
             return
         body, header, status_icons = self.form_body_header_status_icons(incident)
         tz_str = self._get_user_timezone_str(incident.assigned_user_id)
-        if self.provider is not None:
-            await self.provider.update_incident(self._presentation(incident, body, header, status_icons, tz_str))
-            return
-        payload = self.update_incident_payload(incident, body, header, status_icons, tz_str)
-        await self._update_incident_message(incident.ts, payload)
-
-    def update_incident_payload(self, incident, body, header, status_icons, tz_str=None, **kwargs):
-        if isinstance(self.provider, InteractiveProvider):
-            response = self.provider.respond_to_interaction(self._presentation(incident, body, header, status_icons, tz_str))
-            return json.loads(response.body)
-        return self._legacy.update_payload(incident, body, header, status_icons, tz_str, **kwargs)
+        await self.provider.update_incident(self._presentation(incident, body, header, status_icons, tz_str))
 
     @staticmethod
     def _presentation(incident, body, header, status_icons, tz_str=None):
@@ -512,8 +478,6 @@ class Application:
         return "(empty)"
 
     async def _generate_groups(self, groups_dict: dict):
-        if self._legacy:
-            return await self._legacy._generate_groups(groups_dict)
         if not groups_dict:
             return {}
         all_groups = await self.get_all_groups()
@@ -552,23 +516,18 @@ class Application:
 
         return user_manager
 
-    def _get_incident_message_payload(self, incident, body, header, status_icons):
-        return self._legacy.create_payload(incident, body, header, status_icons)
-
     async def _get_public_url(self, app_config: ApplicationConfig):
         address = getattr(app_config, 'impulse_address', None)
         callback_url = f'{address}/app' if address else None
-        assert self.provider is not None and self.http is not None
+        assert self.http is not None
         identity = await self.provider.initialize(ProviderContext(self.http, callback_url))
         self.team = identity.team
         return identity.public_url
 
     def _get_team_name(self, app_config: ApplicationConfig):
-        assert self.provider is not None
         return self.provider.team
 
     def _get_url(self, app_config: ApplicationConfig):
-        assert self.provider is not None
         return self.provider.url
 
     def _get_user_timezone_str(self, user_id: str | None = None) -> str:
@@ -579,14 +538,14 @@ class Application:
         return get_config().app.general.timezone
 
     @staticmethod
-    def get_incident_link(provider_id, channel_id, thread_id, public_url):
+    def get_incident_link(provider_id, channel_id, thread_id, public_url, team=None):
         from app.im.registry import get_provider_registry
         try:
             registration = get_provider_registry().resolve(provider_id)
         except ValueError:
             return None
         if registration.incident_url:
-            return registration.incident_url(MessageRef(channel_id, thread_id), ProviderIdentity(public_url))
+            return registration.incident_url(MessageRef(channel_id, thread_id), ProviderIdentity(public_url, team))
         return None
 
     def get_user_profile_url(self, user_id: str, user: BaseUser) -> str | None:
@@ -594,7 +553,6 @@ class Application:
 
     def _build_user_profile_url(self, user_id: str, user: BaseUser) -> str | None:
         profile = UserProfile(id=user_id, exists=user.exists, username=user.username)
-        assert self.provider is not None
         return self.provider.user_url(profile, ProviderIdentity(self.public_url, self.team))
 
     async def apply_time_freeze(
@@ -610,7 +568,7 @@ class Application:
             self, incident_: 'Incident', freeze_option: str, user_id: str, incidents, queue_: 'AsyncQueue',
             user_timezone: str | None = None, ui_user=None,
     ):
-        if self.provider is not None and not self.provider.descriptor.messaging_enabled:
+        if not self.provider.descriptor.messaging_enabled:
             return
         logger.info(log_button_pressed, extra={'uniq_id': incident_.uniq_id, 'button': 'freeze', 'user_id': user_id})
 
@@ -637,8 +595,6 @@ class Application:
     def _initialize_specific_params(self):
         self.rate_limit = self.provider.descriptor.rate_limit
         self.rate_window = self.provider.descriptor.rate_window_seconds
-        # Callback compatibility only; normal delivery uses the provider contract.
-        self.headers = getattr(self.provider, 'headers', None)
 
     def _load_stored_users(self, user_store, messenger_type: str) -> dict:
         stored_users = user_store.get_all_users_by_type(messenger_type)
@@ -655,45 +611,6 @@ class Application:
         if result:
             logger.info(f'Loaded {len(result)} users from storage')
         return result
-
-    def _markdown_links_to_native_format(self, text):
-        if isinstance(self.provider, InteractiveProvider):
-            return self.provider.markdown_links(text)
-        return self._legacy.markdown_links(text)
-
-    def _post_thread_payload(self, channel_id, id_, text):
-        return self._legacy.thread_payload(channel_id, id_, text)
-
-    async def _send_create_incident_message(self, payload):
-        response = await self.http.post(self.post_message_url, headers=self.headers, json=payload)
-        status = response.status
-        response_json = await response.json()
-        response.close()
-        if not 200 <= status < 300: # Mattermost
-            logger.error(
-                "Incident message creation failed",
-                extra={
-                    'messenger': self.type.value,
-                    'channel_id': payload.get('channel_id') or payload.get('channel'),
-                    'status': status,
-                    'error': response_json.get('error') or response_json.get('message'),
-                    'body': response_json,
-                },
-            )
-            return None
-        if 'ok' in response_json and response_json.get('ok') is not True:
-            logger.error(
-                "Incident message creation failed",
-                extra={
-                    'messenger': self.type.value,
-                    'channel_id': payload.get('channel_id') or payload.get('channel'),
-                    'status': status,
-                    'error': response_json.get('error'),
-                    'body': response_json,
-                },
-            )
-            return None
-        return response_json.get(self.thread_id_key)
 
     def _setup_http(self) -> RateLimitedClient:
         env = get_environment_config()
@@ -718,16 +635,8 @@ class Application:
             retry_attempts=3,
             timeout=30.0,
             connector_limit=100,
-            connector_limit_per_host=30
+            connector_limit_per_host=30,
+            redact_url=getattr(self.provider, 'redact_url', redact_messenger_url),
         )
         client.initialize_client()
         return client
-
-    async def _update_incident_message(self, id_, payload):
-        await self._legacy.update_payload_message(id_, payload)
-
-    async def _setup_webhook(self):
-        await self.provider.start()
-
-    async def _answer_callback(self, callback_id):
-        await self._legacy.answer_callback(callback_id)

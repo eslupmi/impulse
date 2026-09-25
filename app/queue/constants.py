@@ -12,9 +12,3 @@ class QueueItemType:
     UPDATE_USER = 'update_user'
     MAINTENANCE_START = 'maintenance_start'
     MAINTENANCE_END = 'maintenance_end'
-
-
-USER_UPDATE_GAP_SECONDS = {
-    'mattermost': 2.0,
-    'telegram': 60.0,
-}

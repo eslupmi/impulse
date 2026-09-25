@@ -1,6 +1,4 @@
-from app.config.validation import MessengerType
 from app.im.template import chain_step_webhook, chain_template_context
-from app.jinja_template import JinjaTemplate
 from app.logging import logger
 from app.queue.handlers.base_handler import BaseHandler
 
@@ -47,15 +45,10 @@ class StepHandler(BaseHandler):
                 incident.chain_update(identifier, done=True, result=None)
                 logger.warning("Webhook undefined", extra={'uniq_id': incident.uniq_id, 'webhook': webhook_name})
 
-            text = JinjaTemplate(chain_step_webhook[self.app.type.value]).form_notification(
+            text = self.app.notification_template(chain_step_webhook[self.app.type.value]).form_notification(
                 **chain_template_context(self.app, incident, step)
             )
-            if self.app.type == MessengerType.TELEGRAM:
-                message = text
-            else:
-                header = self.app.header_template.form_message(incident.payload, incident)
-                message = header + '\n' + text
-            await self.app.post_to_thread(incident.channel_id, incident.ts, message)
+            await self.app._post_notification(incident, self.app.notification_header(incident), text)
         else:
             r_code = await self.app.notify(incident, step)
             incident.chain_update(identifier, done=True, result=r_code)

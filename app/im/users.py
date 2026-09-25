@@ -1,5 +1,7 @@
 from abc import ABC, abstractmethod
 
+_USE_PLATFORM_ID = object()
+
 
 class BaseUser(ABC):
     """Base class for all messenger users."""
@@ -80,14 +82,21 @@ class ProfileUser(BaseUser):
         username: str | None = None,
         email: str | None = None,
         timezone_: str | None = None,
+        notification_id=_USE_PLATFORM_ID,
+        serializer=None,
     ):
         super().__init__(name, id_, exists, full_name, username, timezone_)
         self.email = email
+        self.notification_id = id_ if notification_id is _USE_PLATFORM_ID else notification_id
+        self._serializer = serializer
 
     def get_notification_identifier(self):
-        return self.id
+        return self.notification_id
 
     def serialize(self):
+        if self._serializer is not None:
+            from app.im.plugin_api import UserProfile
+            return self._serializer(UserProfile(self.id, self.exists, self.full_name, self.username, self.email, self.timezone), self.roles)
         return {
             'email': self.email,
             'exists': self.exists,

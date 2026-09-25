@@ -158,7 +158,6 @@ async def test_signing_secret_disallows_unsigned_token_fallback():
 
 def test_http_route_passes_raw_bytes_to_provider_and_returns_ack(runtime):
     messenger = get_application(config_for('slack'), {'default': {'id': 'C1'}}, 'default')
-    assert messenger._legacy is None
     app = FastAPI()
     app.state.messenger = messenger
     app.state.incidents = Mock(get_by_ts=Mock(return_value=None))
@@ -254,7 +253,7 @@ def test_resources_and_imports_work_without_core_or_checkout_cwd(tmp_path):
 import sys
 class NoPrivateCore:
     def find_spec(self, fullname, *args):
-        if fullname.startswith(('app.config','app.incident','app.queue','app.logging','app.time', 'app.ui', 'app.http_client', 'app.im.application', 'app.im.users', 'app.im.providers.legacy')):
+        if fullname.startswith(('app.config','app.incident','app.queue','app.logging','app.time', 'app.ui', 'app.http_client', 'app.im.application', 'app.im.users')):
             raise AssertionError(fullname)
 sys.meta_path.insert(0, NoPrivateCore())
 from app.im.providers.slack import SlackProvider, TEMPLATE_NAMES

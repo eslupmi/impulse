@@ -113,6 +113,10 @@ class SlackProvider:
         return f'{identity.public_url}/team/{user.id}'
 
     @staticmethod
+    def mention_id(user: UserProfile):
+        return user.id
+
+    @staticmethod
     def markdown_links(text: str) -> str:
         return re.sub(r'\[([^\]]+)\]\(([^)]+)\)', r'<\2|\1>', text, flags=re.DOTALL)
 

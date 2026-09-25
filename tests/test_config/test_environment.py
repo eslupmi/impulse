@@ -6,8 +6,7 @@ from unittest.mock import patch
 import pytest
 from pydantic import ValidationError
 
-from app.config.environment import EnvironmentConfig, get_environment_config
-from tests.utils import create_mock_environment_config
+from app.config.environment import EnvironmentConfig
 
 
 class TestEnvironmentConfig:
@@ -18,8 +17,8 @@ class TestEnvironmentConfig:
         with patch.dict('os.environ', {}, clear=True):
             config = EnvironmentConfig()
 
-        assert config.mattermost_access_token == ""
-        assert config.telegram_bot_token == ""
+        assert "mattermost_access_token" not in EnvironmentConfig.model_fields
+        assert "telegram_bot_token" not in EnvironmentConfig.model_fields
         assert config.data_path == "./data"
         assert config.config_path == "./"
         assert config.provider_sync_interval == 60
@@ -61,8 +60,8 @@ class TestEnvironmentConfig:
         with patch.dict('os.environ', env_vars, clear=True):
             config = EnvironmentConfig()
 
-        assert config.mattermost_access_token == 'mm-token'
-        assert config.telegram_bot_token == 'tg-token'
+        assert "mattermost_access_token" not in EnvironmentConfig.model_fields
+        assert "telegram_bot_token" not in EnvironmentConfig.model_fields
         assert config.data_path == '/custom/data'
         assert config.config_path == '/custom/config'
         assert config.provider_sync_interval == 300

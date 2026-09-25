@@ -11,7 +11,9 @@ from typing import Any, Protocol, runtime_checkable
 
 
 # Shared schema is public; providers never import app.config.
-from app.im.plugin_config import BaseApplicationConfig as BaseApplicationConfig, BaseUser as BaseUser, MessengerType as MessengerType
+from app.im.plugin_config import (
+    BaseApplicationConfig as BaseApplicationConfig, BaseUser as BaseUser, HttpBase as HttpBase, MessengerType as MessengerType,
+)
 
 from collections.abc import Mapping
 from enum import Enum
@@ -27,6 +29,11 @@ class ProviderDescriptor:
     rate_limit: int | None = None
     rate_window_seconds: float = 1.0
     messaging_enabled: bool = True
+    user_update_gap_seconds: float = 1.0
+    notification_headers: bool = True
+    refresh_inhibition_source: bool = True
+    html_autoescape: bool = False
+    allow_inhibited_freeze_actions: bool = False
 
 
 @dataclass(frozen=True)
@@ -153,6 +160,7 @@ class InteractionAction(str, Enum):
     UNFREEZE = 'unfreeze'
     CREATE_TASK = 'create_task'
     NOOP = 'noop'
+    SHOW_FREEZE_OPTIONS = 'show_freeze_options'
 
 
 @dataclass(frozen=True)
@@ -180,9 +188,10 @@ class ProviderResponse:
 @dataclass(frozen=True)
 class Interaction:
     message: MessageRef
-    actor_id: str
+    actor_id: str | int
     commands: tuple[InteractionCommand, ...]
     original_response: ProviderResponse = ProviderResponse()
+    acknowledgement_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -214,3 +223,4 @@ class InteractiveProvider(MessengerProvider, Protocol):
     def incident_url(self, message: MessageRef, identity: ProviderIdentity) -> str: ...
     def template_source(self, name: str) -> str: ...
     def markdown_links(self, text: str) -> str: ...
+    def mention_id(self, user: UserProfile) -> str | int | None: ...

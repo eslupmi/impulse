@@ -1,6 +1,6 @@
 # Messenger Provider Extraction Investigation
 
-Status: Phases 1–2 implemented in the working tree and verified with product tests and mocked Docker workflows. Live/browser gaps are recorded below. Phase 0 remains deferred (decision on 2026-09-22); Phases 3–4 have not started.
+Status: Phases 1–2 are committed (`d97fb67` is the Slack slice). Phase 3 is complete on this branch: Mattermost, `none`, and Telegram use the provider contract, and the temporary legacy adapter is removed. The final Phase 3 candidate passed the product suite, Docker messenger matrix, and `none`/fake-Mattermost system gate on 2026-09-25, subject to the evidence limits below. Phase 0 remains deferred (decision on 2026-09-22). Phase 4 and packaging have not started.
 
 ## Decision summary
 
@@ -295,7 +295,7 @@ The following findings are based on source inspection on 2026-09-22, including I
 - Impulse already has product tests for provider behavior, templates, incident/user links, HTTP retries and rate limiting, initialization logging, and URL redaction. Reuse these tests. Exact payload, response-decoding, normalization, template-rendering, and transport tests belong in this repository, including future golden tests.
 - The separate `eslupmi/tests` repository has an `internal` suite that runs real Impulse containers against fake Slack, Mattermost, and Telegram HTTP APIs. It contains lifecycle, routing, notification-chain, inhibition, and Take It/Release scenarios. Complete workflows belong there; product unit/integration tests stay in Impulse.
 - The internal suite currently checks endpoints, selected message content, channels, and incident state rather than full provider-body snapshots. Its button helpers do not expose Impulse's callback response body to the test. These checks provide useful workflow coverage but do not fully characterize payload structure, rendering, or callback acknowledgements.
-- `DEV_MESSENGER_CUSTOM_ADDRESS` is implemented for Slack and Telegram; Slack's `auth.test` initialization request also uses the overridden address. `DEV_MESSENGER_RATE_LIMIT` and `DEV_MESSENGER_RATE_WINDOW` are applied by the shared HTTP setup, with a zero limit disabling throttling. The mocked harness uses these overrides, so its normal runs do not establish production rate-limit behavior. See [environment configuration](../app/config/environment.py), [Slack](../app/im/providers/slack/__init__.py), [Telegram](../app/im/telegram/telegram_application.py), and [HTTP setup](../app/im/application.py).
+- `DEV_MESSENGER_CUSTOM_ADDRESS` is implemented for Slack and Telegram; Slack's `auth.test` initialization request also uses the overridden address. `DEV_MESSENGER_RATE_LIMIT` and `DEV_MESSENGER_RATE_WINDOW` are applied by the shared HTTP setup, with a zero limit disabling throttling. The mocked harness uses these overrides, so its normal runs do not establish production rate-limit behavior. See [environment configuration](../app/config/environment.py), [Slack](../app/im/providers/slack/__init__.py), [Telegram](../app/im/providers/telegram/__init__.py), and [HTTP setup](../app/im/application.py).
 - CI already runs product tests, builds the PR image, and invokes a three-messenger autotest matrix. The invocation passes the candidate image explicitly through `--image`. CI checks out `eslupmi/tests` at `main`, so local or branch-only additions must be merged or explicitly selected to participate in a run. See [PR workflow](../.github/workflows/tests.yml) and [autotest workflow](../.github/workflows/_autotests.yml).
 
 #### Interim verification for the internal extraction
@@ -445,18 +445,53 @@ Failed preparation and intermediate runs are retained alongside the passing evid
 
 Full logs, XML, source hashes, callback response records, task-local scripts, and failures are retained under `/tmp/impulse-phase2/`. Container product tests use `PYTHONPYCACHEPREFIX=/tmp/isolated-pycache`, `--asyncio-mode=auto`, and function-scoped asyncio fixtures, retaining the Phase 1 bytecode correction.
 
-**Scope and gaps:** no live Slack/Mattermost/Telegram tenant requests were made. The browser tool could not start in this WSL workspace (`sandboxCwd is not a local file URI`); login was verified through the actual HTTP authentication flow, not visually in a browser or at Slack's hosted consent screen. The comprehensive Phase 0 golden suite and installed-wheel conformance remain deferred. No package discovery, external packaging, Phase 3 migration, commit, or push was performed.
+**Scope and gaps:** no live Slack/Mattermost/Telegram tenant requests were made. The browser tool could not start in this WSL workspace (`sandboxCwd is not a local file URI`); login was verified through the actual HTTP authentication flow, not visually in a browser or at Slack's hosted consent screen. The comprehensive Phase 0 golden suite and installed-wheel conformance remain deferred. No package discovery or external packaging was performed. This Phase 2 slice was later committed as `d97fb67`.
 
 ### Phase 3: Migrate the remaining built-ins
 
 Move Mattermost and Telegram through the same contract. Convert any remaining provider-name checks to generic behavior, provider presentation, or an explicitly named capability. Migrate `none` to the same contract last or first as a low-risk registry test, but do not treat it as proof that the real boundary works.
 
-At the end of this phase:
+#### Phase 3 implementation record (2026-09-23) — complete
+
+Phase 3.1 migrated Telegram after the staged Mattermost and `none` work. [TelegramProvider](../app/im/providers/telegram/__init__.py) owns its YAML model, `TELEGRAM_BOT_TOKEN` from the injected read-only secret snapshot, API requests, payloads, callback decoding into immutable commands, links, numeric mentions, and all 13 default Jinja resources. The existing file overrides retain precedence. `DEV_MESSENGER_CUSTOM_ADDRESS` still replaces the Telegram API base, and the descriptor retains the 60-second user-refresh gap. The provider contract now expresses header-less notifications, the inhibition source refresh skip, and HTML autoescape. The registered Telegram OpenID adapter uses the injected core HTTP transport and retains signed ID-token/JWKS verification; core session and whitelist policy remains shared.
+
+The old `app/im/telegram` package, legacy Telegram adapter module, Telegram UI auth provider, and Telegram template files under `templates/` and `thread_templates/` are removed. Core imports from the three provider packages occur only in the registry, and core has no equality checks for their IDs. Telegram templates were moved byte for byte.
+
+The temporary bridge is removed with the rest of Phase 3. `LegacyProviderAdapter`, `LegacyInteractionService`, and the facade branches that called them are gone. Startup always constructs `Provider(config, secrets)` and one `Application`.
+
+Mattermost is now [MattermostProvider](../app/im/providers/mattermost/__init__.py). It does not inherit `Application` or use the legacy adapter. It owns its config model, `MATTERMOST_ACCESS_TOKEN`, API calls, button payloads, callback decoding, incident and profile links, username mentions, and all 13 default Jinja resources via `importlib.resources`. Callbacks become immutable interaction commands before incident changes. OpenID login uses the same registered authentication adapter as Slack, with the Mattermost server address taken from configuration. `none` is [NoneProvider](../app/im/providers/none.py) with its own config model, no legacy `NullApplication`, and no HTTP client. User-refresh spacing lives on the provider descriptor (Mattermost 2 seconds, Telegram 60 seconds, otherwise 1 second) instead of a core messenger-name map.
+
+The old `app/im/mattermost` package, `app/im/null`, Mattermost UI auth provider, and Mattermost files under `templates/` and `thread_templates/` are removed.
+
+The Mattermost/`none` slice verification on Windows, Python 3.12: **1,231 passed**. One pre-existing assertion failed because `config_file_path` joins with the platform separator. Seven tests errored because this interpreter has no `aiohttp_server` fixture. The Docker messenger matrix, live tenants, and browser login were not run for that slice.
+
+For the final Phase 3.1 working tree, focused Telegram/provider tests passed with Windows `py -3.12`; the affected provider, config, incident, queue, inhibition, template, and auth suites passed **612 tests** with the same platform-path assertion and missing `aiohttp_server` fixture excluded. The signed Telegram OpenID test uses a generated RSA key and fake injected transport; it does not prove a live Telegram consent flow. At that implementation checkpoint, no Docker messenger matrix, live tenant, or browser run had been performed for Phase 3.1. The later Docker verification is recorded below.
+
+Phase 3 closes with these conditions met:
 
 - Core code has no imports from `providers.slack`, `providers.mattermost`, or `providers.telegram` except registration in the composition root.
 - Core code has no equality checks for those provider IDs.
 - Provider directories import only `plugin_api`, standard-library modules, and their own dependencies.
 - Removing a built-in registration produces the same missing-provider error expected for an uninstalled package.
+
+#### Phase 3 verification and shared contract review (2026-09-25)
+
+The final candidate was built from commit `d97fb673513d76e3247f717fcfe29c3996cb4983` plus the then-uncommitted Phase 3 product changes. Image `impulse:phase3-final` has ID `sha256:e90d78ff697bedc7b30d500ae2aa8dd4f29bdd022878657d25396f00c1ec7cd1`. SHA-256 manifests for all **154** selected Python, Jinja resource, entry-point, and requirement files match between the working tree and that image. No package release was made.
+
+- The final product suite passed **1,232 tests** on WSL/Python 3.10 (24 warnings) and **1,232 tests** in the candidate Linux/Python 3.12 container (26 warnings). The container run mounted the repository read-only, supplied `examples/impulse.none.yml` at `/config/impulse.yml`, and isolated Python bytecode under `/tmp`.
+- The final image passed the mocked Docker messenger matrix: Slack **16 passed**, Mattermost **16 passed**, and Telegram **15 passed, 1 existing group skip**. These suites exercise lifecycle, routing, notification chains, inhibition, and Take It/Release against fake provider APIs.
+- The same image passed the deterministic `pr` suite: **35 passed** across `none` API/system workflows and fake-Mattermost OAuth, actions, retries, and chains. This is HTTP/Docker evidence, not a live tenant or rendered-browser check.
+- Ruff passed for `app`, `main.py`, and the four test files edited in this verification pass; staged and unstaged `git diff --check` passed. A broader `ruff check tests` reported 41 violations outside those focused files. Mypy was unavailable in this WSL interpreter and was not run.
+
+The shared seam tests now check all four built-in descriptors and config-model bindings, secret-name failures, normalized user/group profiles and response cleanup, incident links, malformed callback responses, all 13 required template resources for each messaging provider, and the `none` no-op contract. Existing shared and provider tests also cover facade construction, create/update/reply delivery, valid interaction commands, registry failures, template overrides, and Slack signed callback rejection. This revisits the deferred Phase 0 matrix at the behavior level; it is not a complete set of historical wire-payload goldens or proof of byte-for-byte equivalence.
+
+That audit exposed two Telegram log leaks: provider API error descriptions could echo a bot token, and transport failures on `DEV_MESSENGER_CUSTOM_ADDRESS` logged the token-bearing URL and exception detail. Focused tests reproduced both failures. Telegram now logs status without provider response text; the core passes the provider's redactor into its HTTP client and uses it for initialization failure fields. The exact failing tests and the full product suite passed after the fix. Request metrics use status/error labels without URLs.
+
+Verification used a task-local copy of the local `eslupmi/tests` checkout at `1fcd5b0b1166982d1bca71c363007e41abae2429`, including its pre-existing uncommitted work (source diff SHA-256 `0feb64dfef22ac81f143c89c766cc690d00c0099ffdc95ed9aec7531dfaf0884`). The source test checkout was not edited. Its original Telegram Take It/Release run timed out because a fake server made a blocking callback POST on its own async event loop while Impulse called back into that server; the failed log is retained. In the task-local copy, the three fake callback posts use a worker thread. The exact Telegram case then passed, followed by the full matrix. The first deterministic fake-Mattermost run had four WSL `ConnectTimeout` failures when the host test client followed a `host.docker.internal` OAuth redirect; a task-local rewrite to `127.0.0.1` for that fake authorization hop made the exact login test and final 35-test suite pass.
+
+The first Python 3.12 container attempt lacked `/config/impulse.yml`. After mounting it, 177 async tests failed because a new synchronous Telegram OpenID test used `asyncio.run()`, clearing the event loop expected by the pinned `pytest-asyncio` version. Converting that test to an async pytest case removed the cascade; the final container suite passed with the repository's pinned test requirements. Failed runs and final logs/XML/manifests are retained under `/tmp/impulse-phase3-*`.
+
+**Remaining evidence and contract limits:** no live Slack, Mattermost, or Telegram tenant was contacted, and no provider login was inspected in a rendered browser; Playwright is unavailable in this WSL runtime. The mocks override messenger rate limits, so the matrix does not prove production throttling. Mattermost and Telegram currently parse well-formed callbacks without an independent authenticity check; the tests establish malformed-request rejection and existing workflow behavior, not callback origin. The comprehensive Phase 0 goldens, discovery-specific checks, installed-wheel smoke test, and external packaging remain open. Resolve the callback-authentication contract before claiming the full external-provider conformance gate.
 
 ### Phase 4: Add package discovery and packaging
 

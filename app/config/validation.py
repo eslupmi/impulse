@@ -12,7 +12,6 @@ from app.im.plugin_config import (
     UserGroup as UserGroup,
     TemplateFiles as TemplateFiles,
     BaseApplicationConfig as BaseApplicationConfig,
-    HttpBase as HttpBase,
 )
 
 import re
@@ -33,37 +32,6 @@ class SortOrder(str, Enum):
     ASC = "asc"
     DESC = "desc"
     NONE = "none"
-
-
-class TelegramUser(BaseUser):
-    """Telegram user configuration"""
-    id: int = Field(..., description="User ID")
-    name: str | None = Field(None, description="User display name")
-    username: str | None = Field(None, description="Username")
-
-
-class MattermostUser(BaseUser):
-    """Mattermost user configuration"""
-    id: str = Field(..., description="User ID")
-
-
-class TelegramChannel(BaseUser):
-    """Telegram channel configuration"""
-    id: int = Field(..., description="Channel ID")
-    name: str | None = Field(None, description="Channel name")
-
-
-class MattermostChannel(BaseModel):
-    """Mattermost channel configuration"""
-    id: str = Field(..., description="Channel ID")
-
-
-class MattermostGroup(BaseModel):
-    """Mattermost group configuration"""
-    id: str = Field(..., description="Group ID")
-
-
-    # This will be handled as List[SimpleChainStep] directly
 
 
 class TaskManagementType(str, Enum):
@@ -98,44 +66,6 @@ class AddressRequiredApplicationConfig(BaseApplicationConfig):
         if not self.impulse_address:
             raise ValueError(f"messenger.impulse_address is required for {self.type.value}")
         return self
-
-
-class MattermostApplicationConfig(AddressRequiredApplicationConfig):
-    """Mattermost messenger configuration"""
-    type: Literal[MessengerType.MATTERMOST] = Field(MessengerType.MATTERMOST, description="Application type")
-    channels: dict[str, MattermostChannel] = Field(..., description="Channel definitions")
-    groups: dict[str, MattermostGroup] = Field({}, description="Mattermost group definitions")
-    users: dict[str, MattermostUser] = Field(..., description="User definitions")
-    address: HttpBase = Field(..., description="Mattermost server address")
-    team: str = Field(..., description="Mattermost team name")
-
-
-class TelegramApplicationConfig(AddressRequiredApplicationConfig):
-    """Telegram messenger configuration"""
-    type: Literal[MessengerType.TELEGRAM] = Field(MessengerType.TELEGRAM, description="Application type")
-    channels: dict[str, TelegramChannel] = Field(..., description="Channel definitions")
-    users: dict[str, TelegramUser] = Field(..., description="User definitions")
-
-
-class NullApplicationConfig(BaseApplicationConfig):
-    """Null messenger configuration for UI-only mode"""
-    type: Literal[MessengerType.NONE] = Field(MessengerType.NONE, description="Application type")
-    channels: dict[str, Any] = Field(default_factory=dict, description="Channel definitions (not used)")
-    users: dict[str, Any] = Field(default_factory=dict, description="User definitions (not used)")
-    admin_users: list[str] = Field(default_factory=list, description="Admin users (not used)")
-    impulse_address: str | None = Field(None, description="Impulse callback address (not used)")
-
-    @field_validator('admin_users')
-    @classmethod
-    def validate_admin_users_exist(cls, v, info):
-        """Skip admin users validation for null messenger"""
-        return v
-
-    @field_validator('chains')
-    @classmethod
-    def validate_chains_structure_and_references(cls, v, info):
-        """Skip chain validation for null messenger"""
-        return v
 
 
 ApplicationConfig = BaseApplicationConfig

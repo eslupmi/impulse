@@ -1,23 +1,26 @@
 """Exercise the production composition root, not the legacy subclass constructors."""
 
 import ast
+import asyncio
 import json
 from urllib.parse import urlencode
 from dataclasses import FrozenInstanceError, replace
 from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-from app.config.environment import EnvironmentConfig
-from app.config.validation import MattermostApplicationConfig, NullApplicationConfig, TelegramApplicationConfig
+from app.im.providers.telegram.config import TelegramApplicationConfig
+from app.im.providers.mattermost.config import MattermostApplicationConfig
+from app.im.providers.none import NullApplicationConfig
 from app.im.providers.slack.config import SlackApplicationConfig
 from app.im.application import Application
 from app.im.helpers import get_application
 from app.im.plugin_api import (
-    MessengerProvider, ProviderDescriptor, ProviderIdentity, UserProfile, InteractionRequest,
+    GroupProfile, InteractiveProvider, InteractionRequest, MessageRef, MessengerProvider, PLUGIN_API_VERSION,
+    ProviderContext, ProviderDescriptor, ProviderIdentity, ProviderResponse, UserProfile,
 )
 from app.im.registry import ProviderRegistry, get_provider_registry
 from app.im.users import UserManager
@@ -25,6 +28,10 @@ from app.im.users import UserManager
 
 def interaction_request(payload):
     return InteractionRequest('POST', (), (), urlencode({'payload': json.dumps(payload)}).encode())
+
+
+def json_request(payload):
+    return InteractionRequest('POST', (), (), json.dumps(payload).encode())
 
 
 class Response:
@@ -106,18 +113,24 @@ def incident_for(provider_id):
 
 @pytest.fixture
 def runtime(monkeypatch):
+    monkeypatch.setenv('SLACK_BOT_USER_OAUTH_TOKEN', 'test-token')
     monkeypatch.setenv('SLACK_VERIFICATION_TOKEN', 'verify')
-    env = EnvironmentConfig(mattermost_access_token='test-token', telegram_bot_token='test-token')
-    for module in ('app.im.providers.mattermost', 'app.im.providers.telegram', 'app.im.mattermost.threads'):
-        monkeypatch.setattr(module + '.get_environment_config', lambda: env)
+    monkeypatch.setenv('MATTERMOST_ACCESS_TOKEN', 'test-token')
+    monkeypatch.setenv('TELEGRAM_BOT_TOKEN', 'test-token')
     config = SimpleNamespace(app=SimpleNamespace(task_management=None, general=SimpleNamespace(timezone='UTC')),
                              messenger=SimpleNamespace(impulse_address='http://impulse.test'))
-    for module in ('app.im.application', 'app.im.providers.telegram', 'app.im.mattermost.threads'):
+    for module in ('app.im.application',):
         monkeypatch.setattr(module + '.get_config', lambda: config)
     store = Mock()
     store.get_all_users_by_type.return_value = {}
     monkeypatch.setattr('app.im.application.get_user_store', lambda: store)
     return config
+
+
+def test_messaging_provider_must_be_interactive():
+    provider = SimpleNamespace(descriptor=ProviderDescriptor('stub'), url='https://example.test', team=None)
+    with pytest.raises(TypeError, match='stub does not provide templates'):
+        Application(config_for('slack'), {'default': {'id': 'C1'}}, 'default', provider=provider)
 
 
 @pytest.mark.asyncio
@@ -184,6 +197,8 @@ async def test_callbacks_use_facade_state_and_preserve_assignment(provider_id, r
                                      'message': {'message_id': 20, 'message_thread_id': 10}}}
     if provider_id == 'slack':
         payload = interaction_request(payload)
+    else:
+        payload = json_request(payload)
     response = await app.buttons_handler(payload, incidents, queue, Mock())
     assert response.status_code == 200
     assert incident.assigned_user_id == user_id
@@ -236,7 +251,7 @@ def test_contract_does_not_import_core_or_external_runtime():
     assert set(imports) <= {'dataclasses', 'typing', 'enum', 'collections.abc', 'app.im.plugin_config'}
     forbidden = ('app.incident', 'app.queue', 'app.route', 'app.maintenance', 'app.inhibition', 'app.http_client')
     for path in (Path(api.__file__).parent / 'providers').glob('*.py'):
-        tree = ast.parse(path.read_text())
+        tree = ast.parse(path.read_text(encoding='utf-8'))
         for node in ast.walk(tree):
             names = [node.module or ''] if isinstance(node, ast.ImportFrom) else [a.name for a in node.names] if isinstance(node, ast.Import) else []
             assert not any(name.startswith(forbidden) for name in names), path
@@ -272,7 +287,11 @@ async def test_blocked_callbacks_do_not_assign_or_schedule(provider_id, runtime)
         payload = {'callback_query': {'id': 'ack-1', 'data': 'stop_chain', 'from': {'id': 123},
                                      'message': {'message_id': 20, 'message_thread_id': 10}}}
     queue = Mock(delete_by_id=AsyncMock())
-    response = await app.buttons_handler(interaction_request(payload) if provider_id == 'slack' else payload, Mock(get_by_ts=Mock(return_value=incident)), queue, Mock())
+    if provider_id == 'slack':
+        payload = interaction_request(payload)
+    else:
+        payload = json_request(payload)
+    response = await app.buttons_handler(payload, Mock(get_by_ts=Mock(return_value=incident)), queue, Mock())
     assert response.status_code == 200
     assert incident.assigned_user_id == ''
     queue.delete_by_id.assert_not_called()
@@ -293,7 +312,7 @@ async def test_telegram_freeze_menu_uses_facade_renderer_and_closes_ack(runtime)
     incident.ts = '10/20'
     payload = {'callback_query': {'id': 'ack-menu', 'data': 'freeze_menu', 'from': {'id': 123},
                                  'message': {'message_id': 20, 'message_thread_id': 10}}}
-    response = await app.buttons_handler(payload, Mock(get_by_ts=Mock(return_value=incident)), Mock(), Mock())
+    response = await app.buttons_handler(json_request(payload), Mock(get_by_ts=Mock(return_value=incident)), Mock(), Mock())
     assert response.status_code == 200
     edit, ack = transport.calls[-2:]
     assert edit[1].endswith('/editMessageText')
@@ -301,6 +320,70 @@ async def test_telegram_freeze_menu_uses_facade_renderer_and_closes_ack(runtime)
     assert ack[2]['json'] == {'callback_query_id': 'ack-menu'}
     assert all(response.closed for response in transport.responses)
     incident.dump.assert_not_called()
+    await app.close()
+
+
+@pytest.mark.asyncio
+async def test_telegram_freeze_menu_unfreezes_instead_of_opening_options(runtime):
+    config = config_for('telegram')
+    app = get_application(config, {'default': {'id': -100123}}, 'default')
+    transport = Transport()
+    app._setup_http = Mock(return_value=transport)
+    await app.initialize_async()
+    app.form_body_header_status_icons = Mock(return_value=('body', 'header', '5312241539987020022'))
+
+    class TimeFrozenIncident:
+        channel_id = -100123
+        ts = '10/20'
+        status = 'firing'
+        chain_enabled = True
+        parents = []
+        frozen_until = datetime.now(timezone.utc)
+        frozen_until_source = 'time'
+        task_link = ''
+        assigned_user_id = ''
+        payload = {}
+        uniq_id = 'incident-1'
+        chain_active_seconds = 0
+        status_update_datetime = datetime.now(timezone.utc)
+        dump = Mock()
+
+        @property
+        def is_frozen(self):
+            return self.frozen_until is not None or len(self.parents) > 0
+
+        @property
+        def frozen_by_inhibition(self):
+            return False
+
+        @property
+        def frozen_by_maintenance(self):
+            return False
+
+        def can_manual_unfreeze(self):
+            return self.frozen_until is not None and self.frozen_until_source == 'time' and not self.parents
+
+        def unfreeze(self):
+            self.frozen_until = None
+            self.frozen_until_source = None
+            self.parents = []
+            self.dump()
+
+        def get_chain(self):
+            return []
+
+    incident = TimeFrozenIncident()
+    queue = Mock(delete_by_id_and_type=AsyncMock(), put_first=AsyncMock(), recreate=AsyncMock(), put=AsyncMock())
+    payload = {'callback_query': {'id': 'ack-unfreeze', 'data': 'freeze_menu', 'from': {'id': 123},
+                                 'message': {'message_id': 20, 'message_thread_id': 10, 'chat': {'id': -100123}}}}
+    response = await app.buttons_handler(json_request(payload), Mock(get_by_ts=Mock(return_value=incident)), queue, Mock())
+    assert response.status_code == 200
+    assert incident.frozen_until is None
+    edit = next(call for call in reversed(transport.calls) if call[1].endswith('/editMessageText'))
+    keyboard = edit[2]['json']['reply_markup']['inline_keyboard']
+    assert keyboard[0][1]['callback_data'] == 'freeze_menu'
+    assert all(button['callback_data'] != 'freeze_back' for row in keyboard for button in row)
+    assert transport.calls[-1][2]['json'] == {'callback_query_id': 'ack-unfreeze'}
     await app.close()
 
 
@@ -334,3 +417,123 @@ async def test_provider_releases_response_when_user_json_is_invalid(provider_id,
     with pytest.raises(ValueError, match='invalid JSON'):
         await provider.fetch_user(123 if provider_id == 'telegram' else 'U1')
     assert response.closed
+
+
+REQUIRED_TEMPLATE_NAMES = (
+    'body', 'header', 'status_icons', 'chain_step_user', 'chain_step_user_group',
+    'chain_step_group', 'chain_step_webhook', 'incident_notifications_assignment',
+    'incident_notifications_status_update', 'incident_notifications_new_firing',
+    'incident_notifications_partial_resolved', 'incident_notifications_freeze',
+    'incident_notifications_unfreeze',
+)
+
+
+@pytest.mark.parametrize('provider_id', ['slack', 'mattermost', 'telegram', 'none'])
+def test_builtin_registration_satisfies_public_contract(provider_id):
+    registration = get_provider_registry().resolve(provider_id)
+    descriptor = registration.descriptor
+    assert descriptor.provider_id == provider_id
+    assert descriptor.api_version == PLUGIN_API_VERSION
+    assert descriptor.rate_window_seconds > 0
+    assert registration.config_model is registration.factory.config_model
+
+    if provider_id == 'none':
+        assert not descriptor.messaging_enabled
+        assert registration.template_source is None
+        assert isinstance(registration.factory(config_for(provider_id), {}), MessengerProvider)
+        return
+
+    from jinja2 import Environment
+
+    assert descriptor.messaging_enabled
+    assert descriptor.rate_limit is not None and descriptor.rate_limit > 0
+    assert isinstance(registration.factory(config_for(provider_id), {
+        'SLACK_BOT_USER_OAUTH_TOKEN': 'token', 'SLACK_VERIFICATION_TOKEN': 'verify',
+        'MATTERMOST_ACCESS_TOKEN': 'token', 'TELEGRAM_BOT_TOKEN': 'token',
+    }), InteractiveProvider)
+    for name in REQUIRED_TEMPLATE_NAMES:
+        source = registration.template_source(name)
+        assert source.strip(), (provider_id, name)
+        Environment().parse(source)
+    with pytest.raises(KeyError):
+        registration.template_source('not_a_template')
+
+
+@pytest.mark.parametrize('provider_id, secret_name', [
+    ('slack', 'SLACK_BOT_USER_OAUTH_TOKEN'),
+    ('mattermost', 'MATTERMOST_ACCESS_TOKEN'),
+    ('telegram', 'TELEGRAM_BOT_TOKEN'),
+])
+def test_builtin_missing_secret_names_only_the_required_variable(provider_id, secret_name):
+    registration = get_provider_registry().resolve(provider_id)
+    with pytest.raises(ValueError) as error:
+        registration.factory(config_for(provider_id), {'DEV_MESSENGER_CUSTOM_ADDRESS': 'fixture-secret-value'})
+    assert secret_name in str(error.value)
+    assert 'fixture-secret-value' not in str(error.value)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('provider_id, expected', [
+    ('slack', ('Alice', 'alice', 'UTC', (GroupProfile('G1', 'group'),))),
+    ('mattermost', ('Alice', 'alice', 'UTC', (GroupProfile('G1', 'group'),))),
+    ('telegram', ('Alice', 'alice', None, ())),
+    ('none', (None, None, None, ())),
+])
+async def test_builtin_profiles_are_normalized_and_responses_closed(provider_id, expected):
+    config = config_for(provider_id, groups={'group': {'id': 'G1'}}) if provider_id in ('slack', 'mattermost') else config_for(provider_id)
+    registration = get_provider_registry().resolve(provider_id)
+    provider = registration.factory(config, {
+        'SLACK_BOT_USER_OAUTH_TOKEN': 'token', 'SLACK_VERIFICATION_TOKEN': 'verify',
+        'MATTERMOST_ACCESS_TOKEN': 'token', 'TELEGRAM_BOT_TOKEN': 'token',
+    })
+    transport = Transport()
+    await provider.initialize(ProviderContext(transport, 'http://impulse.test/app'))
+    user = await provider.fetch_user(123 if provider_id == 'telegram' else 'U1')
+    groups = await provider.fetch_groups()
+    assert isinstance(user, UserProfile)
+    assert (user.full_name, user.username, user.timezone, groups) == expected
+    assert user.exists == (provider_id != 'none')
+    assert all(response.closed for response in transport.responses)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('provider_id', ['slack', 'mattermost', 'telegram'])
+async def test_builtin_malformed_callbacks_return_provider_errors(provider_id):
+    provider = get_provider_registry().resolve(provider_id).factory(config_for(provider_id), {
+        'SLACK_BOT_USER_OAUTH_TOKEN': 'token', 'SLACK_VERIFICATION_TOKEN': 'verify',
+        'MATTERMOST_ACCESS_TOKEN': 'token', 'TELEGRAM_BOT_TOKEN': 'token',
+    })
+    response = await provider.parse_interaction(InteractionRequest('POST', (), (), b'{malformed'))
+    assert isinstance(response, ProviderResponse)
+    assert response.status_code == 400
+
+
+@pytest.mark.parametrize('provider_id, message, identity, expected', [
+    ('slack', MessageRef('C1', '123.456'), ProviderIdentity('https://workspace.slack.test'),
+     'https://workspace.slack.test/archives/C1/p123456'),
+    ('mattermost', MessageRef('C1', 'post-1'), ProviderIdentity('https://mm.test', 'Test-Team'),
+     'https://mm.test/test-team/pl/post-1'),
+    ('telegram', MessageRef(-100123, '10/20'), ProviderIdentity('https://api.telegram.org'),
+     'https://t.me/c/123/10/20'),
+])
+def test_builtin_incident_links_use_public_message_references(provider_id, message, identity, expected):
+    registration = get_provider_registry().resolve(provider_id)
+    assert registration.incident_url(message, identity) == expected
+
+
+@pytest.mark.asyncio
+async def test_telegram_transport_error_redacts_custom_provider_url(runtime, monkeypatch):
+    monkeypatch.setenv('DEV_MESSENGER_CUSTOM_ADDRESS', 'http://fake/custom')
+    app = get_application(config_for('telegram'), {'default': {'id': -100123}}, 'default')
+    client = app._setup_http()
+    try:
+        with patch.object(client._client, 'request', new=AsyncMock(
+            side_effect=asyncio.TimeoutError(f'failed request to {app.provider.url}/getChat'))):
+            with patch('app.http_client.rate_limited_client.logger') as logger:
+                with pytest.raises(asyncio.TimeoutError):
+                    await client.get(f'{app.provider.url}/getChat')
+        extra = logger.error.call_args.kwargs['extra']
+        assert 'test-token' not in extra['url']
+        assert 'test-token' not in extra['detail']
+    finally:
+        await client.close()

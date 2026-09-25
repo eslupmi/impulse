@@ -12,7 +12,6 @@ from app.im.plugin_api import PLUGIN_API_VERSION, MessengerProvider, ProviderDes
 class ProviderRegistration:
     descriptor: ProviderDescriptor
     factory: Callable[..., MessengerProvider]
-    legacy_application: Callable[[], type] | None = None
     config_model: type | None = None
     authentication_factory: Callable | None = None
     template_source: Callable | None = None
@@ -53,31 +52,33 @@ def get_provider_registry() -> ProviderRegistry:
     # config parsing and provider contracts do not import runtime applications.
     from app.im.providers.slack import SlackProvider
     from app.im.providers.slack.authentication import SlackAuthentication
-    from app.config.validation import MattermostApplicationConfig, TelegramApplicationConfig, NullApplicationConfig
-    from importlib import import_module
-
-    def factory(module, name):
-        def construct(config):
-            return getattr(import_module(module), name)(config)
-        return construct
-
-    def legacy(module, name):
-        return lambda: getattr(import_module(module), name)
+    from app.im.providers.mattermost import MattermostProvider
+    from app.im.providers.mattermost.authentication import MattermostAuthentication
+    from app.im.providers.none import NoneProvider
+    from app.im.providers.telegram import TelegramProvider
+    from app.im.providers.telegram.authentication import TelegramAuthentication
 
     registry = ProviderRegistry()
+    def authentication(protocol):
+        return lambda client_id, client_secret, messenger: protocol(client_id, client_secret)
+
     registry.register(ProviderRegistration(
         SlackProvider.descriptor, SlackProvider, config_model=SlackProvider.config_model,
-        authentication_factory=SlackAuthentication, template_source=SlackProvider.template_source,
+        authentication_factory=authentication(SlackAuthentication), template_source=SlackProvider.template_source,
         incident_url=SlackProvider.incident_url,
     ))
-    for descriptor, provider_module, provider_name, legacy_module, legacy_name, config_model in (
-        (ProviderDescriptor('mattermost', rate_limit=10), 'app.im.providers.mattermost', 'MattermostProvider',
-         'app.im.mattermost.mattermost_application', 'MattermostApplication', MattermostApplicationConfig),
-        (ProviderDescriptor('telegram', rate_limit=20, rate_window_seconds=60), 'app.im.providers.telegram', 'TelegramProvider',
-         'app.im.telegram.telegram_application', 'TelegramApplication', TelegramApplicationConfig),
-        (ProviderDescriptor('none', messaging_enabled=False), 'app.im.providers.none', 'NoneProvider',
-         'app.im.null.null_application', 'NullApplication', NullApplicationConfig),
-    ):
-        registry.register(ProviderRegistration(descriptor, factory(provider_module, provider_name),
-                                              legacy(legacy_module, legacy_name), config_model))
+    registry.register(ProviderRegistration(
+        MattermostProvider.descriptor, MattermostProvider, config_model=MattermostProvider.config_model,
+        authentication_factory=lambda client_id, client_secret, messenger: MattermostAuthentication(
+            messenger.address, client_id, client_secret),
+        template_source=MattermostProvider.template_source, incident_url=MattermostProvider.incident_url,
+    ))
+    registry.register(ProviderRegistration(
+        NoneProvider.descriptor, NoneProvider, config_model=NoneProvider.config_model,
+    ))
+    registry.register(ProviderRegistration(
+        TelegramProvider.descriptor, TelegramProvider, config_model=TelegramProvider.config_model,
+        authentication_factory=authentication(TelegramAuthentication),
+        template_source=TelegramProvider.template_source, incident_url=TelegramProvider.incident_url,
+    ))
     return registry

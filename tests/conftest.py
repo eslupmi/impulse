@@ -9,7 +9,8 @@ import pytest
 
 from app.config.config import UnifiedConfig
 from app.config.environment import EnvironmentConfig
-from app.config.validation import ImpulseConfig, MattermostApplicationConfig, MessengerType
+from app.config.validation import ImpulseConfig, MessengerType
+from app.im.providers.mattermost.config import MattermostApplicationConfig
 from app.im.providers.slack.config import SlackApplicationConfig
 from app.incident.incident import Incident, IncidentConfig
 
@@ -33,10 +34,6 @@ def mock_get_config_globally():
         """Create a mock config that matches the expected application type."""
         # Create environment config
         env_config = Mock(spec=EnvironmentConfig)
-        env_config.slack_bot_user_oauth_token = "test-slack-token"
-        env_config.slack_verification_token = "test-verification-token"
-        env_config.mattermost_access_token = "test-mattermost-token"
-        env_config.telegram_bot_token = "test-telegram-token"
         env_config.data_path = "test_data"
         env_config.config_path = "test_config.yml"
         env_config.incidents_path = "test_data/incidents"
@@ -159,10 +156,6 @@ def event_loop():
 def mock_environment_config():
     """Mock environment configuration for testing."""
     env_config = Mock(spec=EnvironmentConfig)
-    env_config.slack_bot_user_oauth_token = "test-slack-token"
-    env_config.slack_verification_token = "test-verification-token"
-    env_config.mattermost_access_token = "test-mattermost-token"
-    env_config.telegram_bot_token = "test-telegram-token"
     env_config.data_path = "test_data"
     env_config.config_path = "test_config.yml"
     env_config.incidents_path = "test_data/incidents"

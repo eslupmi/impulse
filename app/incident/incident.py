@@ -9,7 +9,6 @@ import yaml
 
 from app.config.config import get_config
 from app.config.environment import get_environment_config
-from app.config.validation import MessengerType
 from app.im.chain.ui_chains_store import ui_chains_store
 from app.im.channel_manager import ChannelManager
 from app.incident.freeze import MAINTENANCE_PARENT_SENTINEL, FreezeSource
@@ -107,13 +106,11 @@ class Incident:
 
     def generate_link(self, public_url) -> str:
         from app.im.application import Application
-        link = Application.get_incident_link(self.config.application_type, self.channel_id, self.ts, public_url)
+        link = Application.get_incident_link(
+            self.config.application_type, self.channel_id, self.ts, public_url, self.config.application_team,
+        )
         if link is not None:
             return link
-        if self.config.application_type == MessengerType.MATTERMOST:
-            return f'{self.config.application_url}/{self.config.application_team.lower()}/pl/{self.ts}'
-        elif self.config.application_type == MessengerType.TELEGRAM:
-            return f'https://t.me/c/{str(self.channel_id)[4:]}/{self.ts}'
         return ''
 
     def _resolve_chain_steps(self, chains, chain_name):

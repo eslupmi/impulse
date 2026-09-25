@@ -1,20 +1,30 @@
 """Impulse-owned business actions for verified provider interactions."""
 import asyncio
+from dataclasses import replace
+
 from app.im.plugin_api import InteractionAction
 from app.logging import logger
 
 async def apply_interaction(application, interaction, incidents, queue):
+    async def finish_early():
+        acknowledge = getattr(application.provider, 'acknowledge_interaction', None)
+        if acknowledge is not None:
+            await acknowledge(interaction)
+        return interaction.original_response
+
     incident = incidents.get_by_ts(ts=interaction.message.thread_id)
     if incident is None:
-        return interaction.original_response
+        return await finish_early()
     if interaction.message.channel_id and str(incident.channel_id) != str(interaction.message.channel_id):
-        return interaction.original_response
-    has_freeze = any(command.action in (InteractionAction.FREEZE, InteractionAction.UNFREEZE)
+        return await finish_early()
+    has_freeze = any(command.action in (InteractionAction.FREEZE, InteractionAction.UNFREEZE, InteractionAction.SHOW_FREEZE_OPTIONS)
                      for command in interaction.commands)
-    if incident.is_frozen and (incident.frozen_by_inhibition or not has_freeze):
-        return interaction.original_response
+    if incident.is_frozen and (not has_freeze or (
+            incident.frozen_by_inhibition and not application.provider.descriptor.allow_inhibited_freeze_actions)):
+        return await finish_early()
     user_id = interaction.actor_id
     timezone = application._get_user_timezone_str(user_id)
+    menu_unfroze = False
     for command in interaction.commands:
         if command.action == InteractionAction.FREEZE:
             if incident.can_manual_unfreeze():
@@ -22,15 +32,30 @@ async def apply_interaction(application, interaction, incidents, queue):
             elif command.freeze_option:
                 await application._handle_freeze_action(incident, command.freeze_option, user_id,
                                                        incidents, queue, user_timezone=timezone)
+        elif command.action == InteractionAction.SHOW_FREEZE_OPTIONS:
+            if incident.can_manual_unfreeze():
+                await application._handle_unfreeze_action(incident, user_id, queue)
+                # The presentation is built after unfreeze, so this command must not open the menu.
+                menu_unfroze = True
         elif command.action == InteractionAction.UNFREEZE:
             await application._handle_unfreeze_action(incident, user_id, queue)
         elif command.action == InteractionAction.TOGGLE_ASSIGNMENT:
             await toggle_assignment(application, incident, user_id, queue)
         elif command.action == InteractionAction.CREATE_TASK:
             application._handle_task_action(incident, user_id, queue)
-    incident.dump()
+    if menu_unfroze:
+        interaction = replace(interaction, commands=tuple(
+            command for command in interaction.commands
+            if command.action != InteractionAction.SHOW_FREEZE_OPTIONS
+        ))
+    if not any(command.action == InteractionAction.SHOW_FREEZE_OPTIONS for command in interaction.commands):
+        incident.dump()
     body, header, icons = application.form_body_header_status_icons(incident)
-    return application.provider.respond_to_interaction(application._presentation(incident, body, header, icons, timezone))
+    presentation = application._presentation(incident, body, header, icons, timezone)
+    after_interaction = getattr(application.provider, 'after_interaction', None)
+    if after_interaction is not None:
+        await after_interaction(presentation, interaction)
+    return application.provider.respond_to_interaction(presentation)
 
 async def toggle_assignment(self, incident_, user_id, queue_):
     """Handle chain-related button actions"""
