@@ -28,12 +28,12 @@ class UserAuthenticationManager:
         self,
         provider: AuthenticationProvider,
         redirect_uri: str,
+        allowed_user_ids: set[str],
         session_cookie_name: str = "impulse_auth_session",
         state_ttl_seconds: int = 300,
         session_ttl_seconds: int = 90 * 24 * 60 * 60,
         cookie_secure: bool = False,
         cookie_path: str = "/",
-        allowed_user_ids: set[str] | None = None,
         default_redirect_path: str = "/",
         allowed_redirect_prefixes: set[str] | None = None,
         configured_users: dict[str, AuthUser] | None = None,
@@ -47,7 +47,7 @@ class UserAuthenticationManager:
         self.session_ttl_seconds = session_ttl_seconds
         self.cookie_secure = cookie_secure
         self.cookie_path = cookie_path or "/"
-        self.allowed_user_ids = {str(user_id) for user_id in (allowed_user_ids or set())}
+        self.allowed_user_ids = {str(user_id) for user_id in allowed_user_ids}
         self.default_redirect_path = self._coerce_default_redirect_path(default_redirect_path)
         self.allowed_redirect_prefixes = self._coerce_allowed_redirect_prefixes(
             allowed_redirect_prefixes,
@@ -102,7 +102,7 @@ class UserAuthenticationManager:
             )
             return self._build_error_redirect(auth_state.next_path, "auth_failed")
 
-        if self.allowed_user_ids and str(user.id) not in self.allowed_user_ids:
+        if str(user.id) not in self.allowed_user_ids:
             return self._build_error_redirect(auth_state.next_path, "not_allowed")
 
         session_id = secrets.token_hex(32)

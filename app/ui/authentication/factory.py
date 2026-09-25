@@ -71,7 +71,7 @@ def _build_provider(messenger_type: MessengerType, client_id: str, client_secret
     return UnsupportedAuthenticationProvider()
 
 
-def _build_allowed_user_ids(config: 'ImpulseConfig', messenger_type: MessengerType) -> set[str] | None:
+def _build_allowed_user_ids(config: 'ImpulseConfig', messenger_type: MessengerType) -> set[str]:
     users = config.messenger.users
     allowed_user_ids = {str(user.id) for user in users.values()}
     logger.info(
@@ -86,7 +86,7 @@ def build_auth_manager(config: 'ImpulseConfig', env_config: 'EnvironmentConfig',
     client_id = env_config.auth_client_id.strip()
     client_secret = env_config.auth_client_secret.strip()
     configured_users = _build_configured_users(config)
-    allowed_user_ids = _build_allowed_user_ids(config, messenger_type) if env_config.auth_whitelist_enabled else None
+    allowed_user_ids = _build_allowed_user_ids(config, messenger_type)
     provider = _build_provider(messenger_type, client_id, client_secret, config)
     default_redirect_path = http_prefix or "/"
 
