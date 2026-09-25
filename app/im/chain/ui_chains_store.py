@@ -1,5 +1,6 @@
 import json
 import os
+import threading
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -93,6 +94,7 @@ class UIChainsStore:
     def __init__(self):
         env_config = get_environment_config()
         self.ui_chains_dir = os.path.join(env_config.data_path, "ui_chains")
+        self._lock = threading.Lock()
         self._ensure_directory_exists()
 
     def _ensure_directory_exists(self) -> None:
@@ -106,25 +108,27 @@ class UIChainsStore:
     def load_shifts(self, chain_name: str) -> list[dict[str, Any]]:
         if not chain_name:
             return []
-        shifts = self._read_shifts_from_disk(chain_name)
-        logger.debug("Loaded ui chains", extra={"chain": chain_name, "count": len(shifts)})
-        return self.recalculate_priorities(shifts)
+        with self._lock:
+            shifts = self._read_shifts_from_disk(chain_name)
+            logger.debug("Loaded ui chains", extra={"chain": chain_name, "count": len(shifts)})
+            return self.recalculate_priorities(shifts)
 
     def prune_expired_shifts(self, chain_name: str, now: datetime | None = None) -> int:
         if not chain_name:
             return 0
-        shifts = self._read_shifts_from_disk(chain_name)
-        if not shifts:
-            return 0
-        retained, expired = self._partition_by_retention(shifts, now)
-        if not expired:
-            return 0
-        self._write_shifts(chain_name, retained)
-        logger.info(
-            "Pruned expired ui chain shifts",
-            extra={"chain": chain_name, "removed": len(expired)},
-        )
-        return len(expired)
+        with self._lock:
+            shifts = self._read_shifts_from_disk(chain_name)
+            if not shifts:
+                return 0
+            retained, expired = self._partition_by_retention(shifts, now)
+            if not expired:
+                return 0
+            self._write_shifts(chain_name, retained)
+            logger.info(
+                "Pruned expired ui chain shifts",
+                extra={"chain": chain_name, "removed": len(expired)},
+            )
+            return len(expired)
 
     def prune_all(self, now: datetime | None = None) -> int:
         if not os.path.exists(self.ui_chains_dir):
@@ -262,12 +266,45 @@ class UIChainsStore:
         steps = active[0].get("steps")
         return steps if isinstance(steps, list) else []
 
-    def save_shifts(self, chain_name: str, shifts: list[dict[str, Any]]) -> bool:
+    def upsert_shift(self, chain_name: str, payload) -> tuple[bool, list[dict[str, Any]]]:
         if not chain_name:
-            return False
-        shifts = self.filter_retained_shifts(shifts)
-        shifts = self.recalculate_priorities(shifts)
-        return self._write_shifts(chain_name, shifts)
+            return False, []
+        with self._lock:
+            existing = self._read_shifts_from_disk(chain_name)
+            if not isinstance(payload, dict) or not payload.get("id"):
+                return False, existing
+            shift = {**payload, "id": str(payload["id"])}
+            merged = []
+            replaced = False
+            for existing_shift in existing:
+                if existing_shift.get("id") == shift["id"]:
+                    if replaced:
+                        continue
+                    merged.append(shift)
+                    replaced = True
+                else:
+                    merged.append(existing_shift)
+            if not replaced:
+                merged.append(shift)
+            return self._commit_shifts(chain_name, existing, merged)
+
+    def delete_shift(self, chain_name: str, shift_id: str) -> tuple[bool, list[dict[str, Any]]]:
+        if not chain_name:
+            return False, []
+        with self._lock:
+            existing = self._read_shifts_from_disk(chain_name)
+            remaining = [shift for shift in existing if shift.get("id") != str(shift_id)]
+            if len(remaining) == len(existing):
+                return True, self.recalculate_priorities(existing)
+            return self._commit_shifts(chain_name, existing, remaining)
+
+    def _commit_shifts(
+        self, chain_name: str, existing: list[dict[str, Any]], shifts: list[dict[str, Any]]
+    ) -> tuple[bool, list[dict[str, Any]]]:
+        recalculated = self.recalculate_priorities(self.filter_retained_shifts(shifts))
+        if not self._write_shifts(chain_name, recalculated):
+            return False, existing
+        return True, recalculated
 
     def _chain_to_ical_event(self, chain: dict[str, Any]) -> Event | None:
         try:
