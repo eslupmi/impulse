@@ -12,6 +12,9 @@ on:
       tests-ref:
         type: string
         default: main
+      messengers:
+        required: true
+        type: string
 
 jobs:
   suites:
