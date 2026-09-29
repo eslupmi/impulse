@@ -43,8 +43,6 @@ jobs:
 
   install:
     runs-on: self-hosted
-    outputs:
-      venv-bin: ${{ steps.deps.outputs.venv-bin }}
     permissions:
       contents: read
     steps:
@@ -60,20 +58,19 @@ jobs:
           python-version: "3.12"
 
       - name: Install dependencies
-        id: deps
         run: |
           {
             flock 9
             hash=$(sha256sum requirements.txt | cut -c1-16)
             venv="${HOME}/.cache/impulse-external-tests/${hash}/.venv"
             mkdir -p "$(dirname "$venv")"
-            [ -x "$venv/bin/python" ] || uv venv "$venv"
+            uv python install 3.12
+            [ -x "$venv/bin/python" ] || uv venv --python 3.12 "$venv"
             uv pip install --python "$venv/bin/python" -r requirements.txt
             "$venv/bin/playwright" install --with-deps chromium
             if ! grep -q host.docker.internal /etc/hosts; then
               echo "127.0.0.1 host.docker.internal" | sudo tee -a /etc/hosts
             fi
-            echo "venv-bin=$venv/bin" >> "$GITHUB_OUTPUT"
           } 9>/tmp/impulse-external-tests-install.lock
 
   suites:
@@ -115,14 +112,13 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Use dependencies
-        run: echo "${{ needs.install.outputs.venv-bin }}" >> "$GITHUB_PATH"
-
       - name: Run
         env:
           SUITE: ${{ matrix.suite }}
           MESSENGER: ${{ matrix.messenger }}
         run: |
+          hash=$(sha256sum requirements.txt | cut -c1-16)
+          export PATH="${HOME}/.cache/impulse-external-tests/${hash}/.venv/bin:$PATH"
           if [ "$SUITE" = "autotests" ] && [ "$MESSENGER" = "telegram" ] && [ -n "$TELEGRAM_SESSION_BASE64" ]; then
             echo "$TELEGRAM_SESSION_BASE64" | base64 -d > session.session
           fi
