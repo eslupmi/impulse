@@ -24,24 +24,25 @@ jobs:
     if: github.event.pull_request.draft == false && github.base_ref == 'develop'
     uses: ./.github/workflows/_lint.yml
 
-  tests:
+  unit-tests:
     if: github.event.pull_request.draft == false
-    uses: ./.github/workflows/_tests.yml
+    uses: ./.github/workflows/_unit_tests.yml
     with:
       python-versions: ${{ github.base_ref == 'master' && '["3.10","3.11","3.12","3.13"]' || '["3.12"]' }}
 
   build-and-push-image:
     if: github.event.pull_request.draft == false
-    needs: tests
+    needs: unit-tests
     uses: ./.github/workflows/_build-and-push-image.yml
 
-  autotests:
+  tests:
     if: github.event.pull_request.draft == false
     needs: build-and-push-image
-    uses: ./.github/workflows/_autotests.yml
+    uses: ./.github/workflows/_external_tests.yml
     with:
       branch: pr-${{ github.event.pull_request.number }}
-      suite: ${{ github.base_ref == 'master' && 'external' || 'internal' }}
+      tests-ref: ${{ github.base_ref == 'develop' && 'refactoring' || 'main' }} #!
+      suite: ${{ github.base_ref == 'master' && 'autotests' || 'response,system,provider,browser,autotests_mocked' }}
     secrets: inherit
 
   migrations:

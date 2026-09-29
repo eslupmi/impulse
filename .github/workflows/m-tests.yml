@@ -1,4 +1,4 @@
-name: "[m] autotests"
+name: "[m] tests"
 
 on:
   workflow_dispatch:
@@ -10,12 +10,16 @@ on:
         required: true
         type: choice
         options:
-          - external
-          - internal
+          - response
+          - system
+          - provider
+          - browser
+          - autotests_mocked
+          - autotests
 
 jobs:
-  autotests:
-    uses: ./.github/workflows/_autotests.yml
+  tests:
+    uses: ./.github/workflows/_external_tests.yml
     with:
       branch: ${{ format('pr-{0}', inputs.pr_number) }}
       suite: ${{ inputs.suite }}

@@ -1,4 +1,4 @@
-name: _tests
+name: _unit_tests
 
 on:
   workflow_call:
@@ -38,4 +38,3 @@ jobs:
               pip install -r tests.requirements.txt && \
               python -m pytest tests/ --color=yes -v
             "
-
