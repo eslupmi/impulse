@@ -41,8 +41,43 @@ jobs:
           done
           echo "include=${include}]" >> "$GITHUB_OUTPUT"
 
+  install:
+    runs-on: self-hosted
+    outputs:
+      venv-bin: ${{ steps.deps.outputs.venv-bin }}
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout tests repository
+        uses: actions/checkout@v5
+        with:
+          repository: eslupmi/tests
+          ref: ${{ inputs.tests-ref }}
+          token: ${{ secrets.ESLUPMI_TESTS_REPO_TOKEN_READ }}
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        id: deps
+        run: |
+          {
+            flock 9
+            hash=$(sha256sum requirements.txt | cut -c1-16)
+            venv="${HOME}/.cache/impulse-external-tests/${hash}/.venv"
+            mkdir -p "$(dirname "$venv")"
+            [ -x "$venv/bin/python" ] || uv venv "$venv"
+            uv pip install --python "$venv/bin/python" -r requirements.txt
+            "$venv/bin/playwright" install --with-deps chromium
+            if ! grep -q host.docker.internal /etc/hosts; then
+              echo "127.0.0.1 host.docker.internal" | sudo tee -a /etc/hosts
+            fi
+            echo "venv-bin=$venv/bin" >> "$GITHUB_OUTPUT"
+          } 9>/tmp/impulse-external-tests-install.lock
+
   suites:
-    needs: matrix
+    needs: [matrix, install]
     runs-on: self-hosted
     strategy:
       fail-fast: false
@@ -73,10 +108,6 @@ jobs:
           ref: ${{ inputs.tests-ref }}
           token: ${{ secrets.ESLUPMI_TESTS_REPO_TOKEN_READ }}
 
-      - uses: astral-sh/setup-uv@v5
-        with:
-          python-version: "3.12"
-
       - name: Log in to the Container registry
         uses: docker/login-action@v4
         with:
@@ -84,15 +115,8 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install dependencies
-        run: |
-          uv venv --clear
-          uv pip install -r requirements.txt
-          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
-          .venv/bin/playwright install --with-deps chromium
-          if ! grep -q host.docker.internal /etc/hosts; then
-            echo "127.0.0.1 host.docker.internal" | sudo tee -a /etc/hosts
-          fi
+      - name: Use dependencies
+        run: echo "${{ needs.install.outputs.venv-bin }}" >> "$GITHUB_PATH"
 
       - name: Run
         env:
