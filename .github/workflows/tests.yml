@@ -42,7 +42,7 @@ jobs:
     with:
       branch: pr-${{ github.event.pull_request.number }}
       tests-ref: ${{ github.base_ref == 'develop' && 'refactoring' || 'main' }} #!
-      suite: ${{ github.base_ref == 'master' && 'autotests' || 'response,system,provider,browser,autotests_mocked' }}
+      suites: ${{ github.base_ref == 'master' && '["autotests"]' || '["response","system","provider","browser","autotests_mocked"]' }}
     secrets: inherit
 
   migrations:

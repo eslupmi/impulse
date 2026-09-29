@@ -3,16 +3,13 @@ name: _unit_tests
 on:
   workflow_call:
     inputs:
-      runs-on:
-        type: string
-        default: self-hosted
       python-versions:
         type: string
         default: '["3.12"]'
 
 jobs:
   tests:
-    runs-on: ${{ inputs.runs-on }}
+    runs-on: self-hosted
     strategy:
       matrix:
         python-version: ${{ fromJSON(inputs.python-versions) }}
@@ -30,11 +27,12 @@ jobs:
           docker run --rm \
             -v "${{ github.workspace }}:/app:ro,Z" \
             -e DATA_PATH=/data \
+            -e UV_CACHE_DIR=/tmp/uv-cache \
             -w /app \
-            python:${{ matrix.python-version }}-slim \
-            sh -c "
-              python -m pip install --upgrade pip && \
-              pip install -r requirements.txt && \
-              pip install -r tests.requirements.txt && \
-              python -m pytest tests/ --color=yes -v
+            --entrypoint sh \
+            ghcr.io/astral-sh/uv:python${{ matrix.python-version }}-bookworm-slim \
+            -c "
+              uv venv /tmp/venv && \
+              uv pip install --python /tmp/venv -r requirements.txt -r tests.requirements.txt && \
+              /tmp/venv/bin/python -m pytest tests/ --color=yes -v
             "
