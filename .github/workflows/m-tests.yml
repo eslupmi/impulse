@@ -22,5 +22,5 @@ jobs:
     uses: ./.github/workflows/_external_tests.yml
     with:
       branch: ${{ format('pr-{0}', inputs.pr_number) }}
-      suites: ${{ format('["{0}"]', inputs.suite) }}
+      suite: ${{ inputs.suite }}
     secrets: inherit

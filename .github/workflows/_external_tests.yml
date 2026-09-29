@@ -6,77 +6,75 @@ on:
       branch:
         required: true
         type: string
-      suites:
-        required: true
-        type: string
       tests-ref:
         type: string
         default: main
-      messengers:
-        required: true
+      autotests:
+        description: autotests or autotests_mocked
         type: string
+        default: ""
+      suite:
+        description: run only this suite
+        type: string
+        default: ""
+
+env:
+  IMPULSE_IMAGE: ghcr.io/eslupmi/impulse:${{ inputs.branch }}
+  IMPULSE_HOST_PORT: "15000"
+  KEEP_RUNTIME: "1"
+  PYTHONUNBUFFERED: "1"
+  SLACK_VERIFICATION_TOKEN: ${{ secrets.AUTOTESTS_SLACK_VERIFICATION_TOKEN }}
+  SLACK_BOT_USER_OAUTH_TOKEN: ${{ secrets.AUTOTESTS_SLACK_BOT_USER_OAUTH_TOKEN }}
+  MATTERMOST_ACCESS_TOKEN: ${{ secrets.AUTOTESTS_MATTERMOST_ACCESS_TOKEN }}
+  MATTERMOST_URL: https://mattermost.impulse.bot
+  TELEGRAM_BOT_TOKEN: ${{ secrets.AUTOTESTS_TELEGRAM_BOT_TOKEN }}
+  API_ID: ${{ secrets.AUTOTESTS_API_ID }}
+  API_HASH: ${{ secrets.AUTOTESTS_API_HASH }}
+  TELEGRAM_SESSION_BASE64: ${{ secrets.AUTOTESTS_TELEGRAM_SESSION_BASE64 }}
 
 jobs:
   suites:
+    if: inputs.suite == ''
     runs-on: self-hosted
     strategy:
       fail-fast: false
       matrix:
-        suite: ${{ fromJSON(inputs.suites) }}
-        messenger: ${{ fromJSON(inputs.messengers) }}
-    name: ${{ (matrix.suite == 'autotests' || matrix.suite == 'autotests_mocked') && format('{0} - {1}', matrix.suite, matrix.messenger) || matrix.suite }}
+        include:
+          - suite: ${{ inputs.autotests }}
+            messenger: slack
+          - suite: ${{ inputs.autotests }}
+            messenger: mattermost
+          - suite: ${{ inputs.autotests }}
+            messenger: telegram
+          - suite: response
+          - suite: system
+          - suite: provider
+          - suite: browser
+    name: ${{ matrix.messenger && format('{0} - {1}', matrix.suite, matrix.messenger) || matrix.suite }}
     permissions:
       contents: read
-    env:
-      IMPULSE_IMAGE: ghcr.io/eslupmi/impulse:${{ inputs.branch }}
-      IMPULSE_HOST_PORT: "15000"
-      KEEP_RUNTIME: "1"
-      PYTHONUNBUFFERED: "1"
-      SLACK_VERIFICATION_TOKEN: ${{ secrets.AUTOTESTS_SLACK_VERIFICATION_TOKEN }}
-      SLACK_BOT_USER_OAUTH_TOKEN: ${{ secrets.AUTOTESTS_SLACK_BOT_USER_OAUTH_TOKEN }}
-      MATTERMOST_ACCESS_TOKEN: ${{ secrets.AUTOTESTS_MATTERMOST_ACCESS_TOKEN }}
-      MATTERMOST_URL: https://mattermost.impulse.bot
-      TELEGRAM_BOT_TOKEN: ${{ secrets.AUTOTESTS_TELEGRAM_BOT_TOKEN }}
-      API_ID: ${{ secrets.AUTOTESTS_API_ID }}
-      API_HASH: ${{ secrets.AUTOTESTS_API_HASH }}
-      TELEGRAM_SESSION_BASE64: ${{ secrets.AUTOTESTS_TELEGRAM_SESSION_BASE64 }}
     steps:
-      - name: Checkout tests repository
-        uses: actions/checkout@v5
+      - uses: ./.github/actions/run-suite
         with:
-          repository: eslupmi/tests
-          ref: ${{ inputs.tests-ref }}
+          tests-ref: ${{ inputs.tests-ref }}
           token: ${{ secrets.ESLUPMI_TESTS_REPO_TOKEN_READ }}
+          suite: ${{ matrix.suite }}
+          messenger: ${{ matrix.messenger }}
 
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v5
+  suite:
+    if: inputs.suite != ''
+    runs-on: self-hosted
+    strategy:
+      fail-fast: false
+      matrix:
+        messenger: ${{ fromJSON((inputs.suite == 'autotests' || inputs.suite == 'autotests_mocked') && '["slack","mattermost","telegram"]' || '[""]') }}
+    name: ${{ matrix.messenger && format('{0} - {1}', inputs.suite, matrix.messenger) || inputs.suite }}
+    permissions:
+      contents: read
+    steps:
+      - uses: ./.github/actions/run-suite
         with:
-          python-version: "3.12"
-
-      - name: Set up environment
-        run: |
-          sudo touch /tmp/impulse-external-tests-install.lock
-          sudo chmod 666 /tmp/impulse-external-tests-install.lock
-          {
-            flock 9
-            uv venv --python 3.12 ".venv"
-            uv pip install -r requirements.txt
-            ".venv/bin/playwright" install --with-deps chromium
-            if ! grep -q host.docker.internal /etc/hosts; then
-              echo "127.0.0.1 host.docker.internal" | sudo tee -a /etc/hosts
-            fi
-          } 9>/tmp/impulse-external-tests-install.lock
-
-      - name: Run suite
-        env:
-          SUITE: ${{ matrix.suite }}
-          MESSENGER: ${{ matrix.messenger }}
-        run: |
-          if [ "$SUITE" = "autotests" ] && [ "$MESSENGER" = "telegram" ] && [ -n "$TELEGRAM_SESSION_BASE64" ]; then
-            echo "$TELEGRAM_SESSION_BASE64" | base64 -d > session.session
-          fi
-          if [ "$SUITE" = "autotests" ] || [ "$SUITE" = "autotests_mocked" ]; then
-            .venv/bin/python -m autotest.runner --suite "$SUITE" --messenger "$MESSENGER"
-          else
-            .venv/bin/python -m autotest.runner --suite "$SUITE"
-          fi
+          tests-ref: ${{ inputs.tests-ref }}
+          token: ${{ secrets.ESLUPMI_TESTS_REPO_TOKEN_READ }}
+          suite: ${{ inputs.suite }}
+          messenger: ${{ matrix.messenger }}
