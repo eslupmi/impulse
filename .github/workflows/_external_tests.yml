@@ -20,7 +20,8 @@ jobs:
       fail-fast: false
       matrix:
         suite: ${{ fromJSON(inputs.suites) }}
-    name: ${{ matrix.suite }}
+        messenger: ${{ fromJSON(inputs.messengers) }}
+    name: ${{ (matrix.suite == 'autotests' || matrix.suite == 'autotests_mocked') && format('{0} - {1}', matrix.suite, matrix.messenger) || matrix.suite }}
     permissions:
       contents: read
     env:
@@ -51,6 +52,8 @@ jobs:
 
       - name: Set up environment
         run: |
+          sudo touch /tmp/impulse-external-tests-install.lock
+          sudo chmod 666 /tmp/impulse-external-tests-install.lock
           {
             flock 9
             uv venv --python 3.12 ".venv"
@@ -69,7 +72,7 @@ jobs:
           if [ "$SUITE" = "autotests" ] && [ "$MESSENGER" = "telegram" ] && [ -n "$TELEGRAM_SESSION_BASE64" ]; then
             echo "$TELEGRAM_SESSION_BASE64" | base64 -d > session.session
           fi
-          if [ -n "$MESSENGER" ]; then
+          if [ "$SUITE" = "autotests" ] || [ "$SUITE" = "autotests_mocked" ]; then
             .venv/bin/python -m autotest.runner --suite "$SUITE" --messenger "$MESSENGER"
           else
             .venv/bin/python -m autotest.runner --suite "$SUITE"
