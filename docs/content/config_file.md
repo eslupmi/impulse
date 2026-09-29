@@ -560,7 +560,7 @@ Below are all the configuration options supported by IMPulse.
 ### messenger.impulse_address *
 
 - **available in:** `mattermost`, `telegram` only
-- **description:** IMPulse address for button callbacks. Telegram supported only HTTPS.
+- **description:** IMPulse address for button callbacks. Telegram supported only HTTPS. Include `HTTP_PREFIX`[↰](envs.md) if set.
 - **type:** string
 
 ### messenger.users *
