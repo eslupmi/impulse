@@ -14,8 +14,41 @@ on:
         default: main
 
 jobs:
-  suites:
+  matrix:
     runs-on: self-hosted
+    outputs:
+      include: ${{ steps.set.outputs.include }}
+    steps:
+      - id: set
+        env:
+          SUITES: ${{ inputs.suites }}
+        run: |
+          include='['
+          sep=''
+          for suite in $(echo "$SUITES" | tr -d '[]"' | tr ',' ' '); do
+            case "$suite" in
+              autotests|autotests_mocked)
+                for messenger in slack mattermost telegram; do
+                  include="$include$sep{\"suite\":\"$suite\",\"messenger\":\"$messenger\"}"
+                  sep=,
+                done
+                ;;
+              *)
+                include="$include$sep{\"suite\":\"$suite\"}"
+                sep=,
+                ;;
+            esac
+          done
+          echo "include=${include}]" >> "$GITHUB_OUTPUT"
+
+  suites:
+    needs: matrix
+    runs-on: self-hosted
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.matrix.outputs.include) }}
+    name: ${{ matrix.suite }}${{ matrix.messenger && format(' / {0}', matrix.messenger) || '' }}
     permissions:
       contents: read
       packages: read
@@ -61,35 +94,16 @@ jobs:
             echo "127.0.0.1 host.docker.internal" | sudo tee -a /etc/hosts
           fi
 
-      - name: response
-        if: contains(fromJSON(inputs.suites), 'response')
-        run: python -m autotest.runner --suite response
-
-      - name: system
-        if: contains(fromJSON(inputs.suites), 'system')
-        run: python -m autotest.runner --suite system
-
-      - name: provider
-        if: contains(fromJSON(inputs.suites), 'provider')
-        run: python -m autotest.runner --suite provider
-
-      - name: browser
-        if: contains(fromJSON(inputs.suites), 'browser')
-        run: python -m autotest.runner --suite browser
-
-      - name: autotests
-        if: contains(fromJSON(inputs.suites), 'autotests')
+      - name: Run
+        env:
+          SUITE: ${{ matrix.suite }}
+          MESSENGER: ${{ matrix.messenger }}
         run: |
-          for messenger in slack mattermost telegram; do
-            if [ "$messenger" = "telegram" ] && [ -n "$TELEGRAM_SESSION_BASE64" ]; then
-              echo "$TELEGRAM_SESSION_BASE64" | base64 -d > session.session
-            fi
-            python -m autotest.runner --suite autotests --messenger "$messenger"
-          done
-
-      - name: autotests_mocked
-        if: contains(fromJSON(inputs.suites), 'autotests_mocked')
-        run: |
-          for messenger in slack mattermost telegram; do
-            python -m autotest.runner --suite autotests_mocked --messenger "$messenger"
-          done
+          if [ "$SUITE" = "autotests" ] && [ "$MESSENGER" = "telegram" ] && [ -n "$TELEGRAM_SESSION_BASE64" ]; then
+            echo "$TELEGRAM_SESSION_BASE64" | base64 -d > session.session
+          fi
+          if [ -n "$MESSENGER" ]; then
+            python -m autotest.runner --suite "$SUITE" --messenger "$MESSENGER"
+          else
+            python -m autotest.runner --suite "$SUITE"
+          fi
