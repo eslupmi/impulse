@@ -19,8 +19,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include: ${{ fromJSON(needs.matrix.outputs.include) }}
-    name: ${{ matrix.suite }}${{ matrix.messenger && format(' / {0}', matrix.messenger) || '' }}
+        suite: ${{ fromJSON(inputs.suites) }}
+    name: ${{ matrix.suite }}
     permissions:
       contents: read
     env:
