@@ -14,67 +14,7 @@ on:
         default: main
 
 jobs:
-  matrix:
-    runs-on: self-hosted
-    outputs:
-      include: ${{ steps.set.outputs.include }}
-    steps:
-      - id: set
-        env:
-          SUITES: ${{ inputs.suites }}
-        run: |
-          include='['
-          sep=''
-          for suite in $(echo "$SUITES" | tr -d '[]"' | tr ',' ' '); do
-            case "$suite" in
-              autotests|autotests_mocked)
-                for messenger in slack mattermost telegram; do
-                  include="$include$sep{\"suite\":\"$suite\",\"messenger\":\"$messenger\"}"
-                  sep=,
-                done
-                ;;
-              *)
-                include="$include$sep{\"suite\":\"$suite\"}"
-                sep=,
-                ;;
-            esac
-          done
-          echo "include=${include}]" >> "$GITHUB_OUTPUT"
-
-  install:
-    runs-on: self-hosted
-    permissions:
-      contents: read
-    steps:
-      - name: Checkout tests repository
-        uses: actions/checkout@v5
-        with:
-          repository: eslupmi/tests
-          ref: ${{ inputs.tests-ref }}
-          token: ${{ secrets.ESLUPMI_TESTS_REPO_TOKEN_READ }}
-
-      - uses: astral-sh/setup-uv@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install dependencies
-        run: |
-          {
-            flock 9
-            hash=$(sha256sum requirements.txt | cut -c1-16)
-            venv="${HOME}/.cache/impulse-external-tests/${hash}/.venv"
-            mkdir -p "$(dirname "$venv")"
-            uv python install 3.12
-            [ -x "$venv/bin/python" ] || uv venv --python 3.12 "$venv"
-            uv pip install --python "$venv/bin/python" -r requirements.txt
-            "$venv/bin/playwright" install --with-deps chromium
-            if ! grep -q host.docker.internal /etc/hosts; then
-              echo "127.0.0.1 host.docker.internal" | sudo tee -a /etc/hosts
-            fi
-          } 9>/tmp/impulse-external-tests-install.lock
-
   suites:
-    needs: [matrix, install]
     runs-on: self-hosted
     strategy:
       fail-fast: false
@@ -83,7 +23,6 @@ jobs:
     name: ${{ matrix.suite }}${{ matrix.messenger && format(' / {0}', matrix.messenger) || '' }}
     permissions:
       contents: read
-      packages: read
     env:
       IMPULSE_IMAGE: ghcr.io/eslupmi/impulse:${{ inputs.branch }}
       IMPULSE_HOST_PORT: "15000"
@@ -105,25 +44,33 @@ jobs:
           ref: ${{ inputs.tests-ref }}
           token: ${{ secrets.ESLUPMI_TESTS_REPO_TOKEN_READ }}
 
-      - name: Log in to the Container registry
-        uses: docker/login-action@v4
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          python-version: "3.12"
 
-      - name: Run
+      - name: Set up environment
+        run: |
+          {
+            flock 9
+            uv venv --python 3.12 ".venv"
+            uv pip install -r requirements.txt
+            ".venv/bin/playwright" install --with-deps chromium
+            if ! grep -q host.docker.internal /etc/hosts; then
+              echo "127.0.0.1 host.docker.internal" | sudo tee -a /etc/hosts
+            fi
+          } 9>/tmp/impulse-external-tests-install.lock
+
+      - name: Run suite
         env:
           SUITE: ${{ matrix.suite }}
           MESSENGER: ${{ matrix.messenger }}
         run: |
-          hash=$(sha256sum requirements.txt | cut -c1-16)
-          export PATH="${HOME}/.cache/impulse-external-tests/${hash}/.venv/bin:$PATH"
           if [ "$SUITE" = "autotests" ] && [ "$MESSENGER" = "telegram" ] && [ -n "$TELEGRAM_SESSION_BASE64" ]; then
             echo "$TELEGRAM_SESSION_BASE64" | base64 -d > session.session
           fi
           if [ -n "$MESSENGER" ]; then
-            python -m autotest.runner --suite "$SUITE" --messenger "$MESSENGER"
+            .venv/bin/python -m autotest.runner --suite "$SUITE" --messenger "$MESSENGER"
           else
-            python -m autotest.runner --suite "$SUITE"
+            .venv/bin/python -m autotest.runner --suite "$SUITE"
           fi
