@@ -19,27 +19,31 @@ on:
         default: ""
 
 jobs:
-  suites:
-    if: inputs.suite == ''
+  autotests:
+    if: inputs.suite == '' && inputs.autotests != ''
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - suite: ${{ inputs.autotests }}
-            messenger: slack
-          - suite: ${{ inputs.autotests }}
-            messenger: mattermost
-          - suite: ${{ inputs.autotests }}
-            messenger: telegram
-          - suite: response
-          - suite: system
-          - suite: provider
-          - suite: browser
-    name: ${{ matrix.messenger && format('{0} - {1}', matrix.suite, matrix.messenger) || matrix.suite }}
+        messenger: [slack, mattermost, telegram]
+    name: ${{ format('{0} - {1}', inputs.autotests, matrix.messenger) }}
+    uses: ./.github/workflows/_external_tests_suite.yml
+    with:
+      branch: ${{ inputs.branch }}
+      tests-ref: ${{ inputs.tests-ref }}
+      suite: ${{ inputs.autotests }}
+      messenger: ${{ matrix.messenger }}
+    secrets: inherit
+
+  suites:
+    if: inputs.suite == '' && inputs.autotests == 'autotests'
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [response, system, provider, browser]
+    name: ${{ matrix.suite }}
     uses: ./.github/workflows/_external_tests_suite.yml
     with:
       branch: ${{ inputs.branch }}
       tests-ref: ${{ inputs.tests-ref }}
       suite: ${{ matrix.suite }}
-      messenger: ${{ matrix.messenger }}
     secrets: inherit

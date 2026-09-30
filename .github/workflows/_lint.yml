@@ -3,16 +3,13 @@ name: _lint
 on:
   workflow_call:
     inputs:
-      runs-on:
-        type: string
-        default: blacksmith-4vcpu-ubuntu-2204
       ref:
         type: string
         required: false
 
 jobs:
   ruff:
-    runs-on: ${{ inputs.runs-on }}
+    runs-on: blacksmith-4vcpu-ubuntu-2204
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -36,7 +33,7 @@ jobs:
             "
 
   mypy:
-    runs-on: ${{ inputs.runs-on }}
+    runs-on: blacksmith-4vcpu-ubuntu-2204
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
