@@ -33,6 +33,7 @@ env:
 
 jobs:
   run:
+    name: ${{ inputs.messenger && format('{0} - {1}', inputs.suite, inputs.messenger) || inputs.suite }}
     runs-on: self-hosted
     permissions:
       contents: read
