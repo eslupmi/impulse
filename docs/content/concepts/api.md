@@ -79,7 +79,7 @@ Server readiness check. Used for health checks and determining server state (see
 
 GET `/ui_config` — UI table and display configuration.
 
-GET `/chains_config` — messenger chains, users, groups, webhooks, and timezone settings used by the UI. Authentication required when auth is enabled.
+GET `/chains_config` — messenger escalation chains, users, groups, webhooks, and timezone settings used by the UI. Authentication required when auth is enabled.
 
 !!! warning
     Will be moved under `/api` since `v4.0.0`

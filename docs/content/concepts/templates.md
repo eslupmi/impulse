@@ -38,25 +38,25 @@ Below is a list of available templates.
 
 ### chain_step_group
 
-- **description:** posted when a [chain](../config_file.md#messengerchains) reaches a `group` step
+- **description:** posted when an escalation [chain](../config_file.md#messengerchains) reaches a `group` step
 - **enabled by:** always
 - **[special variables](special_variables.md):** `step`, `incident`, `users`, `user_groups`, `groups`, `webhooks`
 
 ### chain_step_user
 
-- **description:** posted when a [chain](../config_file.md#messengerchains) reaches a `user` step
+- **description:** posted when an escalation [chain](../config_file.md#messengerchains) reaches a `user` step
 - **enabled by:** always
 - **[special variables](special_variables.md):** `step`, `incident`, `users`, `user_groups`, `groups`, `webhooks`
 
 ### chain_step_user_group
 
-- **description:** posted when a [chain](../config_file.md#messengerchains) reaches a `user_group` step
+- **description:** posted when an escalation [chain](../config_file.md#messengerchains) reaches a `user_group` step
 - **enabled by:** always
 - **[special variables](special_variables.md):** `step`, `incident`, `users`, `user_groups`, `groups`, `webhooks`
 
 ### chain_step_webhook
 
-- **description:** posted when a [chain](../config_file.md#messengerchains) reaches a `webhook` step
+- **description:** posted when an escalation [chain](../config_file.md#messengerchains) reaches a `webhook` step
 - **enabled by:** always
 - **[special variables](special_variables.md):** `step`, `incident`, `users`, `user_groups`, `groups`, `webhooks`
 

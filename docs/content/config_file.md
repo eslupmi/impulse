@@ -214,16 +214,16 @@ Below are all the configuration options supported by IMPulse.
 
 ### messenger.chains
 
-- **description:** escallation chains (policies) - notification sequences for incident escalation. Referenced in the [route](#route) section to determine which chains apply to which incidents.
+- **description:** escalation chains (policies) - notification sequences for incident escalation. Referenced in the [route](#route) section to determine which escalation chains apply to which incidents.
 - **type:** dict
 - **details:**
     
     !!! note ""
-        There are 4 chain types: [simple](#simple-chains), [schedule](#schedule-chains), [cloud](#cloud-chains), [ui](#ui-chains). See their description below.
+        There are 4 escalation chain types: [simple](#simple-chains), [schedule](#schedule-chains), [cloud](#cloud-chains), [ui](#ui-chains). See their description below.
 
         **Steps**
 
-        Each chain contains a list of **steps**. There are 6 step types:
+        Each escalation chain contains a list of **steps**. There are 6 step types:
 
         - `chain`[↰](#messengerchains)
         - `group`[↰](#messengergroups)
@@ -232,7 +232,7 @@ Below are all the configuration options supported by IMPulse.
         - `wait`
         - `webhook`[↰](#webhooks)
 
-        `chain`[↰](#messengerchains) allows nesting any other chains. Nesting is supported to any depth.
+        `chain`[↰](#messengerchains) allows nesting any other escalation chains. Nesting is supported to any depth.
 
         `wait`, which delays the execution of the next notification. Its format is similar to the [sleep](https://www.gnu.org/software/coreutils/manual/html_node/sleep-invocation.html) utility format, but it does not support floats or combined expressions like `1m 3s`. Valid units: `s` (seconds), `m` (minutes), `h` (hours), `d` (days).
 
@@ -259,7 +259,7 @@ Below are all the configuration options supported by IMPulse.
 - **examples:**
 
     ```yaml
-    # Defined two simple chains for DevOps team
+    # Defined two simple escalation chains for DevOps team
     messenger:
       chains:
         devops:
@@ -278,7 +278,7 @@ Below are all the configuration options supported by IMPulse.
 
 #### &lt;schedule chains&gt;
 
-- **description:** a chain that allows you to define notification logic based on a calendar schedule.
+- **description:** an escalation chain that allows you to define notification logic based on a calendar schedule.
 - **type:** dict
 - **examples:**
 
@@ -330,9 +330,9 @@ Below are all the configuration options supported by IMPulse.
 
 ##### &lt;chain&gt;.type *
 
-- **description:** chain type
+- **description:** escalation chain type
 - **type:** string
-- **allowed values:** `schedule` for schedule chain
+- **allowed values:** `schedule` for schedule escalation chain
 
 ##### &lt;chain&gt;.timezone
 
@@ -388,9 +388,9 @@ Below are all the configuration options supported by IMPulse.
         
         **&lt;schedule&gt;.steps** *
 
-        - **description:** list of chain steps
+        - **description:** list of escalation chain steps
         - **type:** list
-        - **allowed values:** simple chain [format](#simple-chains)
+        - **allowed values:** simple escalation chain [format](#simple-chains)
 
 - **examples:**
 
@@ -414,14 +414,14 @@ Below are all the configuration options supported by IMPulse.
 
 #### &lt;cloud chains&gt;
 
-- **description:** a chain that allows you to define dynamic chains using calendar providers (e.g., Google).
+- **description:** an escalation chain that allows you to define dynamic escalation chains using calendar providers (e.g., Google).
 - **type:** dict
 - **details:**
     
     !!! note ""
         **Configure**
 
-        To use cloud chains you should generate service account file `key.json` (see [instructions](integrations/calendars/google.md#create-project-and-get-keyjson) for `google` provider) and [add service account to your calendar](integrations/calendars/google.md#set-up-calendar-access-for-your-service-account).
+        To use cloud escalation chains you should generate service account file `key.json` (see [instructions](integrations/calendars/google.md#create-project-and-get-keyjson) for `google` provider) and [add service account to your calendar](integrations/calendars/google.md#set-up-calendar-access-for-your-service-account).
 
         Also you should set special [ENVs](envs.md):
 
@@ -438,7 +438,7 @@ Below are all the configuration options supported by IMPulse.
         - user: Maria
         ```
 
-        The chain will trigger at the time specified in the Event. If no Event exists, the chain specified in `default_steps` will be used.
+        The escalation chain will trigger at the time specified in the Event. If no Event exists, the escalation chain specified in `default_steps` will be used.
 
     **How it works**
 
@@ -467,7 +467,7 @@ Below are all the configuration options supported by IMPulse.
             - user: Maria
     ```
 
-    Under the hood, the following `schedule chain` will be generated:
+    Under the hood, the following schedule escalation chain will be generated:
 
     ```yaml
     messenger:
@@ -482,9 +482,9 @@ Below are all the configuration options supported by IMPulse.
 
 ##### &lt;chain&gt;.type *
 
-- **description:** chain type
+- **description:** escalation chain type
 - **type:** string
-- **allowed values:** `cloud` for cloud chain
+- **allowed values:** `cloud` for cloud escalation chain
 
 ##### &lt;chain&gt;.provider *
 
@@ -499,28 +499,28 @@ Below are all the configuration options supported by IMPulse.
 
 ##### &lt;chain&gt;.default_steps
 
-- **description:** chain steps if there are no calendar events at the moment
+- **description:** escalation chain steps if there are no calendar events at the moment
 - **type:** list
-- **allowed values:** simple chain [format](#simple-chains)
+- **allowed values:** simple escalation chain [format](#simple-chains)
 
 #### &lt;ui chains&gt;
 
-- **description:** a chain managed from the UI.
+- **description:** an escalation chain managed from the UI.
 - **type:** dict
 - **details:**
     
     !!! note ""
-        Use UI chains for on-call rotations and quick shift updates without editing the config file.
+        Use UI escalation chains for on-call rotations and quick shift updates without editing the config file.
 
-        A UI chain is declared in config and edited from the **ui chains** button in the web interface (see [Footer](concepts/ui.md#footer)).
+        A UI escalation chain is declared in config and edited from the **ui chains** button in the web interface (see [Footer](concepts/ui.md#footer)).
 
-        UI chains older than [incident.timeouts.closed](#incidenttimeoutsclosed) are deleted.
+        UI escalation chains older than [incident.timeouts.closed](#incidenttimeoutsclosed) are deleted.
 
 ##### &lt;chain&gt;.type *
 
-- **description:** chain type
+- **description:** escalation chain type
 - **type:** string
-- **allowed values:** `ui` for UI-managed chain
+- **allowed values:** `ui` for UI-managed escalation chain
 
 - **examples:**
 
@@ -565,7 +565,7 @@ Below are all the configuration options supported by IMPulse.
 
 ### messenger.users *
 
-- **description:** users declaration. Defines users used in [chains](#messengerchains) for direct notifications.
+- **description:** users declaration. Defines users used in escalation [chains](#messengerchains) for direct notifications.
 - **type:** dict
 - **details:**
     
@@ -597,7 +597,7 @@ Below are all the configuration options supported by IMPulse.
 
 ### messenger.user_groups
 
-- **description:** groups of users for bulk notification. Used in [chains](#messengerchains).
+- **description:** groups of users for bulk notification. Used in escalation [chains](#messengerchains).
 - **type:** list
 - **examples:**
 
@@ -684,7 +684,7 @@ Below are all the configuration options supported by IMPulse.
 - **details:**
 
     !!! note ""
-        Route configure messenger channels, where incidents will be created, and [chains](#messengerchains) to notify people by rules.
+        Route configure messenger channels, where incidents will be created, and escalation [chains](#messengerchains) to notify people by rules.
 
         It is very similar to Alertmanager's [route](https://prometheus.io/docs/alerting/latest/configuration/#route). But has only four instructions: `routes`[↰](#routeroutes), `matchers`[↰](#routematchers), `channel`[↰](#messengerchannels), `chain`[↰](#messengerchains).
 
@@ -700,7 +700,7 @@ Below are all the configuration options supported by IMPulse.
         - matchers:
             - service =~ "cpu|disk|memory|network" # regex selector powered by Python regex
           channel: incidents-infrastructure # channel for not "critical" or "warning" severity
-          # no chain here means users will not be notified, just incident created
+          # no escalation chain here means users will not be notified, just incident created
           routes:
             - matchers:
                 - severity = "critical" # simple selector
@@ -739,12 +739,12 @@ Below are all the configuration options supported by IMPulse.
 
 ### route.chain
 
-- **description:** default [chain](#messengerchains) to notify users if alert don't match any matchers inside [route.routes](#routeroutes)
+- **description:** default escalation [chain](#messengerchains) to notify users if alert don't match any matchers inside [route.routes](#routeroutes)
 - **type:** string
 
 ### route.routes
 
-- **description:** list of routing rules based on matchers to determine which channel and chain to use for incidents
+- **description:** list of routing rules based on matchers to determine which channel and escalation chain to use for incidents
 - **type:** list
 
 #### &lt;route&gt;.matchers
@@ -760,7 +760,7 @@ Below are all the configuration options supported by IMPulse.
 
 #### &lt;route&gt;.chain
 
-- **description:** [chain](#messengerchains) to notify users if incidents match the matchers
+- **description:** escalation [chain](#messengerchains) to notify users if incidents match the matchers
 - **type:** string
 
 #### &lt;route&gt;.routes
