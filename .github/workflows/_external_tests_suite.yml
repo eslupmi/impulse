@@ -19,8 +19,6 @@ on:
 
 env:
   IMPULSE_IMAGE: ghcr.io/eslupmi/impulse:${{ inputs.branch }}
-  IMPULSE_HOST_PORT: "15000"
-  KEEP_RUNTIME: "1"
   PYTHONUNBUFFERED: "1"
   SLACK_VERIFICATION_TOKEN: ${{ secrets.AUTOTESTS_SLACK_VERIFICATION_TOKEN }}
   SLACK_BOT_USER_OAUTH_TOKEN: ${{ secrets.AUTOTESTS_SLACK_BOT_USER_OAUTH_TOKEN }}
@@ -68,7 +66,7 @@ jobs:
             echo "$TELEGRAM_SESSION_BASE64" | base64 -d > session.session
           fi
           if [ -n "$MESSENGER" ]; then
-            .venv/bin/python -m autotest.runner --suite "$SUITE" --messenger "$MESSENGER"
+            .venv/bin/python -m autotest.runner --suite "$SUITE" --image "$IMPULSE_IMAGE" --messenger "$MESSENGER"
           else
-            .venv/bin/python -m autotest.runner --suite "$SUITE"
+            .venv/bin/python -m autotest.runner --suite "$SUITE" --image "$IMPULSE_IMAGE"
           fi
