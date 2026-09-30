@@ -32,7 +32,6 @@ jobs:
 
   build-and-push-image:
     if: github.event.pull_request.draft == false
-    needs: unit-tests
     uses: ./.github/workflows/_build-and-push-image.yml
 
   tests:
