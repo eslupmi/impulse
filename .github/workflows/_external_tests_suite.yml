@@ -51,7 +51,7 @@ jobs:
 
       - name: Set up environment
         run: |
-          uv venv --python 3.12 .venv
+          uv venv --python 3.12 .venv --clear
           uv pip install -r requirements.txt
           .venv/bin/playwright install chromium
           if ! grep -q host.docker.internal /etc/hosts; then
