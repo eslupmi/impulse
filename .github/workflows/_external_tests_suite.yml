@@ -1,0 +1,72 @@
+name: _run-suite
+
+on:
+  workflow_call:
+    inputs:
+      branch:
+        required: true
+        type: string
+      tests-ref:
+        required: true
+        type: string
+      suite:
+        required: true
+        type: string
+      messenger:
+        required: false
+        type: string
+        default: ""
+
+env:
+  IMPULSE_IMAGE: ghcr.io/eslupmi/impulse:${{ inputs.branch }}
+  PYTHONUNBUFFERED: "1"
+  SLACK_VERIFICATION_TOKEN: ${{ secrets.AUTOTESTS_SLACK_VERIFICATION_TOKEN }}
+  SLACK_BOT_USER_OAUTH_TOKEN: ${{ secrets.AUTOTESTS_SLACK_BOT_USER_OAUTH_TOKEN }}
+  MATTERMOST_ACCESS_TOKEN: ${{ secrets.AUTOTESTS_MATTERMOST_ACCESS_TOKEN }}
+  MATTERMOST_URL: https://mattermost.impulse.bot
+  TELEGRAM_BOT_TOKEN: ${{ secrets.AUTOTESTS_TELEGRAM_BOT_TOKEN }}
+  API_ID: ${{ secrets.AUTOTESTS_API_ID }}
+  API_HASH: ${{ secrets.AUTOTESTS_API_HASH }}
+  TELEGRAM_SESSION_BASE64: ${{ secrets.AUTOTESTS_TELEGRAM_SESSION_BASE64 }}
+
+jobs:
+  run:
+    name: ${{ inputs.messenger && format('{0} - {1}', inputs.suite, inputs.messenger) || inputs.suite }}
+    runs-on: blacksmith-4vcpu-ubuntu-2204
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout tests repository
+        uses: actions/checkout@v5
+        with:
+          repository: eslupmi/tests
+          ref: ${{ inputs.tests-ref }}
+          token: ${{ secrets.ESLUPMI_TESTS_REPO_TOKEN_READ }}
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@2af22b5b2dcfc0729ee842c635f300f1fc5a9e9a
+        with:
+          python-version: "3.12"
+
+      - name: Set up environment
+        run: |
+          uv venv --python 3.12 .venv --clear
+          uv pip install -r requirements.txt
+          .venv/bin/playwright install chromium
+          if ! grep -q host.docker.internal /etc/hosts; then
+            echo "127.0.0.1 host.docker.internal" | sudo tee -a /etc/hosts
+          fi
+
+      - name: Run suite
+        env:
+          SUITE: ${{ inputs.suite }}
+          MESSENGER: ${{ inputs.messenger }}
+        run: |
+          if [ "$SUITE" = "autotests" ] && [ "$MESSENGER" = "telegram" ] && [ -n "$TELEGRAM_SESSION_BASE64" ]; then
+            echo "$TELEGRAM_SESSION_BASE64" | base64 -d > session.session
+          fi
+          if [ -n "$MESSENGER" ]; then
+            .venv/bin/python -m autotest.runner --suite "$SUITE" --image "$IMPULSE_IMAGE" --messenger "$MESSENGER"
+          else
+            .venv/bin/python -m autotest.runner --suite "$SUITE" --image "$IMPULSE_IMAGE"
+          fi
