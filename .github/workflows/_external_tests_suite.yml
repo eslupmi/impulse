@@ -51,17 +51,12 @@ jobs:
 
       - name: Set up environment
         run: |
-          sudo touch /tmp/impulse-external-tests-install.lock
-          sudo chmod 666 /tmp/impulse-external-tests-install.lock
-          {
-            flock 9
-            uv venv --python 3.12 ".venv"
-            uv pip install -r requirements.txt
-            ".venv/bin/playwright" install --with-deps chromium
-            if ! grep -q host.docker.internal /etc/hosts; then
-              echo "127.0.0.1 host.docker.internal" | sudo tee -a /etc/hosts
-            fi
-          } 9>/tmp/impulse-external-tests-install.lock
+          uv venv --python 3.12 .venv
+          uv pip install -r requirements.txt
+          .venv/bin/playwright install chromium
+          if ! grep -q host.docker.internal /etc/hosts; then
+            echo "127.0.0.1 host.docker.internal" | sudo tee -a /etc/hosts
+          fi
 
       - name: Run suite
         env:
