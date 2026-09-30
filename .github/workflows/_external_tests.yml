@@ -18,24 +18,9 @@ on:
         type: string
         default: ""
 
-env:
-  IMPULSE_IMAGE: ghcr.io/eslupmi/impulse:${{ inputs.branch }}
-  IMPULSE_HOST_PORT: "15000"
-  KEEP_RUNTIME: "1"
-  PYTHONUNBUFFERED: "1"
-  SLACK_VERIFICATION_TOKEN: ${{ secrets.AUTOTESTS_SLACK_VERIFICATION_TOKEN }}
-  SLACK_BOT_USER_OAUTH_TOKEN: ${{ secrets.AUTOTESTS_SLACK_BOT_USER_OAUTH_TOKEN }}
-  MATTERMOST_ACCESS_TOKEN: ${{ secrets.AUTOTESTS_MATTERMOST_ACCESS_TOKEN }}
-  MATTERMOST_URL: https://mattermost.impulse.bot
-  TELEGRAM_BOT_TOKEN: ${{ secrets.AUTOTESTS_TELEGRAM_BOT_TOKEN }}
-  API_ID: ${{ secrets.AUTOTESTS_API_ID }}
-  API_HASH: ${{ secrets.AUTOTESTS_API_HASH }}
-  TELEGRAM_SESSION_BASE64: ${{ secrets.AUTOTESTS_TELEGRAM_SESSION_BASE64 }}
-
 jobs:
   suites:
     if: inputs.suite == ''
-    runs-on: self-hosted
     strategy:
       fail-fast: false
       matrix:
@@ -51,30 +36,25 @@ jobs:
           - suite: provider
           - suite: browser
     name: ${{ matrix.messenger && format('{0} - {1}', matrix.suite, matrix.messenger) || matrix.suite }}
-    permissions:
-      contents: read
-    steps:
-      - uses: ./.github/actions/run-suite
-        with:
-          tests-ref: ${{ inputs.tests-ref }}
-          token: ${{ secrets.ESLUPMI_TESTS_REPO_TOKEN_READ }}
-          suite: ${{ matrix.suite }}
-          messenger: ${{ matrix.messenger }}
+    uses: ./.github/workflows/_run-suite.yml
+    with:
+      branch: ${{ inputs.branch }}
+      tests-ref: ${{ inputs.tests-ref }}
+      suite: ${{ matrix.suite }}
+      messenger: ${{ matrix.messenger }}
+    secrets: inherit
 
   suite:
     if: inputs.suite != ''
-    runs-on: self-hosted
     strategy:
       fail-fast: false
       matrix:
         messenger: ${{ fromJSON((inputs.suite == 'autotests' || inputs.suite == 'autotests_mocked') && '["slack","mattermost","telegram"]' || '[""]') }}
     name: ${{ matrix.messenger && format('{0} - {1}', inputs.suite, matrix.messenger) || inputs.suite }}
-    permissions:
-      contents: read
-    steps:
-      - uses: ./.github/actions/run-suite
-        with:
-          tests-ref: ${{ inputs.tests-ref }}
-          token: ${{ secrets.ESLUPMI_TESTS_REPO_TOKEN_READ }}
-          suite: ${{ inputs.suite }}
-          messenger: ${{ matrix.messenger }}
+    uses: ./.github/workflows/_run-suite.yml
+    with:
+      branch: ${{ inputs.branch }}
+      tests-ref: ${{ inputs.tests-ref }}
+      suite: ${{ inputs.suite }}
+      messenger: ${{ matrix.messenger }}
+    secrets: inherit
