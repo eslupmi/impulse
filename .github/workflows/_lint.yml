@@ -5,7 +5,7 @@ on:
     inputs:
       runs-on:
         type: string
-        default: self-hosted
+        default: blacksmith-4vcpu-ubuntu-2204
       ref:
         type: string
         required: false

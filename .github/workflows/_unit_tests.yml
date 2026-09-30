@@ -9,7 +9,7 @@ on:
 
 jobs:
   tests:
-    runs-on: self-hosted
+    runs-on: blacksmith-4vcpu-ubuntu-2204
     strategy:
       matrix:
         python-version: ${{ fromJSON(inputs.python-versions) }}
