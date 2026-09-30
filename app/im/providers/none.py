@@ -41,7 +41,7 @@ class NoneProvider:
     async def initialize(self, context):
         return ProviderIdentity(public_url='')
 
-    async def start(self):
+    async def activate(self):
         pass
 
     async def fetch_user(self, user_id):

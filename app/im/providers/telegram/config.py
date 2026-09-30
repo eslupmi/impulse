@@ -8,8 +8,6 @@ from app.im.plugin_api import BaseApplicationConfig, BaseUser, MessengerType
 
 class TelegramUser(BaseUser):
     id: int = Field(..., description='User ID')
-    name: str | None = Field(None, description='User display name')
-    username: str | None = Field(None, description='Username')
 
 
 class TelegramChannel(BaseUser):

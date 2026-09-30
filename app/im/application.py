@@ -62,9 +62,9 @@ class Application:
         self.provider = provider
         self.http: RateLimitedClient | None = None
         self.type = app_config.type
-        self.url = self.get_url(app_config)
+        self.url = provider.url.rstrip('/')
         self.public_url = None
-        self.team = self.get_team_name(app_config)
+        self.team = provider.team
         self._app_config = app_config
         self.chains = ChainFactory.generate(
             app_config.chains,
@@ -75,10 +75,6 @@ class Application:
         )
         self.templates = app_config.template_files
         self.body_template, self.header_template, self.status_icons_template = self.generate_template()
-
-        self.rate_limit = None
-        self.rate_window = 1.0
-        self._initialize_specific_params()
 
         self.channels = channels
         self.default_channel_id = self.channels[default_channel]['id']
@@ -97,7 +93,7 @@ class Application:
         
         self._user_scheduler: UserUpdateScheduler | None = None
 
-    async def buttons_handler(self, payload, incidents, queue_, route):
+    async def buttons_handler(self, payload, incidents, queue_):
         if not self.provider.descriptor.messaging_enabled:
             return Response(b'{}', status_code=200, media_type='application/json')
         if not isinstance(payload, InteractionRequest):
@@ -202,16 +198,10 @@ class Application:
             return []
         return [a.get_notification_identifier() for a in self.admin_users]
 
-    def get_team_name(self, app_config: ApplicationConfig):
-        return self._get_team_name(app_config)
-
     async def get_user_details(self, user_info: UserConfig | dict):
         user_id = user_info.get('id')
         assert isinstance(user_id, (str, int))
         return asdict(await self.provider.fetch_user(user_id))
-
-    def get_url(self, app_config: ApplicationConfig):
-        return self._get_url(app_config).rstrip("/")
 
     async def handle_task_button(self, incident, queue_):
         if not self.task_management_integration:
@@ -283,11 +273,8 @@ class Application:
             logger.debug(f'Initialized {len(self.groups)} groups: {", ".join(self.groups.keys())}')
         self.admin_users = self._init_admin_users()
 
+        await self.provider.activate()
         logger.info('Messenger initialized', extra={'messenger': self.type.value})
-        await self._start_provider()
-
-    async def _start_provider(self):
-        await self.provider.start()
 
     @messenger_init_step_sync('http_client')
     def _init_http_client(self) -> RateLimitedClient:
@@ -295,7 +282,12 @@ class Application:
 
     @messenger_init_step_async('public_url')
     async def _init_public_url(self):
-        url = await self._get_public_url(self._app_config)
+        address = getattr(self._app_config, 'impulse_address', None)
+        callback_url = f'{address}/app' if address else None
+        assert self.http is not None
+        identity = await self.provider.initialize(ProviderContext(self.http, callback_url))
+        self.team = identity.team
+        url = identity.public_url
         return url.rstrip("/") if url else url
 
     @messenger_init_step_async('users')
@@ -516,20 +508,6 @@ class Application:
 
         return user_manager
 
-    async def _get_public_url(self, app_config: ApplicationConfig):
-        address = getattr(app_config, 'impulse_address', None)
-        callback_url = f'{address}/app' if address else None
-        assert self.http is not None
-        identity = await self.provider.initialize(ProviderContext(self.http, callback_url))
-        self.team = identity.team
-        return identity.public_url
-
-    def _get_team_name(self, app_config: ApplicationConfig):
-        return self.provider.team
-
-    def _get_url(self, app_config: ApplicationConfig):
-        return self.provider.url
-
     def _get_user_timezone_str(self, user_id: str | None = None) -> str:
         if user_id and self.users:
             user_tz = self.users.get_user_timezone(user_id)
@@ -549,10 +527,7 @@ class Application:
         return None
 
     def get_user_profile_url(self, user_id: str, user: BaseUser) -> str | None:
-        return self._build_user_profile_url(str(user_id), user)
-
-    def _build_user_profile_url(self, user_id: str, user: BaseUser) -> str | None:
-        profile = UserProfile(id=user_id, exists=user.exists, username=user.username)
+        profile = UserProfile(id=str(user_id), exists=user.exists, username=user.username)
         return self.provider.user_url(profile, ProviderIdentity(self.public_url, self.team))
 
     async def apply_time_freeze(
@@ -592,10 +567,6 @@ class Application:
         await unfreeze_incident(incident_, queue_)
         await self.update_incident_message(incident_)
 
-    def _initialize_specific_params(self):
-        self.rate_limit = self.provider.descriptor.rate_limit
-        self.rate_window = self.provider.descriptor.rate_window_seconds
-
     def _load_stored_users(self, user_store, messenger_type: str) -> dict:
         stored_users = user_store.get_all_users_by_type(messenger_type)
         result = {}
@@ -614,8 +585,8 @@ class Application:
 
     def _setup_http(self) -> RateLimitedClient:
         env = get_environment_config()
-        rate_limit = self.rate_limit
-        rate_window = self.rate_window
+        rate_limit = self.provider.descriptor.rate_limit
+        rate_window = self.provider.descriptor.rate_window_seconds
         if env.dev_messenger_rate_limit is not None:
             rate_limit = env.dev_messenger_rate_limit if env.dev_messenger_rate_limit > 0 else None
         if env.dev_messenger_rate_window is not None:

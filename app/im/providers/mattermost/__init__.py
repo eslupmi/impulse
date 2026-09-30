@@ -28,7 +28,6 @@ class MattermostProvider:
     def __init__(self, config: MattermostApplicationConfig, secrets: SecretResolver):
         self.url = config.address.rstrip('/')
         self.team = config.team
-        self.public_url = None
         self.callback_url = None
         self._groups = tuple(group.id for group in config.groups.values())
         token = secrets.get('MATTERMOST_ACCESS_TOKEN')
@@ -39,27 +38,27 @@ class MattermostProvider:
     async def initialize(self, context: ProviderContext) -> ProviderIdentity:
         self.http = context.http
         self.callback_url = context.callback_url
-        self.public_url = self.url
-        return ProviderIdentity(self.public_url, self.team)
+        return ProviderIdentity(self.url, self.team)
 
-    async def start(self) -> None:
+    async def activate(self) -> None:
         pass
 
     @staticmethod
-    async def _read(response, *, success_only=False):
+    async def _read_json(response):
         try:
-            if success_only and response.status != 200:
-                return {}, response.status
-            return await response.json(), response.status
+            return await response.json()
         finally:
             response.close()
 
     async def fetch_user(self, user_id: str | int) -> UserProfile:
-        data, status = await self._read(await self.http.get(
-            f'{self.url}/api/v4/users/{user_id}?user_id={user_id}', headers=self.headers), success_only=True)
+        response = await self.http.get(
+            f'{self.url}/api/v4/users/{user_id}?user_id={user_id}', headers=self.headers)
+        status = response.status
         if status != 200:
+            response.close()
             logger.debug('User details fetch failed', extra={'user_id': user_id, 'status': status})
             return UserProfile(id=user_id, exists=False)
+        data = await self._read_json(response)
         return UserProfile(
             id=user_id, exists=True, full_name=self._full_name(data), username=data.get('username'),
             email=data.get('email'), timezone=self._extract_timezone(data.get('timezone')),
@@ -74,11 +73,13 @@ class MattermostProvider:
                 logger.error('Group details fetch error', extra={'group_id': group_id, 'error': str(error)})
                 profiles.append(GroupProfile(id=group_id, name=None, exists=False))
                 continue
-            data, status = await self._read(response, success_only=True)
+            status = response.status
             if status != 200:
+                response.close()
                 logger.debug('Group details fetch failed', extra={'group_id': group_id, 'status': status})
                 profiles.append(GroupProfile(id=group_id, name=None, exists=False))
             else:
+                data = await self._read_json(response)
                 profiles.append(GroupProfile(id=group_id, name=data.get('name')))
         return tuple(profiles)
 
@@ -87,8 +88,10 @@ class MattermostProvider:
         return builder(message, message.body, message.header, message.status_icon, self.callback_url)
 
     async def create_incident(self, message: IncidentPresentation) -> MessageRef | None:
-        data, status = await self._read(await self.http.post(
-            f'{self.url}/api/v4/posts', headers=self.headers, json=self.payload(message)))
+        response = await self.http.post(
+            f'{self.url}/api/v4/posts', headers=self.headers, json=self.payload(message))
+        status = response.status
+        data = await self._read_json(response)
         if not 200 <= status < 300:
             logger.error('Incident message creation failed', extra={'messenger': 'mattermost', 'status': status})
             return None

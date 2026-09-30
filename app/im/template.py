@@ -7,14 +7,6 @@ from app.jinja_template import JinjaTemplate
 if TYPE_CHECKING:
     from app.incident.incident import Incident
 
-_THREAD_TEMPLATES_DIR = './thread_templates/'
-
-
-def _load_thread_template(messenger: str, name: str) -> str:
-    with open(f'{_THREAD_TEMPLATES_DIR}{messenger}_{name}.j2') as f:
-        return f.read()
-
-
 class ProviderTemplates(dict):
     def __init__(self, name):
         super().__init__()
@@ -23,13 +15,11 @@ class ProviderTemplates(dict):
     def __missing__(self, messenger):
         from app.im.registry import get_provider_registry
         registration = get_provider_registry().resolve(messenger)
-        if registration.template_source:
-            return registration.template_source(self.name)
-        return _load_thread_template(messenger, self.name)
-
-
-def _load_messenger_templates(name: str) -> dict:
-    return ProviderTemplates(name)
+        if registration.template_source is None:
+            raise KeyError(f'{messenger} has no notification templates')
+        source = registration.template_source(self.name)
+        self[messenger] = source
+        return source
 
 
 def template_users(messenger) -> dict:
@@ -76,13 +66,13 @@ def freeze_template_context(incident: 'Incident', ui_user=None) -> dict:
     }
 
 
-chain_step_user = _load_messenger_templates('chain_step_user')
-chain_step_user_group = _load_messenger_templates('chain_step_user_group')
-chain_step_group = _load_messenger_templates('chain_step_group')
-chain_step_webhook = _load_messenger_templates('chain_step_webhook')
-incident_notifications_assignment = _load_messenger_templates('incident_notifications_assignment')
-incident_notifications_status_update = _load_messenger_templates('incident_notifications_status_update')
-incident_notifications_new_firing = _load_messenger_templates('incident_notifications_new_firing')
-incident_notifications_partial_resolved = _load_messenger_templates('incident_notifications_partial_resolved')
-incident_notifications_freeze = _load_messenger_templates('incident_notifications_freeze')
-incident_notifications_unfreeze = _load_messenger_templates('incident_notifications_unfreeze')
+chain_step_user = ProviderTemplates('chain_step_user')
+chain_step_user_group = ProviderTemplates('chain_step_user_group')
+chain_step_group = ProviderTemplates('chain_step_group')
+chain_step_webhook = ProviderTemplates('chain_step_webhook')
+incident_notifications_assignment = ProviderTemplates('incident_notifications_assignment')
+incident_notifications_status_update = ProviderTemplates('incident_notifications_status_update')
+incident_notifications_new_firing = ProviderTemplates('incident_notifications_new_firing')
+incident_notifications_partial_resolved = ProviderTemplates('incident_notifications_partial_resolved')
+incident_notifications_freeze = ProviderTemplates('incident_notifications_freeze')
+incident_notifications_unfreeze = ProviderTemplates('incident_notifications_unfreeze')

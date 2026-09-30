@@ -56,7 +56,7 @@ async def test_topic_message_update_notification_and_response_cleanup():
     tg = provider()
     http = Transport()
     await tg.initialize(ProviderContext(http, 'https://impulse.test/app'))
-    await tg.start()
+    await tg.activate()
     ref = await tg.create_incident(presentation(thread_id=None))
     assert ref == MessageRef(-100123, '10/20')
     create = next(call for call in http.calls if call[1].endswith('/sendMessage'))

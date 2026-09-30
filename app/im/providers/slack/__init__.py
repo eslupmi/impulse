@@ -27,7 +27,6 @@ class SlackProvider:
         address = secrets.get('DEV_MESSENGER_CUSTOM_ADDRESS')
         self.url = ((address.strip() if address else '') or 'https://slack.com').rstrip('/')
         self.team = None
-        self.public_url = None
         self._token = secrets.get('SLACK_BOT_USER_OAUTH_TOKEN')
         self._verification_token = secrets.get('SLACK_VERIFICATION_TOKEN')
         self._signing_secret = secrets.get('SLACK_SIGNING_SECRET')
@@ -39,28 +38,30 @@ class SlackProvider:
 
     async def initialize(self, context: ProviderContext) -> ProviderIdentity:
         self.http = context.http
-        data, status = await self._read(await self.http.get(f'{self.url}/api/auth.test', headers=self.headers))
-        self.public_url = data.get('url') if status == 200 and data.get('ok', True) else None
-        if self.public_url:
-            self.public_url = self.public_url.rstrip('/')
-        return ProviderIdentity(self.public_url)
+        response = await self.http.get(f'{self.url}/api/auth.test', headers=self.headers)
+        status = response.status
+        data = await self._read_json(response)
+        public_url = data.get('url') if status == 200 and data.get('ok', True) else None
+        return ProviderIdentity(public_url.rstrip('/') if public_url else None)
 
-    async def start(self) -> None:
+    async def activate(self) -> None:
         pass
 
     @staticmethod
-    async def _read(response, *, success_only=False):
+    async def _read_json(response):
         try:
-            if success_only and response.status != 200:
-                return {}, response.status
-            return await response.json(), response.status
+            return await response.json()
         finally:
             response.close()
 
     async def fetch_user(self, user_id: str | int) -> UserProfile:
-        data, status = await self._read(await self.http.get(
-            f'{self.url}/api/users.info', params={'user': user_id}, headers=self.headers), success_only=True)
-        if status != 200 or not data.get('ok'):
+        response = await self.http.get(
+            f'{self.url}/api/users.info', params={'user': user_id}, headers=self.headers)
+        if response.status != 200:
+            response.close()
+            return UserProfile(id=user_id, exists=False)
+        data = await self._read_json(response)
+        if not data.get('ok'):
             return UserProfile(id=user_id, exists=False)
         user = data.get('user', {})
         profile = user.get('profile', {})
@@ -68,8 +69,12 @@ class SlackProvider:
                            username=user.get('name'), email=profile.get('email'), timezone=user.get('tz'))
 
     async def fetch_groups(self) -> tuple[GroupProfile, ...]:
-        data, status = await self._read(await self.http.get(f'{self.url}/api/usergroups.list', headers=self.headers), success_only=True)
-        if status != 200 or not data.get('ok'):
+        response = await self.http.get(f'{self.url}/api/usergroups.list', headers=self.headers)
+        if response.status != 200:
+            response.close()
+            return ()
+        data = await self._read_json(response)
+        if not data.get('ok'):
             return ()
         return tuple(GroupProfile(id=group['id'], name=group.get('name'))
                      for group in data.get('usergroups', []) if group.get('id'))
@@ -80,8 +85,10 @@ class SlackProvider:
         return builder(message, message.body, message.header, message.status_icon, message.timezone)
 
     async def create_incident(self, message: IncidentPresentation) -> MessageRef | None:
-        data, status = await self._read(await self.http.post(
-            f'{self.url}/api/chat.postMessage', headers=self.headers, json=self.payload(message)))
+        response = await self.http.post(
+            f'{self.url}/api/chat.postMessage', headers=self.headers, json=self.payload(message))
+        status = response.status
+        data = await self._read_json(response)
         if not 200 <= status < 300 or data.get('ok') is not True:
             # Never log a provider response body: it can echo credentials or user content.
             logger.error('Incident message creation failed', extra={'messenger': 'slack', 'status': status})

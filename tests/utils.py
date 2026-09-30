@@ -1461,7 +1461,7 @@ def _prepare_button_handler_patches(app, additional_patches: dict | None = None,
     return patches_context, patch_objects
 
 
-def create_buttons_handler_context_manager(app, payload, incidents, queue, route,
+def create_buttons_handler_context_manager(app, payload, incidents, queue,
                                          expected_log_message: str | None = None,
                                          additional_patches: dict | None = None,
                                          app_specific_setup=None,
@@ -1474,7 +1474,6 @@ def create_buttons_handler_context_manager(app, payload, incidents, queue, route
         payload: The payload
         incidents: Mock incidents collection
         queue: Mock queue
-        route: Mock route
         expected_log_message: Expected log message for assertion
         additional_patches: Additional patches to apply
         app_specific_setup: Function to call for app-specific setup
@@ -1502,7 +1501,7 @@ def create_buttons_handler_context_manager(app, payload, incidents, queue, route
         
         try:
             # Execute the handler
-            result = await app.buttons_handler(payload, incidents, queue, route)
+            result = await app.buttons_handler(payload, incidents, queue)
             
             # Common assertions
             assert isinstance(result, JSONResponse)

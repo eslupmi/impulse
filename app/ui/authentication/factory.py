@@ -34,9 +34,7 @@ def _build_configured_users(config: 'ImpulseConfig') -> dict[str, AuthUser]:
             continue
         configured_users[user_id] = AuthUser(
             id=user_id,
-            username=getattr(user, "username", None) or user_name,
-            full_name=getattr(user, "name", None),
-            email=getattr(user, "email", None),
+            username=user_name,
             messenger=messenger,
         )
     return configured_users

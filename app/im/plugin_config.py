@@ -24,6 +24,17 @@ class CloudProvider(str, Enum):
     GOOGLE = "google"
 
 class BaseUser(BaseModel):
+    id: str | int = Field(..., description="User ID")
+
+    @field_validator('id', mode='before')
+    @classmethod
+    def validate_id(cls, value):
+        if isinstance(value, bool):
+            raise ValueError("ID must be a string or integer, not a boolean")
+        if isinstance(value, str) and not value.strip():
+            raise ValueError("ID must not be empty")
+        return value
+
     def get(self, key: str) -> Any:
         return getattr(self, key)
 
@@ -145,7 +156,7 @@ class BaseApplicationConfig(BaseModel):
                                                     description="Template files")
 
     channels: dict[str, Any] = Field(default_factory=dict)
-    users: dict[str, Any] = Field(default_factory=dict)
+    users: dict[str, BaseUser] = Field(default_factory=dict)
 
     @field_validator('admin_users')
     @classmethod

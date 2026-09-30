@@ -58,25 +58,25 @@ class TelegramProvider:
         self.callback_url = context.callback_url
         return ProviderIdentity(API_BASE)
 
-    async def start(self) -> None:
+    async def activate(self) -> None:
         response = await self.http.post(f'{self.url}/setWebhook', params={'url': self.callback_url}, headers=self.headers)
         response.close()
 
     @staticmethod
-    async def _read(response):
+    async def _read_json(response):
         try:
-            return await response.json(), response.status
+            return await response.json()
         finally:
             response.close()
 
     async def fetch_user(self, user_id: str | int) -> UserProfile:
         response = await self.http.get(f'{self.url}/getChat?chat_id={user_id}', headers=self.headers)
-        if response.status != 200:
-            status = response.status
+        status = response.status
+        if status != 200:
             response.close()
             logger.debug('User details fetch failed', extra={'user_id': user_id, 'status': status})
             return UserProfile(id=user_id, exists=False)
-        data, status = await self._read(response)
+        data = await self._read_json(response)
         if not data.get('ok'):
             logger.debug('Telegram API error', extra={'user_id': user_id, 'status': status})
             return UserProfile(id=user_id, exists=False)
@@ -137,8 +137,10 @@ class TelegramProvider:
         topic_payload = {
             'chat_id': message.channel_id, 'name': message.header, 'icon_custom_emoji_id': message.status_icon,
         }
-        data, status = await self._read(await self.http.post(
-            f'{self.url}/createForumTopic', json=topic_payload, headers=self.headers))
+        response = await self.http.post(
+            f'{self.url}/createForumTopic', json=topic_payload, headers=self.headers)
+        status = response.status
+        data = await self._read_json(response)
         if status != 200 or data.get('ok') is not True:
             logger.error('Telegram topic creation failed', extra={
                 'channel_id': message.channel_id, 'status': status,
@@ -149,8 +151,10 @@ class TelegramProvider:
             return None
         payload = self.payload(message, creating=True)
         payload['message_thread_id'] = topic_id
-        data, status = await self._read(await self.http.post(
-            f'{self.url}/sendMessage', headers=self.headers, json=payload))
+        response = await self.http.post(
+            f'{self.url}/sendMessage', headers=self.headers, json=payload)
+        status = response.status
+        data = await self._read_json(response)
         if status != 200 or data.get('ok') is not True:
             logger.error('Telegram incident message creation failed', extra={
                 'channel_id': message.channel_id, 'status': status,

@@ -3,6 +3,7 @@
 import ast
 import asyncio
 import json
+from importlib.util import resolve_name
 from urllib.parse import urlencode
 from dataclasses import FrozenInstanceError, replace
 from datetime import datetime, timezone
@@ -199,7 +200,7 @@ async def test_callbacks_use_facade_state_and_preserve_assignment(provider_id, r
         payload = interaction_request(payload)
     else:
         payload = json_request(payload)
-    response = await app.buttons_handler(payload, incidents, queue, Mock())
+    response = await app.buttons_handler(payload, incidents, queue)
     assert response.status_code == 200
     assert incident.assigned_user_id == user_id
     assert incident.chain_enabled is False
@@ -257,12 +258,44 @@ def test_contract_does_not_import_core_or_external_runtime():
             assert not any(name.startswith(forbidden) for name in names), path
 
 
+def test_builtin_provider_import_boundaries_and_core_selection():
+    app_root = Path(__file__).resolve().parents[2] / 'app'
+    provider_ids = ('slack', 'mattermost', 'telegram')
+    for provider_id in provider_ids:
+        namespace = f'app.im.providers.{provider_id}'
+        for path in (app_root / 'im' / 'providers' / provider_id).rglob('*.py'):
+            for node in ast.walk(ast.parse(path.read_text(encoding='utf-8'))):
+                if isinstance(node, ast.ImportFrom):
+                    modules = [resolve_name('.' * node.level + (node.module or ''), namespace)
+                               if node.level else node.module or '']
+                elif isinstance(node, ast.Import):
+                    modules = [alias.name for alias in node.names]
+                else:
+                    modules = []
+                for module in modules:
+                    assert not module.startswith('app.') or module == 'app.im.plugin_api' or module.startswith(namespace), (path, module)
+
+    for path in app_root.rglob('*.py'):
+        if 'providers' in path.parts or path.name == 'registry.py':
+            continue
+        for node in ast.walk(ast.parse(path.read_text(encoding='utf-8'))):
+            if isinstance(node, ast.ImportFrom):
+                assert not any((node.module or '').startswith(f'app.im.providers.{provider_id}')
+                               for provider_id in provider_ids), path
+            if isinstance(node, ast.Compare):
+                assert not any(
+                    (isinstance(item, ast.Constant) and item.value in provider_ids)
+                    or (isinstance(item, ast.Attribute) and item.attr in ('SLACK', 'MATTERMOST', 'TELEGRAM'))
+                    for item in ast.walk(node)
+                ), path
+
+
 @pytest.mark.asyncio
 async def test_slack_callback_rejects_invalid_token_before_lookup(runtime):
     config = config_for('slack')
     app = get_application(config, {'default': {'id': 'C1'}}, 'default')
     incidents = Mock()
-    response = await app.buttons_handler(interaction_request({'token': 'wrong'}), incidents, Mock(), Mock())
+    response = await app.buttons_handler(interaction_request({'token': 'wrong'}), incidents, Mock())
     assert response.status_code == 401
     incidents.get_by_ts.assert_not_called()
 
@@ -291,7 +324,7 @@ async def test_blocked_callbacks_do_not_assign_or_schedule(provider_id, runtime)
         payload = interaction_request(payload)
     else:
         payload = json_request(payload)
-    response = await app.buttons_handler(payload, Mock(get_by_ts=Mock(return_value=incident)), queue, Mock())
+    response = await app.buttons_handler(payload, Mock(get_by_ts=Mock(return_value=incident)), queue)
     assert response.status_code == 200
     assert incident.assigned_user_id == ''
     queue.delete_by_id.assert_not_called()
@@ -312,7 +345,7 @@ async def test_telegram_freeze_menu_uses_facade_renderer_and_closes_ack(runtime)
     incident.ts = '10/20'
     payload = {'callback_query': {'id': 'ack-menu', 'data': 'freeze_menu', 'from': {'id': 123},
                                  'message': {'message_id': 20, 'message_thread_id': 10}}}
-    response = await app.buttons_handler(json_request(payload), Mock(get_by_ts=Mock(return_value=incident)), Mock(), Mock())
+    response = await app.buttons_handler(json_request(payload), Mock(get_by_ts=Mock(return_value=incident)), Mock())
     assert response.status_code == 200
     edit, ack = transport.calls[-2:]
     assert edit[1].endswith('/editMessageText')
@@ -376,7 +409,7 @@ async def test_telegram_freeze_menu_unfreezes_instead_of_opening_options(runtime
     queue = Mock(delete_by_id_and_type=AsyncMock(), put_first=AsyncMock(), recreate=AsyncMock(), put=AsyncMock())
     payload = {'callback_query': {'id': 'ack-unfreeze', 'data': 'freeze_menu', 'from': {'id': 123},
                                  'message': {'message_id': 20, 'message_thread_id': 10, 'chat': {'id': -100123}}}}
-    response = await app.buttons_handler(json_request(payload), Mock(get_by_ts=Mock(return_value=incident)), queue, Mock())
+    response = await app.buttons_handler(json_request(payload), Mock(get_by_ts=Mock(return_value=incident)), queue)
     assert response.status_code == 200
     assert incident.frozen_until is None
     edit = next(call for call in reversed(transport.calls) if call[1].endswith('/editMessageText'))

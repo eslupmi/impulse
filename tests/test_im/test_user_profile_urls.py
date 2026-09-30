@@ -1,10 +1,12 @@
+from unittest.mock import AsyncMock, Mock
+
 import pytest
 
 from app.config.validation import MessengerType
 from app.im.application import Application
 from app.im.providers.mattermost import MattermostProvider
 from app.im.providers.slack import SlackProvider
-from app.im.plugin_api import ProviderIdentity, UserProfile
+from app.im.plugin_api import ProviderContext, ProviderIdentity, UserProfile
 from app.im.users import ProfileUser as SlackUser
 from app.im.providers.telegram import TelegramProvider
 
@@ -14,13 +16,13 @@ async def test_init_public_url_strips_trailing_slash():
     app = Application.__new__(Application)
     app.type = MessengerType.SLACK
     app.url = "https://slack.com"
-    app._app_config = None
+    app._app_config = Mock(impulse_address='https://impulse.test')
+    app.http = Mock()
+    app.provider = Mock(initialize=AsyncMock(return_value=ProviderIdentity("https://example.slack.com/", 'team1')))
 
-    async def public_url(_config):
-        return "https://example.slack.com/"
-
-    app._get_public_url = public_url
     assert await app._init_public_url() == "https://example.slack.com"
+    assert app.team == 'team1'
+    app.provider.initialize.assert_awaited_once_with(ProviderContext(app.http, 'https://impulse.test/app'))
 
 
 def test_slack_user_profile_url():

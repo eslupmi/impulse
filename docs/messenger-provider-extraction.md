@@ -206,6 +206,10 @@ class MessengerProvider(Protocol):
 
 The provider descriptor supplies the rate limit before the transport is created. The provider must close individual responses; Impulse owns and closes the client itself.
 
+The current built-in lifecycle uses `initialize(context)` to attach the transport and callback URL and resolve identity. Core then loads users, user groups, groups, and admin roles before calling `activate()`. Telegram registers its webhook during activation; Slack and Mattermost have no activation work. The initialization success log follows activation.
+
+Provider JSON helpers return only the decoded body and close the response even when decoding fails. Callers retain HTTP status checks, including skipping JSON decoding for failed user/group lookups.
+
 ### Interaction handling
 
 The `/app` route should capture method, headers, query parameters, form fields, and raw body in an `InteractionRequest` without choosing a messenger format. The provider then:
@@ -240,6 +244,8 @@ The current Pydantic discriminated union must become two-stage validation:
 4. Validate the outer `ImpulseConfig` and cross-field rules against a common `BaseMessengerConfig` interface.
 
 The common model should retain fields Impulse genuinely uses: `type`, `channels`, `users`, `admin_users`, `user_groups`, `groups`, `chains`, `template_files`, and `impulse_address` where applicable. Provider subclasses can narrow user/channel ID types and add fields such as Mattermost `address` and `team`.
+
+Configured users share a core schema with a required, non-empty string or integer `id`; booleans are rejected. Slack and Mattermost narrow IDs to strings, and Telegram narrows them to integers while retaining numeric-string input compatibility. Built-in messaging user schemas expose only `id`. Legacy Telegram `name`/`username` configuration fields are ignored; runtime names and handles still come from provider lookup and the user cache. Authentication retains the YAML user key as its username fallback and enriches missing fields from the cache. The UI-only `none` configuration keeps unused user entries permissive.
 
 `MessengerType` must not enumerate external providers. Persisted incident values and reload comparisons can continue to use the provider ID string. `none` remains a reserved built-in ID.
 

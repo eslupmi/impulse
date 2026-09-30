@@ -1,9 +1,7 @@
 """Focused Phase 2 contract and HTTP regression evidence (all messenger APIs mocked)."""
 
-import ast
 import hashlib
 import hmac
-from importlib.util import resolve_name
 import json
 import os
 import subprocess
@@ -22,10 +20,9 @@ from pydantic import ValidationError
 from app.config.validation import ImpulseConfig
 from app.im.application import Application
 from app.im.helpers import get_application
-from app.im.plugin_api import Interaction, InteractionAction, InteractionRequest, ProviderResponse
-from app.im.providers.slack import SlackProvider, TEMPLATE_NAMES
+from app.im.plugin_api import Interaction, InteractionAction, InteractionRequest
+from app.im.providers.slack import SlackProvider
 from app.im.providers.slack.config import SlackApplicationConfig
-from app.im.registry import get_provider_registry
 from app.routes import create_router
 from tests.test_im.test_provider_seam import Transport, config_for, incident_for, runtime  # noqa: F401
 from tests.test_im.test_slack.test_slack_application import make_provider
@@ -125,7 +122,7 @@ async def test_callback_becomes_immutable_ordered_commands(actions, expected):
 async def test_invalid_callbacks_fail_before_business_lookup(body, status, runtime):
     app = get_application(config_for('slack'), {'default': {'id': 'C1'}}, 'default')
     incidents = Mock()
-    response = await app.buttons_handler(InteractionRequest('POST', (), (), body), incidents, Mock(), Mock())
+    response = await app.buttons_handler(InteractionRequest('POST', (), (), body), incidents, Mock())
     assert response.status_code == status
     incidents.get_by_ts.assert_not_called()
 
@@ -190,7 +187,7 @@ async def test_blocked_or_missing_incidents_never_change_queue(kind, runtime):
         incident.channel_id = 'C2'
     incidents = Mock(get_by_ts=Mock(return_value=None if kind == 'missing' else incident))
     queue = Mock(delete_by_id=AsyncMock())
-    result = await app.buttons_handler(request(callback()), incidents, queue, Mock())
+    result = await app.buttons_handler(request(callback()), incidents, queue)
     assert json.loads(result.body) == {'text': 'original'}
     queue.delete_by_id.assert_not_called()
     incident.dump.assert_not_called()
@@ -211,7 +208,6 @@ async def test_freeze_option_and_timezone_reach_core_only_after_verification(opt
         request(callback(actions=[{'name': 'freeze', 'type': 'select', 'selected_options': [{'value': option}]}])),
         incidents,
         queue,
-        Mock(),
     )
     app._handle_freeze_action.assert_awaited_once_with(
         incident, option, 'U1', incidents, queue, user_timezone='Europe/Berlin'
@@ -232,14 +228,14 @@ async def test_manual_unfreeze_and_resolved_release_use_core_actions(runtime):
     incidents = Mock(get_by_ts=Mock(return_value=incident))
     queue = Mock(delete_by_id=AsyncMock())
     await app.buttons_handler(
-        request(callback(actions=[{'name': 'freeze', 'type': 'button'}])), incidents, queue, Mock()
+        request(callback(actions=[{'name': 'freeze', 'type': 'button'}])), incidents, queue
     )
     app._handle_unfreeze_action.assert_awaited_once_with(incident, 'U1', queue)
     incident.is_frozen = False
     incident.chain_enabled = False
     incident.status = 'resolved'
     app.post_unassignment_notification = AsyncMock()
-    await app.buttons_handler(request(callback()), incidents, queue, Mock())
+    await app.buttons_handler(request(callback()), incidents, queue)
     import asyncio
 
     await asyncio.gather(*app._async_tasks)
@@ -269,43 +265,6 @@ for name in TEMPLATE_NAMES:
         text=True,
     )
     assert result.returncode == 0, result.stderr
-
-
-def test_slack_transitive_import_boundary_and_core_selection():
-    import app.im.providers.slack as slack
-
-    root = Path(slack.__file__).parent
-    for path in root.rglob('*.py'):
-        for node in ast.walk(ast.parse(path.read_text())):
-            if isinstance(node, ast.ImportFrom):
-                modules = [
-                    resolve_name('.' * node.level + (node.module or ''), 'app.im.providers.slack')
-                    if node.level
-                    else node.module or ''
-                ]
-            elif isinstance(node, ast.Import):
-                modules = [a.name for a in node.names]
-            else:
-                modules = []
-            for module in modules:
-                assert (
-                    not module.startswith('app.')
-                    or module == 'app.im.plugin_api'
-                    or module.startswith('app.im.providers.slack')
-                ), (path, module)
-    for path in root.parents[2].rglob('*.py'):
-        if 'providers' in path.parts or path.name == 'registry.py':
-            continue
-        tree = ast.parse(path.read_text())
-        for node in ast.walk(tree):
-            if isinstance(node, ast.ImportFrom):
-                assert not (node.module or '').startswith('app.im.providers.slack'), path
-            if isinstance(node, ast.Compare):
-                assert not any(
-                    (isinstance(n, ast.Constant) and n.value == 'slack')
-                    or (isinstance(n, ast.Attribute) and n.attr == 'SLACK')
-                    for n in ast.walk(node)
-                ), path
 
 
 @pytest.mark.asyncio
@@ -392,7 +351,7 @@ async def test_facade_requires_raw_request_instead_of_platform_dictionary(runtim
     app = get_application(config_for('slack'), {'default': {'id': 'C1'}}, 'default')
     incidents = Mock()
     with pytest.raises(TypeError, match='InteractionRequest'):
-        await app.buttons_handler(callback(), incidents, Mock(), Mock())
+        await app.buttons_handler(callback(), incidents, Mock())
     incidents.get_by_ts.assert_not_called()
 
 

@@ -111,7 +111,6 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
                 payload,
                 request.app.state.incidents,
                 request.app.state.queue,
-                request.app.state.route
             )
         except (json.JSONDecodeError, KeyError) as e:
             logger.error("App buttons error", extra={'error': str(e)})

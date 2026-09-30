@@ -1,6 +1,4 @@
-from typing import Any
-
-buttons: dict[str, Any] = {
+buttons = {
     # styles: default, danger, primary
     'chain': {
         'takeit': {

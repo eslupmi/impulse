@@ -37,7 +37,6 @@ async def test_buttons_handler_take_it_posts_assignment_notification(runtime):
         json_request({'post_id': incident.ts, 'user_id': 'U123', 'context': {'action': 'chain'}}),
         Mock(get_by_ts=Mock(return_value=incident)),
         Mock(delete_by_id=AsyncMock()),
-        Mock(),
     )
     assert result.status_code == 200
     app.fetch_and_assign_user_name.assert_called_once_with(incident, 'U123', dump=False)
