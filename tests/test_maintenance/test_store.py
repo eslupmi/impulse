@@ -2,9 +2,14 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+from fastapi import HTTPException
+
 from app.config.validation import IncidentTimeouts
 from app.maintenance.models import MaintenanceWindow
 from app.maintenance.store import MaintenanceStore
+
+ASSIGNABLE = {"U123"}
 
 
 def _make_store(tmp_path: Path) -> MaintenanceStore:
@@ -18,6 +23,11 @@ def _mock_closed_retention(closed: str = "7d"):
     mock_config = patch("app.maintenance.store.get_config").start()
     mock_config.return_value.incident.timeouts = timeouts
     return mock_config
+
+
+def _seed_windows(store: MaintenanceStore, windows: list[dict]) -> None:
+    store._ensure_dir()
+    assert store._write_windows_unlocked(windows) is True
 
 
 def _sample_window(window_id: str = "w1") -> dict:
@@ -47,7 +57,8 @@ def test_save_and_load_windows_round_trip(tmp_path: Path):
         windows[1]["matchers"] = ['service="elastic"', 'env="prod"']
         windows[1]["id"] = "w2"
 
-        assert store.save_windows(windows) is True
+        assert store.upsert_window(windows[0], ASSIGNABLE)[0] is True
+        assert store.upsert_window(windows[1], ASSIGNABLE)[0] is True
         loaded = store.load_windows()
         assert len(loaded) == 2
         by_id = {w["id"]: w for w in loaded}
@@ -62,7 +73,7 @@ def test_list_returns_maintenance_window_objects(tmp_path: Path):
     store = _make_store(tmp_path)
     mock_config = _mock_closed_retention("7d")
     try:
-        store.save_windows([_sample_window()])
+        assert store.upsert_window(_sample_window(), ASSIGNABLE)[0] is True
         windows = store.windows_list()
         assert len(windows) == 1
         assert isinstance(windows[0], MaintenanceWindow)
@@ -99,7 +110,112 @@ def test_prune_expired_windows(tmp_path: Path):
         mock_config.stop()
 
 
-def test_save_retains_recently_ended_windows_until_closed_timeout(tmp_path: Path):
+def test_upsert_retains_recently_ended_windows_until_closed_timeout(tmp_path: Path):
+    store = _make_store(tmp_path)
+    mock_config = _mock_closed_retention("7d")
+    now = datetime.now(timezone.utc)
+    try:
+        recent = {
+            "id": "recent-ended",
+            "start": (now - timedelta(days=1, hours=2)).isoformat(),
+            "end": (now - timedelta(days=1)).isoformat(),
+            "matchers": ['alertname="A"'],
+            "comment": "recent maintenance",
+            "owner_id": "U123",
+        }
+        old = {
+            "id": "old-ended",
+            "start": (now - timedelta(days=8, hours=2)).isoformat(),
+            "end": (now - timedelta(days=8)).isoformat(),
+            "matchers": ['alertname="B"'],
+            "comment": "old maintenance",
+        }
+        _seed_windows(store, [recent, old])
+        ok, _existing, saved = store.upsert_window(recent, ASSIGNABLE)
+        assert ok is True
+        assert [window["id"] for window in saved] == ["recent-ended"]
+    finally:
+        mock_config.stop()
+
+
+def test_skips_event_without_matchers(tmp_path: Path):
+    store = _make_store(tmp_path)
+    cal_path = store._file
+    store._ensure_dir()
+    with open(cal_path, "wb") as f:
+        f.write(
+            b"BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//test//EN\r\n"
+            b"BEGIN:VEVENT\r\nUID:no-matchers\r\n"
+            b"DTSTART:20260620T080000Z\r\nDTEND:20260620T120000Z\r\n"
+            b"SUMMARY:test\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"
+        )
+    assert store.load_windows() == []
+
+
+def test_load_window_without_owner_id(tmp_path: Path):
+    store = _make_store(tmp_path)
+    store._ensure_dir()
+    with open(store._file, "wb") as f:
+        f.write(
+            b"BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//test//EN\r\n"
+            b"BEGIN:VEVENT\r\nUID:legacy\r\n"
+            b"DTSTART:20260620T080000Z\r\nDTEND:20260620T120000Z\r\n"
+            b"SUMMARY:test\r\n"
+            b"X-MATCHER:alertname=\"A\"\r\n"
+            b"END:VEVENT\r\nEND:VCALENDAR\r\n"
+        )
+    loaded = store.load_windows()
+    assert len(loaded) == 1
+    assert loaded[0]["id"] == "legacy"
+    assert loaded[0]["owner_id"] is None
+
+
+def test_upsert_window_keeps_ownerless_sibling(tmp_path: Path):
+    store = _make_store(tmp_path)
+    mock_config = _mock_closed_retention("7d")
+    try:
+        legacy = _sample_window("legacy")
+        legacy["owner_id"] = None
+        _seed_windows(store, [legacy])
+        ok, _existing, _saved = store.upsert_window(_sample_window("new"), ASSIGNABLE)
+        assert ok is True
+        by_id = {w["id"]: w for w in store.load_windows()}
+        assert by_id["legacy"]["owner_id"] is None
+        assert by_id["new"]["owner_id"] == "U123"
+        ics = Path(store._file).read_bytes()
+        assert ics.count(b"X-OWNER-ID") == 1
+        assert b"X-OWNER-ID:U123" in ics
+    finally:
+        mock_config.stop()
+
+
+def test_delete_window_leaves_remaining(tmp_path: Path):
+    store = _make_store(tmp_path)
+    mock_config = _mock_closed_retention("7d")
+    try:
+        _seed_windows(store, [_sample_window("w1"), _sample_window("w2")])
+        ok, _existing, _saved, deleted = store.delete_window("w1")
+        assert ok is True
+        assert deleted["id"] == "w1"
+        assert [w["id"] for w in store.load_windows()] == ["w2"]
+    finally:
+        mock_config.stop()
+
+
+def test_delete_missing_window_is_success(tmp_path: Path):
+    store = _make_store(tmp_path)
+    mock_config = _mock_closed_retention("7d")
+    try:
+        _seed_windows(store, [_sample_window("w1")])
+        ok, _existing, _saved, deleted = store.delete_window("missing")
+        assert ok is True
+        assert deleted is None
+        assert [w["id"] for w in store.load_windows()] == ["w1"]
+    finally:
+        mock_config.stop()
+
+
+def test_upsert_drops_expired_siblings(tmp_path: Path):
     store = _make_store(tmp_path)
     mock_config = _mock_closed_retention("7d")
     now = datetime.now(timezone.utc)
@@ -118,24 +234,48 @@ def test_save_retains_recently_ended_windows_until_closed_timeout(tmp_path: Path
             "matchers": ['alertname="B"'],
             "comment": "old maintenance",
         }
-
-        assert store.save_windows([recent, old]) is True
-
-        loaded = store.load_windows()
-        assert [window["id"] for window in loaded] == ["recent-ended"]
+        store._write_windows_unlocked([recent, old])
+        ok, _existing, saved = store.upsert_window(_sample_window("new"), ASSIGNABLE)
+        assert ok is True
+        assert {w["id"] for w in saved} == {"recent-ended", "new"}
     finally:
         mock_config.stop()
 
 
-def test_skips_event_without_matchers(tmp_path: Path):
+def test_upsert_rejects_invalid_payload_without_writing(tmp_path: Path):
     store = _make_store(tmp_path)
-    cal_path = store._file
-    store._ensure_dir()
-    with open(cal_path, "wb") as f:
-        f.write(
-            b"BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//test//EN\r\n"
-            b"BEGIN:VEVENT\r\nUID:no-matchers\r\n"
-            b"DTSTART:20260620T080000Z\r\nDTEND:20260620T120000Z\r\n"
-            b"SUMMARY:test\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"
-        )
+    legacy = _sample_window("legacy")
+    legacy["owner_id"] = None
+    _seed_windows(store, [legacy])
+    before = Path(store._file).read_bytes()
+    with pytest.raises(HTTPException) as exc:
+        store.upsert_window(legacy, ASSIGNABLE)
+    assert exc.value.detail == "owner_id is required"
+    assert Path(store._file).read_bytes() == before
+    loaded = store.load_windows()
+    assert loaded[0]["id"] == "legacy"
+    assert loaded[0]["owner_id"] is None
+
+
+def test_upsert_rejects_list_without_writing(tmp_path: Path):
+    store = _make_store(tmp_path)
+    payload = [_sample_window()]
+    with pytest.raises(HTTPException) as exc:
+        store.upsert_window(payload, ASSIGNABLE)
+    assert exc.value.detail == "window must be an object"
     assert store.load_windows() == []
+    assert not Path(store._file).exists()
+
+
+def test_upsert_grandfathers_stored_owner(tmp_path: Path):
+    store = _make_store(tmp_path)
+    mock_config = _mock_closed_retention("7d")
+    try:
+        existing = _sample_window("w1")
+        existing["owner_id"] = "U999"
+        _seed_windows(store, [existing])
+        ok, _before, saved = store.upsert_window(existing, ASSIGNABLE)
+        assert ok is True
+        assert saved[0]["owner_id"] == "U999"
+    finally:
+        mock_config.stop()

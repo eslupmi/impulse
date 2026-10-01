@@ -2,10 +2,8 @@ import pytest
 from fastapi import HTTPException
 
 from app.maintenance.api import (
-    owner_id_from_payload,
     validate_owner_id,
     window_from_ws_item,
-    windows_from_ws_payload,
 )
 
 
@@ -23,16 +21,6 @@ def _window_payload(**overrides):
 
 
 ASSIGNABLE = {"U123", "U555"}
-
-
-def test_owner_id_from_payload_uses_explicit_value():
-    assert owner_id_from_payload({"owner_id": "U999"}) == "U999"
-
-
-def test_owner_id_from_payload_required():
-    with pytest.raises(HTTPException) as exc:
-        owner_id_from_payload({})
-    assert exc.value.detail == "owner_id is required"
 
 
 def test_validate_owner_id_accepts_assignable_user():
@@ -77,21 +65,8 @@ def test_window_from_ws_item_allows_existing_owner_not_assignable():
     assert window["owner_id"] == "U999"
 
 
-def test_windows_from_ws_payload_validates_list():
-    windows = windows_from_ws_payload(
-        [_window_payload()],
-        assignable_user_ids=ASSIGNABLE,
-        existing_by_id={},
-    )
-    assert len(windows) == 1
-    assert windows[0]["owner_id"] == "U123"
-
-
-def test_windows_from_ws_payload_uses_existing_by_id():
-    existing_by_id = {"w1": {"id": "w1", "owner_id": "U999"}}
-    windows = windows_from_ws_payload(
-        [_window_payload(owner_id="U999")],
-        assignable_user_ids=ASSIGNABLE,
-        existing_by_id=existing_by_id,
-    )
-    assert windows[0]["owner_id"] == "U999"
+def test_window_from_ws_item_rejects_list():
+    payload = [_window_payload()]
+    with pytest.raises(HTTPException) as exc:
+        window_from_ws_item(payload, assignable_user_ids=ASSIGNABLE)
+    assert exc.value.detail == "window must be an object"
