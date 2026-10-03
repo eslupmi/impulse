@@ -6,7 +6,16 @@ _USE_PLATFORM_ID = object()
 class BaseUser(ABC):
     """Base class for all messenger users."""
     
-    def __init__(self, name: str, id_: int | str | None = None, exists: bool = False, full_name: str | None = None, username: str | None = None, timezone: str | None = None, roles: list[str] | None = None):
+    def __init__(
+        self,
+        name: str,
+        id_: int | str | None = None,
+        exists: bool = False,
+        full_name: str | None = None,
+        username: str | None = None,
+        timezone: str | None = None,
+        roles: list[str] | None = None,
+    ):
         self.name = name
         self.id = id_
         self.exists = exists
