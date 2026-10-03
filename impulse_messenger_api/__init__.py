@@ -1,19 +1,15 @@
-"""Version 1 of the in-process messenger seam (no package discovery).
+"""Version 1 public API for trusted, installed messenger providers.
 
-This module deliberately imports no Impulse implementation modules. Providers
-receive rendered values, never incidents, queues, user stores or HTTP sessions.
-The public configuration schema and Slack interaction/authentication DTOs are
-internal contracts; package discovery remains out of scope.
+Providers receive rendered values and injected HTTP transport, never mutable
+incidents, queues, application configuration singletons or HTTP sessions.
 """
 
 from dataclasses import dataclass
-from typing import Any, Protocol, runtime_checkable
+from typing import Any, Callable, Protocol, runtime_checkable
 
 
 # Shared schema is public; providers never import app.config.
-from app.im.plugin_config import (
-    BaseApplicationConfig as BaseApplicationConfig, BaseUser as BaseUser, HttpBase as HttpBase, MessengerType as MessengerType,
-)
+from .schema import BaseApplicationConfig, BaseUser, HttpBase
 
 from collections.abc import Mapping
 from enum import Enum
@@ -227,3 +223,36 @@ class InteractiveProvider(MessengerProvider, Protocol):
     def incident_url(self, message: MessageRef, identity: ProviderIdentity) -> str: ...
     def template_source(self, name: str) -> str: ...
     def mention_id(self, user: UserProfile) -> str | int | None: ...
+
+
+REQUIRED_TEMPLATE_NAMES = (
+    'body', 'header', 'status_icons', 'chain_step_user', 'chain_step_user_group',
+    'chain_step_group', 'chain_step_webhook', 'incident_notifications_assignment',
+    'incident_notifications_status_update', 'incident_notifications_new_firing',
+    'incident_notifications_partial_resolved', 'incident_notifications_freeze',
+    'incident_notifications_unfreeze',
+)
+
+
+@dataclass(frozen=True)
+class ProviderRegistration:
+    """Value exposed by an ``impulse.messengers`` distribution entry point."""
+
+    descriptor: ProviderDescriptor
+    factory: Callable[..., MessengerProvider]
+    config_model: type[BaseApplicationConfig] | None = None
+    authentication_factory: Callable | None = None
+    template_source: Callable[[str], str] | None = None
+    incident_url: Callable | None = None
+
+
+__all__ = [
+    'PLUGIN_API_VERSION', 'REQUIRED_TEMPLATE_NAMES', 'BaseApplicationConfig',
+    'BaseUser', 'HttpBase', 'ProviderDescriptor', 'MessageRef',
+    'ProviderIdentity', 'UserProfile', 'GroupProfile', 'IncidentPresentation',
+    'NotificationContent', 'DeliveryResult', 'MessengerHttpResponse',
+    'MessengerHttpTransport', 'ProviderContext', 'MessengerProvider', 'SecretResolver',
+    'InteractionAction', 'InteractionRequest', 'InteractionCommand', 'ProviderResponse',
+    'Interaction', 'AuthenticationUser', 'AuthenticationError', 'ProviderAuthentication',
+    'InteractiveProvider', 'ProviderRegistration',
+]

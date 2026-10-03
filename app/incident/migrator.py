@@ -166,7 +166,7 @@ class IncidentMigrator:
         migrated['payload'] = migrated.pop('last_state')
         
         config = get_config()
-        migrated['messenger_type'] = config.messenger.type.value
+        migrated['messenger_type'] = config.messenger.type
         return migrated
 
     @staticmethod

@@ -1,0 +1,69 @@
+[build-system]
+requires = ["hatchling>=1.26,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "impulse-bot"
+version = "3.7.1"
+description = "IMPulse incident management platform and messenger plugin API"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {file = "LICENSE.md"}
+dependencies = [
+    "fastapi~=0.120.1",
+    "uvicorn[standard]~=0.24.0",
+    "websockets~=12.0",
+    "requests~=2.32.3",
+    "aiohttp~=3.13.3",
+    "aiohttp-retry~=2.8.3",
+    "Jinja2~=3.1.3",
+    "prometheus_client~=0.23.1",
+    "pydantic~=2.11.7",
+    "PyYAML~=6.0.1",
+    "python-dotenv~=1.0.1",
+    "python-multipart~=0.0.20",
+    "urllib3~=2.6.3",
+    "PyJWT[crypto]~=2.10.1",
+    "aiofiles~=23.2.1",
+    "httpx~=0.25.2",
+    "python-json-logger~=2.0.7",
+    "icalendar~=6.3.2",
+]
+
+[project.urls]
+Homepage = "https://impulse.bot"
+Documentation = "https://docs.impulse.bot"
+Source = "https://github.com/eslupmi/impulse"
+
+[dependency-groups]
+test = [
+    "pytest~=8.3.2",
+    "pytest-asyncio~=0.24.0",
+    "pytest-cov~=5.0.0",
+    "pytest-mock~=3.14.0",
+    "pytest-xdist~=3.6.0",
+    "pytest-aiohttp~=1.0.5",
+]
+lint = ["ruff", "mypy", "types-PyYAML", "types-icalendar", "types-requests"]
+messengers = ["impulse-slack==0.1.0", "impulse-mattermost==0.1.0", "impulse-telegram==0.1.0"]
+dev = [{include-group = "test"}, {include-group = "lint"}, {include-group = "messengers"}]
+
+[tool.uv.sources]
+impulse-slack = {path = "../impulse-messengers/packages/impulse-slack", editable = true}
+impulse-mattermost = {path = "../impulse-messengers/packages/impulse-mattermost", editable = true}
+impulse-telegram = {path = "../impulse-messengers/packages/impulse-telegram", editable = true}
+
+[tool.hatch.build.targets.wheel]
+packages = ["app", "impulse_messenger_api"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"main.py" = "main.py"
+"static" = "app/static"
+"templates" = "app/templates"
+
+[tool.hatch.build.targets.sdist]
+include = ["/app", "/impulse_messenger_api", "/main.py", "/static", "/templates", "/README.md", "/LICENSE.md", "/pyproject.toml"]
+
+[tool.ruff.lint]
+# Preserve the existing correctness gate across Ruff default-rule changes.
+select = ["E4", "E7", "E9", "F"]

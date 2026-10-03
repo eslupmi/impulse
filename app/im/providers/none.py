@@ -5,14 +5,12 @@ from typing import Any, Literal
 
 from pydantic import Field, field_validator
 
-from app.im.plugin_api import (
-    BaseApplicationConfig, DeliveryResult, MessageRef, MessengerType, ProviderDescriptor, ProviderIdentity, UserProfile,
-)
+from impulse_messenger_api import BaseApplicationConfig, DeliveryResult, MessageRef, ProviderDescriptor, ProviderIdentity, UserProfile
 
 
 class NullApplicationConfig(BaseApplicationConfig):
     """Null messenger configuration for UI-only mode"""
-    type: Literal[MessengerType.NONE] = Field(MessengerType.NONE, description="Application type")
+    type: Literal['none'] = Field('none', description="Application type")
     channels: dict[str, Any] = Field(default_factory=dict, description="Channel definitions (not used)")
     users: dict[str, Any] = Field(default_factory=dict, description="User definitions (not used)")
     admin_users: list[str] = Field(default_factory=list, description="Admin users (not used)")

@@ -6,7 +6,6 @@ from unittest.mock import Mock, patch, mock_open
 
 import pytest
 
-from app.config.validation import MessengerType
 from app.incident.incident import Incident, IncidentConfig
 from tests.utils import (
     create_mock_chains_config, create_mock_incident_data, create_mock_event_loop
@@ -91,7 +90,7 @@ class TestIncident:
 
     def test_generate_link_slack(self, sample_incident):
         """Test link generation for Slack."""
-        sample_incident.config.application_type = MessengerType.SLACK
+        sample_incident.config.application_type = 'slack'
         sample_incident.ts = "1234567890.123456"
 
         link = sample_incident.generate_link("https://test.slack.com")
@@ -99,7 +98,7 @@ class TestIncident:
 
     def test_generate_link_mattermost(self, sample_incident):
         """Test link generation for Mattermost."""
-        sample_incident.config.application_type = MessengerType.MATTERMOST
+        sample_incident.config.application_type = 'mattermost'
         sample_incident.ts = "thread123"
 
         link = sample_incident.generate_link("https://mattermost.test.com")
@@ -107,7 +106,7 @@ class TestIncident:
 
     def test_generate_link_telegram(self, sample_incident):
         """Test link generation for Telegram."""
-        sample_incident.config.application_type = MessengerType.TELEGRAM
+        sample_incident.config.application_type = 'telegram'
         sample_incident.channel_id = "-1001234567890"
         sample_incident.ts = "123"
 

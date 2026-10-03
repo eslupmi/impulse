@@ -45,7 +45,7 @@ class StepHandler(BaseHandler):
                 incident.chain_update(identifier, done=True, result=None)
                 logger.warning("Webhook undefined", extra={'uniq_id': incident.uniq_id, 'webhook': webhook_name})
 
-            text = self.app.notification_template(chain_step_webhook[self.app.type.value]).form_notification(
+            text = self.app.notification_template(chain_step_webhook[self.app.type]).form_notification(
                 **chain_template_context(self.app, incident, step)
             )
             await self.app._post_notification(incident, self.app.notification_header(incident), text)

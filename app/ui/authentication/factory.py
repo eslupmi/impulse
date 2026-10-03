@@ -1,7 +1,6 @@
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from app.config.validation import MessengerType
 from app.im.user_store import get_user_store
 from app.logging import logger
 from app.ui.authentication.manager import UserAuthenticationManager
@@ -26,7 +25,7 @@ def build_auth_redirect_uri(env_config: 'EnvironmentConfig', http_prefix: str = 
 
 def _build_configured_users(config: 'ImpulseConfig') -> dict[str, AuthUser]:
     users = config.messenger.users
-    messenger = config.messenger.type.value
+    messenger = config.messenger.type
     configured_users: dict[str, AuthUser] = {}
     for user_name, user in users.items():
         user_id = str(user.id).strip()
@@ -40,23 +39,23 @@ def _build_configured_users(config: 'ImpulseConfig') -> dict[str, AuthUser]:
     return configured_users
 
 
-def _build_provider(messenger_type: MessengerType, client_id: str, client_secret: str, config: 'ImpulseConfig'):
+def _build_provider(messenger_type: str, client_id: str, client_secret: str, config: 'ImpulseConfig'):
     registration = get_provider_registry().resolve(messenger_type)
     if registration.authentication_factory:
         if client_id and client_secret:
             return RegisteredAuthenticationProvider(
                 registration.authentication_factory(client_id, client_secret, config.messenger))
         logger.warning('Auth disabled: AUTH_CLIENT_ID and AUTH_CLIENT_SECRET are required',
-                       extra={'messenger': messenger_type.value})
+                       extra={'messenger': messenger_type})
     return UnsupportedAuthenticationProvider()
 
 
-def _build_allowed_user_ids(config: 'ImpulseConfig', messenger_type: MessengerType) -> set[str] | None:
+def _build_allowed_user_ids(config: 'ImpulseConfig', messenger_type: str) -> set[str] | None:
     users = config.messenger.users
     allowed_user_ids = {str(user.id) for user in users.values()}
     logger.info(
         "Auth whitelist enabled",
-        extra={"allowed_users_count": len(allowed_user_ids), "messenger_type": messenger_type.value},
+        extra={"allowed_users_count": len(allowed_user_ids), "messenger_type": messenger_type},
     )
     return allowed_user_ids
 

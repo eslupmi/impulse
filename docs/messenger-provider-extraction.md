@@ -1,6 +1,6 @@
 # Messenger Provider Extraction Investigation
 
-Status: Phases 1–2 are committed (`d97fb67` is the Slack slice). Phase 3 is complete on this branch: Mattermost, `none`, and Telegram use the provider contract, and the temporary legacy adapter is removed. The final Phase 3 candidate passed the product suite, Docker messenger matrix, and `none`/fake-Mattermost system gate on 2026-09-25, subject to the evidence limits below. Phase 0 remains deferred (decision on 2026-09-22). Phase 4 and packaging have not started.
+Status: Phases 1–3 are complete. Phase 4 is implemented locally on 2026-10-03: Slack, Mattermost, and Telegram are independent distributions in the sibling `impulse-messengers` repository, and IMPulse discovers installed providers. The local verification record and remaining qualification limits are below. Phase 0 remains deferred; no packages have been published.
 
 ## Decision summary
 
@@ -11,7 +11,7 @@ The recommended boundary is composition:
 - Impulse keeps a `MessengerApplication` service that owns incident workflow, queues, chains, notification policy, template rendering, user caching, task management, and the rate-limited HTTP client.
 - A `MessengerProvider` owns only platform-specific configuration, credentials, API requests and responses, message payloads, callbacks, links, mentions, default template resources, and optional authentication.
 - The provider receives the Impulse HTTP client through a small transport protocol. It does not construct its own client or import Impulse implementation modules.
-- Initially, providers live in this repository and are selected through an internal registry. External package discovery is added only after Slack, Mattermost, and Telegram all pass the same provider contract tests.
+- Phases 1–3 prepared the contract with an internal registry. Phase 4 moves the three messaging providers into independent packages and discovers their registrations through `impulse.messengers`; `none` remains built into IMPulse.
 
 This keeps the communication machinery in Impulse while making messenger knowledge extractable.
 
@@ -19,10 +19,11 @@ The comprehensive Phase 0 golden-test suite is deferred, not completed or remove
 
 ## User experience
 
-The eventual Python installation flow should be:
+After compatible package publication, the Python installation flow will be:
 
 ```shell
-pip install impulse impulse-slack
+uv venv
+uv pip install impulse-bot impulse-slack
 ```
 
 ```yaml
@@ -37,10 +38,10 @@ For reproducible containers, the connector and its pinned version should be inst
 
 ```dockerfile
 FROM impulse:<version>
-RUN pip install --no-cache-dir impulse-slack==<compatible-version>
+RUN uv pip install --python /app/.venv/bin/python impulse-slack==<compatible-version>
 ```
 
-The current repository has no `pyproject.toml`, `setup.py`, or other Python distribution metadata, and the Docker image copies source directly into `/app`. Therefore, `pip install impulse` and external provider packaging are later delivery steps. They are not prerequisites for proving the internal split.
+At the investigation baseline the repository had no Python distribution metadata. Phase 4 now packages the application as `impulse-bot` and manages dependencies with uv. Until publication, use the local wheel installation commands in [the README](../README.md#python-packages-and-development).
 
 ## Baseline architecture and coupling (before Phase 1)
 
@@ -301,7 +302,7 @@ The following findings are based on source inspection on 2026-09-22, including I
 - Impulse already has product tests for provider behavior, templates, incident/user links, HTTP retries and rate limiting, initialization logging, and URL redaction. Reuse these tests. Exact payload, response-decoding, normalization, template-rendering, and transport tests belong in this repository, including future golden tests.
 - The separate `eslupmi/tests` repository has an `internal` suite that runs real Impulse containers against fake Slack, Mattermost, and Telegram HTTP APIs. It contains lifecycle, routing, notification-chain, inhibition, and Take It/Release scenarios. Complete workflows belong there; product unit/integration tests stay in Impulse.
 - The internal suite currently checks endpoints, selected message content, channels, and incident state rather than full provider-body snapshots. Its button helpers do not expose Impulse's callback response body to the test. These checks provide useful workflow coverage but do not fully characterize payload structure, rendering, or callback acknowledgements.
-- `DEV_MESSENGER_CUSTOM_ADDRESS` is implemented for Slack and Telegram; Slack's `auth.test` initialization request also uses the overridden address. `DEV_MESSENGER_RATE_LIMIT` and `DEV_MESSENGER_RATE_WINDOW` are applied by the shared HTTP setup, with a zero limit disabling throttling. The mocked harness uses these overrides, so its normal runs do not establish production rate-limit behavior. See [environment configuration](../app/config/environment.py), [Slack](../app/im/providers/slack/__init__.py), [Telegram](../app/im/providers/telegram/__init__.py), and [HTTP setup](../app/im/application.py).
+- `DEV_MESSENGER_CUSTOM_ADDRESS` is implemented for Slack and Telegram; Slack's `auth.test` initialization request also uses the overridden address. `DEV_MESSENGER_RATE_LIMIT` and `DEV_MESSENGER_RATE_WINDOW` are applied by the shared HTTP setup, with a zero limit disabling throttling. The mocked harness uses these overrides, so its normal runs do not establish production rate-limit behavior. See [environment configuration](../app/config/environment.py), `impulse_slack`, `impulse_telegram`, and [HTTP setup](../app/im/application.py).
 - CI already runs product tests, builds the PR image, and invokes a three-messenger autotest matrix. The invocation passes the candidate image explicitly through `--image`. CI checks out `eslupmi/tests` at `main`, so local or branch-only additions must be merged or explicitly selected to participate in a run. See [PR workflow](../.github/workflows/tests.yml) and [autotest workflow](../.github/workflows/_autotests.yml).
 
 #### Interim verification for the internal extraction
@@ -395,7 +396,7 @@ Mattermost and Telegram may temporarily use a `LegacyProviderAdapter`, but no ne
 
 #### Phase 2 implementation record (2026-09-23)
 
-Work started from a clean `6c2ae34d35f9247efc72b8f3daadc390a6fa91c7` checkout. Slack is now implemented by the independent [SlackProvider](../app/im/providers/slack/__init__.py), with no `Application` inheritance, `LegacyProviderAdapter`, `LegacyInteractionService`, or private-core imports. The old Slack application, payload/user helpers, and UI authentication implementation were removed. Mattermost, Telegram, and `none` retain their Phase 1 paths; they were not migrated to the new Slack interaction/authentication contracts.
+Work started from a clean `6c2ae34d35f9247efc72b8f3daadc390a6fa91c7` checkout. Slack is now implemented by the independent `SlackProvider` in the sibling `impulse_slack` package, with no `Application` inheritance, `LegacyProviderAdapter`, `LegacyInteractionService`, or private-core imports. The old Slack application, payload/user helpers, and UI authentication implementation were removed. Mattermost, Telegram, and `none` retain their Phase 1 paths; they were not migrated to the new Slack interaction/authentication contracts.
 
 ```text
 HTTP /app raw request
@@ -459,13 +460,13 @@ Move Mattermost and Telegram through the same contract. Convert any remaining pr
 
 #### Phase 3 implementation record (2026-09-23) — complete
 
-Phase 3.1 migrated Telegram after the staged Mattermost and `none` work. [TelegramProvider](../app/im/providers/telegram/__init__.py) owns its YAML model, `TELEGRAM_BOT_TOKEN` from the injected read-only secret snapshot, API requests, payloads, callback decoding into immutable commands, links, numeric mentions, and all 13 default Jinja resources. The existing file overrides retain precedence. `DEV_MESSENGER_CUSTOM_ADDRESS` still replaces the Telegram API base, and the descriptor retains the 60-second user-refresh gap. The provider contract now expresses header-less notifications, the inhibition source refresh skip, and HTML autoescape. The registered Telegram OpenID adapter uses the injected core HTTP transport and retains signed ID-token/JWKS verification; core session and whitelist policy remains shared.
+Phase 3.1 migrated Telegram after the staged Mattermost and `none` work. `TelegramProvider` in the sibling `impulse_telegram` package owns its YAML model, `TELEGRAM_BOT_TOKEN` from the injected read-only secret snapshot, API requests, payloads, callback decoding into immutable commands, links, numeric mentions, and all 13 default Jinja resources. The existing file overrides retain precedence. `DEV_MESSENGER_CUSTOM_ADDRESS` still replaces the Telegram API base, and the descriptor retains the 60-second user-refresh gap. The provider contract now expresses header-less notifications, the inhibition source refresh skip, and HTML autoescape. The registered Telegram OpenID adapter uses the injected core HTTP transport and retains signed ID-token/JWKS verification; core session and whitelist policy remains shared.
 
 The old `app/im/telegram` package, legacy Telegram adapter module, Telegram UI auth provider, and Telegram template files under `templates/` and `thread_templates/` are removed. Core imports from the three provider packages occur only in the registry, and core has no equality checks for their IDs. Telegram templates were moved byte for byte.
 
 The temporary bridge is removed with the rest of Phase 3. `LegacyProviderAdapter`, `LegacyInteractionService`, and the facade branches that called them are gone. Startup always constructs `Provider(config, secrets)` and one `Application`.
 
-Mattermost is now [MattermostProvider](../app/im/providers/mattermost/__init__.py). It does not inherit `Application` or use the legacy adapter. It owns its config model, `MATTERMOST_ACCESS_TOKEN`, API calls, button payloads, callback decoding, incident and profile links, username mentions, and all 13 default Jinja resources via `importlib.resources`. Callbacks become immutable interaction commands before incident changes. OpenID login uses the same registered authentication adapter as Slack, with the Mattermost server address taken from configuration. `none` is [NoneProvider](../app/im/providers/none.py) with its own config model, no legacy `NullApplication`, and no HTTP client. User-refresh spacing lives on the provider descriptor (Mattermost 2 seconds, Telegram 60 seconds, otherwise 1 second) instead of a core messenger-name map.
+Mattermost is now `MattermostProvider` in the sibling `impulse_mattermost` package. It does not inherit `Application` or use the legacy adapter. It owns its config model, `MATTERMOST_ACCESS_TOKEN`, API calls, button payloads, callback decoding, incident and profile links, username mentions, and all 13 default Jinja resources via `importlib.resources`. Callbacks become immutable interaction commands before incident changes. OpenID login uses the same registered authentication adapter as Slack, with the Mattermost server address taken from configuration. `none` is [NoneProvider](../app/im/providers/none.py) with its own config model, no legacy `NullApplication`, and no HTTP client. User-refresh spacing lives on the provider descriptor (Mattermost 2 seconds, Telegram 60 seconds, otherwise 1 second) instead of a core messenger-name map.
 
 The old `app/im/mattermost` package, `app/im/null`, Mattermost UI auth provider, and Mattermost files under `templates/` and `thread_templates/` are removed.
 
@@ -501,7 +502,53 @@ The first Python 3.12 container attempt lacked `/config/impulse.yml`. After moun
 
 ### Phase 4: Add package discovery and packaging
 
-Before starting this phase, revisit the deferred characterization matrix and require Slack, Mattermost, and Telegram to pass the shared provider behavior checks. Then add Python distribution metadata, package resource handling, external entry-point discovery, API compatibility checks, and fresh-environment installation tests. Add discovery-specific checks as those features are implemented. Move one built-in provider to a separate repository only after the full applicable conformance suite and its installed-package smoke test pass.
+The local extraction uses one sibling repository with three independently buildable libraries: `impulse-slack`, `impulse-mattermost`, and `impulse-telegram`, initially version `0.1.0`. Each requires `impulse-bot>=3.7.1,<4`, exposes a `ProviderRegistration` entry point, and includes all 13 default templates. The original three provider directories are removed from IMPulse. The always-available `none` provider stays in core.
+
+`impulse_messenger_api` is the sole public contract shipped by IMPulse. It contains DTOs, transport/authentication protocols, shared configuration schema, required template names, and registration metadata. Core and provider consumers import it directly; the former internal API/schema re-exports and closed messenger enum are removed. Provider modules import the public package and their own dependencies only. Configuration IDs are plain strings, including built-ins, so incident and user-cache YAML keeps its scalar `messenger_type` values and accepts registered third-party IDs.
+
+The process-local registry loads `impulse.messengers` once, retains the built-in `none`, and rejects reserved or duplicate IDs, entry-point name mismatches, incompatible API versions, invalid factories/config models, and missing templates before application initialization. Load/resource errors name the provider without copying a potentially secret-bearing exception. A missing provider produces an install-and-restart error; startup never installs packages.
+
+Both repositories manage application and test dependencies through uv project metadata and lockfiles. The messenger repository is a virtual workspace whose three members have separate wheel/sdist metadata and runtime dependencies. Sibling sources are editable development overrides; distribution metadata contains version requirements, without local paths. IMPulse's default development group installs its test/lint dependencies and all three sibling providers. The root pip requirement exports are removed; `pyproject.toml` and `uv.lock` are the dependency sources.
+
+The installed core bundles `main.py`, UI assets, and Jira templates. Resource defaults resolve from the package when installed; configured template overrides retain their filesystem behavior. The Dockerfile uses the frozen core lock and accepts provider wheels through `wheelhouse/`. A source-only core image supports `none`; the full-image workflow checks out the sibling repository and builds all three provider wheels first. Test/lint workflows prepare a writable temporary copy before building editable providers. Remote workflows require the matching changes in both repositories.
+
+Run the durable installed-distribution gate from `impulse-messengers`:
+
+```shell
+python3 scripts/verify-packages.py --keep-artifacts
+```
+
+The gate builds all four sdists/wheels, rebuilds wheels from the sdists with uv sources disabled, checks metadata and resources, installs core alone and core plus each individual provider in fresh environments, and runs isolated processes outside the checkout. It exercises configuration, the CLI, templates/UI/Jira resources, missing credentials, fake-transport initialization/user lookup/create/update/notification/callback rejection, response/transport cleanup, and discovery after uninstall. It also checks plain-string IDs through user-cache YAML. The core integration tests keep workflow and authentication coverage; packaging does not change callback security policy.
+
+#### Local Phase 4 evidence (2026-10-03)
+
+- Final WSL/Linux Python 3.10 product suite: **1,318 passed**, with 26 warnings; log `/tmp/impulse-extraction-product-final.log` and JUnit report `/tmp/impulse-extraction-product-final.xml`. This includes real installed metadata discovery, arbitrary third-party IDs, shared provider behavior, resources, authentication, and eight built-in YAML/cache/migration regression cases.
+- The installed-package script rebuilt all four wheels from their source distributions with sources disabled. The clean core-only and three individual-provider environments passed configuration/CLI/resource checks, all applicable fake-transport facade lifecycle checks, and missing-provider detection after uninstall. Final artifacts and per-command logs are retained in the task-local verification directory reported by the script; no editable imports are used in those probes. Public API and provider typing markers are included.
+- Both uv lockfiles pass `uv lock --check`; core and messenger workspace synchronization passed. A standalone frozen core install with no sibling provider sources passed, and the writable-copy CI preparation was exercised locally.
+- The configured correctness lint gate and both repository whitespace checks pass. Ruff selection is explicit to preserve the prior gate when its default rules change. Full mypy still reports the unchanged nullable user lookup in `app/im/application.py:564`; running its repository-root command also includes two errors in pre-existing Windows `venv/Scripts/activate_this.py`. Scoped resource/Jira type checks pass. These unrelated issues are retained.
+
+#### Compatibility cleanup (2026-10-03)
+
+Core and test consumers now import the public SDK/schema directly. The internal
+API/schema forwarding modules, closed messenger enum, configuration re-exports
+and aliases, unused address-validation base, empty chain model, dictionary user
+lookup bridge, artificial platform-user test aliases, and orphaned core color
+table are removed. User lookup takes a string or integer ID directly. Root pip
+requirement exports are removed; uv metadata and lockfiles manage dependencies.
+Scoped bytecode for retired modules was removed as well.
+
+The final WSL/Linux Python 3.10 suite passed **1,342 tests**, with 26 warnings;
+three tests for the removed messenger enum were retired. Runtime and library
+Ruff checks passed. Rebuilt source distributions passed all four isolated
+core/provider installation, discovery, delivery, resource, and uninstall checks.
+Source-import and wheel checks explicitly reject retired messenger modules.
+Logs: `/tmp/impulse-cleanup-product-final.log` and
+`/tmp/impulse-cleanup-wheel-final.log`. This adds no live-tenant, Docker, or hosted
+CI evidence.
+
+Existing historical Phase 2–3 evidence above remains unchanged.
+
+No live tenant, hosted consent page, rendered browser, or production rate-limit validation is included in this local package milestone. Mattermost and Telegram retain the previously documented unauthenticated callback-origin behavior. Docker execution is unavailable in this WSL distro because Docker Desktop integration is disabled; a frozen standalone core installation without sibling sources validates the installation path outside Docker. Remote CI and publication are not performed. The full external-provider qualification gate still requires those applicable checks and the deferred characterization work.
 
 ## Initial implementation slice
 
@@ -580,4 +627,4 @@ The external-package milestone additionally requires a clean-environment smoke t
 
 ## Recommendation
 
-Proceed with the internal contract and Slack vertical slice using the interim verification approach, without waiting for the deferred Phase 0 golden suite or creating new repositories. The architectural success criterion is not that files have moved; it is that Impulse can construct and operate a provider using only the public contract, with no provider-name branches or private-core imports. Require shared conformance before external discovery and packaging. Once all built-ins satisfy that rule, standard Python entry points make external packages a packaging operation rather than another application refactor.
+The chosen boundary is now implemented locally: IMPulse owns workflow and its public API, while three packages own messaging integrations. Use uv and the installed-package gate to maintain that boundary. Complete the remaining live/callback-security and release qualification before claiming production external-provider conformance or publishing packages.

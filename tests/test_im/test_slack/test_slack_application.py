@@ -5,8 +5,8 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 from app.im.helpers import get_application
-from app.im.plugin_api import MessageRef
-from app.im.providers.slack import SlackProvider
+from impulse_messenger_api import MessageRef
+from impulse_slack import SlackProvider
 from tests.test_im.test_provider_seam import config_for, incident_for, Response, runtime, interaction_request  # noqa: F401
 from app.im.application import Application
 

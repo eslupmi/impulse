@@ -10,7 +10,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 
 from app.config.environment import EnvironmentConfig
 from app.config.validation import ImpulseConfig
-from app.im.providers.telegram.authentication import TelegramAuthentication
+from impulse_telegram.authentication import TelegramAuthentication
 from app.ui.authentication.factory import build_auth_manager
 from app.ui.authentication.models.auth_session import AuthSession
 from app.ui.authentication.providers.registered_provider import RegisteredAuthenticationProvider

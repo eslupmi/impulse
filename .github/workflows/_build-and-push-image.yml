@@ -16,6 +16,19 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v5
+      with:
+        path: impulse
+    - name: Checkout messenger libraries
+      uses: actions/checkout@v5
+      with:
+        repository: eslupmi/impulse-messengers
+        path: impulse-messengers
+    - name: Set up uv
+      uses: astral-sh/setup-uv@v7
+      with:
+        version: "0.12.22"
+    - name: Build messenger wheels
+      run: uv build --project impulse-messengers --all-packages --wheel --out-dir "$PWD/impulse/wheelhouse"
     - name: Log in to the Container registry
       uses: docker/login-action@v4
       with:
@@ -30,7 +43,7 @@ jobs:
     - name: Build and push Docker image
       uses: docker/build-push-action@v7
       with:
-        context: .
+        context: ./impulse
         push: true
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}

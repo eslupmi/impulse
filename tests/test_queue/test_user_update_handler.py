@@ -26,8 +26,7 @@ class TestUserUpdateHandler:
     def mock_application(self):
         """Create a mock application."""
         app = Mock()
-        app.type = Mock()
-        app.type.value = "slack"
+        app.type = "slack"
         app.get_user_details = AsyncMock()
         app.create_user = Mock()
         app.users = Mock()
@@ -71,6 +70,8 @@ class TestUserUpdateHandler:
         
         with patch('app.queue.handlers.user_update_handler.get_user_store', return_value=mock_user_store):
             await handler.handle(user_id)
+
+        mock_application.get_user_details.assert_awaited_once_with(user_id)
         
         # Should not save to user store
         mock_user_store.save.assert_not_called()
@@ -153,7 +154,7 @@ class TestUserUpdateHandler:
         """Test handle uses correct messenger type for saving."""
         for messenger_type in ["slack", "telegram", "mattermost"]:
             mock_app = Mock()
-            mock_app.type.value = messenger_type
+            mock_app.type = messenger_type
             mock_app.get_user_details = AsyncMock(return_value={
                 'exists': True,
                 'full_name': 'Test'

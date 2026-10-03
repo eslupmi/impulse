@@ -1,9 +1,10 @@
-"""Exercise the production composition root, not the legacy subclass constructors."""
+"""Exercise the public provider protocol through the production composition root."""
 
 import ast
 import asyncio
 import json
-from importlib.util import resolve_name
+from importlib import import_module
+import sys
 from urllib.parse import urlencode
 from dataclasses import FrozenInstanceError, replace
 from datetime import datetime, timezone
@@ -13,16 +14,13 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-from app.im.providers.telegram.config import TelegramApplicationConfig
-from app.im.providers.mattermost.config import MattermostApplicationConfig
+from impulse_telegram.config import TelegramApplicationConfig
+from impulse_mattermost.config import MattermostApplicationConfig
 from app.im.providers.none import NullApplicationConfig
-from app.im.providers.slack.config import SlackApplicationConfig
+from impulse_slack.config import SlackApplicationConfig
 from app.im.application import Application
 from app.im.helpers import get_application
-from app.im.plugin_api import (
-    GroupProfile, InteractiveProvider, InteractionRequest, MessageRef, MessengerProvider, PLUGIN_API_VERSION,
-    ProviderContext, ProviderDescriptor, ProviderIdentity, ProviderResponse, UserProfile,
-)
+from impulse_messenger_api import GroupProfile, InteractiveProvider, InteractionRequest, MessageRef, MessengerProvider, PLUGIN_API_VERSION, ProviderContext, ProviderDescriptor, ProviderIdentity, ProviderResponse, UserProfile
 from app.im.registry import ProviderRegistry, get_provider_registry
 from app.im.users import UserManager
 
@@ -153,7 +151,7 @@ async def test_registry_facade_initialization_delivery_and_cleanup(provider_id, 
         assert app.provider.http is transport
         assert not hasattr(app.provider, 'users')
         assert not hasattr(app.provider, 'chains')
-        user = await app.get_user_details({'id': 123 if provider_id == 'telegram' else 'U1'})
+        user = await app.get_user_details(123 if provider_id == 'telegram' else 'U1')
         assert user['exists'] and user['username'] == 'alice'
     incident = incident_for(provider_id)
     incident.ts = await app.create_incident_message(incident, 'body', 'header', '5312241539987020022')
@@ -295,42 +293,56 @@ def test_registry_rejects_missing_duplicate_and_incompatible_providers():
 
 
 def test_contract_does_not_import_core_or_external_runtime():
-    import app.im.plugin_api as api
-    tree = ast.parse(Path(api.__file__).read_text())
-    imports = [node.module for node in ast.walk(tree) if isinstance(node, ast.ImportFrom)]
-    assert set(imports) <= {'dataclasses', 'typing', 'enum', 'collections.abc', 'app.im.plugin_config'}
-    forbidden = ('app.incident', 'app.queue', 'app.route', 'app.maintenance', 'app.inhibition', 'app.http_client')
-    for path in (Path(api.__file__).parent / 'providers').glob('*.py'):
-        tree = ast.parse(path.read_text(encoding='utf-8'))
-        for node in ast.walk(tree):
-            names = [node.module or ''] if isinstance(node, ast.ImportFrom) else [a.name for a in node.names] if isinstance(node, ast.Import) else []
-            assert not any(name.startswith(forbidden) for name in names), path
+    import impulse_messenger_api as api
+
+    paths = tuple(Path(api.__file__).parent.rglob('*.py'))
+    assert paths
+    for path in paths:
+        for node in ast.walk(ast.parse(path.read_text(encoding='utf-8'))):
+            if isinstance(node, ast.ImportFrom):
+                if node.level:
+                    continue
+                modules = [node.module or '']
+            elif isinstance(node, ast.Import):
+                modules = [alias.name for alias in node.names]
+            else:
+                continue
+            for module in modules:
+                assert module.split('.')[0] in sys.stdlib_module_names | {'pydantic', 'impulse_messenger_api'}, (path, module)
 
 
-def test_builtin_provider_import_boundaries_and_core_selection():
+def test_external_provider_import_boundaries_and_core_selection():
     app_root = Path(__file__).resolve().parents[2] / 'app'
     provider_ids = ('slack', 'mattermost', 'telegram')
-    for provider_id in provider_ids:
-        namespace = f'app.im.providers.{provider_id}'
-        for path in (app_root / 'im' / 'providers' / provider_id).rglob('*.py'):
+    namespaces = tuple(f'impulse_{provider_id}' for provider_id in provider_ids)
+    for namespace in namespaces:
+        provider_root = Path(import_module(namespace).__file__).parent
+        paths = tuple(provider_root.rglob('*.py'))
+        assert paths, namespace
+        for path in paths:
             for node in ast.walk(ast.parse(path.read_text(encoding='utf-8'))):
                 if isinstance(node, ast.ImportFrom):
-                    modules = [resolve_name('.' * node.level + (node.module or ''), namespace)
-                               if node.level else node.module or '']
+                    modules = [node.module or ''] if not node.level else []
                 elif isinstance(node, ast.Import):
                     modules = [alias.name for alias in node.names]
                 else:
-                    modules = []
+                    continue
                 for module in modules:
-                    assert not module.startswith('app.') or module == 'app.im.plugin_api' or module.startswith(namespace), (path, module)
+                    assert module != 'app' and not module.startswith('app.'), (path, module)
+                    assert not any(module == other or module.startswith(other + '.')
+                                   for other in namespaces if other != namespace), (path, module)
 
+    assert all(not (app_root / 'im' / 'providers' / provider_id).exists() for provider_id in provider_ids)
     for path in app_root.rglob('*.py'):
-        if 'providers' in path.parts or path.name == 'registry.py':
-            continue
         for node in ast.walk(ast.parse(path.read_text(encoding='utf-8'))):
             if isinstance(node, ast.ImportFrom):
-                assert not any((node.module or '').startswith(f'app.im.providers.{provider_id}')
-                               for provider_id in provider_ids), path
+                modules = [node.module or '']
+            elif isinstance(node, ast.Import):
+                modules = [alias.name for alias in node.names]
+            else:
+                modules = []
+            assert not any(module == namespace or module.startswith(namespace + '.')
+                           for module in modules for namespace in namespaces), path
             if isinstance(node, ast.Compare):
                 assert not any(
                     (isinstance(item, ast.Constant) and item.value in provider_ids)

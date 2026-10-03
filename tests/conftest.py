@@ -9,9 +9,9 @@ import pytest
 
 from app.config.config import UnifiedConfig
 from app.config.environment import EnvironmentConfig
-from app.config.validation import ImpulseConfig, MessengerType
-from app.im.providers.mattermost.config import MattermostApplicationConfig
-from app.im.providers.slack.config import SlackApplicationConfig
+from app.config.validation import ImpulseConfig
+from impulse_mattermost.config import MattermostApplicationConfig
+from impulse_slack.config import SlackApplicationConfig
 from app.incident.incident import Incident, IncidentConfig
 
 
@@ -54,7 +54,7 @@ def mock_get_config_globally():
         # Create messenger config based on app type
         if app_type == "mattermost":
             messenger = Mock(spec=MattermostApplicationConfig)
-            messenger.type = MessengerType.MATTERMOST
+            messenger.type = 'mattermost'
             messenger.impulse_address = "https://impulse.example.com"
             messenger.address = "https://mattermost.example.com"
             messenger.team = "test-team"
@@ -65,7 +65,7 @@ def mock_get_config_globally():
             messenger.template_files = Mock()
         elif app_type == "slack":
             messenger = Mock(spec=SlackApplicationConfig)
-            messenger.type = MessengerType.SLACK
+            messenger.type = 'slack'
             messenger.channels = {"default": {"id": "C123456789"}}
             messenger.users = {}
             messenger.admin_users = []
@@ -73,8 +73,7 @@ def mock_get_config_globally():
             messenger.template_files = Mock()
         else:  # telegram or default
             messenger = Mock()
-            messenger.type = Mock()
-            messenger.type.value = app_type
+            messenger.type = app_type
             messenger.impulse_address = "https://impulse.example.com"
             messenger.channels = {"default": {"id": "C123456789"}}
             messenger.users = {}
@@ -179,7 +178,7 @@ def mock_impulse_config():
 
     # Mock messenger config
     messenger = Mock(spec=SlackApplicationConfig)
-    messenger.type = MessengerType.SLACK
+    messenger.type = 'slack'
     messenger.channels = {"default": {"id": "C123456789"}}
     messenger.users = {}
     messenger.route = True

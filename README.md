@@ -52,3 +52,48 @@ curl -XPOST -H "Content-Type: application/json" http://localhost:5000/ -d '{"rec
 The new `firing` incident appears in the UI.
 
 Follow the [installation guide](https://docs.impulse.bot/stable/installation/) for production deployment.
+
+## Python packages and development
+
+`impulse-bot` is the core application and public `impulse_messenger_api` contract. Slack, Mattermost, and Telegram are separate distributions in the [impulse-messengers repository](https://github.com/eslupmi/impulse-messengers): `impulse-slack`, `impulse-mattermost`, and `impulse-telegram`. The built-in `none` messenger needs no provider package. Existing messenger configuration and environment variable names stay the same.
+
+Use [uv](https://docs.astral.sh/uv/) with Python 3.10 or newer. Clone both repositories as siblings, then synchronize from the core checkout:
+
+```bash
+git clone https://github.com/eslupmi/impulse.git
+git clone https://github.com/eslupmi/impulse-messengers.git
+cd impulse
+uv sync --locked
+cp examples/impulse.none.yml impulse.yml
+uv run python -m main --check
+uv run python -m main
+```
+
+The default development group installs all three providers from the sibling checkout, plus test and lint tools. `pyproject.toml` declares dependencies and `uv.lock` pins resolution. Use `uv lock` after dependency changes; use `uv sync --locked` for normal development.
+
+Build the core and each provider as wheels without publishing anything:
+
+```bash
+uv build --wheel
+uv build --project ../impulse-messengers --all-packages --wheel
+```
+
+Install built artifacts into a fresh environment. Include only the provider wheels you need; each provider requires `impulse-bot>=3.7.1,<4` and is discovered through the `impulse.messengers` entry point group:
+
+```bash
+uv venv /tmp/impulse-runtime
+uv pip install --python /tmp/impulse-runtime/bin/python dist/*.whl ../impulse-messengers/dist/*.whl
+CONFIG_PATH=/absolute/path/to/config DATA_PATH=/absolute/path/to/data /tmp/impulse-runtime/bin/python -m main --check
+CONFIG_PATH=/absolute/path/to/config DATA_PATH=/absolute/path/to/data /tmp/impulse-runtime/bin/python -m main
+```
+
+The installed core includes UI assets and Jira templates, so launching it does not require the source checkout. Filesystem template overrides continue to use the configured paths. The libraries are prepared for distribution; the commands above install local wheels and do not depend on unpublished PyPI releases. The core distribution is named `impulse-bot` because the PyPI names `impulse` and `impulse-core` belong to unrelated packages.
+
+For a core-only container using `messenger.type: none`, run `docker build -t impulse-bot .`. To include providers, first build their wheels into `wheelhouse/`:
+
+```bash
+uv build --project ../impulse-messengers --all-packages --wheel --out-dir "$PWD/wheelhouse"
+docker build -t impulse-with-messengers .
+```
+
+The Dockerfile uses the frozen core lockfile and installs any supplied provider wheels. CI checks out both repositories, uses uv for dependencies, and prepares all three wheels before building the full container. Publish compatible changes to both repositories before expecting those remote workflows to run the new extraction.

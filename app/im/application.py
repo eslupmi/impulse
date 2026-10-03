@@ -8,18 +8,14 @@ from jinja2 import TemplateError
 
 from app.config.config import get_config
 from app.config.environment import get_environment_config
-from app.config.validation import (
-    ApplicationConfig,
-)
 from app.http_client.errors import MESSENGER_TRANSPORT_ERRORS
 from app.http_client.rate_limited_client import RateLimitedClient
 from app.im.chain.chain_factory import ChainFactory
 from app.im.groups import Group
 from app.im.interactions import apply_interaction
-from app.im.plugin_api import (
-    IncidentPresentation, MessageRef, MessengerProvider, NotificationContent,
+from impulse_messenger_api import (
+    BaseApplicationConfig, IncidentPresentation, MessageRef, MessengerProvider, NotificationContent,
     ProviderContext, ProviderIdentity, UserProfile, InteractiveProvider, InteractionRequest, ProviderResponse,
-    BaseUser as UserConfig,
 )
 from app.im.messenger_init import messenger_init_step_async, messenger_init_step_sync
 from app.im.template import (
@@ -57,7 +53,7 @@ log_button_pressed = 'Button pressed'
 class Application:
     task_management_integration: JiraIntegration | None = None
 
-    def __init__(self, app_config: ApplicationConfig, channels, default_channel, webhooks=None,
+    def __init__(self, app_config: BaseApplicationConfig, channels, default_channel, webhooks=None,
                  *, provider: MessengerProvider):
         self.provider = provider
         self.http: RateLimitedClient | None = None
@@ -153,7 +149,7 @@ class Application:
 
     async def _assign_from_api(self, user_id):
         try:
-            user_details = await self.get_user_details({'id': user_id})
+            user_details = await self.get_user_details(user_id)
         except MESSENGER_TRANSPORT_ERRORS as error:
             logger.error('Failed to fetch user for assignment', extra={'user_id': user_id, 'error': str(error)})
             return None
@@ -211,8 +207,7 @@ class Application:
             return []
         return [a.get_notification_identifier() for a in self.admin_users]
 
-    async def get_user_details(self, user_info: UserConfig | dict):
-        user_id = user_info.get('id')
+    async def get_user_details(self, user_id: str | int):
         assert isinstance(user_id, (str, int))
         return asdict(await self.provider.fetch_user(user_id))
 
@@ -274,7 +269,7 @@ class Application:
         redact_url = getattr(self.provider, 'redact_url', redact_messenger_url)
         logger.info(
             'Initializing messenger',
-            extra={'messenger': self.type.value, 'url': redact_url(self.url)},
+            extra={'messenger': self.type, 'url': redact_url(self.url)},
         )
 
         self.http = self._init_http_client()
@@ -287,7 +282,7 @@ class Application:
         self.admin_users = self._init_admin_users()
 
         await self.provider.activate()
-        logger.info('Messenger initialized', extra={'messenger': self.type.value})
+        logger.info('Messenger initialized', extra={'messenger': self.type})
 
     @messenger_init_step_sync('http_client')
     def _init_http_client(self) -> RateLimitedClient:
@@ -333,7 +328,7 @@ class Application:
     async def notify(self, incident, step):
         if not self.provider.descriptor.messaging_enabled:
             return 200
-        messenger = self.type.value
+        messenger = self.type
         notify_type = step['name']
         if notify_type == 'user':
             text_template = self.notification_template(chain_step_user[messenger])
@@ -356,7 +351,7 @@ class Application:
 
         try:
             header = self.notification_header(incident)
-            text = self.notification_template(incident_notifications_assignment[self.type.value]).form_notification(
+            text = self.notification_template(incident_notifications_assignment[self.type]).form_notification(
                 **assignment_template_context(self, incident, ui_user)
             )
             await self._post_notification(incident, header, text)
@@ -378,7 +373,7 @@ class Application:
 
         try:
             header = self.notification_header(incident_obj)
-            text = self.notification_template(incident_notifications_assignment[self.type.value]).form_notification(
+            text = self.notification_template(incident_notifications_assignment[self.type]).form_notification(
                 **assignment_template_context(self, incident_obj, ui_user)
             )
             await self._post_notification(incident_obj, header, text)
@@ -394,7 +389,7 @@ class Application:
         if not config.incident.notifications.freeze:
             return
 
-        text = self.notification_template(incident_notifications_freeze[self.type.value]).form_notification(
+        text = self.notification_template(incident_notifications_freeze[self.type]).form_notification(
             **freeze_template_context(incident_, ui_user)
         )
         header = self.notification_header(incident_)
@@ -403,7 +398,7 @@ class Application:
     async def post_unfreeze_notification(self, incident_: 'Incident', ui_user=None):
         if not self.provider.descriptor.messaging_enabled:
             return
-        text = self.notification_template(incident_notifications_unfreeze[self.type.value]).form_notification(
+        text = self.notification_template(incident_notifications_unfreeze[self.type]).form_notification(
             **freeze_template_context(incident_, ui_user)
         )
 
@@ -423,7 +418,7 @@ class Application:
 
             config = get_config()
             if updated_status and incident_status != 'closed' and config.incident.notifications.status_update:
-                text_template = self.notification_template(incident_notifications_status_update[self.type.value])
+                text_template = self.notification_template(incident_notifications_status_update[self.type])
                 text = text_template.form_notification(
                     **status_update_template_context(self, incident, alert_state, previous_payload)
                 )
@@ -460,7 +455,7 @@ class Application:
         if existing_user and existing_user.exists:
             return existing_user
 
-        get_user_store().save(user_id_str, self.type.value, user_details)
+        get_user_store().save(user_id_str, self.type, user_details)
         config_name = self.get_config_name_by_user_id(user_id_str)
         user = self.create_user(self._format_display_name(user_details), user_details)
         self._apply_admin_role(user, config_name)
@@ -494,7 +489,7 @@ class Application:
     async def _generate_users(self, users_dict: dict):
         logger.info('Creating users')
         user_store = get_user_store()
-        messenger_type = self.type.value
+        messenger_type = self.type
 
         user_manager = UserManager()
         stored = self._load_stored_users(user_store, messenger_type)
@@ -507,7 +502,7 @@ class Application:
                 user_manager.add_user(user_id, user, config_name=name)
                 continue
 
-            user_details = await self.get_user_details(user_info)
+            user_details = await self.get_user_details(user_info.id)
             if not user_details['exists']:
                 logger.warning('User not found in messenger', extra={'user': name})
             else:
@@ -605,10 +600,10 @@ class Application:
         if rate_limit:
             logger.debug(
                 f"Rate limit: "
-                f"{rate_limit} requests per {rate_window}s", extra={'messenger': self.type.value}
+                f"{rate_limit} requests per {rate_window}s", extra={'messenger': self.type}
             )
         else:
-            logger.info(f"{self.type.value.capitalize()} rate limiting disabled")
+            logger.info(f"{self.type.capitalize()} rate limiting disabled")
 
         client = RateLimitedClient(
             rate_limit=rate_limit,

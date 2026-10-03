@@ -5,7 +5,6 @@ from unittest.mock import Mock, AsyncMock, patch
 
 import pytest
 
-from app.config.validation import MessengerType
 from app.queue.handlers.alert_handler import AlertHandler
 from app.queue.handlers.base_handler import BaseHandler
 from app.queue.handlers.status_update_handler import StatusUpdateHandler
@@ -504,7 +503,7 @@ class TestStepHandler:
         webhook = Mock()
         webhook.push = AsyncMock(return_value=('ok', 204))
         mock_webhooks.get.return_value = webhook
-        mock_application.type = MessengerType.SLACK
+        mock_application.type = 'slack'
         mock_application.get_notification_destinations.return_value = []
         mock_application.header_template.form_message.return_value = 'header'
         mock_application._post_notification = AsyncMock(return_value=200)

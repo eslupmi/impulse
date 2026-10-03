@@ -10,12 +10,7 @@ from requests.adapters import HTTPAdapter
 from urllib3 import Retry
 
 from app.config.environment import get_environment_config
-from app.config.validation import (
-    CloudChain,
-    ScheduleEntry,
-    ScheduleMatcherExpression,
-    SimpleChainStep,
-)
+from impulse_messenger_api.schema import CloudChain, ScheduleEntry, ScheduleMatcherExpression, SimpleChainStep
 from app.im.chain.filter_steps import filter_undeclared_steps
 from app.im.chain.schedule_chain import ScheduleChain
 from app.logging import logger

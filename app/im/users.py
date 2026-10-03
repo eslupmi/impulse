@@ -104,7 +104,7 @@ class ProfileUser(BaseUser):
 
     def serialize(self):
         if self._serializer is not None:
-            from app.im.plugin_api import UserProfile
+            from impulse_messenger_api import UserProfile
             return self._serializer(UserProfile(self.id, self.exists, self.full_name, self.username, self.email, self.timezone), self.roles)
         return {
             'email': self.email,

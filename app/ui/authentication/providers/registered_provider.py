@@ -2,7 +2,7 @@
 from dataclasses import asdict
 
 from app.http_client.rate_limited_client import RateLimitedClient
-from app.im.plugin_api import AuthenticationError
+from impulse_messenger_api import AuthenticationError
 from app.ui.authentication.models.auth_user import AuthUser
 from app.ui.authentication.providers.base_provider import AuthenticationProvider, AuthenticationProviderError
 

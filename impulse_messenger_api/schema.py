@@ -1,17 +1,10 @@
-"""Public configuration schema shared by internally registered providers."""
+"""Public configuration schema for the version 1 messenger API."""
 import re
 from enum import Enum
 from typing import Annotated, Any, Literal
 from pydantic import AfterValidator, BaseModel, Field, field_validator, model_validator
 
 HttpBase = Annotated[str, AfterValidator(lambda v: v.rstrip("/"))]
-
-class MessengerType(str, Enum):
-    """Supported messenger types"""
-    SLACK = "slack"
-    MATTERMOST = "mattermost"
-    TELEGRAM = "telegram"
-    NONE = "none"
 
 class ChainType(str, Enum):
     """Supported chain types"""
@@ -34,9 +27,6 @@ class BaseUser(BaseModel):
         if isinstance(value, str) and not value.strip():
             raise ValueError("ID must not be empty")
         return value
-
-    def get(self, key: str) -> Any:
-        return getattr(self, key)
 
 class SimpleChainStep(BaseModel):
     """Base chain step"""
@@ -103,9 +93,6 @@ class ScheduleEntry(BaseModel):
     matcher: ScheduleMatcherExpression | None = Field(None, description="Matcher expression")
     steps: list[SimpleChainStep] = Field(..., description="Chain steps")
 
-class SimpleChain(BaseModel):
-    """Simple chain configuration - just a list of steps"""
-
 class ScheduleChain(BaseModel):
     """Schedule chain configuration"""
     type: Literal[ChainType.SCHEDULE] = Field(..., description="Chain type")
@@ -146,7 +133,7 @@ def _validate_ui_chain(chain_config):
 
 class BaseApplicationConfig(BaseModel):
     """Base messenger configuration with common fields"""
-    type: MessengerType = Field(..., description="Application type")
+    type: str = Field(..., description="Registered messenger provider ID")
     impulse_address: HttpBase | None = Field(None, description="Impulse callback address")
     admin_users: list[str] = Field(..., description="Admin users")
     user_groups: dict[str, UserGroup] = Field({}, description="User groups")

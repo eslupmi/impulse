@@ -1,24 +1,9 @@
-from app.im.plugin_config import (
-    MessengerType as MessengerType,
-    ChainType as ChainType,
-    CloudProvider as CloudProvider,
-    BaseUser as BaseUser,
-    SimpleChainStep as SimpleChainStep,
-    ScheduleMatcherExpression as ScheduleMatcherExpression,
-    ScheduleEntry as ScheduleEntry,
-    SimpleChain as SimpleChain,
-    ScheduleChain as ScheduleChain,
-    CloudChain as CloudChain,
-    UserGroup as UserGroup,
-    TemplateFiles as TemplateFiles,
-    BaseApplicationConfig as BaseApplicationConfig,
-)
-
 import re
 from enum import Enum
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field, SerializeAsAny, field_validator, model_validator
+from impulse_messenger_api import BaseApplicationConfig
 
 
 class DatetimeFormat(str, Enum):
@@ -56,19 +41,6 @@ class TaskManagementConfig(BaseModel):
         TaskManagementTemplateFiles(summary=None, description=None),
         description="Template files for task creation"
     )
-
-
-class AddressRequiredApplicationConfig(BaseApplicationConfig):
-    """Base for messenger types that require impulse_address"""
-
-    @model_validator(mode='after')
-    def validate_impulse_address_required(self):
-        if not self.impulse_address:
-            raise ValueError(f"messenger.impulse_address is required for {self.type.value}")
-        return self
-
-
-ApplicationConfig = BaseApplicationConfig
 
 
 class GeneralConfig(BaseModel):
@@ -242,7 +214,7 @@ class InhibitRule(BaseModel):
 class ImpulseConfig(BaseModel):
     """Main Impulse configuration"""
     general: GeneralConfig = Field(default_factory=GeneralConfig, description="General configuration")
-    messenger: SerializeAsAny[ApplicationConfig] = Field(..., description="Messenger configuration")
+    messenger: SerializeAsAny[BaseApplicationConfig] = Field(..., description="Messenger configuration")
     incident: IncidentConfig | None = Field(None, description="Incident configuration")
     route: RouteConfig | None = Field(None, description="Route configuration")
     ui: UIConfig | None = Field(None, description="UI configuration")
@@ -267,9 +239,9 @@ class ImpulseConfig(BaseModel):
 
         def validate_route(route_config: RouteConfig):
             if not route_config:
-                raise ValueError(f"'route' field is required when type is {self.messenger.type.value}")
+                raise ValueError(f"'route' field is required when type is {self.messenger.type}")
 
-        if self.messenger.type != MessengerType.NONE:
+        if self.messenger.type != 'none':
             validate_route(self.route)
         return self
 
@@ -285,7 +257,7 @@ class ImpulseConfig(BaseModel):
                 for nested_route in route_config.routes:
                     validate_route_channels(nested_route)
 
-        if self.messenger.type != MessengerType.NONE:
+        if self.messenger.type != 'none':
             validate_route_channels(self.route)
         return self
 

@@ -1,13 +1,11 @@
 """Mattermost import boundary and resource checks."""
 
-import os
 import subprocess
 import sys
-from pathlib import Path
 
 import pytest
 
-from app.im.providers.mattermost import MattermostProvider
+from impulse_mattermost import MattermostProvider
 from tests.test_im.test_provider_seam import config_for
 
 
@@ -18,24 +16,20 @@ def test_missing_token_names_the_variable_without_its_value():
 
 
 def test_resources_load_outside_the_checkout(tmp_path):
-    root = Path(__file__).resolve().parents[3]
     script = """
 import sys
-class NoPrivateCore:
+class NoCore:
     def find_spec(self, fullname, *args):
-        if fullname.startswith(('app.config','app.incident','app.queue','app.logging','app.time', 'app.ui', 'app.http_client', 'app.im.application', 'app.im.users')):
+        if fullname == 'app' or fullname.startswith('app.'):
             raise AssertionError(fullname)
-sys.meta_path.insert(0, NoPrivateCore())
-from app.im.providers.mattermost import MattermostProvider, TEMPLATE_NAMES
-from app.im.providers.mattermost.authentication import MattermostAuthentication
-from app.im.providers.none import NoneProvider
+sys.meta_path.insert(0, NoCore())
+from impulse_mattermost import MattermostProvider, TEMPLATE_NAMES
+from impulse_mattermost.authentication import MattermostAuthentication
 for name in TEMPLATE_NAMES:
     assert MattermostProvider.template_source(name).strip()
-assert NoneProvider.descriptor.provider_id == 'none'
 """
     result = subprocess.run(
-        [sys.executable, '-c', script], cwd=tmp_path,
-        env={**os.environ, 'PYTHONPATH': str(root) + os.pathsep + os.environ.get('PYTHONPATH', '')},
+        [sys.executable, '-I', '-c', script], cwd=tmp_path,
         capture_output=True, text=True,
     )
     assert result.returncode == 0, result.stderr

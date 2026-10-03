@@ -18,7 +18,7 @@ def _log_init_failure(self, step: str, exc: BaseException) -> None:
     logger.error(
         "Messenger initialization failed",
         extra={
-            'messenger': self.type.value,
+            'messenger': self.type,
             'url': redact_url(self.url),
             'step': step,
             **error,
@@ -29,7 +29,7 @@ def _log_init_failure(self, step: str, exc: BaseException) -> None:
 @contextmanager
 def _init_step_context(self, step: str):
     token = messenger_init_context.set(
-        MessengerInitContext(step=step, messenger=self.type.value)
+        MessengerInitContext(step=step, messenger=self.type)
     )
     try:
         yield

@@ -10,7 +10,7 @@ from app.config.loader import (
     load_and_validate_config,
     ConfigValidationError
 )
-from app.config.validation import ImpulseConfig, MessengerType
+from app.config.validation import ImpulseConfig
 from tests.utils import (
     create_slack_config_data, create_mock_impulse_config
 )
@@ -28,7 +28,7 @@ class TestLoadAndValidateConfig:
                 config, raw_config = load_and_validate_config('test_config.yml')
 
         assert isinstance(config, ImpulseConfig)
-        assert config.messenger.type == MessengerType.SLACK
+        assert config.messenger.type == 'slack'
         assert raw_config == valid_config
 
     def test_load_config_file_not_found(self):

@@ -6,6 +6,7 @@ from app.integrations.jira_client import JiraClient
 from app.jinja_template import JinjaTemplate
 from app.logging import logger
 from app.queue.constants import QueueItemType
+from app.resources import resource_directory
 
 
 class JiraIntegration:
@@ -29,7 +30,7 @@ class JiraIntegration:
     def _read_template(self, file_key: str) -> JinjaTemplate:
         """Read template file from current config"""
         config = get_config()
-        default_path = f'./templates/{self.tm_type}_{file_key}.j2'
+        default_path = str(resource_directory('templates') / f'{self.tm_type}_{file_key}.j2')
         
         if config.app.task_management and config.app.task_management.template_files:
             template_files = config.app.task_management.template_files

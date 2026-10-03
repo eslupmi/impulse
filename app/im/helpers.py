@@ -4,7 +4,8 @@ import os
 from types import MappingProxyType
 
 from app.config.environment import EnvironmentConfig, get_environment_config
-from app.config.validation import ApplicationConfig, TaskManagementConfig
+from impulse_messenger_api import BaseApplicationConfig
+from app.config.validation import TaskManagementConfig
 from app.im.application import Application
 from app.im.registry import get_provider_registry
 from app.integrations.jira_client import JiraClient
@@ -35,7 +36,7 @@ def create_task_management_integration(
     return JiraIntegration(jira_client, tm_type=task_management_config.type.value)
 
 
-def get_application(app_config: ApplicationConfig, channels, default_channel,
+def get_application(app_config: BaseApplicationConfig, channels, default_channel,
                    task_management_config: TaskManagementConfig | None = None,
                    webhooks=None):
     registration = get_provider_registry().resolve(app_config.type)

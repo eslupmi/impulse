@@ -5,8 +5,7 @@ import aiohttp
 import pytest
 
 from app.config.environment import EnvironmentConfig
-from app.config.validation import MessengerType
-from app.im.providers.slack.config import SlackApplicationConfig, SlackUser
+from impulse_slack.config import SlackApplicationConfig, SlackUser
 from app.im.helpers import get_application
 
 
@@ -14,7 +13,7 @@ class TestApplicationInitLogging:
     @pytest.fixture
     def slack_app(self):
         config = Mock(spec=SlackApplicationConfig)
-        config.type = MessengerType.SLACK
+        config.type = 'slack'
         config.template_files = {}
         config.chains = {}
         config.users = {'alice': Mock(spec=SlackUser, id='U1')}

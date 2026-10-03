@@ -77,7 +77,7 @@ class AlertHandler(BaseHandler):
             assigned_user_id="",
             assigned_user="",
             assigned_fullname="",
-            messenger_type=self.app.type.value,
+            messenger_type=self.app.type,
             version=config.INCIDENT_ACTUAL_VERSION
         )
 
@@ -88,7 +88,7 @@ class AlertHandler(BaseHandler):
         if thread_id is None:
             logger.warning(
                 "Incident creation aborted: failed to create thread",
-                extra={'channel_id': incident_.channel_id, 'messenger': self.app.type.value},
+                extra={'channel_id': incident_.channel_id, 'messenger': self.app.type},
             )
             return
 
@@ -175,7 +175,7 @@ class AlertHandler(BaseHandler):
 
     async def _notify_alert_change(self, incident_, templates, log_message, payload, previous_payload):
         header = self.app.notification_header(incident_)
-        text = self.app.notification_template(templates[self.app.type.value]).form_notification(
+        text = self.app.notification_template(templates[self.app.type]).form_notification(
             payload=payload,
             previous_payload=previous_payload,
             incident=incident_.serialize(),

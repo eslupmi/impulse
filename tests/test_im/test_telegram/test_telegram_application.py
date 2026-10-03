@@ -6,12 +6,9 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 
 from app.logging import DEFAULT_JSON_FORMAT, JSONFormatter
-from app.im.plugin_api import (
-    IncidentPresentation, Interaction, InteractionAction, InteractionRequest, MessageRef,
-    NotificationContent, ProviderContext, ProviderIdentity, ProviderResponse, UserProfile,
-)
-from app.im.providers.telegram import TelegramProvider, TEMPLATE_NAMES
-from app.im.providers.telegram.config import TelegramApplicationConfig
+from impulse_messenger_api import IncidentPresentation, Interaction, InteractionAction, InteractionRequest, MessageRef, NotificationContent, ProviderContext, ProviderIdentity, ProviderResponse, UserProfile
+from impulse_telegram import TelegramProvider, TEMPLATE_NAMES
+from impulse_telegram.config import TelegramApplicationConfig
 from tests.test_im.test_provider_seam import Response, Transport, config_for
 
 
@@ -36,7 +33,7 @@ def request(action, *, callback_id='ack-1'):
 
 
 def test_config_secret_override_and_descriptor():
-    assert TelegramApplicationConfig.model_validate(config_for('telegram').model_dump()).type.value == 'telegram'
+    assert TelegramApplicationConfig.model_validate(config_for('telegram').model_dump()).type == 'telegram'
     with pytest.raises(ValueError, match='TELEGRAM_BOT_TOKEN') as error:
         provider({'TELEGRAM_BOT_TOKEN': ''})
     assert 'secret-value' not in str(error.value)

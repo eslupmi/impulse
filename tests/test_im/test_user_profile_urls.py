@@ -2,19 +2,18 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from app.config.validation import MessengerType
 from app.im.application import Application
-from app.im.providers.mattermost import MattermostProvider
-from app.im.providers.slack import SlackProvider
-from app.im.plugin_api import ProviderContext, ProviderIdentity, UserProfile
-from app.im.users import ProfileUser as SlackUser
-from app.im.providers.telegram import TelegramProvider
+from impulse_mattermost import MattermostProvider
+from impulse_slack import SlackProvider
+from impulse_messenger_api import ProviderContext, ProviderIdentity, UserProfile
+from app.im.users import ProfileUser
+from impulse_telegram import TelegramProvider
 
 
 @pytest.mark.asyncio
 async def test_init_public_url_strips_trailing_slash():
     app = Application.__new__(Application)
-    app.type = MessengerType.SLACK
+    app.type = 'slack'
     app.url = "https://slack.com"
     app._app_config = Mock(impulse_address='https://impulse.test')
     app.http = Mock()
@@ -28,7 +27,7 @@ async def test_init_public_url_strips_trailing_slash():
 def test_slack_user_profile_url():
     app = Application.__new__(Application)
     app.public_url = "https://example.slack.com"
-    user = SlackUser("alice", "U123", exists=True, full_name="Alice", username="alice")
+    user = ProfileUser("alice", "U123", exists=True, full_name="Alice", username="alice")
 
     assert SlackProvider.user_url(UserProfile(user.id, user.exists), ProviderIdentity(app.public_url)) == "https://example.slack.com/team/U123"
 

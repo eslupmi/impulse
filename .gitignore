@@ -21,3 +21,9 @@ docker-compose.yml
 
 docs/env
 docs/venv
+
+/dist
+/build
+*.egg-info
+/wheelhouse/*
+!/wheelhouse/.gitkeep

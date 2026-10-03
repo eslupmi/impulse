@@ -3,12 +3,10 @@
 import hashlib
 import hmac
 import json
-import os
 import subprocess
 import sys
 import time
 from dataclasses import FrozenInstanceError, replace
-from pathlib import Path
 from unittest.mock import AsyncMock, Mock
 from urllib.parse import urlencode
 
@@ -20,9 +18,9 @@ from pydantic import ValidationError
 from app.config.validation import ImpulseConfig
 from app.im.application import Application
 from app.im.helpers import get_application
-from app.im.plugin_api import Interaction, InteractionAction, InteractionRequest
-from app.im.providers.slack import SlackProvider
-from app.im.providers.slack.config import SlackApplicationConfig
+from impulse_messenger_api import Interaction, InteractionAction, InteractionRequest
+from impulse_slack import SlackProvider
+from impulse_slack.config import SlackApplicationConfig
 from app.routes import create_router
 from tests.test_im.test_provider_seam import Transport, config_for, incident_for, runtime  # noqa: F401
 from tests.test_im.test_slack.test_slack_application import make_provider
@@ -244,23 +242,21 @@ async def test_manual_unfreeze_and_resolved_release_use_core_actions(runtime):
 
 
 def test_resources_and_imports_work_without_core_or_checkout_cwd(tmp_path):
-    root = Path(__file__).resolve().parents[3]
     script = """
 import sys
-class NoPrivateCore:
+class NoCore:
     def find_spec(self, fullname, *args):
-        if fullname.startswith(('app.config','app.incident','app.queue','app.logging','app.time', 'app.ui', 'app.http_client', 'app.im.application', 'app.im.users')):
+        if fullname == 'app' or fullname.startswith('app.'):
             raise AssertionError(fullname)
-sys.meta_path.insert(0, NoPrivateCore())
-from app.im.providers.slack import SlackProvider, TEMPLATE_NAMES
-from app.im.providers.slack.authentication import SlackAuthentication
+sys.meta_path.insert(0, NoCore())
+from impulse_slack import SlackProvider, TEMPLATE_NAMES
+from impulse_slack.authentication import SlackAuthentication
 for name in TEMPLATE_NAMES:
     assert SlackProvider.template_source(name).strip()
 """
     result = subprocess.run(
-        [sys.executable, '-c', script],
+        [sys.executable, '-I', '-c', script],
         cwd=tmp_path,
-        env={**os.environ, 'PYTHONPATH': str(root) + os.pathsep + os.environ.get('PYTHONPATH', '')},
         capture_output=True,
         text=True,
     )

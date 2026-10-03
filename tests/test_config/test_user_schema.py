@@ -4,7 +4,7 @@ import pytest
 from pydantic import ValidationError
 
 from app.config.validation import ImpulseConfig
-from app.im.plugin_config import BaseApplicationConfig
+from impulse_messenger_api.schema import BaseApplicationConfig
 from app.im.providers.none import NullApplicationConfig
 from tests.utils import create_mattermost_config_data, create_slack_config_data, create_telegram_config_data
 

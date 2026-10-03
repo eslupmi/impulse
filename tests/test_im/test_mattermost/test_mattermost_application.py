@@ -7,8 +7,8 @@ import pytest
 
 from app.im.application import Application
 from app.im.helpers import get_application
-from app.im.plugin_api import MessageRef, UserProfile
-from app.im.providers.mattermost import MattermostProvider
+from impulse_messenger_api import MessageRef, UserProfile
+from impulse_mattermost import MattermostProvider
 from tests.test_im.test_provider_seam import Response, config_for, incident_for, json_request, runtime  # noqa: F401
 
 

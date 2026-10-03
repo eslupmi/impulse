@@ -19,23 +19,29 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
-      
+        with:
+          path: impulse
+      - name: Checkout messenger libraries
+        uses: actions/checkout@v5
+        with:
+          repository: eslupmi/impulse-messengers
+          path: impulse-messengers
       - name: Create config from none example
-        run: |
-          cp examples/impulse.none.yml impulse.yml
-      
+        run: cp impulse/examples/impulse.none.yml impulse/impulse.yml
       - name: Run tests
         timeout-minutes: 10
         run: |
           docker run --rm \
-            -v "${{ github.workspace }}:/app:ro,Z" \
+            -v "${{ github.workspace }}:/workspace:ro,Z" \
             -e DATA_PATH=/data \
-            -w /app \
+            -e UV_PROJECT_ENVIRONMENT=/tmp/impulse-venv \
+            -w /workspace/impulse \
             python:${{ matrix.python-version }}-slim \
             sh -c "
-              python -m pip install --upgrade pip && \
-              pip install -r requirements.txt && \
-              pip install -r tests.requirements.txt && \
-              python -m pytest tests/ --color=yes -v
+              cp -a /workspace /tmp/workspace && \
+              chmod -R u+w /tmp/workspace && \
+              cd /tmp/workspace/impulse && \
+              python -m pip install uv==0.12.22 && \
+              uv sync --locked && \
+              uv run --no-sync python -m pytest tests/ --color=yes -v
             "
-

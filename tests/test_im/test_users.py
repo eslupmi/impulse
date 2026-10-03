@@ -2,39 +2,37 @@
 Unit tests for app.im.users module.
 """
 from app.im.users import BaseUser, ProfileUser, UserManager
-from app.im.users import ProfileUser as TelegramUser
-from app.im.users import ProfileUser as SlackUser
 
 
-class TestTelegramUser:
+class TestProfileUserNumericMentions:
     def test_numeric_mention_identifier(self):
-        user = TelegramUser('john', id_=12345, exists=True, notification_id=12345)
+        user = ProfileUser('john', id_=12345, exists=True, notification_id=12345)
         assert user.get_notification_identifier() == 12345
 
 
-class TestSlackUser:
-    """Test cases for Slack User class."""
+class TestProfileUserStringIDs:
+    """Cached users with string platform IDs."""
     
     def test_slack_user_creation(self):
         """Test creating a Slack user."""
-        user = SlackUser("Jane Smith", id_="U12345", exists=True)
+        user = ProfileUser("Jane Smith", id_="U12345", exists=True)
         assert user.name == "Jane Smith"
         assert user.id == "U12345"
         assert user.exists is True
         assert user.defined is True
     
     def test_slack_user_inherits_from_base(self):
-        """Test that SlackUser inherits from BaseUser."""
-        user = SlackUser("Jane Smith", id_="U12345")
+        """Cached users inherit from BaseUser."""
+        user = ProfileUser("Jane Smith", id_="U12345")
         assert isinstance(user, BaseUser)
     
     def test_slack_user_notification_identifier(self):
         """Test that Slack user returns ID for notifications."""
-        user = SlackUser("Jane Smith", id_="U12345")
+        user = ProfileUser("Jane Smith", id_="U12345")
         assert user.get_notification_identifier() == "U12345"
 
     def test_slack_user_serialize(self):
-        user = SlackUser(
+        user = ProfileUser(
             "jane",
             id_="U12345",
             exists=True,
@@ -58,12 +56,12 @@ class TestSlackUser:
     
     def test_slack_user_repr(self):
         """Test string representation of Slack user."""
-        user = SlackUser("Jane Smith", id_="U12345")
+        user = ProfileUser("Jane Smith", id_="U12345")
         assert repr(user) == "Jane Smith"
 
 
-class TestMattermostUser:
-    """Test cases for Mattermost User class."""
+class TestProfileUserUsernameMentions:
+    """Cached users whose notification identifier is a username."""
     
     def test_mattermost_user_creation(self):
         """Test creating a Mattermost user."""
@@ -75,7 +73,7 @@ class TestMattermostUser:
         assert user.defined is True
     
     def test_mattermost_user_inherits_from_base(self):
-        """Test that MattermostUser inherits from BaseUser."""
+        """Cached users inherit from BaseUser."""
         user = ProfileUser("Bob Johnson", id_="abc123", username="bjohnson", notification_id="bjohnson")
         assert isinstance(user, BaseUser)
     
@@ -125,8 +123,8 @@ class TestUserManager:
     def test_get_user_by_id_found(self):
         """Test finding a user by their platform ID."""
         manager = UserManager()
-        telegram_user = TelegramUser("John Doe", id_=12345, exists=True)
-        slack_user = SlackUser("Jane Smith", id_="U12345", exists=True)
+        telegram_user = ProfileUser("John Doe", id_=12345, exists=True)
+        slack_user = ProfileUser("Jane Smith", id_="U12345", exists=True)
         
         manager.add_user("12345", telegram_user, config_name="john")
         manager.add_user("U12345", slack_user, config_name="jane")
@@ -146,7 +144,7 @@ class TestUserManager:
     def test_get_user_by_id_not_found(self):
         """Test get_user_by_id returns None when user not found."""
         manager = UserManager()
-        manager.add_user("12345", TelegramUser("John", id_=12345))
+        manager.add_user("12345", ProfileUser("John", id_=12345))
         
         found = manager.get_user_by_id(99999)
         assert found is None

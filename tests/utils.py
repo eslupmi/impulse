@@ -345,7 +345,7 @@ def create_mock_config(
 
     # Mock messenger config
     mock_messenger = Mock()
-    mock_messenger.type.value = messenger_type
+    mock_messenger.type = messenger_type
     mock_config.messenger = mock_messenger
 
     return mock_config
@@ -502,8 +502,7 @@ def create_mock_application(
         chains = {}
 
     app = Mock()
-    app.type = Mock()
-    app.type.value = messenger_type
+    app.type = messenger_type
     app.url = url
     app.team = team
     app.channels = channels
@@ -748,8 +747,7 @@ def create_mock_impulse_config(
 
     config = Mock()
     config.messenger = Mock()
-    config.messenger.type = Mock()
-    config.messenger.type.value = messenger_type
+    config.messenger.type = messenger_type
     config.messenger.channels = channels
     config.messenger.users = users
     config.messenger.admin_users = admin_users
@@ -1358,8 +1356,7 @@ def create_mock_get_config_patch(impulse_address: str = DEFAULT_IMPULSE_ADDRESS)
     # Create a mock messenger config with impulse_address (MattermostApplicationConfig)
     mock_messenger = Mock()
     mock_messenger.impulse_address = impulse_address
-    mock_messenger.type = Mock()
-    mock_messenger.type.value = "mattermost"
+    mock_messenger.type = "mattermost"
     
     # Set up the messenger property to return our mock
     mock_app.messenger = mock_messenger

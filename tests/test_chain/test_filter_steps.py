@@ -3,7 +3,7 @@ Unit tests for app.im.chain.filter_steps module.
 """
 from unittest.mock import patch
 
-from app.config.validation import SimpleChainStep
+from impulse_messenger_api.schema import SimpleChainStep
 from app.im.chain.filter_steps import filter_undeclared_steps
 
 

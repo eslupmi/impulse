@@ -2,7 +2,7 @@
 import asyncio
 from dataclasses import replace
 
-from app.im.plugin_api import InteractionAction
+from impulse_messenger_api import InteractionAction
 from app.logging import logger
 
 async def apply_interaction(application, interaction, incidents, queue):

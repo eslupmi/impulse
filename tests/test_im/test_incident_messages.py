@@ -4,11 +4,11 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.im.providers.mattermost import MattermostProvider
-from app.im.providers.mattermost.payloads import _build_mattermost_actions
-from app.im.providers.slack.payloads import _build_slack_actions
-from app.im.providers.slack import SlackProvider
-from app.im.providers.telegram import TelegramProvider
+from impulse_mattermost import MattermostProvider
+from impulse_mattermost.payloads import _build_mattermost_actions
+from impulse_slack.payloads import _build_slack_actions
+from impulse_slack import SlackProvider
+from impulse_telegram import TelegramProvider
 from app.jinja_template import JinjaTemplate
 
 

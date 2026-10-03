@@ -1,4 +1,4 @@
-from app.im.plugin_api import InteractionRequest
+from impulse_messenger_api import InteractionRequest
 import asyncio
 import json
 from datetime import datetime, timezone
@@ -27,6 +27,7 @@ from app.middleware import (
     is_standby_mode,
     service_unavailable_response,
 )
+from app.resources import resource_directory
 from app.ui.table_config import get_all_ui_config
 from app.ui.websocket import incident_ws
 
@@ -44,8 +45,8 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
 
     ui_templates = None
     if fastapi_app and get_config().ui_config:
-        fastapi_app.mount(f"{http_prefix}/static", StaticFiles(directory="static"), name="static")
-        ui_templates = Jinja2Templates(directory="static")
+        fastapi_app.mount(f"{http_prefix}/static", StaticFiles(directory=resource_directory("static")), name="static")
+        ui_templates = Jinja2Templates(directory=resource_directory("static"))
 
     @router.get("/livez")
     def get_live(request: Request):
@@ -166,7 +167,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
             "webhooks": list(app.webhooks.keys()),
             "week_start": app.general.week_start,
             "timezone": app.general.timezone,
-            "messenger_type": runtime_messenger.type.value,
+            "messenger_type": runtime_messenger.type,
             "user_timezone": acting_user.get("timezone"),
             "ui_chains": ui_chains,
         }

@@ -9,7 +9,7 @@ from app.im.groups import Group
 from app.im.user_groups import UserGroup
 from app.im.users import UserManager
 from app.im.user_store import UserStore
-from app.im.users import ProfileUser as SlackUser
+from app.im.users import ProfileUser
 from app.routes import create_router
 from app.webhook import Webhook
 
@@ -30,12 +30,12 @@ def sample_group():
 
 @pytest.fixture
 def sample_user():
-    return SlackUser("alice", id_="U123", exists=True, full_name="Alice", username="alice")
+    return ProfileUser("alice", id_="U123", exists=True, full_name="Alice", username="alice")
 
 
 @pytest.fixture
 def stored_user():
-    return SlackUser(None, id_="U999", exists=True, full_name="Stored User", username="stored")
+    return ProfileUser(None, id_="U999", exists=True, full_name="Stored User", username="stored")
 
 
 @pytest.fixture

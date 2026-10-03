@@ -224,7 +224,7 @@ class TestIncidentMigrator:
 
         with patch('app.incident.migrator.get_config') as mock_get_config:
             mock_config = Mock()
-            mock_config.messenger.type.value = 'slack'
+            mock_config.messenger.type = 'slack'
             mock_get_config.return_value = mock_config
 
             result = migrator._migrate_v0_4_to_v3_0_0(incident_data)

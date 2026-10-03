@@ -10,8 +10,8 @@ from fastapi.testclient import TestClient
 
 from app.config.environment import EnvironmentConfig
 from app.config.validation import ImpulseConfig
-from app.im.plugin_api import AuthenticationError
-from app.im.providers.slack.authentication import SlackAuthentication
+from impulse_messenger_api import AuthenticationError
+from impulse_slack.authentication import SlackAuthentication
 from app.ui.authentication.factory import build_auth_manager
 from app.ui.authentication.router import create_auth_router
 from tests.test_im.test_provider_seam import Response
