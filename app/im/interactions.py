@@ -65,7 +65,7 @@ async def toggle_assignment(self, incident_, user_id, queue_):
             logger.info('Button pressed: user already assigned', extra={'incident': incident_.uniq_id, 'button': 'take_it', 'user_id': user_id})
         else:
             logger.info('Button pressed: assigning to user', extra={'incident': incident_.uniq_id, 'button': 'take_it', 'user_id': user_id})
-            self.fetch_and_assign_user_name(incident_, user_id, dump=False)
+            await self.fetch_and_assign_user_name(incident_, user_id, dump=False)
             self.track_async_task(asyncio.create_task(self.post_assignment_notification(incident_)))
         incident_.chain_enabled = False
     else:

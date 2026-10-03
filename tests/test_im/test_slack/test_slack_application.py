@@ -28,7 +28,7 @@ def test_closed_incident_update_payload_has_no_actions():
 @pytest.mark.asyncio
 async def test_buttons_handler_take_it_posts_assignment_notification(runtime):
     app = get_application(config_for('slack'), {'default': {'id': 'C1'}}, 'default')
-    app.fetch_and_assign_user_name = Mock(
+    app.fetch_and_assign_user_name = AsyncMock(
         side_effect=lambda incident, user_id, dump=True: setattr(incident, 'assigned_user_id', user_id)
     )
     app.post_assignment_notification = AsyncMock()
@@ -47,7 +47,7 @@ async def test_buttons_handler_take_it_posts_assignment_notification(runtime):
         Mock(delete_by_id=AsyncMock()),
     )
     assert result.status_code == 200
-    app.fetch_and_assign_user_name.assert_called_once_with(incident, 'U123', dump=False)
+    app.fetch_and_assign_user_name.assert_awaited_once_with(incident, 'U123', dump=False)
     assert incident.chain_enabled is False
     incident.dump.assert_called_once_with()
     import asyncio

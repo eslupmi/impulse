@@ -213,6 +213,55 @@ async def test_callbacks_use_facade_state_and_preserve_assignment(provider_id, r
 
 
 @pytest.mark.asyncio
+async def test_take_it_loads_uncached_user_from_messenger(runtime, monkeypatch):
+    store = Mock()
+    store.get_all_users_by_type.return_value = {}
+    monkeypatch.setattr('app.im.application.get_user_store', lambda: store)
+    user_id = 't9z54i9h9ffszqhoiiqwp5emhw'
+    app = get_application(config_for('mattermost'), {'default': {'id': 'C1'}}, 'default')
+    transport = Transport()
+    app._setup_http = Mock(return_value=transport)
+    await app.initialize_async()
+    incident = incident_for('mattermost')
+    incident.ts = 'post-1'
+    app.post_assignment_notification = AsyncMock()
+    app.form_body_header_status_icons = Mock(return_value=('body', 'header', ':firing:'))
+    response = await app.buttons_handler(
+        json_request({'post_id': incident.ts, 'user_id': user_id, 'context': {'action': 'chain'}}),
+        Mock(get_by_ts=Mock(return_value=incident)),
+        Mock(delete_by_id=AsyncMock()),
+    )
+    assert response.status_code == 200
+    assert incident.assigned_user_id == user_id
+    assert incident.assigned_user == 'alice'
+    assert incident.assigned_fullname == 'Alice'
+    assert app.users.get_user_by_id(user_id).exists
+    store.save.assert_called_once()
+    assert store.save.call_args.args[0] == user_id
+    user_gets = [url for method, url, _ in transport.calls if '/api/v4/users/' in url]
+    assert user_gets == [f'https://mm.test/api/v4/users/{user_id}?user_id={user_id}']
+    await app.fetch_and_assign_user_name(incident, user_id, dump=False)
+    user_gets = [url for method, url, _ in transport.calls if '/api/v4/users/' in url]
+    assert len(user_gets) == 1
+    await app.close()
+
+
+@pytest.mark.asyncio
+async def test_assignment_skips_unknown_and_unreachable_users(runtime):
+    app = get_application(config_for('mattermost'), {'default': {'id': 'C1'}}, 'default')
+    app._setup_http = Mock(return_value=Transport())
+    await app.initialize_async()
+    incident = incident_for('mattermost')
+    app.provider.fetch_user = AsyncMock(return_value=UserProfile(id='missing', exists=False))
+    await app.fetch_and_assign_user_name(incident, 'missing', dump=False)
+    assert incident.assigned_user_id == ''
+    app.provider.fetch_user = AsyncMock(side_effect=asyncio.TimeoutError)
+    await app.fetch_and_assign_user_name(incident, 'missing', dump=False)
+    assert incident.assigned_user_id == ''
+    await app.close()
+
+
+@pytest.mark.asyncio
 async def test_none_keeps_manual_freeze_a_noop(runtime):
     config = config_for('none')
     app = get_application(config, {'default': {'id': ''}}, 'default')

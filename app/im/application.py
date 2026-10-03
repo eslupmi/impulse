@@ -139,15 +139,28 @@ class Application:
                            notification_id=notification_id,
                            serializer=getattr(self.provider, 'serialize_user', None))
 
-    def fetch_and_assign_user_name(self, incident, user_id, dump=True):
-        cached_user = self.users.get_user_by_id(user_id)
-        if cached_user and cached_user.exists:
+    async def fetch_and_assign_user_name(self, incident, user_id, dump=True):
+        user = self.users.get_user_by_id(user_id)
+        if not (user and user.exists):
+            user = await self._assign_from_api(user_id)
+        if user is not None:
             incident.assigned_user_id = user_id
-            incident.assigned_user = cached_user.username
-            incident.assigned_fullname = cached_user.full_name or '(empty)'
-        logger.debug(f'Incident {incident.uniq_id} assigned', extra={'user_id': user_id})
+            incident.assigned_user = user.username
+            incident.assigned_fullname = user.full_name or '(empty)'
+            logger.debug(f'Incident {incident.uniq_id} assigned', extra={'user_id': user_id})
         if dump:
             incident.dump()
+
+    async def _assign_from_api(self, user_id):
+        try:
+            user_details = await self.get_user_details({'id': user_id})
+        except MESSENGER_TRANSPORT_ERRORS as error:
+            logger.error('Failed to fetch user for assignment', extra={'user_id': user_id, 'error': str(error)})
+            return None
+        if not user_details['exists']:
+            logger.warning('User not found, assignment skipped', extra={'user_id': user_id})
+            return None
+        return self._add_discovered_user(user_id, user_details)
 
     def form_body_header_status_icons(self, incident):
         body = self.body_template.form_message(incident.payload, incident)
@@ -216,7 +229,7 @@ class Application:
             return False
 
         await queue.delete_by_id(incident.uniq_id, delete_steps=True, delete_status=False)
-        self.fetch_and_assign_user_name(incident, str_user_id)
+        await self.fetch_and_assign_user_name(incident, str_user_id)
         self.track_async_task(asyncio.create_task(self.post_assignment_notification(incident, ui_user=ui_user)))
         incident.chain_enabled = False
         incident.dump()
@@ -443,21 +456,18 @@ class Application:
 
     def _add_discovered_user(self, user_id, user_details):
         user_id_str = str(user_id)
-        
         existing_user = self.users.get_user_by_id(user_id)
-        if existing_user and existing_user.defined:
-            return
-        
-        user_store = get_user_store()
-        user_store.save(user_id_str, self.type.value, user_details)
-        
-        display_name = self._format_display_name(user_details)
-        user = self.create_user(display_name, user_details)
-        if user:
-            self._apply_admin_role(user, self.get_config_name_by_user_id(user_id_str))
-            self.users.add_user(user_id_str, user)
-            if self._user_scheduler:
-                self._user_scheduler.schedule_update(user_id_str)
+        if existing_user and existing_user.exists:
+            return existing_user
+
+        get_user_store().save(user_id_str, self.type.value, user_details)
+        config_name = self.get_config_name_by_user_id(user_id_str)
+        user = self.create_user(self._format_display_name(user_details), user_details)
+        self._apply_admin_role(user, config_name)
+        self.users.add_user(user_id_str, user, config_name=config_name)
+        if self._user_scheduler:
+            self._user_scheduler.schedule_update(user_id_str)
+        return user
 
     @staticmethod
     def _format_display_name(user_details: dict) -> str:
@@ -550,8 +560,8 @@ class Application:
         general = get_config().app.general
         timezone_str = user_timezone or general.timezone
         freeze_time = calculate_freeze_time(freeze_option, general, timezone_str)
-        self.fetch_and_assign_user_name(incident_, user_id, dump=False)
-        cached_user = self.users.get_user_by_id(user_id) if self.users else None
+        await self.fetch_and_assign_user_name(incident_, user_id, dump=False)
+        cached_user = self.users.get_user_by_id(user_id)
         await self.apply_time_freeze(incident_, freeze_time, cached_user, queue_, source=FreezeSource.TIME)
         await self.post_freeze_notification(incident_, ui_user=ui_user)
 
