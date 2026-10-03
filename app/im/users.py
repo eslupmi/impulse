@@ -1,10 +1,21 @@
 from abc import ABC, abstractmethod
 
+_USE_PLATFORM_ID = object()
+
 
 class BaseUser(ABC):
     """Base class for all messenger users."""
     
-    def __init__(self, name: str, id_: int | str | None = None, exists: bool = False, full_name: str | None = None, username: str | None = None, timezone: str | None = None, roles: list[str] | None = None):
+    def __init__(
+        self,
+        name: str,
+        id_: int | str | None = None,
+        exists: bool = False,
+        full_name: str | None = None,
+        username: str | None = None,
+        timezone: str | None = None,
+        roles: list[str] | None = None,
+    ):
         self.name = name
         self.id = id_
         self.exists = exists
@@ -66,3 +77,41 @@ class UserManager:
     def serialize_one(self, name: str) -> dict | None:
         user = self._named.get(name)
         return user.serialize() if user else None
+
+
+class ProfileUser(BaseUser):
+    """Core cached user backed by a normalized provider profile."""
+
+    def __init__(
+        self,
+        name: str,
+        id_: str | None = None,
+        exists: bool = False,
+        full_name: str | None = None,
+        username: str | None = None,
+        email: str | None = None,
+        timezone_: str | None = None,
+        notification_id=_USE_PLATFORM_ID,
+        serializer=None,
+    ):
+        super().__init__(name, id_, exists, full_name, username, timezone_)
+        self.email = email
+        self.notification_id = id_ if notification_id is _USE_PLATFORM_ID else notification_id
+        self._serializer = serializer
+
+    def get_notification_identifier(self):
+        return self.notification_id
+
+    def serialize(self):
+        if self._serializer is not None:
+            from app.im.plugin_api import UserProfile
+            return self._serializer(UserProfile(self.id, self.exists, self.full_name, self.username, self.email, self.timezone), self.roles)
+        return {
+            'email': self.email,
+            'exists': self.exists,
+            'full_name': self.full_name,
+            'id': str(self.id),
+            'roles': list(self.roles),
+            'timezone': self.timezone,
+            'username': self.username,
+        }

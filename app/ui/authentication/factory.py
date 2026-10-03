@@ -1,18 +1,13 @@
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from app.config.validation import MattermostApplicationConfig, MessengerType
+from app.config.validation import MessengerType
 from app.im.user_store import get_user_store
 from app.logging import logger
 from app.ui.authentication.manager import UserAuthenticationManager
 from app.ui.authentication.models.auth_user import AuthUser
-from app.ui.authentication.providers.mattermost_provider import (
-    MattermostAuthenticationProvider,
-)
-from app.ui.authentication.providers.slack_provider import SlackAuthenticationProvider
-from app.ui.authentication.providers.telegram_provider import (
-    TelegramAuthenticationProvider,
-)
+from app.im.registry import get_provider_registry
+from app.ui.authentication.providers.registered_provider import RegisteredAuthenticationProvider
 from app.ui.authentication.providers.unsupported_provider import (
     UnsupportedAuthenticationProvider,
 )
@@ -39,35 +34,20 @@ def _build_configured_users(config: 'ImpulseConfig') -> dict[str, AuthUser]:
             continue
         configured_users[user_id] = AuthUser(
             id=user_id,
-            username=getattr(user, "username", None) or user_name,
-            full_name=getattr(user, "name", None),
-            email=getattr(user, "email", None),
+            username=user_name,
             messenger=messenger,
         )
     return configured_users
 
 
 def _build_provider(messenger_type: MessengerType, client_id: str, client_secret: str, config: 'ImpulseConfig'):
-    if messenger_type == MessengerType.SLACK:
+    registration = get_provider_registry().resolve(messenger_type)
+    if registration.authentication_factory:
         if client_id and client_secret:
-            return SlackAuthenticationProvider(client_id=client_id, client_secret=client_secret)
-        logger.warning("Auth disabled for Slack: AUTH_CLIENT_ID and AUTH_CLIENT_SECRET are required")
-    elif messenger_type == MessengerType.MATTERMOST:
-        assert isinstance(config.messenger, MattermostApplicationConfig)
-        mattermost_url = config.messenger.address.strip()
-        if client_id and client_secret and mattermost_url:
-            return MattermostAuthenticationProvider(
-                base_url=mattermost_url,
-                client_id=client_id,
-                client_secret=client_secret,
-            )
-        logger.warning(
-            "Auth disabled for Mattermost: AUTH_CLIENT_ID, AUTH_CLIENT_SECRET and messenger.address are required"
-        )
-    elif messenger_type == MessengerType.TELEGRAM:
-        if client_id and client_secret:
-            return TelegramAuthenticationProvider(client_id=client_id, client_secret=client_secret)
-        logger.warning("Auth disabled for Telegram: AUTH_CLIENT_ID and AUTH_CLIENT_SECRET are required")
+            return RegisteredAuthenticationProvider(
+                registration.authentication_factory(client_id, client_secret, config.messenger))
+        logger.warning('Auth disabled: AUTH_CLIENT_ID and AUTH_CLIENT_SECRET are required',
+                       extra={'messenger': messenger_type.value})
     return UnsupportedAuthenticationProvider()
 
 

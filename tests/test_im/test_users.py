@@ -1,54 +1,15 @@
 """
 Unit tests for app.im.users module.
 """
-from unittest.mock import Mock
-
-import pytest
-
-from app.im.users import BaseUser, UserManager
-from app.im.telegram.user import User as TelegramUser
-from app.im.slack.user import User as SlackUser
-from app.im.mattermost.user import User as MattermostUser
+from app.im.users import BaseUser, ProfileUser, UserManager
+from app.im.users import ProfileUser as TelegramUser
+from app.im.users import ProfileUser as SlackUser
 
 
 class TestTelegramUser:
-    """Test cases for Telegram User class."""
-    
-    def test_telegram_user_creation(self):
-        """Test creating a Telegram user."""
-        user = TelegramUser("John Doe", id_=12345, exists=True)
-        assert user.name == "John Doe"
-        assert user.id == 12345
-        assert user.exists is True
-        assert user.defined is True
-    
-    def test_telegram_user_inherits_from_base(self):
-        """Test that TelegramUser inherits from BaseUser."""
-        user = TelegramUser("John Doe", id_=12345)
-        assert isinstance(user, BaseUser)
-    
-    def test_telegram_user_notification_identifier(self):
-        """Test that Telegram user returns ID for notifications."""
-        user = TelegramUser("John Doe", id_=12345)
+    def test_numeric_mention_identifier(self):
+        user = TelegramUser('john', id_=12345, exists=True, notification_id=12345)
         assert user.get_notification_identifier() == 12345
-
-    def test_telegram_user_serialize(self):
-        user = TelegramUser("john", id_="12345", exists=True, full_name="John Doe", username="johnny")
-        payload = user.serialize()
-        assert payload == {
-            "exists": True,
-            "full_name": "John Doe",
-            "id": 12345,
-            "roles": [],
-            "username": "johnny",
-        }
-        assert isinstance(payload["id"], int)
-        assert list(payload) == sorted(payload)
-    
-    def test_telegram_user_repr(self):
-        """Test string representation of Telegram user."""
-        user = TelegramUser("John Doe", id_=12345)
-        assert repr(user) == "John Doe"
 
 
 class TestSlackUser:
@@ -106,7 +67,7 @@ class TestMattermostUser:
     
     def test_mattermost_user_creation(self):
         """Test creating a Mattermost user."""
-        user = MattermostUser("Bob Johnson", id_="abc123", username="bjohnson", exists=True)
+        user = ProfileUser("Bob Johnson", id_="abc123", username="bjohnson", exists=True, notification_id="bjohnson")
         assert user.name == "Bob Johnson"
         assert user.id == "abc123"
         assert user.username == "bjohnson"
@@ -115,16 +76,16 @@ class TestMattermostUser:
     
     def test_mattermost_user_inherits_from_base(self):
         """Test that MattermostUser inherits from BaseUser."""
-        user = MattermostUser("Bob Johnson", id_="abc123", username="bjohnson")
+        user = ProfileUser("Bob Johnson", id_="abc123", username="bjohnson", notification_id="bjohnson")
         assert isinstance(user, BaseUser)
     
     def test_mattermost_user_notification_identifier(self):
         """Test that Mattermost user returns username for notifications."""
-        user = MattermostUser("Bob Johnson", id_="abc123", username="bjohnson")
+        user = ProfileUser("Bob Johnson", id_="abc123", username="bjohnson", notification_id="bjohnson")
         assert user.get_notification_identifier() == "bjohnson"
 
     def test_mattermost_user_serialize(self):
-        user = MattermostUser(
+        user = ProfileUser(
             "bob",
             id_="abc123",
             username="bjohnson",
@@ -132,6 +93,7 @@ class TestMattermostUser:
             full_name="Bob Johnson",
             email="bob@example.com",
             timezone_="UTC",
+            notification_id="bjohnson",
         )
         payload = user.serialize()
         assert payload == {
@@ -148,7 +110,7 @@ class TestMattermostUser:
     
     def test_mattermost_user_repr(self):
         """Test string representation of Mattermost user."""
-        user = MattermostUser("Bob Johnson", id_="abc123", username="bjohnson")
+        user = ProfileUser("Bob Johnson", id_="abc123", username="bjohnson", notification_id="bjohnson")
         assert repr(user) == "Bob Johnson"
 
 

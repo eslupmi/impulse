@@ -1,27 +1,18 @@
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import patch
 
 import pytest
 
-from app.im.mattermost.threads import _build_mattermost_actions
-from app.im.slack.threads import _build_slack_actions
+from app.im.providers.mattermost import MattermostProvider
+from app.im.providers.mattermost.payloads import _build_mattermost_actions
+from app.im.providers.slack.payloads import _build_slack_actions
+from app.im.providers.slack import SlackProvider
+from app.im.providers.telegram import TelegramProvider
 from app.jinja_template import JinjaTemplate
 
 
 TEMPLATES_DIR = Path(__file__).resolve().parents[2] / "templates"
-
-
-def _config(task_management=False):
-    return SimpleNamespace(
-        app=SimpleNamespace(task_management=task_management),
-        messenger=SimpleNamespace(impulse_address="https://impulse.test"),
-    )
-
-
-def _env(task_management_enabled=False):
-    return SimpleNamespace(task_management_enabled=task_management_enabled)
 
 
 def _maintenance_incident():
@@ -33,6 +24,8 @@ def _maintenance_incident():
         frozen_until=datetime.now(timezone.utc) + timedelta(hours=1),
         task_link="",
         can_manual_unfreeze=lambda: False,
+        can_unfreeze=False,
+        can_create_task=False,
         is_frozen=True,
     )
 
@@ -70,20 +63,11 @@ def _incident(parents, childs=None):
 
 
 @pytest.mark.parametrize(
-    ("builder", "config_patch", "env_patch", "label_key"),
-    [
-        (_build_slack_actions, "app.im.slack.threads.get_config", "app.im.slack.threads.get_environment_config", "text"),
-        (
-            _build_mattermost_actions,
-            "app.im.mattermost.threads.get_config",
-            "app.im.mattermost.threads.get_environment_config",
-            "name",
-        ),
-    ],
+    ("builder", "label_key"),
+    [(_build_slack_actions, "text"), (_build_mattermost_actions, "name")],
 )
-def test_maintenance_freeze_button_label_is_maintenance(builder, config_patch, env_patch, label_key):
-    with patch(config_patch, return_value=_config()), patch(env_patch, return_value=_env()):
-        actions = builder(_maintenance_incident(), "UTC")
+def test_maintenance_freeze_button_label_is_maintenance(builder, label_key):
+    actions = builder(_maintenance_incident(), "")
 
     freeze_action = next(action for action in actions if action.get("name") == "freeze" or action.get("id") == "freeze")
     assert freeze_action[label_key] == "Maintenance"
@@ -91,7 +75,13 @@ def test_maintenance_freeze_button_label_is_maintenance(builder, config_patch, e
 
 @pytest.mark.parametrize("template_name", ["slack_body.j2", "mattermost_body.j2", "telegram_body.j2"])
 def test_parent_section_hidden_for_maintenance_sentinel_only(template_name):
-    template = JinjaTemplate((TEMPLATES_DIR / template_name).read_text())
+    if template_name == 'slack_body.j2':
+        source = SlackProvider.template_source('body')
+    elif template_name == 'mattermost_body.j2':
+        source = MattermostProvider.template_source('body')
+    else:
+        source = TelegramProvider.template_source('body')
+    template = JinjaTemplate(source)
     incident = _incident(["maintenance"])
     JinjaTemplate.set_incidents(SimpleNamespace(uniq_ids={}))
     try:
@@ -106,7 +96,13 @@ def test_parent_section_hidden_for_maintenance_sentinel_only(template_name):
 
 @pytest.mark.parametrize("template_name", ["slack_body.j2", "mattermost_body.j2", "telegram_body.j2"])
 def test_parent_section_shows_only_real_parent_incidents(template_name):
-    template = JinjaTemplate((TEMPLATES_DIR / template_name).read_text())
+    if template_name == 'slack_body.j2':
+        source = SlackProvider.template_source('body')
+    elif template_name == 'mattermost_body.j2':
+        source = MattermostProvider.template_source('body')
+    else:
+        source = TelegramProvider.template_source('body')
+    template = JinjaTemplate(source)
     incident = _incident(["maintenance", "parent-1"])
     parent = SimpleNamespace(
         link="https://example.test/parent",

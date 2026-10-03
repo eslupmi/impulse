@@ -9,7 +9,7 @@ from app.im.groups import Group
 from app.im.user_groups import UserGroup
 from app.im.users import UserManager
 from app.im.user_store import UserStore
-from app.im.slack.user import User as SlackUser
+from app.im.users import ProfileUser as SlackUser
 from app.routes import create_router
 from app.webhook import Webhook
 

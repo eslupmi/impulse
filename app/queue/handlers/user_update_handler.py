@@ -2,7 +2,8 @@ from datetime import datetime, timedelta, timezone
 
 from app.im.user_store import USER_REFRESH_HOURS, get_user_store
 from app.logging import logger
-from app.queue.constants import USER_UPDATE_GAP_SECONDS, QueueItemType
+from app.im.registry import get_provider_registry
+from app.queue.constants import QueueItemType
 from app.queue.handlers.base_handler import BaseHandler
 
 
@@ -38,7 +39,7 @@ class UserUpdateHandler(BaseHandler):
 
     async def _schedule_next_refresh(self, user_id: str):
         """Schedule next refresh with proper gap from latest UPDATE_USER item."""
-        gap_seconds = USER_UPDATE_GAP_SECONDS.get(self.app.type.value, 1.0)
+        gap_seconds = get_provider_registry().resolve(self.app.type.value).descriptor.user_update_gap_seconds
         latest = await self.queue.get_latest_item_by_type(QueueItemType.UPDATE_USER)
         
         now = datetime.now(timezone.utc)

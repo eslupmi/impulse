@@ -1,12 +1,12 @@
 
 
+import os
+from types import MappingProxyType
+
 from app.config.environment import EnvironmentConfig, get_environment_config
 from app.config.validation import ApplicationConfig, TaskManagementConfig
 from app.im.application import Application
-from app.im.mattermost.mattermost_application import MattermostApplication
-from app.im.null.null_application import NullApplication
-from app.im.slack.slack_application import SlackApplication
-from app.im.telegram.telegram_application import TelegramApplication
+from app.im.registry import get_provider_registry
 from app.integrations.jira_client import JiraClient
 from app.integrations.jira_integration import JiraIntegration
 from app.logging import logger
@@ -38,18 +38,15 @@ def create_task_management_integration(
 def get_application(app_config: ApplicationConfig, channels, default_channel,
                    task_management_config: TaskManagementConfig | None = None,
                    webhooks=None):
-    app_type = app_config.type
-    messenger: Application
-    if app_type == 'slack':
-        messenger = SlackApplication(app_config, channels, default_channel, webhooks=webhooks)
-    elif app_type == 'mattermost':
-        messenger = MattermostApplication(app_config, channels, default_channel, webhooks=webhooks)
-    elif app_type == 'telegram':
-        messenger = TelegramApplication(app_config, channels, default_channel, webhooks=webhooks)
-    elif app_type == 'none':
-        messenger = NullApplication(app_config, channels, default_channel, webhooks=webhooks)
-    else:
-        raise ValueError(f'Unknown application type: {app_type}')
+    registration = get_provider_registry().resolve(app_config.type)
+    environment = dict(os.environ)
+    override = get_environment_config().dev_messenger_custom_address
+    if override:
+        environment['DEV_MESSENGER_CUSTOM_ADDRESS'] = override
+    provider = registration.factory(app_config, MappingProxyType(environment))
+    messenger = Application(
+        app_config, channels, default_channel, webhooks=webhooks, provider=provider,
+    )
 
     if task_management_config:
         initialize_task_management_integration(messenger, task_management_config)

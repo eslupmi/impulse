@@ -567,6 +567,8 @@ Below are all the configuration options supported by IMPulse.
 
 - **description:** users declaration. Defines users used in escalation [chains](#messengerchains) for direct notifications.
 - **type:** dict
+- **structure:** each user entry requires an `id`: a non-empty string for Slack/Mattermost or an integer for Telegram. Boolean IDs are invalid. Telegram also accepts numeric strings.
+- **profile data:** the user key is the local alias. Display names and platform usernames are fetched from the messenger; configured `name` and `username` fields are ignored.
 - **details:**
     
     !!! note ""

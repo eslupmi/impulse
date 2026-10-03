@@ -1,3 +1,4 @@
+from app.im.plugin_api import InteractionRequest
 import asyncio
 import json
 from datetime import datetime, timezone
@@ -103,20 +104,13 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
     @router.put("/app")
     async def handle_app_buttons(request: Request):
         try:
-            if request.app.state.messenger.type == 'slack':
-                form_data = await request.form()
-                raw = form_data['payload']
-                if not isinstance(raw, str):
-                    raise HTTPException(status_code=400, detail="Invalid payload")
-                payload = json.loads(raw)
-            else:
-                payload = await request.json()
+            payload = InteractionRequest(request.method, tuple(request.headers.items()),
+                                         tuple(request.query_params.multi_items()), await request.body())
 
             return await request.app.state.messenger.buttons_handler(
                 payload,
                 request.app.state.incidents,
                 request.app.state.queue,
-                request.app.state.route
             )
         except (json.JSONDecodeError, KeyError) as e:
             logger.error("App buttons error", extra={'error': str(e)})

@@ -12,13 +12,16 @@ from app.logging_context import (
 
 
 def _log_init_failure(self, step: str, exc: BaseException) -> None:
+    redact_url = getattr(getattr(self, 'provider', None), 'redact_url', redact_messenger_url)
+    error = exception_fields(exc)
+    error['detail'] = redact_url(error['detail'])
     logger.error(
         "Messenger initialization failed",
         extra={
             'messenger': self.type.value,
-            'url': redact_messenger_url(self.url),
+            'url': redact_url(self.url),
             'step': step,
-            **exception_fields(exc),
+            **error,
         },
     )
 

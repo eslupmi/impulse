@@ -103,7 +103,7 @@ class TestIncident:
         sample_incident.ts = "thread123"
 
         link = sample_incident.generate_link("https://mattermost.test.com")
-        assert link == "https://test.slack.com/test-team/pl/thread123"
+        assert link == "https://mattermost.test.com/test-team/pl/thread123"
 
     def test_generate_link_telegram(self, sample_incident):
         """Test link generation for Telegram."""
