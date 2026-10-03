@@ -126,10 +126,6 @@ class MattermostProvider:
         return user.username
 
     @staticmethod
-    def markdown_links(text: str) -> str:
-        return text
-
-    @staticmethod
     def template_source(name: str) -> str:
         if name not in TEMPLATE_NAMES:
             raise KeyError(name)
@@ -173,7 +169,7 @@ class MattermostProvider:
 
     @staticmethod
     def _full_name(data):
-        return f"{data.get('first_name', '').strip()} {data.get('last_name', '').strip()}".strip()
+        return f"{data.get('first_name', '')} {data.get('last_name', '')}".strip()
 
     @staticmethod
     def _extract_timezone(timezone_data):

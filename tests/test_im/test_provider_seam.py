@@ -510,6 +510,28 @@ REQUIRED_TEMPLATE_NAMES = (
 )
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize('provider_id', ['mattermost', 'telegram'])
+@pytest.mark.parametrize('names, expected', [
+    ({'first_name': 'Alice', 'last_name': 'Smith'}, 'Alice Smith'),
+    ({'first_name': 'Alice'}, 'Alice'),
+    ({'last_name': 'Smith'}, 'Smith'),
+    ({}, ''),
+    ({'first_name': ' Alice ', 'last_name': ' Smith '}, 'Alice   Smith'),
+])
+async def test_full_name_preserves_name_parts_and_trims_outer_whitespace(provider_id, names, expected):
+    registration = get_provider_registry().resolve(provider_id)
+    provider = registration.factory(config_for(provider_id), {
+        'MATTERMOST_ACCESS_TOKEN': 'token', 'TELEGRAM_BOT_TOKEN': 'token',
+    })
+    response = Response({'ok': True, 'result': names} if provider_id == 'telegram' else names)
+    transport = Mock(get=AsyncMock(return_value=response))
+    await provider.initialize(ProviderContext(transport, 'http://impulse.test/app'))
+    user = await provider.fetch_user(123 if provider_id == 'telegram' else 'U1')
+    assert user.full_name == expected
+    assert response.closed
+
+
 @pytest.mark.parametrize('provider_id', ['slack', 'mattermost', 'telegram', 'none'])
 def test_builtin_registration_satisfies_public_contract(provider_id):
     registration = get_provider_registry().resolve(provider_id)

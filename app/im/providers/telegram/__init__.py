@@ -81,7 +81,7 @@ class TelegramProvider:
             logger.debug('Telegram API error', extra={'user_id': user_id, 'status': status})
             return UserProfile(id=user_id, exists=False)
         chat = data.get('result') or {}
-        full_name = f"{(chat.get('first_name') or '').strip()} {(chat.get('last_name') or '').strip()}".strip()
+        full_name = f"{chat.get('first_name') or ''} {chat.get('last_name') or ''}".strip()
         return UserProfile(id=user_id, exists=True, full_name=full_name, username=chat.get('username'))
 
     async def fetch_groups(self) -> tuple[GroupProfile, ...]:
@@ -257,10 +257,6 @@ class TelegramProvider:
     @staticmethod
     def mention_id(user: UserProfile) -> int | None:
         return int(user.id) if user.id is not None else None
-
-    @staticmethod
-    def markdown_links(text: str) -> str:
-        return text
 
     @staticmethod
     def template_source(name: str) -> str:
