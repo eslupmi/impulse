@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "impulse-bot"
-version = "3.7.1"
+version = "3.8.0"
 description = "IMPulse incident management platform and messenger plugin API"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -45,7 +45,7 @@ test = [
     "pytest-aiohttp~=1.0.5",
 ]
 lint = ["ruff", "mypy", "types-PyYAML", "types-icalendar", "types-requests"]
-messengers = ["impulse-slack==0.1.0", "impulse-mattermost==0.1.0", "impulse-telegram==0.1.0"]
+messengers = ["impulse-slack==3.8.0", "impulse-mattermost==3.8.0", "impulse-telegram==3.8.0"]
 dev = [{include-group = "test"}, {include-group = "lint"}, {include-group = "messengers"}]
 
 [tool.uv.sources]

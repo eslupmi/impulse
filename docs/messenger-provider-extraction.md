@@ -502,7 +502,7 @@ The first Python 3.12 container attempt lacked `/config/impulse.yml`. After moun
 
 ### Phase 4: Add package discovery and packaging
 
-The local extraction uses one sibling repository with three independently buildable libraries: `impulse-slack`, `impulse-mattermost`, and `impulse-telegram`, initially version `0.1.0`. Each requires `impulse-bot>=3.7.1,<4`, exposes a `ProviderRegistration` entry point, and includes all 13 default templates. The original three provider directories are removed from IMPulse. The always-available `none` provider stays in core.
+The local extraction uses one sibling repository with three independently buildable libraries: `impulse-slack`, `impulse-mattermost`, and `impulse-telegram`. The next coordinated IMPulse release is `3.8.0` for core and all three libraries. Each library requires `impulse-bot==3.8.0`, exposes a `ProviderRegistration` entry point, and includes all 13 default templates. The original three provider directories are removed from IMPulse. The always-available `none` provider stays in core.
 
 `impulse_messenger_api` is the sole public contract shipped by IMPulse. It contains DTOs, transport/authentication protocols, shared configuration schema, required template names, and registration metadata. Core and provider consumers import it directly; the former internal API/schema re-exports and closed messenger enum are removed. Provider modules import the public package and their own dependencies only. Configuration IDs are plain strings, including built-ins, so incident and user-cache YAML keeps its scalar `messenger_type` values and accepts registered third-party IDs.
 
@@ -545,6 +545,21 @@ Source-import and wheel checks explicitly reject retired messenger modules.
 Logs: `/tmp/impulse-cleanup-product-final.log` and
 `/tmp/impulse-cleanup-wheel-final.log`. This adds no live-tenant, Docker, or hosted
 CI evidence.
+
+#### Release 3.8.0 alignment (2026-10-03)
+
+Core and all three messenger distribution versions are `3.8.0`. Provider wheel
+metadata pins `impulse-bot==3.8.0`, and both uv lockfiles retain their prior
+third-party dependency versions. Both locked editable environments synchronize
+successfully and report the same four installed release versions.
+
+The installed-package gate rebuilt all four source archives into wheels and
+passed the core-only and three individual-provider environments at `3.8.0`.
+It now rejects unequal wheel or installed distribution versions and requires an
+exact matching core dependency. The harness's two stdlib tests and library Ruff
+checks passed. Log: `/tmp/impulse-380-package-final.log`; artifacts and command
+logs: `/tmp/impulse-package-verification-rnouq32z`. No live-tenant, Docker, hosted
+CI, or publication evidence is added by this metadata change.
 
 Existing historical Phase 2–3 evidence above remains unchanged.
 
@@ -594,13 +609,14 @@ The external-package milestone additionally requires a clean-environment smoke t
 
 ## Compatibility and versioning
 
-- Version the provider API independently from the Impulse application version.
-- Require an exact plugin API major version and allow compatible minor additions.
+- Core and messenger distributions share IMPulse release numbers. The next release is `3.8.0`, and every provider for it requires `impulse-bot==3.8.0`.
+- Messenger libraries have no independent version bumps. Update a library to the target IMPulse version only when that IMPulse release requires library changes.
+- Keep the protocol marker `PLUGIN_API_VERSION` separate from distribution versions. It remains `1`; discovery requires an exact match.
 - Add new optional capabilities or methods with defaults; reserve major versions for breaking DTO or semantic changes.
 - Keep provider IDs stable because they are persisted in incidents.
 - Preserve current built-in YAML fields and environment names through the internal migration.
 - Treat template context fields as part of the public plugin API.
-- Do not promise cross-version compatibility until the installed-wheel test exists in CI.
+- Exact core dependencies enforce matching distribution versions; installed-wheel tests verify that coordinated package set rather than cross-version compatibility.
 
 ## Risks and mitigations
 

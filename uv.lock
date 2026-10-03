@@ -1055,7 +1055,7 @@ wheels = [
 
 [[package]]
 name = "impulse-bot"
-version = "3.7.1"
+version = "3.8.0"
 source = { editable = "." }
 dependencies = [
     { name = "aiofiles" },
@@ -1178,7 +1178,7 @@ test = [
 
 [[package]]
 name = "impulse-mattermost"
-version = "0.1.0"
+version = "3.8.0"
 source = { editable = "../impulse-messengers/packages/impulse-mattermost" }
 dependencies = [
     { name = "aiohttp" },
@@ -1195,7 +1195,7 @@ requires-dist = [
 
 [[package]]
 name = "impulse-slack"
-version = "0.1.0"
+version = "3.8.0"
 source = { editable = "../impulse-messengers/packages/impulse-slack" }
 dependencies = [
     { name = "impulse-bot" },
@@ -1210,7 +1210,7 @@ requires-dist = [
 
 [[package]]
 name = "impulse-telegram"
-version = "0.1.0"
+version = "3.8.0"
 source = { editable = "../impulse-messengers/packages/impulse-telegram" }
 dependencies = [
     { name = "impulse-bot" },
