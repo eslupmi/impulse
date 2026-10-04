@@ -45,13 +45,7 @@ test = [
     "pytest-aiohttp~=1.0.5",
 ]
 lint = ["ruff", "mypy", "types-PyYAML", "types-icalendar", "types-requests"]
-messengers = ["impulse-slack==3.8.0", "impulse-mattermost==3.8.0", "impulse-telegram==3.8.0"]
-dev = [{include-group = "test"}, {include-group = "lint"}, {include-group = "messengers"}]
-
-[tool.uv.sources]
-impulse-slack = {path = "../impulse-messengers/packages/impulse-slack", editable = true}
-impulse-mattermost = {path = "../impulse-messengers/packages/impulse-mattermost", editable = true}
-impulse-telegram = {path = "../impulse-messengers/packages/impulse-telegram", editable = true}
+dev = [{include-group = "test"}, {include-group = "lint"}]
 
 [tool.hatch.build.targets.wheel]
 packages = ["app", "impulse_messenger_api"]

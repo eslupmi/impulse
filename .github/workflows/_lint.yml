@@ -19,11 +19,6 @@ jobs:
         with:
           ref: ${{ inputs.ref }}
           path: impulse
-      - name: Checkout messenger libraries
-        uses: actions/checkout@v5
-        with:
-          repository: eslupmi/impulse-messengers
-          path: impulse-messengers
       - name: Run ruff
         run: |
           docker run --rm \
@@ -51,11 +46,6 @@ jobs:
         with:
           ref: ${{ inputs.ref }}
           path: impulse
-      - name: Checkout messenger libraries
-        uses: actions/checkout@v5
-        with:
-          repository: eslupmi/impulse-messengers
-          path: impulse-messengers
       - name: Run mypy
         run: |
           docker run --rm \
@@ -70,7 +60,7 @@ jobs:
               chmod -R u+w /tmp/workspace && \
               cd /tmp/workspace/impulse && \
               python -m pip install uv==0.12.22 && \
-              uv sync --locked --no-default-groups --group lint --group messengers && \
+              uv sync --locked --no-default-groups --group lint && \
               printf '%s\n' '[mypy]' 'python_version = 3.10' 'exclude = (?x)(^tests/|^docs/)' 'plugins = pydantic.mypy' > /tmp/mypy.ini && \
               uv run --no-sync mypy --config-file /tmp/mypy.ini --cache-dir=/tmp/mypy_cache --color-output --pretty .
             "

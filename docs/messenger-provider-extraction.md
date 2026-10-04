@@ -508,9 +508,15 @@ The local extraction uses one sibling repository with three independently builda
 
 The process-local registry indexes `impulse.messengers` metadata once and retains the built-in `none`. It imports and validates only the entry point named by the configured `messenger.type`, then caches its registration after validation succeeds. Duplicate selected IDs, entry-point name mismatches, incompatible API versions, invalid rate declarations/factories/config models, and missing templates fail before application initialization. Unused providers are never imported or validated, so their load/registration errors or duplicate IDs do not block startup. Installed entries named `none` remain unloaded and cannot replace the built-in provider. Load/resource errors name the selected provider without copying a potentially secret-bearing exception. A missing provider produces an install-and-restart error; startup never installs packages.
 
-Both repositories manage application and test dependencies through uv project metadata and lockfiles. The messenger repository is a virtual workspace whose three members have separate wheel/sdist metadata and runtime dependencies. Sibling sources are editable development overrides; distribution metadata contains version requirements, without local paths. IMPulse's default development group installs its test/lint dependencies and all three sibling providers. The root pip requirement exports are removed; `pyproject.toml` and `uv.lock` are the dependency sources.
+Both repositories manage application and test dependencies through uv project metadata and lockfiles. IMPulse's default development group installs core test/lint tools; core declares no messenger dependency or sibling source override. The messenger repository is a virtual workspace whose three members have separate wheel/sdist metadata and runtime dependencies. Its default development group supplies the shared test/lint tools, and `uv sync --all-packages --locked` installs all providers with the sibling core in editable mode. This workspace owns the coordinated test environment; distribution metadata contains version requirements, without local paths. The root pip requirement exports are removed; `pyproject.toml` and `uv.lock` are the dependency sources.
 
-The installed core bundles `main.py`, UI assets, and Jira templates. Resource defaults resolve from the package when installed; configured template overrides retain their filesystem behavior. The Dockerfile uses the frozen core lock and accepts provider wheels through `wheelhouse/`. A source-only core image supports `none`; the full-image workflow checks out the sibling repository and builds all three provider wheels first. Test/lint workflows prepare a writable temporary copy before building editable providers. Remote workflows require the matching changes in both repositories.
+The installed core bundles `main.py`, UI assets, and Jira templates. Resource defaults resolve from the package when installed; configured template overrides retain their filesystem behavior. The Dockerfile uses the frozen core lock and accepts provider wheels through `wheelhouse/`. A source-only core image supports `none`; the full-image workflow checks out the sibling repository and builds all three provider wheels first. Core synchronization, builds and lint CI work without a messenger checkout. Core integration-test CI still checks out both repositories and prepares a writable temporary copy before synchronizing the messenger workspace. Messenger CI also runs the full core suite. Coordinated remote workflows require the matching changes in both repositories.
+
+The full test sources stay in core and include real-provider integration cases; they require all three installed libraries. From the synchronized `impulse-messengers` workspace, keep the test working directory in core while selecting the combined environment:
+
+```shell
+uv run --project "$PWD" --directory ../impulse --all-packages --no-sync python -m pytest tests/ -q
+```
 
 Run the durable installed-distribution gate from `impulse-messengers`:
 
@@ -583,6 +589,33 @@ the server or its lifespan. Logs: `/tmp/impulse-lazy-product-final.log` and
 `/tmp/impulse-package-verification-zwu2gi57`. This adds no live-tenant, Docker,
 hosted CI or publication evidence. Distribution and SDK versions are unchanged.
 
+#### Development dependency separation (2026-10-04)
+
+Core's messenger dependency group, sibling source overrides and provider lockfile
+records are removed. The messenger workspace supplies the shared integration test
+and lint tools; both CI test workflows run the full core suite from that combined
+environment while core lint CI uses only the core checkout. No retained dependency
+versions changed. Distribution versions remain `3.8.0` and the SDK API version
+remains `1`.
+
+The package verification script now extracts the core source archive into a
+directory without the messenger checkout. Normal `uv lock --check` and
+`uv sync --locked`, built-in `none` discovery, CLI configuration validation and
+Ruff passed there. The messenger-owned environment passed **1,345 product tests**
+with 26 warnings, and its verification harness passed **2 tests**. All four source
+archives rebuilt into wheels; the isolated core/provider lifecycle and uninstall
+matrix and the four all-installed provider-selection checks passed.
+
+Logs: `/tmp/impulse-decouple-product-final.log`,
+`/tmp/impulse-decouple-product-final.xml` and
+`/tmp/impulse-decouple-packages-final.log`. Source/archive/wheel evidence and
+per-command logs: `/tmp/impulse-package-verification-8kv6n4k3`.
+Independent core mypy reports only the unchanged nullable user lookup in
+`app/im/application.py:559`; log `/tmp/impulse-decouple-mypy.log`. It reports no
+missing messenger imports. Workflow syntax and the corresponding Linux commands
+were checked locally; hosted CI and Docker execution were not run. No packages
+were published.
+
 Existing historical Phase 2–3 evidence above remains unchanged.
 
 No live tenant, hosted consent page, rendered browser, or production rate-limit validation is included in this local package milestone. Mattermost and Telegram retain the previously documented unauthenticated callback-origin behavior. Docker execution is unavailable in this WSL distro because Docker Desktop integration is disabled; a frozen standalone core installation without sibling sources validates the installation path outside Docker. Remote CI and publication are not performed. The full external-provider qualification gate still requires those applicable checks and the deferred characterization work.
@@ -639,6 +672,7 @@ The external-package milestone additionally requires a clean-environment smoke t
 - Preserve current built-in YAML fields and environment names through the internal migration.
 - Treat template context fields as part of the public plugin API.
 - Exact core dependencies enforce matching distribution versions; installed-wheel tests verify that coordinated package set rather than cross-version compatibility.
+- Core dependency management stays independent of providers. The messenger workspace owns the editable sibling source override and combined environment required by the full integration suite.
 
 ## Risks and mitigations
 

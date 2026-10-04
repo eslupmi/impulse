@@ -34,14 +34,16 @@ jobs:
           docker run --rm \
             -v "${{ github.workspace }}:/workspace:ro,Z" \
             -e DATA_PATH=/data \
-            -e UV_PROJECT_ENVIRONMENT=/tmp/impulse-venv \
-            -w /workspace/impulse \
+            -e CONFIG_PATH=/tmp/workspace/impulse \
+            -e UV_PROJECT_ENVIRONMENT=/tmp/impulse-integration-venv \
+            -w /workspace/impulse-messengers \
             python:${{ matrix.python-version }}-slim \
             sh -c "
               cp -a /workspace /tmp/workspace && \
               chmod -R u+w /tmp/workspace && \
-              cd /tmp/workspace/impulse && \
+              cd /tmp/workspace/impulse-messengers && \
               python -m pip install uv==0.12.22 && \
-              uv sync --locked && \
-              uv run --no-sync python -m pytest tests/ --color=yes -v
+              uv sync --all-packages --locked && \
+              cd ../impulse && \
+              uv run --project ../impulse-messengers --no-sync python -m pytest tests/ --color=yes -v
             "

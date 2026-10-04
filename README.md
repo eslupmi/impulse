@@ -61,11 +61,10 @@ IMPulse indexes installed messenger entry-point metadata, then imports and valid
 
 The next release is `3.8.0` for core and all three messenger libraries. Core and provider versions must match; each library requires `impulse-bot==3.8.0`. Libraries have no independent version bumps: update a library to the target IMPulse version only when that IMPulse release requires library changes.
 
-Use [uv](https://docs.astral.sh/uv/) with Python 3.10 or newer. Clone both repositories as siblings, then synchronize from the core checkout:
+Use [uv](https://docs.astral.sh/uv/) with Python 3.10 or newer. The core checkout can be synchronized and run on its own:
 
 ```bash
 git clone https://github.com/eslupmi/impulse.git
-git clone https://github.com/eslupmi/impulse-messengers.git
 cd impulse
 uv sync --locked
 cp examples/impulse.none.yml impulse.yml
@@ -73,7 +72,17 @@ uv run python -m main --check
 uv run python -m main
 ```
 
-The default development group installs all three providers from the sibling checkout, plus test and lint tools. `pyproject.toml` declares dependencies and `uv.lock` pins resolution. Use `uv lock` after dependency changes; use `uv sync --locked` for normal development.
+The default development group installs core test and lint tools. Core has no messenger dependency or local source override, so synchronization, builds and linting do not require the messenger repository. `pyproject.toml` declares dependencies and `uv.lock` pins resolution. Use `uv lock` after dependency changes; use `uv sync --locked` for normal development.
+
+The existing full test suite includes provider integration tests and requires all three libraries. Clone the messenger repository beside core, then run the suite from the core checkout using the messenger workspace's combined environment:
+
+```bash
+git clone https://github.com/eslupmi/impulse-messengers.git ../impulse-messengers
+uv sync --project ../impulse-messengers --all-packages --locked
+uv run --project ../impulse-messengers --all-packages --no-sync python -m pytest tests/ -q
+```
+
+The messenger workspace owns this coordinated test setup; its editable core source override does not affect core's dependency configuration. See its [development instructions](https://github.com/eslupmi/impulse-messengers#local-development) for the full setup.
 
 Build the core and each provider as wheels without publishing anything:
 
@@ -100,4 +109,4 @@ uv build --project ../impulse-messengers --all-packages --wheel --out-dir "$PWD/
 docker build -t impulse-with-messengers .
 ```
 
-The Dockerfile uses the frozen core lockfile and installs any supplied provider wheels. CI checks out both repositories, uses uv for dependencies, and prepares all three wheels before building the full container. Publish compatible changes to both repositories before expecting those remote workflows to run the new extraction.
+The Dockerfile uses the frozen core lockfile and installs any supplied provider wheels. Core lint CI uses only the core checkout. Integration-test CI checks out both repositories and runs the full suite in the messenger workspace's environment; full-container CI builds all three provider wheels first. Publish compatible changes to both repositories before expecting those remote workflows to run the new extraction.

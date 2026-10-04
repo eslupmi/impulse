@@ -1080,9 +1080,6 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
-    { name = "impulse-mattermost" },
-    { name = "impulse-slack" },
-    { name = "impulse-telegram" },
     { name = "mypy" },
     { name = "pytest" },
     { name = "pytest-aiohttp" },
@@ -1101,11 +1098,6 @@ lint = [
     { name = "types-icalendar" },
     { name = "types-pyyaml" },
     { name = "types-requests" },
-]
-messengers = [
-    { name = "impulse-mattermost" },
-    { name = "impulse-slack" },
-    { name = "impulse-telegram" },
 ]
 test = [
     { name = "pytest" },
@@ -1140,9 +1132,6 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "impulse-mattermost", editable = "../impulse-messengers/packages/impulse-mattermost" },
-    { name = "impulse-slack", editable = "../impulse-messengers/packages/impulse-slack" },
-    { name = "impulse-telegram", editable = "../impulse-messengers/packages/impulse-telegram" },
     { name = "mypy" },
     { name = "pytest", specifier = "~=8.3.2" },
     { name = "pytest-aiohttp", specifier = "~=1.0.5" },
@@ -1162,11 +1151,6 @@ lint = [
     { name = "types-pyyaml" },
     { name = "types-requests" },
 ]
-messengers = [
-    { name = "impulse-mattermost", editable = "../impulse-messengers/packages/impulse-mattermost" },
-    { name = "impulse-slack", editable = "../impulse-messengers/packages/impulse-slack" },
-    { name = "impulse-telegram", editable = "../impulse-messengers/packages/impulse-telegram" },
-]
 test = [
     { name = "pytest", specifier = "~=8.3.2" },
     { name = "pytest-aiohttp", specifier = "~=1.0.5" },
@@ -1174,55 +1158,6 @@ test = [
     { name = "pytest-cov", specifier = "~=5.0.0" },
     { name = "pytest-mock", specifier = "~=3.14.0" },
     { name = "pytest-xdist", specifier = "~=3.6.0" },
-]
-
-[[package]]
-name = "impulse-mattermost"
-version = "3.8.0"
-source = { editable = "../impulse-messengers/packages/impulse-mattermost" }
-dependencies = [
-    { name = "aiohttp" },
-    { name = "impulse-bot" },
-    { name = "pydantic" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "aiohttp", specifier = "~=3.13.3" },
-    { name = "impulse-bot", editable = "." },
-    { name = "pydantic", specifier = "~=2.11.7" },
-]
-
-[[package]]
-name = "impulse-slack"
-version = "3.8.0"
-source = { editable = "../impulse-messengers/packages/impulse-slack" }
-dependencies = [
-    { name = "impulse-bot" },
-    { name = "pydantic" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "impulse-bot", editable = "." },
-    { name = "pydantic", specifier = "~=2.11.7" },
-]
-
-[[package]]
-name = "impulse-telegram"
-version = "3.8.0"
-source = { editable = "../impulse-messengers/packages/impulse-telegram" }
-dependencies = [
-    { name = "impulse-bot" },
-    { name = "pydantic" },
-    { name = "pyjwt", extra = ["crypto"] },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "impulse-bot", editable = "." },
-    { name = "pydantic", specifier = "~=2.11.7" },
-    { name = "pyjwt", extras = ["crypto"], specifier = "~=2.10.1" },
 ]
 
 [[package]]
