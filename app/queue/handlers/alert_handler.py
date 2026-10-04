@@ -133,7 +133,6 @@ class AlertHandler(BaseHandler):
         if is_state_updated or is_status_updated:
             await self.app.update(
                 incident_, alert_state['status'], alert_state, is_status_updated,
-                incident_.chain_enabled, incident_.frozen_until, incident_.task_link,
                 previous_payload=previous_payload,
             )
 

@@ -30,9 +30,6 @@ jobs:
             -w /workspace/impulse \
             python:3.12-slim \
             sh -c "
-              cp -a /workspace /tmp/workspace && \
-              chmod -R u+w /tmp/workspace && \
-              cd /tmp/workspace/impulse && \
               python -m pip install uv==0.12.22 && \
               uv sync --locked --only-group lint && \
               uv run --no-sync ruff check . --target-version py310 --exclude tests --exclude docs

@@ -1,7 +1,7 @@
 from collections.abc import Iterable
 from typing import TYPE_CHECKING
 
-from jinja2 import Environment
+from jinja2 import Template
 
 from app.incident.freeze import MAINTENANCE_PARENT_SENTINEL
 
@@ -18,7 +18,7 @@ class JinjaTemplate:
         self.autoescape = autoescape
 
     def _template(self):
-        return Environment(autoescape=self.autoescape).from_string(self.template)
+        return Template(self.template, autoescape=self.autoescape)
 
     def form_message(self, alert_state, incident: 'Incident | None' = None):
         """Render a message template with alert state and incident data."""
@@ -41,8 +41,7 @@ class JinjaTemplate:
 
     def form_notification(self, **kwargs):
         """Render a thread notification template with the provided context kwargs."""
-        template = self._template()
-        return template.render(**kwargs)
+        return self.render(**kwargs)
 
     def render(self, **kwargs):
         """Generic render method for any template with provided kwargs."""

@@ -31,7 +31,7 @@ async def apply_interaction(application, interaction, incidents, queue):
                 await application._handle_unfreeze_action(incident, user_id, queue)
             elif command.freeze_option:
                 await application._handle_freeze_action(incident, command.freeze_option, user_id,
-                                                       incidents, queue, user_timezone=timezone)
+                                                       queue, user_timezone=timezone)
         elif command.action == InteractionAction.SHOW_FREEZE_OPTIONS:
             if incident.can_manual_unfreeze():
                 await application._handle_unfreeze_action(incident, user_id, queue)

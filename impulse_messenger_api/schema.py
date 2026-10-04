@@ -119,18 +119,6 @@ class TemplateFiles(BaseModel):
     def get(self, key: str, default: str | None = None) -> str | None:
         return getattr(self, key) or default
 
-def _validate_simple_chain(chain_config):
-    return [SimpleChainStep(**step) for step in chain_config]
-
-def _validate_schedule_chain(chain_config):
-    return ScheduleChain(**chain_config)
-
-def _validate_cloud_chain(chain_config):
-    return CloudChain(**chain_config)
-
-def _validate_ui_chain(chain_config):
-    return chain_config
-
 class BaseApplicationConfig(BaseModel):
     """Base messenger configuration with common fields"""
     type: str = Field(..., description="Registered messenger provider ID")
@@ -163,15 +151,15 @@ class BaseApplicationConfig(BaseModel):
 
         for chain_name, chain_config in v.items():
             if isinstance(chain_config, list):
-                validated_chains[chain_name] = _validate_simple_chain(chain_config)
+                validated_chains[chain_name] = [SimpleChainStep(**step) for step in chain_config]
             elif isinstance(chain_config, dict):
                 chain_type = chain_config.get('type')
                 if chain_type == 'schedule':
-                    validated_chains[chain_name] = _validate_schedule_chain(chain_config)
+                    validated_chains[chain_name] = ScheduleChain(**chain_config)
                 elif chain_type == 'cloud':
-                    validated_chains[chain_name] = _validate_cloud_chain(chain_config)
+                    validated_chains[chain_name] = CloudChain(**chain_config)
                 elif chain_type == 'ui':
-                    validated_chains[chain_name] = _validate_ui_chain(chain_config)
+                    validated_chains[chain_name] = chain_config
                 else:
                     raise ValueError(f"Unknown chain type for chain '{chain_name}': {chain_type}")
 

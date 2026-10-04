@@ -274,9 +274,8 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
 
         messenger = request.app.state.messenger
         queue = request.app.state.queue
-        incidents = request.app.state.incidents
         await messenger.handle_ui_freeze(
-            incident, freeze_option, str(acting_user.get("id", "")), incidents, queue,
+            incident, freeze_option, str(acting_user.get("id", "")), queue,
             user_timezone=user_tz, ui_user=acting_user,
         )
         return {"success": True}

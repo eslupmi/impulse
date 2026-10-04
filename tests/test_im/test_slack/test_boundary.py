@@ -208,7 +208,7 @@ async def test_freeze_option_and_timezone_reach_core_only_after_verification(opt
         queue,
     )
     app._handle_freeze_action.assert_awaited_once_with(
-        incident, option, 'U1', incidents, queue, user_timezone='Europe/Berlin'
+        incident, option, 'U1', queue, user_timezone='Europe/Berlin'
     )
     assert result.status_code == 200
     assert json.loads(result.body)['ts'] == incident.ts

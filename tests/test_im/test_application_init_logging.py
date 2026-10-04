@@ -1,4 +1,3 @@
-import asyncio
 from unittest.mock import AsyncMock, Mock, patch
 
 import aiohttp
@@ -20,6 +19,7 @@ class TestApplicationInitLogging:
         config.user_groups = {}
         config.groups = {}
         config.admin_users = []
+        config.impulse_address = None
 
         channels = {'default': {'id': 'C1'}}
 

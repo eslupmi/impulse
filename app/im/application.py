@@ -34,7 +34,7 @@ from app.im.template import (
 )
 from app.im.user_groups import generate_user_groups
 from app.im.user_store import UserUpdateScheduler, get_user_store
-from app.im.users import BaseUser, UserManager, ProfileUser
+from app.im.users import UserManager, ProfileUser
 from app.incident.freeze import FreezeSource
 from app.incident.incident import unfreeze_incident
 from app.integrations.jira_integration import JiraIntegration
@@ -250,9 +250,9 @@ class Application:
         await self.update_incident_message(incident)
         return True
 
-    async def handle_ui_freeze(self, incident, freeze_option, user_id, incidents, queue, user_timezone=None, ui_user=None):
+    async def handle_ui_freeze(self, incident, freeze_option, user_id, queue, user_timezone=None, ui_user=None):
         await self._handle_freeze_action(
-            incident, freeze_option, user_id, incidents, queue, user_timezone=user_timezone, ui_user=ui_user,
+            incident, freeze_option, user_id, queue, user_timezone=user_timezone, ui_user=ui_user,
         )
         await self.update_incident_message(incident)
 
@@ -295,7 +295,7 @@ class Application:
 
     @messenger_init_step_async('public_url')
     async def _init_public_url(self):
-        address = getattr(self._app_config, 'impulse_address', None)
+        address = self._app_config.impulse_address
         callback_url = f'{address}/app' if address else None
         assert self.http is not None
         identity = await self.provider.initialize(ProviderContext(self.http, callback_url))
@@ -414,8 +414,7 @@ class Application:
         self._async_tasks.add(task)
         task.add_done_callback(self._async_tasks.discard)
 
-    async def update(self, incident, incident_status, alert_state, updated_status, chain_enabled,
-                     frozen_until, task_link='', previous_payload=None):
+    async def update(self, incident, incident_status, alert_state, updated_status, previous_payload=None):
         if not self.provider.descriptor.messaging_enabled:
             return
         if not incident.is_frozen:
@@ -536,7 +535,7 @@ class Application:
             return registration.incident_url(MessageRef(channel_id, thread_id), ProviderIdentity(public_url, team))
         return None
 
-    def get_user_profile_url(self, user_id: str, user: BaseUser) -> str | None:
+    def get_user_profile_url(self, user_id: str, user: ProfileUser) -> str | None:
         profile = UserProfile(id=str(user_id), exists=user.exists, username=user.username)
         return self.provider.user_url(profile, ProviderIdentity(self.public_url, self.team))
 
@@ -550,7 +549,7 @@ class Application:
         await queue_.put(until, QueueItemType.UNFREEZE, incident_.uniq_id, data=source.value)
 
     async def _handle_freeze_action(
-            self, incident_: 'Incident', freeze_option: str, user_id: str, incidents, queue_: 'AsyncQueue',
+            self, incident_: 'Incident', freeze_option: str, user_id: str, queue_: 'AsyncQueue',
             user_timezone: str | None = None, ui_user=None,
     ):
         if not self.provider.descriptor.messaging_enabled:

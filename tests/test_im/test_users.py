@@ -1,7 +1,7 @@
 """
 Unit tests for app.im.users module.
 """
-from app.im.users import BaseUser, ProfileUser, UserManager
+from app.im.users import ProfileUser, UserManager
 
 
 class TestProfileUserNumericMentions:
@@ -20,11 +20,6 @@ class TestProfileUserStringIDs:
         assert user.id == "U12345"
         assert user.exists is True
         assert user.defined is True
-    
-    def test_slack_user_inherits_from_base(self):
-        """Cached users inherit from BaseUser."""
-        user = ProfileUser("Jane Smith", id_="U12345")
-        assert isinstance(user, BaseUser)
     
     def test_slack_user_notification_identifier(self):
         """Test that Slack user returns ID for notifications."""
@@ -71,11 +66,6 @@ class TestProfileUserUsernameMentions:
         assert user.username == "bjohnson"
         assert user.exists is True
         assert user.defined is True
-    
-    def test_mattermost_user_inherits_from_base(self):
-        """Cached users inherit from BaseUser."""
-        user = ProfileUser("Bob Johnson", id_="abc123", username="bjohnson", notification_id="bjohnson")
-        assert isinstance(user, BaseUser)
     
     def test_mattermost_user_notification_identifier(self):
         """Test that Mattermost user returns username for notifications."""

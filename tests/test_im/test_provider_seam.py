@@ -264,7 +264,7 @@ async def test_none_keeps_manual_freeze_a_noop(runtime):
     config = config_for('none')
     app = get_application(config, {'default': {'id': ''}}, 'default')
     incident = Mock()
-    await app.handle_ui_freeze(incident, 'tomorrow', 'U1', Mock(), Mock())
+    await app.handle_ui_freeze(incident, 'tomorrow', 'U1', Mock())
     incident.freeze.assert_not_called()
 
 

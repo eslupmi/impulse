@@ -1,20 +1,20 @@
-from abc import ABC, abstractmethod
-
 _USE_PLATFORM_ID = object()
 
 
-class BaseUser(ABC):
-    """Base class for all messenger users."""
-    
+class ProfileUser:
+    """Core cached user backed by a normalized provider profile."""
+
     def __init__(
         self,
         name: str,
-        id_: int | str | None = None,
+        id_: str | None = None,
         exists: bool = False,
         full_name: str | None = None,
         username: str | None = None,
-        timezone: str | None = None,
-        roles: list[str] | None = None,
+        email: str | None = None,
+        timezone_: str | None = None,
+        notification_id=_USE_PLATFORM_ID,
+        serializer=None,
     ):
         self.name = name
         self.id = id_
@@ -22,35 +22,47 @@ class BaseUser(ABC):
         self.defined = True
         self.full_name = full_name
         self.username = username
-        self.timezone = timezone
-        self.roles = roles or []
+        self.timezone = timezone_
+        self.roles: list[str] = []
+        self.email = email
+        self.notification_id = id_ if notification_id is _USE_PLATFORM_ID else notification_id
+        self._serializer = serializer
 
     def __repr__(self):
         return self.name
-    
-    @abstractmethod
-    def get_notification_identifier(self) -> int | str | None:
-        """Return the platform-specific identifier used for mentions/notifications."""
 
-    @abstractmethod
-    def serialize(self) -> dict:
-        """Return the messenger-specific API payload for this user."""
+    def get_notification_identifier(self):
+        return self.notification_id
+
+    def serialize(self):
+        if self._serializer is not None:
+            from impulse_messenger_api import UserProfile
+            return self._serializer(UserProfile(self.id, self.exists, self.full_name, self.username, self.email, self.timezone), self.roles)
+        return {
+            'email': self.email,
+            'exists': self.exists,
+            'full_name': self.full_name,
+            'id': str(self.id),
+            'roles': list(self.roles),
+            'timezone': self.timezone,
+            'username': self.username,
+        }
 
 
 class UserManager:
     def __init__(self):
-        self._users: dict[str, BaseUser] = {}  # user_id -> BaseUser
-        self._named: dict[str, BaseUser] = {}  # config_name -> BaseUser
+        self._users: dict[str, ProfileUser] = {}  # user_id -> ProfileUser
+        self._named: dict[str, ProfileUser] = {}  # config_name -> ProfileUser
 
-    def add_user(self, user_id: str, user: BaseUser, config_name: str | None = None) -> None:
+    def add_user(self, user_id: str, user: ProfileUser, config_name: str | None = None) -> None:
         self._users[user_id] = user
         if config_name:
             self._named[config_name] = user
 
-    def get(self, name: str, default=None) -> BaseUser | None:
+    def get(self, name: str, default=None) -> ProfileUser | None:
         return self._named.get(name) or self._users.get(name) or default
 
-    def get_user_by_id(self, user_id: int | str) -> BaseUser | None:
+    def get_user_by_id(self, user_id: int | str) -> ProfileUser | None:
         return self._users.get(str(user_id))
 
     def get_assignable_users(self) -> list[dict]:
@@ -77,41 +89,3 @@ class UserManager:
     def serialize_one(self, name: str) -> dict | None:
         user = self._named.get(name)
         return user.serialize() if user else None
-
-
-class ProfileUser(BaseUser):
-    """Core cached user backed by a normalized provider profile."""
-
-    def __init__(
-        self,
-        name: str,
-        id_: str | None = None,
-        exists: bool = False,
-        full_name: str | None = None,
-        username: str | None = None,
-        email: str | None = None,
-        timezone_: str | None = None,
-        notification_id=_USE_PLATFORM_ID,
-        serializer=None,
-    ):
-        super().__init__(name, id_, exists, full_name, username, timezone_)
-        self.email = email
-        self.notification_id = id_ if notification_id is _USE_PLATFORM_ID else notification_id
-        self._serializer = serializer
-
-    def get_notification_identifier(self):
-        return self.notification_id
-
-    def serialize(self):
-        if self._serializer is not None:
-            from impulse_messenger_api import UserProfile
-            return self._serializer(UserProfile(self.id, self.exists, self.full_name, self.username, self.email, self.timezone), self.roles)
-        return {
-            'email': self.email,
-            'exists': self.exists,
-            'full_name': self.full_name,
-            'id': str(self.id),
-            'roles': list(self.roles),
-            'timezone': self.timezone,
-            'username': self.username,
-        }
