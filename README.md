@@ -59,8 +59,6 @@ Follow the [installation guide](https://docs.impulse.bot/stable/installation/) f
 
 IMPulse indexes installed messenger entry-point metadata, then imports and validates only the provider selected by `messenger.type` in `impulse.yml`. Unused providers stay unloaded and cannot block startup through import or registration errors. Restart IMPulse after installing/removing libraries or changing messenger type.
 
-The next release is `3.8.0` for core and all three messenger libraries. Core and provider versions must match; each library requires `impulse-bot==3.8.0`. Libraries have no independent version bumps: update a library to the target IMPulse version only when that IMPulse release requires library changes.
-
 Use [uv](https://docs.astral.sh/uv/) with Python 3.10 or newer. The core checkout can be synchronized and run on its own:
 
 ```bash
@@ -91,7 +89,7 @@ uv build --wheel
 uv build --project ../impulse-messengers --all-packages --wheel
 ```
 
-Install built artifacts into a fresh environment. Include only the provider wheels you need; each provider requires `impulse-bot==3.8.0` and is discovered through the `impulse.messengers` entry point group:
+Install built artifacts into a fresh environment. Include only the provider wheels you need, with their matching core dependency; IMPulse discovers them through the `impulse.messengers` entry point group:
 
 ```bash
 uv venv /tmp/impulse-runtime

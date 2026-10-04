@@ -502,7 +502,7 @@ The first Python 3.12 container attempt lacked `/config/impulse.yml`. After moun
 
 ### Phase 4: Add package discovery and packaging
 
-The local extraction uses one sibling repository with three independently buildable libraries: `impulse-slack`, `impulse-mattermost`, and `impulse-telegram`. The next coordinated IMPulse release is `3.8.0` for core and all three libraries. Each library requires `impulse-bot==3.8.0`, exposes a `ProviderRegistration` entry point, and includes all 13 default templates. The original three provider directories are removed from IMPulse. The always-available `none` provider stays in core.
+The local extraction uses one sibling repository with three independently buildable libraries: `impulse-slack`, `impulse-mattermost`, and `impulse-telegram`. Each library requires the matching `impulse-bot` distribution, exposes a `ProviderRegistration` entry point, and includes all 13 default templates. The original three provider directories are removed from IMPulse. The always-available `none` provider stays in core.
 
 `impulse_messenger_api` is the sole public contract shipped by IMPulse. It contains DTOs, transport/authentication protocols, shared configuration schema, required template names, and registration metadata. Core and provider consumers import it directly; the former internal API/schema re-exports and closed messenger enum are removed. Provider modules import the public package and their own dependencies only. Configuration IDs are plain strings, including built-ins, so incident and user-cache YAML keeps its scalar `messenger_type` values and accepts registered third-party IDs.
 
@@ -552,15 +552,15 @@ Logs: `/tmp/impulse-cleanup-product-final.log` and
 `/tmp/impulse-cleanup-wheel-final.log`. This adds no live-tenant, Docker, or hosted
 CI evidence.
 
-#### Release 3.8.0 alignment (2026-10-03)
+#### Distribution version alignment (2026-10-03)
 
-Core and all three messenger distribution versions are `3.8.0`. Provider wheel
-metadata pins `impulse-bot==3.8.0`, and both uv lockfiles retain their prior
+Core and all three messenger distribution versions match. Provider wheel
+metadata pins the matching core distribution, and both uv lockfiles retain their prior
 third-party dependency versions. Both locked editable environments synchronize
 successfully and report the same four installed release versions.
 
 The installed-package gate rebuilt all four source archives into wheels and
-passed the core-only and three individual-provider environments at `3.8.0`.
+passed the core-only and three individual-provider environments.
 It now rejects unequal wheel or installed distribution versions and requires an
 exact matching core dependency. The harness's two stdlib tests and library Ruff
 checks passed. Log: `/tmp/impulse-380-package-final.log`; artifacts and command
@@ -579,7 +579,7 @@ errors still fail clearly before application initialization.
 The final WSL/Linux Python 3.10 suite passed **1,345 tests**, with 25 warnings;
 focused discovery/provider contract checks passed **92 tests**. Runtime and
 messenger harness Ruff checks passed, as did the two stdlib harness tests. The
-installed-package gate rebuilt all four `3.8.0` sdists into wheels and passed its
+installed-package gate rebuilt all four sdists into wheels and passed its
 existing isolated core/provider lifecycle and uninstall matrix. With all three
 libraries installed together, four fresh processes verified that configuration,
 facade construction and imports of core `main`/routes/authentication load only
@@ -595,8 +595,7 @@ Core's messenger dependency group, sibling source overrides and provider lockfil
 records are removed. The messenger workspace supplies the shared integration test
 and lint tools; both CI test workflows run the full core suite from that combined
 environment while core lint CI uses only the core checkout. No retained dependency
-versions changed. Distribution versions remain `3.8.0` and the SDK API version
-remains `1`.
+versions changed. Distribution and SDK API versions are unchanged.
 
 The package verification script now extracts the core source archive into a
 directory without the messenger checkout. Normal `uv lock --check` and
@@ -615,6 +614,26 @@ Independent core mypy reports only the unchanged nullable user lookup in
 missing messenger imports. Workflow syntax and the corresponding Linux commands
 were checked locally; hosted CI and Docker execution were not run. No packages
 were published.
+
+#### Docker and Helm deployment boundary
+
+The extraction introduced uv dependency management in core's build and CI paths.
+Container startup remains `python -m main`, with the same port, configuration/data
+paths and volumes. The full-image workflow builds all three provider wheels into
+`wheelhouse/` before the Docker build. A plain local Docker build requires that
+preparation to support an external messenger; without provider wheels it supports
+only the built-in `none` messenger.
+
+The community Helm chart's default deployment can use that full image without
+changing its messenger configuration. Its custom-template feature requires a
+follow-up: the chart mounts incident/thread templates into the former source
+resource directories and removes `messenger.template_files` from the generated
+configuration. Extracted providers read packaged defaults, so those implicit
+mounts no longer override templates. See the chart's
+[volume-mount helpers](https://github.com/eslupmi-community/helm-charts/blob/main/charts/impulse/templates/_helpers.tpl)
+and [ConfigMap template](https://github.com/eslupmi-community/helm-charts/blob/main/charts/impulse/templates/configmap.yaml).
+This is a source-backed compatibility finding; Docker and Kubernetes execution
+have not been performed for the extracted package set.
 
 Existing historical Phase 2–3 evidence above remains unchanged.
 
@@ -664,9 +683,9 @@ The external-package milestone additionally requires a clean-environment smoke t
 
 ## Compatibility and versioning
 
-- Core and messenger distributions share IMPulse release numbers. The next release is `3.8.0`, and every provider for it requires `impulse-bot==3.8.0`.
+- Core and messenger distributions share IMPulse release numbers; each provider requires its matching core distribution.
 - Messenger libraries have no independent version bumps. Update a library to the target IMPulse version only when that IMPulse release requires library changes.
-- Keep the protocol marker `PLUGIN_API_VERSION` separate from distribution versions. It remains `1`; discovery requires an exact match.
+- Keep the protocol marker `PLUGIN_API_VERSION` separate from distribution versions; discovery requires an exact marker match.
 - Add new optional capabilities or methods with defaults; reserve major versions for breaking DTO or semantic changes.
 - Keep provider IDs stable because they are persisted in incidents.
 - Preserve current built-in YAML fields and environment names through the internal migration.
