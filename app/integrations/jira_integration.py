@@ -1,5 +1,6 @@
 """Jira integration for task creation from incidents"""
 from datetime import datetime, timezone
+from pathlib import Path
 
 from app.config.config import get_config
 from app.integrations.jira_client import JiraClient
@@ -30,20 +31,17 @@ class JiraIntegration:
     def _read_template(self, file_key: str) -> JinjaTemplate:
         """Read template file from current config"""
         config = get_config()
-        default_path = str(resource_directory('templates') / f'{self.tm_type}_{file_key}.j2')
-        
-        if config.app.task_management and config.app.task_management.template_files:
-            template_files = config.app.task_management.template_files
-            if file_key == 'summary' and template_files.summary:
-                file_path = template_files.summary
-            elif file_key == 'description' and template_files.description:
-                file_path = template_files.description
-            else:
-                file_path = default_path
-        else:
-            file_path = default_path
-        
-        return JinjaTemplate(open(file_path).read())
+        template_files = config.app.task_management.template_files if config.app.task_management else None
+        file_path = getattr(template_files, file_key, None)
+        if file_path:
+            return JinjaTemplate(Path(file_path).read_text(encoding='utf-8'))
+
+        file_name = f'{self.tm_type}_{file_key}.j2'
+        try:
+            source = Path('templates', file_name).read_text(encoding='utf-8')
+        except FileNotFoundError:
+            source = (resource_directory('templates') / file_name).read_text(encoding='utf-8')
+        return JinjaTemplate(source)
 
     def format_incident_for_jira(self, incident) -> tuple[str, str]:
         """

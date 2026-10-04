@@ -2,6 +2,7 @@ import asyncio
 from fastapi.responses import Response
 from dataclasses import asdict
 from datetime import datetime
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from jinja2 import TemplateError
@@ -184,7 +185,11 @@ class Application:
             if file_path:
                 with open(file_path) as source:
                     return self.notification_template(source.read())
-            return self.notification_template(provider.template_source(file_key))
+            try:
+                source = Path('templates', f'{self.type}_{file_key}.j2').read_text(encoding='utf-8')
+            except FileNotFoundError:
+                source = provider.template_source(file_key)
+            return self.notification_template(source)
 
         body_template = read_template('body')
         header_template = read_template('header')

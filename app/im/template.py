@@ -1,4 +1,5 @@
 """Instant messaging templates for notifications and messages."""
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from app.incident.freeze import MAINTENANCE_PARENT_SENTINEL
@@ -17,7 +18,10 @@ class ProviderTemplates(dict):
         registration = get_provider_registry().resolve(messenger)
         if registration.template_source is None:
             raise KeyError(f'{messenger} has no notification templates')
-        source = registration.template_source(self.name)
+        try:
+            source = Path('thread_templates', f'{messenger}_{self.name}.j2').read_text(encoding='utf-8')
+        except FileNotFoundError:
+            source = registration.template_source(self.name)
         self[messenger] = source
         return source
 

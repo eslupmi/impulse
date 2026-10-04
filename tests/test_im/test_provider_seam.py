@@ -482,9 +482,13 @@ async def test_telegram_freeze_menu_unfreezes_instead_of_opening_options(runtime
 
 
 @pytest.mark.parametrize('provider_id', ['slack', 'mattermost', 'telegram'])
-def test_custom_template_override_keeps_precedence(provider_id, runtime, tmp_path):
+def test_custom_template_override_keeps_precedence(provider_id, runtime, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    implicit = tmp_path / 'templates' / f'{provider_id}_body.j2'
+    implicit.mkdir(parents=True)
     template = tmp_path / 'custom.j2'
     template.write_text('custom body')
+    get_provider_registry.cache_clear()
     config = config_for(provider_id, template_files={'body': str(template)})
     app = get_application(config, {'default': {'id': 'C1'}}, 'default')
     assert app.body_template.form_message({}, {}) == 'custom body'
@@ -542,6 +546,43 @@ async def test_full_name_preserves_name_parts_and_trims_outer_whitespace(provide
     user = await provider.fetch_user(123 if provider_id == 'telegram' else 'U1')
     assert user.full_name == expected
     assert response.closed
+
+
+@pytest.mark.parametrize('provider_id', ['slack', 'mattermost', 'telegram'])
+def test_same_directory_template_overrides(provider_id, runtime, tmp_path, monkeypatch):
+    from app.im.template import ProviderTemplates
+
+    monkeypatch.chdir(tmp_path)
+    for name in REQUIRED_TEMPLATE_NAMES:
+        directory = 'templates' if name in ('body', 'header', 'status_icons') else 'thread_templates'
+        path = tmp_path / directory / f'{provider_id}_{name}.j2'
+        path.parent.mkdir(exist_ok=True)
+        path.write_text(provider_id + ':' + name + ' {{ value }}', encoding='utf-8')
+
+    app = get_application(config_for(provider_id), {'default': {'id': 'C1'}}, 'default')
+    for name in REQUIRED_TEMPLATE_NAMES:
+        expected = provider_id + ':' + name + ' ☕'
+        if name in ('body', 'header', 'status_icons'):
+            actual = getattr(app, name + '_template').render(value='☕')
+        else:
+            source = ProviderTemplates(name)[provider_id]
+            actual = app.notification_template(source).form_notification(value='☕')
+        assert actual == expected
+
+
+@pytest.mark.parametrize('provider_id', ['slack', 'mattermost', 'telegram'])
+@pytest.mark.parametrize('name', ['body', 'chain_step_user'])
+def test_existing_template_read_errors_do_not_use_packaged_defaults(provider_id, name, runtime, tmp_path, monkeypatch):
+    from app.im.template import ProviderTemplates
+
+    monkeypatch.chdir(tmp_path)
+    directory = 'templates' if name == 'body' else 'thread_templates'
+    (tmp_path / directory / f'{provider_id}_{name}.j2').mkdir(parents=True)
+    with pytest.raises(IsADirectoryError):
+        if name == 'body':
+            get_application(config_for(provider_id), {'default': {'id': 'C1'}}, 'default')
+        else:
+            ProviderTemplates(name)[provider_id]
 
 
 @pytest.mark.parametrize('provider_id', ['slack', 'mattermost', 'telegram', 'none'])

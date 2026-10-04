@@ -100,6 +100,8 @@ CONFIG_PATH=/absolute/path/to/config DATA_PATH=/absolute/path/to/data /tmp/impul
 
 The installed core includes UI assets and Jira templates, so launching it does not require the source checkout. Filesystem template overrides continue to use the configured paths. The libraries are prepared for distribution; the commands above install local wheels and do not depend on unpublished PyPI releases. The core distribution is named `impulse-bot` because the PyPI names `impulse` and `impulse-core` belong to unrelated packages.
 
+Custom templates keep their original paths relative to the process working directory (`/app` in the container): `templates/<messenger>_<name>.j2` for `body`, `header` and `status_icons`, and `thread_templates/<messenger>_<name>.j2` for thread notifications. Explicit `messenger.template_files` paths take precedence; missing default-path files fall back to the provider's bundled resources. Jira uses `templates/jira_summary.j2` and `templates/jira_description.j2`, with explicit `task_management.template_files` paths first. Empty overrides are valid, and unreadable overrides raise errors. Restart IMPulse after changing cached thread templates.
+
 For a core-only container using `messenger.type: none`, run `docker build -t impulse-bot .`. To include providers, first build their wheels into `wheelhouse/`:
 
 ```bash

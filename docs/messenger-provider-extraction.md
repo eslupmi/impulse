@@ -625,15 +625,46 @@ preparation to support an external messenger; without provider wheels it support
 only the built-in `none` messenger.
 
 The community Helm chart's default deployment can use that full image without
-changing its messenger configuration. Its custom-template feature requires a
-follow-up: the chart mounts incident/thread templates into the former source
-resource directories and removes `messenger.template_files` from the generated
-configuration. Extracted providers read packaged defaults, so those implicit
-mounts no longer override templates. See the chart's
+changing its messenger configuration. Its custom-template feature mounts
+incident/thread templates into `/app/templates` and `/app/thread_templates` and
+removes `messenger.template_files` from the generated configuration. The shared
+renderer checks those original paths before provider resources, preserving those
+mounts without a chart change. Jira checks each cwd template file before its
+bundled default, preserving partial custom-template mounts as well. See the chart's
 [volume-mount helpers](https://github.com/eslupmi-community/helm-charts/blob/main/charts/impulse/templates/_helpers.tpl)
 and [ConfigMap template](https://github.com/eslupmi-community/helm-charts/blob/main/charts/impulse/templates/configmap.yaml).
-This is a source-backed compatibility finding; Docker and Kubernetes execution
-have not been performed for the extracted package set.
+The installed-wheel gate checks these filesystem overrides outside the checkout;
+Docker and Kubernetes execution have not been performed for the extracted package
+set.
+
+#### Customer template overrides restored (2026-10-04)
+
+The earlier extraction preserved explicit configured incident paths but lost
+implicit cwd lookups. A baseline probe using installed wheels confirmed that
+all 39 messenger folder overrides and both Jira folder overrides were ignored;
+log `/tmp/impulse-template-baseline-confirmed.log`.
+
+The generic incident/thread renderer now checks the original user directories
+before the installed provider's resource reader. Explicit configured incident
+paths remain first, including when an unused implicit path is unreadable.
+Registration still validates packaged defaults independently of user files.
+Jira also checks each original cwd path before its installed resource default.
+Only missing implicit files fall back; empty/Unicode templates are accepted and
+other read errors propagate. Paths remain relative to the process cwd rather
+than `CONFIG_PATH`; cached thread templates still require restart after edits.
+
+The final WSL/Linux Python 3.10 suite passed **1,365 tests**, with 26 warnings.
+Ruff and the two verification-harness tests passed. The installed-package gate
+rebuilt all four source archives into wheels, then checked all 13 override names
+for each provider through real core rendering in isolated environments. It also
+checked Jira overrides, explicit-path priority, partial/empty overrides, missing
+files, restoration to defaults and unaffected built-in `none` behavior. Its
+standalone core check and all-installed selected-provider import matrix passed.
+Logs: `/tmp/impulse-template-product-final-verified.log`,
+`/tmp/impulse-template-product-final-verified.xml` and
+`/tmp/impulse-template-packages-final-verified.log`. Build artifacts and per-command
+logs: `/tmp/impulse-package-verification-iz21ucl8`. No Docker, Kubernetes, hosted
+CI, live-provider or publication execution is added by this verification.
 
 Existing historical Phase 2–3 evidence above remains unchanged.
 
