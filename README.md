@@ -57,6 +57,8 @@ Follow the [installation guide](https://docs.impulse.bot/stable/installation/) f
 
 `impulse-bot` is the core application and public `impulse_messenger_api` contract. Slack, Mattermost, and Telegram are separate distributions in the [impulse-messengers repository](https://github.com/eslupmi/impulse-messengers): `impulse-slack`, `impulse-mattermost`, and `impulse-telegram`. The built-in `none` messenger needs no provider package. Existing messenger configuration and environment variable names stay the same.
 
+IMPulse indexes installed messenger entry-point metadata, then imports and validates only the provider selected by `messenger.type` in `impulse.yml`. Unused providers stay unloaded and cannot block startup through import or registration errors. Restart IMPulse after installing/removing libraries or changing messenger type.
+
 The next release is `3.8.0` for core and all three messenger libraries. Core and provider versions must match; each library requires `impulse-bot==3.8.0`. Libraries have no independent version bumps: update a library to the target IMPulse version only when that IMPulse release requires library changes.
 
 Use [uv](https://docs.astral.sh/uv/) with Python 3.10 or newer. Clone both repositories as siblings, then synchronize from the core checkout:

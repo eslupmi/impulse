@@ -3,6 +3,7 @@
 ## v3.8.0 (unreleased)
 Changes:
 - Extract Slack, Mattermost, and Telegram into separate messenger libraries discovered through installed package entry points
+- Load only the configured messenger plugin, ignoring import and registration failures in unused installed providers
 - Add uv dependency management and buildable core and messenger distributions
 - Align core and messenger library versions at `3.8.0`, with messenger libraries requiring `impulse-bot==3.8.0`
 - Remove internal messenger API compatibility modules, configuration aliases, and the closed messenger enum

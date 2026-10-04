@@ -89,8 +89,11 @@ def test_discovery_runs_once_for_the_process_lifetime(monkeypatch):
     entry = installed_entry_point()
     loader = discover(monkeypatch, entry)
     first = get_provider_registry()
+    entry.load.assert_not_called()
     loader.return_value = []
     assert get_provider_registry() is first
+    entry.load.assert_not_called()
+    assert first.resolve('acme_chat') is REGISTRATION
     assert first.resolve('acme_chat') is REGISTRATION
     loader.assert_called_once_with(group='impulse.messengers')
     entry.load.assert_called_once_with()
@@ -108,7 +111,12 @@ def test_no_installed_providers_keeps_none_and_explains_missing_package(monkeypa
 
 
 def test_third_party_string_id_survives_config_round_trip_and_facade_creation(monkeypatch):
-    discover(monkeypatch, installed_entry_point())
+    selected = installed_entry_point()
+    broken = installed_entry_point('broken_chat')
+    broken.load.side_effect = ImportError('unused dependency is missing')
+    invalid = installed_entry_point('Bad ID', registration=object())
+    duplicates = [installed_entry_point('unused_chat'), installed_entry_point('unused_chat')]
+    discover(monkeypatch, selected, broken, invalid, *duplicates)
     data = {
         'messenger': {'type': 'acme_chat', 'admin_users': [], 'channels': {'default': {'id': 'C1'}},
                       'endpoint': 'https://custom.example.test'},
@@ -123,10 +131,23 @@ def test_third_party_string_id_survives_config_round_trip_and_facade_creation(mo
     assert app.type == 'acme_chat'
     assert type(app.provider) is ThirdPartyProvider
     assert app.provider.descriptor.provider_id == 'acme_chat'
+    selected.load.assert_called_once_with()
+    for entry in (broken, invalid, *duplicates):
+        entry.load.assert_not_called()
+
+
+def test_installed_none_entry_points_never_replace_builtin_provider(monkeypatch):
+    entries = [installed_entry_point('none'), installed_entry_point('none')]
+    for entry in entries:
+        entry.load.side_effect = ImportError('unused dependency is missing')
+    discover(monkeypatch, *entries)
+    assert get_provider_registry().resolve('none').factory is NoneProvider
+    assert ImpulseConfig.model_validate({'messenger': {'type': 'none'}}).messenger.type == 'none'
+    for entry in entries:
+        entry.load.assert_not_called()
 
 
 @pytest.mark.parametrize('entry, message', [
-    (installed_entry_point('none'), 'reserved'),
     (installed_entry_point('other'), 'does not match'),
     (installed_entry_point(registration=object()), 'ProviderRegistration'),
     (installed_entry_point(registration=replace(REGISTRATION, descriptor=object())), 'ProviderDescriptor'),
@@ -140,16 +161,36 @@ def test_third_party_string_id_survives_config_round_trip_and_facade_creation(mo
     (installed_entry_point(registration=replace(MESSAGING_REGISTRATION, incident_url=None)), 'incident URL'),
     (installed_entry_point(registration=replace(MESSAGING_REGISTRATION, template_source=lambda name: None)), 'invalid template'),
 ])
-def test_invalid_installed_provider_prevents_startup(monkeypatch, entry, message):
+def test_invalid_selected_provider_prevents_startup(monkeypatch, entry, message):
     discover(monkeypatch, entry)
     with pytest.raises(ValueError, match=message):
-        get_provider_registry()
+        get_provider_registry().resolve(entry.name)
 
 
-def test_duplicate_distribution_provider_id_prevents_startup(monkeypatch):
-    discover(monkeypatch, installed_entry_point(), installed_entry_point())
+def test_duplicate_selected_provider_id_fails_before_imports(monkeypatch):
+    entries = [installed_entry_point(), installed_entry_point()]
+    discover(monkeypatch, *entries)
     with pytest.raises(ValueError, match='Duplicate messenger provider: acme_chat'):
-        get_provider_registry()
+        get_provider_registry().resolve('acme_chat')
+    for entry in entries:
+        entry.load.assert_not_called()
+
+
+@pytest.mark.parametrize('failed_registration, message', [
+    (ImportError('missing dependency'), 'Cannot load'),
+    (replace(REGISTRATION, config_model=None), 'config model'),
+    (replace(MESSAGING_REGISTRATION, template_source=None), 'requires templates'),
+])
+def test_failed_selected_load_or_validation_is_not_cached(monkeypatch, failed_registration, message):
+    entry = installed_entry_point()
+    entry.load.side_effect = [failed_registration, REGISTRATION]
+    discover(monkeypatch, entry)
+    registry = get_provider_registry()
+    with pytest.raises(ValueError, match=message):
+        registry.resolve('acme_chat')
+    assert registry.resolve('acme_chat') is REGISTRATION
+    assert registry.resolve('acme_chat') is REGISTRATION
+    assert entry.load.call_count == 2
 
 
 def test_load_failure_names_provider_and_distribution_without_secret_exception(monkeypatch):
@@ -157,7 +198,7 @@ def test_load_failure_names_provider_and_distribution_without_secret_exception(m
     entry.load.side_effect = RuntimeError('request failed: https://host.test/token-secret-value')
     discover(monkeypatch, entry)
     with pytest.raises(ValueError) as error:
-        get_provider_registry()
+        get_provider_registry().resolve('acme_chat')
     assert 'acme_chat' in str(error.value) and 'example-provider' in str(error.value)
     assert 'token-secret-value' not in ''.join(traceback.format_exception(error.value))
 
@@ -171,7 +212,7 @@ def test_missing_required_resource_prevents_startup_without_exposing_loader_erro
     entry = installed_entry_point(registration=replace(MESSAGING_REGISTRATION, template_source=templates))
     discover(monkeypatch, entry)
     with pytest.raises(ValueError) as error:
-        get_provider_registry()
+        get_provider_registry().resolve('acme_chat')
     assert 'acme_chat' in str(error.value) and 'header' in str(error.value)
     assert 'token-secret-value' not in ''.join(traceback.format_exception(error.value))
 

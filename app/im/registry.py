@@ -11,8 +11,11 @@ from impulse_messenger_api import (
 
 
 class ProviderRegistry:
-    def __init__(self):
+    def __init__(self, installed_entry_points=()):
         self._providers: dict[str, ProviderRegistration] = {}
+        self._entry_points = {}
+        for entry_point in installed_entry_points:
+            self._entry_points.setdefault(entry_point.name, []).append(entry_point)
 
     def register(self, registration: ProviderRegistration) -> None:
         if not isinstance(registration, ProviderRegistration):
@@ -31,19 +34,37 @@ class ProviderRegistry:
             raise ValueError(f'Invalid messenger rate window: {provider_id}')
         if provider_id in self._providers:
             raise ValueError(f'Duplicate messenger provider: {provider_id}')
+        _validate_installed_provider(registration)
         self._providers[provider_id] = registration
 
     def resolve(self, provider_id: str) -> ProviderRegistration:
         if not isinstance(provider_id, str):
             raise ValueError('Invalid messenger provider ID: expected a string')
-        try:
+        if provider_id in self._providers:
             return self._providers[provider_id]
-        except KeyError:
+        entries = self._entry_points.get(provider_id, [])
+        if not entries:
             raise ValueError(
                 f'Unknown application type: {provider_id} (messenger provider is not registered). '
                 f'Install a compatible provider distribution exposing {provider_id!r} '
                 'in the impulse.messengers entry point group, then restart IMPulse.'
-            ) from None
+            )
+        if len(entries) > 1:
+            raise ValueError(f'Duplicate messenger provider: {provider_id}')
+        entry_point = entries[0]
+        try:
+            registration = entry_point.load()
+        except Exception:
+            distribution = getattr(getattr(entry_point, 'dist', None), 'name', 'unknown distribution')
+            raise ValueError(f'Cannot load messenger provider {provider_id!r} from {distribution}') from None
+        if not isinstance(registration, ProviderRegistration):
+            raise ValueError(f'Messenger entry point {provider_id!r} must expose a ProviderRegistration')
+        if not isinstance(registration.descriptor, ProviderDescriptor):
+            raise ValueError(f'Messenger entry point {provider_id!r} must expose a ProviderDescriptor')
+        if provider_id != registration.descriptor.provider_id:
+            raise ValueError(f'Messenger entry point name {provider_id!r} does not match provider ID')
+        self.register(registration)
+        return registration
 
 
 def _validate_installed_provider(registration):
@@ -68,27 +89,11 @@ def _validate_installed_provider(registration):
 
 @lru_cache(maxsize=1)
 def get_provider_registry() -> ProviderRegistry:
-    """Discover once per process; package changes require a restart."""
+    """Index metadata once and load providers on resolve; changes require a restart."""
     from app.im.providers.none import NoneProvider
 
-    registry = ProviderRegistry()
+    registry = ProviderRegistry(entry_points(group='impulse.messengers'))
     registry.register(ProviderRegistration(
         NoneProvider.descriptor, NoneProvider, config_model=NoneProvider.config_model,
     ))
-    for entry_point in sorted(entry_points(group='impulse.messengers'), key=lambda item: item.name):
-        if entry_point.name == 'none':
-            raise ValueError('Messenger provider ID none is reserved for IMPulse')
-        try:
-            registration = entry_point.load()
-        except Exception:
-            distribution = getattr(getattr(entry_point, 'dist', None), 'name', 'unknown distribution')
-            raise ValueError(f'Cannot load messenger provider {entry_point.name!r} from {distribution}') from None
-        if not isinstance(registration, ProviderRegistration):
-            raise ValueError(f'Messenger entry point {entry_point.name!r} must expose a ProviderRegistration')
-        if not isinstance(registration.descriptor, ProviderDescriptor):
-            raise ValueError(f'Messenger entry point {entry_point.name!r} must expose a ProviderDescriptor')
-        if entry_point.name != registration.descriptor.provider_id:
-            raise ValueError(f'Messenger entry point name {entry_point.name!r} does not match provider ID')
-        registry.register(registration)
-        _validate_installed_provider(registration)
     return registry

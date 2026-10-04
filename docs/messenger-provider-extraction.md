@@ -506,7 +506,7 @@ The local extraction uses one sibling repository with three independently builda
 
 `impulse_messenger_api` is the sole public contract shipped by IMPulse. It contains DTOs, transport/authentication protocols, shared configuration schema, required template names, and registration metadata. Core and provider consumers import it directly; the former internal API/schema re-exports and closed messenger enum are removed. Provider modules import the public package and their own dependencies only. Configuration IDs are plain strings, including built-ins, so incident and user-cache YAML keeps its scalar `messenger_type` values and accepts registered third-party IDs.
 
-The process-local registry loads `impulse.messengers` once, retains the built-in `none`, and rejects reserved or duplicate IDs, entry-point name mismatches, incompatible API versions, invalid factories/config models, and missing templates before application initialization. Load/resource errors name the provider without copying a potentially secret-bearing exception. A missing provider produces an install-and-restart error; startup never installs packages.
+The process-local registry indexes `impulse.messengers` metadata once and retains the built-in `none`. It imports and validates only the entry point named by the configured `messenger.type`, then caches its registration after validation succeeds. Duplicate selected IDs, entry-point name mismatches, incompatible API versions, invalid rate declarations/factories/config models, and missing templates fail before application initialization. Unused providers are never imported or validated, so their load/registration errors or duplicate IDs do not block startup. Installed entries named `none` remain unloaded and cannot replace the built-in provider. Load/resource errors name the selected provider without copying a potentially secret-bearing exception. A missing provider produces an install-and-restart error; startup never installs packages.
 
 Both repositories manage application and test dependencies through uv project metadata and lockfiles. The messenger repository is a virtual workspace whose three members have separate wheel/sdist metadata and runtime dependencies. Sibling sources are editable development overrides; distribution metadata contains version requirements, without local paths. IMPulse's default development group installs its test/lint dependencies and all three sibling providers. The root pip requirement exports are removed; `pyproject.toml` and `uv.lock` are the dependency sources.
 
@@ -561,6 +561,28 @@ checks passed. Log: `/tmp/impulse-380-package-final.log`; artifacts and command
 logs: `/tmp/impulse-package-verification-rnouq32z`. No live-tenant, Docker, hosted
 CI, or publication evidence is added by this metadata change.
 
+#### Configured-provider loading (2026-10-04)
+
+Entry-point metadata is indexed once without imports. Configuration resolves only
+its `messenger.type`, and the selected registration is cached after all validation
+succeeds. Failed selected loads remain retryable. Invalid or duplicated unused
+providers stay unloaded; installed `none` entries cannot replace the built-in.
+Selected missing/duplicate/incompatible providers and secret-safe load/resource
+errors still fail clearly before application initialization.
+
+The final WSL/Linux Python 3.10 suite passed **1,345 tests**, with 25 warnings;
+focused discovery/provider contract checks passed **92 tests**. Runtime and
+messenger harness Ruff checks passed, as did the two stdlib harness tests. The
+installed-package gate rebuilt all four `3.8.0` sdists into wheels and passed its
+existing isolated core/provider lifecycle and uninstall matrix. With all three
+libraries installed together, four fresh processes verified that configuration,
+facade construction and imports of core `main`/routes/authentication load only
+the selected external provider; `none` loads none. The import checks do not start
+the server or its lifespan. Logs: `/tmp/impulse-lazy-product-final.log` and
+`/tmp/impulse-lazy-packages-final.log`; package evidence:
+`/tmp/impulse-package-verification-zwu2gi57`. This adds no live-tenant, Docker,
+hosted CI or publication evidence. Distribution and SDK versions are unchanged.
+
 Existing historical Phase 2–3 evidence above remains unchanged.
 
 No live tenant, hosted consent page, rendered browser, or production rate-limit validation is included in this local package milestone. Mattermost and Telegram retain the previously documented unauthenticated callback-origin behavior. Docker execution is unavailable in this WSL distro because Docker Desktop integration is disabled; a frozen standalone core installation without sibling sources validates the installation path outside Docker. Remote CI and publication are not performed. The full external-provider qualification gate still requires those applicable checks and the deferred characterization work.
@@ -595,7 +617,7 @@ Build focused contract tests alongside the internal implementation. Shared provi
 - Required template bundle completeness.
 - Callback authentication failures returning `401` or the provider-appropriate response.
 - No credentials in logs, exceptions, request metrics, or rendered URLs.
-- Duplicate, missing, and incompatible provider startup failures.
+- Duplicate, missing, and incompatible selected-provider startup failures, without imports of unused providers.
 
 The external-package milestone additionally requires a clean-environment smoke test:
 
