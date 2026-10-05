@@ -25,6 +25,10 @@ class ChannelManager:
     def get_channel_name_by_id(self, channel_id: str) -> str | None:
         channel_data = self._channels.get(channel_id)
         return channel_data['name'] if channel_data else None
+
+    def register_channel_alias(self, channel_id: str | int, channel_name: str | None) -> None:
+        if channel_name and channel_id not in self._channels:
+            self._channels[channel_id] = {'id': channel_id, 'name': channel_name}
     
     @staticmethod
     def _resolve_channel_entry(
@@ -63,6 +67,7 @@ class ChannelManager:
             for channel in channels_list
         }
         
+        previous_channels = self._channels.copy()
         self._channels.clear()
         for channel_name, channel_data in channels_dict.items():
             channel_id = channel_data['id']
@@ -71,6 +76,10 @@ class ChannelManager:
                 'name': channel_name,
                 **{k: v for k, v in channel_data.items() if k != 'id'}
             }
+        configured_names = {channel['name'] for channel in self._channels.values()}
+        for channel_id, channel_data in previous_channels.items():
+            if channel_data['name'] in configured_names:
+                self.register_channel_alias(channel_id, channel_data['name'])
         
         return channels_dict
 

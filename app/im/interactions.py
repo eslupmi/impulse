@@ -12,7 +12,7 @@ async def apply_interaction(application, interaction, incidents, queue):
             await acknowledge(interaction)
         return interaction.original_response
 
-    incident = incidents.get_by_ts(ts=interaction.message.thread_id)
+    incident = incidents.get_by_ts(ts=interaction.message.thread_id, channel_id=interaction.message.channel_id)
     if incident is None:
         return await finish_early()
     if interaction.message.channel_id and str(incident.channel_id) != str(interaction.message.channel_id):

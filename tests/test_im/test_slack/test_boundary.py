@@ -169,7 +169,7 @@ def test_http_route_passes_raw_bytes_to_provider_and_returns_ack(runtime):
             '/app', content=b'payload=broken', headers={'Content-Type': 'application/x-www-form-urlencoded'}
         )
         assert result.status_code == 400
-    app.state.incidents.get_by_ts.assert_called_once_with(ts='123.456')
+    app.state.incidents.get_by_ts.assert_called_once_with(ts='123.456', channel_id='C1')
 
 
 @pytest.mark.asyncio

@@ -276,6 +276,7 @@ class Incident:
             parents=content.get('parents', []),
         )
         incident_.ts = content.get('ts')
+        ChannelManager().register_channel_alias(incident_.channel_id, content.get('channel_name'))
         incident_.link = incident_.generate_link(incident_config.application_url)
         incident_.task_link = content.get('task_link', '')
         return incident_

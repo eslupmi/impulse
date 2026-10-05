@@ -32,10 +32,11 @@ class Incidents:
     def get_by_uniq_id(self, uniq_id: str) -> Incident | None:
         return self.uniq_ids.get(uniq_id)
 
-    def get_by_ts(self, ts: str) -> Incident | None:
+    def get_by_ts(self, ts: str, channel_id: str | int | None = None) -> Incident | None:
         for uuid_ in self.active_map.values():
             incident = self.uniq_ids.get(uuid_)
-            if incident and incident.ts == ts:
+            if (incident and incident.ts == ts
+                    and (channel_id in (None, '') or str(incident.channel_id) == str(channel_id))):
                 return incident
         return None
 
