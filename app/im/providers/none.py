@@ -5,7 +5,7 @@ from typing import Any, Literal
 
 from pydantic import Field, field_validator
 
-from impulse_messenger_api import BaseApplicationConfig, DeliveryResult, MessageRef, ProviderDescriptor, ProviderIdentity, UserProfile
+from impulse_messenger_api import BaseApplicationConfig, DeliveryResult, MessageRef, MessengerProvider, ProviderDescriptor, ProviderIdentity, UserProfile
 
 
 class NullApplicationConfig(BaseApplicationConfig):
@@ -27,19 +27,21 @@ class NullApplicationConfig(BaseApplicationConfig):
         return v
 
 
-class NoneProvider:
+class NoneProvider(MessengerProvider):
     descriptor = ProviderDescriptor('none', messaging_enabled=False)
     config_model = NullApplicationConfig
     url = ''
     team = None
 
     def __init__(self, config, secrets=None):
+        # UI-only mode accepts the factory arguments but needs no provider state.
         pass
 
     async def initialize(self, context):
         return ProviderIdentity(public_url='')
 
     async def activate(self):
+        # UI-only mode has no external callbacks to activate.
         pass
 
     async def fetch_user(self, user_id):
@@ -52,6 +54,7 @@ class NoneProvider:
         return MessageRef(message.channel_id, str(uuid.uuid4()))
 
     async def update_incident(self, message):
+        # UI-only mode has no remote message to update.
         pass
 
     async def post_notification(self, message, content):
