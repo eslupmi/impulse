@@ -213,6 +213,8 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
         _log_ui_action("assignment", incident, acting_user, target_user_id=user_id)
 
         assigned = await messenger.handle_ui_assignment(incident, user_id, queue, ui_user=acting_user)
+        if not assigned and str(incident.assigned_user_id) != str(user_id):
+            raise HTTPException(status_code=502, detail="Could not resolve the assignment user")
         return {"success": assigned}
 
     @router.post("/task", responses={
@@ -274,10 +276,12 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
 
         messenger = request.app.state.messenger
         queue = request.app.state.queue
-        await messenger.handle_ui_freeze(
+        frozen = await messenger.handle_ui_freeze(
             incident, freeze_option, str(acting_user.get("id", "")), queue,
             user_timezone=user_tz, ui_user=acting_user,
         )
+        if not frozen:
+            raise HTTPException(status_code=502, detail="Could not freeze the incident")
         return {"success": True}
 
     @router.post("/unfreeze", responses={

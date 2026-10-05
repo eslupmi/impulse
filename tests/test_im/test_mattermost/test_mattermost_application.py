@@ -27,7 +27,7 @@ def test_closed_incident_update_payload_has_no_actions():
 async def test_buttons_handler_take_it_posts_assignment_notification(runtime):
     app = get_application(config_for('mattermost', users={'alice': {'id': 'U123'}}), {'default': {'id': 'C1'}}, 'default')
     app.fetch_and_assign_user_name = AsyncMock(
-        side_effect=lambda incident, user_id, dump=True: setattr(incident, 'assigned_user_id', user_id)
+        side_effect=lambda incident, user_id, dump=True: setattr(incident, 'assigned_user_id', user_id) or True
     )
     app.post_assignment_notification = AsyncMock()
     app.form_body_header_status_icons = Mock(return_value=('body', 'header', ':firing:'))

@@ -140,13 +140,15 @@ class Application:
         user = self.users.get_user_by_id(user_id)
         if not (user and user.exists):
             user = await self._assign_from_api(user_id)
-        if user is not None:
-            incident.assigned_user_id = user_id
-            incident.assigned_user = user.username
-            incident.assigned_fullname = user.full_name or '(empty)'
-            logger.debug(f'Incident {incident.uniq_id} assigned', extra={'user_id': user_id})
+        if user is None:
+            return False
+        incident.assigned_user_id = user_id
+        incident.assigned_user = user.username
+        incident.assigned_fullname = user.full_name or '(empty)'
+        logger.debug(f'Incident {incident.uniq_id} assigned', extra={'user_id': user_id})
         if dump:
             incident.dump()
+        return True
 
     async def _assign_from_api(self, user_id):
         try:
@@ -225,11 +227,12 @@ class Application:
 
     async def handle_ui_assignment(self, incident, user_id, queue, ui_user=None):
         str_user_id = str(user_id)
-        if incident.assigned_user_id == str_user_id:
+        if str(incident.assigned_user_id) == str_user_id:
             return False
 
+        if not await self.fetch_and_assign_user_name(incident, str_user_id, dump=False):
+            return False
         await queue.delete_by_id(incident.uniq_id, delete_steps=True, delete_status=False)
-        await self.fetch_and_assign_user_name(incident, str_user_id)
         self.track_async_task(asyncio.create_task(self.post_assignment_notification(incident, ui_user=ui_user)))
         incident.chain_enabled = False
         incident.dump()
@@ -251,10 +254,12 @@ class Application:
         return True
 
     async def handle_ui_freeze(self, incident, freeze_option, user_id, queue, user_timezone=None, ui_user=None):
-        await self._handle_freeze_action(
+        if not await self._handle_freeze_action(
             incident, freeze_option, user_id, queue, user_timezone=user_timezone, ui_user=ui_user,
-        )
+        ):
+            return False
         await self.update_incident_message(incident)
+        return True
 
     async def handle_ui_unfreeze(self, incident, queue):
         await self._handle_unfreeze_action(incident, '', queue)
@@ -553,16 +558,18 @@ class Application:
             user_timezone: str | None = None, ui_user=None,
     ):
         if not self.provider.descriptor.messaging_enabled:
-            return
+            return False
         logger.info(log_button_pressed, extra={'uniq_id': incident_.uniq_id, 'button': 'freeze', 'user_id': user_id})
 
         general = get_config().app.general
         timezone_str = user_timezone or general.timezone
         freeze_time = calculate_freeze_time(freeze_option, general, timezone_str)
-        await self.fetch_and_assign_user_name(incident_, user_id, dump=False)
-        cached_user = self.users.get_user_by_id(user_id)
+        if user_id and not await self.fetch_and_assign_user_name(incident_, user_id, dump=False):
+            return False
+        cached_user = self.users.get_user_by_id(user_id) if user_id else None
         await self.apply_time_freeze(incident_, freeze_time, cached_user, queue_, source=FreezeSource.TIME)
         await self.post_freeze_notification(incident_, ui_user=ui_user)
+        return True
 
     def _handle_task_action(self, incident_, user_id, queue_):
         logger.info(log_button_pressed, extra={'uniq_id': incident_.uniq_id, 'button': 'task', 'user_id': user_id})

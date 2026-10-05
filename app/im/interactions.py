@@ -59,17 +59,18 @@ async def apply_interaction(application, interaction, incidents, queue):
 
 async def toggle_assignment(self, incident_, user_id, queue_):
     """Handle chain-related button actions"""
+    needs_assignment = (incident_.chain_enabled or incident_.status != 'resolved') and str(incident_.assigned_user_id) != str(user_id)
+    if needs_assignment and not await self.fetch_and_assign_user_name(incident_, user_id, dump=False):
+        return
     await queue_.delete_by_id(incident_.uniq_id, delete_steps=True, delete_status=False)
     if incident_.chain_enabled or incident_.status != 'resolved':
-        if incident_.assigned_user_id == user_id:
+        if not needs_assignment:
             logger.info('Button pressed: user already assigned', extra={'incident': incident_.uniq_id, 'button': 'take_it', 'user_id': user_id})
         else:
             logger.info('Button pressed: assigning to user', extra={'incident': incident_.uniq_id, 'button': 'take_it', 'user_id': user_id})
-            await self.fetch_and_assign_user_name(incident_, user_id, dump=False)
             self.track_async_task(asyncio.create_task(self.post_assignment_notification(incident_)))
         incident_.chain_enabled = False
     else:
         logger.info('Button pressed', extra={'incident': incident_.uniq_id, 'button': 'release', 'user_id': user_id})
         self.track_async_task(asyncio.create_task(self.post_unassignment_notification(incident_)))
         incident_.release()
-
