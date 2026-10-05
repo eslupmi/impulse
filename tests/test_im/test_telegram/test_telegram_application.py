@@ -127,7 +127,8 @@ def test_headerless_notifications_and_html_autoescape():
         'commonAnnotations': {'summary': '<unsafe>'}, 'commonLabels': {},
         'groupLabels': {}, 'alerts': [{'generatorURL': '', 'labels': {}, 'annotations': {}}],
     }, Mock(serialize=lambda: {'task_link': '', 'assigned_user_id': ''}, parents=[], childs=[]))
-    assert '&lt;unsafe&gt;' in rendered and '<unsafe>' not in rendered
+    assert '&lt;unsafe&gt;' in rendered
+    assert '<unsafe>' not in rendered
 
 
 def test_telegram_user_serialization_preserves_numeric_id_and_fields():
@@ -152,4 +153,5 @@ async def test_api_error_logs_exclude_reflected_secrets(caplog):
     formatted = '\n'.join(JSONFormatter(DEFAULT_JSON_FORMAT).format(record)
                           for record in caplog.records if record.name == 'main_logger')
     assert reflected not in formatted
-    assert user_response.closed and create_response.closed
+    assert user_response.closed
+    assert create_response.closed

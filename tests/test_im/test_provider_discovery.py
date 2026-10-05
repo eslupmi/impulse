@@ -106,7 +106,8 @@ def test_no_installed_providers_keeps_none_and_explains_missing_package(monkeypa
     with pytest.raises(ValueError) as error:
         registry.resolve('slack')
     assert 'not registered' in str(error.value)
-    assert 'Install' in str(error.value) and 'impulse.messengers' in str(error.value)
+    assert 'Install' in str(error.value)
+    assert 'impulse.messengers' in str(error.value)
     assert 'restart' in str(error.value)
 
 
@@ -191,15 +192,17 @@ def test_installed_none_entry_points_never_replace_builtin_provider(monkeypatch)
 ])
 def test_invalid_selected_provider_prevents_startup(monkeypatch, entry, message):
     discover(monkeypatch, entry)
+    registry = get_provider_registry()
     with pytest.raises(ValueError, match=message):
-        get_provider_registry().resolve(entry.name)
+        registry.resolve(entry.name)
 
 
 def test_duplicate_selected_provider_id_fails_before_imports(monkeypatch):
     entries = [installed_entry_point(), installed_entry_point()]
     discover(monkeypatch, *entries)
+    registry = get_provider_registry()
     with pytest.raises(ValueError, match='Duplicate messenger provider: acme_chat'):
-        get_provider_registry().resolve('acme_chat')
+        registry.resolve('acme_chat')
     for entry in entries:
         entry.load.assert_not_called()
 
@@ -225,9 +228,11 @@ def test_load_failure_names_provider_and_distribution_without_secret_exception(m
     entry = installed_entry_point()
     entry.load.side_effect = RuntimeError('request failed: https://host.test/token-secret-value')
     discover(monkeypatch, entry)
+    registry = get_provider_registry()
     with pytest.raises(ValueError) as error:
-        get_provider_registry().resolve('acme_chat')
-    assert 'acme_chat' in str(error.value) and 'example-provider' in str(error.value)
+        registry.resolve('acme_chat')
+    assert 'acme_chat' in str(error.value)
+    assert 'example-provider' in str(error.value)
     assert 'token-secret-value' not in ''.join(traceback.format_exception(error.value))
 
 
@@ -239,9 +244,11 @@ def test_missing_required_resource_prevents_startup_without_exposing_loader_erro
 
     entry = installed_entry_point(registration=replace(MESSAGING_REGISTRATION, template_source=templates))
     discover(monkeypatch, entry)
+    registry = get_provider_registry()
     with pytest.raises(ValueError) as error:
-        get_provider_registry().resolve('acme_chat')
-    assert 'acme_chat' in str(error.value) and 'header' in str(error.value)
+        registry.resolve('acme_chat')
+    assert 'acme_chat' in str(error.value)
+    assert 'header' in str(error.value)
     assert 'token-secret-value' not in ''.join(traceback.format_exception(error.value))
 
 

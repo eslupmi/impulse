@@ -280,7 +280,8 @@ async def test_group_discovery_normalized_cache_admin_roles_and_task_button(runt
     await app.initialize_async()
     assert app.users.get('alice').roles == ['admin']
     assert app.users.get('alice').get_notification_identifier() == 'U1'
-    assert app.groups['ops'].exists and not app.groups['missing'].exists
+    assert app.groups['ops'].exists
+    assert not app.groups['missing'].exists
     incident = incident_for('slack')
     message = replace(Application._presentation(incident, 'body', 'header', 'icon'), can_create_task=True)
     assert SlackProvider.payload(message)['attachments'][1]['actions'][-1]['name'] == 'task'
@@ -346,8 +347,10 @@ async def test_api_failure_log_never_includes_returned_secrets(caplog):
 async def test_facade_requires_raw_request_instead_of_platform_dictionary(runtime):
     app = get_application(config_for('slack'), {'default': {'id': 'C1'}}, 'default')
     incidents = Mock()
+    payload = callback()
+    queue = Mock()
     with pytest.raises(TypeError, match='InteractionRequest'):
-        await app.buttons_handler(callback(), incidents, Mock())
+        await app.buttons_handler(payload, incidents, queue)
     incidents.get_by_ts.assert_not_called()
 
 

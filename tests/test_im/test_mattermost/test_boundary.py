@@ -10,8 +10,9 @@ from tests.test_im.test_provider_seam import config_for
 
 
 def test_missing_token_names_the_variable_without_its_value():
+    config = config_for('mattermost')
     with pytest.raises(ValueError, match='MATTERMOST_ACCESS_TOKEN') as error:
-        MattermostProvider(config_for('mattermost'), {'MATTERMOST_ACCESS_TOKEN': ''})
+        MattermostProvider(config, {'MATTERMOST_ACCESS_TOKEN': ''})
     assert 'test-token' not in str(error.value)
 
 

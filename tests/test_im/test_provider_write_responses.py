@@ -96,7 +96,8 @@ async def test_telegram_unchanged_topic_still_updates_message_and_accepts_unchan
     await provider.update_incident(presentation())
     assert provider.http.post.await_count == 2
     assert provider.http.post.await_args_list[-1].args[0].endswith('/editMessageText')
-    assert topic.closed and message.closed
+    assert topic.closed
+    assert message.closed
 
 
 @pytest.mark.asyncio
@@ -106,7 +107,8 @@ async def test_telegram_unchanged_callback_edit_still_acknowledges_callback():
     provider = write_provider('telegram', [unchanged, acknowledged])
     await write(provider, 'after_interaction')
     assert provider.http.post.await_args_list[-1].args[0].endswith('/answerCallbackQuery')
-    assert unchanged.closed and acknowledged.closed
+    assert unchanged.closed
+    assert acknowledged.closed
 
 
 @pytest.mark.asyncio

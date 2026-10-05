@@ -25,7 +25,8 @@ async def test_activation_follows_core_state_loading_and_precedes_success_log(pr
     async def activate_with_loaded_state():
         assert app.users.get('alice').exists
         assert app.admin_users == [app.users.get('alice')]
-        assert app.user_groups == {} and app.groups == {}
+        assert app.user_groups == {}
+        assert app.groups == {}
         events.append('activate')
         await activate()
 
@@ -39,7 +40,8 @@ async def test_activation_follows_core_state_loading_and_precedes_success_log(pr
     assert events == ['activate', 'initialized']
     if provider_id == 'telegram':
         urls = [url for _, url, _ in transport.calls]
-        assert '/getChat?' in urls[0] and urls[-1].endswith('/setWebhook')
+        assert '/getChat?' in urls[0]
+        assert urls[-1].endswith('/setWebhook')
         assert transport.calls[-1][2]['params'] == {'url': 'http://impulse.test/app'}
     assert all(response.closed for response in transport.responses)
     await app.close()

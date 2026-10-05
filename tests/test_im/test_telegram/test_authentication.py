@@ -77,7 +77,10 @@ async def test_registered_telegram_login_verifies_id_token(tmp_path, monkeypatch
                         lambda **kwargs: transport)
 
     user = await manager.provider.authenticate_callback({'code': 'one-use'}, 'https://impulse.test/auth/callback')
-    assert user.id == '123' and user.username == 'alice' and user.messenger == 'telegram'
+    assert user.id == '123'
+    assert user.username == 'alice'
+    assert user.messenger == 'telegram'
     assert transport.post.call_args.kwargs['headers']['Authorization'].startswith('Basic ')
-    assert transport.token.closed and transport.jwks.closed
+    assert transport.token.closed
+    assert transport.jwks.closed
     transport.close.assert_awaited_once()

@@ -39,7 +39,8 @@ async def test_assignment_commands_preserve_explicit_intent(action, status, chai
     await asyncio.gather(*app._async_tasks)
     assert incident.release.called is not assigns
     if assigns:
-        assert incident.assigned_user_id == 123 and not incident.chain_enabled
+        assert incident.assigned_user_id == 123
+        assert not incident.chain_enabled
         app.post_assignment_notification.assert_awaited_once_with(incident)
     else:
         app.post_unassignment_notification.assert_awaited_once_with(incident)

@@ -35,7 +35,8 @@ async def test_failed_assignment_preserves_escalation(action, failure):
     else:
         await toggle_assignment(app, incident, 'missing', queue)
 
-    assert incident.assigned_user_id == '' and incident.chain_enabled
+    assert incident.assigned_user_id == ''
+    assert incident.chain_enabled
     queue.delete_by_id.assert_not_awaited()
     app.post_assignment_notification.assert_not_awaited()
     app.update_incident_message.assert_not_awaited()
@@ -56,7 +57,8 @@ async def test_cached_assignment_returns_success_and_stops_escalation():
 
     assert await app.handle_ui_assignment(incident, 123, queue) is True
     await asyncio.gather(*app._async_tasks)
-    assert incident.assigned_user_id == '123' and not incident.chain_enabled
+    assert incident.assigned_user_id == '123'
+    assert not incident.chain_enabled
     queue.delete_by_id.assert_awaited_once()
     app.post_assignment_notification.assert_awaited_once()
 

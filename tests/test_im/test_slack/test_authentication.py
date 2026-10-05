@@ -78,9 +78,12 @@ def test_login_callback_cookie_session_replay_and_logout(tmp_path, monkeypatch, 
         response = client.get(
             '/impulse/auth/callback', params={'state': state, 'code': 'one-shot'}, follow_redirects=False
         )
-        assert response.status_code == 302 and response.headers['location'] == '/impulse/incidents'
+        assert response.status_code == 302
+        assert response.headers['location'] == '/impulse/incidents'
         cookie = response.headers['set-cookie']
-        assert 'HttpOnly' in cookie and 'Path=/impulse' in cookie and 'SameSite=lax' in cookie
+        assert 'HttpOnly' in cookie
+        assert 'Path=/impulse' in cookie
+        assert 'SameSite=lax' in cookie
         assert client.get('/impulse/auth/me').json()['user']['id'] == 'U1'
         assert client.get('/impulse/auth/me').json()['authenticated'] is True
         # A new manager reuses the persisted session file.
@@ -97,7 +100,8 @@ def test_login_callback_cookie_session_replay_and_logout(tmp_path, monkeypatch, 
     transport.post.assert_awaited_once()
     assert transport.post.call_args.kwargs['data']['client_secret'] == 'secret'
     assert transport.get.call_args.kwargs['headers'] == {'Authorization': 'Bearer user-token'}
-    assert transport.token.closed and transport.user.closed
+    assert transport.token.closed
+    assert transport.user.closed
     transport.close.assert_awaited_once()
 
 
@@ -146,8 +150,9 @@ def test_invalid_state_makes_no_provider_calls(tmp_path, monkeypatch, caplog):
 @pytest.mark.parametrize('params,error', [({}, 'missing_code'), ({'error': 'access_denied'}, 'provider_error')])
 async def test_provider_callback_error_without_http(params, error):
     http = AuthTransport()
+    provider = SlackAuthentication('client', 'secret')
     with pytest.raises(AuthenticationError) as exc:
-        await SlackAuthentication('client', 'secret').authenticate_callback(params, 'http://callback', http)
+        await provider.authenticate_callback(params, 'http://callback', http)
     assert exc.value.code == error
     http.post.assert_not_called()
 

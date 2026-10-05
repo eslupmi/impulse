@@ -129,8 +129,9 @@ def runtime(monkeypatch):
 
 def test_messaging_provider_must_be_interactive():
     provider = SimpleNamespace(descriptor=ProviderDescriptor('stub'), url='https://example.test', team=None)
+    config = config_for('slack')
     with pytest.raises(TypeError, match='stub does not provide templates'):
-        Application(config_for('slack'), {'default': {'id': 'C1'}}, 'default', provider=provider)
+        Application(config, {'default': {'id': 'C1'}}, 'default', provider=provider)
 
 
 @pytest.mark.asyncio
@@ -153,7 +154,8 @@ async def test_registry_facade_initialization_delivery_and_cleanup(provider_id, 
         assert not hasattr(app.provider, 'users')
         assert not hasattr(app.provider, 'chains')
         user = await app.get_user_details(123 if provider_id == 'telegram' else 'U1')
-        assert user['exists'] and user['username'] == 'alice'
+        assert user['exists']
+        assert user['username'] == 'alice'
     incident = incident_for(provider_id)
     incident.ts = await app.create_incident_message(incident, 'body', 'header', '5312241539987020022')
     assert incident.ts
@@ -318,8 +320,9 @@ def test_registry_rejects_missing_duplicate_and_incompatible_providers():
     registry.register(registered)
     with pytest.raises(ValueError, match='Duplicate'):
         registry.register(registered)
+    incompatible = replace(registered, descriptor=ProviderDescriptor('new', api_version=2))
     with pytest.raises(ValueError, match='Incompatible'):
-        registry.register(replace(registered, descriptor=ProviderDescriptor('new', api_version=2)))
+        registry.register(incompatible)
 
 
 def test_contract_does_not_import_core_or_external_runtime():
@@ -358,7 +361,8 @@ def test_external_provider_import_boundaries_and_core_selection():
                 else:
                     continue
                 for module in modules:
-                    assert module != 'app' and not module.startswith('app.'), (path, module)
+                    assert module != 'app', (path, module)
+                    assert not module.startswith('app.'), (path, module)
                     assert not any(module == other or module.startswith(other + '.')
                                    for other in namespaces if other != namespace), (path, module)
 
@@ -608,11 +612,13 @@ def test_existing_template_read_errors_do_not_use_packaged_defaults(provider_id,
     monkeypatch.chdir(tmp_path)
     directory = 'templates' if name == 'body' else 'thread_templates'
     (tmp_path / directory / f'{provider_id}_{name}.j2').mkdir(parents=True)
+    config = config_for(provider_id)
+    templates = ProviderTemplates(name)
     with pytest.raises(IsADirectoryError):
         if name == 'body':
-            get_application(config_for(provider_id), {'default': {'id': 'C1'}}, 'default')
+            get_application(config, {'default': {'id': 'C1'}}, 'default')
         else:
-            ProviderTemplates(name)[provider_id]
+            templates[provider_id]
 
 
 @pytest.mark.parametrize('provider_id', ['slack', 'mattermost', 'telegram', 'none'])
@@ -633,7 +639,8 @@ def test_builtin_registration_satisfies_public_contract(provider_id):
     from jinja2 import Environment
 
     assert descriptor.messaging_enabled
-    assert descriptor.rate_limit is not None and descriptor.rate_limit > 0
+    assert descriptor.rate_limit is not None
+    assert descriptor.rate_limit > 0
     assert isinstance(registration.factory(config_for(provider_id), {
         'SLACK_BOT_USER_OAUTH_TOKEN': 'token', 'SLACK_VERIFICATION_TOKEN': 'verify',
         'MATTERMOST_ACCESS_TOKEN': 'token', 'TELEGRAM_BOT_TOKEN': 'token',
@@ -653,8 +660,9 @@ def test_builtin_registration_satisfies_public_contract(provider_id):
 ])
 def test_builtin_missing_secret_names_only_the_required_variable(provider_id, secret_name):
     registration = get_provider_registry().resolve(provider_id)
+    config = config_for(provider_id)
     with pytest.raises(ValueError) as error:
-        registration.factory(config_for(provider_id), {'DEV_MESSENGER_CUSTOM_ADDRESS': 'fixture-secret-value'})
+        registration.factory(config, {'DEV_MESSENGER_CUSTOM_ADDRESS': 'fixture-secret-value'})
     assert secret_name in str(error.value)
     assert 'fixture-secret-value' not in str(error.value)
 
@@ -678,7 +686,8 @@ async def test_builtin_profiles_are_normalized_and_responses_closed(provider_id,
     user = await provider.fetch_user(123 if provider_id == 'telegram' else 'U1')
     groups = await provider.fetch_groups()
     assert isinstance(user, UserProfile)
-    assert (user.full_name, user.username, user.timezone, groups) == expected
+    actual = (user.full_name, user.username, user.timezone, groups)
+    assert actual == expected
     assert user.exists == (provider_id != 'none')
     assert all(response.closed for response in transport.responses)
 
