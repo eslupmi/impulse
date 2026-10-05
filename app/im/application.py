@@ -12,7 +12,6 @@ from app.config.environment import get_environment_config
 from app.http_client.errors import MESSENGER_TRANSPORT_ERRORS
 from app.http_client.rate_limited_client import RateLimitedClient
 from app.im.chain.chain_factory import ChainFactory
-from app.im.channel_manager import ChannelManager
 from app.im.groups import Group
 from app.im.interactions import apply_interaction
 from impulse_messenger_api import (
@@ -122,10 +121,6 @@ class Application:
     async def create_incident_message(self, incident, body, header, status_icons):
         message = self._presentation(incident, body, header, status_icons)
         result = await self.provider.create_incident(message)
-        if result:
-            channels = ChannelManager()
-            channels.register_channel_alias(result.channel_id, channels.get_channel_name_by_id(incident.channel_id))
-            incident.channel_id = result.channel_id
         return result.thread_id if result else None
 
     def create_user(self, name, user_details):

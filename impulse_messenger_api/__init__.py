@@ -34,6 +34,10 @@ class ProviderDescriptor:
 
 @dataclass(frozen=True)
 class MessageRef:
+    """Configured platform channel ID plus a thread ID unique within that channel.
+
+    Providers keep the configured channel ID unchanged in returned references.
+    """
     channel_id: str | int
     thread_id: str
 

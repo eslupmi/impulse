@@ -23,6 +23,7 @@ from app.im.helpers import get_application
 from impulse_messenger_api import GroupProfile, InteractiveProvider, InteractionRequest, MessageRef, MessengerProvider, PLUGIN_API_VERSION, ProviderContext, ProviderDescriptor, ProviderIdentity, ProviderResponse, UserProfile
 from app.im.registry import ProviderRegistry, get_provider_registry
 from app.im.users import UserManager
+from app.incident.incidents import Incidents
 
 
 def interaction_request(payload):
@@ -169,6 +170,35 @@ async def test_registry_facade_initialization_delivery_and_cleanup(provider_id, 
         assert all(response.closed for response in transport.responses)
     await app.close()
     assert transport.closed == (provider_id != 'none')
+
+
+@pytest.mark.asyncio
+async def test_telegram_same_topic_and_message_in_two_chats_routes_to_callback_chat(runtime):
+    channels = {'default': {'id': -100123}, 'other': {'id': -100456}}
+    app = get_application(config_for('telegram', channels=channels), channels, 'default')
+    transport = Transport()
+    app._setup_http = Mock(return_value=transport)
+    await app.initialize_async()
+    app.form_body_header_status_icons = Mock(return_value=('body', 'header', '5312241539987020022'))
+    first, second = incident_for('telegram'), incident_for('telegram')
+    for number, incident in enumerate((first, second)):
+        incident.ts = '10/20'
+        incident.uuid = incident.uniq_id = f'incident-{number}'
+    second.channel_id = channels['other']['id']
+    incidents = Incidents([first, second])
+    payload = {'callback_query': {'id': 'ack-1', 'data': 'noop', 'from': {'id': 123},
+                                 'message': {'message_id': 20, 'message_thread_id': 10,
+                                             'chat': {'id': second.channel_id}}}}
+    try:
+        response = await app.buttons_handler(json_request(payload), incidents, None)
+        assert response.status_code == 200
+        first.dump.assert_not_called()
+        second.dump.assert_called_once_with()
+        edit = next(call for call in reversed(transport.calls) if call[1].endswith('/editMessageText'))
+        assert edit[2]['json']['chat_id'] == second.channel_id
+        assert edit[2]['json']['message_id'] == '20'
+    finally:
+        await app.close()
 
 
 @pytest.mark.asyncio
