@@ -494,10 +494,11 @@ class Application:
         all_groups = await self.get_all_groups()
         groups = {}
         for name, info in groups_dict.items():
-            group_name = all_groups.get(info.id)
+            group_id = info['id'] if isinstance(info, dict) else info.id
+            group_name = all_groups.get(group_id)
             if group_name is None:
                 logger.warning('Group not found in messenger', extra={'group': name})
-            groups[name] = self.create_group(name, {'id': info.id, 'name': group_name, 'exists': group_name is not None})
+            groups[name] = self.create_group(name, {'id': group_id, 'name': group_name, 'exists': group_name is not None})
         return groups
 
     async def _generate_users(self, users_dict: dict):

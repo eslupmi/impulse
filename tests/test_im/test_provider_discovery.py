@@ -6,7 +6,7 @@ from importlib import import_module
 from importlib.metadata import entry_points
 from types import SimpleNamespace
 from typing import Literal
-from unittest.mock import Mock
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 
@@ -134,6 +134,34 @@ def test_third_party_string_id_survives_config_round_trip_and_facade_creation(mo
     selected.load.assert_called_once_with()
     for entry in (broken, invalid, *duplicates):
         entry.load.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_third_party_dictionary_groups_initialize_through_public_config(monkeypatch):
+    provider = Mock(
+        spec=api.InteractiveProvider, descriptor=MESSAGING_REGISTRATION.descriptor, url='', team=None,
+        template_source=MESSAGING_REGISTRATION.template_source,
+        initialize=AsyncMock(return_value=api.ProviderIdentity()), activate=AsyncMock(),
+        fetch_groups=AsyncMock(return_value=(api.GroupProfile('G1', 'Responders'),)),
+    )
+    registration = replace(MESSAGING_REGISTRATION, factory=Mock(return_value=provider))
+    discover(monkeypatch, installed_entry_point(registration=registration))
+    config = ImpulseConfig.model_validate({
+        'messenger': {'type': 'acme_chat', 'admin_users': [], 'channels': {'default': {'id': 'C1'}},
+                      'groups': {'responders': {'id': 'G1'}, 'missing': {'id': 'G2'}}},
+        'route': {'channel': 'default'},
+    })
+    assert config.messenger.groups['responders'] == {'id': 'G1'}
+    app = get_application(config.messenger, config.messenger.channels, 'default')
+    transport = Mock(close=AsyncMock())
+    monkeypatch.setattr(app, '_setup_http', lambda: transport)
+    try:
+        await app.initialize_async()
+        assert (app.groups['responders'].id, app.groups['responders'].name, app.groups['responders'].exists) == ('G1', 'Responders', True)
+        assert (app.groups['missing'].id, app.groups['missing'].exists) == ('G2', False)
+        provider.activate.assert_awaited_once()
+    finally:
+        await app.close()
 
 
 def test_installed_none_entry_points_never_replace_builtin_provider(monkeypatch):
