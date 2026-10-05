@@ -86,7 +86,8 @@ async def test_callback_decodes_to_immutable_command_and_acknowledges_after_edit
     assert http.calls[-2][2]['json']['reply_markup']['inline_keyboard'][-1][0]['callback_data'] == 'freeze_back'
     assert http.calls[-1][1].endswith('/answerCallbackQuery')
     assert all(response.closed for response in http.responses)
-    for action, expected in [('stop_chain', InteractionAction.TOGGLE_ASSIGNMENT),
+    for action, expected in [('stop_chain', InteractionAction.ASSIGN),
+                             ('start_chain', InteractionAction.RELEASE),
                              ('task', InteractionAction.CREATE_TASK),
                              ('freeze_month', InteractionAction.FREEZE)]:
         assert (await tg.parse_interaction(request(action))).commands[0].action == expected

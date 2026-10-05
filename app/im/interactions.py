@@ -39,8 +39,8 @@ async def apply_interaction(application, interaction, incidents, queue):
                 menu_unfroze = True
         elif command.action == InteractionAction.UNFREEZE:
             await application._handle_unfreeze_action(incident, user_id, queue)
-        elif command.action == InteractionAction.TOGGLE_ASSIGNMENT:
-            await toggle_assignment(application, incident, user_id, queue)
+        elif command.action in (InteractionAction.TOGGLE_ASSIGNMENT, InteractionAction.ASSIGN, InteractionAction.RELEASE):
+            await toggle_assignment(application, incident, user_id, queue, action=command.action)
         elif command.action == InteractionAction.CREATE_TASK:
             application._handle_task_action(incident, user_id, queue)
     if menu_unfroze:
@@ -57,13 +57,16 @@ async def apply_interaction(application, interaction, incidents, queue):
         await after_interaction(presentation, interaction)
     return application.provider.respond_to_interaction(presentation)
 
-async def toggle_assignment(self, incident_, user_id, queue_):
-    """Handle chain-related button actions"""
-    needs_assignment = (incident_.chain_enabled or incident_.status != 'resolved') and str(incident_.assigned_user_id) != str(user_id)
+async def toggle_assignment(self, incident_, user_id, queue_, action=InteractionAction.TOGGLE_ASSIGNMENT):
+    """Apply explicit claim/release commands or the platform's state-dependent toggle."""
+    assign = action == InteractionAction.ASSIGN or (
+        action == InteractionAction.TOGGLE_ASSIGNMENT and (incident_.chain_enabled or incident_.status != 'resolved')
+    )
+    needs_assignment = assign and str(incident_.assigned_user_id) != str(user_id)
     if needs_assignment and not await self.fetch_and_assign_user_name(incident_, user_id, dump=False):
         return
     await queue_.delete_by_id(incident_.uniq_id, delete_steps=True, delete_status=False)
-    if incident_.chain_enabled or incident_.status != 'resolved':
+    if assign:
         if not needs_assignment:
             logger.info('Button pressed: user already assigned', extra={'incident': incident_.uniq_id, 'button': 'take_it', 'user_id': user_id})
         else:

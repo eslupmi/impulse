@@ -156,6 +156,8 @@ class SecretResolver(Protocol):
 
 class InteractionAction(str, Enum):
     TOGGLE_ASSIGNMENT = 'toggle_assignment'
+    ASSIGN = 'assign'
+    RELEASE = 'release'
     FREEZE = 'freeze'
     UNFREEZE = 'unfreeze'
     CREATE_TASK = 'create_task'
