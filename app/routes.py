@@ -187,6 +187,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
         400: {"description": "Missing uniq_id or user_id"},
         401: {"description": _MSG_AUTHENTICATION_REQUIRED},
         404: {"description": _MSG_INCIDENT_NOT_FOUND},
+        502: {"description": "Could not resolve the assignment user"},
     })
     async def post_assign(request: Request):
         acting_user = _get_acting_user(request)
@@ -250,6 +251,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
         401: {"description": _MSG_AUTHENTICATION_REQUIRED},
         404: {"description": _MSG_INCIDENT_NOT_FOUND},
         409: {"description": "Incident already frozen"},
+        502: {"description": "Could not freeze the incident"},
     })
     async def post_freeze(request: Request):
         acting_user = _get_acting_user(request)
