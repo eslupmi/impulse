@@ -3,12 +3,15 @@ COPY --from=ghcr.io/astral-sh/uv:0.12.22 /uv /uvx /bin/
 WORKDIR /app
 ENV UV_LINK_MODE=copy
 COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-dev --no-install-project
+RUN uv sync --frozen --no-dev --no-install-project --no-build
 COPY . .
 # Frozen resolution installs core without requiring sibling messenger checkouts.
-RUN uv sync --frozen --no-dev --no-editable && \
+RUN uv sync --frozen --no-dev --no-editable --no-build && \
     if find wheelhouse -name '*.whl' -print -quit | grep -q .; then \
-        uv pip install --python .venv/bin/python "impulse-bot==$(.venv/bin/python -c 'from importlib.metadata import version; print(version("impulse-bot"))')" wheelhouse/*.whl; \
+        uv pip install --python .venv/bin/python --no-build \
+            "impulse-bot==$(.venv/bin/python -c \
+                'from importlib.metadata import version; print(version("impulse-bot"))')" \
+            wheelhouse/*.whl; \
     fi
 EXPOSE 5000
 
