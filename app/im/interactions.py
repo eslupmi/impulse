@@ -26,23 +26,8 @@ async def apply_interaction(application, interaction, incidents, queue):
     timezone = application._get_user_timezone_str(user_id)
     menu_unfroze = False
     for command in interaction.commands:
-        if command.action == InteractionAction.FREEZE:
-            if incident.can_manual_unfreeze():
-                await application._handle_unfreeze_action(incident, user_id, queue)
-            elif command.freeze_option:
-                await application._handle_freeze_action(incident, command.freeze_option, user_id,
-                                                       queue, user_timezone=timezone)
-        elif command.action == InteractionAction.SHOW_FREEZE_OPTIONS:
-            if incident.can_manual_unfreeze():
-                await application._handle_unfreeze_action(incident, user_id, queue)
-                # The presentation is built after unfreeze, so this command must not open the menu.
-                menu_unfroze = True
-        elif command.action == InteractionAction.UNFREEZE:
-            await application._handle_unfreeze_action(incident, user_id, queue)
-        elif command.action in (InteractionAction.TOGGLE_ASSIGNMENT, InteractionAction.ASSIGN, InteractionAction.RELEASE):
-            await toggle_assignment(application, incident, user_id, queue, action=command.action)
-        elif command.action == InteractionAction.CREATE_TASK:
-            application._handle_task_action(incident, user_id, queue)
+        if await _apply_command(application, command, incident, user_id, queue, timezone):
+            menu_unfroze = True
     if menu_unfroze:
         interaction = replace(interaction, commands=tuple(
             command for command in interaction.commands
@@ -56,6 +41,29 @@ async def apply_interaction(application, interaction, incidents, queue):
     if after_interaction is not None:
         await after_interaction(presentation, interaction)
     return application.provider.respond_to_interaction(presentation)
+
+
+async def _apply_command(application, command, incident, user_id, queue, timezone) -> bool:
+    """Apply one command; report when unfreezing replaces opening the freeze menu."""
+    if command.action == InteractionAction.FREEZE:
+        if incident.can_manual_unfreeze():
+            await application._handle_unfreeze_action(incident, user_id, queue)
+        elif command.freeze_option:
+            await application._handle_freeze_action(incident, command.freeze_option, user_id,
+                                                   queue, user_timezone=timezone)
+    elif command.action == InteractionAction.SHOW_FREEZE_OPTIONS:
+        if incident.can_manual_unfreeze():
+            await application._handle_unfreeze_action(incident, user_id, queue)
+            # The presentation is built after unfreeze, so this command must not open the menu.
+            return True
+    elif command.action == InteractionAction.UNFREEZE:
+        await application._handle_unfreeze_action(incident, user_id, queue)
+    elif command.action in (InteractionAction.TOGGLE_ASSIGNMENT, InteractionAction.ASSIGN, InteractionAction.RELEASE):
+        await toggle_assignment(application, incident, user_id, queue, action=command.action)
+    elif command.action == InteractionAction.CREATE_TASK:
+        application._handle_task_action(incident, user_id, queue)
+    return False
+
 
 async def toggle_assignment(self, incident_, user_id, queue_, action=InteractionAction.TOGGLE_ASSIGNMENT):
     """Apply explicit claim/release commands or the platform's state-dependent toggle."""

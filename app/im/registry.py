@@ -75,16 +75,17 @@ def _validate_installed_provider(registration):
         raise ValueError(f'Messenger provider {provider_id} has no compatible config model')
     if registration.authentication_factory is not None and not callable(registration.authentication_factory):
         raise ValueError(f'Messenger provider {provider_id} has no callable authentication factory')
-    if registration.descriptor.messaging_enabled:
-        if not callable(registration.template_source) or not callable(registration.incident_url):
-            raise ValueError(f'Messenger provider {provider_id} requires templates and an incident URL factory')
-        for name in REQUIRED_TEMPLATE_NAMES:
-            try:
-                source = registration.template_source(name)
-            except Exception:
-                raise ValueError(f'Messenger provider {provider_id} is missing required template: {name}') from None
-            if not isinstance(source, str):
-                raise ValueError(f'Messenger provider {provider_id} has an invalid template: {name}')
+    if not registration.descriptor.messaging_enabled:
+        return
+    if not callable(registration.template_source) or not callable(registration.incident_url):
+        raise ValueError(f'Messenger provider {provider_id} requires templates and an incident URL factory')
+    for name in REQUIRED_TEMPLATE_NAMES:
+        try:
+            source = registration.template_source(name)
+        except Exception:
+            raise ValueError(f'Messenger provider {provider_id} is missing required template: {name}') from None
+        if not isinstance(source, str):
+            raise ValueError(f'Messenger provider {provider_id} has an invalid template: {name}')
 
 
 @lru_cache(maxsize=1)
