@@ -2,6 +2,11 @@ name: _build-and-push-image
 
 on:
   workflow_call:
+    inputs:
+      messengers-ref:
+        description: Compatible impulse-messengers branch, tag, or commit
+        type: string
+        default: ""
 
 env:
   REGISTRY: ghcr.io
@@ -22,11 +27,14 @@ jobs:
       uses: actions/checkout@v5
       with:
         repository: eslupmi/impulse-messengers
+        ref: ${{ inputs.messengers-ref }}
         path: impulse-messengers
     - name: Set up uv
       uses: astral-sh/setup-uv@v7
       with:
         version: "0.12.22"
+    - name: Check messenger workspace against candidate core
+      run: uv lock --project impulse-messengers --check
     - name: Build messenger wheels
       run: uv build --project impulse-messengers --all-packages --wheel --out-dir "$PWD/impulse/wheelhouse"
     - name: Log in to the Container registry
