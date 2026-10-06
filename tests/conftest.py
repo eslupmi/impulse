@@ -298,4 +298,5 @@ def mock_file_operations():
 def provider_test_secrets(monkeypatch):
     monkeypatch.setenv('SLACK_BOT_USER_OAUTH_TOKEN', 'test-slack-token')
     monkeypatch.setenv('SLACK_VERIFICATION_TOKEN', 'test-verification-token')
+    monkeypatch.setenv('TELEGRAM_BOT_TOKEN', 'test-token')
     monkeypatch.delenv('SLACK_SIGNING_SECRET', raising=False)
