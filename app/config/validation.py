@@ -63,7 +63,6 @@ class MattermostUser(BaseUser):
 class TelegramChannel(BaseUser):
     """Telegram channel configuration"""
     id: int = Field(..., description="Channel ID")
-    name: str | None = Field(None, description="Channel name")
 
 
 class SlackChannel(BaseModel):
