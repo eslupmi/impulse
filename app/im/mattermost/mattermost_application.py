@@ -90,7 +90,7 @@ class MattermostApplication(Application):
                     return {'id': group_id, 'name': None, 'exists': False}
                 
                 if response.status != 200:
-                    logger.debug("Group details fetch failed", extra={'group_id': group_id, 'status': response.status})
+                    logger.warning("Group details fetch failed", extra={'group_id': group_id, 'status': response.status})
                     return {'id': group_id, 'name': None, 'exists': False}
                 
                 data = await response.json()
@@ -113,7 +113,7 @@ class MattermostApplication(Application):
                     'email': None, 'timezone': None}
 
         if response.status != 200:
-            logger.debug("User details fetch failed", extra={'user_id': id_, 'status': response.status})
+            logger.warning("User details fetch failed", extra={'user_id': id_, 'status': response.status})
             response.close()
             return {'id': id_, 'username': None, 'exists': False, 'full_name': None,
                     'email': None, 'timezone': None}
