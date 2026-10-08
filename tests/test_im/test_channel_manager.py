@@ -5,6 +5,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
+from app.config.validation import TelegramChannel
 from app.im.channel_manager import ChannelManager
 
 
@@ -56,10 +57,8 @@ class TestChannelManager:
             assert "channel2" in result
 
             # Check channel data
-            assert result["channel1"]["id"] == "C123456789"
-            assert result["channel1"]["name"] == "Test Channel 1"
-            assert result["channel2"]["id"] == "C987654321"
-            assert result["channel2"]["name"] == "Test Channel 2"
+            assert result["channel1"] == {"id": "C123456789"}
+            assert result["channel2"] == {"id": "C987654321"}
 
             # Check internal channels storage
             assert len(manager._channels) == 2
@@ -182,28 +181,27 @@ class TestChannelManager:
 
             # Check result structure
             assert result["channel1"]["id"] == "C123456789"
-            # Note: name is not copied from dict config, only from object config
+            # Legacy names are ignored.
             assert "name" not in result["channel1"]
 
     def test_get_channel_name_by_id_existing(self):
         """Test get_channel_name_by_id with existing channel."""
         channels_list = ["channel1"]
-        channel1_mock = Mock()
-        channel1_mock.id = "C123456789"
-        channel1_mock.name = "Test Channel 1"
+        channel = TelegramChannel(id=-1001234567890, name="Legacy channel name")
 
         channels_config = {
-            "channel1": channel1_mock
+            "channel1": channel
         }
         default_channel = "default"
 
         with patch('app.im.channel_manager.logger'):
             manager = ChannelManager()
-            manager.initialize(channels_list, channels_config, default_channel)
+            result = manager.initialize(channels_list, channels_config, default_channel)
+            assert result == {"channel1": {"id": -1001234567890}}
 
             # Test getting channel name by ID
-            channel_name = manager.get_channel_name_by_id("C123456789")
-            assert channel_name == "Test Channel 1"
+            channel_name = manager.get_channel_name_by_id(-1001234567890)
+            assert channel_name == "channel1"
 
     def test_get_channel_name_by_id_nonexistent(self):
         """Test get_channel_name_by_id with non-existent channel."""
