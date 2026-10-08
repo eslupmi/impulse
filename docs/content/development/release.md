@@ -7,7 +7,7 @@ Applies by release type: **M** major; **m** minor; **b** bugfix
 | Task | M | m | b |
 | --- | --- | --- | --- |
 | Bump the Python bugfix version in the Dockerfile (if possible) | ✓ | ✓ | |
-| Verify images in the latest [docs.impulse.bot](https://docs.impulse.bot) | ✓ | ✓ | |
+| Verify images in the latest [impulse.bot/docs](https://impulse.bot/docs) | ✓ | ✓ | |
 
 ## After merge to `master`
 
