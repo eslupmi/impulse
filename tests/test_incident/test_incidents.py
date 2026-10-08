@@ -287,7 +287,7 @@ class TestIncidents:
         )
 
         assert isinstance(incidents, Incidents)
-        mock_makedirs.assert_called_once_with('/test/incidents')
+        mock_makedirs.assert_called_once_with('/test/incidents', exist_ok=False)
 
     @patch('app.incident.incidents.get_environment_config')
     @patch('app.incident.incidents.get_config')

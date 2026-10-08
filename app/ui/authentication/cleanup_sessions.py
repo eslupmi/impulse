@@ -1,6 +1,7 @@
 import argparse
 from pathlib import Path
 
+from app.config.environment import get_environment_config
 from app.ui.authentication.session_store import FileSessionStore
 
 
@@ -13,7 +14,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Cleanup expired auth sessions")
     parser.add_argument(
         "--root-dir",
-        default=str(Path("data") / "sessions"),
+        default=str(Path(get_environment_config().data_path) / "sessions"),
         help="Root sessions directory",
     )
     args = parser.parse_args()

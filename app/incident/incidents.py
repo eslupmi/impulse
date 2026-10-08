@@ -7,6 +7,7 @@ from app.config.environment import get_environment_config
 from app.incident.incident import Incident, IncidentConfig
 from app.incident.migrator import IncidentMigrator
 from app.logging import logger
+from app.storage import S3Storage, get_storage
 from app.ui.websocket import incident_ws
 
 
@@ -55,7 +56,7 @@ class Incidents:
         self.remove_from_active_map(incident.uuid)
         try:
             incident_filename = incident.get_current_filename()
-            os.remove(incident_filename)
+            get_storage().remove(incident_filename)
         except (OSError, PermissionError, FileNotFoundError) as e:
             logger.error(f'Failed to delete incident file for uniq_id: {incident.uniq_id}: {e}')
 
@@ -89,16 +90,17 @@ class Incidents:
     def create_or_load(cls, application_type, application_url, application_team):
         config = get_config()
         env_config = get_environment_config()
+        storage = get_storage(env_config)
         # Ensure the incidents directory exists or create it
-        if not os.path.exists(env_config.incidents_path):
+        if not storage.exists(env_config.incidents_path):
             logger.info('Creating incidents directory')
-            os.makedirs(env_config.incidents_path)
+            storage.makedirs(env_config.incidents_path)
         logger.info('Loading existing incidents')
 
         incidents = cls([])
         migrator = IncidentMigrator()
 
-        for path, _, files in os.walk(env_config.incidents_path):
+        for path, _, files in storage.walk(env_config.incidents_path):
             for filename in files:
                 file_path = os.path.join(path, filename)
 
@@ -118,7 +120,7 @@ class Incidents:
                     if incident_.status != 'deleted' or incident_.is_frozen:
                         incidents.add(incident_)
                     else:
-                        os.remove(file_path)
+                        storage.remove(file_path)
                 else:
                     logger.warning(f'Skipping incident {os.path.basename(file_path)}: messenger_type mismatch')
 
@@ -139,13 +141,23 @@ class Incidents:
             Path to the incident file (may differ after filename migration)
         """
         config = get_config()
+        storage = get_storage()
         try:
-            with open(file_path, 'r') as f:
+            with storage.open(file_path, 'r') as f:
                 content = yaml.load(f, Loader=yaml.CLoader)
                 current_version = content.get('version', 'v0.4')
 
             if current_version != config.INCIDENT_ACTUAL_VERSION:
                 return migrator.migrate_file(file_path, content, current_version, config.INCIDENT_ACTUAL_VERSION)
+            if isinstance(storage, S3Storage):
+                # Reconcile aliases left by an interrupted copy/delete, including a cancelled downgrade.
+                canonical = os.path.join(get_environment_config().incidents_path, f"{content['uniq_id']}.yml")
+                if file_path != canonical:
+                    if storage.exists(canonical):
+                        storage.remove(file_path)
+                    else:
+                        storage.rename(file_path, canonical)
+                    return canonical
             return file_path
 
         except Exception as e:

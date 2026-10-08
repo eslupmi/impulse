@@ -34,6 +34,7 @@ class TestMainApplication:
                 patch('app.lifespan.MaintenanceManager') as mock_maintenance_manager_class:
             # Setup mock scheduler
             mock_scheduler = Mock()
+            mock_scheduler._async_tasks = set()
             mock_scheduler.schedule_all_stored = AsyncMock()
             mock_scheduler_class.return_value = mock_scheduler
             
@@ -81,6 +82,8 @@ class TestMainApplication:
 
             # Setup mock messenger
             mock_messenger = Mock()
+            mock_messenger._async_tasks = set()
+            mock_messenger._user_scheduler = mock_scheduler
             mock_messenger.initialize_async = AsyncMock()
             mock_messenger.close = AsyncMock()  # Make close async
             mock_messenger.type = MessengerType.SLACK
@@ -205,6 +208,24 @@ class TestMainApplication:
         mock_app_dependencies['file_lock'].release_lock.assert_called_once()
 
     @pytest.mark.asyncio
+    async def test_startup_loses_ownership_before_queue_starts(self, mock_app_dependencies):
+        from fastapi import FastAPI
+
+        lock = mock_app_dependencies['file_lock']
+        lock.check_owned.return_value = True
+
+        async def lose_lock():
+            lock.check_owned.return_value = False
+
+        mock_app_dependencies['messenger'].initialize_async.side_effect = lose_lock
+        app = FastAPI()
+        async with main.lifespan(app):
+            assert app.state.is_standby
+            mock_app_dependencies['queue_manager'].start_processing.assert_not_called()
+            assert app.state.queue_manager is None
+        lock.release_lock.assert_awaited_once()
+
+    @pytest.mark.asyncio
     async def test_lifespan_startup_with_locked_file(self, mock_app_dependencies):
         """Test application startup when file lock is initially held."""
         from app.file_lock import FileLock
@@ -247,5 +268,3 @@ class TestMainApplication:
             mock_file_lock.release_lock.assert_not_called()
             # acquire_lock is not called when starting in standby mode
             mock_file_lock.acquire_lock.assert_not_called()
-
-

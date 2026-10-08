@@ -15,6 +15,7 @@ from app.im.channel_manager import ChannelManager
 from app.incident.freeze import MAINTENANCE_PARENT_SENTINEL, FreezeSource
 from app.logging import logger
 from app.queue.constants import QueueItemType
+from app.storage import get_storage
 from app.time import unix_sleep_to_timedelta
 from app.tools import NoAliasDumper
 from app.ui.websocket import incident_ws
@@ -250,7 +251,7 @@ class Incident:
     @classmethod
     def load(cls, dump_file: str, incident_config: IncidentConfig):
         config = get_config()
-        with open(dump_file, 'r') as f:
+        with get_storage().open(dump_file, 'r') as f:
             content = yaml.load(f, Loader=yaml.CLoader)
         incident_ = cls(
             payload=content.get('payload'),
@@ -298,7 +299,7 @@ class Incident:
     def dump(self):
         path = self.get_current_filename()
         try:
-            with open(path, 'w') as f:
+            with get_storage().open(path, 'w') as f:
                 yaml.dump(self.serialize(), f, NoAliasDumper, default_flow_style=False)
         except OSError as e:
             logger.error("Failed to write incident file", extra={'file': path, 'error': str(e)})

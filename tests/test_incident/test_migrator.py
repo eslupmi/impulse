@@ -62,7 +62,7 @@ class TestIncidentMigrator:
 
             migrator.migrate_file('/test/incident.yml', incident_data, 'v0.4', 'v3.7.0')
 
-            mock_file.assert_called_once_with('/test/incident.yml', 'w')
+            mock_file.assert_called_once_with('/test/incident.yml', 'w', encoding=None)
             mock_yaml_dump.assert_called_once()
 
             # Check that the migrated data has the correct structure
