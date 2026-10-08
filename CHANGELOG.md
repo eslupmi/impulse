@@ -6,17 +6,17 @@ Changes:
 
 ## v3.7.0
 Changes:
-- Added templates for all [thread messages](https://docs.impulse.bot/stable/concepts/templates/#thread-messages)
-- Added instance names to [new_firing](https://docs.impulse.bot/stable/config_file/#incidentnotificationsnew_firing) and [partial_resolved](https://docs.impulse.bot/stable/config_file/#incidentnotificationspartial_resolved) notifications
-- Updated [assignment](https://docs.impulse.bot/stable/concepts/templates/#incident_notifications_assignment) template to show who assigned the incident
-- Added [owner](https://docs.impulse.bot/stable/concepts/maintenance/#owner) field for maintenance windows
-- Added `--downgrade` [option](https://docs.impulse.bot/stable/versioning/#downgrade-process) to roll back to the previous minor version
-- Added [API](https://docs.impulse.bot/stable/concepts/api/) support
-- Added support for standard `HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY` [environment variables](https://docs.impulse.bot/stable/envs/)
+- Added templates for all [thread messages](https://impulse.bot/docs/v3.7.0/concepts/templates/#thread-messages)
+- Added instance names to [new_firing](https://impulse.bot/docs/v3.7.0/config_file/#incidentnotificationsnew_firing) and [partial_resolved](https://impulse.bot/docs/v3.7.0/config_file/#incidentnotificationspartial_resolved) notifications
+- Updated [assignment](https://impulse.bot/docs/v3.7.0/concepts/templates/#incident_notifications_assignment) template to show who assigned the incident
+- Added [owner](https://impulse.bot/docs/v3.7.0/concepts/maintenance) field for maintenance windows
+- Added `--downgrade` [option](https://impulse.bot/docs/v3.7.0/versioning/#downgrade-process) to roll back to the previous minor version
+- Added [API](https://impulse.bot/docs/v3.7.0/concepts/api/) support
+- Added support for standard `HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY` [environment variables](https://impulse.bot/docs/v3.7.0/envs/)
 - Added support for `wait` as the first step of any chain
 - **Archive** button state is now stored in the browser
 - Switched logs and incident file names to `uniq_id` instead of `uuid`
-- Deprecated special variable `incidents` in [body templates](https://docs.impulse.bot/stable/concepts/templates/#messages), use `parents` / `childs` instead
+- Deprecated special variable `incidents` in [body templates](https://impulse.bot/docs/v3.7.0/concepts/templates/#incident-messages), use `parents` / `childs` instead
 - Removed **NotDefined** thread messages for chain objects not defined in the config; a WARNING log is emitted instead
 
 ## v3.6.3
@@ -51,9 +51,9 @@ Changes:
 
 ## v3.5.0
 Changes:
-- Added support for messenger [authentication](https://docs.impulse.bot/stable/guides/authentication/)
+- Added support for messenger [authentication](https://impulse.bot/docs/v3.5.0/guides/authentication/)
 - Added standard incident action buttons to the UI
-- Added support for [UI chains](https://docs.impulse.bot/stable/config_file/#ui-chains)
+- Added support for [UI chains](https://impulse.bot/docs/v3.5.0/config_file/#ui-chains)
 - Added the `/-/reload` endpoint for configuration reload
 - [_Mattermost_] Updated header and body templates
 - Removed buttons for closed incidents
@@ -65,14 +65,14 @@ Changes:
 
 ## v3.4.0
 Changes:
-- [Inhibition](https://docs.impulse.bot/stable/concepts/inhibition/) mechanism to suppress child Incidents
-- [_Slack_, _Mattermost_] Added [support](https://docs.impulse.bot/stable/config_file/#messengergroups) for custom user groups
+- [Inhibition](https://impulse.bot/docs/v3.4.0/concepts/inhibition/) mechanism to suppress child Incidents
+- [_Slack_, _Mattermost_] Added [support](https://impulse.bot/docs/v3.4.0/config_file/#messengergroups) for custom user groups
 
     ```bash
     # For Slack add `usergroups:read` permission
     ```
 
-- [_Slack_, _Mattermost_] [Freeze](https://docs.impulse.bot/stable/concepts/buttons/#freeze) prefer User's timezone instead of [general](https://docs.impulse.bot/stable/config_file/#generaltimezone)
+- [_Slack_, _Mattermost_] [Freeze](https://impulse.bot/docs/v3.4.0/concepts/buttons/#freeze) prefer User's timezone instead of [general](https://impulse.bot/docs/v3.4.0/config_file/#generaltimezone)
 - [_Telegram_] Using new [colored buttons](https://t.me/telegram/427) feature for **Take It** button
 - Added **Filter Out** button to UI
 - Switch to **JSON** logs
@@ -88,18 +88,18 @@ Changes:
 
 ## v3.3.0
 Changes:
-- Implemented [Freeze](https://docs.impulse.bot/stable/buttons/#freeze) mechanism ([silence](https://prometheus.io/docs/alerting/latest/alertmanager/#silences) analog)
-- Added Prometheus [metrics](https://docs.impulse.bot/stable/api/#http-metrics-get)
+- Implemented [Freeze](https://impulse.bot/docs/v3.3.0/buttons/#freeze) mechanism ([silence](https://prometheus.io/docs/alerting/latest/alertmanager/#silences) analog)
+- Added Prometheus [metrics](https://impulse.bot/docs/v3.3.0/api/#http-metrics-get)
 - Removed log formatting
-- Added [status_update](https://docs.impulse.bot/stable/config_file/#incidentnotificationsstatus_update) option
-- Enabled "[some alerts resolved](https://docs.impulse.bot/stable/config_file/#incidentnotificationspartial_resolved)" notifications by default
-- Removed [header](https://docs.impulse.bot/stable/concepts/incident/#__tabbed_1_3) from all Telegram thread messages
+- Added [status_update](https://impulse.bot/docs/v3.3.0/config_file/#incidentnotificationsstatus_update) option
+- Enabled "[some alerts resolved](https://impulse.bot/docs/v3.3.0/config_file/#incidentnotificationspartial_resolved)" notifications by default
+- Removed [header](https://impulse.bot/docs/v3.3.0/concepts/incident/#__tabbed_1_3) from all Telegram thread messages
 
 ## v3.2.0
 Changes:
-- Added Jira support ([docs](https://docs.impulse.bot/stable/task_management/))
-- Added historical data support ([docs](https://docs.impulse.bot/stable/config_file/#incidenttimeoutsclosed))
-- Added support for `standby` IMPulse server ([docs](https://docs.impulse.bot/stable/ha/#two-instances))
+- Added Jira support ([docs](https://impulse.bot/docs/v3.2.0/task_management/))
+- Added historical data support ([docs](https://impulse.bot/docs/v3.2.0/config_file/#incidenttimeoutsclosed))
+- Added support for `standby` IMPulse server ([docs](https://impulse.bot/docs/v3.2.0/ha/#two-instances))
 - Fixed issue with extra logs in STDERR
 - Fixed message header formatting ([issue](https://github.com/eslupmi/impulse/issues/335))
 - Display "(empty)" instead of "-" in UI for users with empty names
@@ -107,9 +107,9 @@ Changes:
 
 ## v3.1.0
 Changes:
-- Added JSON support for webhooks ([docs](https://docs.impulse.bot/stable/config_file/#webhooksjson))
-- Added Grafana as an alert source ([docs](https://docs.impulse.bot/stable/grafana/))
-- IMPulse continue work on full (read-only) filesystem ([docs](https://docs.impulse.bot/stable/ha/))
+- Added JSON support for webhooks ([docs](https://impulse.bot/docs/v3.1.0/config_file/#webhooksjson))
+- Added Grafana as an alert source ([docs](https://impulse.bot/docs/v3.1.0/grafana/))
+- IMPulse continue work on full (read-only) filesystem ([docs](https://impulse.bot/docs/v3.1.0/ha/))
 - Switch to slim python docker image
 
 Thanks:
@@ -123,19 +123,19 @@ Changes:
 Upgrade instructions:
 - Rename `application` with `messenger` in **impulse.yml**
 - Check your configuration using `python -m main --check` before restart
-- To use the **reload** functionality ([docs](https://docs.impulse.bot/stable/check/)), you need to change the startup command to `python -m main` for non-containerized installation
+- To use the **reload** functionality ([docs](https://impulse.bot/docs/v3.0.0/check/)), you need to change the startup command to `python -m main` for non-containerized installation
 - Move `incident.alerts_firing_notifications` to `incident.notifications.new_firing` option in **impulse.yml**
 - Move `incident.alerts_resolved_notifications` to `incident.notifications.partial_resolved` option in **impulse.yml**
-- Rename `last_state` to `payload` in [ui.columns[].value](https://docs.impulse.bot/stable/config_file/#uicolumnsvalue) if you use it
+- Rename `last_state` to `payload` in [ui.columns[].value](https://impulse.bot/docs/v3.0.0/config_file/#uicolumnsvalue) if you use it
 
 Changes:
-- Added config validation and `--check` option support ([docs](https://docs.impulse.bot/stable/check/))
+- Added config validation and `--check` option support ([docs](https://impulse.bot/docs/v3.0.0/check/))
 - Added reloading configuration support using `HUP` signal
 - Added Helm chart ([Artifactory Hub](https://artifacthub.io/packages/helm/impulse/impulse))
 - `last_state` incident field renamed to `payload`
 - `incident.notifications.new_firing` set to `True` by default
 - Removed `experimental` features
-- Added URL prefix support (`HTTP_PREFIX` [environment variable](https://docs.impulse.bot/stable/envs/))
+- Added URL prefix support (`HTTP_PREFIX` [environment variable](https://impulse.bot/docs/v3.0.0/envs/))
 - Experimental features removed
 - Moved `incident.alerts_firing_notifications` to `incident.notifications.new_firing` option in **impulse.yml**
 - Moved `incident.alerts_resolved_notifications` to `incident.notifications.partial_resolved` option in **impulse.yml**
@@ -150,18 +150,18 @@ Thanks:
 Changes:
 - Interface updated. Added incident details. Improved font readability
 - Added assigned user's full name ([example](https://github.com/eslupmi/impulse/blob/183e75974167b403c3f46049a5e11ac35253b24b/examples/impulse.slack.advanced.yml#L92))
-- Added notifications in thread about user assignment ([docs](https://docs.impulse.bot/v2.8.0/config_file/#incidentnotificationsassignment))
+- Added notifications in thread about user assignment ([docs](https://impulse.bot/docs/v2.8.0/config_file/#incidentnotificationsassignment))
 - Fixed template bugs
 
 ## v2.7.0
 Changes:
 - Added online / offline status indicator in the UI
-- Added `application.type: none` support for running IMPulse without messenger integration ([docs](https://docs.impulse.bot/v2.7.0/config_file/#applicationtype))
+- Added `application.type: none` support for running IMPulse without messenger integration ([docs](https://impulse.bot/docs/v2.7.0/config_file/#applicationtype))
 - Removed update check functionality
 
 ## v2.6.0
 Changes:
-- [UI](https://docs.impulse.bot/v2.6.0/ui/) with multi-column sorting and value-based [highlighting](https://docs.impulse.bot/v2.6.0/config_file/#uicolors)
+- [UI](https://impulse.bot/docs/v2.6.0/ui/) with multi-column sorting and value-based [highlighting](https://impulse.bot/docs/v2.6.0/config_file/#uicolors)
 - Switched to `asyncio` for asynchronous processing
 - Updated documentation and added table of contents
 
@@ -185,8 +185,8 @@ Changes:
 
 ## v2.4.0
 Changes:
-- Added Google Calendar support ([docs](https://docs.impulse.bot/v2.4.0/google/))
-- Updated logic for **Take It** / **Release** button ([docs](https://docs.impulse.bot/v2.4.0/howto/#buttons))
+- Added Google Calendar support ([docs](https://impulse.bot/docs/v2.4.0/google/))
+- Updated logic for **Take It** / **Release** button ([docs](https://impulse.bot/docs/v2.4.0/howto/#buttons))
 - Added logging for button events
 - [Telegram] Fixed incident link
 
@@ -204,16 +204,16 @@ Changes:
 
 ## v2.1.0
 Changes:
-- Added support for scheduled chains ([docs](https://docs.impulse.bot/stable/config_file/#schedule-chain))
+- Added support for scheduled chains ([docs](https://impulse.bot/docs/stable/config_file/#schedule-chain))
 
 ## v2.0.0
 Upgrade instructions:
-- Modify `application.users`. Define users by their IDs instead of names ([docs](https://docs.impulse.bot/stable/config_file/#users))
-- Add `application.channels` and define channels explicitly ([docs](https://docs.impulse.bot/stable/config_file/#channels))
+- Modify `application.users`. Define users by their IDs instead of names ([docs](https://impulse.bot/docs/stable/config_file/#users))
+- Add `application.channels` and define channels explicitly ([docs](https://impulse.bot/docs/stable/config_file/#channels))
 - Replace Docker image `ghcr.io/ditsi/impulse` with `ghcr.io/eslupmi/impulse`
-- Move `timeouts` under `incident` ([docs](https://docs.impulse.bot/stable/config_file/#all-options))
-- [Mattermost] Rename `application.url` to `application.address` ([docs](https://docs.impulse.bot/stable/config_file/#all-options))
-- [Mattermost] Move `url` under `application` and rename it to `impulse_address` ([docs](https://docs.impulse.bot/stable/config_file/#all-options))
+- Move `timeouts` under `incident` ([docs](https://impulse.bot/docs/stable/config_file/#all-options))
+- [Mattermost] Rename `application.url` to `application.address` ([docs](https://impulse.bot/docs/stable/config_file/#all-options))
+- [Mattermost] Move `url` under `application` and rename it to `impulse_address` ([docs](https://impulse.bot/docs/stable/config_file/#all-options))
 
 Changes:
 - Replaced **Chain** button with **Take It** / **Release**
