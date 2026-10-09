@@ -1,7 +1,8 @@
 import os
+from typing import Literal, cast
 
 from dotenv import load_dotenv
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 load_dotenv()
 
@@ -90,6 +91,23 @@ class EnvironmentConfig(BaseModel):
         default_factory=lambda: os.getenv('DATA_PATH', './data'),
         description="Path to data directory"
     )
+    storage_backend: Literal['filesystem', 's3'] = Field(
+        default_factory=lambda: cast(Literal['filesystem', 's3'], os.getenv('STORAGE_BACKEND', 'filesystem')),
+        validate_default=True,
+        description="Backend for persistent application state"
+    )
+    s3_bucket: str | None = Field(
+        default_factory=lambda: _env_optional_str('S3_BUCKET'),
+        description="Existing S3 bucket for application state"
+    )
+    s3_prefix: str = Field(
+        default_factory=lambda: os.getenv('S3_PREFIX', ''),
+        description="Object key prefix within the S3 bucket"
+    )
+    s3_endpoint_url: str | None = Field(
+        default_factory=lambda: _env_optional_str('S3_ENDPOINT_URL'),
+        description="Optional endpoint for S3-compatible storage"
+    )
     config_path: str = Field(
         default_factory=lambda: os.getenv('CONFIG_PATH', './'),
         description="Path to configuration directory"
@@ -152,6 +170,12 @@ class EnvironmentConfig(BaseModel):
         default_factory=lambda: _env_optional_str('DEV_MESSENGER_CUSTOM_ADDRESS'),
         description="Override Slack/Telegram API base URL"
     )
+
+    @model_validator(mode='after')
+    def validate_storage(self):
+        if self.storage_backend == 's3' and not (self.s3_bucket and self.s3_bucket.strip()):
+            raise ValueError('S3_BUCKET is required when STORAGE_BACKEND=s3')
+        return self
 
     @field_validator('provider_sync_interval', 'provider_max_events', 'provider_days_to_sync', 'listen_port')
     @classmethod

@@ -1,6 +1,7 @@
 import asyncio
 from unittest.mock import AsyncMock, Mock, patch
 
+from fastapi import FastAPI
 import pytest
 
 from app.lifespan import _initialize_primary_server
@@ -9,7 +10,7 @@ from app.lifespan import _initialize_primary_server
 class TestPrimaryServerInitializationLogging:
     @pytest.mark.asyncio
     async def test_logs_message_only_without_duplicating_details(self):
-        fastapi_app = Mock()
+        fastapi_app = FastAPI()
         file_lock = Mock()
         file_lock.acquire_lock.return_value = True
         file_lock.release_lock = AsyncMock()

@@ -6,6 +6,7 @@ from fastapi import FastAPI
 
 from app.config.config import reload_config
 from app.logging import logger
+from app.middleware import is_standby_mode
 
 
 def setup_sighup_handler(fastapi_app: FastAPI, create_main_objects, cleanup_application_objects):
@@ -13,13 +14,19 @@ def setup_sighup_handler(fastapi_app: FastAPI, create_main_objects, cleanup_appl
         try:
             logger.info("Reloading configuration")
             success = reload_config()
-            if success and fastapi_app:
+            if success and fastapi_app and not is_standby_mode(fastapi_app.state):
                 async def reload():
+                    if is_standby_mode(fastapi_app.state):
+                        return
                     await cleanup_application_objects(fastapi_app, reload=True)
                     await create_main_objects(fastapi_app, reload=True)
                     logger.info("Configuration reloaded")
                 try:
-                    asyncio.get_running_loop().create_task(reload())
+                    task = asyncio.get_running_loop().create_task(reload())
+                    tasks = getattr(fastapi_app.state, 'runtime_tasks', None)
+                    if tasks is not None:
+                        tasks.add(task)
+                        task.add_done_callback(tasks.discard)
                 except RuntimeError:
                     asyncio.run(reload())
         except Exception as e:  # noqa: BLE001

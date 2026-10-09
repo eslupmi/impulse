@@ -1,9 +1,18 @@
 import asyncio
+import errno
 import os
 import shutil
 import socket
+import sys
 import time
+from contextlib import contextmanager
 from pathlib import Path
+from uuid import uuid4
+
+if sys.platform == "win32":
+    import msvcrt
+else:
+    import fcntl
 
 from app.config.environment import get_environment_config
 from app.logging import logger
@@ -13,8 +22,9 @@ class FileLock:
     """
     File-based distributed lock for High Availability deployments.
     
-    Uses a directory-based lock with heartbeat mechanism to detect stale locks.
-    Designed for network filesystems where multiple instances may run simultaneously.
+    Uses a directory heartbeat and a stable advisory-lock guard for state changes.
+    The shared filesystem must support flock (POSIX) or byte-range locks (Windows).
+    All instances must use this guard; older binaries cannot safely share the lock.
     
     Note: For reliable operation on network filesystems, ensure:
     - NTP is configured for time synchronization between hosts
@@ -28,73 +38,99 @@ class FileLock:
     def __init__(self):
         env_config = get_environment_config()
         self.lock_dir = Path(f"{env_config.data_path}/.lock.d")
+        self.guard_path = self.lock_dir.parent / ".lock.guard"
+        self.owner_path = self.lock_dir / "owner"
         self.heartbeat_path = self.lock_dir / "heartbeat"
         self.pid_path = self.lock_dir / "pid"
         self.host_path = self.lock_dir / "host"
         self.boot_id_path = self.lock_dir / "boot_id"
+        self.pid_namespace_path = self.lock_dir / "pid_namespace"
         self._active = False
+        self._owner_id = uuid4().hex
+        self._deadline = 0.0
         self._heartbeat_task: asyncio.Task | None = None
         self._heartbeat_failures = 0
         self._hostname = socket.gethostname()
         self._pid = os.getpid()
         self._boot_id = self._get_boot_id()
+        self._pid_namespace = self._get_pid_namespace()
 
     def acquire_lock(self) -> bool:
-        """
-        Attempt to acquire the lock.
-        
-        Returns:
-            True if lock was successfully acquired, False otherwise.
-        """
+        """Attempt to acquire the lock without waiting for another publisher."""
+        if self._active:
+            return self.check_owned()
         try:
-            self._cleanup_stale_lock()
-            self.lock_dir.mkdir(parents=True, exist_ok=False)
-            
-            locktime = time.time()
-            
-            try:
-                with open(self.heartbeat_path, "w") as f:
-                    f.write(str(locktime))
-                with open(self.pid_path, "w") as f:
-                    f.write(str(self._pid))
-                with open(self.host_path, "w") as f:
-                    f.write(self._hostname)
-                with open(self.boot_id_path, "w") as f:
-                    f.write(self._boot_id or "")
-            except OSError as e:
-                logger.error(f"Lock file write failed: {e}")
-                self._cleanup_failed_acquisition()
-                return False
-            
-            if not self._verify_ownership():
-                logger.error("Ownership verification failed")
-                self._cleanup_failed_acquisition()
-                return False
-            
-            self._active = True
-            self._heartbeat_failures = 0
+            self.lock_dir.parent.mkdir(parents=True, exist_ok=True)
+            with self._guard(blocking=False):
+                self._cleanup_stale_lock()
+                self.lock_dir.mkdir(parents=True, exist_ok=False)
+                self._owner_id = uuid4().hex
+                started = time.monotonic()
+                locktime = time.time()
+                try:
+                    with open(self.owner_path, "w") as f:
+                        f.write(self._owner_id)
+                    with open(self.heartbeat_path, "w") as f:
+                        f.write(str(locktime))
+                    with open(self.pid_path, "w") as f:
+                        f.write(str(self._pid))
+                    with open(self.host_path, "w") as f:
+                        f.write(self._hostname)
+                    with open(self.boot_id_path, "w") as f:
+                        f.write(self._boot_id or "")
+                    with open(self.pid_namespace_path, "w") as f:
+                        f.write(self._pid_namespace or "")
+                except OSError as e:
+                    logger.error(f"Lock file write failed: {e}")
+                    shutil.rmtree(self.lock_dir, ignore_errors=True)
+                    return False
+
+                self._deadline = started + self.STALE_SEC
+                if not self._verify_ownership() or time.monotonic() >= self._deadline:
+                    logger.error("Ownership verification failed")
+                    shutil.rmtree(self.lock_dir, ignore_errors=True)
+                    return False
+                self._active = True
+                self._heartbeat_failures = 0
+
             try:
                 loop = asyncio.get_running_loop()
                 self._heartbeat_task = loop.create_task(self._heartbeat())
             except RuntimeError:
                 logger.warning("Event loop not running")
-            
             logger.debug("Lock acquired")
             return True
-            
-        except FileExistsError:
+        except (FileExistsError, BlockingIOError):
             logger.debug("Lock held by another instance")
             return False
         except OSError as e:
             logger.error(f"Lock acquisition failed: {e}")
             return False
 
+    def check_owned(self) -> bool:
+        """Fail closed without waiting behind another process's mutation guard."""
+        if not self._active or time.monotonic() >= self._deadline:
+            self._active = False
+            return False
+        try:
+            with self._guard(blocking=False):
+                owned = self._verify_ownership() and self.is_locked()
+        except BlockingIOError:
+            # Heartbeat writes do not change ownership metadata; takeover does.
+            owned = self._verify_ownership()
+        except OSError:
+            owned = False
+        owned = owned and self._active and time.monotonic() < self._deadline
+        if not owned:
+            self._active = False
+        return owned
+
     def can_take_over_lock(self) -> bool:
         """
         Check if we can immediately take over the lock from a dead process.
         
         Returns:
-            True if hostname and boot_id match and the process is not running.
+            True if host, boot and PID namespace match and the process is dead.
         """
         try:
             stored_hostname = self.host_path.read_text().strip()
@@ -105,6 +141,11 @@ class FileLock:
             if stored_boot_id != (self._boot_id or ""):
                 return False
             
+            if not self._pid_namespace:
+                return False
+            if self.pid_namespace_path.read_text().strip() != self._pid_namespace:
+                return False
+
             stored_pid = int(self.pid_path.read_text().strip())
             if self._is_process_running(stored_pid):
                 return False
@@ -161,12 +202,13 @@ class FileLock:
         
         self._active = False
         
-        if self.lock_dir.exists():
-            try:
-                shutil.rmtree(self.lock_dir)
-                logger.info("Lock released")
-            except OSError as e:
-                logger.warning(f"Lock release failed: {e}")
+        try:
+            with self._guard():
+                if self._verify_ownership():
+                    shutil.rmtree(self.lock_dir)
+                    logger.info("Lock released")
+        except OSError as e:
+            logger.warning(f"Lock release failed: {e}")
 
     async def wait_for_unlock(self):
         """Wait until the lock becomes available."""
@@ -175,16 +217,34 @@ class FileLock:
 
     ### PRIVATE METHODS ###
 
-    def _cleanup_failed_acquisition(self):
-        """Clean up after a failed lock acquisition attempt."""
-        try:
-            if self.lock_dir.exists():
-                shutil.rmtree(self.lock_dir, ignore_errors=True)
-        except OSError:
-            pass
+    @contextmanager
+    def _guard(self, blocking: bool = True):
+        """Never unlink the guard: every process must lock the same stable file."""
+        with open(self.guard_path, "a+b") as handle:
+            if sys.platform == "win32":
+                if handle.seek(0, os.SEEK_END) == 0:
+                    handle.write(b"\0")
+                    handle.flush()
+                handle.seek(0)
+                try:
+                    msvcrt.locking(handle.fileno(), msvcrt.LK_LOCK if blocking else msvcrt.LK_NBLCK, 1)
+                except OSError as error:
+                    if not blocking and error.errno in {errno.EACCES, errno.EAGAIN, errno.EDEADLK}:
+                        raise BlockingIOError(errno.EWOULDBLOCK, "Lock guard held") from error
+                    raise
+            else:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_EX | (0 if blocking else fcntl.LOCK_NB))
+            try:
+                yield
+            finally:
+                if sys.platform == "win32":
+                    handle.seek(0)
+                    msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+                else:
+                    fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
 
     def _cleanup_stale_lock(self):
-        """Remove stale lock directory if it exists and is stale."""
+        """Remove a stale lock while the caller holds the mutation guard."""
         if not self.lock_dir.exists():
             return
         
@@ -202,11 +262,20 @@ class FileLock:
         except OSError:
             return None
 
+    @staticmethod
+    def _get_pid_namespace() -> str | None:
+        try:
+            return os.readlink("/proc/self/ns/pid")
+        except OSError:
+            return None
+
     async def _heartbeat(self):
         """Background task to update heartbeat while lock is held."""
         while self._active:
-            success = self._update()
+            success = await asyncio.to_thread(self._update)
             if not success:
+                if not self._active:
+                    break
                 self._heartbeat_failures += 1
                 logger.warning(f"Heartbeat failed: {self._heartbeat_failures}/{self.MAX_HEARTBEAT_FAILURES}")
                 if self._heartbeat_failures >= self.MAX_HEARTBEAT_FAILURES:
@@ -223,25 +292,31 @@ class FileLock:
         try:
             os.kill(pid, 0)
             return True
-        except (ProcessLookupError, PermissionError):
+        except ProcessLookupError:
             return False
+        except PermissionError:
+            return True
 
     def _update(self) -> bool:
-        """
-        Update the heartbeat file.
-        
-        Returns:
-            True if update was successful, False otherwise.
-        """
-        if not self._verify_ownership():
-            logger.error("Ownership lost")
+        """Renew only this acquisition, serialized with takeover and release."""
+        if not self._active:
             return False
-        
-        locktime = time.time()
         try:
-            with open(self.heartbeat_path, "w") as f:
-                f.write(str(locktime))
-            return True
+            with self._guard():
+                previous_deadline = self._deadline
+                started = time.monotonic()
+                if (not self._active or not self._verify_ownership()
+                        or started >= self._deadline):
+                    logger.error("Ownership lost")
+                    self._active = False
+                    return False
+                with open(self.heartbeat_path, "w") as f:
+                    f.write(str(time.time()))
+                if time.monotonic() >= previous_deadline:
+                    self._active = False
+                    return False
+                self._deadline = started + self.STALE_SEC
+                return True
         except OSError as e:
             logger.debug(f"Heartbeat update failed: {e}")
             return False
@@ -256,6 +331,7 @@ class FileLock:
         try:
             hostname = self.host_path.read_text().strip()
             pid = self.pid_path.read_text().strip()
-            return hostname == self._hostname and pid == str(self._pid)
+            return (hostname == self._hostname and pid == str(self._pid)
+                    and self.owner_path.read_text().strip() == self._owner_id)
         except (FileNotFoundError, OSError):
             return False

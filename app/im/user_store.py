@@ -8,6 +8,7 @@ import yaml
 from app.config.environment import get_environment_config
 from app.logging import logger
 from app.queue.constants import USER_UPDATE_GAP_SECONDS, QueueItemType
+from app.storage import S3Storage, get_storage
 
 if TYPE_CHECKING:
     from app.queue.queue import AsyncQueue
@@ -16,16 +17,18 @@ USER_REFRESH_HOURS = 12
 
 
 class UserStore:
-    """File-based user data storage in data/users/<user_id>.yml"""
+    """User data storage in data/users/<user_id>.yml using the selected backend."""
     
     def get(self, user_id: str) -> dict[str, Any] | None:
         file_path = self._get_user_file_path(user_id)
-        if not os.path.exists(file_path):
-            return None
         try:
-            with open(file_path, 'r') as f:
+            with self._storage.open(file_path, 'r') as f:
                 return yaml.load(f, Loader=yaml.CLoader)
+        except FileNotFoundError:
+            return None
         except (OSError, yaml.YAMLError) as e:
+            if isinstance(self._storage, S3Storage) and isinstance(e, OSError):
+                raise
             logger.warning('Failed to read user file', extra={'user_id': user_id, 'error': str(e)})
             return None
 
@@ -39,10 +42,10 @@ class UserStore:
 
     def get_all(self) -> dict[str, dict[str, Any]]:
         users: dict[str, dict[str, Any]] = {}
-        if not os.path.exists(self._users_path):
+        if not self._storage.exists(self._users_path):
             return users
 
-        for filename in os.listdir(self._users_path):
+        for filename in self._storage.listdir(self._users_path):
             if not filename.endswith('.yml'):
                 continue
             user_id = filename[:-4]
@@ -93,7 +96,7 @@ class UserStore:
         file_path = self._get_user_file_path(user_id)
         data = self.serialize(messenger_type, user_data)
         try:
-            with open(file_path, 'w') as f:
+            with self._storage.open(file_path, 'w') as f:
                 yaml.dump(data, f, default_flow_style=False, allow_unicode=True)
             logger.debug('Saved user data', extra={'user_id': user_id})
         except OSError as e:
@@ -112,19 +115,15 @@ class UserStore:
     
     ### PRIVATE METHODS ###
 
-    def _ensure_directory(self):
-        if not os.path.exists(self._users_path):
-            logger.info('Creating users directory')
-            os.makedirs(self._users_path)
-    
     def _get_user_file_path(self, user_id: str) -> str:
         safe_id = str(user_id).replace('/', '_').replace('\\', '_')
         return os.path.join(self._users_path, f"{safe_id}.yml")
     
     def __init__(self):
         env_config = get_environment_config()
+        self._storage = get_storage(env_config)
         self._users_path = f"{env_config.data_path}/users"
-        self._ensure_directory()
+        self._storage.makedirs(self._users_path, exist_ok=True)
     
 
 _user_store: UserStore | None = None

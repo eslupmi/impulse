@@ -10,6 +10,7 @@ from app.config.environment import get_environment_config
 from app.incident.freeze import FreezeSource
 from app.incident.incident import Incident
 from app.logging import logger
+from app.storage import S3Storage, get_storage
 from app.tools import NoAliasDumper
 
 DOWNGRADE_FLOOR = 'v3.6.0'
@@ -65,15 +66,22 @@ class IncidentMigrator:
         logger.info(f'Migrating {os.path.basename(file_path)} from {current_version} to {target_version}')
         
         migrated_data = self._migrate_data(incident_data, current_version, target_version)
+        storage = get_storage()
+        remote = isinstance(storage, S3Storage)
+        if remote:
+            # Keep the old schema until copy/delete completes so interrupted renames retry on startup.
+            file_path = self._apply_filename_migrations(file_path, migrated_data, current_version, target_version)
         
         try:
-            with open(file_path, 'w') as f:
+            with storage.open(file_path, 'w') as f:
                 yaml.dump(migrated_data, f, NoAliasDumper, default_flow_style=False)
         except (OSError, PermissionError, FileNotFoundError) as e:
             logger.error(f'Failed to write migrated incident file {os.path.basename(file_path)}: {e}')
+            if remote:
+                raise
             return file_path
         
-        final_path = self._apply_filename_migrations(file_path, migrated_data, current_version, target_version)
+        final_path = file_path if remote else self._apply_filename_migrations(file_path, migrated_data, current_version, target_version)
         logger.info(f'Successfully migrated {os.path.basename(final_path)}')
         return final_path
     
@@ -340,7 +348,7 @@ class IncidentMigrator:
         if old_path == new_path:
             return old_path
         logger.info(f'Renaming incident file {os.path.basename(old_path)} to {os.path.basename(new_path)}')
-        os.rename(old_path, new_path)
+        get_storage().rename(old_path, new_path)
         return new_path
 
     @classmethod
@@ -415,17 +423,18 @@ def downgrade_incidents_only(version_arg: str | None = None) -> None:
 
     env_config = get_environment_config()
     incidents_path = env_config.incidents_path
-    if not os.path.exists(incidents_path):
+    storage = get_storage(env_config)
+    if not storage.exists(incidents_path):
         logger.info(f'Incidents directory does not exist: {incidents_path}')
         return
 
     migrator = IncidentMigrator()
     logger.info(f'Downgrading incident files to {target_version}')
 
-    for path, _, files in os.walk(incidents_path):
+    for path, _, files in storage.walk(incidents_path):
         for filename in files:
             file_path = os.path.join(path, filename)
-            with open(file_path, 'r') as f:
+            with storage.open(file_path, 'r') as f:
                 content = yaml.load(f, Loader=yaml.CLoader)
             current_version = content.get('version', 'v0.4')
 
