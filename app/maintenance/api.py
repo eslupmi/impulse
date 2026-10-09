@@ -1,5 +1,4 @@
 from datetime import datetime, timezone
-from typing import Any
 
 from fastapi import HTTPException
 
@@ -41,18 +40,13 @@ def validate_owner_id(
     raise HTTPException(status_code=400, detail="invalid owner_id")
 
 
-def owner_id_from_payload(payload: dict) -> str:
-    owner_id = payload.get("owner_id")
-    if owner_id:
-        return str(owner_id)
-    raise HTTPException(status_code=400, detail="owner_id is required")
-
-
 def window_from_ws_item(
-    payload: dict,
+    payload,
     assignable_user_ids: set[str],
     existing_owner_id: str | None = None,
 ) -> dict:
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=400, detail="window must be an object")
     if "start" not in payload or "end" not in payload:
         raise HTTPException(status_code=400, detail="start and end are required")
     starts_at = parse_iso_to_utc(payload["start"])
@@ -69,7 +63,10 @@ def window_from_ws_item(
     if not window_id:
         raise HTTPException(status_code=400, detail="id is required")
 
-    owner_id = owner_id_from_payload(payload)
+    owner_id = payload.get("owner_id")
+    if not owner_id:
+        raise HTTPException(status_code=400, detail="owner_id is required")
+    owner_id = str(owner_id)
     validate_owner_id(owner_id, assignable_user_ids, existing_owner_id)
 
     return {
@@ -80,25 +77,3 @@ def window_from_ws_item(
         "comment": comment,
         "owner_id": owner_id,
     }
-
-
-def windows_from_ws_payload(
-    data: list,
-    assignable_user_ids: set[str],
-    existing_by_id: dict[str, dict],
-) -> list[dict[str, Any]]:
-    windows = []
-    for item in data:
-        if not isinstance(item, dict):
-            raise HTTPException(status_code=400, detail="each window must be an object")
-        windows.append(window_from_ws_item(
-            item,
-            assignable_user_ids,
-            existing_by_id.get(str(item.get("id")), {}).get("owner_id"),
-        ))
-    return windows
-
-
-def removed_windows(existing: list[dict[str, Any]], saved: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    saved_ids = {w["id"] for w in saved}
-    return [w for w in existing if w["id"] not in saved_ids]
