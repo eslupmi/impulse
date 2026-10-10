@@ -222,16 +222,7 @@ class FileLock:
         """Never unlink the guard: every process must lock the same stable file."""
         with open(self.guard_path, "a+b") as handle:
             if sys.platform == "win32":
-                if handle.seek(0, os.SEEK_END) == 0:
-                    handle.write(b"\0")
-                    handle.flush()
-                handle.seek(0)
-                try:
-                    msvcrt.locking(handle.fileno(), msvcrt.LK_LOCK if blocking else msvcrt.LK_NBLCK, 1)
-                except OSError as error:
-                    if not blocking and error.errno in {errno.EACCES, errno.EAGAIN, errno.EDEADLK}:
-                        raise BlockingIOError(errno.EWOULDBLOCK, "Lock guard held") from error
-                    raise
+                self._lock_windows_guard(handle, blocking)
             else:
                 fcntl.flock(handle.fileno(), fcntl.LOCK_EX | (0 if blocking else fcntl.LOCK_NB))
             try:
@@ -242,6 +233,19 @@ class FileLock:
                     msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
                 else:
                     fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+
+    @staticmethod
+    def _lock_windows_guard(handle, blocking):
+        if handle.seek(0, os.SEEK_END) == 0:
+            handle.write(b"\0")
+            handle.flush()
+        handle.seek(0)
+        try:
+            msvcrt.locking(handle.fileno(), msvcrt.LK_LOCK if blocking else msvcrt.LK_NBLCK, 1)
+        except OSError as error:
+            if not blocking and error.errno in {errno.EACCES, errno.EAGAIN, errno.EDEADLK}:
+                raise BlockingIOError(errno.EWOULDBLOCK, "Lock guard held") from error
+            raise
 
     def _cleanup_stale_lock(self):
         """Remove a stale lock while the caller holds the mutation guard."""

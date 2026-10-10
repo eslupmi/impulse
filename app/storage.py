@@ -22,8 +22,8 @@ class FileStorage:
     def exists(self, path):
         return os.path.exists(path)
 
-    def makedirs(self, path, exist_ok=False):
-        return os.makedirs(path, exist_ok=exist_ok)
+    def makedirs(self, path):
+        return os.makedirs(path, exist_ok=True)
 
     def listdir(self, path):
         return os.listdir(path)
@@ -129,7 +129,7 @@ class S3Storage:
         prefix = key + '/' if key else ''
         return bool(self._call('list_objects_v2', Prefix=prefix, MaxKeys=1).get('Contents'))
 
-    def makedirs(self, path, exist_ok=False):
+    def makedirs(self, path):
         self._key(path)
 
     def _pages(self, path, delimiter=None):
@@ -165,6 +165,11 @@ class S3Storage:
         return sorted(names)
 
     def walk(self, path):
+        for directory, (dirs, files) in sorted(self._build_tree(path).items()):
+            root = os.path.join(os.fspath(path), *directory.split('/')) if directory else os.fspath(path)
+            yield root, sorted(dirs), sorted(files)
+
+    def _build_tree(self, path):
         tree = {}
         for prefix, page in self._pages(path):
             for entry in page.get('Contents', []):
@@ -182,9 +187,7 @@ class S3Storage:
                     tree.setdefault(directory, (set(), set()))
                 if not key.endswith('/'):
                     tree['/'.join(parts[:-1])][1].add(parts[-1])
-        for directory, (dirs, files) in sorted(tree.items()):
-            root = os.path.join(os.fspath(path), *directory.split('/')) if directory else os.fspath(path)
-            yield root, sorted(dirs), sorted(files)
+        return tree
 
     def remove(self, path):
         self._call('delete_object', Key=self._file_key(path))

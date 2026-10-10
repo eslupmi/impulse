@@ -95,7 +95,7 @@ class UIChainsStore:
         env_config = get_environment_config()
         self._storage = get_storage(env_config)
         self.ui_chains_dir = os.path.join(env_config.data_path, "ui_chains")
-        self._storage.makedirs(self.ui_chains_dir, exist_ok=True)
+        self._storage.makedirs(self.ui_chains_dir)
 
     def _calendar_path(self, chain_name: str) -> str:
         return os.path.join(self.ui_chains_dir, _chain_name_to_filename(chain_name))

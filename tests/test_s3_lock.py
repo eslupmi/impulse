@@ -77,7 +77,8 @@ async def test_absent_lease_uses_conditional_create_and_release(lease_lock):
     assert lock.acquire_lock()
     assert lock.check_owned()
     thread = lock._heartbeat_thread
-    assert thread.is_alive() and thread.daemon
+    assert thread.is_alive()
+    assert thread.daemon
     assert lock.can_take_over_lock() is False
     stubber.add_response('delete_object', {}, {'Bucket': BUCKET, 'Key': KEY, 'IfMatch': '"first"'})
     await lock.release_lock()

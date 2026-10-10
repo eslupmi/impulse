@@ -139,14 +139,17 @@ def test_remote_calendar_read_failure_cannot_erase_stored_data(remote_state):
     storage, config, objects = remote_state
     now = datetime.now(timezone.utc)
     start, end = now.isoformat(), (now + timedelta(hours=1)).isoformat()
-    assert UIChainsStore().save_shifts('primary', [{'id': 'shift', 'start': start, 'end': end, 'steps': []}])
-    assert MaintenanceStore().save_windows([{'id': 'window', 'start': start, 'end': end, 'matchers': ['service="db"']}])
+    chains_store = UIChainsStore()
+    maintenance_store = MaintenanceStore()
+    future = now + timedelta(days=1000)
+    assert chains_store.save_shifts('primary', [{'id': 'shift', 'start': start, 'end': end, 'steps': []}])
+    assert maintenance_store.save_windows([{'id': 'window', 'start': start, 'end': end, 'matchers': ['service="db"']}])
     before = objects.copy()
     storage.client.get_object.side_effect = EndpointConnectionError(endpoint_url='https://unavailable.example')
     with pytest.raises(OSError):
-        UIChainsStore().prune_all(now + timedelta(days=1000))
+        chains_store.prune_all(future)
     with pytest.raises(OSError):
-        MaintenanceStore().prune_expired_windows(now + timedelta(days=1000))
+        maintenance_store.prune_expired_windows(future)
     assert objects == before
 
 
@@ -181,11 +184,14 @@ def test_cancelled_downgrade_reconciles_filenames_on_restart(remote_state, sampl
     app_config.messenger.type.value = 'slack'
     monkeypatch.setattr('app.incident.incidents.get_config', lambda: app_config)
     sample_incident.dump()
+    migrator = IncidentMigrator()
+    file_path = sample_incident.get_current_filename()
+    data = sample_incident.serialize()
     operation = getattr(storage.client, failed_operation)
     original = operation.side_effect
     operation.side_effect = EndpointConnectionError(endpoint_url='https://unavailable.example')
     with pytest.raises(OSError):
-        IncidentMigrator().migrate_file(sample_incident.get_current_filename(), sample_incident.serialize(), 'v3.7.0', 'v3.6.0')
+        migrator.migrate_file(file_path, data, 'v3.7.0', 'v3.6.0')
     operation.side_effect = original
     restored = Incidents.create_or_load('slack', incident_config.application_url, incident_config.application_team)
     assert len(restored.uniq_ids) == 1

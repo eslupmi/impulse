@@ -37,7 +37,7 @@ class MaintenanceStore:
         self._dir = os.path.join(env_config.data_path, "maintenance")
         self._file = os.path.join(self._dir, self._ICS_FILENAME)
         self._lock = threading.Lock()
-        self._storage.makedirs(self._dir, exist_ok=True)
+        self._storage.makedirs(self._dir)
 
     def load_windows(self) -> list[dict[str, Any]]:
         with self._lock:

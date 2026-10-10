@@ -166,25 +166,29 @@ async def create_main_objects(fastapi_app: FastAPI, reload=False):
         queue_manager.start_processing()
 
 
+async def _cancel_application_work(fastapi_app: FastAPI, messenger):
+    tasks = set(getattr(fastapi_app.state, 'runtime_tasks', ()))
+    if messenger is not None:
+        tasks.update(messenger._async_tasks)
+        if messenger._user_scheduler is not None:
+            tasks.update(messenger._user_scheduler._async_tasks)
+    tasks.discard(asyncio.current_task())
+    for task in tasks:
+        task.cancel()
+    await asyncio.gather(*tasks, return_exceptions=True)
+    sockets = list(incident_ws.connections)
+    await asyncio.gather(*(socket.close(code=1012) for socket in sockets), return_exceptions=True)
+    for socket in sockets:
+        incident_ws.disconnect(socket)
+
+
 async def _cleanup_application_objects(fastapi_app: FastAPI, reload=False, cancel=False):
     queue_manager = getattr(fastapi_app.state, 'queue_manager', None)
     if queue_manager and not reload:
         await queue_manager.stop_processing(cancel=cancel)
     messenger = getattr(fastapi_app.state, 'messenger', None)
     if cancel:
-        tasks = set(getattr(fastapi_app.state, 'runtime_tasks', ()))
-        if messenger is not None:
-            tasks.update(messenger._async_tasks)
-            if messenger._user_scheduler is not None:
-                tasks.update(messenger._user_scheduler._async_tasks)
-        tasks.discard(asyncio.current_task())
-        for task in tasks:
-            task.cancel()
-        await asyncio.gather(*tasks, return_exceptions=True)
-        sockets = list(incident_ws.connections)
-        await asyncio.gather(*(socket.close(code=1012) for socket in sockets), return_exceptions=True)
-        for socket in sockets:
-            incident_ws.disconnect(socket)
+        await _cancel_application_work(fastapi_app, messenger)
     if messenger is not None:
         await messenger.close()
         if messenger.task_management_integration is not None:

@@ -31,9 +31,12 @@ def test_filesystem_delegates_and_round_trips(tmp_path):
     storage = FileStorage()
     directory = tmp_path / 'nested'
     storage.makedirs(directory)
+    storage.makedirs(directory)
     source = directory / 'one.txt'
     with storage.open(source, 'w', encoding='utf-8') as handle:
         handle.write('hello')
+    with pytest.raises(FileExistsError):
+        storage.makedirs(source)
     assert storage.exists(source)
     assert storage.listdir(directory) == ['one.txt']
     assert list(storage.walk(directory)) == [(str(directory), [], ['one.txt'])]
@@ -47,14 +50,15 @@ def test_filesystem_delegates_and_round_trips(tmp_path):
         storage.open('file', 'r')
         storage.makedirs('directory')
         opened.assert_called_once_with('file', 'r', encoding=None)
-        makedirs.assert_called_once_with('directory', exist_ok=False)
+        makedirs.assert_called_once_with('directory', exist_ok=True)
 
 
 def test_s3_rejects_mutations_after_ownership_loss(s3_storage):
     storage, _, root = s3_storage
     storage.check_owned = lambda: False
+    writer = storage.open(root / 'incident.yml', 'w')
     with pytest.raises(OSError, match='lease is not owned'):
-        with storage.open(root / 'incident.yml', 'w') as handle:
+        with writer as handle:
             handle.write('state')
     with pytest.raises(OSError, match='lease is not owned'):
         storage.remove(root / 'incident.yml')
@@ -125,10 +129,12 @@ def test_s3_writes_entire_object_on_success(s3_storage, mode, content):
 
 def test_s3_does_not_publish_failed_serialization(s3_storage):
     storage, _, root = s3_storage
+    writer = storage.open(root / 'test', 'w')
+    serialization_error = ValueError('serialization failed')
     with pytest.raises(ValueError, match='serialization failed'):
-        with storage.open(root / 'test', 'w') as handle:
+        with writer as handle:
             handle.write('partial')
-            raise ValueError('serialization failed')
+            raise serialization_error
     assert handle.closed
 
 
@@ -168,7 +174,7 @@ def test_s3_rejects_binary_encoding_and_paths_outside_namespace(s3_storage):
     with pytest.raises(IsADirectoryError):
         with storage.open(root, 'w'):
             pass
-    storage.makedirs(root / 'incidents', exist_ok=True)
+    storage.makedirs(root / 'incidents')
 
 
 @pytest.mark.parametrize('code,exception', [('NoSuchKey', FileNotFoundError),
@@ -257,8 +263,9 @@ def test_s3_listing_errors_are_not_empty_results(s3_storage):
 def test_s3_write_remove_and_rename_failures_preserve_cause(s3_storage):
     storage, stubber, root = s3_storage
     stubber.add_client_error('put_object', service_error_code='AccessDenied', http_status_code=403)
+    writer = storage.open(root / 'new', 'w')
     with pytest.raises(OSError) as caught:
-        with storage.open(root / 'new', 'w') as handle:
+        with writer as handle:
             handle.write('state')
     assert handle.closed
     assert caught.value.__cause__ is not None
