@@ -2,7 +2,6 @@
 import os
 from pathlib import Path
 import re
-import shutil
 import subprocess
 import sys
 import tarfile
@@ -30,25 +29,28 @@ def _wheel(directory, name, version, requirements=()):
 
 def _docker_install_command():
     dockerfile = (Path(__file__).resolve().parents[1] / "Dockerfile").read_text()
-    return re.search(r"uv pip install --python .*?(?=;\s*fi)", re.sub(r"\\\n\s*", " ", dockerfile)).group()
+    return re.search(r'python -m pip install --only-binary=:all:\s+"impulse-bot==.*?(?=;\s*fi)',
+                     re.sub(r"\\\n\s*", " ", dockerfile)).group()
 
 
 @pytest.fixture
 def wheel_environment(tmp_path):
-    uv = shutil.which("uv")
-    if uv is None:
-        pytest.skip("uv is required to exercise the image dependency resolver")
     available = tmp_path / "available"
     (tmp_path / "wheelhouse").mkdir()
     available.mkdir()
     candidate = _wheel(available, "impulse_bot", "3.8.0")
-    environment = {**os.environ, "UV_NO_INDEX": "1", "UV_FIND_LINKS": str(available)}
+    python = tmp_path / ".venv" / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+    environment = {
+        **os.environ, "PIP_NO_INDEX": "1", "PIP_FIND_LINKS": str(available),
+        "PIP_DISABLE_PIP_VERSION_CHECK": "1",
+        "PATH": f"{python.parent}{os.pathsep}{os.environ['PATH']}",
+    }
     subprocess.run(
-        [uv, "venv", "--python", sys.executable, ".venv"], cwd=tmp_path,
+        [sys.executable, "-m", "venv", ".venv"], cwd=tmp_path,
         env=environment, check=True, capture_output=True,
     )
     subprocess.run(
-        [uv, "pip", "install", "--python", ".venv/bin/python", str(candidate)],
+        [str(python), "-m", "pip", "install", str(candidate)],
         cwd=tmp_path, env=environment, check=True, capture_output=True,
     )
     return environment
@@ -62,10 +64,13 @@ def test_docker_provider_install_preserves_core_candidate(tmp_path, wheel_enviro
         _docker_install_command(), shell=True, cwd=tmp_path, env=wheel_environment, capture_output=True,
     )
     assert (result.returncode == 0) == (required_core == "3.8.0"), result.stderr.decode()
+    if required_core != "3.8.0":
+        assert b"ResolutionImpossible" in result.stderr
+        assert b"impulse-bot==3.8.1" in result.stdout
     installed = subprocess.run(
-        [str(tmp_path / ".venv/bin/python"), "-c",
+        ["python", "-c",
          'from importlib.metadata import version; print(version("impulse-bot"))'],
-        check=True, capture_output=True, text=True,
+        env=wheel_environment, check=True, capture_output=True, text=True,
     )
     assert installed.stdout.strip() == "3.8.0"
 
@@ -92,4 +97,5 @@ def test_docker_provider_dependencies_do_not_execute_source_builds(tmp_path, whe
     )
     assert result.returncode != 0
     assert not marker.exists()
-    assert b"building from source is disabled" in result.stderr
+    assert b"Could not find a version that satisfies the requirement impulse-source-probe==1.0.0" in result.stderr
+    assert b"No matching distribution found" in result.stderr

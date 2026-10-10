@@ -29,14 +29,12 @@ jobs:
         repository: eslupmi/impulse-messengers
         ref: ${{ inputs.messengers-ref }}
         path: impulse-messengers
-    - name: Set up uv
-      uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
-      with:
-        version: "0.12.22"
-    - name: Check messenger workspace against candidate core
-      run: uv lock --project impulse-messengers --check
     - name: Build messenger wheels
-      run: uv build --project impulse-messengers --all-packages --wheel --out-dir "$PWD/impulse/wheelhouse"
+      run: |
+        python3 -m venv venv
+        for provider in impulse-messengers/packages/impulse-*; do
+          venv/bin/python -m pip wheel --no-deps "$provider" --wheel-dir "$PWD/impulse/wheelhouse"
+        done
     - name: Log in to the Container registry
       uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
       with:

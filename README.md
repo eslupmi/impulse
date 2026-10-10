@@ -59,41 +59,48 @@ Follow the [installation guide](https://docs.impulse.bot/stable/installation/) f
 
 IMPulse indexes installed messenger entry-point metadata, then imports and validates only the provider selected by `messenger.type` in `impulse.yml`. Unused providers stay unloaded and cannot block startup through import or registration errors. Restart IMPulse after installing/removing libraries or changing messenger type.
 
-Use [uv](https://docs.astral.sh/uv/) with Python 3.10 or newer. The core checkout can be synchronized and run on its own:
+Use Python 3.10 or newer with the standard `venv` module and pip. The core checkout can be installed and run on its own:
 
 ```bash
 git clone https://github.com/eslupmi/impulse.git
 cd impulse
-uv sync --locked
+python3 -m venv venv
+source venv/bin/activate
+python -m pip install -r requirements.txt
 cp examples/impulse.none.yml impulse.yml
-uv run python -m main --check
-uv run python -m main
+python -m main --check
+python -m main
 ```
 
-The default development group installs core test and lint tools. Core has no messenger dependency or local source override, so synchronization, builds and linting do not require the messenger repository. `pyproject.toml` declares dependencies and `uv.lock` pins resolution. Use `uv lock` after dependency changes; use `uv sync --locked` for normal development.
+On Windows, create it with `python -m venv venv` and activate it with `venv\Scripts\activate` in Command Prompt or `.\venv\Scripts\Activate.ps1` in PowerShell. Runtime requirements are in `requirements.txt`, and test requirements are in `tests.requirements.txt`. `pyproject.toml` retains the core distribution metadata and runtime dependencies used when installing wheels; keep those dependency constraints aligned with `requirements.txt`. Core installation and builds do not require the messenger repository or uv.
 
-The existing full test suite includes provider integration tests and requires all three libraries. Clone the messenger repository beside core, then run the suite from the core checkout using the messenger workspace's combined environment:
+The existing full test suite includes provider integration tests and requires all three libraries. Clone the messenger repository beside core, then install the core and providers into the same active virtual environment:
 
 ```bash
 git clone https://github.com/eslupmi/impulse-messengers.git ../impulse-messengers
-uv sync --project ../impulse-messengers --all-packages --locked
-uv run --project ../impulse-messengers --all-packages --no-sync python -m pytest tests/ -q
+python -m pip install -r requirements.txt -r tests.requirements.txt -e . \
+  -e ../impulse-messengers/packages/impulse-slack \
+  -e ../impulse-messengers/packages/impulse-mattermost \
+  -e ../impulse-messengers/packages/impulse-telegram
+python -m pytest tests/ -q
 ```
 
-The messenger workspace owns this coordinated test setup; its editable core source override does not affect core's dependency configuration. See its [development instructions](https://github.com/eslupmi/impulse-messengers#local-development) for the full setup.
+The messenger repository retains its own uv build workflow. Core uses pip to install and build these libraries directly, without requiring that workspace's environment.
 
 Build the core and each provider as wheels without publishing anything:
 
 ```bash
-uv build --wheel
-uv build --project ../impulse-messengers --all-packages --wheel
+python -m pip wheel --no-deps . --wheel-dir dist
+for provider in ../impulse-messengers/packages/impulse-*; do
+  python -m pip wheel --no-deps "$provider" --wheel-dir ../impulse-messengers/dist
+done
 ```
 
-Install built artifacts into a fresh environment. Include only the provider wheels you need, with their matching core dependency; IMPulse discovers them through the `impulse.messengers` entry point group:
+Install built artifacts into a fresh environment. This example explicitly installs Slack and a compatible core wheel; substitute the provider wheel you need. IMPulse discovers installed providers through the `impulse.messengers` entry point group:
 
 ```bash
-uv venv /tmp/impulse-runtime
-uv pip install --python /tmp/impulse-runtime/bin/python dist/*.whl ../impulse-messengers/dist/*.whl
+python3 -m venv /tmp/impulse-runtime
+/tmp/impulse-runtime/bin/python -m pip install dist/*.whl ../impulse-messengers/dist/impulse_slack-*.whl
 CONFIG_PATH=/absolute/path/to/config DATA_PATH=/absolute/path/to/data /tmp/impulse-runtime/bin/python -m main --check
 CONFIG_PATH=/absolute/path/to/config DATA_PATH=/absolute/path/to/data /tmp/impulse-runtime/bin/python -m main
 ```
@@ -105,8 +112,10 @@ Custom templates keep their original paths relative to the process working direc
 For a core-only container using `messenger.type: none`, run `docker build -t impulse-bot .`. To include providers, first build their wheels into `wheelhouse/`:
 
 ```bash
-uv build --project ../impulse-messengers --all-packages --wheel --out-dir "$PWD/wheelhouse"
+for provider in ../impulse-messengers/packages/impulse-*; do
+  python -m pip wheel --no-deps "$provider" --wheel-dir wheelhouse
+done
 docker build -t impulse-with-messengers .
 ```
 
-The Dockerfile uses the frozen core lockfile and installs any supplied provider wheels. Core lint CI uses only the core checkout. Integration-test CI checks out both repositories and runs the full suite in the messenger workspace's environment; full-container CI builds all three provider wheels first. Publish compatible changes to both repositories before expecting those remote workflows to run the new extraction.
+The Dockerfile installs `requirements.txt` with pip into the image's Python environment, installs the core package without resolving dependencies again, and installs any supplied provider wheels while retaining the installed core version. Core lint CI uses only the core checkout. Integration-test CI checks out both repositories and uses venv/pip to install the requirement files and editable core/provider packages; full-container CI builds all three provider wheels with pip first. Publish compatible changes to both repositories before expecting those remote workflows to run the new extraction.

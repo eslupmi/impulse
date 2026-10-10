@@ -22,8 +22,9 @@ The comprehensive Phase 0 golden-test suite is deferred, not completed or remove
 After compatible package publication, the Python installation flow will be:
 
 ```shell
-uv venv
-uv pip install impulse-bot impulse-slack
+python3 -m venv venv
+source venv/bin/activate
+python -m pip install impulse-bot impulse-slack
 ```
 
 ```yaml
@@ -38,10 +39,10 @@ For reproducible containers, the connector and its pinned version should be inst
 
 ```dockerfile
 FROM impulse:<version>
-RUN uv pip install --python /app/.venv/bin/python impulse-slack==<compatible-version>
+RUN python -m pip install --only-binary=:all: "impulse-bot==<version>" "impulse-slack==<compatible-version>"
 ```
 
-At the investigation baseline the repository had no Python distribution metadata. Phase 4 now packages the application as `impulse-bot` and manages dependencies with uv. Until publication, use the local wheel installation commands in [the README](../README.md#python-packages-and-development).
+At the investigation baseline the repository had no Python distribution metadata. Phase 4 now packages the application as `impulse-bot`. Core uses its original requirement files with venv/pip; the messenger repository retains its own uv workflow. Until publication, use the local wheel installation commands in [the README](../README.md#python-packages-and-development).
 
 ## Baseline architecture and coupling (before Phase 1)
 
@@ -502,29 +503,37 @@ The first Python 3.12 container attempt lacked `/config/impulse.yml`. After moun
 
 ### Phase 4: Add package discovery and packaging
 
-The local extraction uses one sibling repository with three independently buildable libraries: `impulse-slack`, `impulse-mattermost`, and `impulse-telegram`. Each library requires the matching `impulse-bot` distribution, exposes a `ProviderRegistration` entry point, and includes all 13 default templates. The original three provider directories are removed from IMPulse. The always-available `none` provider stays in core.
+The local extraction uses one sibling repository with three independently buildable libraries: `impulse-slack`, `impulse-mattermost`, and `impulse-telegram`. Each library uses the public API shipped by `impulse-bot`, exposes a `ProviderRegistration` entry point, and includes all 13 default templates. Install a compatible core and selected provider explicitly; provider metadata does not declare a core dependency. The original three provider directories are removed from IMPulse. The always-available `none` provider stays in core.
 
 `impulse_messenger_api` is the sole public contract shipped by IMPulse. It contains DTOs, transport/authentication protocols, shared configuration schema, required template names, and registration metadata. Core and provider consumers import it directly; the former internal API/schema re-exports and closed messenger enum are removed. Provider modules import the public package and their own dependencies only. Configuration IDs are plain strings, including built-ins, so incident and user-cache YAML keeps its scalar `messenger_type` values and accepts registered third-party IDs.
 
 The process-local registry indexes `impulse.messengers` metadata once and retains the built-in `none`. It imports and validates only the entry point named by the configured `messenger.type`, then caches its registration after validation succeeds. Duplicate selected IDs, entry-point name mismatches, incompatible API versions, invalid rate declarations/factories/config models, and missing templates fail before application initialization. Unused providers are never imported or validated, so their load/registration errors or duplicate IDs do not block startup. Installed entries named `none` remain unloaded and cannot replace the built-in provider. Load/resource errors name the selected provider without copying a potentially secret-bearing exception. A missing provider produces an install-and-restart error; startup never installs packages.
 
-Both repositories manage application and test dependencies through uv project metadata and lockfiles. IMPulse's default development group installs core test/lint tools; core declares no messenger dependency or sibling source override. The messenger repository is a virtual workspace whose three members have separate wheel/sdist metadata and runtime dependencies. Its default development group supplies the shared test/lint tools, and `uv sync --all-packages --locked` installs all providers with the sibling core in editable mode. This workspace owns the coordinated test environment; distribution metadata contains version requirements, without local paths. The root pip requirement exports are removed; `pyproject.toml` and `uv.lock` are the dependency sources.
+Core uses its original `requirements.txt` and `tests.requirements.txt` with the standard `venv` module and pip. Its `pyproject.toml` retains distribution metadata and matching runtime dependencies for wheel installation, without dependency groups, a lockfile, messenger dependencies or sibling source overrides. The messenger repository retains its own uv workspace and independently buildable provider metadata; distribution dependencies specify versions without local paths.
 
-The installed core bundles `main.py`, UI assets, and Jira templates. Resource defaults resolve from the package when installed; configured template overrides retain their filesystem behavior. The Dockerfile uses the frozen core lock and accepts provider wheels through `wheelhouse/`. A source-only core image supports `none`; the full-image workflow checks out the sibling repository and builds all three provider wheels first. Core synchronization, builds and lint CI work without a messenger checkout. Core integration-test CI still checks out both repositories and prepares a writable temporary copy before synchronizing the messenger workspace. Messenger CI also runs the full core suite. Coordinated remote workflows require the matching changes in both repositories.
+The installed core bundles `main.py`, UI assets, and Jira templates. Resource defaults resolve from the package when installed; configured template overrides retain their filesystem behavior. The Dockerfile installs the core requirements into the image's Python environment with pip, then installs core without resolving dependencies again. It accepts provider wheels through `wheelhouse/` while preserving the installed core version. A source-only core image supports `none`; the full-image workflow checks out the sibling repository and builds all three provider wheels with pip first. Core installation, builds and lint CI work without a messenger checkout. Core integration-test CI checks out both repositories and prepares a writable temporary copy, then uses venv/pip to install core and the providers. Coordinated remote workflows require compatible package versions in both repositories.
 
-The full test sources stay in core and include real-provider integration cases; they require all three installed libraries. From the synchronized `impulse-messengers` workspace, keep the test working directory in core while selecting the combined environment:
-
-```shell
-uv run --project "$PWD" --directory ../impulse --all-packages --no-sync python -m pytest tests/ -q
-```
-
-Run the durable installed-distribution gate from `impulse-messengers`:
+The full test sources stay in core and include real-provider integration cases; they require all three installed libraries. From the core checkout, create and activate a standard virtual environment, then run:
 
 ```shell
-python3 scripts/verify-packages.py --keep-artifacts
+python -m pip install -r requirements.txt -r tests.requirements.txt -e . \
+  -e ../impulse-messengers/packages/impulse-slack \
+  -e ../impulse-messengers/packages/impulse-mattermost \
+  -e ../impulse-messengers/packages/impulse-telegram
+python -m pytest tests/ -q
 ```
 
-The gate builds all four sdists/wheels, rebuilds wheels from the sdists with uv sources disabled, checks metadata and resources, installs core alone and core plus each individual provider in fresh environments, and runs isolated processes outside the checkout. It exercises configuration, the CLI, templates/UI/Jira resources, missing credentials, fake-transport initialization/user lookup/create/update/notification/callback rejection, response/transport cleanup, and discovery after uninstall. It also checks plain-string IDs through user-cache YAML. The core integration tests keep workflow and authentication coverage; packaging does not change callback security policy.
+#### Requirements and venv restoration (2026-10-10)
+
+Core's `requirements.txt` and `tests.requirements.txt` are restored byte for byte from `94ab7cd`, before the uv introduction. The core lockfile and dependency groups are removed; development, CI and image preparation use pip and the standard venv module. Distribution metadata and installed-provider discovery remain in place.
+
+- WSL/Linux Python 3.10: **1,387 tests passed**, with 26 warnings. This includes the three pip resolver regressions for compatible installs, rejecting a conflicting core version and refusing dependency source builds. Ruff and `pip check` passed. WSL's missing venv support was supplied from official Ubuntu packages in a temporary runtime; the system installation was unchanged.
+- Pip built all four wheels. The core source archive includes both original requirement files, and wheel dependency metadata matches the runtime requirements. A fresh binary-only installation outside the checkout passed core-only configuration/discovery, the Dockerfile's provider-install command, all three installed-provider/template checks and `pip check`. Native Windows Python 3.12 also passed a fresh requirement installation, source configuration validation, core wheel build and installed-wheel configuration validation outside the checkout.
+- Mypy reports three errors in unchanged files: the nullable user lookup in `app/im/application.py` and two errors in the existing `venv/Scripts/activate_this.py`. Docker image execution was unavailable because the daemon was not running; hosted CI was not run. Logs and artifacts are retained under `/tmp/impulse-pip-*`.
+
+The historical installed-distribution gate recorded below used `scripts/verify-packages.py` in `impulse-messengers`. It built all four sdists/wheels, rebuilt wheels from the sdists with uv sources disabled, checked metadata and resources, installed core alone and core plus each individual provider in fresh environments, and ran isolated processes outside the checkout. It exercised configuration, the CLI, templates/UI/Jira resources, missing credentials, fake-transport initialization/user lookup/create/update/notification/callback rejection, response/transport cleanup, and discovery after uninstall. It also checked plain-string IDs through user-cache YAML. The core integration tests keep workflow and authentication coverage; packaging does not change callback security policy.
+
+The dated records below preserve verification performed before the core requirement/venv restoration. Their uv setup commands and exact core dependency pins describe prior states; current core setup uses the pip instructions above, and current provider metadata does not declare a core dependency; that historical evidence does not verify the restored pip workflow.
 
 #### Local Phase 4 evidence (2026-10-03)
 
@@ -617,7 +626,7 @@ were published.
 
 #### Docker and Helm deployment boundary
 
-The extraction introduced uv dependency management in core's build and CI paths.
+Core's build and CI paths use the original requirement files and pip.
 Container startup remains `python -m main`, with the same port, configuration/data
 paths and volumes. The full-image workflow builds all three provider wheels into
 `wheelhouse/` before the Docker build. A plain local Docker build requires that
@@ -668,7 +677,7 @@ CI, live-provider or publication execution is added by this verification.
 
 Existing historical Phase 2–3 evidence above remains unchanged.
 
-No live tenant, hosted consent page, rendered browser, or production rate-limit validation is included in this local package milestone. Mattermost and Telegram retain the previously documented unauthenticated callback-origin behavior. Docker execution is unavailable in this WSL distro because Docker Desktop integration is disabled; a frozen standalone core installation without sibling sources validates the installation path outside Docker. Remote CI and publication are not performed. The full external-provider qualification gate still requires those applicable checks and the deferred characterization work.
+No live tenant, hosted consent page, rendered browser, or production rate-limit validation is included in this local package milestone. Mattermost and Telegram retain the previously documented unauthenticated callback-origin behavior. Docker execution is unavailable in this WSL distro because Docker Desktop integration is disabled; a frozen standalone core installation without sibling sources validated the historical installation path outside Docker. Remote CI and publication are not performed. The full external-provider qualification gate still requires those applicable checks and the deferred characterization work.
 
 ## Initial implementation slice
 
@@ -714,15 +723,14 @@ The external-package milestone additionally requires a clean-environment smoke t
 
 ## Compatibility and versioning
 
-- Core and messenger distributions share IMPulse release numbers; each provider requires its matching core distribution.
+- Core and messenger distributions use IMPulse release numbers. Install compatible core and provider packages explicitly; provider metadata does not enforce a matching core version.
 - Messenger libraries have no independent version bumps. Update a library to the target IMPulse version only when that IMPulse release requires library changes.
 - Keep the protocol marker `PLUGIN_API_VERSION` separate from distribution versions; discovery requires an exact marker match.
 - Add new optional capabilities or methods with defaults; reserve major versions for breaking DTO or semantic changes.
 - Keep provider IDs stable because they are persisted in incidents.
 - Preserve current built-in YAML fields and environment names through the internal migration.
 - Treat template context fields as part of the public plugin API.
-- Exact core dependencies enforce matching distribution versions; installed-wheel tests verify that coordinated package set rather than cross-version compatibility.
-- Core dependency management stays independent of providers. The messenger workspace owns the editable sibling source override and combined environment required by the full integration suite.
+- Core dependency management stays independent of providers. The full integration suite installs the core and all three provider packages into the same virtual environment with pip; the messenger repository retains its separate uv workflow.
 
 ## Risks and mitigations
 
@@ -749,4 +757,4 @@ The external-package milestone additionally requires a clean-environment smoke t
 
 ## Recommendation
 
-The chosen boundary is now implemented locally: IMPulse owns workflow and its public API, while three packages own messaging integrations. Use uv and the installed-package gate to maintain that boundary. Complete the remaining live/callback-security and release qualification before claiming production external-provider conformance or publishing packages.
+The chosen boundary is now implemented locally: IMPulse owns workflow and its public API, while three packages own messaging integrations. Use the core requirement files with venv/pip and installed-package verification to maintain that boundary. Complete the remaining live/callback-security and release qualification before claiming production external-provider conformance or publishing packages.

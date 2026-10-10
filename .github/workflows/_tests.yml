@@ -35,15 +35,17 @@ jobs:
             -v "${{ github.workspace }}:/workspace:ro,Z" \
             -e DATA_PATH=/data \
             -e CONFIG_PATH=/tmp/workspace/impulse \
-            -e UV_PROJECT_ENVIRONMENT=/tmp/impulse-integration-venv \
-            -w /workspace/impulse-messengers \
+            -w /workspace/impulse \
             python:${{ matrix.python-version }}-slim \
             sh -c "
               cp -a /workspace /tmp/workspace && \
               chmod -R u+w /tmp/workspace && \
-              cd /tmp/workspace/impulse-messengers && \
-              python -m pip install uv==0.12.22 && \
-              uv sync --all-packages --locked && \
-              cd ../impulse && \
-              uv run --project ../impulse-messengers --no-sync python -m pytest tests/ --color=yes -v
+              cd /tmp/workspace/impulse && \
+              python -m venv /tmp/impulse-integration-venv && \
+              . /tmp/impulse-integration-venv/bin/activate && \
+              python -m pip install -r requirements.txt -r tests.requirements.txt \
+                -e . -e ../impulse-messengers/packages/impulse-slack \
+                -e ../impulse-messengers/packages/impulse-mattermost \
+                -e ../impulse-messengers/packages/impulse-telegram && \
+              python -m pytest tests/ --color=yes -v
             "
