@@ -35,18 +35,6 @@ Homepage = "https://impulse.bot"
 Documentation = "https://docs.impulse.bot"
 Source = "https://github.com/eslupmi/impulse"
 
-[dependency-groups]
-test = [
-    "pytest~=8.3.2",
-    "pytest-asyncio~=0.24.0",
-    "pytest-cov~=5.0.0",
-    "pytest-mock~=3.14.0",
-    "pytest-xdist~=3.6.0",
-    "pytest-aiohttp~=1.0.5",
-]
-lint = ["ruff", "mypy", "types-PyYAML", "types-icalendar", "types-requests"]
-dev = [{include-group = "test"}, {include-group = "lint"}]
-
 [tool.hatch.build.targets.wheel]
 packages = ["app", "impulse_messenger_api"]
 
@@ -56,7 +44,7 @@ packages = ["app", "impulse_messenger_api"]
 "templates" = "app/templates"
 
 [tool.hatch.build.targets.sdist]
-include = ["/app", "/impulse_messenger_api", "/main.py", "/static", "/templates", "/README.md", "/LICENSE.md", "/pyproject.toml"]
+include = ["/app", "/impulse_messenger_api", "/main.py", "/static", "/templates", "/README.md", "/LICENSE.md", "/pyproject.toml", "/requirements.txt", "/tests.requirements.txt"]
 
 [tool.ruff.lint]
 # Preserve the existing correctness gate across Ruff default-rule changes.
