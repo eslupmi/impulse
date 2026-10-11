@@ -33,12 +33,12 @@ class SlackApplication(Application):
         response = await self.http.get(f'{self.url}/api/usergroups.list', headers=self.headers)
         try:
             if response.status != 200:
-                logger.debug(f'Failed to get groups list: HTTP {response.status}')
+                logger.warning(f'Failed to get groups list: HTTP {response.status}')
                 return {}
             
             data = await response.json()
             if not data.get('ok'):
-                logger.debug(f'Slack API error getting groups list: {data.get("error", "unknown error")}')
+                logger.warning(f'Slack API error getting groups list: {data.get("error", "unknown error")}')
                 return {}
             
             # Return a dict mapping group IDs to their names
@@ -51,7 +51,7 @@ class SlackApplication(Application):
         id_ = user_details.get('id')
         response = await self.http.get(f'{self.url}/api/users.info?user={id_}', headers=self.headers)
         if response.status != 200:
-            logger.debug("User details fetch failed", extra={'user_id': id_, 'status': response.status})
+            logger.warning("User details fetch failed", extra={'user_id': id_, 'status': response.status})
             response.close()
             return {'id': id_, 'exists': False, 'full_name': None, 'username': None,
                     'first_name': None, 'last_name': None, 'email': None, 'timezone': None}
@@ -59,7 +59,7 @@ class SlackApplication(Application):
         data = await response.json()
         response.close()
         if not data.get('ok'):
-            logger.debug("Slack API error", extra={'user_id': id_, 'error': data.get("error", "unknown error")})
+            logger.warning("Slack API error", extra={'user_id': id_, 'error': data.get("error", "unknown error")})
             return {'id': id_, 'exists': False, 'full_name': None, 'username': None,
                     'first_name': None, 'last_name': None, 'email': None, 'timezone': None}
 

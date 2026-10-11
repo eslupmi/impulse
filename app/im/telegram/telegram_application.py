@@ -106,7 +106,7 @@ class TelegramApplication(Application):
         id_ = user_details.get('id')
         response = await self.http.get(f'{self.url}/getChat?chat_id={id_}', headers=self.headers)
         if response.status != 200:
-            logger.debug("User details fetch failed", extra={'user_id': id_, 'status': response.status})
+            logger.warning("User details fetch failed", extra={'user_id': id_, 'status': response.status})
             response.close()
             return {'id': id_, 'exists': False, 'full_name': None, 'username': None,
                     'first_name': None, 'last_name': None, 'email': None, 'timezone': None}
@@ -115,7 +115,7 @@ class TelegramApplication(Application):
         response.close()
 
         if not data.get('ok'):
-            logger.debug("Telegram API error",
+            logger.warning("Telegram API error",
                          extra={'user_id': id_, 'error': data.get("description", "unknown error")})
             return {'id': id_, 'exists': False, 'full_name': None, 'username': None,
                     'first_name': None, 'last_name': None, 'email': None, 'timezone': None}
