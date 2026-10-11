@@ -2,6 +2,12 @@
 
 Applies by release type: **M** major; **m** minor; **b** bugfix
 
+## Messenger libs (if released)
+| Task | M | m | b |
+| --- | --- | --- | --- |
+| Create a GitHub release for [impulse-messengers](https://github.com/eslupmi/impulse-messengers) | ✓ | ✓ | ✓ |
+| Update impulse-messengers dependencies to that release | ✓ | ✓ | ✓ |
+
 ## On PR
 
 | Task | M | m | b |
