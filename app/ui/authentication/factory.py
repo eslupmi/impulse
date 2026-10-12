@@ -65,7 +65,7 @@ def build_auth_manager(config: 'ImpulseConfig', env_config: 'EnvironmentConfig',
     client_id = env_config.auth_client_id.strip()
     client_secret = env_config.auth_client_secret.strip()
     configured_users = _build_configured_users(config)
-    allowed_user_ids = _build_allowed_user_ids(config, messenger_type) if env_config.auth_whitelist_enabled else None
+    allowed_user_ids = _build_allowed_user_ids(config, messenger_type)
     provider = _build_provider(messenger_type, client_id, client_secret, config)
     default_redirect_path = http_prefix or "/"
 

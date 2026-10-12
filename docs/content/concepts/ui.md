@@ -31,7 +31,7 @@ The footer can be divided into 3 parts:
 - on the right are 6 buttons :
 
     - **maintenance** (visible when authenticated)
-    - **ui chains** (visible when authenticated)
+    - **ui chains** (UI escalation chains, visible when authenticated)
     - **theme switcher**
     - **archive** - for displaying historical data ([closed](incident.md#closed) incidents)
     - **login / logout** (see [Authentication](../guides/authentication.md))

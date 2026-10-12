@@ -30,13 +30,13 @@ The button works differently depending on the incident's state.
 
 By default, the button works as **Take It**. In this case it:
 
-- stops chain escalation
+- stops the escalation chain
 - assigns (or reassigns) the incident to the user who clicked the button
 
 The button turns into **Resolved** only when the incident is already associated with someone and is in the **resolved** status. In this case it:
 
 - unassigns the incident
-- resets the [chain](../config_file.md/#messengerchains)
+- resets the escalation [chain](../config_file.md/#messengerchains)
 
 #### Freeze
 This is a time selector for choosing until when the incident will be [**frozen**](incident.md#frozen). The day and time for unfreezing are determined based on the [general.week_start](../config_file.md#generalweek_start) and [general.workday_start](../config_file.md#generalworkday_start) parameters. Timezone is set for each user [if available](messengers.md), otherwise it uses [general.timezone](../config_file.md#generaltimezone).
@@ -44,14 +44,14 @@ This is a time selector for choosing until when the incident will be [**frozen**
 Freeze behaviour (if not [**frozen**](#frozen)):
 
 - assigns the incident to the person who clicked the button (like [Take It](#take-it-release))
-- stops activity on the incident (chain escalation, status updates)
+- stops activity on the incident (escalation chain, status updates)
 - prevents creation of new incidents with the same identifier (like [silence](https://prometheus.io/docs/alerting/latest/alertmanager/#silences))
 - displays the unfreeze datetime on the button instead of "Freeze"
 
 Unfreeze behaviour (if [**frozen**](#frozen) with button):
 
 - sets the actual incident status
-- resumes activity on the incident (chain escalation, status updates)
+- resumes activity on the incident (escalation chain, status updates)
 
 #### Task
 

@@ -123,12 +123,16 @@ class TestMattermostApplicationConfig:
 class TestTelegramApplicationConfig:
     """Test cases for TelegramApplicationConfig."""
 
-    def test_telegram_config_creation(self):
+    @pytest.mark.parametrize("channel_config", [
+        {"id": -1001234567890},
+        {"id": -1001234567890, "name": "Legacy channel name"},
+    ])
+    def test_telegram_config_creation(self, channel_config):
         """Test creating TelegramApplicationConfig with valid data."""
         config = TelegramApplicationConfig(
             type='telegram',
             admin_users=["admin1"],
-            channels={"default": {"id": -1001234567890}},
+            channels={"default": channel_config},
             users={"admin1": {"id": 123456789}},
             template_files={},
             impulse_address="https://impulse.example.com"
@@ -137,6 +141,8 @@ class TestTelegramApplicationConfig:
         assert config.type == 'telegram'
         assert "default" in config.channels
         assert config.channels["default"].id == -1001234567890
+        assert config.channels["default"].model_dump() == {"id": -1001234567890}
+        assert set(config.channels["default"].model_json_schema()["properties"]) == {"id"}
         assert "admin1" in config.users
         assert config.users["admin1"].id == 123456789
         assert config.template_files.status_icons is None
