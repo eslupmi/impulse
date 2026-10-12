@@ -3,6 +3,7 @@
 import hashlib
 import hmac
 import json
+from pathlib import Path
 import subprocess
 import sys
 import time
@@ -242,8 +243,10 @@ async def test_manual_unfreeze_and_resolved_release_use_core_actions(runtime):
 
 
 def test_resources_and_imports_work_without_core_or_checkout_cwd(tmp_path):
-    script = """
+    root = Path(__file__).resolve().parents[3]
+    script = f"""
 import sys
+sys.path.insert(0, {str(root)!r})
 class NoCore:
     def find_spec(self, fullname, *args):
         if fullname == 'app' or fullname.startswith('app.'):

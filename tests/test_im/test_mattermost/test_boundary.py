@@ -1,5 +1,6 @@
 """Mattermost import boundary and resource checks."""
 
+from pathlib import Path
 import subprocess
 import sys
 
@@ -17,8 +18,10 @@ def test_missing_token_names_the_variable_without_its_value():
 
 
 def test_resources_load_outside_the_checkout(tmp_path):
-    script = """
+    root = Path(__file__).resolve().parents[3]
+    script = f"""
 import sys
+sys.path.insert(0, {str(root)!r})
 class NoCore:
     def find_spec(self, fullname, *args):
         if fullname == 'app' or fullname.startswith('app.'):
