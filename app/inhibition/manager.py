@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from app.config.validation import InhibitRule, MessengerType
+from app.config.validation import InhibitRule
 from app.incident.freeze import MAINTENANCE_PARENT_SENTINEL, FreezeSource
 from app.incident.incident import remove_freeze_source
 from app.inhibition.rule import InhibitionRule
@@ -243,7 +243,7 @@ class InhibitionManager:
             done = await self._freeze_matching_targets(
                 incident, self.targets[rule_idx], rule, incident_is_target=False
             )
-            if done and self.application.type != MessengerType.TELEGRAM:
+            if done and self.application.provider.descriptor.refresh_inhibition_source:
                 await self.application.update_incident_message(incident)
 
     def _is_active_inhibition_parent(self, parent_uniq_id: str) -> bool:

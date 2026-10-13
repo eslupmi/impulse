@@ -4,7 +4,6 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.config.config import get_config
-from app.config.validation import MessengerType
 from app.file_lock import FileLock
 from app.im.chain.ui_chains_store import ui_chains_store
 from app.im.channel_manager import ChannelManager
@@ -50,7 +49,7 @@ async def create_main_objects(fastapi_app: FastAPI, reload=False):
     route = generate_route(route_config)
 
     channel_manager = ChannelManager()
-    if (config_data.messenger.type == MessengerType.NONE and
+    if (config_data.messenger.type == 'none' and
             (not config_data.messenger.channels or 'default' not in config_data.messenger.channels)):
         config_data.messenger.channels = {'default': {'id': 'default'}}
     channels = channel_manager.initialize(route.get_uniq_channels(), config_data.messenger.channels, route.channel)
@@ -89,7 +88,7 @@ async def create_main_objects(fastapi_app: FastAPI, reload=False):
         )
         inhibition_manager.attach_maintenance_manager(maintenance_manager)
         await inhibition_manager.reconcile_orphans()
-        user_scheduler = UserUpdateScheduler(queue, messenger.type.value)
+        user_scheduler = UserUpdateScheduler(queue, messenger.type)
         messenger.configure_scheduler(user_scheduler)
         await user_scheduler.schedule_all_stored()
         queue_manager = AsyncQueueManager(queue, messenger, incidents, webhooks, route, inhibition_manager, maintenance_manager)

@@ -16,4 +16,8 @@ Dockerfile
 htmlcov
 key.json
 pytest.ini
-tests.requirements.txt
+
+.venv*
+build
+dist
+*.egg-info

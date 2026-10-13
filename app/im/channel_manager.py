@@ -1,6 +1,6 @@
 
 
-from app.config.validation import MattermostChannel, SlackChannel, TelegramChannel
+from typing import Any
 from app.logging import logger
 
 
@@ -25,11 +25,11 @@ class ChannelManager:
     def get_channel_name_by_id(self, channel_id: str) -> str | None:
         channel_data = self._channels.get(channel_id)
         return channel_data['name'] if channel_data else None
-    
+
     @staticmethod
     def _resolve_channel_entry(
         channel: str,
-        channels_config: dict[str, SlackChannel | MattermostChannel | TelegramChannel | dict],
+        channels_config: dict[str, Any],
         default_channel: str,
     ) -> dict:
         if channel not in channels_config:
@@ -52,7 +52,7 @@ class ChannelManager:
 
         return {'id': channel_id}
 
-    def initialize(self, channels_list: list[str], channels_config: dict[str, SlackChannel | MattermostChannel | TelegramChannel | dict], default_channel: str) -> dict[str, dict]:
+    def initialize(self, channels_list: list[str], channels_config: dict[str, Any], default_channel: str) -> dict[str, dict]:
         logger.debug('Checking all channels defined')
 
         channels_dict = {

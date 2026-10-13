@@ -5,7 +5,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from app.config.validation import TelegramChannel
+from impulse_telegram.config import TelegramChannel
 from app.im.channel_manager import ChannelManager
 
 

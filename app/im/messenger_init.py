@@ -12,13 +12,16 @@ from app.logging_context import (
 
 
 def _log_init_failure(self, step: str, exc: BaseException) -> None:
+    redact_url = getattr(getattr(self, 'provider', None), 'redact_url', redact_messenger_url)
+    error = exception_fields(exc)
+    error['detail'] = redact_url(error['detail'])
     logger.error(
         "Messenger initialization failed",
         extra={
-            'messenger': self.type.value,
-            'url': redact_messenger_url(self.url),
+            'messenger': self.type,
+            'url': redact_url(self.url),
             'step': step,
-            **exception_fields(exc),
+            **error,
         },
     )
 
@@ -26,7 +29,7 @@ def _log_init_failure(self, step: str, exc: BaseException) -> None:
 @contextmanager
 def _init_step_context(self, step: str):
     token = messenger_init_context.set(
-        MessengerInitContext(step=step, messenger=self.type.value)
+        MessengerInitContext(step=step, messenger=self.type)
     )
     try:
         yield

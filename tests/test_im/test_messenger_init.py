@@ -95,3 +95,21 @@ class TestMessengerInitStep:
             return {}
 
         assert init_user_groups(app) == {}
+
+
+@pytest.mark.asyncio
+async def test_init_failure_uses_provider_redactor_for_url_and_detail():
+    app = StubApplication()
+    app.url = 'http://fake/customsecret-token'
+    app.provider = Mock(redact_url=lambda value: value.replace('secret-token', '***'))
+
+    @messenger_init_step_async('users')
+    async def init_users(self):
+        raise ValueError(f'failure at {self.url}')
+
+    with patch('app.im.messenger_init.logger') as logger:
+        with pytest.raises(ValueError):
+            await init_users(app)
+    extra = logger.error.call_args.kwargs['extra']
+    assert extra['url'] == 'http://fake/custom***'
+    assert extra['detail'] == 'failure at http://fake/custom***'

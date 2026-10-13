@@ -1,25 +1,25 @@
-import asyncio
 from unittest.mock import AsyncMock, Mock, patch
 
 import aiohttp
 import pytest
 
 from app.config.environment import EnvironmentConfig
-from app.config.validation import MessengerType, SlackApplicationConfig, SlackUser
-from app.im.slack.slack_application import SlackApplication
+from impulse_slack.config import SlackApplicationConfig, SlackUser
+from app.im.helpers import get_application
 
 
 class TestApplicationInitLogging:
     @pytest.fixture
     def slack_app(self):
         config = Mock(spec=SlackApplicationConfig)
-        config.type = MessengerType.SLACK
+        config.type = 'slack'
         config.template_files = {}
         config.chains = {}
         config.users = {'alice': Mock(spec=SlackUser, id='U1')}
         config.user_groups = {}
         config.groups = {}
         config.admin_users = []
+        config.impulse_address = None
 
         channels = {'default': {'id': 'C1'}}
 
@@ -27,7 +27,7 @@ class TestApplicationInitLogging:
             mock_open.return_value.__enter__ = Mock(return_value=Mock(read=Mock(return_value='')))
             mock_open.return_value.__exit__ = Mock(return_value=False)
             with patch('app.im.application.ChainFactory.generate', return_value={}):
-                app = SlackApplication(config, channels, 'default')
+                app = get_application(config, channels, 'default')
 
         return app
 
@@ -37,6 +37,7 @@ class TestApplicationInitLogging:
         auth_response = AsyncMock()
         auth_response.json = AsyncMock(return_value={'url': 'https://slack.example.com'})
         auth_response.close = Mock()
+        auth_response.status = 200
         mock_http.get = AsyncMock(return_value=auth_response)
 
         with patch.object(slack_app, '_setup_http', return_value=mock_http), \
@@ -58,6 +59,7 @@ class TestApplicationInitLogging:
         auth_response = AsyncMock()
         auth_response.json = AsyncMock(return_value={'url': 'https://slack.example.com'})
         auth_response.close = Mock()
+        auth_response.status = 200
         mock_http.get = AsyncMock(return_value=auth_response)
 
         with patch.object(slack_app, '_setup_http', return_value=mock_http), \
