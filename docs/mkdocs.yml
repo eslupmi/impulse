@@ -1,5 +1,5 @@
 site_name: Docs | IMPulse
-site_url: https://docs.impulse.bot/stable/
+site_url: https://impulse.bot/docs/stable/
 docs_dir: content
 
 theme:
