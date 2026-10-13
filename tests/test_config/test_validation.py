@@ -141,11 +141,8 @@ class TestTelegramApplicationConfig:
         assert config.type == 'telegram'
         assert "default" in config.channels
         assert config.channels["default"].id == -1001234567890
-        assert config.channels["default"].model_dump() == {
-            "id": -1001234567890,
-            "name": channel_config.get("name"),
-        }
-        assert set(config.channels["default"].model_json_schema()["properties"]) == {"id", "name"}
+        assert config.channels["default"].model_dump() == {"id": -1001234567890}
+        assert set(config.channels["default"].model_json_schema()["properties"]) == {"id"}
         assert "admin1" in config.users
         assert config.users["admin1"].id == 123456789
         assert config.template_files.status_icons is None
