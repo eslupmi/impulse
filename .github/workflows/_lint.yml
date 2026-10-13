@@ -29,7 +29,7 @@ jobs:
             -c "
               uv venv /tmp/venv && \
               uv pip install --python /tmp/venv ruff && \
-              /tmp/venv/bin/ruff check . --target-version py310 --exclude tests --exclude docs
+              /tmp/venv/bin/ruff check . --target-version py312 --exclude tests --exclude docs
             "
 
   mypy:
@@ -52,6 +52,6 @@ jobs:
             -c "
               uv venv /tmp/venv && \
               uv pip install --python /tmp/venv -r requirements.txt mypy types-PyYAML types-icalendar types-requests && \
-              printf '%s\n' '[mypy]' 'python_version = 3.10' 'exclude = (?x)(^tests/|^docs/)' 'plugins = pydantic.mypy' > /tmp/mypy.ini && \
+              printf '%s\n' '[mypy]' 'python_version = 3.12' 'exclude = (?x)(^tests/|^docs/)' 'plugins = pydantic.mypy' > /tmp/mypy.ini && \
               /tmp/venv/bin/mypy --config-file /tmp/mypy.ini --cache-dir=/tmp/mypy_cache --color-output --pretty .
             "

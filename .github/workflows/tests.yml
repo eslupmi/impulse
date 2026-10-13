@@ -27,8 +27,6 @@ jobs:
   unit-tests:
     if: github.event.pull_request.draft == false
     uses: ./.github/workflows/_unit_tests.yml
-    with:
-      python-versions: ${{ github.base_ref == 'master' && '["3.10","3.11","3.12","3.13"]' || '["3.12"]' }}
 
   build-and-push-image:
     if: github.event.pull_request.draft == false
