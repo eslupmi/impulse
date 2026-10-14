@@ -2,9 +2,12 @@
 from dataclasses import asdict
 
 from app.http_client.rate_limited_client import RateLimitedClient
-from impulse_messenger_api import AuthenticationError
 from app.ui.authentication.models.auth_user import AuthUser
-from app.ui.authentication.providers.base_provider import AuthenticationProvider, AuthenticationProviderError
+from app.ui.authentication.providers.base_provider import (
+    AuthenticationProvider,
+    AuthenticationProviderError,
+)
+from impulse_messenger_api import AuthenticationError
 
 
 class RegisteredAuthenticationProvider(AuthenticationProvider):

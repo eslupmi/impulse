@@ -200,5 +200,5 @@ async def _wait_and_become_primary(shutdown_event, file_lock, fastapi_app):
         try:
             await asyncio.wait_for(shutdown_event.wait(), timeout=5.0)
             break
-        except asyncio.TimeoutError:
+        except TimeoutError:
             pass

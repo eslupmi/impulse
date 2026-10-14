@@ -3,6 +3,7 @@ from enum import Enum
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field, SerializeAsAny, field_validator, model_validator
+
 from impulse_messenger_api import BaseApplicationConfig
 
 
@@ -229,7 +230,7 @@ class ImpulseConfig(BaseModel):
         if isinstance(value, BaseApplicationConfig):
             return value
         if not isinstance(value, dict):
-            raise ValueError('Messenger configuration must be a mapping')
+            raise TypeError('Messenger configuration must be a mapping')
         registration = get_provider_registry().resolve(value.get('type', ''))
         return registration.config_model.model_validate(value)
 

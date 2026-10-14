@@ -1,6 +1,6 @@
 import os
 import threading
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from icalendar import Calendar, Component, Event
@@ -171,7 +171,7 @@ class MaintenanceStore:
         return None
 
     def _allocate_filename(self, created: datetime) -> str:
-        moment = created.astimezone(timezone.utc)
+        moment = created.astimezone(UTC)
         while True:
             filename = moment.strftime("%Y-%m-%d-%H-%M-%S-%f") + ".ics"
             if not os.path.exists(os.path.join(self._dir, filename)):
@@ -232,7 +232,7 @@ class MaintenanceStore:
         return True
 
     def _write_window_unlocked(self, window: dict[str, Any], created: datetime | None = None) -> bool:
-        moment = datetime.now(timezone.utc) if created is None else created
+        moment = datetime.now(UTC) if created is None else created
         path = os.path.join(self._dir, self._allocate_filename(moment))
         return self._write_window_file(window, path)
 
@@ -261,7 +261,7 @@ class MaintenanceStore:
 
             event.add("dtstart", start_dt)
             event.add("dtend", end_dt)
-            event.add("dtstamp", datetime.now(timezone.utc))
+            event.add("dtstamp", datetime.now(UTC))
 
             for matcher in matchers:
                 event.add("x-matcher", str(matcher))
@@ -340,9 +340,9 @@ class MaintenanceStore:
     def _partition_by_retention(
         self, windows: list[dict[str, Any]], now: datetime | None = None
     ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-        now = now or datetime.now(timezone.utc)
+        now = now or datetime.now(UTC)
         if now.tzinfo is None:
-            now = now.replace(tzinfo=timezone.utc)
+            now = now.replace(tzinfo=UTC)
         cutoff = self._retention_cutoff(now)
         retained = []
         expired = []

@@ -2,8 +2,9 @@
 import asyncio
 from dataclasses import replace
 
-from impulse_messenger_api import InteractionAction
 from app.logging import logger
+from impulse_messenger_api import InteractionAction
+
 
 async def apply_interaction(application, interaction, incidents, queue):
     async def finish_early():
