@@ -22,20 +22,22 @@ permissions:
 jobs:
   lint:
     if: github.event.pull_request.draft == false && github.base_ref == 'develop'
-    uses: ./.github/workflows/_lint.yml
+    uses: eslupmi/ci-templates/.github/workflows/_lint.yml@develop
+    with:
+      exclude: '["tests", "docs"]'
 
   unit-tests:
     if: github.event.pull_request.draft == false
-    uses: ./.github/workflows/_unit_tests.yml
+    uses: eslupmi/ci-templates/.github/workflows/_unit_tests.yml@develop
 
   build-and-push-image:
     if: github.event.pull_request.draft == false
-    uses: ./.github/workflows/_build-and-push-image.yml
+    uses: eslupmi/ci-templates/.github/workflows/_build-and-push-image.yml@develop
 
   tests:
     if: github.event.pull_request.draft == false
     needs: build-and-push-image
-    uses: ./.github/workflows/_external_tests.yml
+    uses: eslupmi/ci-templates/.github/workflows/_external_tests.yml@develop
     with:
       branch: pr-${{ github.event.pull_request.number }}
       tests-ref: 'main'
@@ -45,7 +47,7 @@ jobs:
   migrations:
     if: github.event.pull_request.draft == false && github.base_ref == 'master'
     needs: build-and-push-image
-    uses: ./.github/workflows/_migration.yml
+    uses: eslupmi/ci-templates/.github/workflows/_migration.yml@develop
     with:
       branch: pr-${{ github.event.pull_request.number }}
       deploy-path: /opt/impulse/prod
