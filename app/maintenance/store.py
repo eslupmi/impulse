@@ -1,6 +1,6 @@
 import os
 import threading
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from icalendar import Calendar, Component, Event
@@ -9,6 +9,7 @@ from app.config.config import get_config
 from app.config.environment import get_environment_config
 from app.logging import logger
 from app.maintenance.api import window_from_ws_item
+from app.maintenance.migrator import LEGACY_FILENAME, MaintenanceMigrator
 from app.maintenance.models import MaintenanceWindow, _parse_iso
 from app.time import unix_sleep_to_timedelta
 
@@ -29,18 +30,20 @@ def _truncate_summary(matcher: str, max_len: int = 24) -> str:
 
 
 class MaintenanceStore:
-    _ICS_FILENAME = "windows.ics"
-
     def __init__(self):
         env_config = get_environment_config()
         self._dir = os.path.join(env_config.data_path, "maintenance")
-        self._file = os.path.join(self._dir, self._ICS_FILENAME)
         self._lock = threading.Lock()
         self._ensure_dir()
 
+    def migrate(self) -> None:
+        with self._lock:
+            MaintenanceMigrator().migrate(self)
+
     def load_windows(self) -> list[dict[str, Any]]:
         with self._lock:
-            return self._read_windows_from_disk()
+            windows, _paths = self._load_unlocked()
+            return windows
 
     def upsert_window(
         self,
@@ -48,7 +51,7 @@ class MaintenanceStore:
         assignable_user_ids: set[str],
     ) -> tuple[bool, list[dict[str, Any]], list[dict[str, Any]]]:
         with self._lock:
-            existing = self._read_windows_from_disk()
+            existing, paths = self._load_unlocked()
             existing_owner_id = None
             if isinstance(payload, dict) and payload.get("id"):
                 window_id = str(payload["id"])
@@ -68,7 +71,13 @@ class MaintenanceStore:
             if not replaced:
                 merged.append(window)
             retained = self._filter_retained_windows(merged)
-            if not self._write_windows_unlocked(retained):
+            retained_ids = {item["id"] for item in retained}
+            if window["id"] in retained_ids:
+                path = paths.get(window["id"])
+                written = self._write_window_unlocked(window) if path is None else self._write_window_file(window, path)
+                if not written:
+                    return False, existing, existing
+            if not self._delete_unretained(existing, paths, retained_ids):
                 return False, existing, existing
             return True, existing, retained
 
@@ -76,7 +85,7 @@ class MaintenanceStore:
         self, window_id: str
     ) -> tuple[bool, list[dict[str, Any]], list[dict[str, Any]], dict[str, Any] | None]:
         with self._lock:
-            existing = self._read_windows_from_disk()
+            existing, paths = self._load_unlocked()
             deleted = None
             remaining = []
             for existing_window in existing:
@@ -87,7 +96,8 @@ class MaintenanceStore:
             if deleted is None:
                 return True, existing, existing, None
             retained = self._filter_retained_windows(remaining)
-            if not self._write_windows_unlocked(retained):
+            retained_ids = {item["id"] for item in retained}
+            if not self._delete_unretained(existing, paths, retained_ids):
                 return False, existing, existing, None
             return True, existing, retained, deleted
 
@@ -97,13 +107,14 @@ class MaintenanceStore:
 
     def prune_expired_windows(self, now: datetime | None = None) -> int:
         with self._lock:
-            windows = self._read_windows_from_disk()
+            windows, paths = self._load_unlocked()
             if not windows:
                 return 0
-            retained, expired = self._partition_by_retention(windows, now)
+            _, expired = self._partition_by_retention(windows, now)
             if not expired:
                 return 0
-            self._write_windows_unlocked(retained)
+            for window in expired:
+                self._remove_file(paths[window["id"]])
             logger.info(
                 "Pruned expired maintenance windows",
                 extra={"removed": len(expired)},
@@ -115,43 +126,86 @@ class MaintenanceStore:
             os.makedirs(self._dir)
             logger.info("Created maintenance directory", extra={"path": self._dir})
 
-    def _read_windows_from_disk(self) -> list[dict[str, Any]]:
-        if not os.path.exists(self._file):
-            return []
+    def _load_unlocked(self) -> tuple[list[dict[str, Any]], dict[str, str]]:
+        return self._read_individual_windows()
+
+    def _read_individual_windows(self) -> tuple[list[dict[str, Any]], dict[str, str]]:
+        windows = []
+        paths = {}
+        for filename in os.listdir(self._dir):
+            if filename == LEGACY_FILENAME or not filename.endswith(".ics"):
+                continue
+            path = os.path.join(self._dir, filename)
+            window = self._read_window_file(path)
+            if window is None:
+                continue
+            windows.append(window)
+            paths[window["id"]] = path
+        return windows, paths
+
+    def _read_window_file(self, path: str) -> dict[str, Any] | None:
         try:
-            with open(self._file, "rb") as f:
-                cal = Calendar.from_ical(f.read().decode())
-            windows = []
-            for component in cal.walk():
-                if component.name == "VEVENT":
-                    window = self._ical_event_to_window(component)
-                    if window:
-                        windows.append(window)
-            return windows
+            with open(path, "rb") as f:
+                calendar = Calendar.from_ical(f.read().decode())
         except Exception as e:  # noqa: BLE001
-            logger.error("Failed to load maintenance store", extra={"error": str(e), "path": self._file})
-            return []
+            logger.error("Failed to load maintenance window", extra={"error": str(e), "path": path})
+            return None
+        for component in calendar.walk():
+            if component.name == "VEVENT":
+                return self._ical_event_to_window(component)
+        return None
 
-    def _write_windows_unlocked(self, windows: list[dict[str, Any]]) -> bool:
+    def _allocate_filename(self, created: datetime) -> str:
+        moment = created.astimezone(timezone.utc)
+        while True:
+            filename = moment.strftime("%Y-%m-%d-%H-%M-%S-%f") + ".ics"
+            if not os.path.exists(os.path.join(self._dir, filename)):
+                return filename
+            moment += timedelta(microseconds=1)
+
+    def _write_window_file(self, window: dict[str, Any], path: str) -> bool:
         try:
-            cal = Calendar()
-            cal.add("prodid", "-//IMPulse//impulse.maintenance//EN")
-            cal.add("version", "2.0")
-            cal.add("calscale", "GREGORIAN")
-            cal.add("method", "PUBLISH")
-
-            for window in windows:
-                event = self._window_to_ical_event(window)
-                if event:
-                    cal.add_component(event)
-
-            with open(self._file, "wb") as f:
-                f.write(cal.to_ical())
-
-            logger.debug("Saved maintenance windows", extra={"count": len(windows)})
+            calendar = Calendar()
+            calendar.add("prodid", "-//IMPulse//impulse.maintenance//EN")
+            calendar.add("version", "2.0")
+            calendar.add("calscale", "GREGORIAN")
+            calendar.add("method", "PUBLISH")
+            event = self._window_to_ical_event(window)
+            if event is None:
+                return False
+            calendar.add_component(event)
+            with open(path, "wb") as f:
+                f.write(calendar.to_ical())
+            logger.debug("Saved maintenance window", extra={"window_id": window.get("id"), "path": path})
             return True
         except Exception as e:  # noqa: BLE001
-            logger.error("Failed to save maintenance store", extra={"error": str(e), "path": self._file})
+            logger.error("Failed to save maintenance window", extra={"error": str(e), "path": path})
+            return False
+
+    def _delete_unretained(
+        self,
+        existing: list[dict[str, Any]],
+        paths: dict[str, str],
+        retained_ids: set[str],
+    ) -> bool:
+        for old in existing:
+            if old["id"] in retained_ids:
+                continue
+            if not self._remove_file(paths[old["id"]]):
+                return False
+        return True
+
+    def _write_window_unlocked(self, window: dict[str, Any], created: datetime | None = None) -> bool:
+        moment = datetime.now(timezone.utc) if created is None else created
+        path = os.path.join(self._dir, self._allocate_filename(moment))
+        return self._write_window_file(window, path)
+
+    def _remove_file(self, path: str) -> bool:
+        try:
+            os.remove(path)
+            return True
+        except OSError as e:
+            logger.error("Failed to delete maintenance window", extra={"error": str(e), "path": path})
             return False
 
     def _window_to_ical_event(self, window: dict[str, Any]) -> Event | None:

@@ -72,6 +72,8 @@ async def create_main_objects(fastapi_app: FastAPI, reload=False):
         fastapi_app.state.queue_manager.reload_runtime(messenger, webhooks, route)
     else:
         incidents = Incidents.create_or_load(messenger.type, messenger.public_url, messenger.team)
+        maintenance_store = get_maintenance_store()
+        maintenance_store.migrate()
         JinjaTemplate.set_incidents(incidents)
         queue = await AsyncQueue.recreate_queue(incidents)
         inhibition_manager = InhibitionManager(
@@ -82,7 +84,7 @@ async def create_main_objects(fastapi_app: FastAPI, reload=False):
         )
         inhibition_manager.restore_from_incidents()
         maintenance_manager = MaintenanceManager(
-            store=get_maintenance_store(),
+            store=maintenance_store,
             incidents=incidents,
             application=messenger,
             queue=queue,
@@ -97,7 +99,7 @@ async def create_main_objects(fastapi_app: FastAPI, reload=False):
         await maintenance_manager.schedule_window_starts()
         await maintenance_manager.broadcast_active_maintenance()
         ui_chains_store.prune_all()
-        get_maintenance_store().prune_expired_windows()
+        maintenance_store.prune_expired_windows()
 
         fastapi_app.state.queue_manager = queue_manager
         fastapi_app.state.incidents = incidents
