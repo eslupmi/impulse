@@ -2,12 +2,18 @@
 
 Applies by release type: **M** major; **m** minor; **b** bugfix
 
+## Messenger libs (if released)
+| Task | M | m | b |
+| --- | --- | --- | --- |
+| Create a GitHub release for [impulse-messengers](https://github.com/eslupmi/impulse-messengers) | ✓ | ✓ | ✓ |
+| Update impulse-messengers dependencies to that release | ✓ | ✓ | ✓ |
+
 ## On PR
 
 | Task | M | m | b |
 | --- | --- | --- | --- |
 | Bump the Python bugfix version in the Dockerfile (if possible) | ✓ | ✓ | |
-| Verify images in the latest [docs.impulse.bot](https://docs.impulse.bot) | ✓ | ✓ | |
+| Verify images in the latest [impulse.bot/docs](https://impulse.bot/docs) | ✓ | ✓ | |
 
 ## After merge to `master`
 

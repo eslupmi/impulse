@@ -12,6 +12,6 @@ class MessageUpdateHandler(BaseHandler):
         
         await self.app.update(
             incident, incident.status, incident.payload,
-            False, incident.chain_enabled, incident.frozen_until, incident.task_link
+            False
         )
 

@@ -9,7 +9,9 @@ import pytest
 
 from app.config.config import UnifiedConfig
 from app.config.environment import EnvironmentConfig
-from app.config.validation import ImpulseConfig, SlackApplicationConfig, MattermostApplicationConfig, MessengerType
+from app.config.validation import ImpulseConfig
+from impulse_mattermost.config import MattermostApplicationConfig
+from impulse_slack.config import SlackApplicationConfig
 from app.incident.incident import Incident, IncidentConfig
 
 
@@ -32,10 +34,6 @@ def mock_get_config_globally():
         """Create a mock config that matches the expected application type."""
         # Create environment config
         env_config = Mock(spec=EnvironmentConfig)
-        env_config.slack_bot_user_oauth_token = "test-slack-token"
-        env_config.slack_verification_token = "test-verification-token"
-        env_config.mattermost_access_token = "test-mattermost-token"
-        env_config.telegram_bot_token = "test-telegram-token"
         env_config.data_path = "test_data"
         env_config.config_path = "test_config.yml"
         env_config.incidents_path = "test_data/incidents"
@@ -56,7 +54,7 @@ def mock_get_config_globally():
         # Create messenger config based on app type
         if app_type == "mattermost":
             messenger = Mock(spec=MattermostApplicationConfig)
-            messenger.type = MessengerType.MATTERMOST
+            messenger.type = 'mattermost'
             messenger.impulse_address = "https://impulse.example.com"
             messenger.address = "https://mattermost.example.com"
             messenger.team = "test-team"
@@ -67,7 +65,7 @@ def mock_get_config_globally():
             messenger.template_files = Mock()
         elif app_type == "slack":
             messenger = Mock(spec=SlackApplicationConfig)
-            messenger.type = MessengerType.SLACK
+            messenger.type = 'slack'
             messenger.channels = {"default": {"id": "C123456789"}}
             messenger.users = {}
             messenger.admin_users = []
@@ -75,8 +73,7 @@ def mock_get_config_globally():
             messenger.template_files = Mock()
         else:  # telegram or default
             messenger = Mock()
-            messenger.type = Mock()
-            messenger.type.value = app_type
+            messenger.type = app_type
             messenger.impulse_address = "https://impulse.example.com"
             messenger.channels = {"default": {"id": "C123456789"}}
             messenger.users = {}
@@ -158,10 +155,6 @@ def event_loop():
 def mock_environment_config():
     """Mock environment configuration for testing."""
     env_config = Mock(spec=EnvironmentConfig)
-    env_config.slack_bot_user_oauth_token = "test-slack-token"
-    env_config.slack_verification_token = "test-verification-token"
-    env_config.mattermost_access_token = "test-mattermost-token"
-    env_config.telegram_bot_token = "test-telegram-token"
     env_config.data_path = "test_data"
     env_config.config_path = "test_config.yml"
     env_config.incidents_path = "test_data/incidents"
@@ -185,7 +178,7 @@ def mock_impulse_config():
 
     # Mock messenger config
     messenger = Mock(spec=SlackApplicationConfig)
-    messenger.type = MessengerType.SLACK
+    messenger.type = 'slack'
     messenger.channels = {"default": {"id": "C123456789"}}
     messenger.users = {}
     messenger.route = True
@@ -299,3 +292,11 @@ def mock_file_operations():
             pytest.mock.patch('yaml.dump'), \
             pytest.mock.patch('yaml.load'):
         yield
+
+
+@pytest.fixture(autouse=True)
+def provider_test_secrets(monkeypatch):
+    monkeypatch.setenv('SLACK_BOT_USER_OAUTH_TOKEN', 'test-slack-token')
+    monkeypatch.setenv('SLACK_VERIFICATION_TOKEN', 'test-verification-token')
+    monkeypatch.setenv('TELEGRAM_BOT_TOKEN', 'test-token')
+    monkeypatch.delenv('SLACK_SIGNING_SECRET', raising=False)

@@ -3,11 +3,7 @@ from datetime import datetime, timedelta, timezone
 from typing import ClassVar
 from zoneinfo import ZoneInfo
 
-from app.config.validation import (
-    ScheduleEntry,
-    ScheduleMatcherExpression,
-    SimpleChainStep,
-)
+from impulse_messenger_api.schema import ScheduleEntry, ScheduleMatcherExpression, SimpleChainStep
 from app.logging import logger
 from app.time import unix_sleep_to_timedelta
 

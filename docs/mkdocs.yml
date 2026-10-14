@@ -1,5 +1,5 @@
 site_name: Docs | IMPulse
-site_url: https://docs.impulse.bot/stable/
+site_url: https://impulse.bot/docs/stable/
 docs_dir: content
 
 theme:
@@ -29,6 +29,7 @@ extra:
     property: G-LL3R99ZZGW
 markdown_extensions:
   - admonition
+  - pymdownx.details
   - toc:
       permalink: true
       toc_depth: 2-6
@@ -42,7 +43,6 @@ extra_css:
 
 nav:
 - ABOUT:
-  - index.md
   - Concepts:
     - concepts/api.md
     - concepts/basics.md

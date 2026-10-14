@@ -7,7 +7,8 @@ import yaml
 
 from app.config.environment import get_environment_config
 from app.logging import logger
-from app.queue.constants import USER_UPDATE_GAP_SECONDS, QueueItemType
+from app.im.registry import get_provider_registry
+from app.queue.constants import QueueItemType
 
 if TYPE_CHECKING:
     from app.queue.queue import AsyncQueue
@@ -143,7 +144,7 @@ class UserUpdateScheduler:
     def __init__(self, queue: 'AsyncQueue', messenger_type: str):
         self._queue = queue
         self._messenger_type = messenger_type
-        self._gap_seconds = USER_UPDATE_GAP_SECONDS.get(messenger_type, 1.0)
+        self._gap_seconds = get_provider_registry().resolve(messenger_type).descriptor.user_update_gap_seconds
         self._async_tasks: set = set()
     
     async def schedule_all_stored(self) -> None:
