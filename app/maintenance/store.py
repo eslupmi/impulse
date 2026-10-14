@@ -9,7 +9,11 @@ from app.config.config import get_config
 from app.config.environment import get_environment_config
 from app.logging import logger
 from app.maintenance.api import window_from_ws_item
-from app.maintenance.migrator import LEGACY_FILENAME, MaintenanceMigrator
+from app.maintenance.migrator import (
+    LEGACY_FILENAME,
+    MaintenanceMigrator,
+    _read_calendar,
+)
 from app.maintenance.models import MaintenanceWindow, _parse_iso
 from app.time import unix_sleep_to_timedelta
 
@@ -38,7 +42,7 @@ class MaintenanceStore:
 
     def migrate(self) -> None:
         with self._lock:
-            MaintenanceMigrator().migrate(self)
+            MaintenanceMigrator().upgrade(self)
 
     def load_windows(self) -> list[dict[str, Any]]:
         with self._lock:
@@ -144,11 +148,8 @@ class MaintenanceStore:
         return windows, paths
 
     def _read_window_file(self, path: str) -> dict[str, Any] | None:
-        try:
-            with open(path, "rb") as f:
-                calendar = Calendar.from_ical(f.read().decode())
-        except Exception as e:  # noqa: BLE001
-            logger.error("Failed to load maintenance window", extra={"error": str(e), "path": path})
+        calendar = _read_calendar(path)
+        if calendar is None:
             return None
         for component in calendar.walk():
             if component.name == "VEVENT":
@@ -163,13 +164,18 @@ class MaintenanceStore:
                 return filename
             moment += timedelta(microseconds=1)
 
+    def _new_calendar(self, impulse_version: str) -> Calendar:
+        calendar = Calendar()
+        calendar.add("prodid", "-//IMPulse//impulse.maintenance//EN")
+        calendar.add("version", "2.0")
+        calendar.add("calscale", "GREGORIAN")
+        calendar.add("method", "PUBLISH")
+        calendar.add("x-impulse-version", impulse_version)
+        return calendar
+
     def _write_window_file(self, window: dict[str, Any], path: str) -> bool:
         try:
-            calendar = Calendar()
-            calendar.add("prodid", "-//IMPulse//impulse.maintenance//EN")
-            calendar.add("version", "2.0")
-            calendar.add("calscale", "GREGORIAN")
-            calendar.add("method", "PUBLISH")
+            calendar = self._new_calendar(MaintenanceMigrator.ACTUAL_VERSION)
             event = self._window_to_ical_event(window)
             if event is None:
                 return False
@@ -180,6 +186,22 @@ class MaintenanceStore:
             return True
         except Exception as e:  # noqa: BLE001
             logger.error("Failed to save maintenance window", extra={"error": str(e), "path": path})
+            return False
+
+    def _write_legacy_file(self, windows: list[dict[str, Any]]) -> bool:
+        path = os.path.join(self._dir, LEGACY_FILENAME)
+        try:
+            calendar = self._new_calendar(MaintenanceMigrator.LEGACY_VERSION)
+            for window in windows:
+                event = self._window_to_ical_event(window)
+                if event is None:
+                    return False
+                calendar.add_component(event)
+            with open(path, "wb") as f:
+                f.write(calendar.to_ical())
+            return True
+        except Exception as e:  # noqa: BLE001
+            logger.error("Failed to write legacy maintenance calendar", extra={"error": str(e), "path": path})
             return False
 
     def _delete_unretained(

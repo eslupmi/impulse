@@ -5,9 +5,10 @@ from unittest.mock import patch
 
 import pytest
 from fastapi import HTTPException
+from icalendar import Calendar
 
 from app.config.validation import IncidentTimeouts
-from app.maintenance.migrator import LEGACY_FILENAME
+from app.maintenance.migrator import LEGACY_FILENAME, MaintenanceMigrator
 from app.maintenance.models import MaintenanceWindow
 from app.maintenance.store import MaintenanceStore
 
@@ -212,6 +213,37 @@ def test_legacy_windows_ics_splits_on_load(tmp_path: Path):
     assert len(files) == 2
     assert all(_WINDOW_FILE.match(path.name) for path in files)
     store.migrate()
+    assert len(_window_files(store)) == 2
+    version = Calendar.from_ical(files[0].read_bytes().decode()).get("x-impulse-version")
+    assert str(version) == MaintenanceMigrator.ACTUAL_VERSION
+
+
+def test_downgrade_merges_windows_ics(tmp_path: Path):
+    store = _make_store(tmp_path)
+    legacy = Path(store._dir) / LEGACY_FILENAME
+    legacy.write_bytes(
+        b"BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//test//EN\r\n"
+        b"BEGIN:VEVENT\r\nUID:a\r\n"
+        b"DTSTART:20260620T080000Z\r\nDTEND:20260620T120000Z\r\n"
+        b"SUMMARY:a\r\nX-MATCHER:alertname=\"A\"\r\n"
+        b"END:VEVENT\r\n"
+        b"BEGIN:VEVENT\r\nUID:b\r\n"
+        b"DTSTART:20260621T090000Z\r\nDTEND:20260621T130000Z\r\n"
+        b"SUMMARY:b\r\nX-MATCHER:alertname=\"B\"\r\n"
+        b"END:VEVENT\r\nEND:VCALENDAR\r\n"
+    )
+    store.migrate()
+    MaintenanceMigrator().downgrade(store, MaintenanceMigrator.LEGACY_VERSION)
+    assert legacy.exists()
+    assert _window_files(store) == []
+    restored = Calendar.from_ical(legacy.read_bytes().decode())
+    assert str(restored.get("x-impulse-version")) == MaintenanceMigrator.LEGACY_VERSION
+    assert {str(component.get("uid")) for component in restored.walk() if component.name == "VEVENT"} == {"a", "b"}
+    MaintenanceMigrator().downgrade(store, MaintenanceMigrator.LEGACY_VERSION)
+    assert legacy.exists()
+    assert _window_files(store) == []
+    store.migrate()
+    assert not legacy.exists()
     assert len(_window_files(store)) == 2
 
 
