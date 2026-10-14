@@ -104,8 +104,8 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
             logger.error("Alert processing error", extra={'error': str(e)})
             raise HTTPException(status_code=400, detail=str(e))
 
-    @router.post("/app")
-    @router.put("/app")
+    @router.post("/app", responses={400: {"description": "Invalid payload"}})
+    @router.put("/app", responses={400: {"description": "Invalid payload"}})
     async def handle_app_buttons(request: Request):
         try:
             if request.app.state.messenger.type == 'slack':

@@ -31,7 +31,7 @@ class IncidentMigrator(SchemaMigrator):
     }
 
     @classmethod
-    def actual_version(cls) -> str:
+    def schema_version(cls) -> str:
         return get_config().INCIDENT_ACTUAL_VERSION
     
     def __init__(self):

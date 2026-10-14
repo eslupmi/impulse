@@ -20,7 +20,7 @@ class SchemaMigrator:
         cls.REVERSE_MIGRATION_CHAIN = {dst: src for src, dst in cls.MIGRATION_CHAIN.items()}
 
     @classmethod
-    def actual_version(cls) -> str:
+    def schema_version(cls) -> str:
         raise NotImplementedError
 
     def _migrate_data(self, data: dict, from_version: str, to_version: str) -> dict:
@@ -88,7 +88,7 @@ class SchemaMigrator:
     @classmethod
     def resolve_downgrade_target(cls, version_arg: str | None) -> str:
         if version_arg is None or version_arg == '':
-            actual = cls.actual_version()
+            actual = cls.schema_version()
             previous = cls.REVERSE_MIGRATION_CHAIN.get(actual)
             if previous is None:
                 raise ValueError(f'No previous schema version to downgrade from {actual}')

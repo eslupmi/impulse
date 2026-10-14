@@ -33,6 +33,30 @@ def _truncate_summary(matcher: str, max_len: int = 24) -> str:
     return matcher[: max_len - 3] + "..."
 
 
+def _stored_owner_id(existing: list[dict[str, Any]], payload) -> str | None:
+    if not isinstance(payload, dict) or not payload.get("id"):
+        return None
+    window_id = str(payload["id"])
+    for existing_window in existing:
+        if existing_window["id"] == window_id:
+            return existing_window.get("owner_id")
+    return None
+
+
+def _replace_window(existing: list[dict[str, Any]], window: dict[str, Any]) -> list[dict[str, Any]]:
+    merged = []
+    replaced = False
+    for existing_window in existing:
+        if existing_window["id"] == window["id"]:
+            merged.append(window)
+            replaced = True
+        else:
+            merged.append(existing_window)
+    if not replaced:
+        merged.append(window)
+    return merged
+
+
 class MaintenanceStore:
     def __init__(self):
         env_config = get_environment_config()
@@ -56,31 +80,15 @@ class MaintenanceStore:
     ) -> tuple[bool, list[dict[str, Any]], list[dict[str, Any]]]:
         with self._lock:
             existing, paths = self._load_unlocked()
-            existing_owner_id = None
-            if isinstance(payload, dict) and payload.get("id"):
-                window_id = str(payload["id"])
-                for existing_window in existing:
-                    if existing_window["id"] == window_id:
-                        existing_owner_id = existing_window.get("owner_id")
-                        break
-            window = window_from_ws_item(payload, assignable_user_ids, existing_owner_id)
-            merged = []
-            replaced = False
-            for existing_window in existing:
-                if existing_window["id"] == window["id"]:
-                    merged.append(window)
-                    replaced = True
-                else:
-                    merged.append(existing_window)
-            if not replaced:
-                merged.append(window)
-            retained = self._filter_retained_windows(merged)
+            window = window_from_ws_item(
+                payload,
+                assignable_user_ids,
+                _stored_owner_id(existing, payload),
+            )
+            retained = self._filter_retained_windows(_replace_window(existing, window))
             retained_ids = {item["id"] for item in retained}
-            if window["id"] in retained_ids:
-                path = paths.get(window["id"])
-                written = self._write_window_unlocked(window) if path is None else self._write_window_file(window, path)
-                if not written:
-                    return False, existing, existing
+            if window["id"] in retained_ids and not self._write_kept_window(window, paths):
+                return False, existing, existing
             if not self._delete_unretained(existing, paths, retained_ids):
                 return False, existing, existing
             return True, existing, retained
@@ -124,6 +132,12 @@ class MaintenanceStore:
                 extra={"removed": len(expired)},
             )
             return len(expired)
+
+    def _write_kept_window(self, window: dict[str, Any], paths: dict[str, str]) -> bool:
+        path = paths.get(window["id"])
+        if path is None:
+            return self._write_window_unlocked(window)
+        return self._write_window_file(window, path)
 
     def _ensure_dir(self) -> None:
         if not os.path.exists(self._dir):

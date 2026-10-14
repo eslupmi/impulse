@@ -30,12 +30,12 @@ class MaintenanceMigrator(SchemaMigrator):
         }
 
     @classmethod
-    def actual_version(cls) -> str:
+    def schema_version(cls) -> str:
         return cls.ACTUAL_VERSION
 
     def upgrade(self, store: "MaintenanceStore") -> None:
         legacy_path = os.path.join(store._dir, LEGACY_FILENAME)
-        target = self.actual_version()
+        target = self.schema_version()
         if os.path.exists(legacy_path):
             current = _path_version(legacy_path) or self.LEGACY_VERSION
             if current != target:
@@ -85,17 +85,8 @@ class MaintenanceMigrator(SchemaMigrator):
         windows, paths = store._read_individual_windows()
         legacy_path = os.path.join(store._dir, LEGACY_FILENAME)
         if os.path.exists(legacy_path):
-            calendar = _read_calendar(legacy_path)
             seen = {window["id"] for window in windows}
-            if calendar is not None:
-                for component in calendar.walk():
-                    if component.name != "VEVENT":
-                        continue
-                    window = store._ical_event_to_window(component)
-                    if window is None or window["id"] in seen:
-                        continue
-                    windows.append(window)
-                    seen.add(window["id"])
+            windows.extend(_windows_in_calendar(store, _read_calendar(legacy_path), seen))
         if not store._write_legacy_file(windows):
             return
         for path in paths.values():
@@ -107,7 +98,7 @@ class MaintenanceMigrator(SchemaMigrator):
         for filename in os.listdir(store._dir):
             if filename == LEGACY_FILENAME or not filename.endswith(".ics"):
                 continue
-            return _path_version(os.path.join(store._dir, filename)) or self.actual_version()
+            return _path_version(os.path.join(store._dir, filename)) or self.schema_version()
         return None
 
     def _stamp_missing_version(self, store: "MaintenanceStore", version: str) -> None:
@@ -148,6 +139,21 @@ def _read_calendar(path: str) -> Calendar | None:
     if not isinstance(parsed, Calendar):
         return None
     return parsed
+
+
+def _windows_in_calendar(store: "MaintenanceStore", calendar: Calendar | None, seen: set[str]) -> list:
+    if calendar is None:
+        return []
+    found = []
+    for component in calendar.walk():
+        if component.name != "VEVENT":
+            continue
+        window = store._ical_event_to_window(component)
+        if window is None or window["id"] in seen:
+            continue
+        found.append(window)
+        seen.add(window["id"])
+    return found
 
 
 def _calendar_version(calendar: Calendar) -> str | None:
