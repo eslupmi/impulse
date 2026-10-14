@@ -25,6 +25,7 @@ jobs:
     uses: eslupmi/ci-templates/.github/workflows/_lint.yml@develop
     with:
       exclude: '["tests", "docs"]'
+      mypy-plugins: '["pydantic.mypy"]'
 
   unit-tests:
     if: github.event.pull_request.draft == false
