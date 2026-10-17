@@ -1,6 +1,6 @@
 import json
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from icalendar import Calendar, Component, Event
@@ -154,7 +154,7 @@ class UIChainsStore:
             return shifts
         except FileNotFoundError:
             return []
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error("Failed to load ui chains", extra={"error": str(e), "chain": chain_name})
             if isinstance(self._storage, S3Storage) and isinstance(e, OSError):
                 raise
@@ -191,9 +191,9 @@ class UIChainsStore:
     def _partition_by_retention(
         self, shifts: list[dict[str, Any]], now: datetime | None = None
     ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-        now = now or datetime.now(timezone.utc)
+        now = now or datetime.now(UTC)
         if now.tzinfo is None:
-            now = now.replace(tzinfo=timezone.utc)
+            now = now.replace(tzinfo=UTC)
         cutoff = self._retention_cutoff(now)
         retained = []
         expired = []
@@ -244,9 +244,9 @@ class UIChainsStore:
         if not shifts:
             return []
 
-        now = now or datetime.now(timezone.utc)
+        now = now or datetime.now(UTC)
         if now.tzinfo is None:
-            now = now.replace(tzinfo=timezone.utc)
+            now = now.replace(tzinfo=UTC)
 
         active = []
         for shift in shifts:
@@ -286,7 +286,7 @@ class UIChainsStore:
                 if end_dt:
                     event.add("dtend", end_dt)
 
-            event.add("dtstamp", datetime.now(timezone.utc))
+            event.add("dtstamp", datetime.now(UTC))
 
             repeat = chain.get("repeat")
             if repeat:

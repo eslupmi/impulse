@@ -1,6 +1,6 @@
 import os
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import ClassVar
 
 import yaml
@@ -183,8 +183,8 @@ class IncidentMigrator:
             return None
         if isinstance(value, datetime):
             if value.tzinfo is None:
-                return value.replace(tzinfo=timezone.utc)
-            return value.astimezone(timezone.utc)
+                return value.replace(tzinfo=UTC)
+            return value.astimezone(UTC)
         return value
 
     def _migrate_v3_0_0_to_v3_2_0(self, data: dict) -> dict:

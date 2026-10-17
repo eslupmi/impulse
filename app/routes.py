@@ -1,7 +1,6 @@
-from impulse_messenger_api import InteractionRequest
 import asyncio
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import (
     APIRouter,
@@ -30,6 +29,7 @@ from app.middleware import (
 from app.resources import resource_directory
 from app.ui.table_config import get_all_ui_config
 from app.ui.websocket import incident_ws
+from impulse_messenger_api import InteractionRequest
 
 _MSG_INCIDENT_NOT_FOUND = "Incident not found"
 _MSG_UNIQ_ID_REQUIRED = "uniq_id is required"
@@ -97,7 +97,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
         try:
             alert_state = await request.json()
             logger.debug("Alert received", extra={'payload': alert_state})
-            await request.app.state.queue.put_first(datetime.now(timezone.utc), 'alert', None, None, alert_state)
+            await request.app.state.queue.put_first(datetime.now(UTC), 'alert', None, None, alert_state)
             return alert_state
         except Exception as e:  # noqa: BLE001
             logger.error("Alert processing error", extra={'error': str(e)})

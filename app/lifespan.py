@@ -19,8 +19,8 @@ from app.metrics import STATUS
 from app.queue.manager import AsyncQueueManager
 from app.queue.queue import AsyncQueue
 from app.route import generate_route
-from app.signals import setup_sighup_handler
 from app.s3_lock import S3Lock
+from app.signals import setup_sighup_handler
 from app.storage import S3Storage, get_storage
 from app.ui.websocket import incident_ws
 from app.webhook import generate_webhooks
@@ -270,7 +270,7 @@ async def _maintain_primary(shutdown_event, file_lock, fastapi_app):
                 logger.error('Transition failed, retrying')
                 try:
                     await asyncio.wait_for(shutdown_event.wait(), timeout=5.0)
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     pass
             continue
         await _wait_for_ownership_loss(file_lock)

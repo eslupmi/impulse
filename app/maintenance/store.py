@@ -1,6 +1,6 @@
 import os
 import threading
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from icalendar import Calendar, Component, Event
@@ -80,7 +80,7 @@ class MaintenanceStore:
             return windows
         except FileNotFoundError:
             return []
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error("Failed to load maintenance store", extra={"error": str(e), "path": self._file})
             if isinstance(self._storage, S3Storage) and isinstance(e, OSError):
                 raise
@@ -125,7 +125,7 @@ class MaintenanceStore:
 
             event.add("dtstart", start_dt)
             event.add("dtend", end_dt)
-            event.add("dtstamp", datetime.now(timezone.utc))
+            event.add("dtstamp", datetime.now(UTC))
 
             for matcher in matchers:
                 event.add("x-matcher", str(matcher))
@@ -206,9 +206,9 @@ class MaintenanceStore:
     def _partition_by_retention(
         self, windows: list[dict[str, Any]], now: datetime | None = None
     ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-        now = now or datetime.now(timezone.utc)
+        now = now or datetime.now(UTC)
         if now.tzinfo is None:
-            now = now.replace(tzinfo=timezone.utc)
+            now = now.replace(tzinfo=UTC)
         cutoff = self._retention_cutoff(now)
         retained = []
         expired = []

@@ -1,9 +1,9 @@
 """Filesystem and S3 persistence for application state under DATA_PATH."""
 import builtins
-from collections.abc import Callable
-from contextlib import contextmanager
 import io
 import os
+from collections.abc import Callable
+from contextlib import contextmanager
 from pathlib import Path
 
 import boto3  # type: ignore[import-untyped]
@@ -78,9 +78,12 @@ class S3Storage:
         return key
 
     def _call(self, operation, **kwargs):
-        if operation in {'put_object', 'copy_object', 'delete_object'} and self.check_owned is not None:
-            if not self.check_owned():
-                raise OSError('Storage lease is not owned by this instance')
+        if (
+            operation in {'put_object', 'copy_object', 'delete_object'}
+            and self.check_owned is not None
+            and not self.check_owned()
+        ):
+            raise OSError('Storage lease is not owned by this instance')
         try:
             return getattr(self.client, operation)(Bucket=self.bucket, **kwargs)
         except ClientError as error:

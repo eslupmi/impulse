@@ -1,12 +1,12 @@
 """Shared S3 lease using conditional object writes and deletes."""
 import asyncio
-from datetime import datetime
-from email.utils import parsedate_to_datetime
 import json
 import os
 import socket
 import threading
 import time
+from datetime import datetime
+from email.utils import parsedate_to_datetime
 from uuid import uuid4
 
 from botocore.exceptions import BotoCoreError, ClientError  # type: ignore[import-untyped]
