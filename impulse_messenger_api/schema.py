@@ -24,7 +24,7 @@ class BaseUser(BaseModel):
     @classmethod
     def validate_id(cls, value):
         if isinstance(value, bool):
-            raise TypeError("ID must be a string or integer, not a boolean")
+            raise ValueError("ID must be a string or integer, not a boolean")  # noqa: TRY004
         if isinstance(value, str) and not value.strip():
             raise ValueError("ID must not be empty")
         return value

@@ -230,7 +230,7 @@ class ImpulseConfig(BaseModel):
         if isinstance(value, BaseApplicationConfig):
             return value
         if not isinstance(value, dict):
-            raise TypeError('Messenger configuration must be a mapping')
+            raise ValueError('Messenger configuration must be a mapping')  # noqa: TRY004
         registration = get_provider_registry().resolve(value.get('type', ''))
         return registration.config_model.model_validate(value)
 
