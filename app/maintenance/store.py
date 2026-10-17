@@ -1,6 +1,6 @@
 import os
 import threading
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from icalendar import Calendar, Component, Event
@@ -9,6 +9,7 @@ from app.config.config import get_config
 from app.config.environment import get_environment_config
 from app.logging import logger
 from app.maintenance.models import MaintenanceWindow
+from app.storage import S3Storage, get_storage
 from app.time import unix_sleep_to_timedelta
 
 
@@ -32,10 +33,11 @@ class MaintenanceStore:
 
     def __init__(self):
         env_config = get_environment_config()
+        self._storage = get_storage(env_config)
         self._dir = os.path.join(env_config.data_path, "maintenance")
         self._file = os.path.join(self._dir, self._ICS_FILENAME)
         self._lock = threading.Lock()
-        self._ensure_dir()
+        self._storage.makedirs(self._dir)
 
     def load_windows(self) -> list[dict[str, Any]]:
         with self._lock:
@@ -65,16 +67,9 @@ class MaintenanceStore:
             )
             return len(expired)
 
-    def _ensure_dir(self) -> None:
-        if not os.path.exists(self._dir):
-            os.makedirs(self._dir)
-            logger.info("Created maintenance directory", extra={"path": self._dir})
-
     def _read_windows_from_disk(self) -> list[dict[str, Any]]:
-        if not os.path.exists(self._file):
-            return []
         try:
-            with open(self._file, "rb") as f:
+            with self._storage.open(self._file, "rb") as f:
                 cal = Calendar.from_ical(f.read().decode())
             windows = []
             for component in cal.walk():
@@ -83,8 +78,12 @@ class MaintenanceStore:
                     if window:
                         windows.append(window)
             return windows
-        except Exception as e:  # noqa: BLE001
+        except FileNotFoundError:
+            return []
+        except Exception as e:
             logger.error("Failed to load maintenance store", extra={"error": str(e), "path": self._file})
+            if isinstance(self._storage, S3Storage) and isinstance(e, OSError):
+                raise
             return []
 
     def _write_windows_unlocked(self, windows: list[dict[str, Any]]) -> bool:
@@ -100,7 +99,7 @@ class MaintenanceStore:
                 if event:
                     cal.add_component(event)
 
-            with open(self._file, "wb") as f:
+            with self._storage.open(self._file, "wb") as f:
                 f.write(cal.to_ical())
 
             logger.debug("Saved maintenance windows", extra={"count": len(windows)})
@@ -126,7 +125,7 @@ class MaintenanceStore:
 
             event.add("dtstart", start_dt)
             event.add("dtend", end_dt)
-            event.add("dtstamp", datetime.now(timezone.utc))
+            event.add("dtstamp", datetime.now(UTC))
 
             for matcher in matchers:
                 event.add("x-matcher", str(matcher))
@@ -207,9 +206,9 @@ class MaintenanceStore:
     def _partition_by_retention(
         self, windows: list[dict[str, Any]], now: datetime | None = None
     ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-        now = now or datetime.now(timezone.utc)
+        now = now or datetime.now(UTC)
         if now.tzinfo is None:
-            now = now.replace(tzinfo=timezone.utc)
+            now = now.replace(tzinfo=UTC)
         cutoff = self._retention_cutoff(now)
         retained = []
         expired = []

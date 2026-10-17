@@ -130,7 +130,6 @@ def test_save_retains_recently_ended_windows_until_closed_timeout(tmp_path: Path
 def test_skips_event_without_matchers(tmp_path: Path):
     store = _make_store(tmp_path)
     cal_path = store._file
-    store._ensure_dir()
     with open(cal_path, "wb") as f:
         f.write(
             b"BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//test//EN\r\n"

@@ -1,7 +1,6 @@
-from impulse_messenger_api import InteractionRequest
 import asyncio
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import (
     APIRouter,
@@ -30,6 +29,7 @@ from app.middleware import (
 from app.resources import resource_directory
 from app.ui.table_config import get_all_ui_config
 from app.ui.websocket import incident_ws
+from impulse_messenger_api import InteractionRequest
 
 _MSG_INCIDENT_NOT_FOUND = "Incident not found"
 _MSG_UNIQ_ID_REQUIRED = "uniq_id is required"
@@ -37,6 +37,8 @@ _MSG_AUTHENTICATION_REQUIRED = "Authentication required"
 
 
 async def _maintenance_save_side_effects(app, existing, saved, deleted):
+    if is_standby_mode(app.state):
+        return
     await app.state.maintenance_manager.apply_save_side_effects(existing, saved, deleted)
 
 
@@ -95,7 +97,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
         try:
             alert_state = await request.json()
             logger.debug("Alert received", extra={'payload': alert_state})
-            await request.app.state.queue.put_first(datetime.now(timezone.utc), 'alert', None, None, alert_state)
+            await request.app.state.queue.put_first(datetime.now(UTC), 'alert', None, None, alert_state)
             return alert_state
         except Exception as e:  # noqa: BLE001
             logger.error("Alert processing error", extra={'error': str(e)})
@@ -373,13 +375,21 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
             return
         
         await incident_ws.connect(websocket)
-
-        active_maintenance = websocket.app.state.maintenance_manager.active_windows_payload()
-        await websocket.send_text(json.dumps({"event": "active_maintenance", "data": active_maintenance}))
-
+        tasks = getattr(websocket.app.state, 'runtime_tasks', None)
+        task = asyncio.current_task()
+        if tasks is not None:
+            tasks.add(task)
         try:
+            if is_standby_mode(websocket.app.state):
+                await websocket.close(code=1008, reason=STANDBY_MODE_MESSAGE)
+                return
+            active_maintenance = websocket.app.state.maintenance_manager.active_windows_payload()
+            await websocket.send_text(json.dumps({"event": "active_maintenance", "data": active_maintenance}))
             while True:
                 data = await websocket.receive_text()
+                if is_standby_mode(websocket.app.state):
+                    await websocket.close(code=1008, reason=STANDBY_MODE_MESSAGE)
+                    return
 
                 try:
                     message = json.loads(data)
@@ -459,12 +469,15 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
                                     "event": "maintenance_saved",
                                     "success": success,
                                 }))
-                                if success:
+                                if success and not is_standby_mode(websocket.app.state):
                                     _maintenance_save_task = asyncio.create_task(
                                         _maintenance_save_side_effects(
                                             websocket.app, existing, windows, deleted
                                         )
                                     )
+                                    if tasks is not None:
+                                        tasks.add(_maintenance_save_task)
+                                        _maintenance_save_task.add_done_callback(tasks.discard)
 
                 except json.JSONDecodeError:
                     logger.warning("Invalid WebSocket JSON", extra={'data': data})
@@ -474,10 +487,13 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
                     logger.error("WebSocket message error", extra={'error': str(e)})
 
         except WebSocketDisconnect:
-            incident_ws.disconnect(websocket)
+            pass
         except Exception as e:  # noqa: BLE001
             logger.error("WebSocket error", extra={'error': str(e)})
+        finally:
             incident_ws.disconnect(websocket)
+            if tasks is not None:
+                tasks.discard(task)
 
     router.include_router(create_api_router())
 

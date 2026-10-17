@@ -1,12 +1,15 @@
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from app.im.registry import get_provider_registry
 from app.im.user_store import get_user_store
 from app.logging import logger
+from app.storage import get_storage
 from app.ui.authentication.manager import UserAuthenticationManager
 from app.ui.authentication.models.auth_user import AuthUser
-from app.im.registry import get_provider_registry
-from app.ui.authentication.providers.registered_provider import RegisteredAuthenticationProvider
+from app.ui.authentication.providers.registered_provider import (
+    RegisteredAuthenticationProvider,
+)
 from app.ui.authentication.providers.unsupported_provider import (
     UnsupportedAuthenticationProvider,
 )
@@ -50,7 +53,7 @@ def _build_provider(messenger_type: str, client_id: str, client_secret: str, con
     return UnsupportedAuthenticationProvider()
 
 
-def _build_allowed_user_ids(config: 'ImpulseConfig', messenger_type: str) -> set[str] | None:
+def _build_allowed_user_ids(config: 'ImpulseConfig', messenger_type: str) -> set[str]:
     users = config.messenger.users
     allowed_user_ids = {str(user.id) for user in users.values()}
     logger.info(
@@ -78,6 +81,8 @@ def build_auth_manager(config: 'ImpulseConfig', env_config: 'EnvironmentConfig',
         default_redirect_path=default_redirect_path,
         allowed_redirect_prefixes={default_redirect_path},
         configured_users=configured_users,
-        session_store=FileSessionStore(root_dir=str(Path(env_config.data_path) / "sessions")),
+        session_store=FileSessionStore(
+            root_dir=str(Path(env_config.data_path) / "sessions"), storage=get_storage(env_config)
+        ),
         user_store=get_user_store(),
     )

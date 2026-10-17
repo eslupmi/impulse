@@ -9,6 +9,7 @@ from typing import Literal
 from unittest.mock import AsyncMock, Mock
 
 import pytest
+from pydantic import ValidationError
 
 import impulse_messenger_api as api
 from app.config.validation import ImpulseConfig
@@ -224,7 +225,7 @@ def test_failed_selected_load_or_validation_is_not_cached(monkeypatch, failed_re
     assert entry.load.call_count == 2
 
 
-def test_load_failure_names_provider_and_distribution_without_secret_exception(monkeypatch):
+def test_load_failure_names_provider_and_distribution_without_secret_exception(monkeypatch, caplog):
     entry = installed_entry_point()
     entry.load.side_effect = RuntimeError('request failed: https://host.test/token-secret-value')
     discover(monkeypatch, entry)
@@ -234,9 +235,11 @@ def test_load_failure_names_provider_and_distribution_without_secret_exception(m
     assert 'acme_chat' in str(error.value)
     assert 'example-provider' in str(error.value)
     assert 'token-secret-value' not in ''.join(traceback.format_exception(error.value))
+    assert_safe_provider_diagnostic(caplog, error.value, 'load')
+    assert caplog.records[-1].distribution == 'example-provider'
 
 
-def test_missing_required_resource_prevents_startup_without_exposing_loader_error(monkeypatch):
+def test_missing_required_resource_prevents_startup_without_exposing_loader_error(monkeypatch, caplog):
     def templates(name):
         if name == 'header':
             raise FileNotFoundError('token-secret-value')
@@ -250,6 +253,8 @@ def test_missing_required_resource_prevents_startup_without_exposing_loader_erro
     assert 'acme_chat' in str(error.value)
     assert 'header' in str(error.value)
     assert 'token-secret-value' not in ''.join(traceback.format_exception(error.value))
+    assert_safe_provider_diagnostic(caplog, error.value, 'template')
+    assert caplog.records[-1].template_name == 'header'
 
 
 @pytest.mark.parametrize('provider_id', ['none', 'slack', 'mattermost', 'telegram'])
@@ -279,3 +284,49 @@ def test_builtin_config_ids_remain_plain_yaml_strings(monkeypatch, provider_id, 
     migrated = migrator.IncidentMigrator._migrate_v0_4_to_v3_0_0({'last_state': {}})
     assert type(migrated['messenger_type']) is str
     assert yaml.safe_load(yaml.safe_dump(migrated))['messenger_type'] == provider_id
+
+
+def assert_safe_provider_diagnostic(caplog, error, operation):
+    assert error.__cause__ is None
+    assert error.__suppress_context__ is True
+    record = caplog.records[-1]
+    assert record.operation == operation
+    assert record.provider_id == 'acme_chat'
+    assert record.exc_info == (ValueError, error, None)
+    assert 'token-secret-value' not in caplog.text
+    assert 'token-secret-value' not in ''.join(traceback.format_exception(*record.exc_info))
+
+
+@pytest.mark.parametrize('registration, message', [
+    (object(), 'ProviderRegistration'),
+    (replace(REGISTRATION, descriptor=object()), 'ProviderDescriptor'),
+    (replace(REGISTRATION, descriptor=replace(REGISTRATION.descriptor, provider_id=123)), 'expected a string'),
+    (replace(REGISTRATION, factory=None), 'factory'),
+    (replace(REGISTRATION, config_model=None), 'config model'),
+    (replace(REGISTRATION, authentication_factory=1), 'authentication factory'),
+    (replace(MESSAGING_REGISTRATION, template_source=None), 'requires templates'),
+    (replace(MESSAGING_REGISTRATION, template_source=lambda name: None), 'invalid template'),
+])
+def test_direct_registration_contract_errors_remain_value_errors(registration, message):
+    registry = registry_module.ProviderRegistry()
+    with pytest.raises(ValueError, match=message):
+        registry.register(registration)
+    assert registry._providers == {}
+
+
+@pytest.mark.parametrize('provider_id', [None, True, 123, []])
+def test_wrong_provider_id_type_remains_a_value_error(provider_id):
+    registry = registry_module.ProviderRegistry()
+    with pytest.raises(ValueError, match='expected a string'):
+        registry.resolve(provider_id)
+
+
+@pytest.mark.parametrize('provider_id', [None, True, 123, []])
+def test_wrong_provider_id_type_remains_a_pydantic_validation_error(monkeypatch, provider_id):
+    discover(monkeypatch)
+    with pytest.raises(ValidationError) as caught:
+        ImpulseConfig(messenger={'type': provider_id})
+    error = caught.value.errors()[0]
+    assert error['loc'] == ('messenger',)
+    assert error['type'] == 'value_error'
+    assert 'expected a string' in error['msg']

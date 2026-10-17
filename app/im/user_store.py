@@ -1,14 +1,15 @@
 import asyncio
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 import yaml
 
 from app.config.environment import get_environment_config
-from app.logging import logger
 from app.im.registry import get_provider_registry
+from app.logging import logger
 from app.queue.constants import QueueItemType
+from app.storage import S3Storage, get_storage
 
 if TYPE_CHECKING:
     from app.queue.queue import AsyncQueue
@@ -17,16 +18,18 @@ USER_REFRESH_HOURS = 12
 
 
 class UserStore:
-    """File-based user data storage in data/users/<user_id>.yml"""
+    """User data storage in data/users/<user_id>.yml using the selected backend."""
     
     def get(self, user_id: str) -> dict[str, Any] | None:
         file_path = self._get_user_file_path(user_id)
-        if not os.path.exists(file_path):
-            return None
         try:
-            with open(file_path, 'r') as f:
+            with self._storage.open(file_path, 'r') as f:
                 return yaml.load(f, Loader=yaml.CLoader)
+        except FileNotFoundError:
+            return None
         except (OSError, yaml.YAMLError) as e:
+            if isinstance(self._storage, S3Storage) and isinstance(e, OSError):
+                raise
             logger.warning('Failed to read user file', extra={'user_id': user_id, 'error': str(e)})
             return None
 
@@ -40,10 +43,10 @@ class UserStore:
 
     def get_all(self) -> dict[str, dict[str, Any]]:
         users: dict[str, dict[str, Any]] = {}
-        if not os.path.exists(self._users_path):
+        if not self._storage.exists(self._users_path):
             return users
 
-        for filename in os.listdir(self._users_path):
+        for filename in self._storage.listdir(self._users_path):
             if not filename.endswith('.yml'):
                 continue
             user_id = filename[:-4]
@@ -60,16 +63,16 @@ class UserStore:
     @staticmethod
     def get_refresh_time_from_data(user_data: dict[str, Any] | None) -> datetime:
         if user_data is None:
-            return datetime.now(timezone.utc)
+            return datetime.now(UTC)
         updated_at = user_data.get('updated_at')
         if not updated_at:
-            return datetime.now(timezone.utc)
+            return datetime.now(UTC)
         try:
             if isinstance(updated_at, str):
                 updated_at = datetime.fromisoformat(updated_at)
             return updated_at + timedelta(hours=USER_REFRESH_HOURS)
         except (ValueError, TypeError):
-            return datetime.now(timezone.utc)
+            return datetime.now(UTC)
 
     @staticmethod
     def is_data_expired(user_data: dict[str, Any]) -> bool:
@@ -80,7 +83,7 @@ class UserStore:
             if isinstance(updated_at, str):
                 updated_at = datetime.fromisoformat(updated_at)
             expiry_time = updated_at + timedelta(hours=USER_REFRESH_HOURS)
-            return datetime.now(timezone.utc) > expiry_time
+            return datetime.now(UTC) > expiry_time
         except (ValueError, TypeError):
             return True
     
@@ -94,7 +97,7 @@ class UserStore:
         file_path = self._get_user_file_path(user_id)
         data = self.serialize(messenger_type, user_data)
         try:
-            with open(file_path, 'w') as f:
+            with self._storage.open(file_path, 'w') as f:
                 yaml.dump(data, f, default_flow_style=False, allow_unicode=True)
             logger.debug('Saved user data', extra={'user_id': user_id})
         except OSError as e:
@@ -107,25 +110,21 @@ class UserStore:
             'full_name': user_data.get('full_name'),
             'messenger_type': messenger_type,
             'timezone': user_data.get('timezone'),
-            'updated_at': updated_at or datetime.now(timezone.utc),
+            'updated_at': updated_at or datetime.now(UTC),
             'username': user_data.get('username'),
         }
     
     ### PRIVATE METHODS ###
 
-    def _ensure_directory(self):
-        if not os.path.exists(self._users_path):
-            logger.info('Creating users directory')
-            os.makedirs(self._users_path)
-    
     def _get_user_file_path(self, user_id: str) -> str:
         safe_id = str(user_id).replace('/', '_').replace('\\', '_')
         return os.path.join(self._users_path, f"{safe_id}.yml")
     
     def __init__(self):
         env_config = get_environment_config()
+        self._storage = get_storage(env_config)
         self._users_path = f"{env_config.data_path}/users"
-        self._ensure_directory()
+        self._storage.makedirs(self._users_path)
     
 
 _user_store: UserStore | None = None
@@ -158,7 +157,7 @@ class UserUpdateScheduler:
         if not stored_users:
             return
         
-        last_immediate_schedule = datetime.now(timezone.utc)
+        last_immediate_schedule = datetime.now(UTC)
         for user_id, user_data in stored_users.items():
             if user_store.is_data_expired(user_data):
                 schedule_time = last_immediate_schedule + timedelta(seconds=self._gap_seconds)
@@ -174,7 +173,7 @@ class UserUpdateScheduler:
         """Schedule a user update with proper gap from last UPDATE_USER item."""
         async def schedule():
             latest = await self._queue.get_latest_item_by_type(QueueItemType.UPDATE_USER)
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             base_time = latest if latest and latest > now else now
             schedule_time = base_time + timedelta(seconds=self._gap_seconds)
             await self._queue.put(schedule_time, QueueItemType.UPDATE_USER, identifier=user_id)

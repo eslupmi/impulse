@@ -1,6 +1,6 @@
 import json
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from icalendar import Calendar, Component, Event
@@ -8,6 +8,7 @@ from icalendar import Calendar, Component, Event
 from app.config.config import get_config
 from app.config.environment import get_environment_config
 from app.logging import logger
+from app.storage import S3Storage, get_storage
 from app.time import unix_sleep_to_timedelta
 
 
@@ -92,13 +93,9 @@ def _occurrence_overlaps_range(
 class UIChainsStore:
     def __init__(self):
         env_config = get_environment_config()
+        self._storage = get_storage(env_config)
         self.ui_chains_dir = os.path.join(env_config.data_path, "ui_chains")
-        self._ensure_directory_exists()
-
-    def _ensure_directory_exists(self) -> None:
-        if not os.path.exists(self.ui_chains_dir):
-            os.makedirs(self.ui_chains_dir)
-            logger.info("Created ui_chains directory", extra={"path": self.ui_chains_dir})
+        self._storage.makedirs(self.ui_chains_dir)
 
     def _calendar_path(self, chain_name: str) -> str:
         return os.path.join(self.ui_chains_dir, _chain_name_to_filename(chain_name))
@@ -127,10 +124,10 @@ class UIChainsStore:
         return len(expired)
 
     def prune_all(self, now: datetime | None = None) -> int:
-        if not os.path.exists(self.ui_chains_dir):
+        if not self._storage.exists(self.ui_chains_dir):
             return 0
         removed = 0
-        for filename in os.listdir(self.ui_chains_dir):
+        for filename in self._storage.listdir(self.ui_chains_dir):
             if not filename.endswith(".ics"):
                 continue
             removed += self.prune_expired_shifts(filename[:-4], now)
@@ -144,11 +141,8 @@ class UIChainsStore:
 
     def _read_shifts_from_disk(self, chain_name: str) -> list[dict[str, Any]]:
         path = self._calendar_path(chain_name)
-        if not os.path.exists(path):
-            return []
-
         try:
-            with open(path, "rb") as f:
+            with self._storage.open(path, "rb") as f:
                 cal = Calendar.from_ical(f.read().decode())
 
             shifts = []
@@ -158,8 +152,12 @@ class UIChainsStore:
                     if shift:
                         shifts.append(shift)
             return shifts
-        except Exception as e:  # noqa: BLE001
+        except FileNotFoundError:
+            return []
+        except Exception as e:
             logger.error("Failed to load ui chains", extra={"error": str(e), "chain": chain_name})
+            if isinstance(self._storage, S3Storage) and isinstance(e, OSError):
+                raise
             return []
 
     def _write_shifts(self, chain_name: str, shifts: list[dict[str, Any]]) -> bool:
@@ -176,7 +174,7 @@ class UIChainsStore:
                 if event:
                     cal.add_component(event)
 
-            with open(path, "wb") as f:
+            with self._storage.open(path, "wb") as f:
                 f.write(cal.to_ical())
 
             logger.debug("Saved ui chains", extra={"chain": chain_name, "count": len(shifts)})
@@ -193,9 +191,9 @@ class UIChainsStore:
     def _partition_by_retention(
         self, shifts: list[dict[str, Any]], now: datetime | None = None
     ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-        now = now or datetime.now(timezone.utc)
+        now = now or datetime.now(UTC)
         if now.tzinfo is None:
-            now = now.replace(tzinfo=timezone.utc)
+            now = now.replace(tzinfo=UTC)
         cutoff = self._retention_cutoff(now)
         retained = []
         expired = []
@@ -246,9 +244,9 @@ class UIChainsStore:
         if not shifts:
             return []
 
-        now = now or datetime.now(timezone.utc)
+        now = now or datetime.now(UTC)
         if now.tzinfo is None:
-            now = now.replace(tzinfo=timezone.utc)
+            now = now.replace(tzinfo=UTC)
 
         active = []
         for shift in shifts:
@@ -288,7 +286,7 @@ class UIChainsStore:
                 if end_dt:
                     event.add("dtend", end_dt)
 
-            event.add("dtstamp", datetime.now(timezone.utc))
+            event.add("dtstamp", datetime.now(UTC))
 
             repeat = chain.get("repeat")
             if repeat:

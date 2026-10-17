@@ -25,9 +25,34 @@ Environment variables are created in `.env` file for python installation or in `
 | LOG_LEVEL | [Log level](https://github.com/DiTsi/impulse/blob/develop/app/logging.py#L15) | INFO | - |
 | MATTERMOST_ACCESS_TOKEN | [Mattermost 'Access Token'](integrations/messengers/mattermost.md) | | for Mattermost |
 | NO_PROXY | Comma-separated hosts that bypass the proxy<br/> | | - |
+| S3_BUCKET | Existing S3 bucket for persisted data | | when `STORAGE_BACKEND=s3` |
+| S3_ENDPOINT_URL | Custom endpoint for S3-compatible storage | AWS S3 endpoint | - |
+| S3_PREFIX | Object key prefix within the bucket | | - |
 | SLACK_BOT_USER_OAUTH_TOKEN | [Slack 'Bot User OAuth Token'](integrations/messengers/slack.md) | | for Slack |
 | SLACK_VERIFICATION_TOKEN | [Slack 'Verification Token'](integrations/messengers/slack.md) | | for Slack |
+| STORAGE_BACKEND | Data storage backend: `filesystem` or `s3` | `filesystem` | - |
 | TELEGRAM_BOT_TOKEN | [Telegram 'Bot Token'](integrations/messengers/telegram.md) | | for Telegram |
+
+## S3 storage
+
+Set these environment variables to persist incidents, users, UI schedules, maintenance windows, and authentication sessions in an existing S3 bucket:
+
+```dotenv
+STORAGE_BACKEND=s3
+S3_BUCKET=impulse-data
+S3_PREFIX=production/impulse
+AWS_DEFAULT_REGION=eu-central-1
+```
+
+For S3-compatible services, also set `S3_ENDPOINT_URL`, for example `https://s3.example.com`.
+Credentials use the [standard Boto3 credential chain](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html), including IAM roles or `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, and optional `AWS_SESSION_TOKEN`.
+The service account needs `s3:ListBucket` for the configured prefix and `s3:GetObject`, `s3:PutObject`, and `s3:DeleteObject` for its objects. Bucket provisioning is separate.
+
+Data retains its existing YAML and iCalendar formats. For example, an incident is stored at `production/impulse/incidents/<uniq_id>.yml`. `DATA_PATH` is not part of the S3 object keys. Configuration, templates, and Google service account files remain local.
+
+Instances using the same bucket and prefix share an S3 lease at `.lock.d/lease.json`, even with different local `DATA_PATH` directories. The endpoint must support conditional `PutObject` (`If-None-Match` and `If-Match`) and conditional `DeleteObject` (`If-Match`), with strong read-after-write consistency. See [High Availability](concepts/ha.md) for primary/standby behavior and failure handling.
+
+To move existing filesystem data, stop all IMPulse instances and copy the contents of `DATA_PATH` to the selected bucket and prefix, excluding `.lock.d` and `.lock.guard`. Enable the S3 backend only after the copy completes. To switch back, stop all instances and copy the current data objects back to `DATA_PATH`, excluding `.lock.d/lease.json`, before selecting `filesystem`. Run data migration and maintenance commands only while all instances are stopped.
 
 ??? warning "Development variables"
 

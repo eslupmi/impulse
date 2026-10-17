@@ -2,16 +2,24 @@
 Unit tests for app.file_lock module.
 """
 import asyncio
-import os
-import socket
 import tempfile
-import time
+from contextlib import nullcontext
 from pathlib import Path
-from unittest.mock import Mock, patch, mock_open, MagicMock, AsyncMock
+from unittest.mock import Mock, patch, mock_open
 
 import pytest
 
 from app.file_lock import FileLock
+
+
+@pytest.fixture(autouse=True)
+def mocked_native_guard():
+    # These unit tests mock file handles; real advisory locking is exercised separately.
+    with patch.object(FileLock, '_guard', side_effect=lambda **kwargs: nullcontext()), \
+            patch('app.file_lock.uuid4') as mock_uuid, \
+            patch.object(FileLock, '_get_pid_namespace', return_value='test-pid-namespace'):
+        mock_uuid.return_value.hex = 'test-owner'
+        yield
 
 
 class TestFileLockInit:
@@ -76,11 +84,11 @@ class TestFileLockAcquireLock:
             mock_config.data_path = "/test/data"
             mock_get_env_config.return_value = mock_config
             
-            mock_read_text.side_effect = ["test-boot-id", "test-host", "12345"]
+            mock_read_text.side_effect = ["test-boot-id", "test-host", "12345", "test-owner"]
             
             mock_loop = Mock()
             mock_task = Mock()
-            mock_loop.create_task.return_value = mock_task
+            mock_loop.create_task.side_effect = lambda coroutine: coroutine.close() or mock_task
             mock_get_loop.return_value = mock_loop
 
             file_lock = FileLock()
@@ -89,8 +97,8 @@ class TestFileLockAcquireLock:
             assert result is True
             assert file_lock._active is True
             assert file_lock._heartbeat_task == mock_task
-            mock_mkdir.assert_called_once_with(parents=True, exist_ok=False)
-            assert mock_file.call_count == 4
+            mock_mkdir.assert_any_call(parents=True, exist_ok=False)
+            assert mock_file.call_count == 6
             mock_loop.create_task.assert_called_once()
 
     @pytest.mark.asyncio
@@ -110,19 +118,19 @@ class TestFileLockAcquireLock:
             mock_config.data_path = "/test/data"
             mock_get_env_config.return_value = mock_config
             
-            mock_read_text.side_effect = ["test-boot-id", "test-hostname", "9999"]
+            mock_read_text.side_effect = ["test-boot-id", "test-hostname", "9999", "test-owner"]
             
             mock_loop = Mock()
             mock_task = Mock()
-            mock_loop.create_task.return_value = mock_task
+            mock_loop.create_task.side_effect = lambda coroutine: coroutine.close() or mock_task
             mock_get_loop.return_value = mock_loop
 
             file_lock = FileLock()
             result = file_lock.acquire_lock()
 
             assert result is True
-            mock_mkdir.assert_called_once_with(parents=True, exist_ok=False)
-            assert mock_file.call_count == 4
+            mock_mkdir.assert_any_call(parents=True, exist_ok=False)
+            assert mock_file.call_count == 6
             write_calls = [str(call[0][0]) for call in mock_file().write.call_args_list]
             assert "1234.567" in write_calls
             assert "9999" in write_calls
@@ -212,7 +220,8 @@ class TestFileLockReleaseLock:
         """Test that release_lock removes lock directory."""
         with patch('app.file_lock.get_environment_config') as mock_get_env_config, \
              patch('pathlib.Path.exists', return_value=True), \
-             patch('app.file_lock.shutil.rmtree') as mock_rmtree:
+             patch('app.file_lock.shutil.rmtree') as mock_rmtree, \
+             patch.object(FileLock, '_verify_ownership', return_value=True):
             
             mock_config = Mock()
             mock_config.data_path = "/test/data"
@@ -519,9 +528,11 @@ class TestFileLockUpdate:
             mock_config.data_path = "/test/data"
             mock_get_env_config.return_value = mock_config
             
-            mock_read_text.side_effect = ["test-boot-id", "test-host", "12345"]
+            mock_read_text.side_effect = ["test-boot-id", "test-host", "12345", "test-owner"]
 
             file_lock = FileLock()
+            file_lock._active = True
+            file_lock._deadline = float("inf")
             result = file_lock._update()
 
             assert result is True
@@ -544,6 +555,8 @@ class TestFileLockUpdate:
             mock_read_text.side_effect = ["test-boot-id", "other-host", "99999"]
 
             file_lock = FileLock()
+            file_lock._active = True
+            file_lock._deadline = float("inf")
             result = file_lock._update()
 
             assert result is False
@@ -563,9 +576,11 @@ class TestFileLockUpdate:
             mock_config.data_path = "/test/data"
             mock_get_env_config.return_value = mock_config
             
-            mock_read_text.side_effect = ["test-boot-id", "test-host", "12345"]
+            mock_read_text.side_effect = ["test-boot-id", "test-host", "12345", "test-owner"]
 
             file_lock = FileLock()
+            file_lock._active = True
+            file_lock._deadline = float("inf")
             result = file_lock._update()
 
             assert result is False
@@ -585,9 +600,11 @@ class TestFileLockUpdate:
             mock_config.data_path = "/test/data"
             mock_get_env_config.return_value = mock_config
             
-            mock_read_text.side_effect = ["test-boot-id", "test-host", "12345"]
+            mock_read_text.side_effect = ["test-boot-id", "test-host", "12345", "test-owner"]
 
             file_lock = FileLock()
+            file_lock._active = True
+            file_lock._deadline = float("inf")
             result = file_lock._update()
 
             assert result is False
@@ -699,7 +716,7 @@ class TestFileLockHeartbeat:
         """Test _heartbeat stops after MAX_HEARTBEAT_FAILURES consecutive failures."""
         with patch('app.file_lock.get_environment_config') as mock_get_env_config, \
              patch.object(FileLock, '_update', return_value=False) as mock_update, \
-             patch('app.file_lock.asyncio.sleep') as mock_sleep, \
+             patch('app.file_lock.asyncio.sleep'), \
              patch('app.file_lock.logger') as mock_logger:
             
             mock_config = Mock()
@@ -756,7 +773,7 @@ class TestFileLockVerifyOwnership:
             mock_config.data_path = "/test/data"
             mock_get_env_config.return_value = mock_config
             
-            mock_read_text.side_effect = ["test-boot-id", "test-host", "12345"]
+            mock_read_text.side_effect = ["test-boot-id", "test-host", "12345", "test-owner"]
 
             file_lock = FileLock()
             assert file_lock._verify_ownership() is True
@@ -821,7 +838,7 @@ class TestFileLockCanTakeOverLock:
             mock_config.data_path = "/test/data"
             mock_get_env_config.return_value = mock_config
             
-            mock_read_text.side_effect = ["test-boot-id", "test-host", "test-boot-id", "99999"]
+            mock_read_text.side_effect = ["test-boot-id", "test-host", "test-boot-id", "test-pid-namespace", "99999"]
 
             file_lock = FileLock()
             assert file_lock.can_take_over_lock() is True
@@ -870,7 +887,7 @@ class TestFileLockCanTakeOverLock:
             mock_config.data_path = "/test/data"
             mock_get_env_config.return_value = mock_config
             
-            mock_read_text.side_effect = ["test-boot-id", "test-host", "test-boot-id", "99999"]
+            mock_read_text.side_effect = ["test-boot-id", "test-host", "test-boot-id", "test-pid-namespace", "99999"]
 
             file_lock = FileLock()
             assert file_lock.can_take_over_lock() is False
@@ -923,8 +940,8 @@ class TestFileLockIsProcessRunning:
 
             assert result is False
 
-    def test_is_process_running_raises_on_permission_error(self):
-        """Test _is_process_running returns False on permission error."""
+    def test_is_process_running_returns_true_on_permission_error(self):
+        """Test _is_process_running treats permission errors as a live process."""
         with patch('app.file_lock.get_environment_config') as mock_get_env_config, \
              patch('app.file_lock.os.kill', side_effect=PermissionError()):
             
@@ -935,7 +952,7 @@ class TestFileLockIsProcessRunning:
             file_lock = FileLock()
             result = file_lock._is_process_running(99999)
 
-            assert result is False
+            assert result is True
 
 
 class TestFileLockGetBootId:

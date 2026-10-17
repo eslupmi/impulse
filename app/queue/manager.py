@@ -1,4 +1,5 @@
 import asyncio
+from collections.abc import Callable
 
 from app.logging import logger
 from app.queue.constants import QueueItemType
@@ -25,6 +26,7 @@ class AsyncQueueManager:
         self._init_handlers(application, webhooks, route_)
         self._running = False
         self._task = None
+        self.check_owned: Callable[[], bool] | None = None
 
     def _init_handlers(self, application, webhooks, route_):
         self.step_handler = StepHandler(self.queue, application, self.incidents, webhooks)
@@ -80,8 +82,12 @@ class AsyncQueueManager:
         await self.user_update_handler.handle(user_id)
 
     async def queue_handle_once(self):
+        if self.check_owned is not None and not self.check_owned():
+            return
         type_, uniq_id, identifier, data = await self.queue.get_next_ready_item()
         if type_ is None:
+            return
+        if self.check_owned is not None and not self.check_owned():
             return
 
         try:
@@ -117,13 +123,19 @@ class AsyncQueueManager:
         self._task = asyncio.create_task(self._process_queue_loop())
         logger.info("Started Queue")
 
-    async def stop_processing(self):
+    async def stop_processing(self, cancel=False):
         if not self._running:
             return
 
         self._running = False
         if self._task is not None:
-            await self._task
+            if cancel:
+                self._task.cancel()
+            try:
+                await self._task
+            except asyncio.CancelledError:
+                if not cancel:
+                    raise
             self._task = None
         logger.info("Stopped queue")
 

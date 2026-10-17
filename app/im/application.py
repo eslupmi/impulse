@@ -1,10 +1,10 @@
 import asyncio
-from fastapi.responses import Response
 from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from fastapi.responses import Response
 from jinja2 import TemplateError
 
 from app.config.config import get_config
@@ -14,10 +14,6 @@ from app.http_client.rate_limited_client import RateLimitedClient
 from app.im.chain.chain_factory import ChainFactory
 from app.im.groups import Group
 from app.im.interactions import apply_interaction
-from impulse_messenger_api import (
-    BaseApplicationConfig, IncidentPresentation, MessageRef, MessengerProvider, NotificationContent,
-    ProviderContext, ProviderIdentity, UserProfile, InteractiveProvider, InteractionRequest, ProviderResponse,
-)
 from app.im.messenger_init import messenger_init_step_async, messenger_init_step_sync
 from app.im.template import (
     assignment_template_context,
@@ -34,7 +30,7 @@ from app.im.template import (
 )
 from app.im.user_groups import generate_user_groups
 from app.im.user_store import UserUpdateScheduler, get_user_store
-from app.im.users import UserManager, ProfileUser
+from app.im.users import ProfileUser, UserManager
 from app.incident.freeze import FreezeSource
 from app.incident.incident import unfreeze_incident
 from app.integrations.jira_integration import JiraIntegration
@@ -43,6 +39,19 @@ from app.logging import logger
 from app.logging_context import redact_messenger_url
 from app.queue.constants import QueueItemType
 from app.time import calculate_freeze_time, format_freeze_expiration
+from impulse_messenger_api import (
+    BaseApplicationConfig,
+    IncidentPresentation,
+    InteractionRequest,
+    InteractiveProvider,
+    MessageRef,
+    MessengerProvider,
+    NotificationContent,
+    ProviderContext,
+    ProviderIdentity,
+    ProviderResponse,
+    UserProfile,
+)
 
 if TYPE_CHECKING:
     from app.incident.incident import Incident
@@ -136,8 +145,12 @@ class Application:
                            notification_id=notification_id,
                            serializer=getattr(self.provider, 'serialize_user', None))
 
-    async def fetch_and_assign_user_name(self, incident, user_id, dump=True):
-        user = self.users.get_user_by_id(user_id)
+    async def fetch_and_assign_user_name(self, incident, user_id, dump=True) -> bool:
+        users = self.users
+        if users is None:
+            logger.warning('User assignment skipped: messenger users are not initialized', extra={'user_id': user_id})
+            return False
+        user = users.get_user_by_id(user_id)
         if not (user and user.exists):
             user = await self._assign_from_api(user_id)
         if user is None:
@@ -567,7 +580,8 @@ class Application:
         freeze_time = calculate_freeze_time(freeze_option, general, timezone_str)
         if user_id and not await self.fetch_and_assign_user_name(incident_, user_id, dump=False):
             return False
-        cached_user = self.users.get_user_by_id(user_id) if user_id else None
+        users = self.users
+        cached_user = users.get_user_by_id(user_id) if user_id and users is not None else None
         await self.apply_time_freeze(incident_, freeze_time, cached_user, queue_, source=FreezeSource.TIME)
         await self.post_freeze_notification(incident_, ui_user=ui_user)
         return True
