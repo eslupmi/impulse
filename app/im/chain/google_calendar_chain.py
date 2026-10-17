@@ -10,11 +10,16 @@ from requests.adapters import HTTPAdapter
 from urllib3 import Retry
 
 from app.config.environment import get_environment_config
-from impulse_messenger_api.schema import CloudChain, ScheduleEntry, ScheduleMatcherExpression, SimpleChainStep
 from app.im.chain.filter_steps import filter_undeclared_steps
 from app.im.chain.schedule_chain import ScheduleChain
 from app.logging import logger
 from app.tools import HTMLTextExtractor
+from impulse_messenger_api.schema import (
+    CloudChain,
+    ScheduleEntry,
+    ScheduleMatcherExpression,
+    SimpleChainStep,
+)
 
 
 class GoogleCalendarChain(ScheduleChain):
@@ -104,7 +109,7 @@ class GoogleCalendarChain(ScheduleChain):
             matchers.append(ScheduleEntry(matcher=None, steps=self.default_steps))
 
         self.schedule = matchers
-        self._last_sync_time = datetime.datetime.now(datetime.timezone.utc)
+        self._last_sync_time = datetime.datetime.now(datetime.UTC)
 
     def start_sync(self) -> None:
         """Start the sync task in the background."""
@@ -151,12 +156,12 @@ class GoogleCalendarChain(ScheduleChain):
         try:
             # Check if we have a valid cached token
             if self._last_token and self._token_expiry:
-                now = datetime.datetime.now(datetime.timezone.utc)
+                now = datetime.datetime.now(datetime.UTC)
                 if now < self._token_expiry:
                     return self._last_token
 
             # Get current time in UTC
-            now = datetime.datetime.now(datetime.timezone.utc)
+            now = datetime.datetime.now(datetime.UTC)
             iat = int(now.timestamp())
             exp = iat + 3600  # Token expires in 1 hour
 
@@ -230,7 +235,7 @@ class GoogleCalendarChain(ScheduleChain):
         try:
             token = self._get_access_token()
 
-            date_from = datetime.datetime.now(datetime.timezone.utc)
+            date_from = datetime.datetime.now(datetime.UTC)
             date_to = date_from + datetime.timedelta(days=self._env_config.provider_days_to_sync)
 
             params = {

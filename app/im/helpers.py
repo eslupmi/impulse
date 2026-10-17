@@ -4,13 +4,13 @@ import os
 from types import MappingProxyType
 
 from app.config.environment import EnvironmentConfig, get_environment_config
-from impulse_messenger_api import BaseApplicationConfig
 from app.config.validation import TaskManagementConfig
 from app.im.application import Application
 from app.im.registry import get_provider_registry
 from app.integrations.jira_client import JiraClient
 from app.integrations.jira_integration import JiraIntegration
 from app.logging import logger
+from impulse_messenger_api import BaseApplicationConfig
 
 
 def create_task_management_integration(

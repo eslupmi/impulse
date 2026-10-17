@@ -1,10 +1,10 @@
-from impulse_messenger_api.schema import CloudChain
-from impulse_messenger_api.schema import ScheduleChain as ScheduleChainType
 from app.im.chain.chain import Chain
 from app.im.chain.filter_steps import filter_undeclared_steps
 from app.im.chain.google_calendar_chain import GoogleCalendarChain
 from app.im.chain.schedule_chain import ScheduleChain
 from app.logging import logger
+from impulse_messenger_api.schema import CloudChain
+from impulse_messenger_api.schema import ScheduleChain as ScheduleChainType
 
 
 class ChainFactory:

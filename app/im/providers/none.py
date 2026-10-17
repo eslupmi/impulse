@@ -5,7 +5,15 @@ from typing import Any, Literal
 
 from pydantic import Field, field_validator
 
-from impulse_messenger_api import BaseApplicationConfig, DeliveryResult, MessageRef, MessengerProvider, ProviderDescriptor, ProviderIdentity, UserProfile
+from impulse_messenger_api import (
+    BaseApplicationConfig,
+    DeliveryResult,
+    MessageRef,
+    MessengerProvider,
+    ProviderDescriptor,
+    ProviderIdentity,
+    UserProfile,
+)
 
 
 class NullApplicationConfig(BaseApplicationConfig):

@@ -1,8 +1,8 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
+from app.im.registry import get_provider_registry
 from app.im.user_store import USER_REFRESH_HOURS, get_user_store
 from app.logging import logger
-from app.im.registry import get_provider_registry
 from app.queue.constants import QueueItemType
 from app.queue.handlers.base_handler import BaseHandler
 
@@ -42,7 +42,7 @@ class UserUpdateHandler(BaseHandler):
         gap_seconds = get_provider_registry().resolve(self.app.type).descriptor.user_update_gap_seconds
         latest = await self.queue.get_latest_item_by_type(QueueItemType.UPDATE_USER)
         
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         next_refresh_base = now + timedelta(hours=USER_REFRESH_HOURS)
         
         if latest and latest > next_refresh_base:

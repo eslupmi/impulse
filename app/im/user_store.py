@@ -1,13 +1,13 @@
 import asyncio
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 import yaml
 
 from app.config.environment import get_environment_config
-from app.logging import logger
 from app.im.registry import get_provider_registry
+from app.logging import logger
 from app.queue.constants import QueueItemType
 
 if TYPE_CHECKING:
@@ -60,16 +60,16 @@ class UserStore:
     @staticmethod
     def get_refresh_time_from_data(user_data: dict[str, Any] | None) -> datetime:
         if user_data is None:
-            return datetime.now(timezone.utc)
+            return datetime.now(UTC)
         updated_at = user_data.get('updated_at')
         if not updated_at:
-            return datetime.now(timezone.utc)
+            return datetime.now(UTC)
         try:
             if isinstance(updated_at, str):
                 updated_at = datetime.fromisoformat(updated_at)
             return updated_at + timedelta(hours=USER_REFRESH_HOURS)
         except (ValueError, TypeError):
-            return datetime.now(timezone.utc)
+            return datetime.now(UTC)
 
     @staticmethod
     def is_data_expired(user_data: dict[str, Any]) -> bool:
@@ -80,7 +80,7 @@ class UserStore:
             if isinstance(updated_at, str):
                 updated_at = datetime.fromisoformat(updated_at)
             expiry_time = updated_at + timedelta(hours=USER_REFRESH_HOURS)
-            return datetime.now(timezone.utc) > expiry_time
+            return datetime.now(UTC) > expiry_time
         except (ValueError, TypeError):
             return True
     
@@ -107,7 +107,7 @@ class UserStore:
             'full_name': user_data.get('full_name'),
             'messenger_type': messenger_type,
             'timezone': user_data.get('timezone'),
-            'updated_at': updated_at or datetime.now(timezone.utc),
+            'updated_at': updated_at or datetime.now(UTC),
             'username': user_data.get('username'),
         }
     
@@ -158,7 +158,7 @@ class UserUpdateScheduler:
         if not stored_users:
             return
         
-        last_immediate_schedule = datetime.now(timezone.utc)
+        last_immediate_schedule = datetime.now(UTC)
         for user_id, user_data in stored_users.items():
             if user_store.is_data_expired(user_data):
                 schedule_time = last_immediate_schedule + timedelta(seconds=self._gap_seconds)
@@ -174,7 +174,7 @@ class UserUpdateScheduler:
         """Schedule a user update with proper gap from last UPDATE_USER item."""
         async def schedule():
             latest = await self._queue.get_latest_item_by_type(QueueItemType.UPDATE_USER)
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             base_time = latest if latest and latest > now else now
             schedule_time = base_time + timedelta(seconds=self._gap_seconds)
             await self._queue.put(schedule_time, QueueItemType.UPDATE_USER, identifier=user_id)

@@ -1,6 +1,6 @@
 import os
 import threading
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from icalendar import Calendar, Component, Event
@@ -8,7 +8,13 @@ from icalendar import Calendar, Component, Event
 from app.config.config import get_config
 from app.config.environment import get_environment_config
 from app.logging import logger
-from app.maintenance.models import MaintenanceWindow
+from app.maintenance.api import window_from_ws_item
+from app.maintenance.migrator import (
+    LEGACY_FILENAME,
+    MaintenanceMigrator,
+    _read_calendar,
+)
+from app.maintenance.models import MaintenanceWindow, _parse_iso
 from app.time import unix_sleep_to_timedelta
 
 
@@ -27,24 +33,85 @@ def _truncate_summary(matcher: str, max_len: int = 24) -> str:
     return matcher[: max_len - 3] + "..."
 
 
-class MaintenanceStore:
-    _ICS_FILENAME = "windows.ics"
+def _stored_owner_id(existing: list[dict[str, Any]], payload) -> str | None:
+    if not isinstance(payload, dict) or not payload.get("id"):
+        return None
+    window_id = str(payload["id"])
+    for existing_window in existing:
+        if existing_window["id"] == window_id:
+            return existing_window.get("owner_id")
+    return None
 
+
+def _replace_window(existing: list[dict[str, Any]], window: dict[str, Any]) -> list[dict[str, Any]]:
+    merged = []
+    replaced = False
+    for existing_window in existing:
+        if existing_window["id"] == window["id"]:
+            merged.append(window)
+            replaced = True
+        else:
+            merged.append(existing_window)
+    if not replaced:
+        merged.append(window)
+    return merged
+
+
+class MaintenanceStore:
     def __init__(self):
         env_config = get_environment_config()
         self._dir = os.path.join(env_config.data_path, "maintenance")
-        self._file = os.path.join(self._dir, self._ICS_FILENAME)
         self._lock = threading.Lock()
         self._ensure_dir()
 
+    def migrate(self) -> None:
+        with self._lock:
+            MaintenanceMigrator().upgrade(self)
+
     def load_windows(self) -> list[dict[str, Any]]:
         with self._lock:
-            return self._read_windows_from_disk()
+            windows, _paths = self._load_unlocked()
+            return windows
 
-    def save_windows(self, windows: list[dict[str, Any]]) -> bool:
+    def upsert_window(
+        self,
+        payload,
+        assignable_user_ids: set[str],
+    ) -> tuple[bool, list[dict[str, Any]], list[dict[str, Any]]]:
         with self._lock:
-            retained = self._filter_retained_windows(windows)
-            return self._write_windows_unlocked(retained)
+            existing, paths = self._load_unlocked()
+            window = window_from_ws_item(
+                payload,
+                assignable_user_ids,
+                _stored_owner_id(existing, payload),
+            )
+            retained = self._filter_retained_windows(_replace_window(existing, window))
+            retained_ids = {item["id"] for item in retained}
+            if window["id"] in retained_ids and not self._write_kept_window(window, paths):
+                return False, existing, existing
+            if not self._delete_unretained(existing, paths, retained_ids):
+                return False, existing, existing
+            return True, existing, retained
+
+    def delete_window(
+        self, window_id: str
+    ) -> tuple[bool, list[dict[str, Any]], list[dict[str, Any]], dict[str, Any] | None]:
+        with self._lock:
+            existing, paths = self._load_unlocked()
+            deleted = None
+            remaining = []
+            for existing_window in existing:
+                if existing_window["id"] == str(window_id):
+                    deleted = existing_window
+                else:
+                    remaining.append(existing_window)
+            if deleted is None:
+                return True, existing, existing, None
+            retained = self._filter_retained_windows(remaining)
+            retained_ids = {item["id"] for item in retained}
+            if not self._delete_unretained(existing, paths, retained_ids):
+                return False, existing, existing, None
+            return True, existing, retained, deleted
 
     def windows_list(self) -> list[MaintenanceWindow]:
         windows = self.load_windows()
@@ -52,61 +119,129 @@ class MaintenanceStore:
 
     def prune_expired_windows(self, now: datetime | None = None) -> int:
         with self._lock:
-            windows = self._read_windows_from_disk()
+            windows, paths = self._load_unlocked()
             if not windows:
                 return 0
-            retained, expired = self._partition_by_retention(windows, now)
+            _, expired = self._partition_by_retention(windows, now)
             if not expired:
                 return 0
-            self._write_windows_unlocked(retained)
+            for window in expired:
+                self._remove_file(paths[window["id"]])
             logger.info(
                 "Pruned expired maintenance windows",
                 extra={"removed": len(expired)},
             )
             return len(expired)
 
+    def _write_kept_window(self, window: dict[str, Any], paths: dict[str, str]) -> bool:
+        path = paths.get(window["id"])
+        if path is None:
+            return self._write_window_unlocked(window)
+        return self._write_window_file(window, path)
+
     def _ensure_dir(self) -> None:
         if not os.path.exists(self._dir):
             os.makedirs(self._dir)
             logger.info("Created maintenance directory", extra={"path": self._dir})
 
-    def _read_windows_from_disk(self) -> list[dict[str, Any]]:
-        if not os.path.exists(self._file):
-            return []
+    def _load_unlocked(self) -> tuple[list[dict[str, Any]], dict[str, str]]:
+        return self._read_individual_windows()
+
+    def _read_individual_windows(self) -> tuple[list[dict[str, Any]], dict[str, str]]:
+        windows = []
+        paths = {}
+        for filename in os.listdir(self._dir):
+            if filename == LEGACY_FILENAME or not filename.endswith(".ics"):
+                continue
+            path = os.path.join(self._dir, filename)
+            window = self._read_window_file(path)
+            if window is None:
+                continue
+            windows.append(window)
+            paths[window["id"]] = path
+        return windows, paths
+
+    def _read_window_file(self, path: str) -> dict[str, Any] | None:
+        calendar = _read_calendar(path)
+        if calendar is None:
+            return None
+        for component in calendar.walk():
+            if component.name == "VEVENT":
+                return self._ical_event_to_window(component)
+        return None
+
+    def _allocate_filename(self, created: datetime) -> str:
+        moment = created.astimezone(UTC)
+        while True:
+            filename = moment.strftime("%Y-%m-%d-%H-%M-%S-%f") + ".ics"
+            if not os.path.exists(os.path.join(self._dir, filename)):
+                return filename
+            moment += timedelta(microseconds=1)
+
+    def _new_calendar(self, impulse_version: str) -> Calendar:
+        calendar = Calendar()
+        calendar.add("prodid", "-//IMPulse//impulse.maintenance//EN")
+        calendar.add("version", "2.0")
+        calendar.add("calscale", "GREGORIAN")
+        calendar.add("method", "PUBLISH")
+        calendar.add("x-impulse-version", impulse_version)
+        return calendar
+
+    def _write_window_file(self, window: dict[str, Any], path: str) -> bool:
         try:
-            with open(self._file, "rb") as f:
-                cal = Calendar.from_ical(f.read().decode())
-            windows = []
-            for component in cal.walk():
-                if component.name == "VEVENT":
-                    window = self._ical_event_to_window(component)
-                    if window:
-                        windows.append(window)
-            return windows
-        except Exception as e:  # noqa: BLE001
-            logger.error("Failed to load maintenance store", extra={"error": str(e), "path": self._file})
-            return []
-
-    def _write_windows_unlocked(self, windows: list[dict[str, Any]]) -> bool:
-        try:
-            cal = Calendar()
-            cal.add("prodid", "-//IMPulse//impulse.maintenance//EN")
-            cal.add("version", "2.0")
-            cal.add("calscale", "GREGORIAN")
-            cal.add("method", "PUBLISH")
-
-            for window in windows:
-                event = self._window_to_ical_event(window)
-                if event:
-                    cal.add_component(event)
-
-            with open(self._file, "wb") as f:
-                f.write(cal.to_ical())
-
-            logger.debug("Saved maintenance windows", extra={"count": len(windows)})
+            calendar = self._new_calendar(MaintenanceMigrator.ACTUAL_VERSION)
+            event = self._window_to_ical_event(window)
+            if event is None:
+                return False
+            calendar.add_component(event)
+            with open(path, "wb") as f:
+                f.write(calendar.to_ical())
+            logger.debug("Saved maintenance window", extra={"window_id": window.get("id"), "path": path})
             return True
         except Exception as e:  # noqa: BLE001
-            logger.error("Failed to save maintenance store", extra={"error": str(e), "path": self._file})
+            logger.error("Failed to save maintenance window", extra={"error": str(e), "path": path})
+            return False
+
+    def _write_legacy_file(self, windows: list[dict[str, Any]]) -> bool:
+        path = os.path.join(self._dir, LEGACY_FILENAME)
+        try:
+            calendar = self._new_calendar(MaintenanceMigrator.LEGACY_VERSION)
+            for window in windows:
+                event = self._window_to_ical_event(window)
+                if event is None:
+                    return False
+                calendar.add_component(event)
+            with open(path, "wb") as f:
+                f.write(calendar.to_ical())
+            return True
+        except Exception as e:  # noqa: BLE001
+            logger.error("Failed to write legacy maintenance calendar", extra={"error": str(e), "path": path})
+            return False
+
+    def _delete_unretained(
+        self,
+        existing: list[dict[str, Any]],
+        paths: dict[str, str],
+        retained_ids: set[str],
+    ) -> bool:
+        for old in existing:
+            if old["id"] in retained_ids:
+                continue
+            if not self._remove_file(paths[old["id"]]):
+                return False
+        return True
+
+    def _write_window_unlocked(self, window: dict[str, Any], created: datetime | None = None) -> bool:
+        moment = datetime.now(UTC) if created is None else created
+        path = os.path.join(self._dir, self._allocate_filename(moment))
+        return self._write_window_file(window, path)
+
+    def _remove_file(self, path: str) -> bool:
+        try:
+            os.remove(path)
+            return True
+        except OSError as e:
+            logger.error("Failed to delete maintenance window", extra={"error": str(e), "path": path})
             return False
 
     def _window_to_ical_event(self, window: dict[str, Any]) -> Event | None:
@@ -126,7 +261,7 @@ class MaintenanceStore:
 
             event.add("dtstart", start_dt)
             event.add("dtend", end_dt)
-            event.add("dtstamp", datetime.now(timezone.utc))
+            event.add("dtstamp", datetime.now(UTC))
 
             for matcher in matchers:
                 event.add("x-matcher", str(matcher))
@@ -193,9 +328,7 @@ class MaintenanceStore:
         if not dt_str:
             return None
         try:
-            if dt_str.endswith("Z"):
-                dt_str = dt_str[:-1] + "+00:00"
-            return datetime.fromisoformat(dt_str)
+            return _parse_iso(dt_str)
         except ValueError:
             return None
 
@@ -207,9 +340,9 @@ class MaintenanceStore:
     def _partition_by_retention(
         self, windows: list[dict[str, Any]], now: datetime | None = None
     ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-        now = now or datetime.now(timezone.utc)
+        now = now or datetime.now(UTC)
         if now.tzinfo is None:
-            now = now.replace(tzinfo=timezone.utc)
+            now = now.replace(tzinfo=UTC)
         cutoff = self._retention_cutoff(now)
         retained = []
         expired = []

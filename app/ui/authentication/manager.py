@@ -1,7 +1,6 @@
-import asyncio
 import secrets
 from collections.abc import Mapping
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit, urlunsplit
 from uuid import uuid4
@@ -95,7 +94,7 @@ class UserAuthenticationManager:
         except AuthenticationProviderError as exc:
             error_code = self._sanitize_error(exc.code) if exc.code else "auth_failed"
             return self._build_error_redirect(auth_state.next_path, error_code)
-        except (aiohttp.ClientError, asyncio.TimeoutError, ValueError) as exc:
+        except (TimeoutError, aiohttp.ClientError, ValueError) as exc:
             logger.warning(
                 "Authentication callback failed",
                 extra={"provider": self.provider.name, "error": str(exc)},
@@ -184,7 +183,7 @@ class UserAuthenticationManager:
 
     @staticmethod
     def _now() -> datetime:
-        return datetime.now(timezone.utc)
+        return datetime.now(UTC)
 
     def _normalize_next_path(self, next_path: str | None) -> str:
         canonical = self._canonicalize_local_path(next_path)
