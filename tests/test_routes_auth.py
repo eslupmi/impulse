@@ -15,8 +15,7 @@ AUTHENTICATED_USER = {"id": "U1", "username": "alice", "full_name": "Alice"}
 
 def _mock_messenger(**overrides):
     messenger = Mock()
-    messenger.type = Mock()
-    messenger.type.value = "slack"
+    messenger.type = "slack"
     for key, value in overrides.items():
         setattr(messenger, key, value)
     return messenger

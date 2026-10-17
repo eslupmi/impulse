@@ -34,7 +34,7 @@ class StatusUpdateHandler(BaseHandler):
         if incident.status != 'deleted':
             await self.app.update(
                 incident, incident.status, incident.payload,
-                status_updated, incident.chain_enabled, incident.frozen_until, incident.task_link,
+                status_updated,
                 previous_payload=previous_payload,
             )
 

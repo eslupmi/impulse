@@ -225,9 +225,10 @@ class TestUserUpdateScheduler:
     @pytest.mark.asyncio
     async def test_schedule_all_stored_uses_messenger_gap(self, mock_queue):
         """Test schedule_all_stored uses correct gap for messenger type."""
-        from app.queue.constants import USER_UPDATE_GAP_SECONDS
+        from app.im.registry import get_provider_registry
         
-        for messenger_type, expected_gap in USER_UPDATE_GAP_SECONDS.items():
+        for messenger_type in ("mattermost", "telegram"):
+            expected_gap = get_provider_registry().resolve(messenger_type).descriptor.user_update_gap_seconds
             old_time = datetime.now(timezone.utc) - timedelta(hours=USER_REFRESH_HOURS + 1)
             mock_user_store = Mock()
             mock_user_store.get_all_users_by_type.return_value = {
@@ -266,7 +267,7 @@ class TestUserUpdateScheduler:
     async def test_schedule_update_respects_gap(self, mock_queue):
         """Test schedule_update respects gap from latest queue item."""
         import asyncio
-        from app.queue.constants import USER_UPDATE_GAP_SECONDS
+        from app.im.registry import get_provider_registry
         
         future_time = datetime.now(timezone.utc) + timedelta(minutes=5)
         mock_queue.get_latest_item_by_type = AsyncMock(return_value=future_time)
@@ -280,7 +281,7 @@ class TestUserUpdateScheduler:
         call_args = mock_queue.put.call_args
         schedule_time = call_args[0][0]
         
-        expected_gap = USER_UPDATE_GAP_SECONDS.get("slack", 1.0)
+        expected_gap = get_provider_registry().resolve("slack").descriptor.user_update_gap_seconds
         expected_min = future_time + timedelta(seconds=expected_gap - 0.1)
         assert schedule_time >= expected_min
 

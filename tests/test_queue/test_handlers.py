@@ -5,7 +5,6 @@ from unittest.mock import Mock, AsyncMock, patch
 
 import pytest
 
-from app.config.validation import MessengerType
 from app.queue.handlers.alert_handler import AlertHandler
 from app.queue.handlers.base_handler import BaseHandler
 from app.queue.handlers.status_update_handler import StatusUpdateHandler
@@ -504,10 +503,10 @@ class TestStepHandler:
         webhook = Mock()
         webhook.push = AsyncMock(return_value=('ok', 204))
         mock_webhooks.get.return_value = webhook
-        mock_application.type = MessengerType.SLACK
+        mock_application.type = 'slack'
         mock_application.get_notification_destinations.return_value = []
         mock_application.header_template.form_message.return_value = 'header'
-        mock_application.post_to_thread = AsyncMock()
+        mock_application._post_notification = AsyncMock(return_value=200)
         mock_application.users = Mock()
         mock_application.users.get = Mock(return_value=None)
         mock_application.user_groups = {}
@@ -520,7 +519,7 @@ class TestStepHandler:
         await step_handler.handle(incident_uniq_id, identifier)
 
         mock_incident.chain_update.assert_called_once_with(identifier, done=True, result=204, status='ok')
-        mock_application.post_to_thread.assert_awaited_once()
+        mock_application._post_notification.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_handle_nonexistent_incident(self, step_handler, mock_incidents):

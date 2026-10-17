@@ -50,7 +50,7 @@ def remote_state(tmp_path, monkeypatch):
 def test_incident_restart_migration_and_deletion(remote_state, sample_incident, incident_config, monkeypatch):
     storage, config, objects = remote_state
     app_config = Mock(INCIDENT_ACTUAL_VERSION='v3.7.0')
-    app_config.messenger.type.value = 'slack'
+    app_config.messenger.type = 'slack'
     monkeypatch.setattr('app.incident.incidents.get_config', lambda: app_config)
     sample_incident.link = sample_incident.generate_link(incident_config.application_url)
     sample_incident.dump()
@@ -157,7 +157,7 @@ def test_remote_calendar_read_failure_cannot_erase_stored_data(remote_state):
 def test_interrupted_incident_migration_recovers_without_resurrection(remote_state, sample_incident, incident_config, monkeypatch, failed_operation):
     storage, config, objects = remote_state
     app_config = Mock(INCIDENT_ACTUAL_VERSION='v3.7.0')
-    app_config.messenger.type.value = 'slack'
+    app_config.messenger.type = 'slack'
     monkeypatch.setattr('app.incident.incidents.get_config', lambda: app_config)
     data = sample_incident.serialize()
     data['version'] = 'v3.6.0'
@@ -181,7 +181,7 @@ def test_interrupted_incident_migration_recovers_without_resurrection(remote_sta
 def test_cancelled_downgrade_reconciles_filenames_on_restart(remote_state, sample_incident, incident_config, monkeypatch, failed_operation):
     storage, config, objects = remote_state
     app_config = Mock(INCIDENT_ACTUAL_VERSION='v3.7.0')
-    app_config.messenger.type.value = 'slack'
+    app_config.messenger.type = 'slack'
     monkeypatch.setattr('app.incident.incidents.get_config', lambda: app_config)
     sample_incident.dump()
     migrator = IncidentMigrator()

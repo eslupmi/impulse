@@ -33,7 +33,7 @@ Monitor available filesystem space, storage access, and lock renewal errors. A f
 
 The following Bash/WSL walkthrough uses [Moto's local S3 server](https://docs.getmoto.org/en/latest/docs/server_mode.html), two IMPulse processes, and no messenger credentials. Moto 5.2.3 was verified with the conditional operations required by the lease. This checks the emulator; repeat the same failover checks against your intended S3 endpoint before deployment.
 
-With Python 3.10 or newer and virtual environment support installed (`python3-venv` on Debian/Ubuntu), run these commands from the repository root:
+With Python 3.12 and virtual environment support installed (`python3-venv` on Debian/Ubuntu), run these commands from the repository root:
 
 ```bash
 python3 -m venv /tmp/impulse-s3-venv

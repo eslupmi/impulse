@@ -25,7 +25,7 @@ jobs:
         timeout-minutes: 10
         run: |
           docker run --rm \
-            -v "${{ github.workspace }}:/app:ro,Z" \
+            -v "${{ github.workspace }}:/app:Z" \
             -e DATA_PATH=/data \
             -e UV_CACHE_DIR=/tmp/uv-cache \
             -w /app \

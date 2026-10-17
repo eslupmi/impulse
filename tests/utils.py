@@ -345,7 +345,7 @@ def create_mock_config(
 
     # Mock messenger config
     mock_messenger = Mock()
-    mock_messenger.type.value = messenger_type
+    mock_messenger.type = messenger_type
     mock_config.messenger = mock_messenger
 
     return mock_config
@@ -502,8 +502,7 @@ def create_mock_application(
         chains = {}
 
     app = Mock()
-    app.type = Mock()
-    app.type.value = messenger_type
+    app.type = messenger_type
     app.url = url
     app.team = team
     app.channels = channels
@@ -748,8 +747,7 @@ def create_mock_impulse_config(
 
     config = Mock()
     config.messenger = Mock()
-    config.messenger.type = Mock()
-    config.messenger.type.value = messenger_type
+    config.messenger.type = messenger_type
     config.messenger.channels = channels
     config.messenger.users = users
     config.messenger.admin_users = admin_users
@@ -829,7 +827,6 @@ def create_mock_environment_config(**overrides) -> Mock:
         "slack_bot_user_oauth_token": "test-slack-token",
         "slack_verification_token": "test-verification-token",
         "mattermost_access_token": "test-mattermost-token",
-        "telegram_bot_token": "test-telegram-token",
         "data_path": "test_data",
         "config_path": "test_config.yml",
         "incidents_path": "test_data/incidents",
@@ -852,7 +849,6 @@ def create_mock_environment_config(**overrides) -> Mock:
     param_mapping = {
         "slack_bot_token": "slack_bot_user_oauth_token",
         "mattermost_token": "mattermost_access_token",
-        "telegram_token": "telegram_bot_token",
         "service_account_file": "provider_service_account_file",
         "cors_origins": "cors_allowed_origins"
     }
@@ -1360,8 +1356,7 @@ def create_mock_get_config_patch(impulse_address: str = DEFAULT_IMPULSE_ADDRESS)
     # Create a mock messenger config with impulse_address (MattermostApplicationConfig)
     mock_messenger = Mock()
     mock_messenger.impulse_address = impulse_address
-    mock_messenger.type = Mock()
-    mock_messenger.type.value = "mattermost"
+    mock_messenger.type = "mattermost"
     
     # Set up the messenger property to return our mock
     mock_app.messenger = mock_messenger
@@ -1463,7 +1458,7 @@ def _prepare_button_handler_patches(app, additional_patches: dict | None = None,
     return patches_context, patch_objects
 
 
-def create_buttons_handler_context_manager(app, payload, incidents, queue, route,
+def create_buttons_handler_context_manager(app, payload, incidents, queue,
                                          expected_log_message: str | None = None,
                                          additional_patches: dict | None = None,
                                          app_specific_setup=None,
@@ -1476,7 +1471,6 @@ def create_buttons_handler_context_manager(app, payload, incidents, queue, route
         payload: The payload
         incidents: Mock incidents collection
         queue: Mock queue
-        route: Mock route
         expected_log_message: Expected log message for assertion
         additional_patches: Additional patches to apply
         app_specific_setup: Function to call for app-specific setup
@@ -1504,7 +1498,7 @@ def create_buttons_handler_context_manager(app, payload, incidents, queue, route
         
         try:
             # Execute the handler
-            result = await app.buttons_handler(payload, incidents, queue, route)
+            result = await app.buttons_handler(payload, incidents, queue)
             
             # Common assertions
             assert isinstance(result, JSONResponse)
@@ -1546,59 +1540,6 @@ def create_slack_mock_config(token: str = "valid_token"):
 
 
 # ============================================================================
-# Mattermost Application Test Utilities
-# ============================================================================
-
-def create_mattermost_buttons_handler_context(app, payload, incidents, queue, route, 
-                                             expected_log_message: str | None = None,
-                                             additional_patches: dict | None = None,
-                                             patch_get_config: bool = True):
-    """
-    Create a context manager for testing Mattermost buttons_handler with common setup.
-    
-    Args:
-        app: The Mattermost application instance
-        payload: The Mattermost payload
-        incidents: Mock incidents collection
-        queue: Mock queue
-        route: Mock route
-        expected_log_message: Expected log message for assertion
-        additional_patches: Additional patches to apply
-        patch_get_config: Whether to patch get_config (default: True)
-        
-    Returns:
-        Context manager that yields (result, mock_logger, patch_objects)
-    """
-    from contextlib import asynccontextmanager
-    from unittest.mock import patch
-    
-    @asynccontextmanager
-    async def mattermost_context():
-        with patch('app.im.mattermost.mattermost_application.logger') as mock_logger:
-            with patch('app.im.mattermost.threads.get_config', create_mock_get_config_patch()):
-                if patch_get_config:
-                    # Also patch the main get_config for other uses
-                    with patch('app.config.config.get_config', create_mock_get_config_patch()):
-                        async with create_buttons_handler_context_manager(
-                            app, payload, incidents, queue, route,
-                            expected_log_message=expected_log_message,
-                            additional_patches=additional_patches,
-                            app_specific_setup=lambda app: setup_app_templates(app)
-                        ) as (result, _, patch_objects):
-                            yield result, mock_logger, patch_objects
-                else:
-                    async with create_buttons_handler_context_manager(
-                        app, payload, incidents, queue, route,
-                        expected_log_message=expected_log_message,
-                        additional_patches=additional_patches,
-                        app_specific_setup=lambda app: setup_app_templates(app)
-                    ) as (result, _, patch_objects):
-                        yield result, mock_logger, patch_objects
-    
-    return mattermost_context()
-
-
-# ============================================================================
 # Telegram Application Test Utilities
 # ============================================================================
 
@@ -1629,41 +1570,3 @@ def create_telegram_buttons_mock():
             'active': {'text': '🔥', 'callback_data': 'unfreeze'}
         }
     }
-
-
-def create_telegram_buttons_handler_context(app, payload, incidents, queue, route, 
-                                           expected_log_message: str | None = None,
-                                           additional_patches: dict | None = None):
-    """
-    Create a context manager for testing Telegram buttons_handler with common setup.
-    
-    Args:
-        app: The Telegram application instance
-        payload: The Telegram payload
-        incidents: Mock incidents collection
-        queue: Mock queue
-        route: Mock route
-        expected_log_message: Expected log message for assertion
-        additional_patches: Additional patches to apply
-        
-    Returns:
-        Context manager that yields (result, mock_logger, patch_objects)
-    """
-    from contextlib import asynccontextmanager
-    from unittest.mock import patch, AsyncMock
-    
-    @asynccontextmanager
-    async def telegram_context():
-        with patch('app.im.telegram.telegram_application.logger') as mock_logger:
-            # Always patch update_thread and http.post for Telegram
-            with patch.object(app, 'update_thread'):
-                with patch.object(app.http, 'post', new_callable=AsyncMock):
-                    async with create_buttons_handler_context_manager(
-                        app, payload, incidents, queue, route,
-                        expected_log_message=expected_log_message,
-                        additional_patches=additional_patches,
-                        app_specific_setup=lambda app: setup_app_templates(app)
-                    ) as (result, _, patch_objects):
-                        yield result, mock_logger, patch_objects
-    
-    return telegram_context()

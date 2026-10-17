@@ -8,7 +8,6 @@ import pytest
 from fastapi.testclient import TestClient
 
 import main
-from app.config.validation import MessengerType
 
 
 class TestMainApplication:
@@ -57,7 +56,7 @@ class TestMainApplication:
             
             # Setup mock config
             mock_config = Mock()
-            mock_config.messenger.type = MessengerType.SLACK
+            mock_config.messenger.type = 'slack'
             mock_config.messenger.channels = {'default': {'id': 'C123456789'}}
             mock_config.app.route = Mock()
             mock_config.app.webhooks = Mock()
@@ -86,7 +85,7 @@ class TestMainApplication:
             mock_messenger._user_scheduler = mock_scheduler
             mock_messenger.initialize_async = AsyncMock()
             mock_messenger.close = AsyncMock()  # Make close async
-            mock_messenger.type = MessengerType.SLACK
+            mock_messenger.type = 'slack'
             mock_messenger.public_url = "https://test.slack.com"
             mock_messenger.team = "test-team"
             mock_messenger.configure_scheduler = Mock()

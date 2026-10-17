@@ -1,3 +1,4 @@
+from impulse_messenger_api import InteractionRequest
 import asyncio
 import json
 from datetime import datetime, timezone
@@ -26,6 +27,7 @@ from app.middleware import (
     is_standby_mode,
     service_unavailable_response,
 )
+from app.resources import resource_directory
 from app.ui.table_config import get_all_ui_config
 from app.ui.websocket import incident_ws
 
@@ -45,8 +47,8 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
 
     ui_templates = None
     if fastapi_app and get_config().ui_config:
-        fastapi_app.mount(f"{http_prefix}/static", StaticFiles(directory="static"), name="static")
-        ui_templates = Jinja2Templates(directory="static")
+        fastapi_app.mount(f"{http_prefix}/static", StaticFiles(directory=resource_directory("static")), name="static")
+        ui_templates = Jinja2Templates(directory=resource_directory("static"))
 
     @router.get("/livez")
     def get_live(request: Request):
@@ -105,20 +107,13 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
     @router.put("/app")
     async def handle_app_buttons(request: Request):
         try:
-            if request.app.state.messenger.type == 'slack':
-                form_data = await request.form()
-                raw = form_data['payload']
-                if not isinstance(raw, str):
-                    raise HTTPException(status_code=400, detail="Invalid payload")
-                payload = json.loads(raw)
-            else:
-                payload = await request.json()
+            payload = InteractionRequest(request.method, tuple(request.headers.items()),
+                                         tuple(request.query_params.multi_items()), await request.body())
 
             return await request.app.state.messenger.buttons_handler(
                 payload,
                 request.app.state.incidents,
                 request.app.state.queue,
-                request.app.state.route
             )
         except (json.JSONDecodeError, KeyError) as e:
             logger.error("App buttons error", extra={'error': str(e)})
@@ -174,7 +169,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
             "webhooks": list(app.webhooks.keys()),
             "week_start": app.general.week_start,
             "timezone": app.general.timezone,
-            "messenger_type": runtime_messenger.type.value,
+            "messenger_type": runtime_messenger.type,
             "user_timezone": acting_user.get("timezone"),
             "ui_chains": ui_chains,
         }
@@ -194,6 +189,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
         400: {"description": "Missing uniq_id or user_id"},
         401: {"description": _MSG_AUTHENTICATION_REQUIRED},
         404: {"description": _MSG_INCIDENT_NOT_FOUND},
+        502: {"description": "Could not resolve the assignment user"},
     })
     async def post_assign(request: Request):
         acting_user = _get_acting_user(request)
@@ -220,6 +216,8 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
         _log_ui_action("assignment", incident, acting_user, target_user_id=user_id)
 
         assigned = await messenger.handle_ui_assignment(incident, user_id, queue, ui_user=acting_user)
+        if not assigned and str(incident.assigned_user_id) != str(user_id):
+            raise HTTPException(status_code=502, detail="Could not resolve the assignment user")
         return {"success": assigned}
 
     @router.post("/task", responses={
@@ -255,6 +253,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
         401: {"description": _MSG_AUTHENTICATION_REQUIRED},
         404: {"description": _MSG_INCIDENT_NOT_FOUND},
         409: {"description": "Incident already frozen"},
+        502: {"description": "Could not freeze the incident"},
     })
     async def post_freeze(request: Request):
         acting_user = _get_acting_user(request)
@@ -281,11 +280,12 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
 
         messenger = request.app.state.messenger
         queue = request.app.state.queue
-        incidents = request.app.state.incidents
-        await messenger.handle_ui_freeze(
-            incident, freeze_option, str(acting_user.get("id", "")), incidents, queue,
+        frozen = await messenger.handle_ui_freeze(
+            incident, freeze_option, str(acting_user.get("id", "")), queue,
             user_timezone=user_tz, ui_user=acting_user,
         )
+        if not frozen:
+            raise HTTPException(status_code=502, detail="Could not freeze the incident")
         return {"success": True}
 
     @router.post("/unfreeze", responses={

@@ -1,44 +1,17 @@
-"""
-Unit tests for app.config.validation module.
-"""
+"""Unit tests for app.config.validation module."""
 import pytest
 from pydantic import ValidationError
 
-from app.config.validation import (
-    ImpulseConfig, SlackApplicationConfig, MattermostApplicationConfig,
-    TelegramApplicationConfig, RouteConfig, WebhookConfig,
-    ScheduleChain, CloudChain, SimpleChainStep, UIConfig, UIColumn,
-    UISorting, IncidentTimeouts, IncidentNotifications,
-    UserGroup, TemplateFiles, validate_config, MessengerType
-)
+from app.config.validation import ImpulseConfig, RouteConfig, WebhookConfig, UIConfig, UIColumn, UISorting, IncidentTimeouts, IncidentNotifications, validate_config
+from impulse_messenger_api.schema import ScheduleChain, CloudChain, SimpleChainStep, UserGroup, TemplateFiles
+from impulse_mattermost.config import MattermostApplicationConfig
+from impulse_slack.config import SlackApplicationConfig
+from impulse_telegram.config import TelegramApplicationConfig
 from tests.utils import (
     create_slack_config_data, create_mattermost_config_data,
     create_telegram_config_data, create_incident_config_data,
     create_webhook_config_data
 )
-
-
-class TestMessengerType:
-    """Test cases for MessengerType enum."""
-
-    def test_messenger_type_values(self):
-        """Test MessengerType enum values."""
-        assert MessengerType.SLACK.value == "slack"
-        assert MessengerType.MATTERMOST.value == "mattermost"
-        assert MessengerType.TELEGRAM.value == "telegram"
-        assert MessengerType.NONE.value == "none"
-
-    def test_messenger_type_from_string(self):
-        """Test creating MessengerType from string."""
-        assert MessengerType("slack") == MessengerType.SLACK
-        assert MessengerType("mattermost") == MessengerType.MATTERMOST
-        assert MessengerType("telegram") == MessengerType.TELEGRAM
-        assert MessengerType("none") == MessengerType.NONE
-
-    def test_messenger_type_invalid_string(self):
-        """Test creating MessengerType with invalid string."""
-        with pytest.raises(ValueError):
-            MessengerType("invalid")
 
 
 class TestSlackApplicationConfig:
@@ -47,7 +20,7 @@ class TestSlackApplicationConfig:
     def test_slack_config_creation(self):
         """Test creating SlackApplicationConfig with valid data."""
         config = SlackApplicationConfig(
-            type=MessengerType.SLACK,
+            type='slack',
             admin_users=["admin1", "admin2"],
             channels={"default": {"id": "C123456789"}},
             users={"admin1": {"id": "U123456"}},
@@ -55,7 +28,7 @@ class TestSlackApplicationConfig:
             impulse_address="https://impulse.example.com",
         )
 
-        assert config.type == MessengerType.SLACK
+        assert config.type == 'slack'
         assert config.admin_users == ["admin1", "admin2"]
         assert "default" in config.channels
         assert config.channels["default"].id == "C123456789"
@@ -65,7 +38,7 @@ class TestSlackApplicationConfig:
 
     def test_slack_strips_trailing_slash_from_impulse_address(self):
         config = SlackApplicationConfig(
-            type=MessengerType.SLACK,
+            type='slack',
             admin_users=["admin1"],
             channels={"default": {"id": "C123456789"}},
             users={"admin1": {"id": "U123456"}},
@@ -84,7 +57,7 @@ class TestSlackApplicationConfig:
         }
 
         config = SlackApplicationConfig(
-            type=MessengerType.SLACK,
+            type='slack',
             admin_users=["admin1"],
             channels={"default": {"id": "C123456789"}},
             users={"admin1": {"id": "U123456"}},
@@ -100,7 +73,7 @@ class TestSlackApplicationConfig:
         """Test SlackApplicationConfig with missing required fields."""
         with pytest.raises(ValidationError):
             SlackApplicationConfig(
-                type=MessengerType.SLACK
+                type='slack'
                 # Missing channels, users, template_files
             )
 
@@ -111,7 +84,7 @@ class TestMattermostApplicationConfig:
     def test_mattermost_config_creation(self):
         """Test creating MattermostApplicationConfig with valid data."""
         config = MattermostApplicationConfig(
-            type=MessengerType.MATTERMOST,
+            type='mattermost',
             admin_users=["admin1"],
             channels={"default": {"id": "channel123"}},
             users={"admin1": {"id": "user123"}},
@@ -121,7 +94,7 @@ class TestMattermostApplicationConfig:
             impulse_address="https://impulse.example.com"
         )
 
-        assert config.type == MessengerType.MATTERMOST
+        assert config.type == 'mattermost'
         assert "default" in config.channels
         assert config.channels["default"].id == "channel123"
         assert "admin1" in config.users
@@ -133,7 +106,7 @@ class TestMattermostApplicationConfig:
 
     def test_mattermost_strips_trailing_slashes_from_addresses(self):
         config = MattermostApplicationConfig(
-            type=MessengerType.MATTERMOST,
+            type='mattermost',
             admin_users=["admin1"],
             channels={"default": {"id": "channel123"}},
             users={"admin1": {"id": "user123"}},
@@ -150,20 +123,26 @@ class TestMattermostApplicationConfig:
 class TestTelegramApplicationConfig:
     """Test cases for TelegramApplicationConfig."""
 
-    def test_telegram_config_creation(self):
+    @pytest.mark.parametrize("channel_config", [
+        {"id": -1001234567890},
+        {"id": -1001234567890, "name": "Legacy channel name"},
+    ])
+    def test_telegram_config_creation(self, channel_config):
         """Test creating TelegramApplicationConfig with valid data."""
         config = TelegramApplicationConfig(
-            type=MessengerType.TELEGRAM,
+            type='telegram',
             admin_users=["admin1"],
-            channels={"default": {"id": -1001234567890}},
+            channels={"default": channel_config},
             users={"admin1": {"id": 123456789}},
             template_files={},
             impulse_address="https://impulse.example.com"
         )
 
-        assert config.type == MessengerType.TELEGRAM
+        assert config.type == 'telegram'
         assert "default" in config.channels
         assert config.channels["default"].id == -1001234567890
+        assert config.channels["default"].model_dump() == {"id": -1001234567890}
+        assert set(config.channels["default"].model_json_schema()["properties"]) == {"id"}
         assert "admin1" in config.users
         assert config.users["admin1"].id == 123456789
         assert config.template_files.status_icons is None
@@ -171,7 +150,7 @@ class TestTelegramApplicationConfig:
 
     def test_telegram_strips_trailing_slash_from_impulse_address(self):
         config = TelegramApplicationConfig(
-            type=MessengerType.TELEGRAM,
+            type='telegram',
             admin_users=["admin1"],
             channels={"default": {"id": -1001234567890}},
             users={"admin1": {"id": 123456789}},
@@ -389,7 +368,7 @@ class TestValidateConfig:
         config = validate_config(config_data)
 
         assert isinstance(config, ImpulseConfig)
-        assert config.messenger.type == MessengerType.SLACK
+        assert config.messenger.type == 'slack'
         assert config.route.channel == "default"
         assert config.ui is not None
 
@@ -399,7 +378,7 @@ class TestValidateConfig:
 
         config = validate_config(config_data)
 
-        assert config.messenger.type == MessengerType.MATTERMOST
+        assert config.messenger.type == 'mattermost'
 
     def test_validate_config_telegram(self):
         """Test validating Telegram configuration."""
@@ -407,7 +386,7 @@ class TestValidateConfig:
 
         config = validate_config(config_data)
 
-        assert config.messenger.type == MessengerType.TELEGRAM
+        assert config.messenger.type == 'telegram'
 
     def test_validate_config_with_webhooks(self):
         """Test validating configuration with webhooks."""
