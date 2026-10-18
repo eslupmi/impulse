@@ -1,9 +1,10 @@
 ---
 name: Feature request
 about: Propose a new feature
-title: "[Feature]: "
+title: "[Feature]:"
 labels: ""
 assignees: tansdf
+type: Feature
 ---
 
 ## Description

@@ -1,9 +1,10 @@
 ---
 name: Bug
 about: Report a bug
-title: "[Bug]: "
+title: "[Bug]:"
 labels: ""
 assignees: DiTsi
+type: Bug
 ---
 
 ## Description
