@@ -35,10 +35,10 @@ class InhibitionRule:
         """
         if not self.equal_labels:
             return True
-        source_labels = source.payload.get('commonLabels', {})
-        target_labels = target.payload.get('commonLabels', {})
+        source_labels = source.payload.get('commonLabels') or {}
+        target_labels = target.payload.get('commonLabels') or {}
         return all(
-            source_labels.get(label) == target_labels.get(label)
+            (source_labels.get(label) or "") == (target_labels.get(label) or "")
             for label in self.equal_labels
         )
     
