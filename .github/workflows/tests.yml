@@ -42,7 +42,7 @@ jobs:
     needs: build-and-push-image
     uses: eslupmi/ci-templates/.github/workflows/_autotests.yml@develop
     with:
-      branch: pr-${{ github.event.pull_request.number }}
+      impulse-ref: pr-${{ github.event.pull_request.number }}
       autotests: ${{ github.base_ref == 'master' && 'autotests' || 'autotests_mocked' }}
     secrets: inherit
 
@@ -51,7 +51,7 @@ jobs:
     needs: build-and-push-image
     uses: eslupmi/ci-templates/.github/workflows/_test_suites.yml@develop
     with:
-      branch: pr-${{ github.event.pull_request.number }}
+      impulse-ref: pr-${{ github.event.pull_request.number }}
     secrets: inherit
 
   migrations:
