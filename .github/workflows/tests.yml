@@ -22,30 +22,42 @@ permissions:
 jobs:
   lint:
     if: github.event.pull_request.draft == false && github.base_ref == 'develop'
-    uses: ./.github/workflows/_lint.yml
+    uses: eslupmi/ci-templates/.github/workflows/_lint.yml@develop
+    with:
+      exclude: '["tests", "docs"]'
+      mypy-plugins: '["pydantic.mypy"]'
 
   unit-tests:
     if: github.event.pull_request.draft == false
-    uses: ./.github/workflows/_unit_tests.yml
+    uses: eslupmi/ci-templates/.github/workflows/_unit_tests.yml@develop
+    with:
+      repository: eslupmi/impulse
 
   build-and-push-image:
     if: github.event.pull_request.draft == false
-    uses: ./.github/workflows/_build-and-push-image.yml
+    uses: eslupmi/ci-templates/.github/workflows/_build-and-push-image.yml@develop
 
-  tests:
+  autotests:
     if: github.event.pull_request.draft == false
     needs: build-and-push-image
-    uses: ./.github/workflows/_external_tests.yml
+    uses: eslupmi/ci-templates/.github/workflows/_autotests.yml@develop
     with:
-      branch: pr-${{ github.event.pull_request.number }}
-      tests-ref: 'main'
+      impulse-ref: pr-${{ github.event.pull_request.number }}
       autotests: ${{ github.base_ref == 'master' && 'autotests' || 'autotests_mocked' }}
+    secrets: inherit
+
+  test-suites:
+    if: github.event.pull_request.draft == false && github.base_ref == 'master'
+    needs: build-and-push-image
+    uses: eslupmi/ci-templates/.github/workflows/_test_suites.yml@develop
+    with:
+      impulse-ref: pr-${{ github.event.pull_request.number }}
     secrets: inherit
 
   migrations:
     if: github.event.pull_request.draft == false && github.base_ref == 'master'
     needs: build-and-push-image
-    uses: ./.github/workflows/_migration.yml
+    uses: eslupmi/ci-templates/.github/workflows/_migration.yml@develop
     with:
       branch: pr-${{ github.event.pull_request.number }}
       deploy-path: /opt/impulse/prod
