@@ -37,14 +37,23 @@ jobs:
     if: github.event.pull_request.draft == false
     uses: eslupmi/ci-templates/.github/workflows/_build-and-push-image.yml@develop
 
-  tests:
+  autotests:
     if: github.event.pull_request.draft == false
     needs: build-and-push-image
-    uses: eslupmi/ci-templates/.github/workflows/_external_tests.yml@develop
+    uses: eslupmi/ci-templates/.github/workflows/_autotests.yml@develop
     with:
       branch: pr-${{ github.event.pull_request.number }}
       tests-ref: 'main'
       autotests: ${{ github.base_ref == 'master' && 'autotests' || 'autotests_mocked' }}
+    secrets: inherit
+
+  test-suites:
+    if: github.event.pull_request.draft == false && github.base_ref == 'master'
+    needs: build-and-push-image
+    uses: eslupmi/ci-templates/.github/workflows/_test_suites.yml@develop
+    with:
+      branch: pr-${{ github.event.pull_request.number }}
+      tests-ref: 'main'
     secrets: inherit
 
   migrations:
