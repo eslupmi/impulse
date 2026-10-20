@@ -43,7 +43,6 @@ jobs:
     uses: eslupmi/ci-templates/.github/workflows/_autotests.yml@develop
     with:
       branch: pr-${{ github.event.pull_request.number }}
-      tests-ref: 'main'
       autotests: ${{ github.base_ref == 'master' && 'autotests' || 'autotests_mocked' }}
     secrets: inherit
 
@@ -53,7 +52,6 @@ jobs:
     uses: eslupmi/ci-templates/.github/workflows/_test_suites.yml@develop
     with:
       branch: pr-${{ github.event.pull_request.number }}
-      tests-ref: 'main'
     secrets: inherit
 
   migrations:
