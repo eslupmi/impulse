@@ -448,125 +448,40 @@ LEGACY_FILENAME = "windows.ics"
 class MaintenanceMigrator:
     ACTUAL_VERSION = MAINTENANCE_SCHEMA_VERSION
     LEGACY_VERSION = "v3.7.0"
-    DOWNGRADE_FLOOR = LEGACY_VERSION
-    MIGRATION_CHAIN: ClassVar[dict[str, str]] = {
-        LEGACY_VERSION: ACTUAL_VERSION,
-    }
-    REVERSE_MIGRATION_CHAIN: ClassVar[dict[str, str]] = {dst: src for src, dst in MIGRATION_CHAIN.items()}
 
-    def __init__(self):
-        self._migration_methods = {
-            "v3.7.0_to_v3.8.0": self._split_legacy,
-            "v3.8.0_to_v3.7.0": self._merge_legacy,
-        }
-
-    @classmethod
-    def schema_version(cls) -> str:
-        return cls.ACTUAL_VERSION
-
-    def _get_migration_path(self, from_version: str, to_version: str) -> list[str]:
-        if from_version == to_version:
-            return [from_version]
-
-        forward = self._walk_chain(from_version, to_version, self.MIGRATION_CHAIN)
-        if forward is not None:
-            return forward
-
-        reverse = self._walk_chain(from_version, to_version, self.REVERSE_MIGRATION_CHAIN)
-        if reverse is not None:
-            return reverse
-
-        raise ValueError(f'No migration path from {from_version} to {to_version}')
-
-    @staticmethod
-    def _walk_chain(from_version: str, to_version: str, chain: dict[str, str]) -> list[str] | None:
-        path = [from_version]
-        current = from_version
-        while current != to_version:
-            next_version = chain.get(current)
-            if next_version is None:
-                return None
-            path.append(next_version)
-            current = next_version
-        return path
-
-    @classmethod
-    def schema_versions(cls) -> set[str]:
-        return set(cls.MIGRATION_CHAIN.keys()) | set(cls.MIGRATION_CHAIN.values())
-
+    # shortcut: one maintenance schema transition; add a chain when another transition is introduced.
     @classmethod
     def resolve_downgrade_target(cls, version_arg: str | None) -> str:
         if version_arg is None or version_arg == '':
-            actual = cls.schema_version()
-            previous = cls.REVERSE_MIGRATION_CHAIN.get(actual)
-            if previous is None:
-                raise ValueError(f'No previous schema version to downgrade from {actual}')
-            target = previous
-        else:
-            target = cls._map_release_to_schema(version_arg)
-
-        if not cls._version_at_or_above_floor(target):
-            raise ValueError(
-                f'Downgrade target {target} is below supported floor {cls.DOWNGRADE_FLOOR}'
-            )
-        return target
-
-    @classmethod
-    def _map_release_to_schema(cls, version: str) -> str:
-        schemas = cls.schema_versions()
-        if version in schemas:
-            return version
-
-        match = _VERSION_RE.match(version)
+            return cls.LEGACY_VERSION
+        versions = (cls.LEGACY_VERSION, cls.ACTUAL_VERSION)
+        if version_arg in versions:
+            return version_arg
+        match = _VERSION_RE.match(version_arg)
         if not match:
-            raise ValueError(f'Unknown version: {version}')
-
-        major, minor, _ = match.groups()
-        prefix = f'v{major}.{minor}.'
-        candidates = sorted(
-            v for v in schemas
-            if v.startswith(prefix) and _VERSION_RE.match(v)
-        )
-        if not candidates:
-            raise ValueError(f'No schema version for release {version}')
-        return candidates[0]
-
-    @classmethod
-    def _version_at_or_above_floor(cls, version: str) -> bool:
-        match = _VERSION_RE.match(version)
-        floor = _VERSION_RE.match(cls.DOWNGRADE_FLOOR)
-        if not match or not floor:
-            return False
-        return tuple(int(x) for x in match.groups()) >= tuple(int(x) for x in floor.groups())
-
-    @classmethod
-    def _version_newer_than(cls, current: str, target: str) -> bool:
-        if current == target:
-            return False
-        return cls._walk_chain(current, target, cls.REVERSE_MIGRATION_CHAIN) is not None
+            raise ValueError(f'Unknown version: {version_arg}')
+        for version in versions:
+            if version.startswith(f'v{match[1]}.{match[2]}.'):
+                return version
+        raise ValueError(f'No schema version for release {version_arg}')
 
     def upgrade(self, store: "MaintenanceStore") -> None:
         legacy_path = os.path.join(store._dir, LEGACY_FILENAME)
-        target = self.schema_version()
+        target = self.ACTUAL_VERSION
         if os.path.exists(legacy_path):
             current = _path_version(legacy_path) or self.LEGACY_VERSION
             if current != target:
                 logger.info("Migrating maintenance windows", extra={"from": current, "to": target})
-                self._apply_steps(store, current, target)
+                if current != self.LEGACY_VERSION:
+                    raise ValueError(f'No migration path from {current} to {target}')
+                self._split_legacy(store)
         self._stamp_missing_version(store, target)
 
     def downgrade(self, store: "MaintenanceStore", target: str) -> None:
         current = self._individual_version(store)
-        if current is None or not self._version_newer_than(current, target):
-            return
-        logger.info("Downgrading maintenance windows", extra={"from": current, "to": target})
-        self._apply_steps(store, current, target)
-
-    def _apply_steps(self, store: "MaintenanceStore", from_version: str, to_version: str) -> None:
-        migration_path = self._get_migration_path(from_version, to_version)
-        for i in range(len(migration_path) - 1):
-            method_key = f"{migration_path[i]}_to_{migration_path[i + 1]}"
-            self._migration_methods[method_key](store)
+        if current == self.ACTUAL_VERSION and target == self.LEGACY_VERSION:
+            logger.info("Downgrading maintenance windows", extra={"from": current, "to": target})
+            self._merge_legacy(store)
 
     def _split_legacy(self, store: "MaintenanceStore") -> None:
         path = os.path.join(store._dir, LEGACY_FILENAME)
@@ -610,7 +525,7 @@ class MaintenanceMigrator:
         for filename in os.listdir(store._dir):
             if filename == LEGACY_FILENAME or not filename.endswith(".ics"):
                 continue
-            return _path_version(os.path.join(store._dir, filename)) or self.schema_version()
+            return _path_version(os.path.join(store._dir, filename)) or self.ACTUAL_VERSION
         return None
 
     def _stamp_missing_version(self, store: "MaintenanceStore", version: str) -> None:

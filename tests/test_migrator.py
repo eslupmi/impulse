@@ -26,7 +26,15 @@ def test_maintenance_downgrade_target(version_arg, expected):
     assert MaintenanceMigrator.resolve_downgrade_target(version_arg) == expected
 
 
-@pytest.mark.parametrize('version_arg', ['v3.6.0', 'v4.0.0', 'not-a-version'])
-def test_maintenance_rejects_unsupported_downgrade_targets(version_arg):
-    with pytest.raises(ValueError):
+@pytest.mark.parametrize(
+    'version_arg, message',
+    [
+        ('v3.6.0', 'No schema version for release'),
+        ('v4.0.0', 'No schema version for release'),
+        ('v03.7.0', 'No schema version for release'),
+        ('not-a-version', 'Unknown version'),
+    ],
+)
+def test_maintenance_rejects_unsupported_downgrade_targets(version_arg, message):
+    with pytest.raises(ValueError, match=message):
         MaintenanceMigrator.resolve_downgrade_target(version_arg)

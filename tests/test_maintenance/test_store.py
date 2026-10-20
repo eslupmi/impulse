@@ -218,6 +218,49 @@ def test_legacy_windows_ics_splits_on_load(tmp_path: Path):
     assert str(version) == MaintenanceMigrator.ACTUAL_VERSION
 
 
+@pytest.mark.parametrize('version', ['v3.6.0', 'v3.9.0'])
+def test_upgrade_rejects_unknown_schema_without_changing_files(tmp_path: Path, version):
+    store = _make_store(tmp_path)
+    assert store._write_legacy_file([_sample_window()])
+    legacy = Path(store._dir) / LEGACY_FILENAME
+    calendar = Calendar.from_ical(legacy.read_bytes())
+    calendar['x-impulse-version'] = version
+    legacy.write_bytes(calendar.to_ical())
+    before = legacy.read_bytes()
+
+    with pytest.raises(ValueError, match='No migration path'):
+        store.migrate()
+
+    assert legacy.read_bytes() == before
+    assert _window_files(store) == []
+
+
+@pytest.mark.parametrize(
+    'current, target',
+    [
+        ('v3.8.0', 'v3.8.0'),
+        ('v3.7.0', 'v3.7.0'),
+        ('v3.9.0', 'v3.7.0'),
+        ('v3.8.0', 'v3.6.0'),
+        ('v3.8.0', 'v3.9.0'),
+    ],
+)
+def test_downgrade_without_supported_transition_keeps_files(tmp_path: Path, current, target):
+    store = _make_store(tmp_path)
+    _seed_windows(store, [_sample_window()])
+    path = _window_files(store)[0]
+    calendar = Calendar.from_ical(path.read_bytes())
+    calendar['x-impulse-version'] = current
+    path.write_bytes(calendar.to_ical())
+    before = path.read_bytes()
+
+    MaintenanceMigrator().downgrade(store, target)
+
+    assert _window_files(store) == [path]
+    assert path.read_bytes() == before
+    assert not (Path(store._dir) / LEGACY_FILENAME).exists()
+
+
 def test_downgrade_merges_windows_ics(tmp_path: Path):
     store = _make_store(tmp_path)
     legacy = Path(store._dir) / LEGACY_FILENAME
