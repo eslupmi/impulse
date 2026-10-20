@@ -84,10 +84,6 @@ class EnvironmentConfig(BaseModel):
         default_factory=lambda: _env_optional_str('S3_BUCKET'),
         description="Existing S3 bucket for application state"
     )
-    s3_prefix: str = Field(
-        default_factory=lambda: os.getenv('S3_PREFIX', ''),
-        description="Object key prefix within the S3 bucket"
-    )
     s3_endpoint_url: str | None = Field(
         default_factory=lambda: _env_optional_str('S3_ENDPOINT_URL'),
         description="Optional endpoint for S3-compatible storage"

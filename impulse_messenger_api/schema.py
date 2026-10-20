@@ -7,7 +7,6 @@ from pydantic import (
     AfterValidator,
     BaseModel,
     Field,
-    ValidationError,
     field_validator,
     model_validator,
 )
@@ -31,10 +30,7 @@ class BaseUser(BaseModel):
     @classmethod
     def validate_id(cls, value):
         if isinstance(value, bool):
-            raise ValidationError.from_exception_data(cls.__name__, [{
-                'type': 'value_error', 'loc': (), 'input': value,
-                'ctx': {'error': ValueError('ID must be a string or integer, not a boolean')},
-            }])
+            raise ValueError("ID must be a string or integer, not a boolean")
         if isinstance(value, str) and not value.strip():
             raise ValueError("ID must not be empty")
         return value

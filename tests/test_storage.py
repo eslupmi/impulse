@@ -16,7 +16,7 @@ from app.storage import FileStorage, S3Storage, get_storage
 @pytest.fixture
 def s3_storage(tmp_path):
     config = EnvironmentConfig(storage_backend='s3', s3_bucket='state-bucket',
-                               s3_prefix='deployment/', data_path=str(tmp_path))
+                               data_path=str(tmp_path))
     client = boto3.client('s3', region_name='us-east-1',
                           aws_access_key_id='test', aws_secret_access_key='test')
     with patch('app.storage.boto3.client', return_value=client):
@@ -67,23 +67,20 @@ def test_s3_rejects_mutations_after_ownership_loss(s3_storage):
 
 
 def test_storage_configuration(monkeypatch):
-    for name in ['STORAGE_BACKEND', 'S3_BUCKET', 'S3_PREFIX', 'S3_ENDPOINT_URL']:
+    for name in ['STORAGE_BACKEND', 'S3_BUCKET', 'S3_ENDPOINT_URL']:
         monkeypatch.delenv(name, raising=False)
     config = EnvironmentConfig()
     assert config.storage_backend == 'filesystem'
     assert config.s3_bucket is None
-    assert config.s3_prefix == ''
     assert config.s3_endpoint_url is None
     assert isinstance(get_storage(config), FileStorage)
     monkeypatch.setenv('STORAGE_BACKEND', 's3')
     with pytest.raises(ValidationError, match='S3_BUCKET is required'):
         EnvironmentConfig()
     monkeypatch.setenv('S3_BUCKET', ' state-bucket ')
-    monkeypatch.setenv('S3_PREFIX', 'instance')
     monkeypatch.setenv('S3_ENDPOINT_URL', 'https://storage.example.com')
     config = EnvironmentConfig()
     assert config.s3_bucket == 'state-bucket'
-    assert config.s3_prefix == 'instance'
     assert config.s3_endpoint_url == 'https://storage.example.com'
     monkeypatch.setenv('STORAGE_BACKEND', 'unknown')
     with pytest.raises(ValidationError):
@@ -121,7 +118,7 @@ def test_s3_writes_entire_object_on_success(s3_storage, mode, content):
     storage, stubber, root = s3_storage
     expected = content.encode('utf-8') if isinstance(content, str) else content
     stubber.add_response('put_object', {}, {'Bucket': 'state-bucket',
-                         'Key': 'deployment/users/test', 'Body': expected})
+                         'Key': 'users/test', 'Body': expected})
     with storage.open(root / 'users' / 'test', mode) as handle:
         handle.write(content)
     assert handle.closed
@@ -146,7 +143,7 @@ def test_s3_reads_and_closes_body(s3_storage, mode, content, expected):
     stream = io.BytesIO(content)
     body = StreamingBody(stream, len(content))
     stubber.add_response('get_object', {'Body': body}, {'Bucket': 'state-bucket',
-                         'Key': 'deployment/incidents/test'})
+                         'Key': 'incidents/test'})
     with storage.open(root / 'incidents' / 'test', mode) as handle:
         assert handle.read() == expected
         assert stream.closed
@@ -194,28 +191,28 @@ def test_s3_read_error_types(s3_storage, code, exception):
 def test_s3_empty_listing_and_directory_existence(s3_storage):
     storage, stubber, root = s3_storage
     stubber.add_response('list_objects_v2', {}, {'Bucket': 'state-bucket',
-                         'Prefix': 'deployment/', 'Delimiter': '/'})
+                         'Prefix': '', 'Delimiter': '/'})
     assert storage.listdir(root) == []
-    stubber.add_response('list_objects_v2', {}, {'Bucket': 'state-bucket', 'Prefix': 'deployment/'})
+    stubber.add_response('list_objects_v2', {}, {'Bucket': 'state-bucket', 'Prefix': ''})
     assert list(storage.walk(root)) == []
     stubber.add_response('list_objects_v2', {}, {'Bucket': 'state-bucket',
-                         'Prefix': 'deployment/', 'MaxKeys': 1})
+                         'Prefix': '', 'MaxKeys': 1})
     assert not storage.exists(root)
-    stubber.add_response('list_objects_v2', {'Contents': [{'Key': 'deployment/incidents/one'}]},
-                         {'Bucket': 'state-bucket', 'Prefix': 'deployment/incidents', 'MaxKeys': 1})
+    stubber.add_response('list_objects_v2', {'Contents': [{'Key': 'incidents/one'}]},
+                         {'Bucket': 'state-bucket', 'Prefix': 'incidents', 'MaxKeys': 1})
     assert storage.exists(root / 'incidents')
     stubber.add_response('list_objects_v2', {}, {'Bucket': 'state-bucket',
-                         'Prefix': 'deployment/missing', 'MaxKeys': 1})
+                         'Prefix': 'missing', 'MaxKeys': 1})
     assert not storage.exists(root / 'missing')
-    stubber.add_response('list_objects_v2', {'Contents': [{'Key': 'deployment/file'}]},
-                         {'Bucket': 'state-bucket', 'Prefix': 'deployment/file', 'MaxKeys': 1})
+    stubber.add_response('list_objects_v2', {'Contents': [{'Key': 'file'}]},
+                         {'Bucket': 'state-bucket', 'Prefix': 'file', 'MaxKeys': 1})
     assert storage.exists(root / 'file')
 
 
 def test_s3_exists_propagates_auth_bucket_and_network_errors(s3_storage):
     storage, stubber, root = s3_storage
     stubber.add_client_error('list_objects_v2', service_error_code='AccessDenied', http_status_code=403,
-                            expected_params={'Bucket': 'state-bucket', 'Prefix': 'deployment/test', 'MaxKeys': 1})
+                            expected_params={'Bucket': 'state-bucket', 'Prefix': 'test', 'MaxKeys': 1})
     with pytest.raises(OSError):
         storage.exists(root / 'test')
     stubber.add_client_error('list_objects_v2', service_error_code='NoSuchBucket', http_status_code=404)
@@ -229,20 +226,20 @@ def test_s3_exists_propagates_auth_bucket_and_network_errors(s3_storage):
 
 def test_s3_listing_paginates_and_keeps_prefix_boundary(s3_storage):
     storage, stubber, root = s3_storage
-    params = {'Bucket': 'state-bucket', 'Prefix': 'deployment/incidents/', 'Delimiter': '/'}
-    stubber.add_response('list_objects_v2', {'Contents': [{'Key': 'deployment/incidents/one'}],
-                         'CommonPrefixes': [{'Prefix': 'deployment/incidents/archive/'}],
+    params = {'Bucket': 'state-bucket', 'Prefix': 'incidents/', 'Delimiter': '/'}
+    stubber.add_response('list_objects_v2', {'Contents': [{'Key': 'incidents/one'}],
+                         'CommonPrefixes': [{'Prefix': 'incidents/archive/'}],
                          'IsTruncated': True, 'NextContinuationToken': 'next'}, params)
-    stubber.add_response('list_objects_v2', {'Contents': [{'Key': 'deployment/incidents/two'},
-                         {'Key': 'deployment/incidents-extra/private'}, {'Key': 'deployment/incidents/../private'}]},
+    stubber.add_response('list_objects_v2', {'Contents': [{'Key': 'incidents/two'},
+                         {'Key': 'incidents-extra/private'}, {'Key': 'incidents/../private'}]},
                          {**params, 'ContinuationToken': 'next'})
     assert storage.listdir(root / 'incidents') == ['archive', 'one', 'two']
     params.pop('Delimiter')
-    stubber.add_response('list_objects_v2', {'Contents': [{'Key': 'deployment/incidents/one'},
-                         {'Key': 'deployment/incidents/archive/old'}],
+    stubber.add_response('list_objects_v2', {'Contents': [{'Key': 'incidents/one'},
+                         {'Key': 'incidents/archive/old'}],
                          'IsTruncated': True, 'NextContinuationToken': 'next'}, params)
-    stubber.add_response('list_objects_v2', {'Contents': [{'Key': 'deployment/incidents/two'},
-                         {'Key': 'deployment/incidents/archive/empty/'}, {'Key': 'deployment/incidents-extra/private'}]},
+    stubber.add_response('list_objects_v2', {'Contents': [{'Key': 'incidents/two'},
+                         {'Key': 'incidents/archive/empty/'}, {'Key': 'incidents-extra/private'}]},
                          {**params, 'ContinuationToken': 'next'})
     assert list(storage.walk(root / 'incidents')) == [
         (str(root / 'incidents'), ['archive'], ['one', 'two']),
@@ -269,23 +266,23 @@ def test_s3_write_remove_and_rename_failures_preserve_cause(s3_storage):
             handle.write('state')
     assert handle.closed
     assert caught.value.__cause__ is not None
-    copy_params = {'Bucket': 'state-bucket', 'Key': 'deployment/new',
-                   'CopySource': {'Bucket': 'state-bucket', 'Key': 'deployment/old'}}
+    copy_params = {'Bucket': 'state-bucket', 'Key': 'new',
+                   'CopySource': {'Bucket': 'state-bucket', 'Key': 'old'}}
     stubber.add_client_error('copy_object', service_error_code='AccessDenied', http_status_code=403,
                             expected_params=copy_params)
     with pytest.raises(OSError):
         storage.rename(root / 'old', root / 'new')
     stubber.add_response('copy_object', {}, copy_params)
     stubber.add_client_error('delete_object', service_error_code='AccessDenied', http_status_code=403,
-                            expected_params={'Bucket': 'state-bucket', 'Key': 'deployment/old'})
+                            expected_params={'Bucket': 'state-bucket', 'Key': 'old'})
     with pytest.raises(OSError):
         storage.rename(root / 'old', root / 'new')
     storage.rename(root / 'same', root / 'same')
-    stubber.add_response('delete_object', {}, {'Bucket': 'state-bucket', 'Key': 'deployment/remove'})
+    stubber.add_response('delete_object', {}, {'Bucket': 'state-bucket', 'Key': 'remove'})
     storage.remove(root / 'remove')
 
 
-def test_s3_relative_data_path_and_empty_prefix(tmp_path, monkeypatch):
+def test_s3_relative_data_path(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     config = EnvironmentConfig(storage_backend='s3', s3_bucket='state-bucket', data_path='./state')
     client = boto3.client('s3', region_name='us-east-1',
@@ -306,7 +303,7 @@ def test_s3_incomplete_reads_close_body_and_report_error(s3_storage):
     storage, stubber, root = s3_storage
     stream = io.BytesIO(b'short')
     stubber.add_response('get_object', {'Body': StreamingBody(stream, 10)},
-                         {'Bucket': 'state-bucket', 'Key': 'deployment/test'})
+                         {'Bucket': 'state-bucket', 'Key': 'test'})
     with pytest.raises(OSError) as caught:
         with storage.open(root / 'test'):
             pass
@@ -315,21 +312,21 @@ def test_s3_incomplete_reads_close_body_and_report_error(s3_storage):
 
 
 @pytest.mark.parametrize('contents,expected', [([], False),
-                                              ([{'Key': 'deployment/test'}], True),
-                                              ([{'Key': 'deployment/test/file'}], True)])
+                                              ([{'Key': 'test'}], True),
+                                              ([{'Key': 'test/file'}], True)])
 def test_s3_exists_uses_scoped_listing(s3_storage, contents, expected):
     storage, stubber, root = s3_storage
     stubber.add_response('list_objects_v2', {'Contents': contents},
-                         {'Bucket': 'state-bucket', 'Prefix': 'deployment/test', 'MaxKeys': 1})
+                         {'Bucket': 'state-bucket', 'Prefix': 'test', 'MaxKeys': 1})
     assert storage.exists(root / 'test') is expected
 
 
 @pytest.mark.parametrize('directory_contents,expected', [([], False),
-                                                        ([{'Key': 'deployment/test/file'}], True)])
+                                                        ([{'Key': 'test/file'}], True)])
 def test_s3_exists_keeps_sibling_prefixes_separate(s3_storage, directory_contents, expected):
     storage, stubber, root = s3_storage
-    stubber.add_response('list_objects_v2', {'Contents': [{'Key': 'deployment/test-other'}]},
-                         {'Bucket': 'state-bucket', 'Prefix': 'deployment/test', 'MaxKeys': 1})
+    stubber.add_response('list_objects_v2', {'Contents': [{'Key': 'test-other'}]},
+                         {'Bucket': 'state-bucket', 'Prefix': 'test', 'MaxKeys': 1})
     stubber.add_response('list_objects_v2', {'Contents': directory_contents},
-                         {'Bucket': 'state-bucket', 'Prefix': 'deployment/test/', 'MaxKeys': 1})
+                         {'Bucket': 'state-bucket', 'Prefix': 'test/', 'MaxKeys': 1})
     assert storage.exists(root / 'test') is expected

@@ -23,7 +23,7 @@ from app.ui.authentication.session_store import FileSessionStore
 @pytest.fixture
 def remote_state(tmp_path, monkeypatch):
     config = EnvironmentConfig(data_path=str(tmp_path / 'local'),
-                               storage_backend='s3', s3_bucket='state', s3_prefix='instance')
+                               storage_backend='s3', s3_bucket='state')
     monkeypatch.setattr('app.config.environment._env_config', config)
     storage = get_storage(config)
     objects = {}
@@ -54,7 +54,7 @@ def test_incident_restart_migration_and_deletion(remote_state, sample_incident, 
     monkeypatch.setattr('app.incident.incidents.get_config', lambda: app_config)
     sample_incident.link = sample_incident.generate_link(incident_config.application_url)
     sample_incident.dump()
-    filename = f'instance/incidents/{sample_incident.uniq_id}.yml'
+    filename = f'incidents/{sample_incident.uniq_id}.yml'
     assert filename in objects
     restored = Incidents.create_or_load('slack', incident_config.application_url, incident_config.application_team)
     assert restored.get_by_uniq_id(sample_incident.uniq_id).serialize() == sample_incident.serialize()
@@ -62,9 +62,9 @@ def test_incident_restart_migration_and_deletion(remote_state, sample_incident, 
     old_data = yaml.load(objects.pop(filename), Loader=yaml.CLoader)
     old_data['version'] = 'v3.6.0'
     old_data['chain'] = old_data.pop('chain_steps')
-    objects['instance/incidents/legacy.yml'] = yaml.dump(old_data, Dumper=NoAliasDumper).encode()
+    objects['incidents/legacy.yml'] = yaml.dump(old_data, Dumper=NoAliasDumper).encode()
     restored = Incidents.create_or_load('slack', incident_config.application_url, incident_config.application_team)
-    assert 'instance/incidents/legacy.yml' not in objects
+    assert 'incidents/legacy.yml' not in objects
     assert yaml.safe_load(objects[filename])['version'] == 'v3.7.0'
     restored.del_by_uniq_id(sample_incident.uniq_id)
     assert filename not in objects
@@ -78,7 +78,7 @@ def test_users_restart_and_filtering(remote_state):
     restored = UserStore().get_all_users_by_type('slack')
     assert set(restored) == {'U1'}
     assert restored['U1']['full_name'] == 'José'
-    assert 'instance/users/U1.yml' in objects
+    assert 'users/U1.yml' in objects
     assert storage.client.get_object.call_count == 2
     storage.client.head_object.assert_not_called()
 
@@ -93,7 +93,7 @@ def test_calendar_and_maintenance_restart_and_retention(remote_state):
     window = {'id': 'window', 'start': start, 'end': end, 'matchers': ['service="db"'], 'comment': 'planned'}
     assert MaintenanceStore().save_windows([window])
     assert MaintenanceStore().load_windows()[0]['matchers'] == ['service="db"']
-    assert {'instance/ui_chains/primary.ics', 'instance/maintenance/windows.ics'} <= objects.keys()
+    assert {'ui_chains/primary.ics', 'maintenance/windows.ics'} <= objects.keys()
     assert UIChainsStore().prune_all(now + timedelta(days=1000)) == 1
     assert MaintenanceStore().prune_expired_windows(now + timedelta(days=1000)) == 1
     assert UIChainsStore().load_shifts('primary') == []
@@ -112,7 +112,7 @@ def test_sessions_restart_validation_and_expiry(remote_state):
     invalid = session.model_copy(update={'session_id': '../outside'})
     with pytest.raises(ValueError, match='invalid session id'):
         store.save_session(invalid)
-    objects[f'instance/sessions/{"b" * 64}.yaml'] = objects[f'instance/sessions/{session.session_id}.yaml']
+    objects[f'sessions/{"b" * 64}.yaml'] = objects[f'sessions/{session.session_id}.yaml']
     assert store.load_session('b' * 64) is None
     expired = session.model_copy(update={'session_id': 'c' * 64, 'expires_at': now - timedelta(seconds=1)})
     store.save_session(expired)
@@ -162,7 +162,7 @@ def test_interrupted_incident_migration_recovers_without_resurrection(remote_sta
     data = sample_incident.serialize()
     data['version'] = 'v3.6.0'
     data['chain'] = data.pop('chain_steps')
-    objects['instance/incidents/legacy.yml'] = yaml.dump(data, Dumper=NoAliasDumper).encode()
+    objects['incidents/legacy.yml'] = yaml.dump(data, Dumper=NoAliasDumper).encode()
     operation = getattr(storage.client, failed_operation)
     original = operation.side_effect
     operation.side_effect = EndpointConnectionError(endpoint_url='https://unavailable.example')
@@ -172,7 +172,7 @@ def test_interrupted_incident_migration_recovers_without_resurrection(remote_sta
     operation.side_effect = original
     restored = Incidents.create_or_load('slack', incident_config.application_url, incident_config.application_team)
     assert len(restored.uniq_ids) == 1
-    assert set(objects) == {f'instance/incidents/{sample_incident.uniq_id}.yml'}
+    assert set(objects) == {f'incidents/{sample_incident.uniq_id}.yml'}
     restored.del_by_uniq_id(sample_incident.uniq_id)
     assert Incidents.create_or_load('slack', incident_config.application_url, incident_config.application_team).uniq_ids == {}
 
@@ -195,6 +195,6 @@ def test_cancelled_downgrade_reconciles_filenames_on_restart(remote_state, sampl
     operation.side_effect = original
     restored = Incidents.create_or_load('slack', incident_config.application_url, incident_config.application_team)
     assert len(restored.uniq_ids) == 1
-    assert set(objects) == {f'instance/incidents/{sample_incident.uniq_id}.yml'}
+    assert set(objects) == {f'incidents/{sample_incident.uniq_id}.yml'}
     restored.del_by_uniq_id(sample_incident.uniq_id)
     assert Incidents.create_or_load('slack', incident_config.application_url, incident_config.application_team).uniq_ids == {}

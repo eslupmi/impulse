@@ -21,7 +21,7 @@ class S3Lock:
 
     def __init__(self, storage: S3Storage):
         self._storage = storage
-        self._key = '/'.join(filter(None, (storage.prefix, '.lock.d/lease.json')))
+        self._key = '.lock.d/lease.json'
         self._hostname = socket.gethostname()
         self._pid = str(os.getpid())
         self._owner: str | None = None

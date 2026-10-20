@@ -18,14 +18,14 @@ from app.storage import S3Storage
 
 
 BUCKET = 'state-bucket'
-KEY = 'deployment/.lock.d/lease.json'
+KEY = '.lock.d/lease.json'
 SERVER_NOW = datetime(2026, 10, 8, 12, tzinfo=timezone.utc)
 
 
 @pytest.fixture
 def lease_lock(tmp_path):
     config = EnvironmentConfig(storage_backend='s3', s3_bucket=BUCKET,
-                               s3_prefix='deployment', data_path=str(tmp_path))
+                               data_path=str(tmp_path))
     client = boto3.client('s3', region_name='us-east-1',
                           aws_access_key_id='test', aws_secret_access_key='test')
     with patch('app.storage.boto3.client', return_value=client):

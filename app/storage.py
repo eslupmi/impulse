@@ -44,7 +44,6 @@ class S3Storage:
     def __init__(self, config: EnvironmentConfig):
         self.root = os.path.abspath(config.data_path)
         self.bucket = config.s3_bucket
-        self.prefix = config.s3_prefix.strip('/')
         self.endpoint_url = config.s3_endpoint_url
         self._client = None
         self.check_owned: Callable[[], bool] | None = None
@@ -68,12 +67,12 @@ class S3Storage:
             raise ValueError('Storage paths must stay within DATA_PATH')
         relative = os.path.relpath(absolute, self.root)
         if relative == '.':
-            return self.prefix
-        return '/'.join(filter(None, (self.prefix, relative.replace(os.sep, '/'))))
+            return ''
+        return relative.replace(os.sep, '/')
 
     def _file_key(self, path):
         key = self._key(path)
-        if key == self.prefix:
+        if not key:
             raise IsADirectoryError(os.fspath(path))
         return key
 
@@ -122,7 +121,7 @@ class S3Storage:
 
     def exists(self, path):
         key = self._key(path)
-        if key != self.prefix:
+        if key:
             contents = self._call('list_objects_v2', Prefix=key, MaxKeys=1).get('Contents', [])
             if not contents:
                 return False

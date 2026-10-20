@@ -10,7 +10,7 @@ Instances sharing the same storage elect one **primary**. Other instances start 
 
 With `STORAGE_BACKEND=filesystem`, mount the same `DATA_PATH`[↰](../envs.md) on both instances. The lock uses `.lock.d` heartbeat files and a persistent `.lock.guard` file to serialize acquisition, renewal, and release. The filesystem must support shared advisory locks (`flock` on POSIX or byte-range locks on Windows). Keep host clocks synchronized. Do not delete the guard file or mix these instances with older versions that do not use it.
 
-With `STORAGE_BACKEND=s3`, configure the same `S3_BUCKET` and `S3_PREFIX` on both instances. Local `DATA_PATH` directories may differ; a shared filesystem is unnecessary. The lock is the object `<S3_PREFIX>/.lock.d/lease.json`. Atomic conditional writes elect and renew the primary, and conditional deletion prevents an old primary from removing its successor's lease. The endpoint must provide strong consistency and support conditional `PutObject` and `DeleteObject`; see [S3 storage](../envs.md#s3-storage). S3 lock expiry uses server timestamps, so it does not depend on matching client wall clocks.
+With `STORAGE_BACKEND=s3`, configure the same `S3_BUCKET` on both instances. Local `DATA_PATH` directories may differ; a shared filesystem is unnecessary. The lock is the object `.lock.d/lease.json` at the bucket root. Atomic conditional writes elect and renew the primary, and conditional deletion prevents an old primary from removing its successor's lease. The endpoint must provide strong consistency and support conditional `PutObject` and `DeleteObject`; see [S3 storage](../envs.md#s3-storage). S3 lock expiry uses server timestamps, so it does not depend on matching client wall clocks.
 
 The primary renews its lock every 6 seconds. After a crash, a standby can take over after approximately 18 seconds without renewal (S3 adds a timestamp rounding margin). Graceful shutdown releases the lock sooner. Before becoming ready, the new primary reloads persisted state and reconstructs its queue.
 
@@ -64,7 +64,7 @@ incident:
     closed: 90d
 YAML
 export CONFIG_PATH="$test_dir" STORAGE_BACKEND=s3
-export S3_BUCKET=impulse-local S3_PREFIX=ha-test
+export S3_BUCKET=impulse-local
 export S3_ENDPOINT_URL=http://127.0.0.1:9000
 export AWS_ACCESS_KEY_ID=local AWS_SECRET_ACCESS_KEY=local AWS_DEFAULT_REGION=us-east-1
 export AWS_EC2_METADATA_DISABLED=true LISTEN_HOST=127.0.0.1 HTTP_PREFIX=''
