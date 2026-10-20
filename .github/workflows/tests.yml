@@ -30,6 +30,8 @@ jobs:
   unit-tests:
     if: github.event.pull_request.draft == false
     uses: eslupmi/ci-templates/.github/workflows/_unit_tests.yml@develop
+    with:
+      repository: eslupmi/impulse
 
   build-and-push-image:
     if: github.event.pull_request.draft == false
