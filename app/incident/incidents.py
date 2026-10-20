@@ -5,8 +5,8 @@ import yaml
 from app.config.config import get_config
 from app.config.environment import get_environment_config
 from app.incident.incident import Incident, IncidentConfig
-from app.incident.migrator import IncidentMigrator
 from app.logging import logger
+from app.migrator import IncidentMigrator
 from app.ui.websocket import incident_ws
 
 

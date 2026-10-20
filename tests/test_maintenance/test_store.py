@@ -8,7 +8,7 @@ from fastapi import HTTPException
 from icalendar import Calendar
 
 from app.config.validation import IncidentTimeouts
-from app.maintenance.migrator import LEGACY_FILENAME, MaintenanceMigrator
+from app.migrator import LEGACY_FILENAME, MaintenanceMigrator
 from app.maintenance.models import MaintenanceWindow
 from app.maintenance.store import MaintenanceStore
 

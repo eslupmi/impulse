@@ -9,12 +9,12 @@ from app.config.config import get_config
 from app.config.environment import get_environment_config
 from app.logging import logger
 from app.maintenance.api import window_from_ws_item
-from app.maintenance.migrator import (
+from app.maintenance.models import MaintenanceWindow, _parse_iso
+from app.migrator import (
     LEGACY_FILENAME,
     MaintenanceMigrator,
     _read_calendar,
 )
-from app.maintenance.models import MaintenanceWindow, _parse_iso
 from app.time import unix_sleep_to_timedelta
 
 
