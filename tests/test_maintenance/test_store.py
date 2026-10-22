@@ -1,4 +1,3 @@
-import re
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from unittest.mock import patch
@@ -11,8 +10,6 @@ from app.config.validation import IncidentTimeouts
 from app.migrator import LEGACY_FILENAME, MaintenanceMigrator
 from app.maintenance.models import MaintenanceWindow
 from app.maintenance.store import MaintenanceStore
-
-_WINDOW_FILE = re.compile(r"^\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}-\d{6}\.ics$")
 
 ASSIGNABLE = {"U123"}
 
@@ -54,14 +51,16 @@ def _sample_window(window_id: str = "w1") -> dict:
     }
 
 
-def test_upsert_writes_timestamp_file(tmp_path: Path):
+def test_upsert_writes_uid_file(tmp_path: Path):
     store = _make_store(tmp_path)
     mock_config = _mock_closed_retention("7d")
     try:
         assert store.upsert_window(_sample_window(), ASSIGNABLE)[0] is True
         files = _window_files(store)
         assert len(files) == 1
-        assert _WINDOW_FILE.match(files[0].name)
+        assert files[0].name == "w1.ics"
+        assert store.upsert_window(_sample_window(), ASSIGNABLE)[0] is True
+        assert _window_files(store) == files
         assert not (Path(store._dir) / LEGACY_FILENAME).exists()
     finally:
         mock_config.stop()
@@ -211,11 +210,19 @@ def test_legacy_windows_ics_splits_on_load(tmp_path: Path):
     assert not legacy.exists()
     files = _window_files(store)
     assert len(files) == 2
-    assert all(_WINDOW_FILE.match(path.name) for path in files)
+    assert {path.name for path in files} == {"a.ics", "b.ics"}
+    for path in files:
+        event = Calendar.from_ical(path.read_bytes()).walk("VEVENT")[0]
+        assert event.get("dtstamp") is None
     store.migrate()
     assert len(_window_files(store)) == 2
     version = Calendar.from_ical(files[0].read_bytes().decode()).get("x-impulse-version")
     assert str(version) == MaintenanceMigrator.ACTUAL_VERSION
+    before = {path.name: path.read_bytes() for path in files}
+    MaintenanceMigrator().downgrade(store, MaintenanceMigrator.LEGACY_VERSION)
+    assert all(event.get("dtstamp") is None for event in Calendar.from_ical(legacy.read_bytes()).walk("VEVENT"))
+    store.migrate()
+    assert {path.name: path.read_bytes() for path in _window_files(store)} == before
 
 
 @pytest.mark.parametrize('version', ['v3.6.0', 'v3.9.0'])
@@ -268,26 +275,111 @@ def test_downgrade_merges_windows_ics(tmp_path: Path):
         b"BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//test//EN\r\n"
         b"BEGIN:VEVENT\r\nUID:a\r\n"
         b"DTSTART:20260620T080000Z\r\nDTEND:20260620T120000Z\r\n"
+        b"DTSTAMP:20260601T101112Z\r\n"
         b"SUMMARY:a\r\nX-MATCHER:alertname=\"A\"\r\n"
         b"END:VEVENT\r\n"
         b"BEGIN:VEVENT\r\nUID:b\r\n"
         b"DTSTART:20260621T090000Z\r\nDTEND:20260621T130000Z\r\n"
+        b"DTSTAMP:20260602T131415Z\r\n"
         b"SUMMARY:b\r\nX-MATCHER:alertname=\"B\"\r\n"
         b"END:VEVENT\r\nEND:VCALENDAR\r\n"
     )
     store.migrate()
-    MaintenanceMigrator().downgrade(store, MaintenanceMigrator.LEGACY_VERSION)
-    assert legacy.exists()
-    assert _window_files(store) == []
-    restored = Calendar.from_ical(legacy.read_bytes().decode())
-    assert str(restored.get("x-impulse-version")) == MaintenanceMigrator.LEGACY_VERSION
-    assert {str(component.get("uid")) for component in restored.walk() if component.name == "VEVENT"} == {"a", "b"}
-    MaintenanceMigrator().downgrade(store, MaintenanceMigrator.LEGACY_VERSION)
-    assert legacy.exists()
-    assert _window_files(store) == []
+    original = {path.name: path.read_bytes() for path in _window_files(store)}
+    assert set(original) == {"a.ics", "b.ics"}
+    stamps = {"a": b"20260601T101112Z", "b": b"20260602T131415Z"}
+    for _ in range(2):
+        MaintenanceMigrator().downgrade(store, MaintenanceMigrator.LEGACY_VERSION)
+        assert legacy.exists()
+        assert _window_files(store) == []
+        restored = Calendar.from_ical(legacy.read_bytes())
+        assert str(restored.get("x-impulse-version")) == MaintenanceMigrator.LEGACY_VERSION
+        events = restored.walk("VEVENT")
+        assert {str(event["uid"]): event["dtstamp"].to_ical() for event in events} == stamps
+        MaintenanceMigrator().downgrade(store, MaintenanceMigrator.LEGACY_VERSION)
+        assert legacy.exists()
+        store.migrate()
+        assert not legacy.exists()
+        assert {path.name: path.read_bytes() for path in _window_files(store)} == original
+        assert all("_dtstamp" not in window for window in store.load_windows())
+
+
+def test_migrate_renames_timestamp_file_without_rewriting(tmp_path: Path):
+    store = _make_store(tmp_path)
+    _seed_windows(store, [_sample_window()])
+    timestamp_path = Path(store._dir) / "2026-10-20-20-44-00-000000.ics"
+    _window_files(store)[0].rename(timestamp_path)
+    before = timestamp_path.read_bytes()
+
     store.migrate()
-    assert not legacy.exists()
-    assert len(_window_files(store)) == 2
+
+    uid_path = Path(store._dir) / "w1.ics"
+    assert _window_files(store) == [uid_path]
+    assert uid_path.read_bytes() == before
+    assert store.load_windows()[0]["id"] == "w1"
+    assert store.delete_window("w1")[0] is True
+    assert _window_files(store) == []
+
+
+def test_uid_filenames_escape_paths_and_reserved_name(tmp_path: Path):
+    store = _make_store(tmp_path)
+    names = {
+        "a/b": "a%2Fb.ics",
+        "a%2Fb": "a%252Fb.ics",
+        "a\\b": "a%5Cb.ics",
+        "../outside": "..%2Foutside.ics",
+        "/absolute": "%2Fabsolute.ics",
+        "windows": "%77indows.ics",
+        "Windows": "%57indows.ics",
+        "%77indows": "%2577indows.ics",
+    }
+    _seed_windows(store, [_sample_window(uid) for uid in names])
+    assert {path.name for path in _window_files(store)} == set(names.values())
+    assert {window["id"] for window in store.load_windows()} == set(names)
+    assert not (Path(store._dir) / LEGACY_FILENAME).exists()
+
+
+def test_migration_keeps_sources_when_uid_filename_is_occupied(tmp_path: Path):
+    store = _make_store(tmp_path)
+    assert store._write_legacy_file([_sample_window()])
+    legacy = Path(store._dir) / LEGACY_FILENAME
+    before = legacy.read_bytes()
+    occupied = Path(store._dir) / "w1.ics"
+    occupied.write_bytes(b"unreadable existing record")
+
+    store.migrate()
+
+    assert legacy.read_bytes() == before
+    assert occupied.read_bytes() == b"unreadable existing record"
+
+
+def test_rename_keeps_sources_when_uid_filename_is_occupied(tmp_path: Path):
+    store = _make_store(tmp_path)
+    _seed_windows(store, [_sample_window()])
+    timestamp_path = Path(store._dir) / "2026-10-20-20-44-00-000000.ics"
+    _window_files(store)[0].rename(timestamp_path)
+    before = timestamp_path.read_bytes()
+    occupied = Path(store._dir) / "w1.ics"
+    occupied.write_bytes(b"unreadable existing record")
+
+    with pytest.raises(FileExistsError):
+        store.migrate()
+
+    assert timestamp_path.read_bytes() == before
+    assert occupied.read_bytes() == b"unreadable existing record"
+
+
+def test_downgrade_keeps_unreadable_legacy_calendar(tmp_path: Path):
+    store = _make_store(tmp_path)
+    _seed_windows(store, [_sample_window()])
+    before = {path.name: path.read_bytes() for path in _window_files(store)}
+    legacy = Path(store._dir) / LEGACY_FILENAME
+    legacy.write_bytes(b"unreadable legacy calendar")
+
+    MaintenanceMigrator().downgrade(store, MaintenanceMigrator.LEGACY_VERSION)
+
+    assert {path.name: path.read_bytes() for path in _window_files(store)} == before
+    assert legacy.read_bytes() == b"unreadable legacy calendar"
 
 
 def test_upsert_window_keeps_ownerless_sibling(tmp_path: Path):

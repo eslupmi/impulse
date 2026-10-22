@@ -4,14 +4,13 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, ClassVar
 
 import yaml
-from icalendar import Calendar, Component
+from icalendar import Calendar
 
 from app.config.config import MAINTENANCE_SCHEMA_VERSION, get_config
 from app.config.environment import get_environment_config
 from app.incident.freeze import FreezeSource
 from app.incident.incident import Incident
 from app.logging import logger
-from app.maintenance.models import _ensure_utc
 from app.tools import NoAliasDumper
 
 if TYPE_CHECKING:
@@ -468,13 +467,15 @@ class MaintenanceMigrator:
     def upgrade(self, store: "MaintenanceStore") -> None:
         legacy_path = os.path.join(store._dir, LEGACY_FILENAME)
         target = self.ACTUAL_VERSION
+        current = target
         if os.path.exists(legacy_path):
             current = _path_version(legacy_path) or self.LEGACY_VERSION
-            if current != target:
-                logger.info("Migrating maintenance windows", extra={"from": current, "to": target})
-                if current != self.LEGACY_VERSION:
-                    raise ValueError(f'No migration path from {current} to {target}')
-                self._split_legacy(store)
+            if current not in (self.LEGACY_VERSION, target):
+                raise ValueError(f'No migration path from {current} to {target}')
+        self._rename_individual_files(store)
+        if current != target:
+            logger.info("Migrating maintenance windows", extra={"from": current, "to": target})
+            self._split_legacy(store)
         self._stamp_missing_version(store, target)
 
     def downgrade(self, store: "MaintenanceStore", target: str) -> None:
@@ -482,6 +483,17 @@ class MaintenanceMigrator:
         if current == self.ACTUAL_VERSION and target == self.LEGACY_VERSION:
             logger.info("Downgrading maintenance windows", extra={"from": current, "to": target})
             self._merge_legacy(store)
+
+    @staticmethod
+    def _rename_individual_files(store: "MaintenanceStore") -> None:
+        _windows, paths = store._read_individual_windows()
+        for window_id, path in paths.items():
+            target = store._window_path(window_id)
+            if path == target:
+                continue
+            if os.path.lexists(target):
+                raise FileExistsError(f'Maintenance filename is already occupied: {target}')
+            os.rename(path, target)
 
     def _split_legacy(self, store: "MaintenanceStore") -> None:
         path = os.path.join(store._dir, LEGACY_FILENAME)
@@ -493,15 +505,9 @@ class MaintenanceMigrator:
 
         existing_ids = {window["id"] for window in store._read_individual_windows()[0]}
         written = 0
-        for component in calendar.walk():
-            if component.name != "VEVENT":
-                continue
-            window = store._ical_event_to_window(component)
-            if window is None or window["id"] in existing_ids:
-                continue
-            if not store._write_window_unlocked(window, _created_from_event(component)):
+        for window in _windows_in_calendar(store, calendar, existing_ids):
+            if not store._write_window_unlocked(window):
                 return
-            existing_ids.add(window["id"])
             written += 1
 
         if not store._remove_file(path):
@@ -509,11 +515,20 @@ class MaintenanceMigrator:
         logger.info("Migrated maintenance windows", extra={"count": written})
 
     def _merge_legacy(self, store: "MaintenanceStore") -> None:
-        windows, paths = store._read_individual_windows()
+        _windows, paths = store._read_individual_windows()
+        windows = []
+        seen: set[str] = set()
+        for path in paths.values():
+            calendar = _read_calendar(path)
+            if calendar is None:
+                return
+            windows.extend(_windows_in_calendar(store, calendar, seen))
         legacy_path = os.path.join(store._dir, LEGACY_FILENAME)
         if os.path.exists(legacy_path):
-            seen = {window["id"] for window in windows}
-            windows.extend(_windows_in_calendar(store, _read_calendar(legacy_path), seen))
+            calendar = _read_calendar(legacy_path)
+            if calendar is None:
+                return
+            windows.extend(_windows_in_calendar(store, calendar, seen))
         if not store._write_legacy_file(windows):
             return
         for path in paths.values():
@@ -578,6 +593,7 @@ def _windows_in_calendar(store: "MaintenanceStore", calendar: Calendar | None, s
         window = store._ical_event_to_window(component)
         if window is None or window["id"] in seen:
             continue
+        window["_dtstamp"] = component.get("dtstamp")
         found.append(window)
         seen.add(window["id"])
     return found
@@ -595,13 +611,3 @@ def _path_version(path: str) -> str | None:
     if calendar is None:
         return None
     return _calendar_version(calendar)
-
-
-def _created_from_event(event: Component) -> datetime:
-    raw = event.get("dtstamp")
-    if raw is None:
-        raw = event.get("dtstart")
-    value = raw.dt if hasattr(raw, "dt") else raw
-    if not isinstance(value, datetime):
-        value = datetime(value.year, value.month, value.day)
-    return _ensure_utc(value)

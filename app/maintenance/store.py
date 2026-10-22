@@ -1,7 +1,8 @@
 import os
 import threading
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from typing import Any
+from urllib.parse import quote
 
 from icalendar import Calendar, Component, Event
 
@@ -170,13 +171,12 @@ class MaintenanceStore:
                 return self._ical_event_to_window(component)
         return None
 
-    def _allocate_filename(self, created: datetime) -> str:
-        moment = created.astimezone(UTC)
-        while True:
-            filename = moment.strftime("%Y-%m-%d-%H-%M-%S-%f") + ".ics"
-            if not os.path.exists(os.path.join(self._dir, filename)):
-                return filename
-            moment += timedelta(microseconds=1)
+    def _window_path(self, window_id: str) -> str:
+        filename = quote(str(window_id), safe="") + ".ics"
+        if filename.casefold() == LEGACY_FILENAME:
+            # Keep the aggregate calendar's reserved name separate from record UIDs.
+            filename = f"%{ord(filename[0]):02X}{filename[1:]}"
+        return os.path.join(self._dir, filename)
 
     def _new_calendar(self, impulse_version: str) -> Calendar:
         calendar = Calendar()
@@ -231,9 +231,11 @@ class MaintenanceStore:
                 return False
         return True
 
-    def _write_window_unlocked(self, window: dict[str, Any], created: datetime | None = None) -> bool:
-        moment = datetime.now(UTC) if created is None else created
-        path = os.path.join(self._dir, self._allocate_filename(moment))
+    def _write_window_unlocked(self, window: dict[str, Any]) -> bool:
+        path = self._window_path(window["id"])
+        if os.path.lexists(path):
+            logger.error("Maintenance filename is already occupied", extra={"path": path})
+            return False
         return self._write_window_file(window, path)
 
     def _remove_file(self, path: str) -> bool:
@@ -261,7 +263,9 @@ class MaintenanceStore:
 
             event.add("dtstart", start_dt)
             event.add("dtend", end_dt)
-            event.add("dtstamp", datetime.now(UTC))
+            stamp = window.get("_dtstamp", datetime.now(UTC))
+            if stamp is not None:
+                event.add("dtstamp", stamp)
 
             for matcher in matchers:
                 event.add("x-matcher", str(matcher))
