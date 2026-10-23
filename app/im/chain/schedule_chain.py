@@ -1,11 +1,15 @@
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import ClassVar
 from zoneinfo import ZoneInfo
 
-from impulse_messenger_api.schema import ScheduleEntry, ScheduleMatcherExpression, SimpleChainStep
 from app.logging import logger
 from app.time import unix_sleep_to_timedelta
+from impulse_messenger_api.schema import (
+    ScheduleEntry,
+    ScheduleMatcherExpression,
+    SimpleChainStep,
+)
 
 
 class ScheduleChain:
@@ -26,7 +30,7 @@ class ScheduleChain:
         """
         Get the steps for the current time.
         """
-        current_time = datetime.now(timezone.utc)
+        current_time = datetime.now(UTC)
         return self._get_steps(current_time)
 
     ### PRIVATE METHODS ###
