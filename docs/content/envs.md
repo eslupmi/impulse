@@ -10,10 +10,10 @@ Environment variables are created in `.env` file for python installation or in `
 | CHAIN_PROVIDER_DAYS_TO_SYNC | How many days will be synced<br/>(for [cloud chain](config_file.md#cloud-chains)) | 7 | - |
 | CHAIN_PROVIDER_MAX_EVENTS | Maximum events which will be synced<br/>(for [cloud chain](config_file.md#cloud-chains)) | 10 | - |
 | CHAIN_PROVIDER_SYNC_INTERVAL_SECONDS | Sync interval, seconds<br/>(for [cloud chain](config_file.md#cloud-chains)) | 60 | - |
-| CONFIG_PATH | Path to `impulse.yml`[↰](config_file.md) directory | `./` | - |
-| CORS_ALLOWED_ORIGINS | Сomma-separated list of origins<br> allowed to make cross-origin<br> requests to the server | [http://localhost:5000](http://localhost:5000) | for UI |
-| DATA_PATH | Path to data directory | `./data` | - |
-| GOOGLE_SERVICE_ACCOUNT_FILE | Path to Google service account file<br/>(for [cloud chain](config_file.md#cloud-chains)) | `./key.json` | - |
+| CONFIG_PATH | Path to `impulse.yml`[↰](config_file.md) directory | ./ | - |
+| CORS_ALLOWED_ORIGINS | Сomma-separated list of origins<br> allowed to make cross-origin<br> requests to the server | http://localhost:5000 | for UI |
+| DATA_PATH | Path to data directory | ./data | - |
+| GOOGLE_SERVICE_ACCOUNT_FILE | Path to Google service account file<br/>(for [cloud chain](config_file.md#cloud-chains)) | ./key.json | - |
 | HTTP_PREFIX | HTTP prefix for reverse proxy deployments<br/>(e.g., `/impulse`) | | - |
 | HTTP_PROXY | HTTP proxy URL for outbound HTTP requests<br/> | | - |
 | HTTPS_PROXY | HTTPS proxy URL for outbound HTTPS requests<br/> | | - |
@@ -25,32 +25,12 @@ Environment variables are created in `.env` file for python installation or in `
 | LOG_LEVEL | [Log level](https://github.com/DiTsi/impulse/blob/develop/app/logging.py#L15) | INFO | - |
 | MATTERMOST_ACCESS_TOKEN | [Mattermost 'Access Token'](integrations/messengers/mattermost.md) | | for Mattermost |
 | NO_PROXY | Comma-separated hosts that bypass the proxy<br/> | | - |
-| S3_BUCKET | Existing S3 bucket for persisted data | | when `STORAGE_BACKEND=s3` |
-| S3_ENDPOINT_URL | Custom endpoint for S3-compatible storage | AWS S3 endpoint | - |
+| S3_BUCKET | Existing S3 bucket for persisted data | | for s3 `STORAGE_BACKEND` |
+| S3_ENDPOINT_URL | Custom endpoint for S3-compatible storage | | for s3 `STORAGE_BACKEND` |
 | SLACK_BOT_USER_OAUTH_TOKEN | [Slack 'Bot User OAuth Token'](integrations/messengers/slack.md) | | for Slack |
 | SLACK_VERIFICATION_TOKEN | [Slack 'Verification Token'](integrations/messengers/slack.md) | | for Slack |
-| STORAGE_BACKEND | Data storage backend: `filesystem` or `s3` | `filesystem` | - |
+| STORAGE_BACKEND | Data [storage](concepts/storage.md) backend: "filesystem" or "s3" | filesystem | - |
 | TELEGRAM_BOT_TOKEN | [Telegram 'Bot Token'](integrations/messengers/telegram.md) | | for Telegram |
-
-## S3 storage
-
-Set these environment variables to persist incidents, users, UI schedules, maintenance windows, and authentication sessions in an existing S3 bucket:
-
-```dotenv
-STORAGE_BACKEND=s3
-S3_BUCKET=impulse-data
-AWS_DEFAULT_REGION=eu-central-1
-```
-
-For S3-compatible services, also set `S3_ENDPOINT_URL`, for example `https://s3.example.com`.
-Credentials use the [standard Boto3 credential chain](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html), including IAM roles or `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, and optional `AWS_SESSION_TOKEN`.
-The service account needs `s3:ListBucket` for the bucket and `s3:GetObject`, `s3:PutObject`, and `s3:DeleteObject` for its objects. Bucket provisioning is separate. Use a separate bucket for each independent IMPulse deployment.
-
-Data retains its existing YAML and iCalendar formats. For example, an incident is stored at `incidents/<uniq_id>.yml` in the bucket. `DATA_PATH` is not part of the S3 object keys. Configuration, templates, and Google service account files remain local.
-
-Instances using the same bucket share an S3 lease at `.lock.d/lease.json`, even with different local `DATA_PATH` directories. The endpoint must support conditional `PutObject` (`If-None-Match` and `If-Match`) and conditional `DeleteObject` (`If-Match`), with strong read-after-write consistency. See [High Availability](concepts/ha.md) for primary/standby behavior and failure handling.
-
-To move existing filesystem data, stop all IMPulse instances and copy the contents of `DATA_PATH` to the selected bucket's root, excluding `.lock.d` and `.lock.guard`. Enable the S3 backend only after the copy completes. To switch back, stop all instances and copy the current data objects back to `DATA_PATH`, excluding `.lock.d/lease.json`, before selecting `filesystem`. Run data migration and maintenance commands only while all instances are stopped.
 
 ??? warning "Development variables"
 
