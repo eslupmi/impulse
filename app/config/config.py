@@ -5,6 +5,9 @@ from app.config.loader import ConfigValidationError, load_and_validate_config
 from app.config.validation import ImpulseConfig
 from app.logging import logger
 
+INCIDENT_SCHEMA_VERSION = 'v3.7.0'
+MAINTENANCE_SCHEMA_VERSION = 'v3.8.0'
+
 
 class UnifiedConfig:
     """
@@ -16,7 +19,7 @@ class UnifiedConfig:
     def __init__(self, app: ImpulseConfig):
         self.app = app
 
-        self.INCIDENT_ACTUAL_VERSION = 'v3.7.0'
+        self.INCIDENT_ACTUAL_VERSION = INCIDENT_SCHEMA_VERSION
         self.check_updates = True
 
     @property

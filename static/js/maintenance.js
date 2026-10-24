@@ -31,8 +31,6 @@ let cachedWindows = [];
 let windowsPromiseResolve = null;
 let savePromiseResolve = null;
 let currentWindowId = null;
-let pendingSelectStart = null;
-let pendingSelectEnd = null;
 let modalMatchers = [];
 let ownerSelector = null;
 let configTimezone = "UTC";
@@ -72,10 +70,6 @@ function isMaintenanceWindowActive(startIso, endIso, now = new Date()) {
     const start = new Date(startIso);
     const end = new Date(endIso);
     return start.getTime() <= now.getTime() && now.getTime() < end.getTime();
-}
-
-function countActiveMaintenanceWindows(windows, now = new Date()) {
-    return windows.filter((w) => isMaintenanceWindowActive(w.start, w.end, now)).length;
 }
 
 function formatTimeLeft(endIso, now = new Date()) {
@@ -343,32 +337,13 @@ async function loadWindows() {
     });
 }
 
-async function saveWindows(windows) {
-    cachedWindows = windows;
-    const socket = getSocket();
-    if (socket?.readyState !== WebSocket.OPEN) {
-        console.error("WebSocket not connected, cannot save maintenance windows");
-        return false;
-    }
-    return new Promise((resolve) => {
-        savePromiseResolve = resolve;
-        socket.send(JSON.stringify({event: "save_maintenance", data: windows}));
-        setTimeout(() => {
-            if (savePromiseResolve === resolve) {
-                savePromiseResolve = null;
-                resolve(false);
-            }
-        }, 5000);
-    });
-}
-
 let windowModalPersistInFlight = false;
+let maintenancePersistQueue = Promise.resolve();
 
-async function getWindowsForEdit() {
-    if (cachedWindows.length > 0) {
-        return [...cachedWindows];
-    }
-    return [...await loadWindows()];
+function runMaintenanceMutation(work) {
+    const run = maintenancePersistQueue.then(work);
+    maintenancePersistQueue = run.then(() => undefined, () => undefined);
+    return run;
 }
 
 function setWindowModalPersistInFlight(inFlight) {
@@ -377,9 +352,25 @@ function setWindowModalPersistInFlight(inFlight) {
     document.getElementById("maintenance-window-delete-btn")?.toggleAttribute("disabled", inFlight);
 }
 
-async function persistMaintenanceWindows(windows, previousWindows) {
-    refreshCalendarEvents(windows);
-    const saved = await saveWindows(windows);
+async function persistMaintenanceMutation(message, nextWindows, previousWindows) {
+    cachedWindows = nextWindows;
+    refreshCalendarEvents(nextWindows);
+    const socket = getSocket();
+    let saved = false;
+    if (socket?.readyState !== WebSocket.OPEN) {
+        console.error("WebSocket not connected, cannot save maintenance windows");
+    } else {
+        saved = await new Promise((resolve) => {
+            savePromiseResolve = resolve;
+            socket.send(JSON.stringify(message));
+            setTimeout(() => {
+                if (savePromiseResolve === resolve) {
+                    savePromiseResolve = null;
+                    resolve(false);
+                }
+            }, 5000);
+        });
+    }
     if (!saved) {
         cachedWindows = previousWindows;
         refreshCalendarEvents(previousWindows);
@@ -479,8 +470,6 @@ function buildMainCalendarOptions(events, firstDay, timezone) {
         events,
 
         select(info) {
-            pendingSelectStart = info.start;
-            pendingSelectEnd = info.end;
             openWindowModal();
             document.getElementById("maintenance-window-start").value = formatDateTime(info.start, getTz());
             if (info.end) {
@@ -537,22 +526,33 @@ function buildMonthCalendarOptions(events, firstDay, timezone) {
 }
 
 async function handleEventTimeChange(info) {
-    const previousWindows = cachedWindows;
-    const windows = await getWindowsForEdit();
-    const index = windows.findIndex((w) => w.id === info.event.id);
-    if (index === -1) {
-        info.revert();
-        return;
-    }
-    windows[index] = {
-        ...windows[index],
-        start: info.event.start.toISOString(),
-        end: info.event.end?.toISOString() ?? windows[index].end,
-    };
-    const saved = await persistMaintenanceWindows(windows, previousWindows);
-    if (!saved) {
-        info.revert();
-    }
+    await runMaintenanceMutation(async () => {
+        const previousWindows = cachedWindows;
+        const windows = [...cachedWindows];
+        const index = windows.findIndex((w) => w.id === info.event.id);
+        if (index === -1) {
+            info.revert();
+            return;
+        }
+        if (!windows[index].owner_id) {
+            info.revert();
+            showNotification("Owner is required");
+            return;
+        }
+        windows[index] = {
+            ...windows[index],
+            start: info.event.start.toISOString(),
+            end: info.event.end?.toISOString() ?? windows[index].end,
+        };
+        const saved = await persistMaintenanceMutation(
+            {event: "save_maintenance", data: windows[index]},
+            windows,
+            previousWindows,
+        );
+        if (!saved) {
+            info.revert();
+        }
+    });
 }
 
 function setMatcherInputError(reason) {
@@ -690,10 +690,8 @@ function openWindowModal(windowData = null) {
     } else {
         currentWindowId = null;
         title.textContent = "New maintenance";
-        if (!pendingSelectStart) {
-            startInput.value = "";
-            endInput.value = "";
-        }
+        startInput.value = "";
+        endInput.value = "";
         commentInput.value = "";
         modalMatchers = [];
         deleteBtn.classList.add("hidden");
@@ -707,8 +705,6 @@ function openWindowModal(windowData = null) {
 function closeWindowModal() {
     document.getElementById("maintenance-window-modal")?.classList.remove("visible");
     currentWindowId = null;
-    pendingSelectStart = null;
-    pendingSelectEnd = null;
     modalMatchers = [];
 }
 
@@ -769,47 +765,54 @@ async function saveWindowModal() {
     if (windowModalPersistInFlight) return;
     const input = validateWindowModalInput();
     if (!input) return;
-
-    const previousWindows = cachedWindows;
-    const windows = await getWindowsForEdit();
-    if (currentWindowId) {
-        const index = windows.findIndex((w) => w.id === currentWindowId);
-        if (index === -1) return;
-        windows[index] = {
-            ...windows[index],
-            start: input.start,
-            end: input.end,
-            matchers: input.matchers,
-            comment: input.comment,
-            owner_id: input.owner_id,
-        };
-    } else {
-        windows.push({
-            id: crypto.randomUUID(),
-            start: input.start,
-            end: input.end,
-            matchers: input.matchers,
-            comment: input.comment,
-            owner_id: input.owner_id,
-        });
-    }
+    const windowId = currentWindowId;
 
     setWindowModalPersistInFlight(true);
-    closeWindowModal();
-    await persistMaintenanceWindows(windows, previousWindows);
-    setWindowModalPersistInFlight(false);
+    try {
+        await runMaintenanceMutation(async () => {
+            const previousWindows = cachedWindows;
+            const windows = [...cachedWindows];
+            let savedWindow;
+            if (windowId) {
+                const index = windows.findIndex((w) => w.id === windowId);
+                if (index === -1) return;
+                savedWindow = {...windows[index], ...input};
+                windows[index] = savedWindow;
+            } else {
+                savedWindow = {id: crypto.randomUUID(), ...input};
+                windows.push(savedWindow);
+            }
+            closeWindowModal();
+            await persistMaintenanceMutation(
+                {event: "save_maintenance", data: savedWindow},
+                windows,
+                previousWindows,
+            );
+        });
+    } finally {
+        setWindowModalPersistInFlight(false);
+    }
 }
 
 async function deleteWindowModal() {
     if (!currentWindowId || windowModalPersistInFlight) return;
-
-    const previousWindows = cachedWindows;
-    const windows = (await getWindowsForEdit()).filter((w) => w.id !== currentWindowId);
+    const windowId = currentWindowId;
 
     setWindowModalPersistInFlight(true);
-    closeWindowModal();
-    await persistMaintenanceWindows(windows, previousWindows);
-    setWindowModalPersistInFlight(false);
+    try {
+        await runMaintenanceMutation(async () => {
+            const previousWindows = cachedWindows;
+            const windows = cachedWindows.filter((w) => w.id !== windowId);
+            closeWindowModal();
+            await persistMaintenanceMutation(
+                {event: "delete_maintenance", id: windowId},
+                windows,
+                previousWindows,
+            );
+        });
+    } finally {
+        setWindowModalPersistInFlight(false);
+    }
 }
 
 function refreshMaintenanceModalDateTimes({previousTimezone, configTimezone: tz, userTimezone: userTz}) {

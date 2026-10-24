@@ -80,7 +80,7 @@ class ProviderRegistry:
         entry_point = entries[0]
         try:
             registration = entry_point.load()
-        except Exception:
+        except Exception:  # noqa: BLE001
             distribution = getattr(getattr(entry_point, 'dist', None), 'name', 'unknown distribution')
             safe_error = ValueError(f'Cannot load messenger provider {provider_id!r} from {distribution}')
             # Plugin exceptions may contain credentials; log only our safe error.
@@ -115,7 +115,7 @@ def _validate_installed_provider(registration):
     for name in REQUIRED_TEMPLATE_NAMES:
         try:
             source = registration.template_source(name)
-        except Exception:
+        except Exception:  # noqa: BLE001
             safe_error = ValueError(f'Messenger provider {provider_id} is missing required template: {name}')
             # Resource loaders may include secrets in their exceptions as well.
             logger.exception(

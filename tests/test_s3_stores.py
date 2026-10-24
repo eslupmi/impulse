@@ -7,17 +7,29 @@ from unittest.mock import Mock, patch
 import pytest
 import yaml
 from botocore.exceptions import ClientError, EndpointConnectionError
+from icalendar import Calendar
 
 from app.config.environment import EnvironmentConfig
 from app.im.chain.ui_chains_store import UIChainsStore
 from app.im.user_store import UserStore
 from app.incident.incidents import Incidents
-from app.incident.migrator import IncidentMigrator
 from app.maintenance.store import MaintenanceStore
+from app.migrator import IncidentMigrator, MaintenanceMigrator
 from app.storage import FileStorage, get_storage
 from app.tools import NoAliasDumper
 from app.ui.authentication.models.auth_session import AuthSession
 from app.ui.authentication.session_store import FileSessionStore
+
+
+LEGACY_MAINTENANCE = (
+    b'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//test//EN\r\n'
+    b'BEGIN:VEVENT\r\nUID:window\r\n'
+    b'DTSTART:20260620T080000Z\r\nDTEND:20260620T120000Z\r\n'
+    b'DTSTAMP:20260601T101112Z\r\nX-MATCHER:service="db"\r\nEND:VEVENT\r\n'
+    b'BEGIN:VEVENT\r\nUID:a/b\r\n'
+    b'DTSTART:20260621T080000Z\r\nDTEND:20260621T120000Z\r\n'
+    b'X-MATCHER:service="cache"\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n'
+)
 
 
 @pytest.fixture
@@ -88,16 +100,112 @@ def test_calendar_and_maintenance_restart_and_retention(remote_state):
     now = datetime.now(timezone.utc).replace(microsecond=0)
     start, end = (now + timedelta(hours=1)).isoformat(), (now + timedelta(hours=2)).isoformat()
     shift = {'id': 'shift', 'start': start, 'end': end, 'priority': 1, 'steps': [{'user': 'alice'}]}
-    assert UIChainsStore().save_shifts('primary', [shift])
+    assert UIChainsStore().upsert_shift('primary', shift)[0]
     assert UIChainsStore().load_shifts('primary')[0]['steps'] == [{'user': 'alice'}]
-    window = {'id': 'window', 'start': start, 'end': end, 'matchers': ['service="db"'], 'comment': 'planned'}
-    assert MaintenanceStore().save_windows([window])
+    window = {'id': 'window', 'start': start, 'end': end, 'matchers': ['service="db"'],
+              'comment': 'planned', 'owner_id': 'U1'}
+    assert MaintenanceStore().upsert_window(window, {'U1'})[0]
     assert MaintenanceStore().load_windows()[0]['matchers'] == ['service="db"']
-    assert {'ui_chains/primary.ics', 'maintenance/windows.ics'} <= objects.keys()
+    assert {'ui_chains/primary.ics', 'maintenance/window.ics'} <= objects.keys()
     assert UIChainsStore().prune_all(now + timedelta(days=1000)) == 1
     assert MaintenanceStore().prune_expired_windows(now + timedelta(days=1000)) == 1
     assert UIChainsStore().load_shifts('primary') == []
     assert MaintenanceStore().load_windows() == []
+
+
+def test_remote_maintenance_migration_preserves_calendars_and_filenames(remote_state):
+    _, config, objects = remote_state
+    legacy_key = 'maintenance/windows.ics'
+    objects[legacy_key] = LEGACY_MAINTENANCE
+    store = MaintenanceStore()
+    store.migrate()
+    assert set(objects) == {'maintenance/window.ics', 'maintenance/a%2Fb.ics'}
+    original = objects.copy()
+    calendar = Calendar.from_ical(objects['maintenance/window.ics'])
+    assert str(calendar.get('x-impulse-version')) == MaintenanceMigrator.ACTUAL_VERSION
+    assert calendar.walk('VEVENT')[0]['dtstamp'].to_ical() == b'20260601T101112Z'
+    assert Calendar.from_ical(objects['maintenance/a%2Fb.ics']).walk('VEVENT')[0].get('dtstamp') is None
+    assert {window['id'] for window in MaintenanceStore().load_windows()} == {'window', 'a/b'}
+    assert all('_dtstamp' not in window for window in store.load_windows())
+
+    MaintenanceMigrator().downgrade(store, MaintenanceMigrator.LEGACY_VERSION)
+    assert set(objects) == {legacy_key}
+    assert str(Calendar.from_ical(objects[legacy_key]).get('x-impulse-version')) == MaintenanceMigrator.LEGACY_VERSION
+    MaintenanceStore().migrate()
+    assert objects == original
+    assert not Path(config.data_path).exists()
+
+
+@pytest.mark.parametrize('failed_operation', ['put_object', 'delete_object'])
+@pytest.mark.parametrize('direction', ['upgrade', 'downgrade'])
+def test_remote_maintenance_migration_failures_are_recoverable(remote_state, failed_operation, direction):
+    storage, _, objects = remote_state
+    objects['maintenance/windows.ics'] = LEGACY_MAINTENANCE
+    store = MaintenanceStore()
+    if direction == 'downgrade':
+        store.migrate()
+    before = objects.copy()
+    operation = getattr(storage.client, failed_operation)
+    original = operation.side_effect
+    operation.side_effect = EndpointConnectionError(endpoint_url='https://unavailable.example')
+    with pytest.raises(OSError):
+        if direction == 'upgrade':
+            store.migrate()
+        else:
+            MaintenanceMigrator().downgrade(store, MaintenanceMigrator.LEGACY_VERSION)
+    assert before.items() <= objects.items()
+    operation.side_effect = original
+
+    restored = MaintenanceStore()
+    restored.migrate()
+    assert set(objects) == {'maintenance/window.ics', 'maintenance/a%2Fb.ics'}
+    assert {window['id'] for window in restored.load_windows()} == {'window', 'a/b'}
+    assert restored.delete_window('window')[0]
+    assert restored.delete_window('a/b')[0]
+    MaintenanceStore().migrate()
+    assert objects == {}
+
+
+@pytest.mark.parametrize('recovery', ['upgrade', 'downgrade'])
+def test_remote_maintenance_interrupted_rename_cannot_resurrect_deleted_window(remote_state, recovery):
+    storage, _, objects = remote_state
+    objects['maintenance/windows.ics'] = LEGACY_MAINTENANCE
+    store = MaintenanceStore()
+    store.migrate()
+    before = objects.copy()
+    timestamp_key = 'maintenance/2026-10-20-20-44-00-000000.ics'
+    objects[timestamp_key] = objects.pop('maintenance/window.ics')
+    original = storage.client.delete_object.side_effect
+    storage.client.delete_object.side_effect = EndpointConnectionError(endpoint_url='https://unavailable.example')
+    with pytest.raises(OSError):
+        store.migrate()
+    assert objects['maintenance/window.ics'] == objects[timestamp_key]
+    storage.client.delete_object.side_effect = original
+
+    restored = MaintenanceStore()
+    if recovery == 'downgrade':
+        MaintenanceMigrator().downgrade(restored, MaintenanceMigrator.LEGACY_VERSION)
+        assert set(objects) == {'maintenance/windows.ics'}
+    restored.migrate()
+    assert objects == before
+    assert restored.delete_window('window')[0]
+    assert restored.delete_window('a/b')[0]
+    MaintenanceStore().migrate()
+    assert objects == {}
+
+
+def test_remote_maintenance_rename_preserves_occupied_target(remote_state):
+    _, _, objects = remote_state
+    objects['maintenance/windows.ics'] = LEGACY_MAINTENANCE
+    store = MaintenanceStore()
+    store.migrate()
+    timestamp_key = 'maintenance/2026-10-20-20-44-00-000000.ics'
+    objects[timestamp_key] = objects.pop('maintenance/window.ics')
+    objects['maintenance/window.ics'] = b'unreadable existing record'
+    before = objects.copy()
+    with pytest.raises(FileExistsError):
+        store.migrate()
+    assert objects == before
 
 
 def test_sessions_restart_validation_and_expiry(remote_state):
@@ -142,8 +250,10 @@ def test_remote_calendar_read_failure_cannot_erase_stored_data(remote_state):
     chains_store = UIChainsStore()
     maintenance_store = MaintenanceStore()
     future = now + timedelta(days=1000)
-    assert chains_store.save_shifts('primary', [{'id': 'shift', 'start': start, 'end': end, 'steps': []}])
-    assert maintenance_store.save_windows([{'id': 'window', 'start': start, 'end': end, 'matchers': ['service="db"']}])
+    assert chains_store.upsert_shift('primary', {'id': 'shift', 'start': start, 'end': end, 'steps': []})[0]
+    window = {'id': 'window', 'start': start, 'end': end, 'matchers': ['service="db"'],
+              'comment': 'planned', 'owner_id': 'U1'}
+    assert maintenance_store.upsert_window(window, {'U1'})[0]
     before = objects.copy()
     storage.client.get_object.side_effect = EndpointConnectionError(endpoint_url='https://unavailable.example')
     with pytest.raises(OSError):

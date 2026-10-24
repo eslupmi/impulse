@@ -1,5 +1,5 @@
 """
-Unit tests for app.incident.migrator module.
+Unit tests for app.migrator module.
 """
 import os
 from datetime import datetime, timezone
@@ -9,7 +9,7 @@ import pytest
 
 from app.incident.freeze import FreezeSource
 from app.incident.incident import Incident
-from app.incident.migrator import IncidentMigrator
+from app.migrator import IncidentMigrator
 from tests.utils import create_mock_config, create_alert_payload
 
 
@@ -54,8 +54,8 @@ class TestIncidentMigrator:
 
         with patch('builtins.open', mock_open()) as mock_file, \
                 patch('yaml.dump') as mock_yaml_dump, \
-                patch('app.incident.migrator.os.rename'), \
-                patch('app.incident.migrator.get_config') as mock_get_config:
+                patch('app.migrator.os.rename'), \
+                patch('app.migrator.get_config') as mock_get_config:
             # Use utility function for mock config
             mock_config = create_mock_config(messenger_type="slack")
             mock_get_config.return_value = mock_config
@@ -90,7 +90,7 @@ class TestIncidentMigrator:
             'created': datetime.now(timezone.utc)  # Add created to avoid None error
         }
 
-        with patch('app.incident.migrator.get_config') as mock_get_config:
+        with patch('app.migrator.get_config') as mock_get_config:
             # Use utility function for mock config
             mock_config = create_mock_config(messenger_type="slack")
             mock_get_config.return_value = mock_config
@@ -137,7 +137,7 @@ class TestIncidentMigrator:
             'status': 'firing'
         }
 
-        with patch('app.incident.migrator.get_config') as mock_get_config:
+        with patch('app.migrator.get_config') as mock_get_config:
             # Use utility function for mock config
             mock_config = create_mock_config(messenger_type="slack")
             mock_get_config.return_value = mock_config
@@ -163,7 +163,7 @@ class TestIncidentMigrator:
             'channel_id': 'C123456789'
         }
 
-        with patch('app.incident.migrator.get_config') as mock_get_config:
+        with patch('app.migrator.get_config') as mock_get_config:
             # Use utility function for mock config
             mock_config = create_mock_config(messenger_type="slack")
             mock_get_config.return_value = mock_config
@@ -196,7 +196,7 @@ class TestIncidentMigrator:
             'custom_field': 'custom_value'
         }
 
-        with patch('app.incident.migrator.get_config') as mock_get_config:
+        with patch('app.migrator.get_config') as mock_get_config:
             # Use utility function for mock config
             mock_config = create_mock_config(messenger_type="slack")
             mock_get_config.return_value = mock_config
@@ -222,7 +222,7 @@ class TestIncidentMigrator:
             'channel_id': 'C123456789'
         }
 
-        with patch('app.incident.migrator.get_config') as mock_get_config:
+        with patch('app.migrator.get_config') as mock_get_config:
             mock_config = Mock()
             mock_config.messenger.type = 'slack'
             mock_get_config.return_value = mock_config
@@ -287,9 +287,9 @@ class TestIncidentMigrator:
 
         with patch('builtins.open', mock_open()), \
                 patch('yaml.dump'), \
-                patch('app.incident.migrator.os.rename'), \
-                patch('app.incident.migrator.get_config') as mock_get_config, \
-                patch('app.incident.migrator.logger') as mock_logger:
+                patch('app.migrator.os.rename'), \
+                patch('app.migrator.get_config') as mock_get_config, \
+                patch('app.migrator.logger') as mock_logger:
             # Use utility function for mock config
             mock_config = create_mock_config(messenger_type="slack")
             mock_get_config.return_value = mock_config
@@ -306,7 +306,7 @@ class TestIncidentMigrator:
         old_path = os.path.join('/test/incidents', 'old-uuid.yml')
         new_path = os.path.join('/test/incidents', f'{uniq_id}.yml')
 
-        with patch('app.incident.migrator.os.rename') as mock_rename:
+        with patch('app.migrator.os.rename') as mock_rename:
             result = migrator._migrate_filename_v3_6_0_to_v3_7_0(old_path, incident_data)
 
         mock_rename.assert_called_once_with(old_path, new_path)
@@ -318,7 +318,7 @@ class TestIncidentMigrator:
         old_path = os.path.join('/test/incidents', 'old-uuid__2025_01_15__14_30_45.yml')
         new_path = os.path.join('/test/incidents', f'{uniq_id}.yml')
 
-        with patch('app.incident.migrator.os.rename') as mock_rename:
+        with patch('app.migrator.os.rename') as mock_rename:
             result = migrator._migrate_filename_v3_6_0_to_v3_7_0(old_path, incident_data)
 
         mock_rename.assert_called_once_with(old_path, new_path)
@@ -329,7 +329,7 @@ class TestIncidentMigrator:
         file_path = os.path.join('/test/incidents', f'{uniq_id}.yml')
         incident_data = {'uniq_id': uniq_id, 'version': 'v3.7.0'}
 
-        with patch('app.incident.migrator.os.rename') as mock_rename:
+        with patch('app.migrator.os.rename') as mock_rename:
             result = migrator._migrate_filename_v3_6_0_to_v3_7_0(file_path, incident_data)
 
         mock_rename.assert_not_called()
@@ -381,7 +381,7 @@ class TestIncidentMigrator:
 
         with patch('builtins.open', mock_open()), \
                 patch('yaml.dump'), \
-                patch('app.incident.migrator.os.rename'):
+                patch('app.migrator.os.rename'):
             result = migrator.migrate_file(
                 old_path,
                 incident_data,
@@ -439,7 +439,7 @@ class TestIncidentMigrator:
         old_path = os.path.join('/test/incidents', f'{uniq_id}.yml')
         new_path = os.path.join('/test/incidents', f'{uuid}.yml')
 
-        with patch('app.incident.migrator.os.rename') as mock_rename:
+        with patch('app.migrator.os.rename') as mock_rename:
             result = migrator._migrate_filename_v3_7_0_to_v3_6_0(old_path, incident_data)
 
         mock_rename.assert_called_once_with(old_path, new_path)
@@ -459,7 +459,7 @@ class TestIncidentMigrator:
         old_path = os.path.join('/test/incidents', f'{uniq_id}.yml')
         new_path = os.path.join('/test/incidents', f'{uuid}__2025_01_15__14_30_45.yml')
 
-        with patch('app.incident.migrator.os.rename') as mock_rename:
+        with patch('app.migrator.os.rename') as mock_rename:
             result = migrator._migrate_filename_v3_7_0_to_v3_6_0(old_path, incident_data)
 
         mock_rename.assert_called_once_with(old_path, new_path)
@@ -474,7 +474,7 @@ class TestIncidentMigrator:
             'payload': {'groupLabels': group_labels},
         }
 
-        with patch('app.incident.migrator.os.rename') as mock_rename:
+        with patch('app.migrator.os.rename') as mock_rename:
             result = migrator._migrate_filename_v3_7_0_to_v3_6_0(file_path, incident_data)
 
         mock_rename.assert_not_called()
@@ -498,7 +498,7 @@ class TestIncidentMigrator:
 
         with patch('builtins.open', mock_open()), \
                 patch('yaml.dump'), \
-                patch('app.incident.migrator.os.rename'):
+                patch('app.migrator.os.rename'):
             result = migrator.migrate_file(
                 old_path,
                 incident_data,
@@ -537,7 +537,7 @@ class TestIncidentMigrator:
 
         uuid_path = os.path.join('/test/incidents', f'{uuid}.yml')
         uniq_path = os.path.join('/test/incidents', f'{uniq_id}.yml')
-        with patch('app.incident.migrator.os.rename'):
+        with patch('app.migrator.os.rename'):
             upgraded_path = migrator._migrate_filename_v3_6_0_to_v3_7_0(
                 uuid_path,
                 {'uniq_id': uniq_id},
@@ -550,7 +550,7 @@ class TestIncidentMigrator:
         assert restored_path == uuid_path
 
     def test_resolve_downgrade_target_empty_arg(self, migrator):
-        with patch('app.incident.migrator.get_config') as mock_get_config:
+        with patch('app.migrator.get_config') as mock_get_config:
             mock_config = create_mock_config()
             mock_config.INCIDENT_ACTUAL_VERSION = 'v3.7.0'
             mock_get_config.return_value = mock_config
@@ -558,7 +558,7 @@ class TestIncidentMigrator:
             assert IncidentMigrator.resolve_downgrade_target(None) == 'v3.6.0'
 
     def test_resolve_downgrade_target_release_tag(self, migrator):
-        with patch('app.incident.migrator.get_config') as mock_get_config:
+        with patch('app.migrator.get_config') as mock_get_config:
             mock_config = create_mock_config()
             mock_config.INCIDENT_ACTUAL_VERSION = 'v3.7.0'
             mock_get_config.return_value = mock_config
@@ -566,7 +566,7 @@ class TestIncidentMigrator:
             assert IncidentMigrator.resolve_downgrade_target('v3.6.0') == 'v3.6.0'
 
     def test_resolve_downgrade_target_below_floor(self, migrator):
-        with patch('app.incident.migrator.get_config') as mock_get_config:
+        with patch('app.migrator.get_config') as mock_get_config:
             mock_config = create_mock_config()
             mock_config.INCIDENT_ACTUAL_VERSION = 'v3.7.0'
             mock_get_config.return_value = mock_config
@@ -574,7 +574,7 @@ class TestIncidentMigrator:
                 IncidentMigrator.resolve_downgrade_target('v3.4.0')
 
     def test_resolve_downgrade_target_unknown(self, migrator):
-        with patch('app.incident.migrator.get_config') as mock_get_config:
+        with patch('app.migrator.get_config') as mock_get_config:
             mock_config = create_mock_config()
             mock_config.INCIDENT_ACTUAL_VERSION = 'v3.7.0'
             mock_get_config.return_value = mock_config

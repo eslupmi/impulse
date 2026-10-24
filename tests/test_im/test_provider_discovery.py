@@ -263,7 +263,7 @@ def test_builtin_config_ids_remain_plain_yaml_strings(monkeypatch, provider_id, 
     import yaml
 
     from app.im.user_store import UserStore
-    from app.incident import migrator
+    from app import migrator
 
     data = {
         'admin_users': [], 'users': {}, 'channels': {},

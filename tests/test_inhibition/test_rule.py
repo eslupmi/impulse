@@ -181,6 +181,32 @@ class TestInhibitionRule:
         # Both missing cluster - None == None is True
         assert critical_source_warning_target_rule.equal_labels_match(source, target) is True
 
+    def test_equal_labels_match_empty_and_missing(self, critical_source_warning_target_rule):
+        source_payload = create_alert_payload(severity="critical", service="")
+        target_payload = create_alert_payload(severity="warning", service="api")
+        source = self._create_incident_with_payload(source_payload)
+        target = self._create_incident_with_payload(target_payload)
+
+        assert critical_source_warning_target_rule.equal_labels_match(source, target) is False
+
+        target_payload['commonLabels']['service'] = None
+        assert critical_source_warning_target_rule.equal_labels_match(source, target) is True
+
+    def test_target_not_equal_empty_rejects_missing_service(self):
+        rule = InhibitionRule(
+            source_matchers=['severity="critical"'],
+            target_matchers=['severity="warning"', 'service!=""'],
+            equal_labels=['service'],
+        )
+        missing = self._create_incident_with_payload(create_alert_payload(severity="warning", service=""))
+        del missing.payload['commonLabels']['service']
+        empty = self._create_incident_with_payload(create_alert_payload(severity="warning", service=""))
+        present = self._create_incident_with_payload(create_alert_payload(severity="warning", service="api"))
+
+        assert rule.is_target(missing) is False
+        assert rule.is_target(empty) is False
+        assert rule.is_target(present) is True
+
     def test_equal_labels_match_no_equal_labels_rule(self, no_equal_labels_rule):
         """Test equal_labels_match with no equal labels configured."""
         source_payload = create_alert_payload(severity="critical", service="api")

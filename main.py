@@ -5,10 +5,10 @@ from app.api.openapi import configure_api_openapi
 from app.cli import parse_arguments
 from app.config.config import get_config, validate_config_only
 from app.config.environment import get_environment_config
-from app.incident.migrator import downgrade_incidents_only
 from app.lifespan import lifespan
 from app.logging import configure_logging
 from app.middleware import StandbyMiddleware
+from app.migrator import downgrade_incidents_only, downgrade_maintenance
 from app.routes import create_router
 from app.signals import setup_sighup_forwarder
 from app.ui.authentication.factory import build_auth_manager
@@ -48,6 +48,7 @@ if __name__ == "__main__":
 
     if args.downgrade is not None:
         downgrade_incidents_only(args.downgrade)
+        downgrade_maintenance(args.downgrade)
         raise SystemExit(0)
 
     env_config = get_environment_config()

@@ -22,9 +22,12 @@ Templates for **status icons**, **header** and **body** are [here](https://githu
 
 ### Buttons
 
-Incidents in messengers have two mandatory buttons **Take It** (**Release**), **Freeze** and one optional button **Task**.
+Incidents in messengers have two mandatory buttons **Take It** / **Release** , **Freeze** and one optional button **Task**.
 
-#### Take It (Release)
+#### Take It / Release
+
+!!! note ""
+    Same as **Assign to me** / **Unassign** in other incident management tools
 
 The button works differently depending on the incident's state.
 

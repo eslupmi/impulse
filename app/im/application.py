@@ -580,8 +580,7 @@ class Application:
         freeze_time = calculate_freeze_time(freeze_option, general, timezone_str)
         if user_id and not await self.fetch_and_assign_user_name(incident_, user_id, dump=False):
             return False
-        users = self.users
-        cached_user = users.get_user_by_id(user_id) if user_id and users is not None else None
+        cached_user = self.users.get_user_by_id(user_id) if self.users is not None and user_id else None
         await self.apply_time_freeze(incident_, freeze_time, cached_user, queue_, source=FreezeSource.TIME)
         await self.post_freeze_notification(incident_, ui_user=ui_user)
         return True
