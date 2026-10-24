@@ -1,6 +1,7 @@
 """Exercise the application's state stores through an in-memory S3 client."""
 import io
 from datetime import datetime, timedelta, timezone
+from functools import partial
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -142,17 +143,16 @@ def test_remote_maintenance_migration_failures_are_recoverable(remote_state, fai
     storage, _, objects = remote_state
     objects['maintenance/windows.ics'] = LEGACY_MAINTENANCE
     store = MaintenanceStore()
+    migration = store.migrate
     if direction == 'downgrade':
         store.migrate()
+        migration = partial(MaintenanceMigrator().downgrade, store, MaintenanceMigrator.LEGACY_VERSION)
     before = objects.copy()
     operation = getattr(storage.client, failed_operation)
     original = operation.side_effect
     operation.side_effect = EndpointConnectionError(endpoint_url='https://unavailable.example')
     with pytest.raises(OSError):
-        if direction == 'upgrade':
-            store.migrate()
-        else:
-            MaintenanceMigrator().downgrade(store, MaintenanceMigrator.LEGACY_VERSION)
+        migration()
     assert before.items() <= objects.items()
     operation.side_effect = original
 

@@ -499,6 +499,8 @@ class MaintenanceMigrator:
     @staticmethod
     def _rename_individual_files(store: "MaintenanceStore") -> None:
         storage = store._storage
+        remote = isinstance(storage, S3Storage)
+        path_exists = storage.exists if remote else os.path.lexists
         for filename in storage.listdir(store._dir):
             if filename == LEGACY_FILENAME or not filename.endswith(".ics"):
                 continue
@@ -509,17 +511,16 @@ class MaintenanceMigrator:
             target = store._window_path(window["id"])
             if path == target:
                 continue
-            remote = isinstance(storage, S3Storage)
-            occupied = storage.exists(target) if remote else os.path.lexists(target)
-            if occupied:
-                if remote:
-                    with storage.open(path, "rb") as source, storage.open(target, "rb") as destination:
-                        if source.read() == destination.read():
-                            # A failed copy/delete rename can leave both identical objects.
-                            storage.remove(path)
-                            continue
+            if not path_exists(target):
+                storage.rename(path, target)
+                continue
+            if not remote:
                 raise FileExistsError(f'Maintenance filename is already occupied: {target}')
-            storage.rename(path, target)
+            with storage.open(path, "rb") as source, storage.open(target, "rb") as destination:
+                if source.read() != destination.read():
+                    raise FileExistsError(f'Maintenance filename is already occupied: {target}')
+            # A failed copy/delete rename can leave both identical objects.
+            storage.remove(path)
 
     def _split_legacy(self, store: "MaintenanceStore") -> None:
         path = os.path.join(store._dir, LEGACY_FILENAME)
