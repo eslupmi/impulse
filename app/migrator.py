@@ -610,7 +610,7 @@ def _read_calendar(path: str, storage: FileStorage | S3Storage | None = None) ->
     try:
         with storage.open(path, "rb") as f:
             parsed = Calendar.from_ical(f.read().decode())
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         logger.error("Failed to read maintenance calendar", extra={"error": str(e), "path": path})
         if isinstance(storage, S3Storage) and isinstance(e, OSError):
             raise
