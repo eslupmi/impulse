@@ -16,6 +16,7 @@ from app.migrator import (
     MaintenanceMigrator,
     _read_calendar,
 )
+from app.storage import S3Storage, get_storage
 from app.time import unix_sleep_to_timedelta
 
 
@@ -61,6 +62,7 @@ def _replace_window(existing: list[dict[str, Any]], window: dict[str, Any]) -> l
 class MaintenanceStore:
     def __init__(self):
         env_config = get_environment_config()
+        self._storage = get_storage(env_config)
         self._dir = os.path.join(env_config.data_path, "maintenance")
         self._lock = threading.Lock()
         self._ensure_dir()
@@ -141,9 +143,7 @@ class MaintenanceStore:
         return self._write_window_file(window, path)
 
     def _ensure_dir(self) -> None:
-        if not os.path.exists(self._dir):
-            os.makedirs(self._dir)
-            logger.info("Created maintenance directory", extra={"path": self._dir})
+        self._storage.makedirs(self._dir)
 
     def _load_unlocked(self) -> tuple[list[dict[str, Any]], dict[str, str]]:
         return self._read_individual_windows()
@@ -151,7 +151,7 @@ class MaintenanceStore:
     def _read_individual_windows(self) -> tuple[list[dict[str, Any]], dict[str, str]]:
         windows = []
         paths = {}
-        for filename in os.listdir(self._dir):
+        for filename in self._storage.listdir(self._dir):
             if filename == LEGACY_FILENAME or not filename.endswith(".ics"):
                 continue
             path = os.path.join(self._dir, filename)
@@ -163,7 +163,7 @@ class MaintenanceStore:
         return windows, paths
 
     def _read_window_file(self, path: str) -> dict[str, Any] | None:
-        calendar = _read_calendar(path)
+        calendar = _read_calendar(path, self._storage)
         if calendar is None:
             return None
         for component in calendar.walk():
@@ -194,7 +194,7 @@ class MaintenanceStore:
             if event is None:
                 return False
             calendar.add_component(event)
-            with open(path, "wb") as f:
+            with self._storage.open(path, "wb") as f:
                 f.write(calendar.to_ical())
             logger.debug("Saved maintenance window", extra={"window_id": window.get("id"), "path": path})
             return True
@@ -211,7 +211,7 @@ class MaintenanceStore:
                 if event is None:
                     return False
                 calendar.add_component(event)
-            with open(path, "wb") as f:
+            with self._storage.open(path, "wb") as f:
                 f.write(calendar.to_ical())
             return True
         except Exception as e:  # noqa: BLE001
@@ -233,14 +233,15 @@ class MaintenanceStore:
 
     def _write_window_unlocked(self, window: dict[str, Any]) -> bool:
         path = self._window_path(window["id"])
-        if os.path.lexists(path):
+        occupied = self._storage.exists(path) if isinstance(self._storage, S3Storage) else os.path.lexists(path)
+        if occupied:
             logger.error("Maintenance filename is already occupied", extra={"path": path})
             return False
         return self._write_window_file(window, path)
 
     def _remove_file(self, path: str) -> bool:
         try:
-            os.remove(path)
+            self._storage.remove(path)
             return True
         except OSError as e:
             logger.error("Failed to delete maintenance window", extra={"error": str(e), "path": path})

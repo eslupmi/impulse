@@ -48,6 +48,7 @@ nav:
     - concepts/basics.md
     - concepts/check.md
     - concepts/ha.md
+    - concepts/storage.md
     - concepts/incident.md
     - concepts/inhibition.md
     - concepts/ui.md

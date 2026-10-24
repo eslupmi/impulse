@@ -145,8 +145,12 @@ class Application:
                            notification_id=notification_id,
                            serializer=getattr(self.provider, 'serialize_user', None))
 
-    async def fetch_and_assign_user_name(self, incident, user_id, dump=True):
-        user = self.users.get_user_by_id(user_id)
+    async def fetch_and_assign_user_name(self, incident, user_id, dump=True) -> bool:
+        users = self.users
+        if users is None:
+            logger.warning('User assignment skipped: messenger users are not initialized', extra={'user_id': user_id})
+            return False
+        user = users.get_user_by_id(user_id)
         if not (user and user.exists):
             user = await self._assign_from_api(user_id)
         if user is None:

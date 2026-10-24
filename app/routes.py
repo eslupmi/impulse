@@ -36,6 +36,11 @@ _MSG_AUTHENTICATION_REQUIRED = "Authentication required"
 _MSG_ID_REQUIRED = "id is required"
 
 
+async def _maintenance_save_side_effects(app, existing, saved, deleted):
+    if is_standby_mode(app.state):
+        return
+    await app.state.maintenance_manager.apply_save_side_effects(existing, saved, deleted)
+
 async def _send_saved_event(websocket, event, success, detail=None, data=None):
     message = {"event": event, "success": success}
     if detail is not None:
@@ -378,13 +383,21 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
             return
         
         await incident_ws.connect(websocket)
-
-        active_maintenance = websocket.app.state.maintenance_manager.active_windows_payload()
-        await websocket.send_text(json.dumps({"event": "active_maintenance", "data": active_maintenance}))
-
+        tasks = getattr(websocket.app.state, 'runtime_tasks', None)
+        task = asyncio.current_task()
+        if tasks is not None:
+            tasks.add(task)
         try:
+            if is_standby_mode(websocket.app.state):
+                await websocket.close(code=1008, reason=STANDBY_MODE_MESSAGE)
+                return
+            active_maintenance = websocket.app.state.maintenance_manager.active_windows_payload()
+            await websocket.send_text(json.dumps({"event": "active_maintenance", "data": active_maintenance}))
             while True:
                 data = await websocket.receive_text()
+                if is_standby_mode(websocket.app.state):
+                    await websocket.close(code=1008, reason=STANDBY_MODE_MESSAGE)
+                    return
 
                 try:
                     message = json.loads(data)
@@ -466,12 +479,15 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
                                 await _send_saved_event(websocket, "maintenance_saved", False, exc.detail)
                             else:
                                 await _send_saved_event(websocket, "maintenance_saved", success)
-                                if success:
+                                if success and not is_standby_mode(websocket.app.state):
                                     _maintenance_save_task = asyncio.create_task(
-                                        websocket.app.state.maintenance_manager.apply_save_side_effects(
-                                            existing_before, saved, []
+                                        _maintenance_save_side_effects(
+                                            websocket.app, existing_before, saved, []
                                         )
                                     )
+                                    if tasks is not None:
+                                        tasks.add(_maintenance_save_task)
+                                        _maintenance_save_task.add_done_callback(tasks.discard)
                     elif event_type == "delete_maintenance":
                         if auth_manager and _get_acting_user_from_websocket(websocket) is None:
                             await _send_saved_event(websocket, "maintenance_saved", False, _MSG_AUTHENTICATION_REQUIRED)
@@ -483,12 +499,15 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
                                 store = get_maintenance_store()
                                 success, existing_before, saved, deleted = store.delete_window(str(window_id))
                                 await _send_saved_event(websocket, "maintenance_saved", success)
-                                if success and deleted:
+                                if success and deleted and not is_standby_mode(websocket.app.state):
                                     _maintenance_save_task = asyncio.create_task(
-                                        websocket.app.state.maintenance_manager.apply_save_side_effects(
-                                            existing_before, saved, [deleted]
+                                        _maintenance_save_side_effects(
+                                            websocket.app, existing_before, saved, [deleted]
                                         )
                                     )
+                                    if tasks is not None:
+                                        tasks.add(_maintenance_save_task)
+                                        _maintenance_save_task.add_done_callback(tasks.discard)
 
                 except json.JSONDecodeError:
                     logger.warning("Invalid WebSocket JSON", extra={'data': data})
@@ -498,10 +517,13 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
                     logger.error("WebSocket message error", extra={'error': str(e)})
 
         except WebSocketDisconnect:
-            incident_ws.disconnect(websocket)
+            pass
         except Exception as e:  # noqa: BLE001
             logger.error("WebSocket error", extra={'error': str(e)})
+        finally:
             incident_ws.disconnect(websocket)
+            if tasks is not None:
+                tasks.discard(task)
 
     router.include_router(create_api_router())
 
