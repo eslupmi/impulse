@@ -93,9 +93,13 @@ async def test_expired_owner_does_not_dequeue_work():
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('supervisor_demoted', [False, True])
-async def test_websocket_save_does_not_start_work_after_ownership_loss(supervisor_demoted):
+@pytest.mark.parametrize('event_type', ['save_maintenance', 'delete_maintenance'])
+async def test_websocket_mutation_does_not_start_work_after_ownership_loss(supervisor_demoted, event_type):
     app = FastAPI()
     owned = True
+    window = {'id': 'w1'}
+    message = {'event': event_type}
+    message.update({'data': window} if event_type == 'save_maintenance' else {'id': window['id']})
     app.state.is_standby = False
     app.state.file_lock = SimpleNamespace(check_owned=lambda: owned)
     app.state.runtime_tasks = set()
@@ -114,11 +118,13 @@ async def test_websocket_save_does_not_start_work_after_ownership_loss(superviso
             if self.received:
                 raise WebSocketDisconnect()
             self.received = True
-            return json.dumps({'event': 'save_maintenance', 'data': []})
+            return json.dumps(message)
 
         async def send_text(self, data):
             nonlocal owned
-            if json.loads(data)['event'] == 'maintenance_saved':
+            response = json.loads(data)
+            if response['event'] == 'maintenance_saved':
+                assert response['success'] is True
                 # Renewal can fail while the acknowledgement is being sent.
                 owned = False
                 app.state.is_standby = supervisor_demoted
@@ -130,7 +136,8 @@ async def test_websocket_save_does_not_start_work_after_ownership_loss(superviso
         async def close(self, **kwargs):
             pass
 
-    store = Mock(load_windows=Mock(return_value=[]), save_windows=Mock(return_value=True))
+    store = Mock(upsert_window=Mock(return_value=(True, [], [])),
+                 delete_window=Mock(return_value=(True, [window], [], window)))
     with patch('app.routes.get_maintenance_store', return_value=store), \
             patch('app.routes.incident_ws.connect', new=AsyncMock()), \
             patch('app.routes.incident_ws.disconnect'):
@@ -143,4 +150,11 @@ async def test_websocket_save_does_not_start_work_after_ownership_loss(superviso
             assert result is None
         await asyncio.sleep(0)
     effects.assert_not_awaited()
+    if event_type == 'save_maintenance':
+        store.upsert_window.assert_called_once_with(window, set())
+        store.delete_window.assert_not_called()
+    else:
+        store.delete_window.assert_called_once_with(window['id'])
+        store.upsert_window.assert_not_called()
+    assert not owned
     assert not app.state.runtime_tasks
