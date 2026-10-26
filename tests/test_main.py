@@ -8,6 +8,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 import main
+from app.s3_lock import S3Lock
+from app.storage import S3Storage
 
 
 class TestMainApplication:
@@ -195,6 +197,8 @@ class TestMainApplication:
 
             # Verify queue manager was started
             mock_app_dependencies['queue_manager'].start_processing.assert_called_once()
+            assert mock_app_dependencies['queue_manager'].check_owned is None
+            mock_app_dependencies['file_lock'].check_owned.assert_not_called()
             
             # Verify file lock was checked
             mock_app_dependencies['file_lock'].is_locked.assert_called_once()
@@ -207,22 +211,74 @@ class TestMainApplication:
         mock_app_dependencies['file_lock'].release_lock.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_startup_loses_ownership_before_queue_starts(self, mock_app_dependencies):
+    async def test_s3_startup_wires_lease_to_storage_and_queue(self, mock_app_dependencies):
+        from fastapi import FastAPI
+
+        storage = Mock(spec=S3Storage)
+
+        def acquire(lock):
+            lock._active = True
+            lock._deadline = float('inf')
+            return True
+
+        with patch('app.lifespan.get_storage', return_value=storage), \
+                patch.object(S3Lock, 'is_locked', return_value=False), \
+                patch.object(S3Lock, 'acquire_lock', autospec=True, side_effect=acquire), \
+                patch.object(S3Lock, 'release_lock', new=AsyncMock()) as release_lock:
+            app = FastAPI()
+            async with main.lifespan(app):
+                assert not app.state.is_standby
+                lock = app.state.file_lock
+                manager = mock_app_dependencies['queue_manager']
+                manager.start_processing.assert_called_once()
+                assert storage.check_owned == lock.check_owned
+                assert manager.check_owned == lock.check_owned
+                assert storage.check_owned()
+                assert manager.check_owned()
+            release_lock.assert_awaited_once()
+        mock_app_dependencies['file_lock'].acquire_lock.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_filesystem_standby_promotes_without_lease_checks(self, mock_app_dependencies):
         from fastapi import FastAPI
 
         lock = mock_app_dependencies['file_lock']
-        lock.check_owned.return_value = True
-
-        async def lose_lock():
-            lock.check_owned.return_value = False
-
-        mock_app_dependencies['messenger'].initialize_async.side_effect = lose_lock
+        lock.is_locked.return_value = True
+        started = asyncio.Event()
+        manager = mock_app_dependencies['queue_manager']
+        manager.start_processing.side_effect = started.set
         app = FastAPI()
         async with main.lifespan(app):
             assert app.state.is_standby
-            mock_app_dependencies['queue_manager'].start_processing.assert_not_called()
-            assert app.state.queue_manager is None
+            await asyncio.wait_for(started.wait(), timeout=1)
+            assert not app.state.is_standby
+            lock.wait_for_unlock.assert_awaited_once()
+            lock.acquire_lock.assert_called_once()
+            lock.check_owned.assert_not_called()
+            assert manager.check_owned is None
+            manager.start_processing.assert_called_once()
         lock.release_lock.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_s3_startup_loses_ownership_before_queue_starts(self, mock_app_dependencies):
+        from fastapi import FastAPI
+
+        with patch('app.lifespan.get_storage', return_value=Mock(spec=S3Storage)), \
+                patch.object(S3Lock, 'is_locked', return_value=False), \
+                patch.object(S3Lock, 'acquire_lock', return_value=True), \
+                patch.object(S3Lock, 'check_owned', return_value=True) as check_owned, \
+                patch.object(S3Lock, 'release_lock', new=AsyncMock()) as release_lock:
+            async def lose_lock():
+                check_owned.return_value = False
+
+            mock_app_dependencies['messenger'].initialize_async.side_effect = lose_lock
+            app = FastAPI()
+            async with main.lifespan(app):
+                assert app.state.is_standby
+                mock_app_dependencies['queue_manager'].start_processing.assert_not_called()
+                assert app.state.queue_manager is None
+            release_lock.assert_awaited_once()
+        mock_app_dependencies['file_lock'].acquire_lock.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_lifespan_startup_with_locked_file(self, mock_app_dependencies):

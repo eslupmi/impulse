@@ -43,17 +43,20 @@ async def _initialize_primary_server(fastapi_app: FastAPI, file_lock: FileLock |
 
     logger.info("Starting as primary server")
 
-    initialization = asyncio.create_task(create_main_objects(fastapi_app))
-    ownership_lost = asyncio.create_task(_wait_for_ownership_loss(file_lock))
     try:
-        try:
-            await asyncio.wait({initialization, ownership_lost}, return_when=asyncio.FIRST_COMPLETED)
-            _require_ownership(file_lock)
-            await initialization
-        finally:
-            initialization.cancel()
-            ownership_lost.cancel()
-            await asyncio.gather(initialization, ownership_lost, return_exceptions=True)
+        if isinstance(file_lock, S3Lock):
+            initialization = asyncio.create_task(create_main_objects(fastapi_app))
+            ownership_lost = asyncio.create_task(_wait_for_ownership_loss(file_lock))
+            try:
+                await asyncio.wait({initialization, ownership_lost}, return_when=asyncio.FIRST_COMPLETED)
+                _require_ownership(file_lock)
+                await initialization
+            finally:
+                initialization.cancel()
+                ownership_lost.cancel()
+                await asyncio.gather(initialization, ownership_lost, return_exceptions=True)
+        else:
+            await create_main_objects(fastapi_app)
         fastapi_app.state.is_standby = False
         STATUS.set(1)
         logger.info('Started as primary server')
@@ -73,7 +76,7 @@ async def _initialize_primary_server(fastapi_app: FastAPI, file_lock: FileLock |
 
 
 def _require_ownership(file_lock):
-    if file_lock is not None and not file_lock.check_owned():
+    if isinstance(file_lock, S3Lock) and not file_lock.check_owned():
         raise OSError('Storage lock is not owned by this instance')
 
 
@@ -141,7 +144,7 @@ async def create_main_objects(fastapi_app: FastAPI, reload=False):
         await user_scheduler.schedule_all_stored()
         _require_ownership(file_lock)
         queue_manager = AsyncQueueManager(queue, messenger, incidents, webhooks, route, inhibition_manager, maintenance_manager)
-        queue_manager.check_owned = file_lock.check_owned if file_lock is not None else None
+        queue_manager.check_owned = file_lock.check_owned if isinstance(file_lock, S3Lock) else None
         fastapi_app.state.queue_manager = queue_manager
         await maintenance_manager.reconcile_all()
         _require_ownership(file_lock)
@@ -207,9 +210,12 @@ async def lifespan(fastapi_app: FastAPI):
     setup_sighup_handler(fastapi_app, create_main_objects, _cleanup_application_objects)
 
     storage = get_storage()
-    file_lock = S3Lock(storage) if isinstance(storage, S3Storage) else FileLock()
+    file_lock: FileLock | S3Lock
     if isinstance(storage, S3Storage):
+        file_lock = S3Lock(storage)
         storage.check_owned = file_lock.check_owned
+    else:
+        file_lock = FileLock()
     shutdown_event = asyncio.Event()
 
     can_take_over = file_lock.can_take_over_lock()
@@ -275,6 +281,8 @@ async def _maintain_primary(shutdown_event, file_lock, fastapi_app):
                 except TimeoutError:
                     pass
             continue
+        if not isinstance(file_lock, S3Lock):
+            return
         await _wait_for_ownership_loss(file_lock)
         fastapi_app.state.is_standby = True
         STATUS.set(0)

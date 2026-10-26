@@ -1,12 +1,12 @@
-"""Primary initialization must stop when its acquired lease is lost."""
+"""S3 primary initialization must stop when its acquired lease is lost."""
 import asyncio
-from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
 
 from fastapi import FastAPI
 import pytest
 
 from app.lifespan import _initialize_primary_server
+from app.s3_lock import S3Lock
 
 
 @pytest.mark.asyncio
@@ -28,7 +28,8 @@ async def test_ownership_loss_cancels_initialization_before_further_work():
     async def release():
         assert cancelled.is_set()
 
-    lock = SimpleNamespace(
+    lock = Mock(
+        spec=S3Lock,
         acquire_lock=lambda: True,
         check_owned=lambda: not lost.is_set(),
         release_lock=AsyncMock(side_effect=release),

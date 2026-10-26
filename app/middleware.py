@@ -5,6 +5,7 @@ from fastapi.responses import Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.config.environment import get_environment_config
+from app.s3_lock import S3Lock
 
 STANDBY_MODE_MESSAGE = "Service Unavailable - Standby mode"
 
@@ -12,7 +13,7 @@ STANDBY_MODE_MESSAGE = "Service Unavailable - Standby mode"
 def is_standby_mode(state) -> bool:
     """Check if server is in standby mode"""
     lock = getattr(state, 'file_lock', None)
-    return bool(getattr(state, 'is_standby', False) or (lock is not None and not lock.check_owned()))
+    return bool(getattr(state, 'is_standby', False) or (isinstance(lock, S3Lock) and not lock.check_owned()))
 
 
 def service_unavailable_response(message: str) -> Response:

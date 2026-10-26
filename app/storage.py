@@ -44,7 +44,12 @@ class S3Storage:
     def __init__(self, config: EnvironmentConfig):
         self.root = os.path.abspath(config.data_path)
         self.bucket = config.s3_bucket
-        self.endpoint_url = config.s3_endpoint_url
+        self._client_options = {name: value for name, value in {
+            'endpoint_url': config.s3_endpoint_url,
+            'region_name': config.s3_region,
+            'aws_access_key_id': config.s3_access_key_id,
+            'aws_secret_access_key': config.s3_secret_access_key,
+        }.items() if value is not None}
         self._client = None
         self.check_owned: Callable[[], bool] | None = None
 
@@ -53,7 +58,7 @@ class S3Storage:
         if self._client is None:
             try:
                 self._client = boto3.client(
-                    's3', endpoint_url=self.endpoint_url,
+                    's3', **self._client_options,
                     config=Config(connect_timeout=5, read_timeout=5,
                                   retries={'mode': 'standard', 'total_max_attempts': 3}))
             except BotoCoreError as error:

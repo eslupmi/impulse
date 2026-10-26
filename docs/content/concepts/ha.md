@@ -16,7 +16,7 @@ When running multiple IMPulse instances, configure your proxy (Nginx or another)
 
 ## Read-only filesystem
 
-If the filesystem of the server where IMPulse is running becomes full, IMPulse will continue working. Data won't be lost as long as IMPulse continues running.
+When using `STORAGE_BACKEND=filesystem`, if the filesystem of the server where IMPulse is running becomes full, IMPulse will continue working. Data won't be lost as long as IMPulse continues running.
 
 !!! danger "Danger"
     Do not stop or restart it

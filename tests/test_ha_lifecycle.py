@@ -1,4 +1,4 @@
-"""Loss of shared ownership must stop work before the standby promotes."""
+"""S3 ownership loss stops work; filesystem HA retains its legacy behavior."""
 import asyncio
 import json
 from types import SimpleNamespace
@@ -8,16 +8,18 @@ from fastapi import FastAPI, WebSocketDisconnect
 from fastapi.testclient import TestClient
 import pytest
 
+from app.file_lock import FileLock
 from app.lifespan import _maintain_primary
 from app.middleware import StandbyMiddleware, is_standby_mode
 from app.queue.manager import AsyncQueueManager
 from app.routes import create_router
+from app.s3_lock import S3Lock
 
 
 def test_expired_owner_blocks_requests_before_supervisor_runs():
     app = FastAPI()
     app.state.is_standby = False
-    app.state.file_lock = Mock(check_owned=Mock(return_value=False))
+    app.state.file_lock = Mock(spec=S3Lock, check_owned=Mock(return_value=False))
     app.add_middleware(StandbyMiddleware)
 
     @app.post('/work')
@@ -53,7 +55,7 @@ async def test_ownership_loss_cancels_primary_work_and_releases_after_cleanup():
         messenger.close.assert_awaited_once()
         shutdown.set()
 
-    lock = Mock(check_owned=Mock(return_value=False), release_lock=AsyncMock(side_effect=released))
+    lock = Mock(spec=S3Lock, check_owned=Mock(return_value=False), release_lock=AsyncMock(side_effect=released))
     with patch('app.lifespan.STATUS') as status:
         await asyncio.wait_for(_maintain_primary(shutdown, lock, app), timeout=2)
     assert app.state.is_standby
@@ -101,7 +103,7 @@ async def test_websocket_mutation_does_not_start_work_after_ownership_loss(super
     message = {'event': event_type}
     message.update({'data': window} if event_type == 'save_maintenance' else {'id': window['id']})
     app.state.is_standby = False
-    app.state.file_lock = SimpleNamespace(check_owned=lambda: owned)
+    app.state.file_lock = Mock(spec=S3Lock, check_owned=lambda: owned)
     app.state.runtime_tasks = set()
     app.state.messenger = SimpleNamespace(users=SimpleNamespace(get_assignable_users=lambda: []))
     effects = AsyncMock()
@@ -158,3 +160,31 @@ async def test_websocket_mutation_does_not_start_work_after_ownership_loss(super
         store.upsert_window.assert_not_called()
     assert not owned
     assert not app.state.runtime_tasks
+
+
+@pytest.mark.asyncio
+async def test_filesystem_heartbeat_failure_keeps_primary_serving(tmp_path):
+    with patch('app.file_lock.get_environment_config', return_value=SimpleNamespace(data_path=str(tmp_path))):
+        lock = FileLock()
+    lock._active = True
+    with patch.object(lock, '_update', return_value=False), \
+            patch('app.file_lock.asyncio.sleep', new=AsyncMock()):
+        await lock._heartbeat()
+    assert not lock._active
+    assert lock._heartbeat_failures == lock.MAX_HEARTBEAT_FAILURES
+
+    app = FastAPI()
+    app.state.is_standby = False
+    app.state.file_lock = lock
+    app.state.queue_manager = Mock()
+    app.state.queue = SimpleNamespace(put_first=AsyncMock())
+    app.add_middleware(StandbyMiddleware)
+    app.include_router(create_router(''))
+    with patch('app.lifespan._cleanup_application_objects', new=AsyncMock()) as cleanup:
+        await asyncio.wait_for(_maintain_primary(asyncio.Event(), lock, app), timeout=1)
+    cleanup.assert_not_awaited()
+    assert not is_standby_mode(app.state)
+    with TestClient(app) as client:
+        assert client.get('/readyz').status_code == 200
+        assert client.post('/', json={'status': 'firing'}).status_code == 200
+    app.state.queue.put_first.assert_awaited_once()

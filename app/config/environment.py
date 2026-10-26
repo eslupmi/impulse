@@ -81,12 +81,26 @@ class EnvironmentConfig(BaseModel):
         description="Backend for persistent application state"
     )
     s3_bucket: str | None = Field(
-        default_factory=lambda: _env_optional_str('S3_BUCKET'),
+        default_factory=lambda: _env_optional_str('STORAGE_S3_BUCKET_NAME'),
         description="Existing S3 bucket for application state"
     )
     s3_endpoint_url: str | None = Field(
-        default_factory=lambda: _env_optional_str('S3_ENDPOINT_URL'),
+        default_factory=lambda: _env_optional_str('STORAGE_S3_ENDPOINT_URL'),
         description="Optional endpoint for S3-compatible storage"
+    )
+    s3_region: str | None = Field(
+        default_factory=lambda: _env_optional_str('STORAGE_S3_REGION'),
+        description="Optional S3 client region override"
+    )
+    s3_access_key_id: str | None = Field(
+        default_factory=lambda: _env_optional_str('STORAGE_S3_ACCESS_KEY_ID'),
+        repr=False,
+        description="Optional S3 client access key override"
+    )
+    s3_secret_access_key: str | None = Field(
+        default_factory=lambda: _env_optional_str('STORAGE_S3_SECRET_ACCESS_KEY'),
+        repr=False,
+        description="Optional S3 client secret key override"
     )
     config_path: str = Field(
         default_factory=lambda: os.getenv('CONFIG_PATH', './'),
@@ -154,7 +168,7 @@ class EnvironmentConfig(BaseModel):
     @model_validator(mode='after')
     def validate_storage(self):
         if self.storage_backend == 's3' and not (self.s3_bucket and self.s3_bucket.strip()):
-            raise ValueError('S3_BUCKET is required when STORAGE_BACKEND=s3')
+            raise ValueError('STORAGE_S3_BUCKET_NAME is required when STORAGE_BACKEND=s3')
         return self
 
     @field_validator('provider_sync_interval', 'provider_max_events', 'provider_days_to_sync', 'listen_port')

@@ -67,25 +67,31 @@ def test_s3_rejects_mutations_after_ownership_loss(s3_storage):
 
 
 def test_storage_configuration(monkeypatch):
-    for name in ['STORAGE_BACKEND', 'S3_BUCKET', 'S3_ENDPOINT_URL']:
+    for name in ['STORAGE_BACKEND', 'STORAGE_S3_BUCKET_NAME', 'STORAGE_S3_ENDPOINT_URL',
+                 'STORAGE_S3_REGION', 'STORAGE_S3_ACCESS_KEY_ID', 'STORAGE_S3_SECRET_ACCESS_KEY']:
         monkeypatch.delenv(name, raising=False)
     config = EnvironmentConfig()
     assert config.storage_backend == 'filesystem'
     assert config.s3_bucket is None
     assert config.s3_endpoint_url is None
+    assert config.s3_region is None
+    assert config.s3_access_key_id is None
+    assert config.s3_secret_access_key is None
     assert isinstance(get_storage(config), FileStorage)
     monkeypatch.setenv('STORAGE_BACKEND', 's3')
-    with pytest.raises(ValidationError, match='S3_BUCKET is required'):
+    monkeypatch.setenv('S3_BUCKET', 'old-name-is-ignored')
+    monkeypatch.setenv('S3_ENDPOINT_URL', 'https://old-name-is-ignored.example.com')
+    with pytest.raises(ValidationError, match='STORAGE_S3_BUCKET_NAME is required'):
         EnvironmentConfig()
-    monkeypatch.setenv('S3_BUCKET', ' state-bucket ')
-    monkeypatch.setenv('S3_ENDPOINT_URL', 'https://storage.example.com')
+    monkeypatch.setenv('STORAGE_S3_BUCKET_NAME', ' state-bucket ')
+    monkeypatch.setenv('STORAGE_S3_ENDPOINT_URL', 'https://storage.example.com')
     config = EnvironmentConfig()
     assert config.s3_bucket == 'state-bucket'
     assert config.s3_endpoint_url == 'https://storage.example.com'
     monkeypatch.setenv('STORAGE_BACKEND', 'unknown')
     with pytest.raises(ValidationError):
         EnvironmentConfig()
-    with pytest.raises(ValidationError, match='S3_BUCKET is required'):
+    with pytest.raises(ValidationError, match='STORAGE_S3_BUCKET_NAME is required'):
         EnvironmentConfig(storage_backend='s3', s3_bucket='  ')
 
 
@@ -111,6 +117,58 @@ def test_storage_selection_caches_by_config_and_uses_default_credentials():
     assert isinstance(get_storage(Mock()), FileStorage)
     with patch('app.storage.get_environment_config', return_value=EnvironmentConfig()):
         assert isinstance(get_storage(), FileStorage)
+
+
+def test_storage_s3_environment_options_reach_sdk(monkeypatch):
+    for name, value in {
+        'STORAGE_BACKEND': 's3',
+        'STORAGE_S3_BUCKET_NAME': 'state-bucket',
+        'STORAGE_S3_ENDPOINT_URL': ' https://s3.example.com ',
+        'STORAGE_S3_REGION': ' eu-west-1 ',
+        'STORAGE_S3_ACCESS_KEY_ID': ' storage-access-key ',
+        'STORAGE_S3_SECRET_ACCESS_KEY': ' storage-secret-key ',
+    }.items():
+        monkeypatch.setenv(name, value)
+    config = EnvironmentConfig()
+    with patch('app.storage.boto3.client') as create:
+        S3Storage(config).client
+        create.assert_called_once_with(
+            's3', endpoint_url='https://s3.example.com', region_name='eu-west-1',
+            aws_access_key_id='storage-access-key', aws_secret_access_key='storage-secret-key',
+            config=ANY,
+        )
+    assert 'storage-access-key' not in repr(config)
+    assert 'storage-secret-key' not in repr(config)
+
+
+@pytest.mark.parametrize('blank', ['', ' \t '])
+def test_blank_storage_s3_options_leave_sdk_defaults(monkeypatch, blank):
+    for name in ['STORAGE_S3_ENDPOINT_URL', 'STORAGE_S3_REGION',
+                 'STORAGE_S3_ACCESS_KEY_ID', 'STORAGE_S3_SECRET_ACCESS_KEY']:
+        monkeypatch.setenv(name, blank)
+    config = EnvironmentConfig(storage_backend='s3', s3_bucket='state-bucket')
+    with patch('app.storage.boto3.client') as create:
+        S3Storage(config).client
+        create.assert_called_once_with('s3', config=ANY)
+
+
+def test_storage_uses_standard_aws_credentials_and_region_when_unset(tmp_path):
+    with patch.dict('os.environ', {
+        'AWS_ACCESS_KEY_ID': 'default-access-key',
+        'AWS_SECRET_ACCESS_KEY': 'default-secret-key',
+        'AWS_SESSION_TOKEN': 'default-session-token',
+        'AWS_DEFAULT_REGION': 'eu-central-1',
+        'AWS_CONFIG_FILE': str(tmp_path / 'absent-config'),
+        'AWS_SHARED_CREDENTIALS_FILE': str(tmp_path / 'absent-credentials'),
+        'AWS_EC2_METADATA_DISABLED': 'true',
+    }, clear=True), patch('boto3.DEFAULT_SESSION', None):
+        config = EnvironmentConfig(storage_backend='s3', s3_bucket='state-bucket')
+        client = S3Storage(config).client
+        assert client.meta.region_name == 'eu-central-1'
+        credentials = client._request_signer._credentials
+        assert credentials.access_key == 'default-access-key'
+        assert credentials.secret_key == 'default-secret-key'
+        assert credentials.token == 'default-session-token'
 
 
 @pytest.mark.parametrize('mode,content', [('w', 'данные'), ('wb', b'\x00\xff'), ('wt', '')])
