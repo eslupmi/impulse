@@ -28,11 +28,11 @@ Environment variables are created in `.env` file for python installation or in `
 | SLACK_BOT_USER_OAUTH_TOKEN | [Slack 'Bot User OAuth Token'](integrations/messengers/slack.md) | | for Slack |
 | SLACK_VERIFICATION_TOKEN | [Slack 'Verification Token'](integrations/messengers/slack.md) | | for Slack |
 | STORAGE_BACKEND | Data [storage](concepts/storage.md) backend: "filesystem" or "s3" | filesystem | - |
-| STORAGE_S3_ACCESS_KEY_ID | Explicit S3 access key ID; set with `STORAGE_S3_SECRET_ACCESS_KEY` | Boto3 credential chain | - |
+| STORAGE_S3_ACCESS_KEY_ID | Explicit S3 access key ID | | for s3 `STORAGE_BACKEND` |
 | STORAGE_S3_BUCKET_NAME | Existing S3 bucket for persisted data | | for s3 `STORAGE_BACKEND` |
-| STORAGE_S3_ENDPOINT_URL | Custom endpoint for S3-compatible storage | | - |
-| STORAGE_S3_REGION | Explicit S3 region | Boto3 region configuration | - |
-| STORAGE_S3_SECRET_ACCESS_KEY | Explicit S3 secret key; set with `STORAGE_S3_ACCESS_KEY_ID` | Boto3 credential chain | - |
+| STORAGE_S3_ENDPOINT_URL | Custom endpoint for S3-compatible storage | | for s3 `STORAGE_BACKEND` |
+| STORAGE_S3_REGION | Explicit S3 region | | for s3 `STORAGE_BACKEND` |
+| STORAGE_S3_SECRET_ACCESS_KEY | Explicit S3 secret key | | for s3 `STORAGE_BACKEND` |
 | TELEGRAM_BOT_TOKEN | [Telegram 'Bot Token'](integrations/messengers/telegram.md) | | for Telegram |
 
 ??? warning "Development variables"
