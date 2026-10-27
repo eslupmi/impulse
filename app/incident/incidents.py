@@ -58,7 +58,7 @@ class Incidents:
         try:
             incident_filename = incident.get_current_filename()
             get_storage().remove(incident_filename)
-        except (OSError, PermissionError, FileNotFoundError) as e:
+        except OSError as e:
             logger.error(f'Failed to delete incident file for uniq_id: {incident.uniq_id}: {e}')
 
     def del_by_uniq_id(self, uniq_id: str):

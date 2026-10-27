@@ -87,6 +87,7 @@ class AsyncQueueManager:
         type_, uniq_id, identifier, data = await self.queue.get_next_ready_item()
         if type_ is None:
             return
+        # Ownership can change while waiting for the queue lock.
         if self.check_owned is not None and not self.check_owned():
             return
 

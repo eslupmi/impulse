@@ -65,7 +65,7 @@ class MaintenanceStore:
         self._storage = get_storage(env_config)
         self._dir = os.path.join(env_config.data_path, "maintenance")
         self._lock = threading.Lock()
-        self._ensure_dir()
+        self._storage.makedirs(self._dir)
 
     def migrate(self) -> None:
         with self._lock:
@@ -141,9 +141,6 @@ class MaintenanceStore:
         if path is None:
             return self._write_window_unlocked(window)
         return self._write_window_file(window, path)
-
-    def _ensure_dir(self) -> None:
-        self._storage.makedirs(self._dir)
 
     def _load_unlocked(self) -> tuple[list[dict[str, Any]], dict[str, str]]:
         return self._read_individual_windows()

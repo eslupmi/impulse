@@ -1,6 +1,7 @@
 import os
 import re
 from datetime import UTC, datetime
+from itertools import pairwise
 from typing import TYPE_CHECKING, ClassVar
 
 import yaml
@@ -17,8 +18,7 @@ from app.tools import NoAliasDumper
 if TYPE_CHECKING:
     from app.maintenance.store import MaintenanceStore
 
-_INCIDENT_SCHEMA_V3_6 = 'v3.6.0'
-DOWNGRADE_FLOOR = _INCIDENT_SCHEMA_V3_6
+DOWNGRADE_FLOOR = 'v3.6.0'
 _VERSION_RE = re.compile(r'^v(\d+)\.(\d+)\.(\d+)$')
 
 
@@ -31,13 +31,9 @@ class IncidentMigrator:
     """
 
     # Define migration path - each version knows how to migrate to the next
-    MIGRATION_CHAIN: ClassVar[dict[str, str]] = {
-        'v0.4': 'v3.0.0',
-        'v3.0.0': 'v3.2.0',
-        'v3.2.0': 'v3.4.0',
-        'v3.4.0': _INCIDENT_SCHEMA_V3_6,
-        _INCIDENT_SCHEMA_V3_6: 'v3.7.0',
-    }
+    MIGRATION_CHAIN: ClassVar[dict[str, str]] = dict(pairwise((
+        'v0.4', 'v3.0.0', 'v3.2.0', 'v3.4.0', 'v3.6.0', 'v3.7.0',
+    )))
     REVERSE_MIGRATION_CHAIN: ClassVar[dict[str, str]] = {dst: src for src, dst in MIGRATION_CHAIN.items()}
 
     def __init__(self):
@@ -606,8 +602,7 @@ def downgrade_maintenance(version_arg: str | None = None) -> None:
     logger.info(f"Downgrade to {target_version} complete")
 
 
-def _read_calendar(path: str, storage: FileStorage | S3Storage | None = None) -> Calendar | None:
-    storage = storage if storage is not None else get_storage()
+def _read_calendar(path: str, storage: FileStorage | S3Storage) -> Calendar | None:
     try:
         with storage.open(path, "rb") as f:
             parsed = Calendar.from_ical(f.read().decode())
@@ -644,7 +639,7 @@ def _calendar_version(calendar: Calendar) -> str | None:
     return str(raw)
 
 
-def _path_version(path: str, storage: FileStorage | S3Storage | None = None) -> str | None:
+def _path_version(path: str, storage: FileStorage | S3Storage) -> str | None:
     calendar = _read_calendar(path, storage)
     if calendar is None:
         return None

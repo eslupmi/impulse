@@ -32,7 +32,6 @@ def _window_files(store: MaintenanceStore) -> list[Path]:
 
 
 def _seed_windows(store: MaintenanceStore, windows: list[dict]) -> None:
-    store._ensure_dir()
     for window in windows:
         assert store._write_window_unlocked(window) is True
 
@@ -158,7 +157,6 @@ def test_upsert_retains_recently_ended_windows_until_closed_timeout(tmp_path: Pa
 def test_skips_event_without_matchers(tmp_path: Path):
     store = _make_store(tmp_path)
     cal_path = Path(store._dir) / LEGACY_FILENAME
-    store._ensure_dir()
     with open(cal_path, "wb") as f:
         f.write(
             b"BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//test//EN\r\n"
@@ -173,7 +171,6 @@ def test_skips_event_without_matchers(tmp_path: Path):
 
 def test_load_window_without_owner_id(tmp_path: Path):
     store = _make_store(tmp_path)
-    store._ensure_dir()
     with open(Path(store._dir) / LEGACY_FILENAME, "wb") as f:
         f.write(
             b"BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//test//EN\r\n"

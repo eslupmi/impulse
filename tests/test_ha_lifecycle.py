@@ -1,6 +1,7 @@
 """S3 ownership loss stops work; filesystem HA retains its legacy behavior."""
 import asyncio
 import json
+from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
 
@@ -11,7 +12,9 @@ import pytest
 from app.file_lock import FileLock
 from app.lifespan import _maintain_primary
 from app.middleware import StandbyMiddleware, is_standby_mode
+from app.queue.constants import QueueItemType
 from app.queue.manager import AsyncQueueManager
+from app.queue.queue import AsyncQueue
 from app.routes import create_router
 from app.s3_lock import S3Lock
 
@@ -91,6 +94,25 @@ async def test_expired_owner_does_not_dequeue_work():
     manager.queue = Mock(get_next_ready_item=AsyncMock())
     await manager.queue_handle_once()
     manager.queue.get_next_ready_item.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_ownership_loss_while_waiting_for_queue_lock_does_not_start_handler():
+    manager = AsyncQueueManager.__new__(AsyncQueueManager)
+    manager.queue = AsyncQueue()
+    manager.check_owned = Mock(return_value=True)
+    manager.handle_alert = AsyncMock()
+    await manager.queue.put_first(datetime.now(UTC), QueueItemType.ALERT, data={'status': 'firing'})
+
+    async with manager.queue._lock:
+        processing = asyncio.create_task(manager.queue_handle_once())
+        await asyncio.sleep(0)
+        manager.check_owned.assert_called_once()
+        assert not processing.done()
+        manager.check_owned.return_value = False
+
+    await asyncio.wait_for(processing, timeout=1)
+    manager.handle_alert.assert_not_awaited()
 
 
 @pytest.mark.asyncio

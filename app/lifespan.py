@@ -293,6 +293,6 @@ async def _maintain_primary(shutdown_event, file_lock, fastapi_app):
             await file_lock.release_lock()
 
 
-async def _wait_for_ownership_loss(file_lock):
-    while await asyncio.to_thread(file_lock.check_owned):
+async def _wait_for_ownership_loss(file_lock: S3Lock):
+    while file_lock.check_owned():
         await asyncio.sleep(0.25)
