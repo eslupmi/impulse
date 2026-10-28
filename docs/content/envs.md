@@ -10,10 +10,10 @@ Environment variables are created in `.env` file for python installation or in `
 | CHAIN_PROVIDER_DAYS_TO_SYNC | How many days will be synced<br/>(for [cloud chain](config_file.md#cloud-chains)) | 7 | - |
 | CHAIN_PROVIDER_MAX_EVENTS | Maximum events which will be synced<br/>(for [cloud chain](config_file.md#cloud-chains)) | 10 | - |
 | CHAIN_PROVIDER_SYNC_INTERVAL_SECONDS | Sync interval, seconds<br/>(for [cloud chain](config_file.md#cloud-chains)) | 60 | - |
-| CONFIG_PATH | Path to `impulse.yml`[↰](config_file.md) directory | `./` | - |
-| CORS_ALLOWED_ORIGINS | Сomma-separated list of origins<br> allowed to make cross-origin<br> requests to the server | [http://localhost:5000](http://localhost:5000) | for UI |
-| DATA_PATH | Path to data directory | `./data` | - |
-| GOOGLE_SERVICE_ACCOUNT_FILE | Path to Google service account file<br/>(for [cloud chain](config_file.md#cloud-chains)) | `./key.json` | - |
+| CONFIG_PATH | Path to `impulse.yml`[↰](config_file.md) directory | ./ | - |
+| CORS_ALLOWED_ORIGINS | Сomma-separated list of origins<br> allowed to make cross-origin<br> requests to the server | http://localhost:5000 | for UI |
+| DATA_PATH | Path to data directory | ./data | - |
+| GOOGLE_SERVICE_ACCOUNT_FILE | Path to Google service account file<br/>(for [cloud chain](config_file.md#cloud-chains)) | ./key.json | - |
 | HTTP_PREFIX | HTTP prefix for reverse proxy deployments<br/>(e.g., `/impulse`) | | - |
 | HTTP_PROXY | HTTP proxy URL for outbound HTTP requests<br/> | | - |
 | HTTPS_PROXY | HTTPS proxy URL for outbound HTTPS requests<br/> | | - |
@@ -27,6 +27,12 @@ Environment variables are created in `.env` file for python installation or in `
 | NO_PROXY | Comma-separated hosts that bypass the proxy<br/> | | - |
 | SLACK_BOT_USER_OAUTH_TOKEN | [Slack 'Bot User OAuth Token'](integrations/messengers/slack.md) | | for Slack |
 | SLACK_VERIFICATION_TOKEN | [Slack 'Verification Token'](integrations/messengers/slack.md) | | for Slack |
+| STORAGE_BACKEND | Data [storage](concepts/storage.md) backend: "filesystem" or "s3" | filesystem | - |
+| STORAGE_S3_ACCESS_KEY_ID | Explicit S3 access key ID | | for s3 `STORAGE_BACKEND` |
+| STORAGE_S3_BUCKET_NAME | Existing S3 bucket for persisted data | | for s3 `STORAGE_BACKEND` |
+| STORAGE_S3_ENDPOINT_URL | Custom endpoint for S3-compatible storage | | for s3 `STORAGE_BACKEND` |
+| STORAGE_S3_REGION | Explicit S3 region | | for s3 `STORAGE_BACKEND` |
+| STORAGE_S3_SECRET_ACCESS_KEY | Explicit S3 secret key | | for s3 `STORAGE_BACKEND` |
 | TELEGRAM_BOT_TOKEN | [Telegram 'Bot Token'](integrations/messengers/telegram.md) | | for Telegram |
 
 ??? warning "Development variables"

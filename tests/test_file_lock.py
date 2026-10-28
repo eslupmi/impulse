@@ -2,12 +2,9 @@
 Unit tests for app.file_lock module.
 """
 import asyncio
-import os
-import socket
 import tempfile
-import time
 from pathlib import Path
-from unittest.mock import Mock, patch, mock_open, MagicMock, AsyncMock
+from unittest.mock import Mock, patch, mock_open
 
 import pytest
 
@@ -80,7 +77,7 @@ class TestFileLockAcquireLock:
             
             mock_loop = Mock()
             mock_task = Mock()
-            mock_loop.create_task.return_value = mock_task
+            mock_loop.create_task.side_effect = lambda coroutine: coroutine.close() or mock_task
             mock_get_loop.return_value = mock_loop
 
             file_lock = FileLock()
@@ -114,7 +111,7 @@ class TestFileLockAcquireLock:
             
             mock_loop = Mock()
             mock_task = Mock()
-            mock_loop.create_task.return_value = mock_task
+            mock_loop.create_task.side_effect = lambda coroutine: coroutine.close() or mock_task
             mock_get_loop.return_value = mock_loop
 
             file_lock = FileLock()
@@ -699,7 +696,7 @@ class TestFileLockHeartbeat:
         """Test _heartbeat stops after MAX_HEARTBEAT_FAILURES consecutive failures."""
         with patch('app.file_lock.get_environment_config') as mock_get_env_config, \
              patch.object(FileLock, '_update', return_value=False) as mock_update, \
-             patch('app.file_lock.asyncio.sleep') as mock_sleep, \
+             patch('app.file_lock.asyncio.sleep'), \
              patch('app.file_lock.logger') as mock_logger:
             
             mock_config = Mock()
@@ -923,7 +920,7 @@ class TestFileLockIsProcessRunning:
 
             assert result is False
 
-    def test_is_process_running_raises_on_permission_error(self):
+    def test_is_process_running_returns_false_on_permission_error(self):
         """Test _is_process_running returns False on permission error."""
         with patch('app.file_lock.get_environment_config') as mock_get_env_config, \
              patch('app.file_lock.os.kill', side_effect=PermissionError()):
@@ -966,3 +963,18 @@ class TestFileLockGetBootId:
 
             file_lock = FileLock()
             assert file_lock._boot_id is None
+
+
+@pytest.mark.asyncio
+async def test_filesystem_lock_uses_only_legacy_metadata(tmp_path):
+    with patch('app.file_lock.get_environment_config') as mock_config:
+        mock_config.return_value.data_path = str(tmp_path)
+        lock = FileLock()
+    try:
+        assert lock.acquire_lock()
+        assert {path.name for path in lock.lock_dir.iterdir()} == {'heartbeat', 'pid', 'host', 'boot_id'}
+        assert not (tmp_path / '.lock.guard').exists()
+        assert lock.is_locked()
+    finally:
+        await lock.release_lock()
+    assert not lock.lock_dir.exists()

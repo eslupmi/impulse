@@ -6,7 +6,7 @@ IMPulse allows running multiple instances to ensure high availability.
 
 ![None](../media/ha.excalidraw.svg)
 
-The first IMPulse instance creates a `.lock.d` directory in the `DATA_PATH`[↰](../envs.md) directory to lock file operations. Other instances start in **standby** mode and wait until the first instance is shut down or becomes unavailable.
+Instances sharing the same [storage](storage.md) elect one **primary**. Other instances start in **standby** mode and wait until the primary shuts down or its lock expires.
 
 Check the `/readyz` endpoint to get the instance state. It responds with `200` if the instance is ready and **primary**, and `503` if the instance is in **standby**.
 
@@ -16,7 +16,7 @@ When running multiple IMPulse instances, configure your proxy (Nginx or another)
 
 ## Read-only filesystem
 
-If the filesystem of the server where IMPulse is running becomes full, IMPulse will continue working. Data won't be lost as long as IMPulse continues running.
+When using `STORAGE_BACKEND=filesystem`, if the filesystem of the server where IMPulse is running becomes full, IMPulse will continue working. Data won't be lost as long as IMPulse continues running.
 
 !!! danger "Danger"
     Do not stop or restart it

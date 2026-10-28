@@ -1,15 +1,19 @@
+import asyncio
+
 from fastapi import Request
 from fastapi.responses import Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.config.environment import get_environment_config
+from app.s3_lock import S3Lock
 
 STANDBY_MODE_MESSAGE = "Service Unavailable - Standby mode"
 
 
 def is_standby_mode(state) -> bool:
     """Check if server is in standby mode"""
-    return getattr(state, 'is_standby', False)
+    lock = getattr(state, 'file_lock', None)
+    return bool(getattr(state, 'is_standby', False) or (isinstance(lock, S3Lock) and not lock.check_owned()))
 
 
 def service_unavailable_response(message: str) -> Response:
@@ -53,5 +57,12 @@ class StandbyMiddleware(BaseHTTPMiddleware):
             # Block all other requests
             return service_unavailable_response(STANDBY_MODE_MESSAGE)
         
-        return await call_next(request)
-
+        tasks = getattr(request.app.state, 'runtime_tasks', None)
+        task = asyncio.current_task()
+        if tasks is not None:
+            tasks.add(task)
+        try:
+            return await call_next(request)
+        finally:
+            if tasks is not None:
+                tasks.discard(task)
