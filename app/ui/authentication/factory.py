@@ -19,13 +19,6 @@ if TYPE_CHECKING:
     from app.config.environment import EnvironmentConfig
     from app.config.validation import ImpulseConfig
 
-def build_auth_redirect_uri(env_config: 'EnvironmentConfig', http_prefix: str = "") -> str:
-    if env_config.auth_redirect_url:
-        return env_config.auth_redirect_url
-    callback_path = f"{http_prefix}/auth/callback" if http_prefix else "/auth/callback"
-    return callback_path
-
-
 def _build_configured_users(config: 'ImpulseConfig') -> dict[str, AuthUser]:
     users = config.messenger.users
     messenger = config.messenger.type
@@ -42,13 +35,14 @@ def _build_configured_users(config: 'ImpulseConfig') -> dict[str, AuthUser]:
     return configured_users
 
 
-def _build_provider(messenger_type: str, client_id: str, client_secret: str, config: 'ImpulseConfig'):
+def _build_provider(messenger_type: str, client_id: str, client_secret: str, redirect_uri: str,
+                    config: 'ImpulseConfig'):
     registration = get_provider_registry().resolve(messenger_type)
     if registration.authentication_factory:
-        if client_id and client_secret:
+        if client_id and client_secret and redirect_uri:
             return RegisteredAuthenticationProvider(
                 registration.authentication_factory(client_id, client_secret, config.messenger))
-        logger.warning('Auth disabled: AUTH_CLIENT_ID and AUTH_CLIENT_SECRET are required',
+        logger.warning('Auth disabled: AUTH_CLIENT_ID, AUTH_CLIENT_SECRET and AUTH_REDIRECT_URL are required',
                        extra={'messenger': messenger_type})
     return UnsupportedAuthenticationProvider()
 
@@ -67,14 +61,15 @@ def build_auth_manager(config: 'ImpulseConfig', env_config: 'EnvironmentConfig',
     messenger_type = config.messenger.type
     client_id = env_config.auth_client_id.strip()
     client_secret = env_config.auth_client_secret.strip()
+    redirect_uri = env_config.auth_redirect_url.strip()
     configured_users = _build_configured_users(config)
     allowed_user_ids = _build_allowed_user_ids(config, messenger_type)
-    provider = _build_provider(messenger_type, client_id, client_secret, config)
+    provider = _build_provider(messenger_type, client_id, client_secret, redirect_uri, config)
     default_redirect_path = http_prefix or "/"
 
     return UserAuthenticationManager(
         provider=provider,
-        redirect_uri=build_auth_redirect_uri(env_config=env_config, http_prefix=http_prefix),
+        redirect_uri=redirect_uri,
         cookie_secure=env_config.auth_cookie_secure,
         cookie_path=http_prefix or "/",
         allowed_user_ids=allowed_user_ids,

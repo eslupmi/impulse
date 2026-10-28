@@ -2,11 +2,15 @@
 
 Environment variables are created in `.env` file for python installation or in `docker-compose.yml` for docker installation.
 
-| Variable | Description | Default | Required |
+!!! info "Required variables"
+
+    Variables marked with "*" are mandatory, but only if the feature in the "Used for" column is used.
+
+| Variable | Description | Default | Used for |
 |-|-|-|-|
 | AUTH_CLIENT_ID | OAuth Client ID | | for [authentication](guides/authentication.md) |
 | AUTH_CLIENT_SECRET | OAuth Client Secret | | for [authentication](guides/authentication.md) |
-| AUTH_REDIRECT_URL | OAuth Redirect URL | | for [authentication](guides/authentication.md) |
+| AUTH_REDIRECT_URL * | OAuth Redirect URL | | for [authentication](guides/authentication.md) |
 | CHAIN_PROVIDER_DAYS_TO_SYNC | How many days will be synced<br/>(for [cloud chain](config_file.md#cloud-chains)) | 7 | - |
 | CHAIN_PROVIDER_MAX_EVENTS | Maximum events which will be synced<br/>(for [cloud chain](config_file.md#cloud-chains)) | 10 | - |
 | CHAIN_PROVIDER_SYNC_INTERVAL_SECONDS | Sync interval, seconds<br/>(for [cloud chain](config_file.md#cloud-chains)) | 60 | - |

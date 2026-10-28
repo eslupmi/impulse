@@ -56,7 +56,8 @@ async def test_registered_telegram_login_verifies_id_token(tmp_path, monkeypatch
         'type': 'telegram', 'impulse_address': 'https://impulse.test',
         'channels': {'default': {'id': -100123}}, 'users': {'alice': {'id': 123}}, 'admin_users': [],
     }, route={'channel': 'default'})
-    environment = EnvironmentConfig(data_path=str(tmp_path), auth_client_id='client', auth_client_secret='secret')
+    environment = EnvironmentConfig(data_path=str(tmp_path), auth_client_id='client', auth_client_secret='secret',
+                                    auth_redirect_url='https://impulse.test/auth/callback')
     manager = build_auth_manager(config, environment)
     assert isinstance(manager.provider, RegisteredAuthenticationProvider)
     assert isinstance(manager.provider.provider, TelegramAuthentication)
