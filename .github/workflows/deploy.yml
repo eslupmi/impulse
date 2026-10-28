@@ -18,10 +18,11 @@ permissions:
 
 jobs:
   build-and-push-image:
+    if: github.repository == 'eslupmi/impulse'
     uses: eslupmi/ci-templates/.github/workflows/_build-and-push-image.yml@develop
 
   deploy:
-    if: github.ref_type == 'branch'
+    if: github.repository == 'eslupmi/impulse' && github.ref_type == 'branch'
     needs: build-and-push-image
     uses: eslupmi/ci-templates/.github/workflows/_deploy.yml@develop
     with:
@@ -29,7 +30,7 @@ jobs:
     secrets: inherit
 
   notify:
-    if: github.ref_type == 'tag'
+    if: github.repository == 'eslupmi/impulse' && github.ref_type == 'tag'
     needs: build-and-push-image
     uses: eslupmi/ci-templates/.github/workflows/_notify.yml@develop
     secrets: inherit

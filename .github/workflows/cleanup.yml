@@ -13,6 +13,7 @@ permissions:
 
 jobs:
   cleanup-pr-image:
+    if: github.repository == 'eslupmi/impulse'
     runs-on: ubuntu-24.04
     permissions:
       packages: write
@@ -23,6 +24,7 @@ jobs:
         dry-run: false
 
   cleanup-untagged-images:
+    if: github.repository == 'eslupmi/impulse'
     runs-on: ubuntu-24.04
     permissions:
       packages: write
