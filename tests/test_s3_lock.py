@@ -24,7 +24,7 @@ SERVER_NOW = datetime(2026, 10, 8, 12, tzinfo=timezone.utc)
 
 @pytest.fixture
 def lease_lock():
-    config = EnvironmentConfig(storage_backend='s3', s3_bucket=BUCKET)
+    config = EnvironmentConfig(storage_backend='s3', s3_bucket=BUCKET, s3_endpoint_url='https://s3.example.com')
     client = boto3.client('s3', region_name='us-east-1',
                           aws_access_key_id='test', aws_secret_access_key='test')
     with patch('app.storage.boto3.client', return_value=client):

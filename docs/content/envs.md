@@ -8,8 +8,8 @@ Environment variables are created in `.env` file for python installation or in `
 
 | Variable | Description | Default | Used for |
 |-|-|-|-|
-| AUTH_CLIENT_ID | OAuth Client ID | | for [authentication](guides/authentication.md) |
-| AUTH_CLIENT_SECRET | OAuth Client Secret | | for [authentication](guides/authentication.md) |
+| AUTH_CLIENT_ID * | OAuth Client ID | | for [authentication](guides/authentication.md) |
+| AUTH_CLIENT_SECRET * | OAuth Client Secret | | for [authentication](guides/authentication.md) |
 | AUTH_REDIRECT_URL * | OAuth Redirect URL | | for [authentication](guides/authentication.md) |
 | CHAIN_PROVIDER_DAYS_TO_SYNC | How many days will be synced<br/>(for [cloud chain](config_file.md#cloud-chains)) | 7 | - |
 | CHAIN_PROVIDER_MAX_EVENTS | Maximum events which will be synced<br/>(for [cloud chain](config_file.md#cloud-chains)) | 10 | - |
@@ -21,23 +21,23 @@ Environment variables are created in `.env` file for python installation or in `
 | HTTP_PREFIX | HTTP prefix for reverse proxy deployments<br/>(e.g., `/impulse`) | | - |
 | HTTP_PROXY | HTTP proxy URL for outbound HTTP requests<br/> | | - |
 | HTTPS_PROXY | HTTPS proxy URL for outbound HTTPS requests<br/> | | - |
-| JIRA_API_TOKEN | Jira API token for Basic Auth | | for [task management](integrations/task_management/jira.md) |
-| JIRA_BASE_URL | Jira base URL<br/>(e.g., [https://your-domain.atlassian.net](https://your-domain.atlassian.net)) | | for [task management](integrations/task_management/jira.md) |
-| JIRA_USER_EMAIL | Jira user email for Basic Auth | | for [task management](integrations/task_management/jira.md) |
+| JIRA_API_TOKEN * | Jira API token for Basic Auth | | for [task management](integrations/task_management/jira.md) |
+| JIRA_BASE_URL * | Jira base URL<br/>(e.g., [https://your-domain.atlassian.net](https://your-domain.atlassian.net)) | | for [task management](integrations/task_management/jira.md) |
+| JIRA_USER_EMAIL * | Jira user email for Basic Auth | | for [task management](integrations/task_management/jira.md) |
 | LISTEN_HOST | Host to listen on | 0.0.0.0 | - |
 | LISTEN_PORT | Port to listen on | 5000 | - |
 | LOG_LEVEL | [Log level](https://github.com/DiTsi/impulse/blob/develop/app/logging.py#L15) | INFO | - |
-| MATTERMOST_ACCESS_TOKEN | [Mattermost 'Access Token'](integrations/messengers/mattermost.md) | | for Mattermost |
+| MATTERMOST_ACCESS_TOKEN * | [Mattermost 'Access Token'](integrations/messengers/mattermost.md) | | for Mattermost |
 | NO_PROXY | Comma-separated hosts that bypass the proxy<br/> | | - |
-| SLACK_BOT_USER_OAUTH_TOKEN | [Slack 'Bot User OAuth Token'](integrations/messengers/slack.md) | | for Slack |
-| SLACK_VERIFICATION_TOKEN | [Slack 'Verification Token'](integrations/messengers/slack.md) | | for Slack |
+| SLACK_BOT_USER_OAUTH_TOKEN * | [Slack 'Bot User OAuth Token'](integrations/messengers/slack.md) | | for Slack |
+| SLACK_VERIFICATION_TOKEN * | [Slack 'Verification Token'](integrations/messengers/slack.md) | | for Slack |
 | STORAGE_BACKEND | Data [storage](concepts/storage.md) backend: "filesystem" or "s3" | filesystem | - |
 | STORAGE_S3_ACCESS_KEY_ID | Explicit S3 access key ID | | for s3 `STORAGE_BACKEND` |
-| STORAGE_S3_BUCKET_NAME | Existing S3 bucket for persisted data | | for s3 `STORAGE_BACKEND` |
-| STORAGE_S3_ENDPOINT_URL | Custom endpoint for S3-compatible storage | | for s3 `STORAGE_BACKEND` |
+| STORAGE_S3_BUCKET_NAME * | Existing S3 bucket for persisted data | | for s3 `STORAGE_BACKEND` |
+| STORAGE_S3_ENDPOINT_URL * | S3 endpoint URL | | for s3 `STORAGE_BACKEND` |
 | STORAGE_S3_REGION | Explicit S3 region | | for s3 `STORAGE_BACKEND` |
 | STORAGE_S3_SECRET_ACCESS_KEY | Explicit S3 secret key | | for s3 `STORAGE_BACKEND` |
-| TELEGRAM_BOT_TOKEN | [Telegram 'Bot Token'](integrations/messengers/telegram.md) | | for Telegram |
+| TELEGRAM_BOT_TOKEN * | [Telegram 'Bot Token'](integrations/messengers/telegram.md) | | for Telegram |
 
 ??? warning "Development variables"
 

@@ -86,7 +86,7 @@ class EnvironmentConfig(BaseModel):
     )
     s3_endpoint_url: str | None = Field(
         default_factory=lambda: _env_optional_str('STORAGE_S3_ENDPOINT_URL'),
-        description="Optional endpoint for S3-compatible storage"
+        description="S3 endpoint URL"
     )
     s3_region: str | None = Field(
         default_factory=lambda: _env_optional_str('STORAGE_S3_REGION'),
@@ -167,9 +167,11 @@ class EnvironmentConfig(BaseModel):
 
     @model_validator(mode='after')
     def validate_storage(self):
-        if self.storage_backend == 's3' and not (self.s3_bucket and self.s3_bucket.strip()):
-            raise ValueError('STORAGE_S3_BUCKET_NAME is required when STORAGE_BACKEND=s3')
         if self.storage_backend == 's3':
+            for name, value in (('STORAGE_S3_BUCKET_NAME', self.s3_bucket),
+                                ('STORAGE_S3_ENDPOINT_URL', self.s3_endpoint_url)):
+                if not (value and value.strip()):
+                    raise ValueError(f'{name} is required when STORAGE_BACKEND=s3')
             self.data_path = ''
         return self
 

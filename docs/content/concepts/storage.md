@@ -17,7 +17,7 @@ STORAGE_BACKEND=s3
 STORAGE_S3_BUCKET_NAME=impulse-data
 ```
 
-For S3-compatible services, also set `STORAGE_S3_ENDPOINT_URL`, for example `https://s3.example.com`. Set `STORAGE_S3_REGION` when the storage needs an explicit region; otherwise Boto3 uses its normal region configuration.
+Set `STORAGE_S3_ENDPOINT_URL`, for example `https://s3.example.com`; there is no default endpoint. Set `STORAGE_S3_REGION` when the storage needs an explicit region; otherwise Boto3 uses its normal region configuration.
 
 To supply credentials for storage explicitly, set both `STORAGE_S3_ACCESS_KEY_ID` and `STORAGE_S3_SECRET_ACCESS_KEY`. When omitted, credentials use the [standard Boto3 credential chain](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html), including IAM roles or `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, and optional `AWS_SESSION_TOKEN`.
 The service account needs `s3:ListBucket` for the bucket and `s3:GetObject`, `s3:PutObject`, and `s3:DeleteObject` for its objects. Bucket provisioning is separate. Use a separate bucket for each independent IMPulse deployment.

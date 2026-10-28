@@ -38,7 +38,7 @@ LEGACY_MAINTENANCE = (
 def remote_state(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     config = EnvironmentConfig(data_path=str(tmp_path / 'local'),
-                               storage_backend='s3', s3_bucket='state')
+                               storage_backend='s3', s3_bucket='state', s3_endpoint_url='https://s3.example.com')
     monkeypatch.setattr('app.config.environment._env_config', config)
     storage = get_storage(config)
     objects = {}
