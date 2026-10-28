@@ -4,16 +4,13 @@ Providers receive rendered values and injected HTTP transport, never mutable
 incidents, queues, application configuration singletons or HTTP sessions.
 """
 
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from typing import Any, Callable, Protocol, runtime_checkable
-
+from enum import Enum
+from typing import Any, Protocol, runtime_checkable
 
 # Shared schema is public; providers never import app.config.
 from .schema import BaseApplicationConfig, BaseUser, HttpBase
-
-from collections.abc import Mapping
-from enum import Enum
-
 
 PLUGIN_API_VERSION = 1
 
@@ -253,12 +250,32 @@ class ProviderRegistration:
 
 
 __all__ = [
-    'PLUGIN_API_VERSION', 'REQUIRED_TEMPLATE_NAMES', 'BaseApplicationConfig',
-    'BaseUser', 'HttpBase', 'ProviderDescriptor', 'MessageRef',
-    'ProviderIdentity', 'UserProfile', 'GroupProfile', 'IncidentPresentation',
-    'NotificationContent', 'DeliveryResult', 'MessengerHttpResponse',
-    'MessengerHttpTransport', 'ProviderContext', 'MessengerProvider', 'SecretResolver',
-    'InteractionAction', 'InteractionRequest', 'InteractionCommand', 'ProviderResponse',
-    'Interaction', 'AuthenticationUser', 'AuthenticationError', 'ProviderAuthentication',
-    'InteractiveProvider', 'ProviderRegistration',
+    'PLUGIN_API_VERSION',
+    'REQUIRED_TEMPLATE_NAMES',
+    'AuthenticationError',
+    'AuthenticationUser',
+    'BaseApplicationConfig',
+    'BaseUser',
+    'DeliveryResult',
+    'GroupProfile',
+    'HttpBase',
+    'IncidentPresentation',
+    'Interaction',
+    'InteractionAction',
+    'InteractionCommand',
+    'InteractionRequest',
+    'InteractiveProvider',
+    'MessageRef',
+    'MessengerHttpResponse',
+    'MessengerHttpTransport',
+    'MessengerProvider',
+    'NotificationContent',
+    'ProviderAuthentication',
+    'ProviderContext',
+    'ProviderDescriptor',
+    'ProviderIdentity',
+    'ProviderRegistration',
+    'ProviderResponse',
+    'SecretResolver',
+    'UserProfile',
 ]

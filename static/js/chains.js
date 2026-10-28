@@ -33,6 +33,7 @@ let initialized = false;
 let cachedChains = [];
 let chainsPromiseResolve = null;
 let savePromiseResolve = null;
+let timedOutChainName = null;
 
 function getRepeatIntervalDays(repeat) {
     switch (repeat) {
@@ -237,10 +238,6 @@ function prepareEventsForCalendar(chains) {
     });
 }
 
-function getExpandedChains(chains) {
-    return prepareEventsForCalendar(chains);
-}
-
 function applyHarnessOverlapOffset(harness) {
     if (!harness) return;
 
@@ -322,99 +319,43 @@ function recalculatePriorities(chains) {
     });
 }
 
-function recalculatePrioritiesForChainIds(chains, chainIds) {
-    const impactedIds = new Set(chainIds.filter(Boolean));
-
-    if (impactedIds.size === 0) {
-        return chains;
-    }
-
-    return chains.map(chain => {
-        if (!impactedIds.has(chain.id)) {
-            return chain;
-        }
-
-        const overlapping = findOverlappingChainsForChain(chains, chain, chain.id);
-        return {
-            ...chain,
-            priority: calculateNewPriority(chain, overlapping)
-        };
-    });
-}
-
-function applyPriorityToEvent(event, chain) {
-    event.setExtendedProp('priority', chain.priority ?? 2);
-    if (event.el) {
-        styleMountedEvent(event.el, event);
-    }
-}
-
-function syncCalendarEventPriorities(chains, chainIds, preferredEvent = null) {
-    if (!calendar) {
-        return;
-    }
-
-    const impactedIds = new Set(chainIds.filter(Boolean));
-    if (preferredEvent) {
-        const preferredId = preferredEvent.extendedProps?.originalId || preferredEvent.id;
-        impactedIds.add(preferredId);
-    }
-
-    const chainById = new Map(chains.map(chain => [chain.id, chain]));
-    const allEvents = calendar.getEvents();
-
-    for (const event of allEvents) {
-        if (event.extendedProps?.isOccurrence) {
-            continue;
-        }
-
-        const originalId = event.extendedProps?.originalId || event.id;
-        if (!impactedIds.has(originalId)) {
-            continue;
-        }
-
-        const chain = chainById.get(originalId);
-        if (!chain) {
-            continue;
-        }
-
-        applyPriorityToEvent(event, chain);
-    }
-
-    if (preferredEvent) {
-        const preferredId = preferredEvent.extendedProps?.originalId || preferredEvent.id;
-        const preferredChain = chainById.get(preferredId);
-        if (preferredChain) {
-            applyPriorityToEvent(preferredEvent, preferredChain);
-        }
-    }
-}
-
 globalThis.handleUiChainsData = function(data) {
     if (chainsPromiseResolve) {
         cachedChains = data;
-        cachedChains = recalculatePriorities(cachedChains);
         chainsPromiseResolve(cachedChains);
         chainsPromiseResolve = null;
     }
 };
 
-globalThis.handleUiChainsSaved = function(success) {
+function applyServerChains(chains) {
+    cachedChains = chains;
+    refreshCalendarEvents(chains);
+}
+
+globalThis.handleUiChainsSaved = function(success, detail, data) {
     if (savePromiseResolve) {
-        savePromiseResolve(success);
+        savePromiseResolve({success: !!success, data});
         savePromiseResolve = null;
+    } else if (success && Array.isArray(data) && timedOutChainName === getSelectedChain()) {
+        applyServerChains(data);
+    }
+    timedOutChainName = null;
+    if (!success) {
+        showError(detail || "Failed to save shifts");
     }
 };
 
-globalThis.handleUiChainsError = function() {
+globalThis.handleUiChainsError = function(detail) {
     if (chainsPromiseResolve) {
         chainsPromiseResolve([]);
         chainsPromiseResolve = null;
     }
     if (savePromiseResolve) {
-        savePromiseResolve(false);
+        savePromiseResolve({success: false});
         savePromiseResolve = null;
     }
+    timedOutChainName = null;
+    showError(detail || "UI chains error");
 };
 
 const CHAINS_TOGGLE_HTML =
@@ -521,9 +462,6 @@ async function openChainsModal() {
 async function loadChains() {
     const socket = getSocket();
     if (!socket || socket.readyState !== WebSocket.OPEN) {
-        if (cachedChains.length > 0) {
-            return recalculatePriorities(cachedChains);
-        }
         return cachedChains;
     }
 
@@ -534,41 +472,66 @@ async function loadChains() {
         setTimeout(() => {
             if (chainsPromiseResolve === resolve) {
                 chainsPromiseResolve = null;
-                if (cachedChains.length > 0) {
-                    resolve(recalculatePriorities(cachedChains));
-                } else {
-                    resolve(cachedChains);
-                }
+                resolve(cachedChains);
             }
         }, 5000);
     });
 }
 
-async function saveChains(chains) {
+let chainModalPersistInFlight = false;
+let chainsPersistQueue = Promise.resolve();
+
+function runChainsMutation(work) {
+    const run = chainsPersistQueue.then(work);
+    chainsPersistQueue = run.then(() => undefined, () => undefined);
+    return run;
+}
+
+function setChainModalPersistInFlight(inFlight) {
+    chainModalPersistInFlight = inFlight;
+    document.getElementById("save-chain-btn")?.toggleAttribute("disabled", inFlight);
+    document.getElementById("delete-chain-btn")?.toggleAttribute("disabled", inFlight);
+}
+
+async function persistChainMutation(message, nextChains) {
     if (!getSelectedChain()) {
-        showError('Select a chain first');
-        return;
+        showError("Select a chain first");
+        return false;
     }
-    const recalculatedChains = recalculatePriorities(chains);
-    chains.splice(0, chains.length, ...recalculatedChains);
-    cachedChains = recalculatedChains;
+    const previousChains = cachedChains;
+    timedOutChainName = null;
+    applyServerChains(recalculatePriorities(nextChains));
     const socket = getSocket();
+    let result = {success: false};
     if (!socket || socket.readyState !== WebSocket.OPEN) {
-        console.error('WebSocket not connected, cannot save ui chains');
-        return;
+        showError("WebSocket not connected, cannot save shifts");
+    } else {
+        result = await new Promise((resolve) => {
+            savePromiseResolve = resolve;
+            socket.send(JSON.stringify(message));
+            setTimeout(() => {
+                if (savePromiseResolve === resolve) {
+                    savePromiseResolve = null;
+                    timedOutChainName = message.chain_name;
+                    resolve({success: false, timedOut: true});
+                }
+            }, 5000);
+        });
     }
-
-    return new Promise((resolve) => {
-        savePromiseResolve = resolve;
-        socket.send(JSON.stringify({event: "save_ui_chains", chain_name: getSelectedChain(), data: recalculatedChains}));
-
-        setTimeout(() => {
-            if (savePromiseResolve === resolve) {
-                savePromiseResolve = null;
-                resolve(false);
-            }
-        }, 5000);
-    });
+    const selected = getSelectedChain() === message.chain_name;
+    if (!result.success) {
+        if (result.timedOut) {
+            showError("Failed to save shifts");
+        }
+        if (selected) {
+            applyServerChains(previousChains);
+        }
+        return false;
+    }
+    if (selected && Array.isArray(result.data)) {
+        applyServerChains(result.data);
+    }
+    return true;
 }
 
 function generateId() {
@@ -1002,43 +965,6 @@ function findFutureRepeatEvents(chains, start, excludeId = null) {
 }
 
 
-async function updateEventPriority(droppedEvent) {
-    const droppedStart = droppedEvent.start;
-    const droppedEnd = droppedEvent.end;
-
-    const chains = await loadChains();
-    const droppedOriginalId = droppedEvent.extendedProps?.originalId || droppedEvent.id;
-    const droppedChainIndex = chains.findIndex(c => c.id === droppedOriginalId);
-    
-    if (droppedChainIndex === -1) {
-        droppedEvent.setExtendedProp('priority', 2);
-        return;
-    }
-    
-    const droppedChain = chains[droppedChainIndex];
-    const previousOverlapping = findOverlappingChainsForChain(chains, droppedChain, droppedChain.id);
-    const updatedDroppedChain = {
-        ...droppedChain,
-        start: droppedStart.toISOString(),
-        end: droppedEnd ? droppedEnd.toISOString() : null
-    };
-
-    chains[droppedChainIndex] = updatedDroppedChain;
-
-    const newOverlapping = findOverlappingChainsForChain(chains, updatedDroppedChain, updatedDroppedChain.id);
-    const impactedIds = [
-        updatedDroppedChain.id,
-        ...previousOverlapping.map(chain => chain.id),
-        ...newOverlapping.map(chain => chain.id)
-    ];
-
-    const updatedChains = recalculatePrioritiesForChainIds(chains, impactedIds);
-    syncCalendarEventPriorities(updatedChains, impactedIds, droppedEvent);
-
-    chains.splice(0, chains.length, ...updatedChains);
-    await saveChains(chains);
-}
-
 function toggleRepeatUntilVisibility() {
     const repeatSelect = document.getElementById('chain-repeat');
     const untilGroup = document.getElementById('chain-until-group');
@@ -1093,7 +1019,8 @@ function getChainModalInputs() {
     };
 }
 
-function refreshCalendarEvents(expandedChains) {
+function refreshCalendarEvents(chains) {
+    const expandedChains = prepareEventsForCalendar(chains);
     if (calendar) {
         calendar.removeAllEvents();
         calendar.addEventSource(expandedChains);
@@ -1119,27 +1046,32 @@ async function handleEventTimeChange(info) {
         return;
     }
 
-    await updateEventPriority(info.event);
-
-    const chains = await loadChains();
-    const index = chains.findIndex(c => c.id === originalId);
-    if (index !== -1) {
-        chains[index].start = info.event.start.toISOString();
-        chains[index].end = info.event.end ? info.event.end.toISOString() : null;
-        chains[index].priority = info.event.extendedProps?.priority ?? 2;
-        await persistChainsAndRerender(chains);
-    }
+    await runChainsMutation(async () => {
+        const chains = [...cachedChains];
+        const index = chains.findIndex((c) => c.id === originalId);
+        if (index === -1) {
+            info.revert();
+            return;
+        }
+        chains[index] = {
+            ...chains[index],
+            start: info.event.start.toISOString(),
+            end: info.event.end ? info.event.end.toISOString() : null,
+        };
+        const saved = await persistChainMutation(
+            {event: "save_ui_chains", chain_name: getSelectedChain(), data: chains[index]},
+            chains,
+        );
+        if (!saved) {
+            info.revert();
+        }
+    });
 }
 
 function closeChainEditModal() {
     const modal = document.getElementById('chain-modal');
     modal.classList.remove('visible');
     currentChainId = null;
-}
-
-async function persistChainsAndRerender(chains) {
-    await saveChains(chains);
-    refreshCalendarEvents(getExpandedChains(chains));
 }
 
 function stripTrailingWaitSteps(steps) {
@@ -1206,118 +1138,84 @@ function validateChainInput() {
 }
 
 async function saveChain() {
+    if (chainModalPersistInFlight) return;
     const input = validateChainInput();
     if (!input) return;
-
     const { start, end, repeat, repeatEnd, steps } = input;
-    const chains = await loadChains();
+    const shiftId = currentChainId;
 
-    if (currentChainId) {
-        const candidateChain = {
-            id: currentChainId,
-            start,
-            end: end || null,
-            repeat: repeat || null,
-            repeatEnd: repeat ? (repeatEnd || null) : null
-        };
-        const overlapping = findOverlappingChainsForChain(chains, candidateChain, currentChainId);
-        if (overlapping.length >= 2) {
-            showOverlapError();
-            return;
-        }
-        
-        if (repeat) {
-            const futureRepeatEvents = findFutureRepeatEvents(chains, start, currentChainId);
-            if (futureRepeatEvents.length > 0) {
-                showError('Cannot create REPEAT event: another REPEAT event exists in the future');
-                return;
-            }
-        }
-        
-        const index = chains.findIndex(c => c.id === currentChainId);
-        if (index !== -1) {
-            const existingChain = chains[index];
-            const previousOverlapping = findOverlappingChainsForChain(chains, existingChain, currentChainId);
-            const updatedChain = {
-                ...chains[index],
+    setChainModalPersistInFlight(true);
+    try {
+        await runChainsMutation(async () => {
+            const chains = [...cachedChains];
+            const schedule = {
                 start,
                 end: end || null,
                 repeat: repeat || null,
                 repeatEnd: repeat ? (repeatEnd || null) : null,
-                steps: steps.length > 0 ? steps : null
             };
-            chains[index] = updatedChain;
-            const impactedIds = [
-                currentChainId,
-                ...previousOverlapping.map(chain => chain.id),
-                ...overlapping.map(chain => chain.id)
-            ];
-            const recalculatedChains = recalculatePrioritiesForChainIds(chains, impactedIds);
-            chains.splice(0, chains.length, ...recalculatedChains);
-        }
-        
-        await persistChainsAndRerender(chains);
-        closeChainEditModal();
-        return;
-    } else {
-        const candidateChain = {
-            start,
-            end: end || null,
-            repeat: repeat || null,
-            repeatEnd: repeat ? (repeatEnd || null) : null
-        };
-        const overlapping = findOverlappingChainsForChain(chains, candidateChain);
-        if (overlapping.length >= 2) {
-            showOverlapError();
-            return;
-        }
-        
-        if (repeat) {
-            const futureRepeatEvents = findFutureRepeatEvents(chains, start);
-            if (futureRepeatEvents.length > 0) {
-                showError('Cannot create REPEAT event: another REPEAT event exists in the future');
+            const overlapping = findOverlappingChainsForChain(chains, schedule, shiftId);
+            if (overlapping.length >= 2) {
+                showOverlapError();
                 return;
             }
-        }
-        
-        const newChain = {
-            id: generateId(),
-            title: '',
-            start,
-            end: end || null,
-            repeat: repeat || null,
-            repeatEnd: repeat ? (repeatEnd || null) : null,
-            steps: steps.length > 0 ? steps : null
-        };
-        const newPriority = calculateNewPriority(newChain, overlapping);
-        newChain.priority = newPriority;
-        
-        for (const overlappingChain of overlapping) {
-            const overlappingIndex = chains.findIndex(c => c.id === overlappingChain.id);
-            if (overlappingIndex !== -1) {
-                const otherOverlapping = [newChain, ...overlapping.filter(c => c.id !== overlappingChain.id)];
-                const otherPriority = calculateNewPriority(overlappingChain, otherOverlapping);
-                chains[overlappingIndex].priority = otherPriority;
+            if (repeat) {
+                const futureRepeatEvents = findFutureRepeatEvents(chains, start, shiftId);
+                if (futureRepeatEvents.length > 0) {
+                    showError("Cannot create REPEAT event: another REPEAT event exists in the future");
+                    return;
+                }
             }
-        }
-        
-        chains.push(newChain);
+            let savedShift;
+            if (shiftId) {
+                const index = chains.findIndex((c) => c.id === shiftId);
+                if (index === -1) return;
+                savedShift = {
+                    ...chains[index],
+                    ...schedule,
+                    steps: steps.length > 0 ? steps : null,
+                };
+                chains[index] = savedShift;
+            } else {
+                savedShift = {
+                    id: generateId(),
+                    title: "",
+                    ...schedule,
+                    steps: steps.length > 0 ? steps : null,
+                };
+                chains.push(savedShift);
+            }
+            const saved = await persistChainMutation(
+                {event: "save_ui_chains", chain_name: getSelectedChain(), data: savedShift},
+                chains,
+            );
+            if (saved) {
+                closeChainEditModal();
+            }
+        });
+    } finally {
+        setChainModalPersistInFlight(false);
     }
-
-    await persistChainsAndRerender(chains);
-    closeChainEditModal();
 }
 
 async function deleteChain() {
-    if (!currentChainId) return;
+    if (!currentChainId || chainModalPersistInFlight) return;
+    const shiftId = currentChainId;
 
+    setChainModalPersistInFlight(true);
     try {
-        const chains = await loadChains();
-        const filtered = chains.filter(c => c.id !== currentChainId);
-        await persistChainsAndRerender(filtered);
-        closeChainEditModal();
-    } catch (error) {
-        console.error('Failed to delete chain:', error);
+        await runChainsMutation(async () => {
+            const chains = cachedChains.filter((c) => c.id !== shiftId);
+            const saved = await persistChainMutation(
+                {event: "delete_ui_chain", chain_name: getSelectedChain(), id: shiftId},
+                chains,
+            );
+            if (saved) {
+                closeChainEditModal();
+            }
+        });
+    } finally {
+        setChainModalPersistInFlight(false);
     }
 }
 
@@ -1480,7 +1378,7 @@ async function updateCalendarTimezone() {
     monthCalendar.destroy();
 
     const chains = await loadChains();
-    const expandedChains = getExpandedChains(chains);
+    const expandedChains = prepareEventsForCalendar(chains);
 
     const calendarOptions = buildMainCalendarOptions(expandedChains, firstDay, timezone);
     const monthOptions = buildMonthCalendarOptions(expandedChains, firstDay, timezone);
@@ -1531,18 +1429,23 @@ function updateCurrentWeekHighlight() {
 
 async function setRepeatEndFromEvent(event, isLastOccurrence) {
     const originalId = event.extendedProps?.originalId || event.id;
-    const chains = await loadChains();
-    const index = chains.findIndex(c => c.id === originalId);
-    if (index === -1) {
-        return;
-    }
-    if (isLastOccurrence) {
-        chains[index].repeatEnd = null;
-    } else {
-        const eventEnd = event.end || new Date(event.start.getTime() + 24 * 60 * 60 * 1000);
-        chains[index].repeatEnd = eventEnd.toISOString();
-    }
-    await persistChainsAndRerender(chains);
+    await runChainsMutation(async () => {
+        const chains = [...cachedChains];
+        const index = chains.findIndex((c) => c.id === originalId);
+        if (index === -1) {
+            return;
+        }
+        if (isLastOccurrence) {
+            chains[index] = {...chains[index], repeatEnd: null};
+        } else {
+            const eventEnd = event.end || new Date(event.start.getTime() + 24 * 60 * 60 * 1000);
+            chains[index] = {...chains[index], repeatEnd: eventEnd.toISOString()};
+        }
+        await persistChainMutation(
+            {event: "save_ui_chains", chain_name: getSelectedChain(), data: chains[index]},
+            chains,
+        );
+    });
 }
 
 function mountRepeatEndButton(el, event) {
@@ -1812,7 +1715,7 @@ async function initializeCalendars() {
         }
 
         const chains = await loadChains();
-        const expandedChains = getExpandedChains(chains);
+        const expandedChains = prepareEventsForCalendar(chains);
         
         calendar = new FullCalendar.Calendar(calendarEl, buildMainCalendarOptions(expandedChains, firstDay, timezone));
 
@@ -1902,13 +1805,7 @@ export const ChainsManager = {
                         if (monthCalendar) monthCalendar.updateSize();
                     }, 100);
                 } else {
-                    const chains = await loadChains();
-                    const expandedChains = getExpandedChains(chains);
-                    calendar.removeAllEventSources();
-                    calendar.addEventSource(expandedChains);
-                    monthCalendar.removeAllEventSources();
-                    monthCalendar.addEventSource(expandedChains);
-                    updateEventStyles();
+                    refreshCalendarEvents(await loadChains());
                 }
             });
         }

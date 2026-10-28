@@ -1,6 +1,6 @@
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from app.route.matcher import Matcher
 
@@ -60,8 +60,8 @@ def _ensure_utc(value) -> datetime:
     if isinstance(value, str):
         value = _parse_iso(value)
     if value.tzinfo is None:
-        return value.replace(tzinfo=timezone.utc)
-    return value.astimezone(timezone.utc)
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
 
 
 def _parse_iso(value: str) -> datetime:
