@@ -34,7 +34,7 @@ Environment variables are created in `.env` file for python installation or in `
 | STORAGE_BACKEND | Data [storage](concepts/storage.md) backend: "filesystem" or "s3" | filesystem | - |
 | STORAGE_S3_ACCESS_KEY_ID | Explicit S3 access key ID | | for [s3](concepts/storage.md#s3) storage |
 | STORAGE_S3_BUCKET_NAME * | Existing S3 bucket for persisted data | | for [s3](concepts/storage.md#s3) storage |
-| STORAGE_S3_ENDPOINT_URL * | S3 endpoint URL | | for [s3](concepts/storage.md#s3) storage |
+| STORAGE_S3_ENDPOINT_URL * | S3 endpoint URL<br/>(e.g., `https://s3.example.com`) | | for [s3](concepts/storage.md#s3) storage |
 | STORAGE_S3_REGION | Explicit S3 region | | for [s3](concepts/storage.md#s3) storage |
 | STORAGE_S3_SECRET_ACCESS_KEY | Explicit S3 secret key | | for [s3](concepts/storage.md#s3) storage |
 | TELEGRAM_BOT_TOKEN * | Telegram 'Bot Token' | | for [Telegram](integrations/messengers/telegram.md) |
