@@ -10,7 +10,7 @@ With `STORAGE_BACKEND=filesystem`, mount the same `DATA_PATH`[↰](../envs.md) o
 
 ## S3
 
-`STORAGE_BACKEND=s3` persists incidents, users, UI schedules, maintenance windows, and authentication sessions in an existing S3 bucket. Configure the same `STORAGE_S3_BUCKET_NAME`[↰](../envs.md) on every instance. Local `DATA_PATH` directories may differ; a shared filesystem is unnecessary.
+`STORAGE_BACKEND=s3` persists incidents, users, UI schedules, maintenance windows, and authentication sessions in an existing S3 bucket. Configure the same `STORAGE_S3_BUCKET_NAME`[↰](../envs.md) on every instance. The bucket root is the data root.
 
 ```dotenv
 STORAGE_BACKEND=s3
@@ -22,7 +22,7 @@ For S3-compatible services, also set `STORAGE_S3_ENDPOINT_URL`, for example `htt
 To supply credentials for storage explicitly, set both `STORAGE_S3_ACCESS_KEY_ID` and `STORAGE_S3_SECRET_ACCESS_KEY`. When omitted, credentials use the [standard Boto3 credential chain](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html), including IAM roles or `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, and optional `AWS_SESSION_TOKEN`.
 The service account needs `s3:ListBucket` for the bucket and `s3:GetObject`, `s3:PutObject`, and `s3:DeleteObject` for its objects. Bucket provisioning is separate. Use a separate bucket for each independent IMPulse deployment.
 
-Data retains its existing YAML and iCalendar formats. For example, an incident is stored at `incidents/<uniq_id>.yml` in the bucket. `DATA_PATH` is not part of the S3 object keys. Configuration, templates, and Google service account files remain local.
+Data retains its existing YAML and iCalendar formats. For example, an incident is stored at `incidents/<uniq_id>.yml` in the bucket. Configuration, templates, and Google service account files remain local.
 
 The lock is the object `.lock.d/lease.json` at the bucket root. Atomic conditional writes elect and renew the primary, and conditional deletion prevents an old primary from removing the new primary's lock. The endpoint must provide strong consistency and support conditional `PutObject` (`If-None-Match` and `If-Match`) and conditional `DeleteObject` (`If-Match`). S3 lock expiry uses server timestamps, so it does not depend on matching client wall clocks.
 

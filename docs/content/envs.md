@@ -16,7 +16,7 @@ Environment variables are created in `.env` file for python installation or in `
 | CHAIN_PROVIDER_SYNC_INTERVAL_SECONDS | Sync interval, seconds<br/>(for [cloud chain](config_file.md#cloud-chains)) | 60 | - |
 | CONFIG_PATH | Path to `impulse.yml`[↰](config_file.md) directory | ./ | - |
 | CORS_ALLOWED_ORIGINS | Сomma-separated list of origins<br> allowed to make cross-origin<br> requests to the server | http://localhost:5000 | for UI |
-| DATA_PATH | Path to data directory | ./data | - |
+| DATA_PATH | Path to data directory | ./data | for [filesystem](concepts/storage.md#filesystem) storage |
 | GOOGLE_SERVICE_ACCOUNT_FILE | Path to Google service account file<br/>(for [cloud chain](config_file.md#cloud-chains)) | ./key.json | - |
 | HTTP_PREFIX | HTTP prefix for reverse proxy deployments<br/>(e.g., `/impulse`) | | - |
 | HTTP_PROXY | HTTP proxy URL for outbound HTTP requests<br/> | | - |

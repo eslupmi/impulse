@@ -169,6 +169,8 @@ class EnvironmentConfig(BaseModel):
     def validate_storage(self):
         if self.storage_backend == 's3' and not (self.s3_bucket and self.s3_bucket.strip()):
             raise ValueError('STORAGE_S3_BUCKET_NAME is required when STORAGE_BACKEND=s3')
+        if self.storage_backend == 's3':
+            self.data_path = ''
         return self
 
     @field_validator('provider_sync_interval', 'provider_max_events', 'provider_days_to_sync', 'listen_port')
@@ -231,7 +233,7 @@ class EnvironmentConfig(BaseModel):
     @property
     def incidents_path(self) -> str:
         """Computed property for incidents path"""
-        return f"{self.data_path}/incidents"
+        return os.path.join(self.data_path, "incidents")
     
     @property
     def config_file_path(self) -> str:

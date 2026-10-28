@@ -1,5 +1,6 @@
 """Exercise the application's state stores through an in-memory S3 client."""
 import io
+import os
 from datetime import datetime, timedelta, timezone
 from functools import partial
 from pathlib import Path
@@ -35,6 +36,7 @@ LEGACY_MAINTENANCE = (
 
 @pytest.fixture
 def remote_state(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
     config = EnvironmentConfig(data_path=str(tmp_path / 'local'),
                                storage_backend='s3', s3_bucket='state')
     monkeypatch.setattr('app.config.environment._env_config', config)
@@ -81,7 +83,7 @@ def test_incident_restart_migration_and_deletion(remote_state, sample_incident, 
     assert yaml.safe_load(objects[filename])['version'] == 'v3.7.0'
     restored.del_by_uniq_id(sample_incident.uniq_id)
     assert filename not in objects
-    assert not Path(config.data_path).exists()
+    assert not any(Path().iterdir())
 
 
 def test_users_restart_and_filtering(remote_state):
@@ -134,7 +136,7 @@ def test_remote_maintenance_migration_preserves_calendars_and_filenames(remote_s
     assert str(Calendar.from_ical(objects[legacy_key]).get('x-impulse-version')) == MaintenanceMigrator.LEGACY_VERSION
     MaintenanceStore().migrate()
     assert objects == original
-    assert not Path(config.data_path).exists()
+    assert not any(Path().iterdir())
 
 
 @pytest.mark.parametrize('failed_operation', ['put_object', 'delete_object'])
@@ -210,7 +212,7 @@ def test_remote_maintenance_rename_preserves_occupied_target(remote_state):
 
 def test_sessions_restart_validation_and_expiry(remote_state):
     storage, config, objects = remote_state
-    root = f'{config.data_path}/sessions'
+    root = os.path.join(config.data_path, 'sessions')
     store = FileSessionStore(root)
     now = datetime.now(timezone.utc)
     session = AuthSession(session_id='a' * 64, user_id='U1', created_at=now, expires_at=now + timedelta(hours=1))

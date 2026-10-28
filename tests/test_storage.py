@@ -1,5 +1,6 @@
 """Storage contract tests use the SDK's Stubber, without an S3 service."""
 import io
+from pathlib import Path
 from unittest.mock import ANY, Mock, patch
 
 import boto3
@@ -14,16 +15,15 @@ from app.storage import FileStorage, S3Storage, get_storage
 
 
 @pytest.fixture
-def s3_storage(tmp_path):
-    config = EnvironmentConfig(storage_backend='s3', s3_bucket='state-bucket',
-                               data_path=str(tmp_path))
+def s3_storage():
+    config = EnvironmentConfig(storage_backend='s3', s3_bucket='state-bucket')
     client = boto3.client('s3', region_name='us-east-1',
                           aws_access_key_id='test', aws_secret_access_key='test')
     with patch('app.storage.boto3.client', return_value=client):
         storage = S3Storage(config)
         assert storage.client is client
     with Stubber(client) as stubber:
-        yield storage, stubber, tmp_path
+        yield storage, stubber, Path(config.data_path)
         stubber.assert_no_pending_responses()
 
 
@@ -221,10 +221,10 @@ def test_s3_rejects_binary_encoding_and_paths_outside_namespace(s3_storage):
     with pytest.raises(ValueError, match='encoding'):
         with storage.open(root / 'test', 'rb', encoding='utf-8'):
             pass
-    for path in [root.parent / 'outside', root / '..' / root.name / 'test']:
-        with pytest.raises(ValueError, match='DATA_PATH'):
+    for path in ['/outside', '../outside', 'incidents/../test']:
+        with pytest.raises(ValueError, match='bucket root'):
             storage.exists(path)
-        with pytest.raises(ValueError, match='DATA_PATH'):
+        with pytest.raises(ValueError, match='bucket root'):
             storage.makedirs(path)
     with pytest.raises(IsADirectoryError):
         with storage.open(root, 'w'):
@@ -340,20 +340,19 @@ def test_s3_write_remove_and_rename_failures_preserve_cause(s3_storage):
     storage.remove(root / 'remove')
 
 
-def test_s3_relative_data_path(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    config = EnvironmentConfig(storage_backend='s3', s3_bucket='state-bucket', data_path='./state')
+def test_s3_ignores_data_path():
+    config = EnvironmentConfig(storage_backend='s3', s3_bucket='state-bucket', data_path='/state')
+    assert config.data_path == ''
+    assert config.incidents_path == 'incidents'
     client = boto3.client('s3', region_name='us-east-1',
                           aws_access_key_id='test', aws_secret_access_key='test')
     with patch('app.storage.boto3.client', return_value=client), Stubber(client) as stubber:
         storage = S3Storage(config)
         stubber.add_response('put_object', {}, {'Bucket': 'state-bucket', 'Key': 'users/one', 'Body': b'data'})
-        with storage.open('state/users/one', 'wb') as handle:
+        with storage.open('./users/one', 'wb') as handle:
             handle.write(b'data')
         stubber.add_response('list_objects_v2', {}, {'Bucket': 'state-bucket', 'Prefix': '', 'Delimiter': '/'})
-        assert storage.listdir('./state') == []
-        stubber.add_response('list_objects_v2', {}, {'Bucket': 'state-bucket', 'Prefix': '', 'MaxKeys': 1})
-        assert not storage.exists('./state')
+        assert storage.listdir(config.data_path) == []
         stubber.assert_no_pending_responses()
 
 
