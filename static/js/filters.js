@@ -1,34 +1,5 @@
 import {table} from "./table.js";
-
-const symbolicOperators = new Set(["=", ">", "<", ">=", "<=", "!=", "=~", "!~"]);
-// Mapping of custom filter operators to Tabulator's built-in operators
-const tabulatorOperators = {
-    "=": "=",
-    "!=": "!=",
-    "=~": "regex",
-    "!~": "regex",
-    // Additional operators from Tabulator
-    "like": "like",
-    "keywords": "keywords",
-    "starts": "starts",
-    "ends": "ends",
-    "<": "<",
-    "<=": "<=",
-    ">": ">",
-    ">=": ">=",
-    "in": "in",
-    "regex": "regex"
-};
-
-// Validate regex pattern
-function isValidRegex(pattern) {
-    try {
-        new RegExp(pattern);
-        return true;
-    } catch (e) {
-        return false;
-    }
-}
+import {isValidRegex, parseMatcher} from "./matcher.js";
 
 function matchLabelValue(labelValue, searchValue, operator) {
     const labelStr = String(labelValue).toLowerCase();
@@ -55,8 +26,7 @@ function matchLabelValue(labelValue, searchValue, operator) {
 }
 
 function addTableFilterFromParsed(parsedFilter) {
-    let {field, operator, value} = parsedFilter;
-    value = value.replace(/^(?:["'])|(?:["'])$/g, '');
+    const {field, operator, value} = parsedFilter;
 
     const columnExists = table.getColumns().some(col => col.getField() === field);
 
@@ -85,11 +55,7 @@ function addTableFilterFromParsed(parsedFilter) {
         }
         return true;
     }
-    if (tabulatorOperators[operator]) {
-        table.addFilter(field, tabulatorOperators[operator], value);
-        return true;
-    }
-    console.warn(`Unsupported filter operator: ${operator}`);
+    table.addFilter(field, operator, value);
     return true;
 }
 
@@ -171,21 +137,9 @@ function loadFiltersFromURL() {
     applyFilters();
 }
 
-// Improved filter parsing logic
 function parseFilterString(filterString) {
-    const match = filterString.match(/^(.+?)(=~|!~|=|!=|like|keywords|starts|ends|<|<=|>|>=|in|regex)(.*)$/);
-
-    if (!match) {
-        return;
-    }
-
-    let [, field, operator, value] = match;
-
-    field = field.trim();
-    operator = operator.trim();
-    value = value.trim();
-
-    return {field, operator, value};
+    const parsed = parseMatcher(filterString.trim());
+    return parsed && {field: parsed.label, operator: parsed.operator, value: parsed.value};
 }
 
 // Get current filters from URL
@@ -240,18 +194,10 @@ function updateFilterLayout() {
     }
 }
 
-function formatFilterClause(parsed) {
-    let {field, operator, value} = parsed;
-    value = value.replace(/^(?:["'])|(?:["'])$/g, "");
-    return symbolicOperators.has(operator) ? `${field}${operator}"${value}"` : `${field} ${operator} ${value}`;
-}
-
 function validateAndFormatFilter(query) {
     const q = query.trim();
-    if (!q) return null;
-    const parsed = parseFilterString(q);
-    if (!parsed || !validateMatcherClause(q).ok) return null;
-    return formatFilterClause(parsed);
+    if (!q || !validateMatcherClause(q).ok) return null;
+    return q;
 }
 
 function createEditableFilterBadge({value, onChange, onRemove, onBadgeClick, validateAndFormat = validateAndFormatFilter}) {
@@ -269,6 +215,7 @@ function createEditableFilterBadge({value, onChange, onRemove, onBadgeClick, val
 
     const endEdit = () => {
         badge.classList.remove("is-editing");
+        badge.style.width = "";
         const input = badge.querySelector(".filter-badge-edit-input");
         if (input) {
             input.replaceWith(text);
@@ -278,6 +225,7 @@ function createEditableFilterBadge({value, onChange, onRemove, onBadgeClick, val
 
     const startEdit = () => {
         if (badge.classList.contains("is-editing")) return;
+        badge.style.width = `${badge.offsetWidth}px`;
         badge.classList.add("is-editing");
         const input = document.createElement("input");
         input.type = "text";
@@ -285,25 +233,25 @@ function createEditableFilterBadge({value, onChange, onRemove, onBadgeClick, val
         input.value = current;
         text.replaceWith(input);
         input.focus();
-        input.select();
+        input.setSelectionRange(current.length, current.length);
 
         input.addEventListener("keydown", (e) => {
             if (e.key === "Enter") {
                 e.preventDefault();
-                const formatted = validateAndFormatFilter(input.value);
-                if (!formatted) {
+                const next = validateAndFormat(input.value);
+                if (!next) {
                     input.classList.add("filter-badge-edit-error");
                     return;
                 }
-                if (formatted === current) {
+                if (next === current) {
                     endEdit();
                     return;
                 }
-                if (onChange(formatted, current) === false) {
+                if (onChange(next, current) === false) {
                     input.classList.add("filter-badge-edit-error");
                     return;
                 }
-                current = formatted;
+                current = next;
                 endEdit();
             } else if (e.key === "Escape") {
                 e.preventDefault();
@@ -312,13 +260,13 @@ function createEditableFilterBadge({value, onChange, onRemove, onBadgeClick, val
         });
         input.addEventListener("blur", () => {
             if (!badge.classList.contains("is-editing")) return;
-            const formatted = validateAndFormatFilter(input.value);
-            if (!formatted) {
+            const next = validateAndFormat(input.value);
+            if (!next) {
                 endEdit();
                 return;
             }
-            if (formatted !== current && onChange(formatted, current) !== false) {
-                current = formatted;
+            if (next !== current && onChange(next, current) !== false) {
+                current = next;
             }
             endEdit();
         });
@@ -395,22 +343,20 @@ function addFilterFromInput() {
         return;
     }
 
-    let {operator, value} = parsedFilter;
+    const {operator, value} = parsedFilter;
 
     if ((operator === "=~" || operator === "!~") && !isValidRegex(value)) {
         showFilterError(`Invalid regex: ${value}`);
         return;
     }
 
-    const formattedFilter = formatFilterClause(parsedFilter);
-
     let filters = getCurrentFilters();
 
-    if (!filters.includes(formattedFilter)) {
-        filters.push(formattedFilter);
+    if (!filters.includes(query)) {
+        filters.push(query);
         updateFiltersInURL(filters);
 
-        addFilterUI(formattedFilter);
+        addFilterUI(query);
         applyFilters();
     }
 
@@ -620,8 +566,7 @@ function validateMatcherClause(clause) {
     if (!q) return {ok: true};
     const parsed = parseFilterString(q);
     if (!parsed) return {ok: false};
-    let {operator, value} = parsed;
-    value = value.replace(/^(?:["'])|(?:["'])$/g, "");
+    const {operator, value} = parsed;
     if ((operator === "=~" || operator === "!~") && !isValidRegex(value)) {
         return {ok: false};
     }

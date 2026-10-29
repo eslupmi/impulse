@@ -634,8 +634,8 @@ function commitMatcherInput() {
         setMatcherInputError(result.reason);
         return false;
     }
-    if (!modalMatchers.includes(result.formatted)) {
-        modalMatchers.push(result.formatted);
+    if (!modalMatchers.includes(query)) {
+        modalMatchers.push(query);
         renderMatcherBadges();
     }
     input.value = "";
@@ -743,7 +743,7 @@ function validateWindowModalInput() {
             setMatcherInputError(result.reason);
             return null;
         }
-        matchers.push(result.formatted);
+        matchers.push(matcher);
     }
     if (!comment) {
         commentBox?.classList.add("maintenance-field-error");
