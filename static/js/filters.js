@@ -215,7 +215,6 @@ function createEditableFilterBadge({value, onChange, onRemove, onBadgeClick, val
 
     const endEdit = () => {
         badge.classList.remove("is-editing");
-        badge.style.width = "";
         const input = badge.querySelector(".filter-badge-edit-input");
         if (input) {
             input.replaceWith(text);
@@ -225,7 +224,6 @@ function createEditableFilterBadge({value, onChange, onRemove, onBadgeClick, val
 
     const startEdit = () => {
         if (badge.classList.contains("is-editing")) return;
-        badge.style.width = `${badge.offsetWidth}px`;
         badge.classList.add("is-editing");
         const input = document.createElement("input");
         input.type = "text";
