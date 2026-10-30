@@ -564,16 +564,19 @@ class Application:
         await queue_.put(until, QueueItemType.UNFREEZE, incident_.uniq_id, data=source.value)
 
     async def _handle_freeze_action(
-            self, incident_: 'Incident', freeze_option: str, user_id: str, queue_: 'AsyncQueue',
+            self, incident_: 'Incident', freeze_option: str | datetime, user_id: str, queue_: 'AsyncQueue',
             user_timezone: str | None = None, ui_user=None,
     ):
         if not self.provider.descriptor.messaging_enabled:
             return False
         logger.info(log_button_pressed, extra={'uniq_id': incident_.uniq_id, 'button': 'freeze', 'user_id': user_id})
 
-        general = get_config().app.general
-        timezone_str = user_timezone or general.timezone
-        freeze_time = calculate_freeze_time(freeze_option, general, timezone_str)
+        if isinstance(freeze_option, datetime):
+            freeze_time = freeze_option
+        else:
+            general = get_config().app.general
+            timezone_str = user_timezone or general.timezone
+            freeze_time = calculate_freeze_time(freeze_option, general, timezone_str)
         if user_id and not await self.fetch_and_assign_user_name(incident_, user_id, dump=False):
             return False
         cached_user = self.users.get_user_by_id(user_id) if self.users is not None and user_id else None

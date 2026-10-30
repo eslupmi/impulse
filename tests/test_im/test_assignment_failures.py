@@ -64,14 +64,15 @@ async def test_cached_assignment_returns_success_and_stops_escalation():
 
 
 @pytest.mark.parametrize('already_assigned, expected_status', [(False, 502), (True, 200)])
-def test_assignment_api_does_not_report_failed_lookup_as_http_success(already_assigned, expected_status):
+@pytest.mark.parametrize('path', ['/assign', '/api/incidents/incident-1/assign'])
+def test_assignment_api_does_not_report_failed_lookup_as_http_success(already_assigned, expected_status, path):
     incident = SimpleNamespace(uniq_id='incident-1', assigned_user_id=123 if already_assigned else '')
     app = FastAPI()
     app.state.incidents = Mock(get_by_uniq_id=Mock(return_value=incident))
     app.state.messenger = Mock(handle_ui_assignment=AsyncMock(return_value=False))
     app.state.queue = Mock()
     app.include_router(create_router(''))
-    response = TestClient(app).post('/assign', json={'uniq_id': 'incident-1', 'user_id': '123'})
+    response = TestClient(app).post(path, json={'uniq_id': 'incident-1', 'user_id': '123'})
     assert response.status_code == expected_status
 
 
@@ -108,11 +109,15 @@ async def test_anonymous_ui_freeze_remains_available(monkeypatch):
     assert app.apply_time_freeze.await_args.args[2] is None
 
 
-def test_freeze_api_returns_http_failure_when_action_fails():
+@pytest.mark.parametrize('path, body', [
+    ('/freeze', {'uniq_id': 'incident-1', 'freeze_option': 'tomorrow'}),
+    ('/api/incidents/incident-1/freeze', {'until': '2099-08-02T18:00:00Z'}),
+])
+def test_freeze_api_returns_http_failure_when_action_fails(path, body):
     app = FastAPI()
     app.state.incidents = Mock(get_by_uniq_id=Mock(return_value=SimpleNamespace(uniq_id='incident-1', is_frozen=False)))
     app.state.messenger = Mock(handle_ui_freeze=AsyncMock(return_value=False))
     app.state.queue = Mock()
     app.include_router(create_router(''))
-    response = TestClient(app).post('/freeze', json={'uniq_id': 'incident-1', 'freeze_option': 'tomorrow'})
+    response = TestClient(app).post(path, json=body)
     assert response.status_code == 502

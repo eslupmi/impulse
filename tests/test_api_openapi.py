@@ -3,6 +3,7 @@ from fastapi.testclient import TestClient
 
 from app.api.openapi import configure_api_openapi
 from app.api.router import create_api_router
+from app.routes import create_router
 
 
 def _app_with_mixed_routes(http_prefix: str = ""):
@@ -93,3 +94,24 @@ def test_openapi_keeps_status_codes_without_schemas():
         assert "422" not in methods["get"]["responses"], path
         for body in methods["get"]["responses"].values():
             assert "content" not in body, path
+
+
+def test_openapi_documents_action_bodies_and_validation():
+    app = FastAPI()
+    app.include_router(create_router("/impulse"))
+    configure_api_openapi(app, "/impulse")
+
+    schema = app.openapi()
+    assert app.openapi() is schema
+    for action, model in [("assign", "AssignmentRequest"), ("freeze", "FreezeRequest")]:
+        operation = schema["paths"][f"/impulse/api/incidents/{{uniq_id}}/{action}"]["post"]
+        assert operation["requestBody"]["required"]
+        ref = operation["requestBody"]["content"]["application/json"]["schema"]["$ref"]
+        assert ref == f"#/components/schemas/{model}"
+        assert model in schema["components"]["schemas"]
+        assert "422" in operation["responses"]
+    assert schema["components"]["schemas"]["FreezeRequest"]["properties"]["until"]["format"] == "date-time"
+    for action in ["task", "unassign", "unfreeze"]:
+        operation = schema["paths"][f"/impulse/api/incidents/{{uniq_id}}/{action}"]["post"]
+        assert "requestBody" not in operation
+        assert "422" not in operation["responses"]
