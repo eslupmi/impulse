@@ -190,21 +190,26 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
         logger.info(f"UI {action_name}", extra=log_extra)
 
     def _get_incident(request: Request, uniq_id):
-        if not uniq_id:
-            raise HTTPException(status_code=400, detail=_MSG_UNIQ_ID_REQUIRED)
         incident = request.app.state.incidents.get_by_uniq_id(uniq_id)
         if incident is None:
             raise HTTPException(status_code=404, detail=_MSG_INCIDENT_NOT_FOUND)
         return incident
 
+    async def _unassign(request, uniq_id, acting_user):
+        incident = _get_incident(request, uniq_id)
+        _log_ui_action("unassignment", incident, acting_user)
+        unassigned = await request.app.state.messenger.handle_ui_unassign(
+            incident, request.app.state.queue, ui_user=acting_user,
+        )
+        return {"success": unassigned}
+
     async def _assign(request, uniq_id, user_id, acting_user):
+        if user_id == "":
+            return await _unassign(request, uniq_id, acting_user)
+
         incident = _get_incident(request, uniq_id)
         messenger = request.app.state.messenger
         queue = request.app.state.queue
-        if user_id == "":
-            _log_ui_action("unassignment", incident, acting_user)
-            unassigned = await messenger.handle_ui_unassign(incident, queue, ui_user=acting_user)
-            return {"success": unassigned}
 
         _log_ui_action("assignment", incident, acting_user, target_user_id=user_id)
         assigned = await messenger.handle_ui_assignment(incident, user_id, queue, ui_user=acting_user)
@@ -244,7 +249,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
         404: {"description": _MSG_INCIDENT_NOT_FOUND},
     })
     async def unassign_incident(request: Request, uniq_id: str):
-        return await _assign(request, uniq_id, "", _get_acting_user(request))
+        return await _unassign(request, uniq_id, _get_acting_user(request))
 
     async def _create_task(request, uniq_id, acting_user):
         incident = _get_incident(request, uniq_id)
@@ -266,6 +271,8 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
 
         body = await request.json()
         uniq_id = body.get("uniq_id")
+        if not uniq_id:
+            raise HTTPException(status_code=400, detail=_MSG_UNIQ_ID_REQUIRED)
         return await _create_task(request, uniq_id, acting_user)
 
     @router.post("/api/incidents/{uniq_id}/task", responses={
@@ -341,6 +348,8 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
 
         body = await request.json()
         uniq_id = body.get("uniq_id")
+        if not uniq_id:
+            raise HTTPException(status_code=400, detail=_MSG_UNIQ_ID_REQUIRED)
         return await _unfreeze(request, uniq_id, acting_user)
 
     @router.post("/api/incidents/{uniq_id}/unfreeze", responses={
