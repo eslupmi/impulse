@@ -4,8 +4,8 @@ from fastapi.openapi.utils import get_openapi
 
 def _status_only_responses(operation: dict) -> dict:
     return {
-        code: {"description": body.get("description", "Response")}
-        for code, body in operation.get("responses", {}).items()
+        code: {"description": body["description"]}
+        for code, body in operation["responses"].items()
         if code != "422" or "requestBody" in operation
     }
 
@@ -32,10 +32,7 @@ def configure_api_openapi(app: FastAPI, http_prefix: str = "") -> None:
         has_request_bodies = False
         for path_item in openapi_schema["paths"].values():
             for operation in path_item.values():
-                if not isinstance(operation, dict):
-                    continue
-                has_request_body = "requestBody" in operation
-                has_request_bodies |= has_request_body
+                has_request_bodies |= "requestBody" in operation
                 operation["responses"] = _status_only_responses(operation)
         if not has_request_bodies:
             openapi_schema.pop("components", None)

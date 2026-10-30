@@ -15,7 +15,6 @@ async function initUserSelector(baseUrl) {
                 .map(([configName, user]) => ({
                     user_id: user.id,
                     full_name: user.full_name || configName,
-                    config_name: configName,
                 }));
         }
     } catch (error) {

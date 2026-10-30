@@ -36,7 +36,6 @@ test("assignment selector reads the API user map and excludes unavailable users"
 
     await initUserSelector("/impulse");
     assert.equal(getAuthUser().full_name, "Alice");
-    assert.equal(getAssignableUserById("U1").config_name, "alice");
     assert.equal(getAssignableUserById("U2").full_name, "bob");
     assert.equal(getAssignableUserById("U3"), null);
 
