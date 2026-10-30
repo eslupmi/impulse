@@ -256,7 +256,7 @@
 
 .maintenance-matchers-wrap.maintenance-field-error .maintenance-panel-box,
 .maintenance-comment-input.maintenance-field-error {
-    border-color: #dc2626;
+    border-color: var(--status-error);
 }
 
 .maintenance-matcher-error {

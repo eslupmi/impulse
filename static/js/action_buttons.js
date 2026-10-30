@@ -236,7 +236,6 @@ function showFreezePopup(anchorBtn, uniqId) {
         popup.appendChild(item);
     });
 
-    anchorBtn.style.position = "relative";
     anchorBtn.appendChild(popup);
     activeFreezePopup = popup;
 
