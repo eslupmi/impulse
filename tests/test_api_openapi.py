@@ -103,15 +103,23 @@ def test_openapi_documents_action_bodies_and_validation():
 
     schema = app.openapi()
     assert app.openapi() is schema
-    for action, model in [("assign", "AssignmentRequest"), ("freeze", "FreezeRequest")]:
+    for action, field in [("assign", "user_id"), ("freeze", "until")]:
         operation = schema["paths"][f"/impulse/api/incidents/{{uniq_id}}/{action}"]["post"]
         assert operation["requestBody"]["required"]
         ref = operation["requestBody"]["content"]["application/json"]["schema"]["$ref"]
-        assert ref == f"#/components/schemas/{model}"
-        assert model in schema["components"]["schemas"]
+        assert ref.startswith("#/components/schemas/")
+        request_schema = schema["components"]["schemas"][ref.removeprefix("#/components/schemas/")]
+        assert request_schema["type"] == "object"
+        assert field in request_schema["required"]
+        assert request_schema["properties"][field]["type"] == "string"
+        if action == "freeze":
+            assert request_schema["properties"][field]["format"] == "date-time"
         assert "422" in operation["responses"]
-    assert schema["components"]["schemas"]["FreezeRequest"]["properties"]["until"]["format"] == "date-time"
+        for response in operation["responses"].values():
+            assert "content" not in response
     for action in ["task", "unassign", "unfreeze"]:
         operation = schema["paths"][f"/impulse/api/incidents/{{uniq_id}}/{action}"]["post"]
         assert "requestBody" not in operation
         assert "422" not in operation["responses"]
+        for response in operation["responses"].values():
+            assert "content" not in response

@@ -149,7 +149,8 @@ GET `/chains_config` - messenger escalation chains, users, groups, webhooks, and
     to `/api/incidents/{uniq_id}/assign` and `/api/incidents/{uniq_id}/unassign` in `v4.0.0`.
 
 GET `/assignment_users` - the same configured-user map as GET `/api/users`, keyed by configuration name.
-Each user has an `id` string, `full_name`, `exists`, and other profile fields. The UI offers users whose `exists` is true.
+Each user has an `id` (a string or number, depending on the messenger), `full_name`, `exists`, and other profile fields.
+The UI offers users whose `exists` is true.
 
 GET `/incidents` - the same serialized incident map as GET `/api/incidents`.
 
