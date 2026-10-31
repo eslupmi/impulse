@@ -95,7 +95,7 @@ class UIChainsStore:
     def __init__(self):
         env_config = get_environment_config()
         self._storage = get_storage(env_config)
-        self.ui_chains_dir = os.path.join(env_config.data_path, "ui_chains")
+        self.ui_chains_dir = os.path.join(env_config.storage_root, "ui_chains")
         self._storage.makedirs(self.ui_chains_dir)
         self._lock = threading.Lock()
 

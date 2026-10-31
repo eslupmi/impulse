@@ -23,7 +23,7 @@ def s3_storage():
         storage = S3Storage(config)
         assert storage.client is client
     with Stubber(client) as stubber:
-        yield storage, stubber, Path(config.data_path)
+        yield storage, stubber, Path(config.storage_root)
         stubber.assert_no_pending_responses()
 
 
@@ -343,10 +343,11 @@ def test_s3_write_remove_and_rename_failures_preserve_cause(s3_storage):
     storage.remove(root / 'remove')
 
 
-def test_s3_ignores_data_path():
+def test_s3_storage_root_ignores_data_path():
     config = EnvironmentConfig(storage_backend='s3', s3_bucket='state-bucket', s3_endpoint_url='https://s3.example.com',
                                data_path='/state')
-    assert config.data_path == ''
+    assert config.data_path == '/state'
+    assert config.storage_root == ''
     assert config.incidents_path == 'incidents'
     client = boto3.client('s3', region_name='us-east-1',
                           aws_access_key_id='test', aws_secret_access_key='test')
@@ -356,7 +357,7 @@ def test_s3_ignores_data_path():
         with storage.open('./users/one', 'wb') as handle:
             handle.write(b'data')
         stubber.add_response('list_objects_v2', {}, {'Bucket': 'state-bucket', 'Prefix': '', 'Delimiter': '/'})
-        assert storage.listdir(config.data_path) == []
+        assert storage.listdir(config.storage_root) == []
         stubber.assert_no_pending_responses()
 
 

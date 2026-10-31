@@ -123,7 +123,7 @@ class UserStore:
     def __init__(self):
         env_config = get_environment_config()
         self._storage = get_storage(env_config)
-        self._users_path = os.path.join(env_config.data_path, "users")
+        self._users_path = os.path.join(env_config.storage_root, "users")
         self._storage.makedirs(self._users_path)
     
 

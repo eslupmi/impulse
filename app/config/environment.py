@@ -172,7 +172,6 @@ class EnvironmentConfig(BaseModel):
                                 ('STORAGE_S3_ENDPOINT_URL', self.s3_endpoint_url)):
                 if not (value and value.strip()):
                     raise ValueError(f'{name} is required when STORAGE_BACKEND=s3')
-            self.data_path = ''
         return self
 
     @field_validator('provider_sync_interval', 'provider_max_events', 'provider_days_to_sync', 'listen_port')
@@ -233,9 +232,14 @@ class EnvironmentConfig(BaseModel):
         return v.rstrip("/") if v else v
 
     @property
+    def storage_root(self) -> str:
+        """Root for persistent state paths in the selected backend."""
+        return '' if self.storage_backend == 's3' else self.data_path
+
+    @property
     def incidents_path(self) -> str:
         """Computed property for incidents path"""
-        return os.path.join(self.data_path, "incidents")
+        return os.path.join(self.storage_root, "incidents")
     
     @property
     def config_file_path(self) -> str:

@@ -19,6 +19,8 @@ from app.maintenance.store import MaintenanceStore
 from app.migrator import IncidentMigrator, MaintenanceMigrator
 from app.storage import FileStorage, get_storage
 from app.tools import NoAliasDumper
+from app.ui.authentication import cleanup_sessions
+from app.ui.authentication.factory import build_auth_manager
 from app.ui.authentication.models.auth_session import AuthSession
 from app.ui.authentication.session_store import FileSessionStore
 
@@ -212,7 +214,7 @@ def test_remote_maintenance_rename_preserves_occupied_target(remote_state):
 
 def test_sessions_restart_validation_and_expiry(remote_state):
     storage, config, objects = remote_state
-    root = os.path.join(config.data_path, 'sessions')
+    root = os.path.join(config.storage_root, 'sessions')
     store = FileSessionStore(root)
     now = datetime.now(timezone.utc)
     session = AuthSession(session_id='a' * 64, user_id='U1', created_at=now, expires_at=now + timedelta(hours=1))
@@ -231,6 +233,42 @@ def test_sessions_restart_validation_and_expiry(remote_state):
     store.delete_session(session.session_id)
     assert store.load_session(session.session_id) is None
     storage.client.head_object.assert_not_called()
+
+
+def test_auth_manager_sessions_use_bucket_root(remote_state, monkeypatch):
+    _, config, objects = remote_state
+    app_config = Mock()
+    app_config.messenger.type = 'slack'
+    app_config.messenger.users = {}
+    monkeypatch.setattr('app.ui.authentication.factory.get_user_store', UserStore)
+    manager = build_auth_manager(app_config, config)
+    now = datetime.now(timezone.utc)
+    session = AuthSession(session_id='a' * 64, user_id='U1', created_at=now,
+                          expires_at=now + timedelta(hours=1))
+
+    manager.session_store.save_session(session)
+
+    assert set(objects) == {f'sessions/{session.session_id}.yaml'}
+    assert not any(Path().iterdir())
+
+
+def test_cleanup_sessions_cli_uses_bucket_root(remote_state, monkeypatch, capsys):
+    _, config, objects = remote_state
+    assert Path(config.data_path).is_absolute()
+    now = datetime.now(timezone.utc)
+    store = FileSessionStore('sessions')
+    expired = AuthSession(session_id='a' * 64, user_id='U1', created_at=now - timedelta(hours=2),
+                          expires_at=now - timedelta(hours=1))
+    active = expired.model_copy(update={'session_id': 'b' * 64, 'expires_at': now + timedelta(hours=1)})
+    store.save_session(expired)
+    store.save_session(active)
+    monkeypatch.setattr('sys.argv', ['cleanup_sessions'])
+
+    cleanup_sessions.main()
+
+    assert capsys.readouterr().out == 'Removed 1 expired sessions\n'
+    assert set(objects) == {f'sessions/{active.session_id}.yaml'}
+    assert not any(Path().iterdir())
 
 
 def test_filesystem_sessions_keep_atomic_writes(tmp_path):
