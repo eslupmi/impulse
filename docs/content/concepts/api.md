@@ -12,6 +12,29 @@ The API is available under the `/api` endpoint. Interactive and schema documenta
 - `/api/docs` - Swagger UI
 - `/api/openapi.json` - OpenAPI schema
 
+### Incident actions
+
+All incident actions use POST and require authentication when UI authentication is enabled.
+Replace `{uniq_id}` with the incident ID.
+
+| Endpoint | JSON body | Action |
+| --- | --- | --- |
+| `/api/incidents/{uniq_id}/freeze` | `{"until": "2099-08-02T18:00:00Z"}` | Manually freeze until an RFC3339 timestamp with a timezone. |
+| `/api/incidents/{uniq_id}/task` | `{}` or no body | Create a task through the configured task management integration. |
+| `/api/incidents/{uniq_id}/assign` | `{"user_id": "U123"}` | Assign a user; `user_id` must be a string. |
+| `/api/incidents/{uniq_id}/unassign` | `{}` or no body | Remove the current assignment. |
+| `/api/incidents/{uniq_id}/unfreeze` | `{}` or no body | Remove a manual freeze. Maintenance and inhibition freezes cannot be removed here. |
+
+Successful actions return `{"success": true}`. Assignment and unassignment return
+`{"success": false}` when the requested assignment already matches the current state.
+Task creation returns `{"success": true, "result": ...}` with the integration's result.
+
+Common errors are `401` for a missing session, `404` for an unknown incident, and `422`
+for an invalid assignment or freeze body. Task creation returns `409` if a task already
+exists or is being created. Freeze returns `409` if the incident is already frozen;
+unfreeze returns `409` unless the incident can be manually unfrozen. Assignment and
+freeze return `502` when the messenger cannot apply the action.
+
 ## General endpoints
 
 ### HTTP `/` [GET]
@@ -121,19 +144,23 @@ GET `/ui_config` - UI table and display configuration.
 GET `/chains_config` - messenger escalation chains, users, groups, webhooks, and timezone settings used by the UI. Authentication required when auth is enabled.
 
 !!! warning
-    Will be moved under `/api` since `v4.0.0`
+    `/assignment_users`, `/incidents`, `/task`, `/freeze`, and `/unfreeze` will be removed in `v4.0.0`.
+    Use their `/api` equivalents for new integrations. `/assign` remains supported; the UI will switch
+    to `/api/incidents/{uniq_id}/assign` and `/api/incidents/{uniq_id}/unassign` in `v4.0.0`.
 
-GET `/assignment_users` - users that can be assigned to incidents.
+GET `/assignment_users` - the same configured-user map as GET `/api/users`, keyed by configuration name.
+Each user has an `id` (a string or number, depending on the messenger), `full_name`, `exists`, and other profile fields.
+The UI offers users whose `exists` is true.
 
-GET `/incidents` - serialized list of current incidents.
+GET `/incidents` - the same serialized incident map as GET `/api/incidents`.
 
 POST `/assign` - assign or unassign a user on an incident (`uniq_id`, `user_id`; `""` to unassign). Authentication required when auth is enabled.
 
-POST `/task` - create a task for an incident (`uniq_id`). Authentication required when auth is enabled.
+POST `/task` - create a task for an incident (`uniq_id`), with the same result as POST `/api/incidents/{uniq_id}/task`. Authentication required when auth is enabled.
 
-POST `/freeze` - freeze an incident (`uniq_id`, `freeze_option`: `tomorrow`, `next_monday`, `month`, `6months`). Authentication required when auth is enabled.
+POST `/freeze` - freeze an incident (`uniq_id`, `freeze_option`: `tomorrow`, `next_monday`, `month`, `6months`), with the same result as POST `/api/incidents/{uniq_id}/freeze`. The legacy input retains UI presets; the API accepts an explicit `until` timestamp. Authentication required when auth is enabled.
 
-POST `/unfreeze` - unfreeze a manually frozen incident (`uniq_id`). Authentication required when auth is enabled.
+POST `/unfreeze` - unfreeze a manually frozen incident (`uniq_id`), with the same result as POST `/api/incidents/{uniq_id}/unfreeze`. Authentication required when auth is enabled.
 
 POST `/release` - release a resolved assigned incident (`uniq_id`). Authentication required when auth is enabled.
 
