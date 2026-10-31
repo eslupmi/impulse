@@ -63,7 +63,7 @@ class MaintenanceStore:
     def __init__(self):
         env_config = get_environment_config()
         self._storage = get_storage(env_config)
-        self._dir = os.path.join(env_config.data_path, "maintenance")
+        self._dir = os.path.join(env_config.storage_root, "maintenance")
         self._lock = threading.Lock()
         self._storage.makedirs(self._dir)
 

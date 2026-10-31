@@ -1,5 +1,6 @@
 """Exercise the application's state stores through an in-memory S3 client."""
 import io
+import os
 from datetime import datetime, timedelta, timezone
 from functools import partial
 from pathlib import Path
@@ -18,6 +19,8 @@ from app.maintenance.store import MaintenanceStore
 from app.migrator import IncidentMigrator, MaintenanceMigrator
 from app.storage import FileStorage, get_storage
 from app.tools import NoAliasDumper
+from app.ui.authentication import cleanup_sessions
+from app.ui.authentication.factory import build_auth_manager
 from app.ui.authentication.models.auth_session import AuthSession
 from app.ui.authentication.session_store import FileSessionStore
 
@@ -35,8 +38,9 @@ LEGACY_MAINTENANCE = (
 
 @pytest.fixture
 def remote_state(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
     config = EnvironmentConfig(data_path=str(tmp_path / 'local'),
-                               storage_backend='s3', s3_bucket='state')
+                               storage_backend='s3', s3_bucket='state', s3_endpoint_url='https://s3.example.com')
     monkeypatch.setattr('app.config.environment._env_config', config)
     storage = get_storage(config)
     objects = {}
@@ -81,7 +85,7 @@ def test_incident_restart_migration_and_deletion(remote_state, sample_incident, 
     assert yaml.safe_load(objects[filename])['version'] == 'v3.7.0'
     restored.del_by_uniq_id(sample_incident.uniq_id)
     assert filename not in objects
-    assert not Path(config.data_path).exists()
+    assert not any(Path().iterdir())
 
 
 def test_users_restart_and_filtering(remote_state):
@@ -134,7 +138,7 @@ def test_remote_maintenance_migration_preserves_calendars_and_filenames(remote_s
     assert str(Calendar.from_ical(objects[legacy_key]).get('x-impulse-version')) == MaintenanceMigrator.LEGACY_VERSION
     MaintenanceStore().migrate()
     assert objects == original
-    assert not Path(config.data_path).exists()
+    assert not any(Path().iterdir())
 
 
 @pytest.mark.parametrize('failed_operation', ['put_object', 'delete_object'])
@@ -210,7 +214,7 @@ def test_remote_maintenance_rename_preserves_occupied_target(remote_state):
 
 def test_sessions_restart_validation_and_expiry(remote_state):
     storage, config, objects = remote_state
-    root = f'{config.data_path}/sessions'
+    root = os.path.join(config.storage_root, 'sessions')
     store = FileSessionStore(root)
     now = datetime.now(timezone.utc)
     session = AuthSession(session_id='a' * 64, user_id='U1', created_at=now, expires_at=now + timedelta(hours=1))
@@ -229,6 +233,42 @@ def test_sessions_restart_validation_and_expiry(remote_state):
     store.delete_session(session.session_id)
     assert store.load_session(session.session_id) is None
     storage.client.head_object.assert_not_called()
+
+
+def test_auth_manager_sessions_use_bucket_root(remote_state, monkeypatch):
+    _, config, objects = remote_state
+    app_config = Mock()
+    app_config.messenger.type = 'slack'
+    app_config.messenger.users = {}
+    monkeypatch.setattr('app.ui.authentication.factory.get_user_store', UserStore)
+    manager = build_auth_manager(app_config, config)
+    now = datetime.now(timezone.utc)
+    session = AuthSession(session_id='a' * 64, user_id='U1', created_at=now,
+                          expires_at=now + timedelta(hours=1))
+
+    manager.session_store.save_session(session)
+
+    assert set(objects) == {f'sessions/{session.session_id}.yaml'}
+    assert not any(Path().iterdir())
+
+
+def test_cleanup_sessions_cli_uses_bucket_root(remote_state, monkeypatch, capsys):
+    _, config, objects = remote_state
+    assert Path(config.data_path).is_absolute()
+    now = datetime.now(timezone.utc)
+    store = FileSessionStore('sessions')
+    expired = AuthSession(session_id='a' * 64, user_id='U1', created_at=now - timedelta(hours=2),
+                          expires_at=now - timedelta(hours=1))
+    active = expired.model_copy(update={'session_id': 'b' * 64, 'expires_at': now + timedelta(hours=1)})
+    store.save_session(expired)
+    store.save_session(active)
+    monkeypatch.setattr('sys.argv', ['cleanup_sessions'])
+
+    cleanup_sessions.main()
+
+    assert capsys.readouterr().out == 'Removed 1 expired sessions\n'
+    assert set(objects) == {f'sessions/{active.session_id}.yaml'}
+    assert not any(Path().iterdir())
 
 
 def test_filesystem_sessions_keep_atomic_writes(tmp_path):

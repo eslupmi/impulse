@@ -34,7 +34,7 @@ def mock_get_config_globally():
         """Create a mock config that matches the expected application type."""
         # Create environment config
         env_config = Mock(spec=EnvironmentConfig)
-        env_config.data_path = "test_data"
+        env_config.data_path = env_config.storage_root = "test_data"
         env_config.config_path = "test_config.yml"
         env_config.incidents_path = "test_data/incidents"
         env_config.provider_sync_interval = 300
@@ -155,7 +155,7 @@ def event_loop():
 def mock_environment_config():
     """Mock environment configuration for testing."""
     env_config = Mock(spec=EnvironmentConfig)
-    env_config.data_path = "test_data"
+    env_config.data_path = env_config.storage_root = "test_data"
     env_config.config_path = "test_config.yml"
     env_config.incidents_path = "test_data/incidents"
     env_config.provider_sync_interval = 300

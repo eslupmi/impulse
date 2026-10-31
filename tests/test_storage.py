@@ -1,5 +1,6 @@
 """Storage contract tests use the SDK's Stubber, without an S3 service."""
 import io
+from pathlib import Path
 from unittest.mock import ANY, Mock, patch
 
 import boto3
@@ -14,16 +15,15 @@ from app.storage import FileStorage, S3Storage, get_storage
 
 
 @pytest.fixture
-def s3_storage(tmp_path):
-    config = EnvironmentConfig(storage_backend='s3', s3_bucket='state-bucket',
-                               data_path=str(tmp_path))
+def s3_storage():
+    config = EnvironmentConfig(storage_backend='s3', s3_bucket='state-bucket', s3_endpoint_url='https://s3.example.com')
     client = boto3.client('s3', region_name='us-east-1',
                           aws_access_key_id='test', aws_secret_access_key='test')
     with patch('app.storage.boto3.client', return_value=client):
         storage = S3Storage(config)
         assert storage.client is client
     with Stubber(client) as stubber:
-        yield storage, stubber, tmp_path
+        yield storage, stubber, Path(config.storage_root)
         stubber.assert_no_pending_responses()
 
 
@@ -84,6 +84,8 @@ def test_storage_configuration(monkeypatch):
     with pytest.raises(ValidationError, match='STORAGE_S3_BUCKET_NAME is required'):
         EnvironmentConfig()
     monkeypatch.setenv('STORAGE_S3_BUCKET_NAME', ' state-bucket ')
+    with pytest.raises(ValidationError, match='STORAGE_S3_ENDPOINT_URL is required'):
+        EnvironmentConfig()
     monkeypatch.setenv('STORAGE_S3_ENDPOINT_URL', 'https://storage.example.com')
     config = EnvironmentConfig()
     assert config.s3_bucket == 'state-bucket'
@@ -92,13 +94,15 @@ def test_storage_configuration(monkeypatch):
     with pytest.raises(ValidationError):
         EnvironmentConfig()
     with pytest.raises(ValidationError, match='STORAGE_S3_BUCKET_NAME is required'):
-        EnvironmentConfig(storage_backend='s3', s3_bucket='  ')
+        EnvironmentConfig(storage_backend='s3', s3_bucket='  ', s3_endpoint_url='https://s3.example.com')
+    with pytest.raises(ValidationError, match='STORAGE_S3_ENDPOINT_URL is required'):
+        EnvironmentConfig(storage_backend='s3', s3_bucket='state-bucket', s3_endpoint_url='  ')
 
 
 def test_storage_selection_caches_by_config_and_uses_default_credentials():
     first = EnvironmentConfig(storage_backend='s3', s3_bucket='state-bucket',
                               s3_endpoint_url='https://s3.example.com')
-    second = EnvironmentConfig(storage_backend='s3', s3_bucket='other-bucket')
+    second = EnvironmentConfig(storage_backend='s3', s3_bucket='other-bucket', s3_endpoint_url='https://s3.example.com')
     with patch('app.storage.boto3.client') as create:
         storage = get_storage(first)
         assert storage is get_storage(first)
@@ -143,13 +147,12 @@ def test_storage_s3_environment_options_reach_sdk(monkeypatch):
 
 @pytest.mark.parametrize('blank', ['', ' \t '])
 def test_blank_storage_s3_options_leave_sdk_defaults(monkeypatch, blank):
-    for name in ['STORAGE_S3_ENDPOINT_URL', 'STORAGE_S3_REGION',
-                 'STORAGE_S3_ACCESS_KEY_ID', 'STORAGE_S3_SECRET_ACCESS_KEY']:
+    for name in ['STORAGE_S3_REGION', 'STORAGE_S3_ACCESS_KEY_ID', 'STORAGE_S3_SECRET_ACCESS_KEY']:
         monkeypatch.setenv(name, blank)
-    config = EnvironmentConfig(storage_backend='s3', s3_bucket='state-bucket')
+    config = EnvironmentConfig(storage_backend='s3', s3_bucket='state-bucket', s3_endpoint_url='https://s3.example.com')
     with patch('app.storage.boto3.client') as create:
         S3Storage(config).client
-        create.assert_called_once_with('s3', config=ANY)
+        create.assert_called_once_with('s3', endpoint_url='https://s3.example.com', config=ANY)
 
 
 def test_storage_uses_standard_aws_credentials_and_region_when_unset(tmp_path):
@@ -162,7 +165,7 @@ def test_storage_uses_standard_aws_credentials_and_region_when_unset(tmp_path):
         'AWS_SHARED_CREDENTIALS_FILE': str(tmp_path / 'absent-credentials'),
         'AWS_EC2_METADATA_DISABLED': 'true',
     }, clear=True), patch('boto3.DEFAULT_SESSION', None):
-        config = EnvironmentConfig(storage_backend='s3', s3_bucket='state-bucket')
+        config = EnvironmentConfig(storage_backend='s3', s3_bucket='state-bucket', s3_endpoint_url='https://s3.example.com')
         client = S3Storage(config).client
         assert client.meta.region_name == 'eu-central-1'
         credentials = client._request_signer._credentials
@@ -221,10 +224,10 @@ def test_s3_rejects_binary_encoding_and_paths_outside_namespace(s3_storage):
     with pytest.raises(ValueError, match='encoding'):
         with storage.open(root / 'test', 'rb', encoding='utf-8'):
             pass
-    for path in [root.parent / 'outside', root / '..' / root.name / 'test']:
-        with pytest.raises(ValueError, match='DATA_PATH'):
+    for path in ['/outside', '../outside', 'incidents/../test']:
+        with pytest.raises(ValueError, match='bucket root'):
             storage.exists(path)
-        with pytest.raises(ValueError, match='DATA_PATH'):
+        with pytest.raises(ValueError, match='bucket root'):
             storage.makedirs(path)
     with pytest.raises(IsADirectoryError):
         with storage.open(root, 'w'):
@@ -340,20 +343,21 @@ def test_s3_write_remove_and_rename_failures_preserve_cause(s3_storage):
     storage.remove(root / 'remove')
 
 
-def test_s3_relative_data_path(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    config = EnvironmentConfig(storage_backend='s3', s3_bucket='state-bucket', data_path='./state')
+def test_s3_storage_root_ignores_data_path():
+    config = EnvironmentConfig(storage_backend='s3', s3_bucket='state-bucket', s3_endpoint_url='https://s3.example.com',
+                               data_path='/state')
+    assert config.data_path == '/state'
+    assert config.storage_root == ''
+    assert config.incidents_path == 'incidents'
     client = boto3.client('s3', region_name='us-east-1',
                           aws_access_key_id='test', aws_secret_access_key='test')
     with patch('app.storage.boto3.client', return_value=client), Stubber(client) as stubber:
         storage = S3Storage(config)
         stubber.add_response('put_object', {}, {'Bucket': 'state-bucket', 'Key': 'users/one', 'Body': b'data'})
-        with storage.open('state/users/one', 'wb') as handle:
+        with storage.open('./users/one', 'wb') as handle:
             handle.write(b'data')
         stubber.add_response('list_objects_v2', {}, {'Bucket': 'state-bucket', 'Prefix': '', 'Delimiter': '/'})
-        assert storage.listdir('./state') == []
-        stubber.add_response('list_objects_v2', {}, {'Bucket': 'state-bucket', 'Prefix': '', 'MaxKeys': 1})
-        assert not storage.exists('./state')
+        assert storage.listdir(config.storage_root) == []
         stubber.assert_no_pending_responses()
 
 

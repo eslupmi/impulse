@@ -1,6 +1,8 @@
 """
 Unit tests for app.config.environment module.
 """
+import json
+import os
 from unittest.mock import patch
 
 import pytest
@@ -327,6 +329,32 @@ class TestEnvironmentConfig:
     def test_dev_messenger_custom_address_strips_trailing_slash(self):
         config = EnvironmentConfig(dev_messenger_custom_address="http://mock-slack:8080/")
         assert config.dev_messenger_custom_address == "http://mock-slack:8080"
+
+
+@pytest.mark.parametrize('backend', ['filesystem', 's3'])
+@pytest.mark.parametrize('env_path,explicit_path,expected', [
+    (None, None, './data'),
+    ('relative/env', None, 'relative/env'),
+    ('/env/state', None, '/env/state'),
+    ('/env/state', 'relative/explicit', 'relative/explicit'),
+    ('/env/state', '/explicit/state', '/explicit/state'),
+])
+def test_storage_root_preserves_data_path(monkeypatch, backend, env_path, explicit_path, expected):
+    monkeypatch.delenv('DATA_PATH', raising=False)
+    if env_path is not None:
+        monkeypatch.setenv('DATA_PATH', env_path)
+    settings = {} if explicit_path is None else {'data_path': explicit_path}
+    config = EnvironmentConfig(storage_backend=backend, s3_bucket='state',
+                               s3_endpoint_url='https://s3.example.com', **settings)
+
+    assert config.data_path == expected
+    assert config.model_dump()['data_path'] == expected
+    serialized = json.loads(config.model_dump_json())
+    assert serialized['data_path'] == expected
+    assert 'storage_root' not in serialized
+    root = '' if backend == 's3' else expected
+    assert config.storage_root == root
+    assert config.incidents_path == os.path.join(root, 'incidents')
 
 
 class TestEnvironmentConfigFunctions:

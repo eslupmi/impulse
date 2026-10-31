@@ -860,6 +860,8 @@ def create_mock_environment_config(**overrides) -> Mock:
     
     # Merge overrides with defaults
     config_values = {**defaults, **overrides}
+    config_values.setdefault("storage_root",
+                             "" if config_values.get("storage_backend") == "s3" else config_values["data_path"])
     
     # Create mock object with all attributes
     env_config = Mock()
