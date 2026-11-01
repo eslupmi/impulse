@@ -6,6 +6,7 @@ Applies by release type: **M** major; **m** minor; **b** bugfix
 | --- | --- | --- | --- | --- |
 | [impulse-messengers](https://github.com/eslupmi/impulse-messengers) | Create `release/vX.Y.0` branch | ✓ | ✓ | |
 | [impulse](https://github.com/eslupmi/impulse) | Create `release/vX.Y.0` branch | ✓ | ✓ | |
+| [impulse](https://github.com/eslupmi/impulse) | Close the GitHub [milestone](https://github.com/eslupmi/impulse/milestones) | ✓ | ✓ | |
 | [impulse](https://github.com/eslupmi/impulse) | Update `CHANGELOG.md` | ✓ | ✓ | ✓ |
 | [impulse](https://github.com/eslupmi/impulse) | Bump the Python bugfix version in the Dockerfile | ✓ | ✓ | |
 | [impulse](https://github.com/eslupmi/impulse) | Check CI tests | ✓ | ✓ | |
@@ -17,6 +18,5 @@ Applies by release type: **M** major; **m** minor; **b** bugfix
 | [impulse-messengers](https://github.com/eslupmi/impulse-messengers) | Create a GitHub [release](https://github.com/eslupmi/impulse-messengers/releases) | ✓ | ✓ | |
 | [impulse](https://github.com/eslupmi/impulse) | Switch `impulse-messengers` libraries to tag | ✓ | ✓ | ✓ |
 | [impulse](https://github.com/eslupmi/impulse) | Create a GitHub [release](https://github.com/eslupmi/impulse/releases) | ✓ | ✓ | ✓ |
-| [impulse](https://github.com/eslupmi/impulse) | Close the GitHub [milestone](https://github.com/eslupmi/impulse/milestones) | ✓ | ✓ | |
 | [helm-charts](https://github.com/eslupmi-community/helm-charts) | Create a release | ✓ | ✓ | ✓ |
 | [site](https://github.com/eslupmi/site) | Update the Features section | ✓ | ✓ | |
