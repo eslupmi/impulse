@@ -14,9 +14,7 @@ from app.routes import create_router
 
 @pytest.fixture
 def static_directory(tmp_path):
-    directory = tmp_path / "static"
-    shutil.copytree(resource_directory("static"), directory)
-    return directory
+    return shutil.copytree(resource_directory("static"), tmp_path / "static")
 
 
 @pytest.fixture
