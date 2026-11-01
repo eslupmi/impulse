@@ -1,10 +1,10 @@
-"""Filesystem and S3 persistence for application state under DATA_PATH."""
+"""Filesystem persistence under DATA_PATH and S3 persistence at the bucket root."""
 import builtins
 import io
 import os
 from collections.abc import Callable
 from contextlib import contextmanager
-from pathlib import Path
+from pathlib import PurePosixPath
 
 import boto3  # type: ignore[import-untyped]
 from botocore.config import Config  # type: ignore[import-untyped]
@@ -42,7 +42,6 @@ class S3Storage:
     """Store whole state files in S3; directories are virtual object prefixes."""
 
     def __init__(self, config: EnvironmentConfig):
-        self.root = os.path.abspath(config.data_path)
         self.bucket = config.s3_bucket
         self._client_options = {name: value for name, value in {
             'endpoint_url': config.s3_endpoint_url,
@@ -66,14 +65,10 @@ class S3Storage:
         return self._client
 
     def _key(self, path):
-        path = os.fsdecode(path)
-        absolute = os.path.abspath(path)
-        if '..' in Path(path).parts or os.path.commonpath([self.root, absolute]) != self.root:
-            raise ValueError('Storage paths must stay within DATA_PATH')
-        relative = os.path.relpath(absolute, self.root)
-        if relative == '.':
-            return ''
-        return relative.replace(os.sep, '/')
+        path = PurePosixPath(os.fsdecode(path))
+        if path.is_absolute() or '..' in path.parts:
+            raise ValueError('Storage paths must be relative to the bucket root')
+        return '/'.join(path.parts)
 
     def _file_key(self, path):
         key = self._key(path)

@@ -16,7 +16,7 @@ ASSIGNABLE = {"U123"}
 
 def _make_store(tmp_path: Path) -> MaintenanceStore:
     with patch("app.maintenance.store.get_environment_config") as mock_env:
-        mock_env.return_value.data_path = str(tmp_path)
+        mock_env.return_value.storage_root = str(tmp_path)
         return MaintenanceStore()
 
 
