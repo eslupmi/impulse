@@ -25,7 +25,7 @@ class TestUserStore:
     def user_store(self, temp_dir):
         """Create a UserStore instance with a temporary directory."""
         with patch('app.im.user_store.get_environment_config') as mock_env:
-            mock_env.return_value.data_path = temp_dir
+            mock_env.return_value.storage_root = temp_dir
             store = UserStore()
             yield store
 

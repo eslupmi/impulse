@@ -54,6 +54,7 @@ nav:
     - concepts/maintenance.md
     - concepts/messengers.md
     - concepts/special_variables.md
+    - concepts/storage.md
     - concepts/templates.md
   - Development:
     - development/branching.md

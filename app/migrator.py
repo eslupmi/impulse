@@ -1,6 +1,7 @@
 import os
 import re
 from datetime import UTC, datetime
+from itertools import pairwise
 from typing import TYPE_CHECKING, ClassVar
 
 import yaml
@@ -11,6 +12,7 @@ from app.config.environment import get_environment_config
 from app.incident.freeze import FreezeSource
 from app.incident.incident import Incident
 from app.logging import logger
+from app.storage import FileStorage, S3Storage, get_storage
 from app.tools import NoAliasDumper
 
 if TYPE_CHECKING:
@@ -29,13 +31,9 @@ class IncidentMigrator:
     """
 
     # Define migration path - each version knows how to migrate to the next
-    MIGRATION_CHAIN: ClassVar[dict[str, str]] = {
-        'v0.4': 'v3.0.0',
-        'v3.0.0': 'v3.2.0',
-        'v3.2.0': 'v3.4.0',
-        'v3.4.0': 'v3.6.0',
-        'v3.6.0': 'v3.7.0',
-    }
+    MIGRATION_CHAIN: ClassVar[dict[str, str]] = dict(pairwise((
+        'v0.4', 'v3.0.0', 'v3.2.0', 'v3.4.0', 'v3.6.0', 'v3.7.0',
+    )))
     REVERSE_MIGRATION_CHAIN: ClassVar[dict[str, str]] = {dst: src for src, dst in MIGRATION_CHAIN.items()}
 
     def __init__(self):
@@ -69,15 +67,22 @@ class IncidentMigrator:
         logger.info(f'Migrating {os.path.basename(file_path)} from {current_version} to {target_version}')
 
         migrated_data = self._migrate_data(incident_data, current_version, target_version)
-
+        storage = get_storage()
+        remote = isinstance(storage, S3Storage)
+        if remote:
+            # Keep the old schema until copy/delete completes so interrupted renames retry on startup.
+            file_path = self._apply_filename_migrations(file_path, migrated_data, current_version, target_version)
+        
         try:
-            with open(file_path, 'w') as f:
+            with storage.open(file_path, 'w') as f:
                 yaml.dump(migrated_data, f, NoAliasDumper, default_flow_style=False)
-        except (OSError, PermissionError, FileNotFoundError) as e:
+        except OSError as e:
             logger.error(f'Failed to write migrated incident file {os.path.basename(file_path)}: {e}')
+            if remote:
+                raise
             return file_path
-
-        final_path = self._apply_filename_migrations(file_path, migrated_data, current_version, target_version)
+        
+        final_path = file_path if remote else self._apply_filename_migrations(file_path, migrated_data, current_version, target_version)
         logger.info(f'Successfully migrated {os.path.basename(final_path)}')
         return final_path
 
@@ -344,7 +349,7 @@ class IncidentMigrator:
         if old_path == new_path:
             return old_path
         logger.info(f'Renaming incident file {os.path.basename(old_path)} to {os.path.basename(new_path)}')
-        os.rename(old_path, new_path)
+        get_storage().rename(old_path, new_path)
         return new_path
 
     @classmethod
@@ -419,17 +424,18 @@ def downgrade_incidents_only(version_arg: str | None = None) -> None:
 
     env_config = get_environment_config()
     incidents_path = env_config.incidents_path
-    if not os.path.exists(incidents_path):
+    storage = get_storage(env_config)
+    if not storage.exists(incidents_path):
         logger.info(f'Incidents directory does not exist: {incidents_path}')
         return
 
     migrator = IncidentMigrator()
     logger.info(f'Downgrading incident files to {target_version}')
 
-    for path, _, files in os.walk(incidents_path):
+    for path, _, files in storage.walk(incidents_path):
         for filename in files:
             file_path = os.path.join(path, filename)
-            with open(file_path, 'r') as f:
+            with storage.open(file_path, 'r') as f:
                 content = yaml.load(f, Loader=yaml.CLoader)
             current_version = content.get('version', 'v0.4')
 
@@ -468,8 +474,8 @@ class MaintenanceMigrator:
         legacy_path = os.path.join(store._dir, LEGACY_FILENAME)
         target = self.ACTUAL_VERSION
         current = target
-        if os.path.exists(legacy_path):
-            current = _path_version(legacy_path) or self.LEGACY_VERSION
+        if store._storage.exists(legacy_path):
+            current = _path_version(legacy_path, store._storage) or self.LEGACY_VERSION
             if current not in (self.LEGACY_VERSION, target):
                 raise ValueError(f'No migration path from {current} to {target}')
         self._rename_individual_files(store)
@@ -481,25 +487,42 @@ class MaintenanceMigrator:
     def downgrade(self, store: "MaintenanceStore", target: str) -> None:
         current = self._individual_version(store)
         if current == self.ACTUAL_VERSION and target == self.LEGACY_VERSION:
+            if isinstance(store._storage, S3Storage):
+                self._rename_individual_files(store)
             logger.info("Downgrading maintenance windows", extra={"from": current, "to": target})
             self._merge_legacy(store)
 
     @staticmethod
     def _rename_individual_files(store: "MaintenanceStore") -> None:
-        _windows, paths = store._read_individual_windows()
-        for window_id, path in paths.items():
-            target = store._window_path(window_id)
+        storage = store._storage
+        remote = isinstance(storage, S3Storage)
+        path_exists = storage.exists if remote else os.path.lexists
+        for filename in storage.listdir(store._dir):
+            if filename == LEGACY_FILENAME or not filename.endswith(".ics"):
+                continue
+            path = os.path.join(store._dir, filename)
+            window = store._read_window_file(path)
+            if window is None:
+                continue
+            target = store._window_path(window["id"])
             if path == target:
                 continue
-            if os.path.lexists(target):
+            if not path_exists(target):
+                storage.rename(path, target)
+                continue
+            if not remote:
                 raise FileExistsError(f'Maintenance filename is already occupied: {target}')
-            os.rename(path, target)
+            with storage.open(path, "rb") as source, storage.open(target, "rb") as destination:
+                if source.read() != destination.read():
+                    raise FileExistsError(f'Maintenance filename is already occupied: {target}')
+            # A failed copy/delete rename can leave both identical objects.
+            storage.remove(path)
 
     def _split_legacy(self, store: "MaintenanceStore") -> None:
         path = os.path.join(store._dir, LEGACY_FILENAME)
-        if not os.path.exists(path):
+        if not store._storage.exists(path):
             return
-        calendar = _read_calendar(path)
+        calendar = _read_calendar(path, store._storage)
         if calendar is None:
             return
 
@@ -507,10 +530,14 @@ class MaintenanceMigrator:
         written = 0
         for window in _windows_in_calendar(store, calendar, existing_ids):
             if not store._write_window_unlocked(window):
+                if isinstance(store._storage, S3Storage):
+                    raise OSError('Failed to write migrated maintenance window')
                 return
             written += 1
 
         if not store._remove_file(path):
+            if isinstance(store._storage, S3Storage):
+                raise OSError('Failed to remove legacy maintenance calendar')
             return
         logger.info("Migrated maintenance windows", extra={"count": written})
 
@@ -519,40 +546,44 @@ class MaintenanceMigrator:
         windows = []
         seen: set[str] = set()
         for path in paths.values():
-            calendar = _read_calendar(path)
+            calendar = _read_calendar(path, store._storage)
             if calendar is None:
                 return
             windows.extend(_windows_in_calendar(store, calendar, seen))
         legacy_path = os.path.join(store._dir, LEGACY_FILENAME)
-        if os.path.exists(legacy_path):
-            calendar = _read_calendar(legacy_path)
+        if store._storage.exists(legacy_path):
+            calendar = _read_calendar(legacy_path, store._storage)
             if calendar is None:
                 return
             windows.extend(_windows_in_calendar(store, calendar, seen))
         if not store._write_legacy_file(windows):
+            if isinstance(store._storage, S3Storage):
+                raise OSError('Failed to write legacy maintenance calendar')
             return
         for path in paths.values():
             if not store._remove_file(path):
+                if isinstance(store._storage, S3Storage):
+                    raise OSError('Failed to remove migrated maintenance window')
                 return
         logger.info("Downgraded maintenance windows", extra={"count": len(windows)})
 
     def _individual_version(self, store: "MaintenanceStore") -> str | None:
-        for filename in os.listdir(store._dir):
+        for filename in store._storage.listdir(store._dir):
             if filename == LEGACY_FILENAME or not filename.endswith(".ics"):
                 continue
-            return _path_version(os.path.join(store._dir, filename)) or self.ACTUAL_VERSION
+            return _path_version(os.path.join(store._dir, filename), store._storage) or self.ACTUAL_VERSION
         return None
 
     def _stamp_missing_version(self, store: "MaintenanceStore", version: str) -> None:
-        for filename in os.listdir(store._dir):
+        for filename in store._storage.listdir(store._dir):
             if filename == LEGACY_FILENAME or not filename.endswith(".ics"):
                 continue
             path = os.path.join(store._dir, filename)
-            calendar = _read_calendar(path)
+            calendar = _read_calendar(path, store._storage)
             if calendar is None or _calendar_version(calendar) is not None:
                 continue
             calendar.add("x-impulse-version", version)
-            with open(path, "wb") as f:
+            with store._storage.open(path, "wb") as f:
                 f.write(calendar.to_ical())
 
 
@@ -571,12 +602,14 @@ def downgrade_maintenance(version_arg: str | None = None) -> None:
     logger.info(f"Downgrade to {target_version} complete")
 
 
-def _read_calendar(path: str) -> Calendar | None:
+def _read_calendar(path: str, storage: FileStorage | S3Storage) -> Calendar | None:
     try:
-        with open(path, "rb") as f:
+        with storage.open(path, "rb") as f:
             parsed = Calendar.from_ical(f.read().decode())
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         logger.error("Failed to read maintenance calendar", extra={"error": str(e), "path": path})
+        if isinstance(storage, S3Storage) and isinstance(e, OSError):
+            raise
         return None
     if not isinstance(parsed, Calendar):
         return None
@@ -606,8 +639,8 @@ def _calendar_version(calendar: Calendar) -> str | None:
     return str(raw)
 
 
-def _path_version(path: str) -> str | None:
-    calendar = _read_calendar(path)
+def _path_version(path: str, storage: FileStorage | S3Storage) -> str | None:
+    calendar = _read_calendar(path, storage)
     if calendar is None:
         return None
     return _calendar_version(calendar)

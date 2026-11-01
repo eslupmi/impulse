@@ -45,6 +45,44 @@ async def test_failed_assignment_preserves_escalation(action, failure):
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize('action', ['ui', 'callback', 'freeze'])
+async def test_assignment_before_user_initialization_preserves_escalation(action, monkeypatch):
+    app = Application.__new__(Application)
+    app.provider = SimpleNamespace(descriptor=ProviderDescriptor('test'), fetch_user=AsyncMock())
+    app.users = None
+    app._async_tasks = set()
+    app.post_assignment_notification = AsyncMock()
+    app.post_freeze_notification = AsyncMock()
+    app.update_incident_message = AsyncMock()
+    app.apply_time_freeze = AsyncMock()
+    incident = SimpleNamespace(uniq_id='incident-1', assigned_user_id='', assigned_user='',
+                               assigned_fullname='', chain_enabled=True, status='firing', dump=Mock(), freeze=Mock())
+    queue = SimpleNamespace(delete_by_id=AsyncMock())
+    monkeypatch.setattr('app.im.application.calculate_freeze_time', Mock())
+
+    if action == 'ui':
+        assert await app.handle_ui_assignment(incident, '123', queue) is False
+    elif action == 'callback':
+        await toggle_assignment(app, incident, '123', queue)
+    else:
+        assert await app.handle_ui_freeze(incident, 'tomorrow', '123', queue) is False
+
+    assert incident.assigned_user_id == ''
+    assert incident.assigned_user == ''
+    assert incident.assigned_fullname == ''
+    assert incident.chain_enabled
+    incident.dump.assert_not_called()
+    incident.freeze.assert_not_called()
+    queue.delete_by_id.assert_not_awaited()
+    app.provider.fetch_user.assert_not_awaited()
+    app.post_assignment_notification.assert_not_awaited()
+    app.post_freeze_notification.assert_not_awaited()
+    app.update_incident_message.assert_not_awaited()
+    app.apply_time_freeze.assert_not_awaited()
+    assert not app._async_tasks
+
+
+@pytest.mark.asyncio
 async def test_cached_assignment_returns_success_and_stops_escalation():
     app = Application.__new__(Application)
     app.users = UserManager()
@@ -93,11 +131,12 @@ async def test_failed_freeze_actor_lookup_preserves_escalation(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_anonymous_ui_freeze_remains_available(monkeypatch):
+@pytest.mark.parametrize('users_initialized', [False, True])
+async def test_anonymous_ui_freeze_remains_available(monkeypatch, users_initialized):
     app = Application.__new__(Application)
     app.provider = SimpleNamespace(descriptor=ProviderDescriptor('test'))
     app.fetch_and_assign_user_name = AsyncMock()
-    app.users = UserManager()
+    app.users = UserManager() if users_initialized else None
     app.apply_time_freeze = AsyncMock()
     app.post_freeze_notification = AsyncMock()
     app.update_incident_message = AsyncMock()

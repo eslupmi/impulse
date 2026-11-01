@@ -8,7 +8,7 @@ from app.im.chain.ui_chains_store import UIChainsStore
 
 def _make_store(tmp_path: Path) -> UIChainsStore:
     with patch("app.im.chain.ui_chains_store.get_environment_config") as mock_get_environment_config:
-        mock_get_environment_config.return_value.data_path = str(tmp_path)
+        mock_get_environment_config.return_value.storage_root = str(tmp_path)
         return UIChainsStore()
 
 
@@ -23,10 +23,10 @@ def _write_shifts_unfiltered(store: UIChainsStore, chain_name: str, shifts: list
     store._write_shifts(chain_name, store.recalculate_priorities(shifts))
 
 
-def test_ui_chains_dir_uses_environment_data_path(tmp_path: Path):
+def test_ui_chains_dir_uses_environment_storage_root(tmp_path: Path):
     with patch("app.im.chain.ui_chains_store.get_environment_config") as mock_get_environment_config, \
             patch("app.im.chain.ui_chains_store.os.path.exists", return_value=True):
-        mock_get_environment_config.return_value.data_path = str(tmp_path)
+        mock_get_environment_config.return_value.storage_root = str(tmp_path)
 
         store = UIChainsStore()
 
@@ -36,7 +36,7 @@ def test_ui_chains_dir_uses_environment_data_path(tmp_path: Path):
 def test_get_steps_for_now_prefers_priority_1(tmp_path: Path):
     with patch("app.im.chain.ui_chains_store.get_environment_config") as mock_get_environment_config, \
             patch("app.im.chain.ui_chains_store.os.path.exists", return_value=True):
-        mock_get_environment_config.return_value.data_path = str(tmp_path)
+        mock_get_environment_config.return_value.storage_root = str(tmp_path)
         store = UIChainsStore()
 
     now = datetime(2026, 3, 29, 12, 0, tzinfo=timezone.utc)
@@ -64,7 +64,7 @@ def test_get_steps_for_now_prefers_priority_1(tmp_path: Path):
 def test_recalculate_priorities_single_over_daily_repeat(tmp_path: Path):
     with patch("app.im.chain.ui_chains_store.get_environment_config") as mock_get_environment_config, \
             patch("app.im.chain.ui_chains_store.os.path.exists", return_value=True):
-        mock_get_environment_config.return_value.data_path = str(tmp_path)
+        mock_get_environment_config.return_value.storage_root = str(tmp_path)
         store = UIChainsStore()
 
     chains = [
@@ -254,7 +254,7 @@ def test_next_occurrence_start_monthly_and_yearly(tmp_path: Path):
 def test_does_chain_overlap_range_repeating_daily(tmp_path: Path):
     with patch("app.im.chain.ui_chains_store.get_environment_config") as mock_get_environment_config, \
             patch("app.im.chain.ui_chains_store.os.path.exists", return_value=True):
-        mock_get_environment_config.return_value.data_path = str(tmp_path)
+        mock_get_environment_config.return_value.storage_root = str(tmp_path)
         store = UIChainsStore()
 
     chain = {
