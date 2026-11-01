@@ -19,7 +19,6 @@ import {
     onTimezoneChange,
     parseDateTime,
     reformatDateTimeInput,
-    syncTimezoneMenuWidth,
     syncTimezoneSelects,
     updateTimezoneConfig,
 } from "./ui_timezone.js";
@@ -974,7 +973,6 @@ function toggleRepeatUntilVisibility() {
     if (!untilGroup || !untilInput) return;
 
     untilGroup.classList.toggle('hidden', !hasRepeat);
-    untilGroup.style.display = hasRepeat ? 'block' : 'none';
     if (!hasRepeat) {
         untilInput.value = '';
     }
@@ -1290,7 +1288,6 @@ function syncChainSelectWidget() {
         });
         menu.appendChild(item);
     }
-    syncTimezoneMenuWidth(widget);
 }
 
 function updateChainSelector() {

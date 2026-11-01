@@ -91,7 +91,7 @@ class EnvironmentConfig(BaseModel):
     provider_days_to_sync: int = Field(
         default_factory=lambda: int(os.getenv('CHAIN_PROVIDER_DAYS_TO_SYNC', '7')),
         description="Number of days to sync from provider"
-)
+    )
     provider_service_account_file: str = Field(
         default_factory=lambda: os.getenv('GOOGLE_SERVICE_ACCOUNT_FILE', './key.json'),
         description="Path to Google service account file"
