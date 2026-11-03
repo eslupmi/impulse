@@ -66,7 +66,7 @@ Below are all the configuration options supported by IMPulse.
 
 #### incident.notifications.freeze
 
-- **description:** notifications about incident [freeze] by button (concepts/incident.md#frozen)
+- **description:** notifications about incidents [frozen](concepts/incident.md#frozen) via the Freeze button
 - **type:** bool
 - **default value:** False
 
