@@ -9,7 +9,13 @@ async function initUserSelector(baseUrl) {
     try {
         const response = await fetch(`${baseUrl}/assignment_users`);
         if (response.ok) {
-            assignableUsers = await response.json();
+            const users = await response.json();
+            assignableUsers = Object.entries(users)
+                .filter(([, user]) => user.exists)
+                .map(([configName, user]) => ({
+                    user_id: user.id,
+                    full_name: user.full_name || configName,
+                }));
         }
     } catch (error) {
         console.error("Failed to load assignable users:", error);

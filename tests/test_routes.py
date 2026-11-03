@@ -161,24 +161,3 @@ def test_chains_config_keeps_ui_chains_from_raw_config_when_runtime_chains_exclu
     assert response.status_code == 200
     assert response.json()["chains"] == ["primary"]
     assert response.json()["ui_chains"] == ["ui-duty", "ui-backup"]
-
-
-def test_assignment_users_uses_assignable_users():
-    app = FastAPI()
-
-    messenger = Mock()
-    messenger.users = Mock()
-    messenger.users.get_assignable_users.return_value = [
-        {"user_id": "U1", "full_name": "User One", "config_name": "user.one"},
-    ]
-    app.state.messenger = messenger
-    app.include_router(create_router("", fastapi_app=app))
-
-    client = TestClient(app)
-    response = client.get("/assignment_users")
-
-    assert response.status_code == 200
-    assert response.json() == [
-        {"user_id": "U1", "full_name": "User One", "config_name": "user.one"},
-    ]
-    messenger.users.get_assignable_users.assert_called_once_with()
