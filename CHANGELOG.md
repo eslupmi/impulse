@@ -7,6 +7,7 @@ Changes:
 - Extracted messenger code into separate [impulse-messengers](https://github.com/eslupmi/impulse-messengers) libraries
 - Removed automatic formatting of UI filters
 - Python `3.12` is now the only supported version
+- More detailed startup error logs
 - Fixed a maintenance bug that showed an `owner_id is required` error
 - Fixed [incorrect](https://github.com/eslupmi/impulse/issues/585) matcher behaviour in inhibit rules
 - Fixed a [bug](https://github.com/eslupmi/impulse/issues/600) that prevented users not listed in `impulse.yml` from taking incidents

@@ -63,7 +63,7 @@ async def _initialize_primary_server(fastapi_app: FastAPI, file_lock: FileLock |
         return True
     except (Exception, asyncio.CancelledError) as error:
         if not isinstance(error, asyncio.CancelledError):
-            logger.error("Primary server initialization failed")
+            logger.error("Primary server initialization failed", extra={'error': str(error)})
         fastapi_app.state.is_standby = True
         STATUS.set(0)
         try:
