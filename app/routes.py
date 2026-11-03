@@ -187,9 +187,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
         return _get_assignable_users(request.app.state.messenger)
 
     def _log_ui_action(action_name, incident, acting_user, **extra):
-        acting_name = acting_user.get("full_name") or acting_user.get("username") or "unknown"
-        acting_id = acting_user.get("id") or "unknown"
-        log_extra = {"uniq_id": incident.uniq_id, "acting_user": acting_name, "acting_user_id": acting_id}
+        log_extra = {"uniq_id": incident.uniq_id, "acting_user_id": acting_user.get("id") or "unknown"}
         log_extra.update(extra)
         logger.info(f"UI {action_name}", extra=log_extra)
 
