@@ -27,6 +27,7 @@ from app.middleware import (
     service_unavailable_response,
 )
 from app.resources import resource_directory
+from app.ui.static import VersionedStaticFiles
 from app.ui.table_config import get_all_ui_config
 from app.ui.websocket import incident_ws
 from impulse_messenger_api import InteractionRequest
@@ -56,8 +57,12 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
 
     ui_templates = None
     if fastapi_app and get_config().ui_config:
-        fastapi_app.mount(f"{http_prefix}/static", StaticFiles(directory=resource_directory("static")), name="static")
-        ui_templates = Jinja2Templates(directory=resource_directory("static"))
+        static_directory = resource_directory("static")
+        static_files = VersionedStaticFiles(directory=static_directory)
+        static_base = f"{http_prefix}/static/{static_files.version}"
+        fastapi_app.mount(static_base, static_files, name="versioned_static")
+        fastapi_app.mount(f"{http_prefix}/static", StaticFiles(directory=static_directory), name="static")
+        ui_templates = Jinja2Templates(directory=static_directory)
 
     @router.get("/livez")
     def get_live(request: Request):
@@ -94,8 +99,8 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
         async def get_index(request: Request):
             return ui_templates.TemplateResponse("index.html", {
                 "request": request,
-                "http_prefix": http_prefix
-            })
+                "static_base": static_base
+            }, headers={"Cache-Control": "no-cache"})
 
     @router.get("/queue")
     async def get_queue(request: Request):
