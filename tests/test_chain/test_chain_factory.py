@@ -5,7 +5,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from app.config.validation import ChainType, SimpleChainStep
+from impulse_messenger_api.schema import ChainType, SimpleChainStep
 from app.im.chain.chain_factory import ChainFactory
 
 _EMPTY_REGS = {
@@ -22,7 +22,7 @@ class TestChainFactory:
 
     def test_create_chain_with_google_calendar_chain_type(self):
         """Test _create_chain with Google Calendar chain type."""
-        from app.config.validation import CloudChain
+        from impulse_messenger_api.schema import CloudChain
         config = Mock()
         config.type = ChainType.CLOUD
         config.provider = "google"
@@ -59,7 +59,7 @@ class TestChainFactory:
 
     def test_create_chain_with_schedule_chain_exception(self):
         """Test _create_chain with schedule chain creation exception."""
-        from app.config.validation import ScheduleChain as ScheduleChainType
+        from impulse_messenger_api.schema import ScheduleChain as ScheduleChainType
         config = Mock(spec=ScheduleChainType)
         config.type = ChainType.SCHEDULE
         config.timezone = "UTC"
@@ -73,7 +73,7 @@ class TestChainFactory:
 
     def test_create_chain_with_google_calendar_chain_exception(self):
         """Test _create_chain with Google Calendar chain creation exception."""
-        from app.config.validation import CloudChain
+        from impulse_messenger_api.schema import CloudChain
         config = Mock()
         config.type = ChainType.CLOUD
         config.provider = "google"
@@ -88,7 +88,7 @@ class TestChainFactory:
 
     def test_create_chain_with_google_calendar_chain_starts_sync(self):
         """Google calendar chains always start sync after construction."""
-        from app.config.validation import CloudChain
+        from impulse_messenger_api.schema import CloudChain
         config = Mock()
         config.type = ChainType.CLOUD
         config.provider = "google"

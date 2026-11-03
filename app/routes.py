@@ -1,6 +1,6 @@
 import asyncio
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import (
     APIRouter,
@@ -18,7 +18,6 @@ from app.api.router import create_api_router
 from app.config.config import get_config, reload_config
 from app.im.chain.ui_chains_store import ui_chains_store
 from app.logging import logger
-from app.maintenance.api import removed_windows, windows_from_ws_payload
 from app.maintenance.store import get_maintenance_store
 from app.metrics import generate_metrics_response
 from app.middleware import (
@@ -26,16 +25,29 @@ from app.middleware import (
     is_standby_mode,
     service_unavailable_response,
 )
+from app.resources import resource_directory
 from app.ui.table_config import get_all_ui_config
 from app.ui.websocket import incident_ws
+from impulse_messenger_api import InteractionRequest
 
 _MSG_INCIDENT_NOT_FOUND = "Incident not found"
 _MSG_UNIQ_ID_REQUIRED = "uniq_id is required"
 _MSG_AUTHENTICATION_REQUIRED = "Authentication required"
+_MSG_ID_REQUIRED = "id is required"
 
 
 async def _maintenance_save_side_effects(app, existing, saved, deleted):
+    if is_standby_mode(app.state):
+        return
     await app.state.maintenance_manager.apply_save_side_effects(existing, saved, deleted)
+
+async def _send_saved_event(websocket, event, success, detail=None, data=None):
+    message = {"event": event, "success": success}
+    if detail is not None:
+        message["detail"] = detail
+    if data is not None:
+        message["data"] = data
+    await websocket.send_text(json.dumps(message))
 
 
 def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_manager=None) -> APIRouter:
@@ -43,8 +55,8 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
 
     ui_templates = None
     if fastapi_app and get_config().ui_config:
-        fastapi_app.mount(f"{http_prefix}/static", StaticFiles(directory="static"), name="static")
-        ui_templates = Jinja2Templates(directory="static")
+        fastapi_app.mount(f"{http_prefix}/static", StaticFiles(directory=resource_directory("static")), name="static")
+        ui_templates = Jinja2Templates(directory=resource_directory("static"))
 
     @router.get("/livez")
     def get_live(request: Request):
@@ -93,30 +105,23 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
         try:
             alert_state = await request.json()
             logger.debug("Alert received", extra={'payload': alert_state})
-            await request.app.state.queue.put_first(datetime.now(timezone.utc), 'alert', None, None, alert_state)
+            await request.app.state.queue.put_first(datetime.now(UTC), 'alert', None, None, alert_state)
             return alert_state
         except Exception as e:  # noqa: BLE001
             logger.error("Alert processing error", extra={'error': str(e)})
             raise HTTPException(status_code=400, detail=str(e))
 
-    @router.post("/app")
-    @router.put("/app")
+    @router.post("/app", responses={400: {"description": "Invalid payload"}})
+    @router.put("/app", responses={400: {"description": "Invalid payload"}})
     async def handle_app_buttons(request: Request):
         try:
-            if request.app.state.messenger.type == 'slack':
-                form_data = await request.form()
-                raw = form_data['payload']
-                if not isinstance(raw, str):
-                    raise HTTPException(status_code=400, detail="Invalid payload")
-                payload = json.loads(raw)
-            else:
-                payload = await request.json()
+            payload = InteractionRequest(request.method, tuple(request.headers.items()),
+                                         tuple(request.query_params.multi_items()), await request.body())
 
             return await request.app.state.messenger.buttons_handler(
                 payload,
                 request.app.state.incidents,
                 request.app.state.queue,
-                request.app.state.route
             )
         except (json.JSONDecodeError, KeyError) as e:
             logger.error("App buttons error", extra={'error': str(e)})
@@ -172,7 +177,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
             "webhooks": list(app.webhooks.keys()),
             "week_start": app.general.week_start,
             "timezone": app.general.timezone,
-            "messenger_type": runtime_messenger.type.value,
+            "messenger_type": runtime_messenger.type,
             "user_timezone": acting_user.get("timezone"),
             "ui_chains": ui_chains,
         }
@@ -182,9 +187,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
         return _get_assignable_users(request.app.state.messenger)
 
     def _log_ui_action(action_name, incident, acting_user, **extra):
-        acting_name = acting_user.get("full_name") or acting_user.get("username") or "unknown"
-        acting_id = acting_user.get("id") or "unknown"
-        log_extra = {"uniq_id": incident.uniq_id, "acting_user": acting_name, "acting_user_id": acting_id}
+        log_extra = {"uniq_id": incident.uniq_id, "acting_user_id": acting_user.get("id") or "unknown"}
         log_extra.update(extra)
         logger.info(f"UI {action_name}", extra=log_extra)
 
@@ -192,6 +195,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
         400: {"description": "Missing uniq_id or user_id"},
         401: {"description": _MSG_AUTHENTICATION_REQUIRED},
         404: {"description": _MSG_INCIDENT_NOT_FOUND},
+        502: {"description": "Could not resolve the assignment user"},
     })
     async def post_assign(request: Request):
         acting_user = _get_acting_user(request)
@@ -218,6 +222,8 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
         _log_ui_action("assignment", incident, acting_user, target_user_id=user_id)
 
         assigned = await messenger.handle_ui_assignment(incident, user_id, queue, ui_user=acting_user)
+        if not assigned and str(incident.assigned_user_id) != str(user_id):
+            raise HTTPException(status_code=502, detail="Could not resolve the assignment user")
         return {"success": assigned}
 
     @router.post("/task", responses={
@@ -253,6 +259,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
         401: {"description": _MSG_AUTHENTICATION_REQUIRED},
         404: {"description": _MSG_INCIDENT_NOT_FOUND},
         409: {"description": "Incident already frozen"},
+        502: {"description": "Could not freeze the incident"},
     })
     async def post_freeze(request: Request):
         acting_user = _get_acting_user(request)
@@ -279,11 +286,12 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
 
         messenger = request.app.state.messenger
         queue = request.app.state.queue
-        incidents = request.app.state.incidents
-        await messenger.handle_ui_freeze(
-            incident, freeze_option, str(acting_user.get("id", "")), incidents, queue,
+        frozen = await messenger.handle_ui_freeze(
+            incident, freeze_option, str(acting_user.get("id", "")), queue,
             user_timezone=user_tz, ui_user=acting_user,
         )
+        if not frozen:
+            raise HTTPException(status_code=502, detail="Could not freeze the incident")
         return {"success": True}
 
     @router.post("/unfreeze", responses={
@@ -373,13 +381,21 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
             return
         
         await incident_ws.connect(websocket)
-
-        active_maintenance = websocket.app.state.maintenance_manager.active_windows_payload()
-        await websocket.send_text(json.dumps({"event": "active_maintenance", "data": active_maintenance}))
-
+        tasks = getattr(websocket.app.state, 'runtime_tasks', None)
+        task = asyncio.current_task()
+        if tasks is not None:
+            tasks.add(task)
         try:
+            if is_standby_mode(websocket.app.state):
+                await websocket.close(code=1008, reason=STANDBY_MODE_MESSAGE)
+                return
+            active_maintenance = websocket.app.state.maintenance_manager.active_windows_payload()
+            await websocket.send_text(json.dumps({"event": "active_maintenance", "data": active_maintenance}))
             while True:
                 data = await websocket.receive_text()
+                if is_standby_mode(websocket.app.state):
+                    await websocket.close(code=1008, reason=STANDBY_MODE_MESSAGE)
+                    return
 
                 try:
                     message = json.loads(data)
@@ -403,16 +419,34 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
                             await websocket.send_text(json.dumps({"event": "ui_chains_data", "data": shifts}))
                     elif event_type == "save_ui_chains":
                         if auth_manager and _get_acting_user_from_websocket(websocket) is None:
-                            await websocket.send_text(json.dumps({
-                                "event": "ui_chains_saved",
-                                "success": False,
-                                "detail": _MSG_AUTHENTICATION_REQUIRED,
-                            }))
+                            await _send_saved_event(websocket, "ui_chains_saved", False, _MSG_AUTHENTICATION_REQUIRED)
                         else:
                             chain_name = message.get("chain_name", "")
-                            shifts = message.get("data", [])
-                            success = ui_chains_store.save_shifts(chain_name, shifts)
-                            await websocket.send_text(json.dumps({"event": "ui_chains_saved", "success": success}))
+                            payload = message.get("data")
+                            if not isinstance(payload, dict):
+                                await _send_saved_event(websocket, "ui_chains_saved", False, "shift must be an object")
+                            elif not payload.get("id"):
+                                await _send_saved_event(websocket, "ui_chains_saved", False, _MSG_ID_REQUIRED)
+                            else:
+                                success, saved = ui_chains_store.upsert_shift(chain_name, payload)
+                                if success:
+                                    await _send_saved_event(websocket, "ui_chains_saved", True, data=saved)
+                                else:
+                                    await _send_saved_event(websocket, "ui_chains_saved", False)
+                    elif event_type == "delete_ui_chain":
+                        if auth_manager and _get_acting_user_from_websocket(websocket) is None:
+                            await _send_saved_event(websocket, "ui_chains_saved", False, _MSG_AUTHENTICATION_REQUIRED)
+                        else:
+                            chain_name = message.get("chain_name", "")
+                            shift_id = message.get("id")
+                            if not shift_id:
+                                await _send_saved_event(websocket, "ui_chains_saved", False, _MSG_ID_REQUIRED)
+                            else:
+                                success, saved = ui_chains_store.delete_shift(chain_name, str(shift_id))
+                                if success:
+                                    await _send_saved_event(websocket, "ui_chains_saved", True, data=saved)
+                                else:
+                                    await _send_saved_event(websocket, "ui_chains_saved", False)
                     elif event_type == "request_maintenance":
                         if auth_manager and _get_acting_user_from_websocket(websocket) is None:
                             await websocket.send_text(json.dumps({
@@ -426,45 +460,52 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
                             await websocket.send_text(json.dumps({"event": "maintenance_data", "data": windows}))
                     elif event_type == "save_maintenance":
                         if auth_manager and _get_acting_user_from_websocket(websocket) is None:
-                            await websocket.send_text(json.dumps({
-                                "event": "maintenance_saved",
-                                "success": False,
-                                "detail": _MSG_AUTHENTICATION_REQUIRED,
-                            }))
+                            await _send_saved_event(websocket, "maintenance_saved", False, _MSG_AUTHENTICATION_REQUIRED)
                         else:
-                            windows_payload = message.get("data", [])
+                            payload = message.get("data")
                             store = get_maintenance_store()
-                            existing = store.load_windows()
-                            existing_by_id = {w["id"]: w for w in existing}
                             assignable_user_ids = {
                                 str(user["user_id"])
                                 for user in _get_assignable_users(websocket.app.state.messenger)
                             }
                             try:
-                                windows = windows_from_ws_payload(
-                                    windows_payload,
+                                success, existing_before, saved = store.upsert_window(
+                                    payload,
                                     assignable_user_ids,
-                                    existing_by_id,
                                 )
                             except HTTPException as exc:
-                                await websocket.send_text(json.dumps({
-                                    "event": "maintenance_saved",
-                                    "success": False,
-                                    "detail": exc.detail,
-                                }))
+                                await _send_saved_event(websocket, "maintenance_saved", False, exc.detail)
                             else:
-                                deleted = removed_windows(existing, windows)
-                                success = store.save_windows(windows)
-                                await websocket.send_text(json.dumps({
-                                    "event": "maintenance_saved",
-                                    "success": success,
-                                }))
-                                if success:
+                                await _send_saved_event(websocket, "maintenance_saved", success)
+                                if success and not is_standby_mode(websocket.app.state):
                                     _maintenance_save_task = asyncio.create_task(
                                         _maintenance_save_side_effects(
-                                            websocket.app, existing, windows, deleted
+                                            websocket.app, existing_before, saved, []
                                         )
                                     )
+                                    if tasks is not None:
+                                        tasks.add(_maintenance_save_task)
+                                        _maintenance_save_task.add_done_callback(tasks.discard)
+                    elif event_type == "delete_maintenance":
+                        if auth_manager and _get_acting_user_from_websocket(websocket) is None:
+                            await _send_saved_event(websocket, "maintenance_saved", False, _MSG_AUTHENTICATION_REQUIRED)
+                        else:
+                            window_id = message.get("id")
+                            if not window_id:
+                                await _send_saved_event(websocket, "maintenance_saved", False, _MSG_ID_REQUIRED)
+                            else:
+                                store = get_maintenance_store()
+                                success, existing_before, saved, deleted = store.delete_window(str(window_id))
+                                await _send_saved_event(websocket, "maintenance_saved", success)
+                                if success and deleted and not is_standby_mode(websocket.app.state):
+                                    _maintenance_save_task = asyncio.create_task(
+                                        _maintenance_save_side_effects(
+                                            websocket.app, existing_before, saved, [deleted]
+                                        )
+                                    )
+                                    if tasks is not None:
+                                        tasks.add(_maintenance_save_task)
+                                        _maintenance_save_task.add_done_callback(tasks.discard)
 
                 except json.JSONDecodeError:
                     logger.warning("Invalid WebSocket JSON", extra={'data': data})
@@ -474,10 +515,13 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
                     logger.error("WebSocket message error", extra={'error': str(e)})
 
         except WebSocketDisconnect:
-            incident_ws.disconnect(websocket)
+            pass
         except Exception as e:  # noqa: BLE001
             logger.error("WebSocket error", extra={'error': str(e)})
+        finally:
             incident_ws.disconnect(websocket)
+            if tasks is not None:
+                tasks.discard(task)
 
     router.include_router(create_api_router())
 

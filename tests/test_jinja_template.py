@@ -2,6 +2,9 @@
 from types import SimpleNamespace
 from unittest.mock import Mock
 
+import pytest
+from jinja2 import TemplateSyntaxError
+
 from app.incident.freeze import MAINTENANCE_PARENT_SENTINEL
 from app.incident.incident import Incident
 from app.jinja_template import JinjaTemplate
@@ -30,3 +33,25 @@ class TestJinjaTemplate:
             JinjaTemplate.set_incidents(None)
 
         assert result == "Parent: firing, Child: resolved"
+
+
+@pytest.mark.parametrize("method", ["render", "form_notification", "form_message"])
+def test_repeated_renders_preserve_context_source_and_escaping(method):
+    template = JinjaTemplate("{{ payload.value }}")
+
+    def render(payload):
+        renderer = getattr(template, method)
+        return renderer(payload) if method == "form_message" else renderer(payload=payload)
+
+    assert render({"value": "<first>"}) == "<first>"
+    assert render({}) == ""
+    template.autoescape = True
+    assert render({"value": "<second>"}) == "&lt;second&gt;"
+    template.template = "Changed: {{ payload.value }}"
+    assert render({"value": "<third>"}) == "Changed: &lt;third&gt;"
+
+
+def test_invalid_template_fails_when_rendered():
+    template = JinjaTemplate("{{")
+    with pytest.raises(TemplateSyntaxError):
+        template.render()

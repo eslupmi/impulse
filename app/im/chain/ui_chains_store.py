@@ -1,6 +1,7 @@
 import json
 import os
-from datetime import datetime, timedelta, timezone
+import threading
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from icalendar import Calendar, Component, Event
@@ -8,6 +9,7 @@ from icalendar import Calendar, Component, Event
 from app.config.config import get_config
 from app.config.environment import get_environment_config
 from app.logging import logger
+from app.storage import S3Storage, get_storage
 from app.time import unix_sleep_to_timedelta
 
 
@@ -92,13 +94,10 @@ def _occurrence_overlaps_range(
 class UIChainsStore:
     def __init__(self):
         env_config = get_environment_config()
-        self.ui_chains_dir = os.path.join(env_config.data_path, "ui_chains")
-        self._ensure_directory_exists()
-
-    def _ensure_directory_exists(self) -> None:
-        if not os.path.exists(self.ui_chains_dir):
-            os.makedirs(self.ui_chains_dir)
-            logger.info("Created ui_chains directory", extra={"path": self.ui_chains_dir})
+        self._storage = get_storage(env_config)
+        self.ui_chains_dir = os.path.join(env_config.storage_root, "ui_chains")
+        self._storage.makedirs(self.ui_chains_dir)
+        self._lock = threading.Lock()
 
     def _calendar_path(self, chain_name: str) -> str:
         return os.path.join(self.ui_chains_dir, _chain_name_to_filename(chain_name))
@@ -106,31 +105,33 @@ class UIChainsStore:
     def load_shifts(self, chain_name: str) -> list[dict[str, Any]]:
         if not chain_name:
             return []
-        shifts = self._read_shifts_from_disk(chain_name)
-        logger.debug("Loaded ui chains", extra={"chain": chain_name, "count": len(shifts)})
-        return self.recalculate_priorities(shifts)
+        with self._lock:
+            shifts = self._read_shifts_from_disk(chain_name)
+            logger.debug("Loaded ui chains", extra={"chain": chain_name, "count": len(shifts)})
+            return self.recalculate_priorities(shifts)
 
     def prune_expired_shifts(self, chain_name: str, now: datetime | None = None) -> int:
         if not chain_name:
             return 0
-        shifts = self._read_shifts_from_disk(chain_name)
-        if not shifts:
-            return 0
-        retained, expired = self._partition_by_retention(shifts, now)
-        if not expired:
-            return 0
-        self._write_shifts(chain_name, retained)
-        logger.info(
-            "Pruned expired ui chain shifts",
-            extra={"chain": chain_name, "removed": len(expired)},
-        )
-        return len(expired)
+        with self._lock:
+            shifts = self._read_shifts_from_disk(chain_name)
+            if not shifts:
+                return 0
+            retained, expired = self._partition_by_retention(shifts, now)
+            if not expired:
+                return 0
+            self._write_shifts(chain_name, retained)
+            logger.info(
+                "Pruned expired ui chain shifts",
+                extra={"chain": chain_name, "removed": len(expired)},
+            )
+            return len(expired)
 
     def prune_all(self, now: datetime | None = None) -> int:
-        if not os.path.exists(self.ui_chains_dir):
+        if not self._storage.exists(self.ui_chains_dir):
             return 0
         removed = 0
-        for filename in os.listdir(self.ui_chains_dir):
+        for filename in self._storage.listdir(self.ui_chains_dir):
             if not filename.endswith(".ics"):
                 continue
             removed += self.prune_expired_shifts(filename[:-4], now)
@@ -144,11 +145,8 @@ class UIChainsStore:
 
     def _read_shifts_from_disk(self, chain_name: str) -> list[dict[str, Any]]:
         path = self._calendar_path(chain_name)
-        if not os.path.exists(path):
-            return []
-
         try:
-            with open(path, "rb") as f:
+            with self._storage.open(path, "rb") as f:
                 cal = Calendar.from_ical(f.read().decode())
 
             shifts = []
@@ -158,8 +156,12 @@ class UIChainsStore:
                     if shift:
                         shifts.append(shift)
             return shifts
-        except Exception as e:  # noqa: BLE001
+        except FileNotFoundError:
+            return []
+        except Exception as e:
             logger.error("Failed to load ui chains", extra={"error": str(e), "chain": chain_name})
+            if isinstance(self._storage, S3Storage) and isinstance(e, OSError):
+                raise
             return []
 
     def _write_shifts(self, chain_name: str, shifts: list[dict[str, Any]]) -> bool:
@@ -176,7 +178,7 @@ class UIChainsStore:
                 if event:
                     cal.add_component(event)
 
-            with open(path, "wb") as f:
+            with self._storage.open(path, "wb") as f:
                 f.write(cal.to_ical())
 
             logger.debug("Saved ui chains", extra={"chain": chain_name, "count": len(shifts)})
@@ -193,9 +195,9 @@ class UIChainsStore:
     def _partition_by_retention(
         self, shifts: list[dict[str, Any]], now: datetime | None = None
     ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-        now = now or datetime.now(timezone.utc)
+        now = now or datetime.now(UTC)
         if now.tzinfo is None:
-            now = now.replace(tzinfo=timezone.utc)
+            now = now.replace(tzinfo=UTC)
         cutoff = self._retention_cutoff(now)
         retained = []
         expired = []
@@ -246,9 +248,9 @@ class UIChainsStore:
         if not shifts:
             return []
 
-        now = now or datetime.now(timezone.utc)
+        now = now or datetime.now(UTC)
         if now.tzinfo is None:
-            now = now.replace(tzinfo=timezone.utc)
+            now = now.replace(tzinfo=UTC)
 
         active = []
         for shift in shifts:
@@ -262,12 +264,45 @@ class UIChainsStore:
         steps = active[0].get("steps")
         return steps if isinstance(steps, list) else []
 
-    def save_shifts(self, chain_name: str, shifts: list[dict[str, Any]]) -> bool:
+    def upsert_shift(self, chain_name: str, payload) -> tuple[bool, list[dict[str, Any]]]:
         if not chain_name:
-            return False
-        shifts = self.filter_retained_shifts(shifts)
-        shifts = self.recalculate_priorities(shifts)
-        return self._write_shifts(chain_name, shifts)
+            return False, []
+        with self._lock:
+            existing = self._read_shifts_from_disk(chain_name)
+            if not isinstance(payload, dict) or not payload.get("id"):
+                return False, existing
+            shift = {**payload, "id": str(payload["id"])}
+            merged = []
+            replaced = False
+            for existing_shift in existing:
+                if existing_shift.get("id") == shift["id"]:
+                    if replaced:
+                        continue
+                    merged.append(shift)
+                    replaced = True
+                else:
+                    merged.append(existing_shift)
+            if not replaced:
+                merged.append(shift)
+            return self._commit_shifts(chain_name, existing, merged)
+
+    def delete_shift(self, chain_name: str, shift_id: str) -> tuple[bool, list[dict[str, Any]]]:
+        if not chain_name:
+            return False, []
+        with self._lock:
+            existing = self._read_shifts_from_disk(chain_name)
+            remaining = [shift for shift in existing if shift.get("id") != str(shift_id)]
+            if len(remaining) == len(existing):
+                return True, self.recalculate_priorities(existing)
+            return self._commit_shifts(chain_name, existing, remaining)
+
+    def _commit_shifts(
+        self, chain_name: str, existing: list[dict[str, Any]], shifts: list[dict[str, Any]]
+    ) -> tuple[bool, list[dict[str, Any]]]:
+        recalculated = self.recalculate_priorities(self.filter_retained_shifts(shifts))
+        if not self._write_shifts(chain_name, recalculated):
+            return False, existing
+        return True, recalculated
 
     def _chain_to_ical_event(self, chain: dict[str, Any]) -> Event | None:
         try:
@@ -288,7 +323,7 @@ class UIChainsStore:
                 if end_dt:
                     event.add("dtend", end_dt)
 
-            event.add("dtstamp", datetime.now(timezone.utc))
+            event.add("dtstamp", datetime.now(UTC))
 
             repeat = chain.get("repeat")
             if repeat:

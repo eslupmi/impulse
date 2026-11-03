@@ -13,7 +13,7 @@ IMPulse supports special variables you can use in some [impulse.yml](../config_f
 - `parents` - map of `uniq_id`s to incident objects that inhibit this incident (see [inhibition](inhibition.md))
 - `payload` - to access the most recent alert payload (the `payload` variable refers to `incident.payload`)
 - `previous_payload` - to access the alert payload before the latest update
-- `step` - the chain step being executed. Same format as step in `incident.chain_steps` (see [API](api.md) `/api/incidents`)
+- `step` - the escalation chain step being executed. Same format as step in `incident.chain_steps` (see [API](api.md) `/api/incidents`)
 - `ui_user` - the authenticated [UI](ui.md) user who triggered the action, if any
 - `user_groups` - map of user groups (see [API](api.md) `/api/user_groups`; users: `/api/users`)
 - `users` - map of users (see [API](api.md) `/api/users`)

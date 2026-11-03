@@ -1,7 +1,6 @@
-import asyncio
 import secrets
 from collections.abc import Mapping
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit, urlunsplit
 from uuid import uuid4
@@ -28,12 +27,12 @@ class UserAuthenticationManager:
         self,
         provider: AuthenticationProvider,
         redirect_uri: str,
+        allowed_user_ids: set[str],
         session_cookie_name: str = "impulse_auth_session",
         state_ttl_seconds: int = 300,
         session_ttl_seconds: int = 90 * 24 * 60 * 60,
         cookie_secure: bool = False,
         cookie_path: str = "/",
-        allowed_user_ids: set[str] | None = None,
         default_redirect_path: str = "/",
         allowed_redirect_prefixes: set[str] | None = None,
         configured_users: dict[str, AuthUser] | None = None,
@@ -47,7 +46,7 @@ class UserAuthenticationManager:
         self.session_ttl_seconds = session_ttl_seconds
         self.cookie_secure = cookie_secure
         self.cookie_path = cookie_path or "/"
-        self.allowed_user_ids = {str(user_id) for user_id in (allowed_user_ids or set())}
+        self.allowed_user_ids = {str(user_id) for user_id in allowed_user_ids}
         self.default_redirect_path = self._coerce_default_redirect_path(default_redirect_path)
         self.allowed_redirect_prefixes = self._coerce_allowed_redirect_prefixes(
             allowed_redirect_prefixes,
@@ -95,14 +94,14 @@ class UserAuthenticationManager:
         except AuthenticationProviderError as exc:
             error_code = self._sanitize_error(exc.code) if exc.code else "auth_failed"
             return self._build_error_redirect(auth_state.next_path, error_code)
-        except (aiohttp.ClientError, asyncio.TimeoutError, ValueError) as exc:
+        except (TimeoutError, aiohttp.ClientError, ValueError) as exc:
             logger.warning(
                 "Authentication callback failed",
                 extra={"provider": self.provider.name, "error": str(exc)},
             )
             return self._build_error_redirect(auth_state.next_path, "auth_failed")
 
-        if self.allowed_user_ids and str(user.id) not in self.allowed_user_ids:
+        if str(user.id) not in self.allowed_user_ids:
             return self._build_error_redirect(auth_state.next_path, "not_allowed")
 
         session_id = secrets.token_hex(32)
@@ -184,7 +183,7 @@ class UserAuthenticationManager:
 
     @staticmethod
     def _now() -> datetime:
-        return datetime.now(timezone.utc)
+        return datetime.now(UTC)
 
     def _normalize_next_path(self, next_path: str | None) -> str:
         canonical = self._canonicalize_local_path(next_path)

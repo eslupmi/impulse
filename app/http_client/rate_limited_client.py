@@ -1,5 +1,6 @@
 import asyncio
 import time
+from collections.abc import Callable
 
 import aiohttp
 from aiohttp import ClientResponse, ClientSession, ClientTimeout
@@ -85,10 +86,12 @@ class RateLimitedClient:
         retry_attempts: int = 3,
         timeout: float = 30.0,
         connector_limit: int = 100,
-        connector_limit_per_host: int = 30
+        connector_limit_per_host: int = 30,
+        redact_url: Callable[[str], str] = redact_messenger_url,
     ):
         self.rate_limit = rate_limit
         self.rate_window = rate_window
+        self._redact_url = redact_url
         
         # Rate limiting state
         self._request_count = 0
@@ -219,12 +222,14 @@ class RateLimitedClient:
         try:
             return await client.request(method, url, **kwargs)
         except MESSENGER_TRANSPORT_ERRORS as exc:
+            failure = transport_failure_fields(exc)
+            failure['detail'] = self._redact_url(failure['detail'])
             logger.error(
                 "Messenger is not responding",
                 extra={
                     'method': method,
-                    'url': redact_messenger_url(url),
-                    **transport_failure_fields(exc),
+                    'url': self._redact_url(url),
+                    **failure,
                     **messenger_init_log_fields(),
                 },
             )

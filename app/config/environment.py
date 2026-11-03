@@ -1,7 +1,8 @@
 import os
+from typing import Literal, cast
 
 from dotenv import load_dotenv
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 load_dotenv()
 
@@ -13,26 +14,31 @@ def _env_bool(name: str, default: bool = False) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _env_optional_int(name: str) -> int | None:
+    value = os.getenv(name)
+    if value is None or value.strip() == "":
+        return None
+    return int(value)
+
+
+def _env_optional_float(name: str) -> float | None:
+    value = os.getenv(name)
+    if value is None or value.strip() == "":
+        return None
+    return float(value)
+
+
+def _env_optional_str(name: str) -> str | None:
+    value = os.getenv(name)
+    if value is None or value.strip() == "":
+        return None
+    return value.strip()
+
+
 class EnvironmentConfig(BaseModel):
     """Environment-based configuration loaded from environment variables"""
     
     # Authentication tokens and secrets
-    slack_bot_user_oauth_token: str = Field(
-        default_factory=lambda: os.getenv('SLACK_BOT_USER_OAUTH_TOKEN', ''),
-        description="Slack Bot User OAuth Token"
-    )
-    slack_verification_token: str = Field(
-        default_factory=lambda: os.getenv('SLACK_VERIFICATION_TOKEN', ''),
-        description="Slack Verification Token"
-    )
-    mattermost_access_token: str = Field(
-        default_factory=lambda: os.getenv('MATTERMOST_ACCESS_TOKEN', ''),
-        description="Mattermost Access Token"
-    )
-    telegram_bot_token: str = Field(
-        default_factory=lambda: os.getenv('TELEGRAM_BOT_TOKEN', ''),
-        description="Telegram Bot Token"
-    )
     auth_client_id: str = Field(
         default_factory=lambda: os.getenv('AUTH_CLIENT_ID', ''),
         description="OAuth client id for messenger auth"
@@ -48,10 +54,6 @@ class EnvironmentConfig(BaseModel):
     auth_cookie_secure: bool = Field(
         default_factory=lambda: _env_bool('AUTH_COOKIE_SECURE', True),
         description="Set auth cookie with Secure attribute"
-    )
-    auth_whitelist_enabled: bool = Field(
-        default_factory=lambda: _env_bool('AUTH_WHITELIST_ENABLED', True),
-        description="Allow only users configured in impulse.yml messenger.users"
     )
     
     # Jira integration (Cloud with Basic Auth)
@@ -73,6 +75,33 @@ class EnvironmentConfig(BaseModel):
         default_factory=lambda: os.getenv('DATA_PATH', './data'),
         description="Path to data directory"
     )
+    storage_backend: Literal['filesystem', 's3'] = Field(
+        default_factory=lambda: cast(Literal['filesystem', 's3'], os.getenv('STORAGE_BACKEND', 'filesystem')),
+        validate_default=True,
+        description="Backend for persistent application state"
+    )
+    s3_bucket: str | None = Field(
+        default_factory=lambda: _env_optional_str('STORAGE_S3_BUCKET_NAME'),
+        description="Existing S3 bucket for application state"
+    )
+    s3_endpoint_url: str | None = Field(
+        default_factory=lambda: _env_optional_str('STORAGE_S3_ENDPOINT_URL'),
+        description="S3 endpoint URL"
+    )
+    s3_region: str | None = Field(
+        default_factory=lambda: _env_optional_str('STORAGE_S3_REGION'),
+        description="Optional S3 client region override"
+    )
+    s3_access_key_id: str | None = Field(
+        default_factory=lambda: _env_optional_str('STORAGE_S3_ACCESS_KEY_ID'),
+        repr=False,
+        description="Optional S3 client access key override"
+    )
+    s3_secret_access_key: str | None = Field(
+        default_factory=lambda: _env_optional_str('STORAGE_S3_SECRET_ACCESS_KEY'),
+        repr=False,
+        description="Optional S3 client secret key override"
+    )
     config_path: str = Field(
         default_factory=lambda: os.getenv('CONFIG_PATH', './'),
         description="Path to configuration directory"
@@ -90,7 +119,7 @@ class EnvironmentConfig(BaseModel):
     provider_days_to_sync: int = Field(
         default_factory=lambda: int(os.getenv('CHAIN_PROVIDER_DAYS_TO_SYNC', '7')),
         description="Number of days to sync from provider"
-)
+    )
     provider_service_account_file: str = Field(
         default_factory=lambda: os.getenv('GOOGLE_SERVICE_ACCOUNT_FILE', './key.json'),
         description="Path to Google service account file"
@@ -123,6 +152,27 @@ class EnvironmentConfig(BaseModel):
         default_factory=lambda: int(os.getenv('LISTEN_PORT', '5000')),
         description="Port to listen on"
     )
+    dev_messenger_rate_limit: int | None = Field(
+        default_factory=lambda: _env_optional_int('DEV_MESSENGER_RATE_LIMIT'),
+        description="Override messenger HTTP request limit (0 disables limiting)"
+    )
+    dev_messenger_rate_window: float | None = Field(
+        default_factory=lambda: _env_optional_float('DEV_MESSENGER_RATE_WINDOW'),
+        description="Override messenger HTTP rate-limit window in seconds"
+    )
+    dev_messenger_custom_address: str | None = Field(
+        default_factory=lambda: _env_optional_str('DEV_MESSENGER_CUSTOM_ADDRESS'),
+        description="Override Slack/Telegram API base URL"
+    )
+
+    @model_validator(mode='after')
+    def validate_storage(self):
+        if self.storage_backend == 's3':
+            for name, value in (('STORAGE_S3_BUCKET_NAME', self.s3_bucket),
+                                ('STORAGE_S3_ENDPOINT_URL', self.s3_endpoint_url)):
+                if not (value and value.strip()):
+                    raise ValueError(f'{name} is required when STORAGE_BACKEND=s3')
+        return self
 
     @field_validator('provider_sync_interval', 'provider_max_events', 'provider_days_to_sync', 'listen_port')
     @classmethod
@@ -147,6 +197,25 @@ class EnvironmentConfig(BaseModel):
             raise ValueError(f"Log level must be one of: {', '.join(valid_levels)}")
         return v.upper()
     
+    @field_validator('dev_messenger_rate_limit')
+    @classmethod
+    def validate_dev_messenger_rate_limit(cls, v):
+        if v is not None and v < 0:
+            raise ValueError("DEV_MESSENGER_RATE_LIMIT must be >= 0")
+        return v
+
+    @field_validator('dev_messenger_rate_window')
+    @classmethod
+    def validate_dev_messenger_rate_window(cls, v):
+        if v is not None and v <= 0:
+            raise ValueError("DEV_MESSENGER_RATE_WINDOW must be positive")
+        return v
+
+    @field_validator('dev_messenger_custom_address')
+    @classmethod
+    def normalize_dev_messenger_custom_address(cls, v):
+        return v.rstrip("/") if v else v
+
     @field_validator('http_prefix')
     @classmethod
     def validate_http_prefix(cls, v):
@@ -161,11 +230,16 @@ class EnvironmentConfig(BaseModel):
     @classmethod
     def normalize_jira_base_url(cls, v):
         return v.rstrip("/") if v else v
-    
+
+    @property
+    def storage_root(self) -> str:
+        """Root for persistent state paths in the selected backend."""
+        return '' if self.storage_backend == 's3' else self.data_path
+
     @property
     def incidents_path(self) -> str:
         """Computed property for incidents path"""
-        return f"{self.data_path}/incidents"
+        return os.path.join(self.storage_root, "incidents")
     
     @property
     def config_file_path(self) -> str:

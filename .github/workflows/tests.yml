@@ -21,32 +21,43 @@ permissions:
 
 jobs:
   lint:
-    if: github.event.pull_request.draft == false && github.base_ref == 'develop'
-    uses: ./.github/workflows/_lint.yml
-
-  tests:
-    if: github.event.pull_request.draft == false
-    uses: ./.github/workflows/_tests.yml
+    if: github.repository == 'eslupmi/impulse' && github.event.pull_request.draft == false && github.base_ref == 'develop'
+    uses: eslupmi/ci-templates/.github/workflows/_lint.yml@develop
     with:
-      python-versions: ${{ github.base_ref == 'master' && '["3.10","3.11","3.12","3.13"]' || '["3.12"]' }}
+      exclude: '["tests", "docs"]'
+      mypy-plugins: '["pydantic.mypy"]'
+
+  unit-tests:
+    if: github.repository == 'eslupmi/impulse' && github.event.pull_request.draft == false
+    uses: eslupmi/ci-templates/.github/workflows/_unit_tests.yml@develop
+    with:
+      repository: eslupmi/impulse
 
   build-and-push-image:
-    if: github.event.pull_request.draft == false
-    needs: tests
-    uses: ./.github/workflows/_build-and-push-image.yml
+    if: github.repository == 'eslupmi/impulse' && github.event.pull_request.draft == false
+    uses: eslupmi/ci-templates/.github/workflows/_build-and-push-image.yml@develop
 
   autotests:
-    if: github.event.pull_request.draft == false
+    if: github.repository == 'eslupmi/impulse' && github.event.pull_request.draft == false
     needs: build-and-push-image
-    uses: ./.github/workflows/_autotests.yml
+    uses: eslupmi/ci-templates/.github/workflows/_autotests.yml@develop
     with:
-      branch: pr-${{ github.event.pull_request.number }}
+      impulse-ref: pr-${{ github.event.pull_request.number }}
+      autotests: ${{ github.base_ref == 'master' && 'autotests' || 'autotests_mocked' }}
+    secrets: inherit
+
+  test-suites:
+    if: github.repository == 'eslupmi/impulse' && github.event.pull_request.draft == false && github.base_ref == 'master'
+    needs: build-and-push-image
+    uses: eslupmi/ci-templates/.github/workflows/_test_suites.yml@develop
+    with:
+      impulse-ref: pr-${{ github.event.pull_request.number }}
     secrets: inherit
 
   migrations:
-    if: github.event.pull_request.draft == false && github.base_ref == 'master'
+    if: github.repository == 'eslupmi/impulse' && github.event.pull_request.draft == false && github.base_ref == 'master'
     needs: build-and-push-image
-    uses: ./.github/workflows/_migration.yml
+    uses: eslupmi/ci-templates/.github/workflows/_migration.yml@develop
     with:
       branch: pr-${{ github.event.pull_request.number }}
       deploy-path: /opt/impulse/prod
