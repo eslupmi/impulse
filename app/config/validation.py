@@ -86,6 +86,7 @@ class IncidentNotifications(BaseModel):
     partial_resolved: bool | None = Field(True, description="Partial resolved notifications")
     status_update: bool | None = Field(True, description="Status update notifications")
     freeze: bool | None = Field(False, description="Freeze notifications")
+    unfreeze: bool | None = Field(True, description="Unfreeze notifications")
 
     def get(self, key: str) -> bool:
         return getattr(self, key) or False

@@ -70,6 +70,12 @@ Below are all the configuration options supported by IMPulse.
 - **type:** bool
 - **default value:** False
 
+#### incident.notifications.unfreeze
+
+- **description:** notifications when a Freeze timeout expires and the incident is no longer [frozen](concepts/incident.md#frozen)
+- **type:** bool
+- **default value:** True
+
 #### incident.notifications.new_firing
 
 - **description:** notification about new **firing** instances

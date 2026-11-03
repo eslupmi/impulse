@@ -421,6 +421,9 @@ class Application:
     async def post_unfreeze_notification(self, incident_: 'Incident', ui_user=None):
         if not self.provider.descriptor.messaging_enabled:
             return
+        config = get_config()
+        if not config.incident.notifications.unfreeze:
+            return
         text = self.notification_template(incident_notifications_unfreeze[self.type]).form_notification(
             **freeze_template_context(incident_, ui_user)
         )

@@ -3,6 +3,7 @@
 ## v3.8.0
 Changes:
 - Added [S3](https://impulse.bot/docs/v3.8.0/concepts/storage/#s3) support
+- Added [incident.notifications.unfreeze](https://impulse.bot/docs/v3.8.0/config_file/#incidentnotificationsunfreeze) option
 - Extracted messenger code into separate [impulse-messengers](https://github.com/eslupmi/impulse-messengers) libraries
 - Removed automatic formatting of UI filters
 - Python `3.12` is now the only supported version
