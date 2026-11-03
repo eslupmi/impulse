@@ -1,13 +1,14 @@
 # Changelog
 
-## v3.8.0 (unreleased)
+## v3.8.0
 Changes:
-- Extract Slack, Mattermost, and Telegram into separate messenger libraries discovered through installed package entry points
-- Load only the configured messenger plugin, ignoring import and registration failures in unused installed providers
-- Add buildable core and messenger distributions while retaining the original core requirement files and venv/pip workflow
-- Keep core dependencies independent of messenger checkouts and install the providers with pip for the full integration suite
-- Align core and messenger library versions at `3.8.0`; install compatible core and provider packages together
-- Remove internal messenger API compatibility modules, configuration aliases, and the closed messenger enum
+- Added [S3](https://impulse.bot/docs/v3.8.0/concepts/storage/#s3) support
+- Extracted messenger code into separate [impulse-messengers](https://github.com/eslupmi/impulse-messengers) libraries
+- Removed automatic formatting of UI filters
+- Python `3.12` is now the only supported version
+- Fixed a maintenance bug that showed an `owner_id is required` error
+- Fixed [incorrect](https://github.com/eslupmi/impulse/issues/585) matcher behaviour in inhibit rules
+- Fixed a [bug](https://github.com/eslupmi/impulse/issues/600) that prevented users not listed in `impulse.yml` from taking incidents
 
 ## v3.7.1
 Changes:
