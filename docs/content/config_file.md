@@ -874,6 +874,8 @@ Below are all the configuration options supported by IMPulse.
         - severity: desc
           order: ["info", "warning", "critical"]
         - created: desc
+      incident_properties:
+        - assigned_fullname
     ```
 
 ### ui.colors
@@ -983,6 +985,26 @@ Below are all the configuration options supported by IMPulse.
       filters:
         - severity=~"warning|critical"
     ```
+
+### ui.incident_properties
+
+- **description:** additional incident properties available for [UI filtering](concepts/ui.md#filters), independently of configured columns
+- **type:** list of strings
+- **default value:** `[]`
+- **details:** `status` and `uniq_id` are always searchable, even when this field is omitted or empty. List public incident property names without the `incident.` prefix or nested paths. Use scalar properties such as `assigned_fullname`, `channel_id`, or `is_frozen`.
+- **examples:**
+
+    ```yaml
+    ui:
+      incident_properties:
+        - assigned_fullname
+        - is_frozen
+      filters:
+        - incident.status="firing"
+        - incident.assigned_fullname="Alice"
+    ```
+
+    These settings extend the existing `ui` configuration; [ui.columns](#uicolumns) is still required. Filter expressions use the `incident.<property>` form, for example `incident.uniq_id="0a2a79ee-f3ba-51db-a603-063dd16294d0"`.
 
 ### ui.sorting
 

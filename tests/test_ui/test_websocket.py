@@ -2,10 +2,11 @@
 Unit tests for app.ui.websocket module.
 """
 import json
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
+from app.config.validation import UIConfig
 from app.ui.websocket import AsyncIncidentWS, incident_ws
 from tests.utils import create_mock_config
 
@@ -214,13 +215,15 @@ class TestAsyncIncidentWS:
         mock_field2.type = 'string'
         mock_field2.value = 'critical'
 
-        ws.table_config.columns = [mock_field1, mock_field2]
+        ws.table_config = Mock(columns=[mock_field1, mock_field2], incident_properties=[])
 
         result = ws._get_values()
 
         expected = {
             'status': 'firing',
-            'severity': 'critical'
+            'severity': 'critical',
+            'incident.status': 'incident.status',
+            'incident.uniq_id': 'incident.uniq_id',
         }
         assert result == expected
 
@@ -240,14 +243,16 @@ class TestAsyncIncidentWS:
         mock_field2.value = 'Incident Link'
         mock_field2.url = 'https://example.com/incident/123'
 
-        ws.table_config.columns = [mock_field1, mock_field2]
+        ws.table_config = Mock(columns=[mock_field1, mock_field2], incident_properties=[])
 
         result = ws._get_values()
 
         expected = {
             'status': 'firing',
             'link': 'Incident Link',
-            'linkUrl': 'https://example.com/incident/123'
+            'linkUrl': 'https://example.com/incident/123',
+            'incident.status': 'incident.status',
+            'incident.uniq_id': 'incident.uniq_id',
         }
         assert result == expected
 
@@ -272,7 +277,7 @@ class TestAsyncIncidentWS:
         mock_field3.type = 'string'
         mock_field3.value = 'critical'
 
-        ws.table_config.columns = [mock_field1, mock_field2, mock_field3]
+        ws.table_config = Mock(columns=[mock_field1, mock_field2, mock_field3], incident_properties=[])
 
         result = ws._get_values()
 
@@ -280,9 +285,62 @@ class TestAsyncIncidentWS:
             'status': 'firing',
             'link': 'Incident Link',
             'linkUrl': 'https://example.com/incident/123',
-            'severity': 'critical'
+            'severity': 'critical',
+            'incident.status': 'incident.status',
+            'incident.uniq_id': 'incident.uniq_id',
         }
         assert result == expected
+
+    @pytest.mark.parametrize('table_config', [None, UIConfig(columns=[])])
+    def test_get_values_always_includes_default_incident_properties(self, table_config):
+        ws = AsyncIncidentWS()
+        ws.table_config = table_config
+
+        assert ws._get_values() == {
+            'incident.status': 'incident.status',
+            'incident.uniq_id': 'incident.uniq_id',
+        }
+
+    def test_get_values_preserves_columns_and_reserves_incident_properties(self):
+        ws = AsyncIncidentWS()
+        ws.table_config = UIConfig(
+            columns=[
+                {'name': 'status', 'header': 'Status', 'value': 'incident.status', 'visible': False},
+                {'name': 'incident.status', 'header': 'Collision', 'value': 'payload.commonLabels.status'},
+                {'name': 'link', 'header': 'Link', 'type': 'link', 'value': 'incident.uniq_id', 'url': 'incident.link'},
+            ],
+            incident_properties=['assigned_fullname', 'uniq_id', 'assigned_fullname'],
+        )
+
+        assert ws._get_values() == {
+            'status': 'incident.status',
+            'incident.status': 'incident.status',
+            'link': 'incident.uniq_id',
+            'linkUrl': 'incident.link',
+            'incident.uniq_id': 'incident.uniq_id',
+            'incident.assigned_fullname': 'incident.assigned_fullname',
+        }
+
+    def test_incident_properties_serialize_native_values(self, sample_incident):
+        ws = AsyncIncidentWS()
+        ws.table_config = UIConfig(columns=[], incident_properties=[
+            'created', 'is_frozen', 'chain_enabled', 'chain_active_seconds', 'closed', 'missing_property',
+        ])
+        sample_incident.status = 'firing'
+        sample_incident.frozen_until = sample_incident.created
+
+        row = json.loads(json.dumps(sample_incident.get_table_data(ws._get_values())))
+
+        assert row['incident.uniq_id'] == sample_incident.uniq_id
+        assert row['incident.status'] == 'firing'
+        assert row['indicator'] == 'frozen'
+        assert row['incident.created'] == sample_incident.created.timestamp()
+        assert row['incident.is_frozen'] is True
+        assert row['incident.chain_enabled'] is False
+        assert row['incident.chain_active_seconds'] == 0.0
+        assert row['incident.closed'] is None
+        assert row['incident.missing_property'] is None
+        assert 'incident.assigned_fullname' not in row
 
     def test_global_incident_ws_instance(self):
         """Test that the global incident_ws instance is created."""

@@ -85,15 +85,14 @@ class AsyncIncidentWS:
     def _get_values(self):
         """Get values mapping for table configuration"""
         values_map = {}
-        if self.table_config is None or not self.table_config.columns:
-            return values_map
-        
-        for field in self.table_config.columns:
-            if field.type == 'link':
+        properties = ['status', 'uniq_id']
+        if self.table_config is not None:
+            properties.extend(self.table_config.incident_properties)
+            for field in self.table_config.columns:
                 values_map[field.name] = field.value
-                values_map[f'{field.name}Url'] = field.url
-            else:
-                values_map[field.name] = field.value
+                if field.type == 'link':
+                    values_map[f'{field.name}Url'] = field.url
+        values_map.update({f'incident.{name}': f'incident.{name}' for name in properties})
         return values_map
 
 

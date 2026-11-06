@@ -160,6 +160,14 @@ class UIConfig(BaseModel):
     colors: dict[str, dict[str, str]] | None = Field({}, description="Color configurations")
     filters: list[str] | None = Field([], description="Default filters")
     sorting: list[UISorting] | None = Field([], description="Sort rules")
+    incident_properties: list[str] = Field(default_factory=list, description="Additional incident properties available for filtering")
+
+    @field_validator('incident_properties')
+    @classmethod
+    def validate_incident_properties(cls, values):
+        if any(re.fullmatch(r'[a-zA-Z][a-zA-Z0-9_]*', value) is None for value in values):
+            raise ValueError("Incident properties must be public property names without paths")
+        return values
 
     @field_validator('sorting', mode='before')
     @classmethod
