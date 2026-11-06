@@ -88,6 +88,7 @@ def mock_get_config_globally():
         app_config.incident.timeouts = {"firing": "1h", "unknown": "30m", "resolved": "5m"}
         app_config.ui = Mock()
         app_config.ui.columns = []
+        app_config.ui.incident_properties = []
         
         # Create unified config
         unified_config = Mock(spec=UnifiedConfig)

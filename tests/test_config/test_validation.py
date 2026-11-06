@@ -473,6 +473,22 @@ class TestUIConfig:
         assert len(config.columns) == 2
         assert config.columns[0].name == "status"
         assert config.columns[1].type == "datetime"
+        assert config.incident_properties == []
+
+    def test_ui_config_with_incident_properties(self):
+        config = UIConfig(columns=[], incident_properties=['uniq_id', 'assigned_fullname', 'is_frozen'])
+
+        assert config.incident_properties == ['uniq_id', 'assigned_fullname', 'is_frozen']
+
+    @pytest.mark.parametrize('name', ['', '_private', '__dict__', 'incident.status', 'payload.commonLabels', 'has-dash', '1status'])
+    def test_ui_config_rejects_invalid_incident_properties(self, name):
+        with pytest.raises(ValueError, match='public property names'):
+            UIConfig(columns=[], incident_properties=[name])
+
+    @pytest.mark.parametrize('properties', [None, 'status', [123]])
+    def test_ui_config_rejects_invalid_incident_properties_type(self, properties):
+        with pytest.raises(ValueError):
+            UIConfig(columns=[], incident_properties=properties)
 
     def test_ui_config_with_sorting(self):
         """Test UIConfig with sorting rules."""
