@@ -74,9 +74,10 @@ def test_prune_all_preflights_inactive_shifts_before_removing_any_file(store):
     )])
     originals = {Path(store._calendar_path(name)): Path(store._calendar_path(name)).read_bytes()
                  for name in ['expired', 'inactive']}
+    now = datetime(2026, 11, 6, tzinfo=UTC)
 
     with pytest.raises(ValueError, match="Invalid saved UI chain 'inactive'"):
-        store.prune_all(datetime(2026, 11, 6, tzinfo=UTC))
+        store.prune_all(now)
 
     assert all(path.read_bytes() == content for path, content in originals.items())
 
@@ -85,12 +86,13 @@ def test_prune_all_preflights_inactive_shifts_before_removing_any_file(store):
 async def test_primary_initialization_preflights_before_creating_runtime_objects():
     from app.lifespan import create_main_objects
 
+    app = Mock()
     with patch('app.lifespan.get_config'), \
             patch('app.lifespan.ui_chains_store.validate_persisted_steps', side_effect=ValueError('unsupported')), \
             patch('app.lifespan.generate_route') as generate_route, \
             patch('app.lifespan.get_application') as get_application, \
             pytest.raises(ValueError, match='unsupported'):
-        await create_main_objects(Mock())
+        await create_main_objects(app)
 
     generate_route.assert_not_called()
     get_application.assert_not_called()

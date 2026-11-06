@@ -1,4 +1,6 @@
-export function mountCondition() {}
+export function mountCondition() {
+    // Community chains have no condition control to mount.
+}
 
 export function readStepMetadata() {
     return {};

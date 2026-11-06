@@ -22,9 +22,10 @@ def validate_chains(chains):
             continue
         if isinstance(config, BaseModel):
             config = config.model_dump(by_alias=True)
-        if isinstance(config, dict):
-            if config.get('type') == 'schedule':
-                for entry in config.get('schedule') or []:
-                    validate_steps(entry.get('steps'))
-            elif config.get('type') == 'cloud':
-                validate_steps(config.get('default_steps'))
+        if not isinstance(config, dict):
+            continue
+        if config.get('type') == 'schedule':
+            for entry in config.get('schedule') or []:
+                validate_steps(entry.get('steps'))
+        elif config.get('type') == 'cloud':
+            validate_steps(config.get('default_steps'))

@@ -7,6 +7,6 @@ def validate_step(step):
         raise ValueError("Conditional chain steps require the Enterprise edition")
 
 
-def matches_step(step, labels):
+def matches_step(step, _labels):
     validate_step(step)
     return True

@@ -192,7 +192,8 @@ def test_selected_editor_assets_are_served_before_common_static(prefix):
 def test_missing_edition_assets_fail_router_creation(tmp_path):
     from app import routes
     original = routes.resource_directory
+    app = FastAPI()
     with patch.object(routes, 'get_config', return_value=SimpleNamespace(ui_config=True)), \
             patch.object(routes, 'resource_directory', side_effect=lambda name: tmp_path if name.endswith('/static') else original(name)), \
             pytest.raises(RuntimeError, match='Missing static assets'):
-        routes.create_router('', FastAPI())
+        routes.create_router('', app)
