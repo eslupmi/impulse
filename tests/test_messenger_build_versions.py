@@ -4,5 +4,6 @@ from pathlib import Path
 
 def test_dockerfile_installs_requirements_only():
     dockerfile = (Path(__file__).resolve().parents[1] / "Dockerfile").read_text()
-    run_commands = [line.strip() for line in dockerfile.splitlines() if line.startswith("RUN ")]
+    runtime_stage = dockerfile.rsplit("\nFROM ", 1)[-1]
+    run_commands = [line.strip() for line in runtime_stage.splitlines() if line.startswith("RUN ")]
     assert run_commands == ["RUN pip install -r requirements.txt"]

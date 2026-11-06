@@ -1,3 +1,4 @@
+import {mountCondition, readStepMetadata, conditionText} from "../edition/js/chain_conditions.js";
 import {getSocket} from "./websocket.js";
 import {getBaseUrl, parseWeekStart} from "./utils.js";
 import {
@@ -550,11 +551,15 @@ async function loadChainsConfig() {
     });
 }
 
+function getStepType(step) {
+    return ['user', 'user_group', 'group', 'wait', 'chain', 'webhook'].find(type => step[type] != null);
+}
+
 function createStepElement(step = null) {
     const stepDiv = document.createElement('div');
     stepDiv.className = 'step-item';
     
-    const stepType = step ? Object.keys(step)[0] : 'user';
+    const stepType = step ? getStepType(step) : 'user';
     const stepValue = step ? step[stepType] : '';
     stepDiv.innerHTML = `
         <div class="step-controls">
@@ -584,6 +589,7 @@ function createStepElement(step = null) {
     const removeBtn = stepDiv.querySelector('.btn-remove-step');
     typeSelect.value = stepType;
     valueInput.value = stepValue;
+    mountCondition(stepDiv, step);
 
     let activeOptionIndex = -1;
 
@@ -741,7 +747,7 @@ function getSteps() {
         const type = item.querySelector('.step-type').value;
         const value = item.querySelector('.step-value').value.trim();
         if (value) {
-            steps.push({ [type]: value });
+            steps.push({ [type]: value, ...readStepMetadata(item) });
         }
     });
     return steps;
@@ -751,29 +757,13 @@ function formatStepsText(steps) {
     if (!steps || !Array.isArray(steps) || steps.length === 0) {
         return '';
     }
-    
-    const stepTexts = steps.map(step => {
-        const type = Object.keys(step)[0];
-        const value = step[type];
-        switch (type) {
-            case 'user':
-                return `user: ${value}`;
-            case 'user_group':
-                return `user_group: ${value}`;
-            case 'group':
-                return `group: ${value}`;
-            case 'wait':
-                return `wait: ${value}`;
-            case 'chain':
-                return `chain: ${value}`;
-            case 'webhook':
-                return `webhook: ${value}`;
-            default:
-                return `${type}: ${value}`;
-        }
-    });
-    
-    return stepTexts.join('<br>');
+
+    const label = document.createElement('span');
+    return steps.map(step => {
+        const type = getStepType(step);
+        label.textContent = `${type}: ${step[type]}${conditionText(step)}`;
+        return label.innerHTML;
+    }).join('<br>');
 }
 
 function findOverlappingChainsForChain(chains, candidateChain, excludeId = null) {
@@ -1076,7 +1066,7 @@ function stripTrailingWaitSteps(steps) {
     if (steps.length === 0) {
         return steps;
     }
-    const lastStepType = Object.keys(steps[steps.length - 1])[0];
+    const lastStepType = getStepType(steps[steps.length - 1]);
     if (lastStepType === 'wait') {
         return steps.slice(0, -1);
     }
@@ -1084,7 +1074,7 @@ function stripTrailingWaitSteps(steps) {
 }
 
 function hasActionableSteps(steps) {
-    return steps.length > 0 && !steps.every(step => Object.keys(step)[0] === 'wait');
+    return steps.length > 0 && !steps.every(step => getStepType(step) === 'wait');
 }
 
 function validateRepeatEndBoundary(repeat, untilStr, start, end) {

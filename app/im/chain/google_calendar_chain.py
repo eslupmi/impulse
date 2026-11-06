@@ -1,15 +1,17 @@
 import asyncio
 import datetime
 import json
-from typing import Any
+from typing import Any, cast
 from zoneinfo import ZoneInfo
 
 import jwt
 import requests
+import yaml
 from requests.adapters import HTTPAdapter
 from urllib3 import Retry
 
 from app.config.environment import get_environment_config
+from app.im.chain.conditions import validate_steps
 from app.im.chain.filter_steps import filter_undeclared_steps
 from app.im.chain.schedule_chain import ScheduleChain
 from app.logging import logger
@@ -20,6 +22,16 @@ from impulse_messenger_api.schema import (
     ScheduleMatcherExpression,
     SimpleChainStep,
 )
+
+
+class _CalendarStepsLoader(yaml.SafeLoader):
+    """Preserve scalar names as strings while retaining YAML nulls."""
+
+
+for _scalar_type in ('bool', 'int', 'float', 'timestamp'):
+    _CalendarStepsLoader.add_constructor(
+        f'tag:yaml.org,2002:{_scalar_type}', lambda loader, node: loader.construct_scalar(cast(yaml.ScalarNode, node)),
+    )
 
 
 class GoogleCalendarChain(ScheduleChain):
@@ -102,7 +114,12 @@ class GoogleCalendarChain(ScheduleChain):
 
     def _update_schedule(self, events: list[dict[str, Any]]) -> None:
         """Update the schedule with new events."""
-        matchers = [self._convert_event_to_matcher(event) for event in events]
+        try:
+            matchers = [self._convert_event_to_matcher(event) for event in events]
+        except ValueError:
+            # Invalid edits must not leave an older unconditional schedule running.
+            self.schedule = []
+            raise
 
         # Add default steps as a separate entry if they exist
         if self.default_steps:
@@ -266,22 +283,19 @@ class GoogleCalendarChain(ScheduleChain):
         parser = HTMLTextExtractor()
         try:
             parser.feed(description)
-            description = parser.get_text()
+            description = parser.get_text().replace('\xa0', ' ')
         except MemoryError as e:
             logger.error(f"Description too large: {e}", extra={'provider': 'google'})
         except Exception as e:  # noqa: BLE001
             logger.warning(f"Description parse error: {e}", extra={'provider': 'google'})
 
-        steps = []
-        for line in description.strip().split('\n'):
-            line = line.strip()
-            if line.startswith('-'):
-                parts = line[1:].strip().split(':')
-                if len(parts) == 2:
-                    key = parts[0].strip()
-                    value = parts[1].strip()
-                    steps.append({key: value})
-        return steps
+        lines = [line for line in description.splitlines() if line.startswith(('-', ' ', '\t'))]
+        try:
+            steps = yaml.load('\n'.join(lines), Loader=_CalendarStepsLoader)
+        except yaml.YAMLError as exc:
+            logger.warning(f"Invalid chain steps in calendar description: {exc}", extra={'provider': 'google'})
+            return []
+        return [step for step in steps if isinstance(step, dict)] if isinstance(steps, list) else []
 
     def _convert_event_to_matcher(self, event: dict[str, Any]) -> ScheduleEntry:
         """Convert Google Calendar event to matcher format."""
@@ -297,9 +311,11 @@ class GoogleCalendarChain(ScheduleChain):
         duration_str = f"{int(duration.total_seconds() / 60)}m"
 
         steps_dicts = self._parse_steps_from_description(event.get('description', ''))
+        parsed_steps = [SimpleChainStep(**step_dict) for step_dict in steps_dicts]
+        validate_steps(parsed_steps)
         steps = filter_undeclared_steps(
             self.name,
-            [SimpleChainStep(**step_dict) for step_dict in steps_dicts],
+            parsed_steps,
             **(getattr(self, '_registries', None) or {}),
         )
 

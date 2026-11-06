@@ -164,6 +164,12 @@ class EnvironmentConfig(BaseModel):
         default_factory=lambda: _env_optional_str('DEV_MESSENGER_CUSTOM_ADDRESS'),
         description="Override Slack/Telegram API base URL"
     )
+    dev_edition: Literal['community', 'enterprise'] = Field(
+        default_factory=lambda: cast(Literal['community', 'enterprise'], os.getenv('DEV_EDITION', 'community')),
+        validate_default=True,
+        description="Application edition; changing it requires a restart"
+    )
+
 
     @model_validator(mode='after')
     def validate_storage(self):
