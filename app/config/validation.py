@@ -4,6 +4,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, SerializeAsAny, field_validator, model_validator
 
+from app.im.chain.conditions import validate_chains
 from impulse_messenger_api import BaseApplicationConfig
 
 
@@ -227,12 +228,13 @@ class ImpulseConfig(BaseModel):
     @classmethod
     def validate_messenger(cls, value):
         from app.im.registry import get_provider_registry
-        if isinstance(value, BaseApplicationConfig):
-            return value
-        if not isinstance(value, dict):
-            raise ValueError('Messenger configuration must be a mapping')  # noqa: TRY004
-        registration = get_provider_registry().resolve(value.get('type', ''))
-        return registration.config_model.model_validate(value)
+        if not isinstance(value, BaseApplicationConfig):
+            if not isinstance(value, dict):
+                raise ValueError('Messenger configuration must be a mapping')  # noqa: TRY004
+            registration = get_provider_registry().resolve(value.get('type', ''))
+            value = registration.config_model.model_validate(value)
+        validate_chains(value.chains)
+        return value
 
     @model_validator(mode='after')
     def validate_route_exists(self):

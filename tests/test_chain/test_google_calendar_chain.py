@@ -210,12 +210,22 @@ class TestGoogleCalendarChainParseSteps:
         description = "- webhook: https://example.com:8080/webhook"
         result = GoogleCalendarChain._parse_steps_from_description(description)
 
-        # Should only split on first colon
-        assert len(result) == 0  # Will be empty because split(':') creates more than 2 parts
+        assert result == [{'webhook': 'https://example.com:8080/webhook'}]
 
 
 class TestGoogleCalendarChainConvertEvent:
     """Test cases for converting calendar events to matchers."""
+
+    @pytest.mark.parametrize("name", ["on", "0123", "2026-10-31", "Dmitry"])
+    def test_convert_event_preserves_scalar_names(self, sample_calendar_event, name):
+        chain = GoogleCalendarChain.__new__(GoogleCalendarChain)
+        chain.name = "test"
+        chain._registries = {"users": {name: {}}}
+        sample_calendar_event["description"] = f"- user: {name}"
+
+        entry = chain._convert_event_to_matcher(sample_calendar_event)
+
+        assert [step.get_type_and_value() for step in entry.steps] == [("user", name)]
 
     def test_convert_event_to_matcher_basic(self, sample_calendar_event):
         """Test converting basic calendar event to matcher."""
