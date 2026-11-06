@@ -359,8 +359,10 @@ class Incident:
         }
         data_object = {'incident': self, 'payload': self.payload}
         for key, value in params.items():
-            param = get_attr_by_key_chain(data_object, None, *value.split('.'))
-            data[key] = normalize_param(param)
+            param = normalize_param(get_attr_by_key_chain(data_object, None, *value.split('.')))
+            if key.startswith('incident.') and param is not None and not isinstance(param, (str, bool, int, float)):
+                continue
+            data[key] = param
         return data
 
     def update_status(self, status: str) -> bool:

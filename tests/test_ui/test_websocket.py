@@ -7,27 +7,18 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 
 from app.config.validation import UIConfig
+from app.incident.incidents import Incidents
 from app.ui.websocket import AsyncIncidentWS, incident_ws
-from tests.utils import create_mock_config
 
 
 class TestAsyncIncidentWS:
     """Test cases for AsyncIncidentWS class."""
 
-    @patch('app.ui.websocket.get_config')
-    def test_async_incident_ws_initialization(self, mock_get_config):
+    def test_async_incident_ws_initialization(self):
         """Test AsyncIncidentWS initialization."""
-        # Use utility function for mock config
-        mock_config = create_mock_config()
-        mock_ui_config = Mock()
-        mock_ui_config.columns = []
-        mock_config.ui_config = mock_ui_config
-        mock_get_config.return_value = mock_config
-
         ws = AsyncIncidentWS()
 
         assert ws.connections == set()
-        assert ws.table_config == mock_ui_config
 
     @pytest.mark.asyncio
     async def test_connect(self):
@@ -200,7 +191,8 @@ class TestAsyncIncidentWS:
         expected_message = json.dumps({"event": "pong"})
         mock_websocket.send_text.assert_called_once_with(expected_message)
 
-    def test_get_values_with_regular_fields(self):
+    @patch('app.ui.websocket.get_config')
+    def test_get_values_with_regular_fields(self, mock_get_config):
         """Test _get_values method with regular fields."""
         ws = AsyncIncidentWS()
 
@@ -215,7 +207,7 @@ class TestAsyncIncidentWS:
         mock_field2.type = 'string'
         mock_field2.value = 'critical'
 
-        ws.table_config = Mock(columns=[mock_field1, mock_field2], incident_properties=[])
+        mock_get_config.return_value.ui_config = Mock(columns=[mock_field1, mock_field2], incident_properties=[])
 
         result = ws._get_values()
 
@@ -227,7 +219,8 @@ class TestAsyncIncidentWS:
         }
         assert result == expected
 
-    def test_get_values_with_link_fields(self):
+    @patch('app.ui.websocket.get_config')
+    def test_get_values_with_link_fields(self, mock_get_config):
         """Test _get_values method with link fields."""
         ws = AsyncIncidentWS()
 
@@ -243,7 +236,7 @@ class TestAsyncIncidentWS:
         mock_field2.value = 'Incident Link'
         mock_field2.url = 'https://example.com/incident/123'
 
-        ws.table_config = Mock(columns=[mock_field1, mock_field2], incident_properties=[])
+        mock_get_config.return_value.ui_config = Mock(columns=[mock_field1, mock_field2], incident_properties=[])
 
         result = ws._get_values()
 
@@ -256,7 +249,8 @@ class TestAsyncIncidentWS:
         }
         assert result == expected
 
-    def test_get_values_mixed_fields(self):
+    @patch('app.ui.websocket.get_config')
+    def test_get_values_mixed_fields(self, mock_get_config):
         """Test _get_values method with mixed field types."""
         ws = AsyncIncidentWS()
 
@@ -277,7 +271,7 @@ class TestAsyncIncidentWS:
         mock_field3.type = 'string'
         mock_field3.value = 'critical'
 
-        ws.table_config = Mock(columns=[mock_field1, mock_field2, mock_field3], incident_properties=[])
+        mock_get_config.return_value.ui_config = Mock(columns=[mock_field1, mock_field2, mock_field3], incident_properties=[])
 
         result = ws._get_values()
 
@@ -292,18 +286,20 @@ class TestAsyncIncidentWS:
         assert result == expected
 
     @pytest.mark.parametrize('table_config', [None, UIConfig(columns=[])])
-    def test_get_values_always_includes_default_incident_properties(self, table_config):
+    @patch('app.ui.websocket.get_config')
+    def test_get_values_always_includes_default_incident_properties(self, mock_get_config, table_config):
         ws = AsyncIncidentWS()
-        ws.table_config = table_config
+        mock_get_config.return_value.ui_config = table_config
 
         assert ws._get_values() == {
             'incident.status': 'incident.status',
             'incident.uniq_id': 'incident.uniq_id',
         }
 
-    def test_get_values_preserves_columns_and_reserves_incident_properties(self):
+    @patch('app.ui.websocket.get_config')
+    def test_get_values_preserves_columns_and_reserves_incident_properties(self, mock_get_config):
         ws = AsyncIncidentWS()
-        ws.table_config = UIConfig(
+        mock_get_config.return_value.ui_config = UIConfig(
             columns=[
                 {'name': 'status', 'header': 'Status', 'value': 'incident.status', 'visible': False},
                 {'name': 'incident.status', 'header': 'Collision', 'value': 'payload.commonLabels.status'},
@@ -321,9 +317,44 @@ class TestAsyncIncidentWS:
             'incident.assigned_fullname': 'incident.assigned_fullname',
         }
 
-    def test_incident_properties_serialize_native_values(self, sample_incident):
+    @pytest.mark.parametrize('enabled', [False, True])
+    @patch('app.ui.websocket.get_config')
+    def test_columns_cannot_impersonate_incident_properties(self, mock_get_config, sample_incident, enabled):
+        mock_get_config.return_value.ui_config = UIConfig(
+            columns=[{
+                'name': 'incident.assigned_fullname', 'header': 'Alias', 'type': 'link',
+                'value': 'payload.commonLabels.alertname', 'url': 'incident.link',
+            }],
+            incident_properties=['assigned_fullname'] if enabled else [],
+        )
+        sample_incident.assigned_fullname = 'Alice'
+
+        row = sample_incident.get_table_data(AsyncIncidentWS()._get_values())
+
+        assert 'incident.assigned_fullnameUrl' not in row
+        if enabled:
+            assert row['incident.assigned_fullname'] == 'Alice'
+        else:
+            assert 'incident.assigned_fullname' not in row
+
+    @patch('app.ui.websocket.get_config')
+    def test_get_values_uses_reloaded_configuration(self, mock_get_config):
+        mock_get_config.return_value.ui_config = UIConfig(columns=[], incident_properties=['assigned_fullname'])
         ws = AsyncIncidentWS()
-        ws.table_config = UIConfig(columns=[], incident_properties=[
+        assert 'incident.assigned_fullname' in ws._get_values()
+
+        mock_get_config.return_value = Mock(ui_config=UIConfig(columns=[], incident_properties=['is_frozen']))
+
+        assert ws._get_values() == {
+            'incident.status': 'incident.status',
+            'incident.uniq_id': 'incident.uniq_id',
+            'incident.is_frozen': 'incident.is_frozen',
+        }
+
+    @patch('app.ui.websocket.get_config')
+    def test_incident_properties_serialize_native_values(self, mock_get_config, sample_incident):
+        ws = AsyncIncidentWS()
+        mock_get_config.return_value.ui_config = UIConfig(columns=[], incident_properties=[
             'created', 'is_frozen', 'chain_enabled', 'chain_active_seconds', 'closed', 'missing_property',
         ])
         sample_incident.status = 'firing'
@@ -341,6 +372,30 @@ class TestAsyncIncidentWS:
         assert row['incident.closed'] is None
         assert row['incident.missing_property'] is None
         assert 'incident.assigned_fullname' not in row
+
+    @pytest.mark.asyncio
+    @patch('app.ui.websocket.get_config')
+    async def test_non_scalar_properties_do_not_block_websocket_data(self, mock_get_config, sample_incident):
+        unsupported = ['config', 'dump', 'payload', 'parents']
+        mock_get_config.return_value.ui_config = UIConfig(
+            columns=[{'name': 'legacy_payload', 'header': 'Payload', 'value': 'incident.payload'}],
+            incident_properties=unsupported,
+        )
+        ws = AsyncIncidentWS()
+        websocket = AsyncMock()
+        ws.connections.add(websocket)
+
+        await ws.handle_request_data(websocket, Incidents([sample_incident]))
+        await ws.update_row(sample_incident)
+
+        assert websocket.send_text.call_count == 2
+        initial, update = [json.loads(call.args[0]) for call in websocket.send_text.call_args_list]
+        assert initial['event'] == 'update_data'
+        assert update['event'] == 'update_row'
+        for row in [initial['data'][0], update['data']]:
+            assert row['incident.uniq_id'] == sample_incident.uniq_id
+            assert row['legacy_payload'] == sample_incident.payload
+            assert all(f'incident.{name}' not in row for name in unsupported)
 
     def test_global_incident_ws_instance(self):
         """Test that the global incident_ws instance is created."""

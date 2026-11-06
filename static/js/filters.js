@@ -28,11 +28,12 @@ function matchLabelValue(labelValue, searchValue, operator) {
 function addTableFilterFromParsed(parsedFilter) {
     const {field, operator, value} = parsedFilter;
 
+    if ((operator === "=~" || operator === "!~") && !isValidRegex(value)) {
+        showFilterError(`Invalid regex: ${value}`);
+        return false;
+    }
+
     if (field.startsWith("incident.")) {
-        if ((operator === "=~" || operator === "!~") && !isValidRegex(value)) {
-            showFilterError(`Invalid regex: ${value}`);
-            return false;
-        }
         table.addFilter(customIncidentPropertyFilter, {field, operator, value});
         return true;
     }
@@ -40,21 +41,10 @@ function addTableFilterFromParsed(parsedFilter) {
     const columnExists = table.getColumns().some(col => col.getField() === field);
 
     if (!columnExists) {
-        if (operator === "=~" || operator === "!~") {
-            if (!isValidRegex(value)) {
-                showFilterError(`Invalid regex: ${value}`);
-                return false;
-            }
-        }
         table.addFilter(customResponsiveDataFilter, {field, operator, value});
         return true;
     }
     if (operator === "=~" || operator === "!~") {
-        if (!isValidRegex(value)) {
-            showFilterError(`Invalid regex: ${value}`);
-            return false;
-        }
-
         const anchoredRegex = `^${value}$`;
 
         if (operator === "=~") {

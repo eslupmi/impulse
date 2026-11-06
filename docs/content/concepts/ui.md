@@ -64,6 +64,8 @@ Alert labels and [ui.&lt;column&gt;.name](../config_file.md#columnname) can be u
 
 Incident properties use the `incident.<property>` form. `incident.status` and `incident.uniq_id` are always available, without adding columns or configuration. Enable additional properties through [ui.incident_properties](../config_file.md#uiincident_properties), for example `assigned_fullname` or `is_frozen`.
 
+The `incident.` prefix is reserved for incident properties. Columns and alert labels cannot supply values for this namespace. Object, list, and method values are not searchable.
+
 `incident.status` filters the underlying status, such as `firing` or `resolved`, including when the incident's indicator displays `frozen`. To filter frozen incidents, add `is_frozen` to `ui.incident_properties` and use `incident.is_frozen="true"`.
 
 Incident property filters support `=`, `!=`, `=~`, and `!~`. Regex matches cover the entire property value. A property that is not enabled matches no incidents; an enabled property with a null value is treated as an empty string.

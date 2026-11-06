@@ -904,6 +904,7 @@ Below are all the configuration options supported by IMPulse.
 
 - **description:** unique identifier for the column, used for filtering and sorting
 - **type:** string
+- **details:** the `incident.` prefix is reserved for incident-property filters; use a plain column name
 
 #### &lt;column&gt;.header *
 
@@ -992,6 +993,7 @@ Below are all the configuration options supported by IMPulse.
 - **type:** list of strings
 - **default value:** `[]`
 - **details:** `status` and `uniq_id` are always searchable, even when this field is omitted or empty. List public incident property names without the `incident.` prefix or nested paths. Use scalar properties such as `assigned_fullname`, `channel_id`, or `is_frozen`.
+- **supported values:** strings, numbers, booleans, null, and datetimes (converted to Unix timestamps). Objects, lists, and methods are not exposed for filtering.
 - **examples:**
 
     ```yaml
