@@ -19,6 +19,6 @@ DEV_EDITION=community python -m pytest tests
 DEV_EDITION=enterprise python -m pytest tests
 ```
 
-Build a Community image with `docker build --tag impulse:community .`. In the Enterprise checkout, build Enterprise with `docker build --build-arg DEV_EDITION=enterprise --tag impulse:enterprise .`. The build argument sets the image's default edition. A Community build excludes `enterprise/` from the final image, even when built from the private checkout. Publish only the final Community image; intermediate source stages and Enterprise build caches can contain private source.
+Build the Community image from the core checkout with `docker build --tag impulse:community .`. Enterprise image packaging is maintained in the Enterprise repository.
 
 Implement and merge shared changes in the core repository first. After that merge, manually run the Enterprise repository's existing `sync-upstream` workflow and review its PR. Keep Enterprise implementations in its private directories; avoid copying older shared files from Enterprise over newer core code.

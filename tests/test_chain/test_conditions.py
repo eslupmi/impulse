@@ -43,6 +43,8 @@ def test_non_chain_step_with_null_chain(sample_incident):
     "<p>- if: severity == 'critical'</p><p>  user: Dmitry</p>",
     "<p>- if: severity == 'critical'</p><p>&nbsp;&nbsp;user: Dmitry</p>",
     "- user: Dmitry\n  if: severity == 'critical'",
+    "  - user: Dmitry\n    if: severity == 'critical'",
+    "- user: Dmitry\n# comment\n  if: severity == 'critical'",
 ])
 def test_calendar_preserves_multifield_steps(description):
     assert GoogleCalendarChain._parse_steps_from_description(description) == [

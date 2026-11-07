@@ -180,13 +180,10 @@ class TestGoogleCalendarChainParseSteps:
 
     def test_parse_steps_html_content(self):
         """Test parsing steps from HTML description."""
-        description = "<p>- user: test_user</p><p>- wait: 5m</p>"
+        description = "<p>-&nbsp;user:&nbsp;test_user</p><p>- wait: 5m</p>"
         result = GoogleCalendarChain._parse_steps_from_description(description)
 
-        # Should extract text from HTML
-        assert len(result) == 2
-        assert 'user' in result[0]
-        assert 'wait' in result[1]
+        assert result == [{'user': 'test_user'}, {'wait': '5m'}]
 
     def test_parse_steps_invalid_format_no_colon(self):
         """Test parsing steps with invalid format (no colon)."""
@@ -197,8 +194,8 @@ class TestGoogleCalendarChainParseSteps:
         assert len(result) == 0
 
     def test_parse_steps_mixed_valid_invalid(self):
-        """Test parsing steps with mixed valid and invalid lines."""
-        description = "Some text\n- user: test_user\nMore text\n- wait: 5m\nRandom line"
+        """Skip prose, including indented text outside a step."""
+        description = "  Some text\n- user: test_user\nMore text\n  More notes\n- wait: 5m\nRandom line"
         result = GoogleCalendarChain._parse_steps_from_description(description)
 
         assert len(result) == 2

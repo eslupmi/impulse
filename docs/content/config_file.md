@@ -252,7 +252,7 @@ Below are all the configuration options supported by IMPulse.
           webhook: CEO_call
         ```
 
-        Use the same YAML in a Google Calendar event description, keeping continuation lines indented. In Enterprise UI chains, enter the expression in the step's **Run if (optional)** field.
+        In a Google Calendar event description, start each step with `-` and indent its additional fields. In Enterprise UI chains, enter the expression in the step's **Run if (optional)** field.
 
         Community rejects conditional steps instead of running them unconditionally. Before switching to Community, remove conditions from the configuration and saved UI or calendar chains. Changing editions requires a restart.
 

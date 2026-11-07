@@ -276,20 +276,33 @@ class GoogleCalendarChain(ScheduleChain):
 
     @staticmethod
     def _parse_steps_from_description(description: str | None) -> list[dict[str, str]]:
-        """Parse steps from event description."""
+        """Parse dash-prefixed steps and their indented YAML fields."""
         if not description:
             return []
 
         parser = HTMLTextExtractor()
         try:
             parser.feed(description)
-            description = parser.get_text().replace('\xa0', ' ')
+            # Calendar HTML can encode YAML spacing as &nbsp;.
+            description = parser.get_text().replace('\N{NO-BREAK SPACE}', ' ')
         except MemoryError as e:
             logger.error(f"Description too large: {e}", extra={'provider': 'google'})
         except Exception as e:  # noqa: BLE001
             logger.warning(f"Description parse error: {e}", extra={'provider': 'google'})
 
-        lines = [line for line in description.splitlines() if line.startswith(('-', ' ', '\t'))]
+        lines = []
+        step_indent = None
+        for line in description.splitlines():
+            content = line.lstrip()
+            indent = len(line) - len(content)
+            if step_indent is not None and indent > step_indent:
+                lines.append(line[step_indent:])
+            elif content == '-' or content.startswith(('- ', '-\t')):
+                step_indent = indent
+                lines.append(content)
+            elif content and not content.startswith('#'):
+                step_indent = None
+
         try:
             steps = yaml.load('\n'.join(lines), Loader=_CalendarStepsLoader)
         except yaml.YAMLError as exc:
