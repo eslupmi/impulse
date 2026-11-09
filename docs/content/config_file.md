@@ -236,26 +236,6 @@ Below are all the configuration options supported by IMPulse.
 
         `wait`, which delays the execution of the next notification. Its format is similar to the [sleep](https://www.gnu.org/software/coreutils/manual/html_node/sleep-invocation.html) utility format, but it does not support floats or combined expressions like `1m 3s`. Valid units: `s` (seconds), `m` (minutes), `h` (hours), `d` (days).
 
-        **Enterprise: conditional steps**
-
-        With `DEV_EDITION=enterprise`, every step can include an optional `if` condition, in all chain types. Conditions compare a label from the incident's `commonLabels` with a quoted string using `==` or `!=`. Both single and double quotes are supported. Missing labels have the value `""`. Conditions are evaluated when the incident's chain is generated; later payload updates do not change already scheduled steps.
-
-        A false condition skips that step completely: a conditional `wait` adds no delay, and a conditional `chain` does not expand its nested steps. Steps without `if` always run. Other expressions, including function calls, are rejected.
-
-        ```yaml
-        - user: Dmitry
-        - if: severity != 'critical'
-          wait: 5m
-        - webhook: Dmitry_call
-        - wait: 5m
-        - if: severity == 'critical'
-          webhook: CEO_call
-        ```
-
-        In a Google Calendar event description, start each step with `-` and indent its additional fields. In Enterprise UI chains, enter the expression in the step's **Run if (optional)** field.
-
-        Community rejects conditional steps instead of running them unconditionally. Before switching to Community, remove conditions from the configuration and saved UI or calendar chains. Changing editions requires a restart.
-
 - **examples:**
 
     ```yaml
