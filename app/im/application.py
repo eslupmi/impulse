@@ -1,6 +1,6 @@
 import asyncio
 from dataclasses import asdict
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -38,7 +38,7 @@ from app.jinja_template import JinjaTemplate
 from app.logging import logger
 from app.logging_context import redact_messenger_url
 from app.queue.constants import QueueItemType
-from app.time import calculate_freeze_time, format_freeze_expiration
+from app.time import calculate_freeze_time, format_freeze_expiration, unix_sleep_to_timedelta
 from impulse_messenger_api import (
     BaseApplicationConfig,
     IncidentPresentation,
@@ -578,9 +578,13 @@ class Application:
             return False
         logger.info(log_button_pressed, extra={'uniq_id': incident_.uniq_id, 'button': 'freeze', 'user_id': user_id})
 
-        general = get_config().app.general
-        timezone_str = user_timezone or general.timezone
-        freeze_time = calculate_freeze_time(freeze_option, general, timezone_str)
+        custom_freeze = get_environment_config().dev_custom_freeze_time
+        if custom_freeze:
+            freeze_time = datetime.now(UTC) + unix_sleep_to_timedelta(custom_freeze)
+        else:
+            general = get_config().app.general
+            timezone_str = user_timezone or general.timezone
+            freeze_time = calculate_freeze_time(freeze_option, general, timezone_str)
         if user_id and not await self.fetch_and_assign_user_name(incident_, user_id, dump=False):
             return False
         cached_user = self.users.get_user_by_id(user_id) if self.users is not None and user_id else None

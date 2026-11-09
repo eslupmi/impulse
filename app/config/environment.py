@@ -1,4 +1,5 @@
 import os
+import re
 from typing import Literal, cast
 
 from dotenv import load_dotenv
@@ -164,6 +165,10 @@ class EnvironmentConfig(BaseModel):
         default_factory=lambda: _env_optional_str('DEV_MESSENGER_CUSTOM_ADDRESS'),
         description="Override Slack/Telegram API base URL"
     )
+    dev_custom_freeze_time: str | None = Field(
+        default_factory=lambda: _env_optional_str('DEV_CUSTOM_FREEZE_TIME'),
+        description="Override manual freeze duration on button press (e.g. '5m', '10m')"
+    )
 
     @model_validator(mode='after')
     def validate_storage(self):
@@ -215,6 +220,13 @@ class EnvironmentConfig(BaseModel):
     @classmethod
     def normalize_dev_messenger_custom_address(cls, v):
         return v.rstrip("/") if v else v
+
+    @field_validator('dev_custom_freeze_time')
+    @classmethod
+    def validate_dev_custom_freeze_time(cls, v):
+        if v is not None and not re.match(r'^\d+[smhd]$', v):
+            raise ValueError("DEV_CUSTOM_FREEZE_TIME must be in format like '5m', '1h', '30s', or '2d'")
+        return v
 
     @field_validator('http_prefix')
     @classmethod
