@@ -1,0 +1,97 @@
+name: deploy to test
+
+concurrency:
+  group: deploy-test
+  cancel-in-progress: true
+
+on:
+  workflow_dispatch:
+    inputs:
+      docker-compose:
+        description: docker-compose.yml
+        required: true
+        type: string
+      impulse:
+        description: impulse.yml
+        required: true
+        type: string
+      branch:
+        description: branch to deploy
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-push-image:
+    if: github.repository == 'eslupmi/impulse'
+    runs-on: ubuntu-24.04
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v5
+      with:
+        ref: ${{ inputs.branch }}
+
+    - name: Log in to the Container registry
+      uses: docker/login-action@v4
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Extract metadata (tags, labels) for Docker
+      id: meta
+      uses: docker/metadata-action@v6
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=raw,value=test
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v7
+      with:
+        context: .
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+
+  deploy:
+    if: github.repository == 'eslupmi/impulse'
+    needs: build-and-push-image
+    runs-on: ubuntu-24.04
+    steps:
+    - name: Encode configuration
+      id: files
+      env:
+        DOCKER_COMPOSE: ${{ inputs.docker-compose }}
+        IMPULSE: ${{ inputs.impulse }}
+      run: |
+        echo "compose=$(printf '%s' "$DOCKER_COMPOSE" | base64 -w0)" >> "$GITHUB_OUTPUT"
+        echo "impulse=$(printf '%s' "$IMPULSE" | base64 -w0)" >> "$GITHUB_OUTPUT"
+
+    - name: Deploy IMPulse
+      uses: appleboy/ssh-action@v1.0.3
+      env:
+        DEPLOY_PATH: /opt/impulse/test
+        DOCKER_COMPOSE_B64: ${{ steps.files.outputs.compose }}
+        IMPULSE_B64: ${{ steps.files.outputs.impulse }}
+      with:
+        host: ${{ secrets.HOST }}
+        port: ${{ secrets.PORT }}
+        username: ${{ secrets.USER }}
+        key: ${{ secrets.SSH_KEY }}
+        envs: DEPLOY_PATH,DOCKER_COMPOSE_B64,IMPULSE_B64
+        script_stop: true
+        script: |
+          mkdir -p "$DEPLOY_PATH/config"
+          printf '%s' "$DOCKER_COMPOSE_B64" | base64 -d > "$DEPLOY_PATH/docker-compose.yml"
+          printf '%s' "$IMPULSE_B64" | base64 -d > "$DEPLOY_PATH/config/impulse.yml"
+          cd "$DEPLOY_PATH"
+          docker compose pull
+          docker compose up -d
