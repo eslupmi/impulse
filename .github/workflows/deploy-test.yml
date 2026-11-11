@@ -8,11 +8,11 @@ on:
   workflow_dispatch:
     inputs:
       docker-compose:
-        description: docker-compose.yml
+        description: docker-compose.yml in JSON format
         required: true
         type: string
       impulse:
-        description: impulse.yml
+        description: impulse.yml in JSON format
         required: true
         type: string
 
@@ -30,8 +30,11 @@ jobs:
         DOCKER_COMPOSE: ${{ inputs.docker-compose }}
         IMPULSE: ${{ inputs.impulse }}
       run: |
-        echo "compose=$(printf '%s' "$DOCKER_COMPOSE" | base64 -w0)" >> "$GITHUB_OUTPUT"
-        echo "impulse=$(printf '%s' "$IMPULSE" | base64 -w0)" >> "$GITHUB_OUTPUT"
+        to_yaml_b64() {
+          printf '%s' "$1" | ruby -rjson -ryaml -e 'print YAML.dump(JSON.parse(STDIN.read)).sub(/\A---\s*\n/, "")' | base64 -w0
+        }
+        echo "compose=$(to_yaml_b64 "$DOCKER_COMPOSE")" >> "$GITHUB_OUTPUT"
+        echo "impulse=$(to_yaml_b64 "$IMPULSE")" >> "$GITHUB_OUTPUT"
 
     - name: Deploy IMPulse
       uses: appleboy/ssh-action@v1.0.3
