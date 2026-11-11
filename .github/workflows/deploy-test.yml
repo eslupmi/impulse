@@ -55,4 +55,4 @@ jobs:
           printf '%s' "$IMPULSE_B64" | base64 -d > "$DEPLOY_PATH/config/impulse.yml"
           cd "$DEPLOY_PATH"
           docker compose pull
-          docker compose up -d
+          docker compose up -d --force-recreate
