@@ -15,55 +15,13 @@ on:
         description: impulse.yml
         required: true
         type: string
-      branch:
-        description: branch to deploy
-        required: true
-        type: string
 
 permissions:
   contents: read
-  packages: write
-
-env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  build-and-push-image:
-    if: github.repository == 'eslupmi/impulse'
-    runs-on: ubuntu-24.04
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v5
-      with:
-        ref: ${{ inputs.branch }}
-
-    - name: Log in to the Container registry
-      uses: docker/login-action@v4
-      with:
-        registry: ${{ env.REGISTRY }}
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Extract metadata (tags, labels) for Docker
-      id: meta
-      uses: docker/metadata-action@v6
-      with:
-        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-        tags: |
-          type=raw,value=test
-
-    - name: Build and push Docker image
-      uses: docker/build-push-action@v7
-      with:
-        context: .
-        push: true
-        tags: ${{ steps.meta.outputs.tags }}
-        labels: ${{ steps.meta.outputs.labels }}
-
   deploy:
     if: github.repository == 'eslupmi/impulse'
-    needs: build-and-push-image
     runs-on: ubuntu-24.04
     steps:
     - name: Encode configuration
