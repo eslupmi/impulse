@@ -57,8 +57,8 @@ jobs:
         username: ${{ secrets.USER }}
         key: ${{ secrets.SSH_KEY }}
         envs: DEPLOY_PATH,DOCKER_COMPOSE_B64,IMPULSE_B64,DOCKER_TAG
-        script_stop: true
         script: |
+          set -e
           mkdir -p "$DEPLOY_PATH/config"
           if [ -n "$DOCKER_COMPOSE_B64" ]; then
             printf '%s' "$DOCKER_COMPOSE_B64" | base64 -d > "$DEPLOY_PATH/docker-compose.yml"
