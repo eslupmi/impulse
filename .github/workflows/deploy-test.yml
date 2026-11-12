@@ -19,6 +19,14 @@ on:
         description: docker tag
         required: false
         type: string
+      action:
+        description: reload config or restart app
+        required: true
+        type: choice
+        default: reload
+        options:
+          - reload
+          - restart
 
 permissions:
   contents: read
@@ -51,12 +59,13 @@ jobs:
         DOCKER_COMPOSE_B64: ${{ steps.files.outputs.compose }}
         IMPULSE_B64: ${{ steps.files.outputs.impulse }}
         DOCKER_TAG: ${{ inputs.docker-tag }}
+        ACTION: ${{ inputs.action }}
       with:
         host: ${{ secrets.HOST }}
         port: ${{ secrets.PORT }}
         username: ${{ secrets.USER }}
         key: ${{ secrets.SSH_KEY }}
-        envs: DEPLOY_PATH,DOCKER_COMPOSE_B64,IMPULSE_B64,DOCKER_TAG
+        envs: DEPLOY_PATH,DOCKER_COMPOSE_B64,IMPULSE_B64,DOCKER_TAG,ACTION
         script: |
           set -e
           mkdir -p "$DEPLOY_PATH/config"
@@ -73,7 +82,7 @@ jobs:
           if [ -n "$DOCKER_TAG" ] || [ -n "$DOCKER_COMPOSE_B64" ]; then
             sed -i -E "s|^([[:space:]]*image:[[:space:]]*[^[:space:]]+):[^[:space:]]+|\\1:$(cat docker.tag)|" docker-compose.yml
           fi
-          if [ -n "$IMPULSE_B64" ] && [ -z "$DOCKER_COMPOSE_B64" ] && [ -z "$DOCKER_TAG" ]; then
+          if [ "$ACTION" = reload ] && [ -z "$DOCKER_COMPOSE_B64" ] && [ -z "$DOCKER_TAG" ]; then
             curl -X POST https://test.impulse.bot/-/reload
           else
             docker compose pull
