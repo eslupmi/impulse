@@ -9,11 +9,15 @@ on:
     inputs:
       docker-compose:
         description: docker-compose.yml in JSON format
-        required: true
+        required: false
         type: string
       impulse:
         description: impulse.yml in JSON format
-        required: true
+        required: false
+        type: string
+      docker-tag:
+        description: docker tag
+        required: false
         type: string
 
 permissions:
@@ -33,8 +37,12 @@ jobs:
         to_yaml_b64() {
           printf '%s' "$1" | ruby -rjson -ryaml -e 'print YAML.dump(JSON.parse(STDIN.read)).sub(/\A---\s*\n/, "")' | base64 -w0
         }
-        echo "compose=$(to_yaml_b64 "$DOCKER_COMPOSE")" >> "$GITHUB_OUTPUT"
-        echo "impulse=$(to_yaml_b64 "$IMPULSE")" >> "$GITHUB_OUTPUT"
+        if [ -n "$DOCKER_COMPOSE" ]; then
+          echo "compose=$(to_yaml_b64 "$DOCKER_COMPOSE")" >> "$GITHUB_OUTPUT"
+        fi
+        if [ -n "$IMPULSE" ]; then
+          echo "impulse=$(to_yaml_b64 "$IMPULSE")" >> "$GITHUB_OUTPUT"
+        fi
 
     - name: Deploy IMPulse
       uses: appleboy/ssh-action@v1.0.3
@@ -42,17 +50,32 @@ jobs:
         DEPLOY_PATH: /opt/impulse/test
         DOCKER_COMPOSE_B64: ${{ steps.files.outputs.compose }}
         IMPULSE_B64: ${{ steps.files.outputs.impulse }}
+        DOCKER_TAG: ${{ inputs.docker-tag }}
       with:
         host: ${{ secrets.HOST }}
         port: ${{ secrets.PORT }}
         username: ${{ secrets.USER }}
         key: ${{ secrets.SSH_KEY }}
-        envs: DEPLOY_PATH,DOCKER_COMPOSE_B64,IMPULSE_B64
+        envs: DEPLOY_PATH,DOCKER_COMPOSE_B64,IMPULSE_B64,DOCKER_TAG
         script_stop: true
         script: |
           mkdir -p "$DEPLOY_PATH/config"
-          printf '%s' "$DOCKER_COMPOSE_B64" | base64 -d > "$DEPLOY_PATH/docker-compose.yml"
-          printf '%s' "$IMPULSE_B64" | base64 -d > "$DEPLOY_PATH/config/impulse.yml"
+          if [ -n "$DOCKER_COMPOSE_B64" ]; then
+            printf '%s' "$DOCKER_COMPOSE_B64" | base64 -d > "$DEPLOY_PATH/docker-compose.yml"
+          fi
+          if [ -n "$IMPULSE_B64" ]; then
+            printf '%s' "$IMPULSE_B64" | base64 -d > "$DEPLOY_PATH/config/impulse.yml"
+          fi
+          if [ -n "$DOCKER_TAG" ]; then
+            printf '%s' "$DOCKER_TAG" > "$DEPLOY_PATH/docker.tag"
+          fi
           cd "$DEPLOY_PATH"
-          docker compose pull
-          docker compose up -d --force-recreate
+          if [ -n "$DOCKER_TAG" ] || [ -n "$DOCKER_COMPOSE_B64" ]; then
+            sed -i -E "s|^([[:space:]]*image:[[:space:]]*[^[:space:]]+):[^[:space:]]+|\\1:$(cat docker.tag)|" docker-compose.yml
+          fi
+          if [ -n "$IMPULSE_B64" ] && [ -z "$DOCKER_COMPOSE_B64" ] && [ -z "$DOCKER_TAG" ]; then
+            curl -X POST https://test.impulse.bot/-/reload
+          else
+            docker compose pull
+            docker compose up -d --force-recreate
+          fi
