@@ -6,9 +6,6 @@ concurrency:
 
 on:
   pull_request:
-    branches:
-    - master
-    - develop
     types:
     - opened
     - synchronize
