@@ -11,6 +11,7 @@ Changes:
 - Fixed a maintenance bug that showed an `owner_id is required` error
 - Fixed [incorrect](https://github.com/eslupmi/impulse/issues/585) matcher behaviour in inhibit rules
 - Fixed a [bug](https://github.com/eslupmi/impulse/issues/600) that prevented users not listed in `impulse.yml` from taking incidents
+- Fixed a [bug](https://github.com/eslupmi/impulse/issues/640) that hid incidents without a label when using a `!~` filter
 
 ## v3.7.1
 Changes:
