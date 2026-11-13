@@ -15,6 +15,6 @@ def parse_arguments():
         const='',
         default=None,
         metavar='VERSION',
-        help='Downgrade incident files one schema step, or to VERSION, and exit',
+        help='Downgrade incident and maintenance files one schema step, or to VERSION, and exit',
     )
     return parser.parse_args()

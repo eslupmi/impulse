@@ -1,13 +1,14 @@
 """
 Unit tests for app.config.environment module.
 """
+import json
+import os
 from unittest.mock import patch
 
 import pytest
 from pydantic import ValidationError
 
-from app.config.environment import EnvironmentConfig, get_environment_config
-from tests.utils import create_mock_environment_config
+from app.config.environment import EnvironmentConfig
 
 
 class TestEnvironmentConfig:
@@ -18,10 +19,8 @@ class TestEnvironmentConfig:
         with patch.dict('os.environ', {}, clear=True):
             config = EnvironmentConfig()
 
-        assert config.slack_bot_user_oauth_token == ""
-        assert config.slack_verification_token == ""
-        assert config.mattermost_access_token == ""
-        assert config.telegram_bot_token == ""
+        assert "mattermost_access_token" not in EnvironmentConfig.model_fields
+        assert "telegram_bot_token" not in EnvironmentConfig.model_fields
         assert config.data_path == "./data"
         assert config.config_path == "./"
         assert config.provider_sync_interval == 60
@@ -33,6 +32,10 @@ class TestEnvironmentConfig:
         assert config.http_prefix == ""
         assert config.listen_host == "0.0.0.0"
         assert config.listen_port == 5000
+        assert config.dev_messenger_rate_limit is None
+        assert config.dev_messenger_rate_window is None
+        assert config.dev_messenger_custom_address is None
+        assert config.dev_custom_freeze_time is None
 
     def test_environment_variable_loading(self):
         """Test loading values from environment variables."""
@@ -52,15 +55,17 @@ class TestEnvironmentConfig:
             'HTTP_PREFIX': '/api/v1',
             'LISTEN_HOST': '127.0.0.1',
             'LISTEN_PORT': '8080',
+            'DEV_MESSENGER_RATE_LIMIT': '1000',
+            'DEV_MESSENGER_RATE_WINDOW': '1',
+            'DEV_MESSENGER_CUSTOM_ADDRESS': 'http://mock-slack:8080',
+            'DEV_CUSTOM_FREEZE_TIME': '5m',
         }
 
         with patch.dict('os.environ', env_vars, clear=True):
             config = EnvironmentConfig()
 
-        assert config.slack_bot_user_oauth_token == 'xoxb-test-token'
-        assert config.slack_verification_token == 'test-verification'
-        assert config.mattermost_access_token == 'mm-token'
-        assert config.telegram_bot_token == 'tg-token'
+        assert "mattermost_access_token" not in EnvironmentConfig.model_fields
+        assert "telegram_bot_token" not in EnvironmentConfig.model_fields
         assert config.data_path == '/custom/data'
         assert config.config_path == '/custom/config'
         assert config.provider_sync_interval == 300
@@ -72,6 +77,10 @@ class TestEnvironmentConfig:
         assert config.http_prefix == '/api/v1'
         assert config.listen_host == '127.0.0.1'
         assert config.listen_port == 8080
+        assert config.dev_messenger_rate_limit == 1000
+        assert config.dev_messenger_rate_window == 1.0
+        assert config.dev_messenger_custom_address == 'http://mock-slack:8080'
+        assert config.dev_custom_freeze_time == '5m'
 
     def test_positive_integer_validation(self):
         """Test validation of positive integer fields."""
@@ -212,7 +221,8 @@ class TestEnvironmentConfig:
         # Check that fields have descriptions by examining the model class
         field_info = EnvironmentConfig.model_fields
 
-        assert 'slack_bot_user_oauth_token' in field_info
+        assert 'slack_bot_user_oauth_token' not in field_info
+        assert 'slack_verification_token' not in field_info
         assert 'data_path' in field_info
         assert 'provider_sync_interval' in field_info
         assert 'cors_allowed_origins' in field_info
@@ -236,7 +246,6 @@ class TestEnvironmentConfig:
 
         config = EnvironmentConfig(**config_data)
 
-        assert config.slack_bot_user_oauth_token == 'xoxb-custom-token'
         assert config.data_path == '/custom/data'
         assert config.provider_sync_interval == 600
         assert config.provider_max_events == 100
@@ -319,6 +328,40 @@ class TestEnvironmentConfig:
     def test_jira_base_url_strips_trailing_slash(self):
         config = EnvironmentConfig(jira_base_url="https://test.atlassian.net/")
         assert config.jira_base_url == "https://test.atlassian.net"
+
+    def test_dev_messenger_custom_address_strips_trailing_slash(self):
+        config = EnvironmentConfig(dev_messenger_custom_address="http://mock-slack:8080/")
+        assert config.dev_messenger_custom_address == "http://mock-slack:8080"
+
+    def test_dev_custom_freeze_time_rejects_invalid_format(self):
+        with pytest.raises(ValidationError, match="DEV_CUSTOM_FREEZE_TIME"):
+            EnvironmentConfig(dev_custom_freeze_time="5 minutes")
+
+
+@pytest.mark.parametrize('backend', ['filesystem', 's3'])
+@pytest.mark.parametrize('env_path,explicit_path,expected', [
+    (None, None, './data'),
+    ('relative/env', None, 'relative/env'),
+    ('/env/state', None, '/env/state'),
+    ('/env/state', 'relative/explicit', 'relative/explicit'),
+    ('/env/state', '/explicit/state', '/explicit/state'),
+])
+def test_storage_root_preserves_data_path(monkeypatch, backend, env_path, explicit_path, expected):
+    monkeypatch.delenv('DATA_PATH', raising=False)
+    if env_path is not None:
+        monkeypatch.setenv('DATA_PATH', env_path)
+    settings = {} if explicit_path is None else {'data_path': explicit_path}
+    config = EnvironmentConfig(storage_backend=backend, s3_bucket='state',
+                               s3_endpoint_url='https://s3.example.com', **settings)
+
+    assert config.data_path == expected
+    assert config.model_dump()['data_path'] == expected
+    serialized = json.loads(config.model_dump_json())
+    assert serialized['data_path'] == expected
+    assert 'storage_root' not in serialized
+    root = '' if backend == 's3' else expected
+    assert config.storage_root == root
+    assert config.incidents_path == os.path.join(root, 'incidents')
 
 
 class TestEnvironmentConfigFunctions:

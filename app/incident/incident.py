@@ -2,19 +2,19 @@ import asyncio
 import json
 import uuid
 from dataclasses import KW_ONLY, dataclass, field, fields
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, ClassVar
 
 import yaml
 
 from app.config.config import get_config
 from app.config.environment import get_environment_config
-from app.config.validation import MessengerType
 from app.im.chain.ui_chains_store import ui_chains_store
 from app.im.channel_manager import ChannelManager
 from app.incident.freeze import MAINTENANCE_PARENT_SENTINEL, FreezeSource
 from app.logging import logger
 from app.queue.constants import QueueItemType
+from app.storage import get_storage
 from app.time import unix_sleep_to_timedelta
 from app.tools import NoAliasDumper
 from app.ui.websocket import incident_ws
@@ -48,8 +48,8 @@ class Incident:
     chain_steps: list[dict] = field(default_factory=list)
     chain_enabled: bool = False
     status_enabled: bool = False
-    updated: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
-    created: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    updated: datetime = field(default_factory=lambda: datetime.now(UTC))
+    created: datetime = field(default_factory=lambda: datetime.now(UTC))
     version: str = get_config().INCIDENT_ACTUAL_VERSION
     uniq_id: str = field(default='')
     uuid: str = field(init=False)
@@ -84,7 +84,7 @@ class Incident:
 
     def __post_init__(self):
         if not self.created:
-            self.created = datetime.now(timezone.utc)
+            self.created = datetime.now(UTC)
         self.uuid = self.gen_uuid(self.payload.get('groupLabels'))
         if not self.uniq_id:
             self.uniq_id = self.gen_uniq_id(self.payload.get('groupLabels'), self.created)
@@ -106,12 +106,12 @@ class Incident:
         return self.frozen_until is not None or len(self.parents) > 0
 
     def generate_link(self, public_url) -> str:
-        if self.config.application_type == MessengerType.SLACK:
-            return f'{public_url}/archives/{self.channel_id}/p{self.ts.replace(".", "")}'
-        elif self.config.application_type == MessengerType.MATTERMOST:
-            return f'{self.config.application_url}/{self.config.application_team.lower()}/pl/{self.ts}'
-        elif self.config.application_type == MessengerType.TELEGRAM:
-            return f'https://t.me/c/{str(self.channel_id)[4:]}/{self.ts}'
+        from app.im.application import Application
+        link = Application.get_incident_link(
+            self.config.application_type, self.channel_id, self.ts, public_url, self.config.application_team,
+        )
+        if link is not None:
+            return link
         return ''
 
     def _resolve_chain_steps(self, chains, chain_name):
@@ -220,7 +220,7 @@ class Incident:
     def accumulate_chain_time(self, updated):
         """Accumulate chain active time from self.updated until now. Updates self.updated.
         Must be called before any state change that affects chain activity."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         delta = (now - updated).total_seconds()
         if delta > 0:
             self.chain_active_seconds += delta
@@ -250,7 +250,7 @@ class Incident:
     @classmethod
     def load(cls, dump_file: str, incident_config: IncidentConfig):
         config = get_config()
-        with open(dump_file, 'r') as f:
+        with get_storage().open(dump_file, 'r') as f:
             content = yaml.load(f, Loader=yaml.CLoader)
         incident_ = cls(
             payload=content.get('payload'),
@@ -298,7 +298,7 @@ class Incident:
     def dump(self):
         path = self.get_current_filename()
         try:
-            with open(path, 'w') as f:
+            with get_storage().open(path, 'w') as f:
                 yaml.dump(self.serialize(), f, NoAliasDumper, default_flow_style=False)
         except OSError as e:
             logger.error("Failed to write incident file", extra={'file': path, 'error': str(e)})
@@ -364,7 +364,7 @@ class Incident:
         return data
 
     def update_status(self, status: str) -> bool:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         self._schedule_status_change_by_timeout(status, now)
         if self.status != status:
             self._set_status(status)
@@ -409,7 +409,7 @@ class Incident:
         self.status = status
         logger.debug("Status updated", extra={'uniq_id': self.uniq_id, 'status': status})
         if status == 'closed' and not self.closed:
-            self.closed = datetime.now(timezone.utc)
+            self.closed = datetime.now(UTC)
 
     def _schedule_status_change_by_timeout(self, status, now):
         if status != 'deleted':
@@ -505,7 +505,7 @@ async def sync_after_freeze_change(
         return
 
     incident_status = incident_status or incident.status
-    await queue.put_first(datetime.now(timezone.utc), QueueItemType.STATUS_CHECK, incident.uniq_id)
+    await queue.put_first(datetime.now(UTC), QueueItemType.STATUS_CHECK, incident.uniq_id)
     await queue.recreate(incident.status, incident.uniq_id, incident.get_chain(), incident.chain_active_seconds)
     if incident_status != 'deleted':
         await queue.put(incident.status_update_datetime, QueueItemType.UPDATE_STATUS, incident.uniq_id)

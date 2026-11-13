@@ -8,8 +8,7 @@ from app.routes import create_router
 
 def _mock_messenger(**overrides):
     messenger = Mock()
-    messenger.type = Mock()
-    messenger.type.value = "slack"
+    messenger.type = "slack"
     for key, value in overrides.items():
         setattr(messenger, key, value)
     return messenger

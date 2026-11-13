@@ -8,7 +8,7 @@ from app.im.chain.ui_chains_store import UIChainsStore
 
 def _make_store(tmp_path: Path) -> UIChainsStore:
     with patch("app.im.chain.ui_chains_store.get_environment_config") as mock_get_environment_config:
-        mock_get_environment_config.return_value.data_path = str(tmp_path)
+        mock_get_environment_config.return_value.storage_root = str(tmp_path)
         return UIChainsStore()
 
 
@@ -23,10 +23,10 @@ def _write_shifts_unfiltered(store: UIChainsStore, chain_name: str, shifts: list
     store._write_shifts(chain_name, store.recalculate_priorities(shifts))
 
 
-def test_ui_chains_dir_uses_environment_data_path(tmp_path: Path):
+def test_ui_chains_dir_uses_environment_storage_root(tmp_path: Path):
     with patch("app.im.chain.ui_chains_store.get_environment_config") as mock_get_environment_config, \
             patch("app.im.chain.ui_chains_store.os.path.exists", return_value=True):
-        mock_get_environment_config.return_value.data_path = str(tmp_path)
+        mock_get_environment_config.return_value.storage_root = str(tmp_path)
 
         store = UIChainsStore()
 
@@ -36,7 +36,7 @@ def test_ui_chains_dir_uses_environment_data_path(tmp_path: Path):
 def test_get_steps_for_now_prefers_priority_1(tmp_path: Path):
     with patch("app.im.chain.ui_chains_store.get_environment_config") as mock_get_environment_config, \
             patch("app.im.chain.ui_chains_store.os.path.exists", return_value=True):
-        mock_get_environment_config.return_value.data_path = str(tmp_path)
+        mock_get_environment_config.return_value.storage_root = str(tmp_path)
         store = UIChainsStore()
 
     now = datetime(2026, 3, 29, 12, 0, tzinfo=timezone.utc)
@@ -64,7 +64,7 @@ def test_get_steps_for_now_prefers_priority_1(tmp_path: Path):
 def test_recalculate_priorities_single_over_daily_repeat(tmp_path: Path):
     with patch("app.im.chain.ui_chains_store.get_environment_config") as mock_get_environment_config, \
             patch("app.im.chain.ui_chains_store.os.path.exists", return_value=True):
-        mock_get_environment_config.return_value.data_path = str(tmp_path)
+        mock_get_environment_config.return_value.storage_root = str(tmp_path)
         store = UIChainsStore()
 
     chains = [
@@ -137,7 +137,7 @@ def test_prune_expired_shifts_keeps_repeating_shift_without_repeat_end(tmp_path:
             "repeatEnd": None,
             "steps": [{"user": "oncall"}],
         }
-        store.save_shifts("primary", [repeating_shift])
+        store.upsert_shift("primary", repeating_shift)
 
         removed = store.prune_expired_shifts("primary", now)
         assert removed == 0
@@ -169,7 +169,7 @@ def test_prune_expired_shifts_removes_repeating_shift_with_past_repeat_end(tmp_p
         mock_config.stop()
 
 
-def test_save_shifts_filters_expired_shifts(tmp_path: Path):
+def test_upsert_drops_expired_siblings(tmp_path: Path):
     store = _make_store(tmp_path)
     mock_config = _mock_closed_retention("7d")
     fixed_now = datetime(2026, 6, 16, 12, 0, tzinfo=timezone.utc)
@@ -187,16 +187,20 @@ def test_save_shifts_filters_expired_shifts(tmp_path: Path):
             "end": "2026-06-10T12:00:00Z",
             "steps": [{"user": "bob"}],
         }
+        _write_shifts_unfiltered(store, "primary", [old_shift, recent_shift])
 
         def filter_at_fixed_now(shifts, now=None):
             return UIChainsStore.filter_retained_shifts(store, shifts, fixed_now)
 
         store.filter_retained_shifts = filter_at_fixed_now
-        store.save_shifts("primary", [old_shift, recent_shift])
-
-        remaining = store.load_shifts("primary")
-        assert len(remaining) == 1
-        assert remaining[0]["id"] == "recent"
+        ok, saved = store.upsert_shift("primary", {
+            "id": "new",
+            "start": "2026-06-15T10:00:00Z",
+            "end": "2026-06-15T12:00:00Z",
+            "steps": [{"user": "carol"}],
+        })
+        assert ok is True
+        assert {shift["id"] for shift in saved} == {"recent", "new"}
     finally:
         mock_config.stop()
 
@@ -250,7 +254,7 @@ def test_next_occurrence_start_monthly_and_yearly(tmp_path: Path):
 def test_does_chain_overlap_range_repeating_daily(tmp_path: Path):
     with patch("app.im.chain.ui_chains_store.get_environment_config") as mock_get_environment_config, \
             patch("app.im.chain.ui_chains_store.os.path.exists", return_value=True):
-        mock_get_environment_config.return_value.data_path = str(tmp_path)
+        mock_get_environment_config.return_value.storage_root = str(tmp_path)
         store = UIChainsStore()
 
     chain = {
@@ -267,3 +271,145 @@ def test_does_chain_overlap_range_repeating_daily(tmp_path: Path):
     outside_range = datetime(2026, 6, 10, 8, 0, tzinfo=timezone.utc)
     outside_end = datetime(2026, 6, 10, 18, 0, tzinfo=timezone.utc)
     assert store._does_chain_overlap_range(chain, outside_range, outside_end) is False
+
+
+def test_upsert_shift_recalculates_sibling_priority(tmp_path: Path):
+    store = _make_store(tmp_path)
+    mock_config = _mock_closed_retention("7d")
+    try:
+        ok, _saved = store.upsert_shift("primary", {
+            "id": "a",
+            "start": "2026-12-10T10:00:00Z",
+            "end": "2026-12-10T12:00:00Z",
+            "steps": [{"user": "alice"}],
+        })
+        assert ok is True
+        ok, saved = store.upsert_shift("primary", {
+            "id": "b",
+            "start": "2026-12-10T11:00:00Z",
+            "end": "2026-12-10T13:00:00Z",
+            "steps": [{"user": "bob"}],
+        })
+        assert ok is True
+        by_id = {shift["id"]: shift["priority"] for shift in saved}
+        assert by_id["b"] == 1
+        assert by_id["a"] == 2
+    finally:
+        mock_config.stop()
+
+
+def test_upsert_shift_keeps_sibling_without_steps(tmp_path: Path):
+    store = _make_store(tmp_path)
+    mock_config = _mock_closed_retention("7d")
+    try:
+        legacy = {
+            "id": "legacy",
+            "start": "2026-12-10T08:00:00Z",
+            "end": "2026-12-10T09:00:00Z",
+        }
+        _write_shifts_unfiltered(store, "primary", [legacy])
+        ok, saved = store.upsert_shift("primary", {
+            "id": "new",
+            "start": "2026-12-11T10:00:00Z",
+            "end": "2026-12-11T12:00:00Z",
+            "steps": [{"user": "alice"}],
+        })
+        assert ok is True
+        by_id = {shift["id"]: shift for shift in saved}
+        assert by_id["legacy"]["steps"] is None
+        assert by_id["new"]["steps"] == [{"user": "alice"}]
+        ics = Path(store._calendar_path("primary")).read_bytes()
+        assert ics.count(b"DESCRIPTION") == 1
+    finally:
+        mock_config.stop()
+
+
+def test_upsert_rejects_list_without_writing(tmp_path: Path):
+    store = _make_store(tmp_path)
+    ok, saved = store.upsert_shift("primary", [{"id": "s1"}])
+    assert ok is False
+    assert saved == []
+    assert store.load_shifts("primary") == []
+    assert not (tmp_path / "ui_chains" / "primary.ics").exists()
+
+
+def test_delete_shift_leaves_remaining(tmp_path: Path):
+    store = _make_store(tmp_path)
+    mock_config = _mock_closed_retention("7d")
+    try:
+        store.upsert_shift("primary", {
+            "id": "w1",
+            "start": "2026-12-10T10:00:00Z",
+            "end": "2026-12-10T12:00:00Z",
+            "steps": [{"user": "alice"}],
+        })
+        store.upsert_shift("primary", {
+            "id": "w2",
+            "start": "2026-12-11T10:00:00Z",
+            "end": "2026-12-11T12:00:00Z",
+            "steps": [{"user": "bob"}],
+        })
+        ok, saved = store.delete_shift("primary", "w1")
+        assert ok is True
+        assert [shift["id"] for shift in saved] == ["w2"]
+        assert [shift["id"] for shift in store.load_shifts("primary")] == ["w2"]
+    finally:
+        mock_config.stop()
+
+
+def test_delete_missing_shift_is_success(tmp_path: Path):
+    store = _make_store(tmp_path)
+    mock_config = _mock_closed_retention("7d")
+    try:
+        store.upsert_shift("primary", {
+            "id": "w1",
+            "start": "2026-12-10T10:00:00Z",
+            "end": "2026-12-10T12:00:00Z",
+            "steps": [{"user": "alice"}],
+        })
+        ok, saved = store.delete_shift("primary", "missing")
+        assert ok is True
+        assert [shift["id"] for shift in saved] == ["w1"]
+        assert [shift["id"] for shift in store.load_shifts("primary")] == ["w1"]
+    finally:
+        mock_config.stop()
+
+
+def test_upsert_shift_collapses_duplicate_ids(tmp_path: Path):
+    store = _make_store(tmp_path)
+    mock_config = _mock_closed_retention("7d")
+    try:
+        _write_shifts_unfiltered(store, "primary", [
+            {
+                "id": "dup",
+                "start": "2026-12-10T10:00:00Z",
+                "end": "2026-12-10T12:00:00Z",
+                "steps": [{"user": "alice"}],
+            },
+            {
+                "id": "dup",
+                "start": "2026-12-10T14:00:00Z",
+                "end": "2026-12-10T16:00:00Z",
+                "steps": [{"user": "bob"}],
+            },
+            {
+                "id": "keep",
+                "start": "2026-12-11T10:00:00Z",
+                "end": "2026-12-11T12:00:00Z",
+                "steps": [{"user": "carol"}],
+            },
+        ])
+        ok, saved = store.upsert_shift("primary", {
+            "id": "dup",
+            "start": "2026-12-12T10:00:00Z",
+            "end": "2026-12-12T12:00:00Z",
+            "steps": [{"user": "dana"}],
+        })
+        assert ok is True
+        ids = [shift["id"] for shift in saved]
+        assert ids.count("dup") == 1
+        assert "keep" in ids
+        assert {shift["id"]: shift["steps"] for shift in saved}["dup"] == [{"user": "dana"}]
+        assert [shift["id"] for shift in store.load_shifts("primary")].count("dup") == 1
+    finally:
+        mock_config.stop()

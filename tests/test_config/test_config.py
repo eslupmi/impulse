@@ -7,7 +7,6 @@ import pytest
 
 from app.config.config import UnifiedConfig, get_config, load_unified_config, reload_config
 from app.config.loader import ConfigValidationError
-from app.config.validation import MessengerType
 
 
 class TestUnifiedConfig:
@@ -139,11 +138,11 @@ class TestConfigFunctions:
     def test_reload_config_success(self, mock_logger, mock_load_unified_config, mock_get_config):
         """Test successful config reload."""
         current_config = Mock()
-        current_config.messenger.type = MessengerType.SLACK
+        current_config.messenger.type = 'slack'
         mock_get_config.return_value = current_config
 
         mock_new_config = Mock()
-        mock_new_config.messenger.type = MessengerType.SLACK
+        mock_new_config.messenger.type = 'slack'
         mock_load_unified_config.return_value = mock_new_config
 
         result = reload_config()
@@ -157,11 +156,11 @@ class TestConfigFunctions:
     def test_reload_config_type_change(self, mock_logger, mock_load_unified_config, mock_get_config):
         """Test config reload with messenger type change."""
         current_config = Mock()
-        current_config.messenger.type = MessengerType.SLACK
+        current_config.messenger.type = 'slack'
         mock_get_config.return_value = current_config
 
         mock_new_config = Mock()
-        mock_new_config.messenger.type = MessengerType.MATTERMOST
+        mock_new_config.messenger.type = 'mattermost'
         mock_load_unified_config.return_value = mock_new_config
 
         result = reload_config()
@@ -200,11 +199,11 @@ class TestConfigFunctions:
     def test_force_reload_config(self, mock_load_unified_config, mock_get_config):
         """Test force reload config."""
         current_config = Mock()
-        current_config.messenger.type = MessengerType.SLACK
+        current_config.messenger.type = 'slack'
         mock_get_config.return_value = current_config
 
         mock_new_config = Mock()
-        mock_new_config.messenger.type = MessengerType.SLACK
+        mock_new_config.messenger.type = 'slack'
         mock_load_unified_config.return_value = mock_new_config
 
         result = reload_config()
