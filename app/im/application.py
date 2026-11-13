@@ -38,7 +38,11 @@ from app.jinja_template import JinjaTemplate
 from app.logging import logger
 from app.logging_context import redact_messenger_url
 from app.queue.constants import QueueItemType
-from app.time import calculate_freeze_time, format_freeze_expiration, unix_sleep_to_timedelta
+from app.time import (
+    calculate_freeze_time,
+    format_freeze_expiration,
+    unix_sleep_to_timedelta,
+)
 from impulse_messenger_api import (
     BaseApplicationConfig,
     IncidentPresentation,
