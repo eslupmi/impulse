@@ -62,6 +62,14 @@ To change the sort order, click the corresponding key in the column header. If y
 
 Alert labels and [ui.&lt;column&gt;.name](../config_file.md#columnname) can be used as filters. If a column name matches a label, the column name takes priority.
 
+Incident properties use the `incident.<property>` form. `incident.status` and `incident.uniq_id` are always available, without adding columns or configuration. Enable additional properties through [ui.incident_properties](../config_file.md#uiincident_properties), for example `assigned_fullname` or `is_frozen`.
+
+The `incident.` prefix is reserved for incident properties. Columns and alert labels cannot supply values for this namespace. Object, list, and method values are not searchable.
+
+`incident.status` filters the underlying status, such as `firing` or `resolved`, including when the incident's indicator displays `frozen`. To filter frozen incidents, add `is_frozen` to `ui.incident_properties` and use `incident.is_frozen="true"`.
+
+Incident property filters support `=`, `!=`, `=~`, and `!~`. Regex matches cover the entire property value. A property that is not enabled matches no incidents; an enabled property with a null value is treated as an empty string.
+
 Default filters are set in the [ui.filters](../config_file.md#uifilters).
 
 Filters can be added using the filter [input field](#input-field) in the header or through the **+/-** buttons next to the table fields.
@@ -75,4 +83,7 @@ Examples:
 - `job = "node"`
 - `severity != "critical"`
 - `severity =~ "warning|critical"`
-- `host !~ "elastic.*"`.
+- `host !~ "elastic.*"`
+- `incident.uniq_id = "0a2a79ee-f3ba-51db-a603-063dd16294d0"`
+- `incident.status != "resolved"`
+- `incident.assigned_fullname =~ "Alice|Bob"` (requires `assigned_fullname` in `ui.incident_properties`).
