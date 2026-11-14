@@ -136,6 +136,12 @@ function handleWebSocketMessage(message) {
     }
 
     switch (eventType) {
+        case "static_version":
+            if (data !== document.documentElement.dataset.staticVersion) {
+                window.location.reload();
+            }
+            break;
+
         case "add_row":
             preserveScrollDuringOperation(() => {
                 if (showFullTable || (data.indicator !== "closed" && data.indicator !== "deleted")) {
