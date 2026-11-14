@@ -180,13 +180,10 @@ class TestGoogleCalendarChainParseSteps:
 
     def test_parse_steps_html_content(self):
         """Test parsing steps from HTML description."""
-        description = "<p>- user: test_user</p><p>- wait: 5m</p>"
+        description = "<p>-&nbsp;user:&nbsp;test_user</p><p>- wait: 5m</p>"
         result = GoogleCalendarChain._parse_steps_from_description(description)
 
-        # Should extract text from HTML
-        assert len(result) == 2
-        assert 'user' in result[0]
-        assert 'wait' in result[1]
+        assert result == [{'user': 'test_user'}, {'wait': '5m'}]
 
     def test_parse_steps_invalid_format_no_colon(self):
         """Test parsing steps with invalid format (no colon)."""
@@ -197,8 +194,8 @@ class TestGoogleCalendarChainParseSteps:
         assert len(result) == 0
 
     def test_parse_steps_mixed_valid_invalid(self):
-        """Test parsing steps with mixed valid and invalid lines."""
-        description = "Some text\n- user: test_user\nMore text\n- wait: 5m\nRandom line"
+        """Skip prose, including indented text outside a step."""
+        description = "  Some text\n- user: test_user\nMore text\n  More notes\n- wait: 5m\nRandom line"
         result = GoogleCalendarChain._parse_steps_from_description(description)
 
         assert len(result) == 2
@@ -210,12 +207,22 @@ class TestGoogleCalendarChainParseSteps:
         description = "- webhook: https://example.com:8080/webhook"
         result = GoogleCalendarChain._parse_steps_from_description(description)
 
-        # Should only split on first colon
-        assert len(result) == 0  # Will be empty because split(':') creates more than 2 parts
+        assert result == [{'webhook': 'https://example.com:8080/webhook'}]
 
 
 class TestGoogleCalendarChainConvertEvent:
     """Test cases for converting calendar events to matchers."""
+
+    @pytest.mark.parametrize("name", ["on", "0123", "2026-10-31", "Dmitry"])
+    def test_convert_event_preserves_scalar_names(self, sample_calendar_event, name):
+        chain = GoogleCalendarChain.__new__(GoogleCalendarChain)
+        chain.name = "test"
+        chain._registries = {"users": {name: {}}}
+        sample_calendar_event["description"] = f"- user: {name}"
+
+        entry = chain._convert_event_to_matcher(sample_calendar_event)
+
+        assert [step.get_type_and_value() for step in entry.steps] == [("user", name)]
 
     def test_convert_event_to_matcher_basic(self, sample_calendar_event):
         """Test converting basic calendar event to matcher."""

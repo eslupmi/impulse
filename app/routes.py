@@ -17,6 +17,7 @@ from fastapi.templating import Jinja2Templates
 from app.api.models import AssignmentRequest, FreezeRequest
 from app.api.router import create_api_router
 from app.config.config import get_config, reload_config
+from app.edition import EDITION
 from app.im.chain.ui_chains_store import ui_chains_store
 from app.logging import logger
 from app.maintenance.store import get_maintenance_store
@@ -56,6 +57,10 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
 
     ui_templates = None
     if fastapi_app and get_config().ui_config:
+        edition_static = resource_directory(f"{EDITION}/static")
+        if not (edition_static / "js/chain_conditions.js").is_file():
+            raise RuntimeError(f"Missing static assets for the {EDITION} edition")
+        fastapi_app.mount(f"{http_prefix}/static/edition", StaticFiles(directory=edition_static), name="edition-static")
         fastapi_app.mount(f"{http_prefix}/static", StaticFiles(directory=resource_directory("static")), name="static")
         ui_templates = Jinja2Templates(directory=resource_directory("static"))
 
