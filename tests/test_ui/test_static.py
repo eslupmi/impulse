@@ -48,6 +48,7 @@ def test_html_revalidates_and_all_local_assets_are_versioned(make_client, static
     entrypoint = main_url(client, http_prefix)
     assert re.fullmatch(rf"{http_prefix}/static/[0-9a-f]+/js/main\.js", entrypoint)
     static_base = entrypoint.removesuffix("/js/main.js")
+    assert f'data-static-version="{static_base.rsplit("/", 1)[1]}"' in response.text
 
     assets = re.findall(r'(?:src|href)="([^"]+)"', response.text)
     pending = [url for url in assets if url.startswith("/")]
@@ -75,6 +76,20 @@ def test_html_revalidates_and_all_local_assets_are_versioned(make_client, static
     legacy = client.get(f"{http_prefix}/static/js/main.js")
     assert legacy.status_code == 200
     assert legacy.content == (static_directory / "js/main.js").read_bytes()
+
+
+@pytest.mark.parametrize("http_prefix", ["", "/impulse"])
+def test_websocket_sends_loaded_asset_version_on_connect_and_reconnect(make_client, http_prefix):
+    client = make_client(http_prefix)
+    client.app.state.maintenance_manager = SimpleNamespace(active_windows_payload=lambda: [])
+    version = main_url(client, http_prefix).split("/")[-3]
+
+    for _ in range(2):
+        with client.websocket_connect(f"{http_prefix}/ws") as websocket:
+            assert websocket.receive_json() == {"event": "static_version", "data": version}
+            assert websocket.receive_json() == {"event": "active_maintenance", "data": []}
+            websocket.send_json({"event": "ping"})
+            assert websocket.receive_json() == {"event": "pong"}
 
 
 @pytest.mark.parametrize("asset_path", ["js/table.js", "js/vendor/luxon.min.js", "css/colors.css", "index.html"])

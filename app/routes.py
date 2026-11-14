@@ -98,7 +98,8 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
         async def get_index(request: Request):
             return ui_templates.TemplateResponse("index.html", {
                 "request": request,
-                "static_base": static_base
+                "static_base": static_base,
+                "static_version": static_files.version,
             }, headers={"Cache-Control": "no-cache"})
 
     @router.get("/queue")
@@ -396,6 +397,8 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
             if is_standby_mode(websocket.app.state):
                 await websocket.close(code=1008, reason=STANDBY_MODE_MESSAGE)
                 return
+            if ui_templates:
+                await websocket.send_text(json.dumps({"event": "static_version", "data": static_files.version}))
             active_maintenance = websocket.app.state.maintenance_manager.active_windows_payload()
             await websocket.send_text(json.dumps({"event": "active_maintenance", "data": active_maintenance}))
             while True:
