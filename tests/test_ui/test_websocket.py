@@ -6,27 +6,23 @@ from unittest.mock import Mock, AsyncMock, patch
 
 import pytest
 
+from app.config.validation import UIConfig
 from app.ui.websocket import AsyncIncidentWS, incident_ws
-from tests.utils import create_mock_config
 
 
 class TestAsyncIncidentWS:
     """Test cases for AsyncIncidentWS class."""
 
-    @patch('app.ui.websocket.get_config')
-    def test_async_incident_ws_initialization(self, mock_get_config):
-        """Test AsyncIncidentWS initialization."""
-        # Use utility function for mock config
-        mock_config = create_mock_config()
-        mock_ui_config = Mock()
-        mock_ui_config.columns = []
-        mock_config.ui_config = mock_ui_config
-        mock_get_config.return_value = mock_config
+    @pytest.fixture
+    def table_config(self):
+        with patch('app.ui.websocket.get_config') as mock_get_config:
+            yield mock_get_config.return_value.ui_config
 
+    def test_async_incident_ws_initialization(self):
+        """Test AsyncIncidentWS initialization."""
         ws = AsyncIncidentWS()
 
         assert ws.connections == set()
-        assert ws.table_config == mock_ui_config
 
     @pytest.mark.asyncio
     async def test_connect(self):
@@ -199,7 +195,7 @@ class TestAsyncIncidentWS:
         expected_message = json.dumps({"event": "pong"})
         mock_websocket.send_text.assert_called_once_with(expected_message)
 
-    def test_get_values_with_regular_fields(self):
+    def test_get_values_with_regular_fields(self, table_config):
         """Test _get_values method with regular fields."""
         ws = AsyncIncidentWS()
 
@@ -214,7 +210,7 @@ class TestAsyncIncidentWS:
         mock_field2.type = 'string'
         mock_field2.value = 'critical'
 
-        ws.table_config.columns = [mock_field1, mock_field2]
+        table_config.columns = [mock_field1, mock_field2]
 
         result = ws._get_values()
 
@@ -224,7 +220,7 @@ class TestAsyncIncidentWS:
         }
         assert result == expected
 
-    def test_get_values_with_link_fields(self):
+    def test_get_values_with_link_fields(self, table_config):
         """Test _get_values method with link fields."""
         ws = AsyncIncidentWS()
 
@@ -240,7 +236,7 @@ class TestAsyncIncidentWS:
         mock_field2.value = 'Incident Link'
         mock_field2.url = 'https://example.com/incident/123'
 
-        ws.table_config.columns = [mock_field1, mock_field2]
+        table_config.columns = [mock_field1, mock_field2]
 
         result = ws._get_values()
 
@@ -251,7 +247,7 @@ class TestAsyncIncidentWS:
         }
         assert result == expected
 
-    def test_get_values_mixed_fields(self):
+    def test_get_values_mixed_fields(self, table_config):
         """Test _get_values method with mixed field types."""
         ws = AsyncIncidentWS()
 
@@ -272,7 +268,7 @@ class TestAsyncIncidentWS:
         mock_field3.type = 'string'
         mock_field3.value = 'critical'
 
-        ws.table_config.columns = [mock_field1, mock_field2, mock_field3]
+        table_config.columns = [mock_field1, mock_field2, mock_field3]
 
         result = ws._get_values()
 
@@ -283,6 +279,28 @@ class TestAsyncIncidentWS:
             'severity': 'critical'
         }
         assert result == expected
+
+    @patch('app.ui.websocket.get_config')
+    def test_get_values_uses_reloaded_config(self, mock_get_config):
+        mock_get_config.return_value.ui_config = None
+        ws = AsyncIncidentWS()
+        assert ws._get_values() == {}
+
+        mock_get_config.return_value = Mock(ui_config=UIConfig(columns=[{
+            'name': 'status', 'header': 'Status', 'value': 'incident.status',
+        }]))
+        assert ws._get_values() == {'status': 'incident.status'}
+
+        mock_get_config.return_value = Mock(ui_config=UIConfig(columns=[{
+            'name': 'incident', 'header': 'Incident', 'type': 'link',
+            'value': 'incident.uniq_id', 'url': 'incident.link',
+        }]))
+        assert ws._get_values() == {
+            'incident': 'incident.uniq_id', 'incidentUrl': 'incident.link',
+        }
+
+        mock_get_config.return_value = Mock(ui_config=None)
+        assert ws._get_values() == {}
 
     def test_global_incident_ws_instance(self):
         """Test that the global incident_ws instance is created."""
