@@ -94,7 +94,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
         fastapi_app.mount(f"{http_prefix}/static", _UIStaticFiles(directory=resource_directory("static")), name="static")
         ui_templates = Jinja2Templates(directory=resource_directory("static"))
 
-        @router.get("/", response_class=HTMLResponse)
+        @router.get("/", response_class=HTMLResponse, responses={405: {"description": "UI is disabled"}})
         async def get_index(request: Request):
             if not get_config().ui_config:
                 raise HTTPException(status_code=405, headers={"Allow": "POST"})
