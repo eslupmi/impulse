@@ -32,7 +32,14 @@ class TestMainApplication:
                 patch('app.lifespan.UserUpdateScheduler') as mock_scheduler_class, \
                 patch('app.lifespan.InhibitionManager') as mock_inhibition_manager_class, \
                 patch('app.lifespan.get_maintenance_store') as mock_get_maintenance_store, \
-                patch('app.lifespan.MaintenanceManager') as mock_maintenance_manager_class:
+                patch('app.lifespan.MaintenanceManager') as mock_maintenance_manager_class, \
+                patch('app.lifespan.run_session_cleanup') as mock_session_cleanup:
+            async def cleanup_sessions(store):
+                await asyncio.Event().wait()
+
+            mock_session_cleanup.side_effect = cleanup_sessions
+            auth_manager = Mock(session_store=Mock())
+
             # Setup mock scheduler
             mock_scheduler = Mock()
             mock_scheduler._async_tasks = set()
@@ -148,6 +155,8 @@ class TestMainApplication:
                 'inhibition_manager': mock_inhibition_manager,
                 'maintenance_manager': mock_maintenance_manager,
                 'maintenance_store': mock_maintenance_store,
+                'auth_manager': auth_manager,
+                'session_cleanup': mock_session_cleanup,
             }
 
     def test_app_creation(self):
@@ -159,6 +168,7 @@ class TestMainApplication:
         assert main.app.docs_url.endswith("/api/docs")
         assert main.app.redoc_url is None
         assert main.app.openapi_url.endswith("/api/openapi.json")
+        assert main.app.state.auth_manager is main.auth_manager
 
     @patch('app.config.environment.get_environment_config')
     @patch('app.config.config.get_config')
@@ -180,6 +190,13 @@ class TestMainApplication:
         """Test application startup in lifespan context."""
         app_mock = Mock()
         app_mock.state = Mock()
+        app_mock.state.auth_manager = mock_app_dependencies['auth_manager']
+
+        async def released():
+            assert cleanup_task.cancelled()
+            assert app_mock.state.session_cleanup_task is None
+
+        mock_app_dependencies['file_lock'].release_lock.side_effect = released
 
         async with main.lifespan(app_mock):
             # Verify that all state variables are set
@@ -194,6 +211,12 @@ class TestMainApplication:
             assert hasattr(app_mock.state, 'file_lock')
             assert hasattr(app_mock.state, 'is_standby')
             assert app_mock.state.is_standby is False
+            cleanup_task = app_mock.state.session_cleanup_task
+            assert not cleanup_task.done()
+            await asyncio.sleep(0)
+            mock_app_dependencies['session_cleanup'].assert_awaited_once_with(
+                mock_app_dependencies['auth_manager'].session_store,
+            )
 
             # Verify queue manager was started
             mock_app_dependencies['queue_manager'].start_processing.assert_called_once()
@@ -211,6 +234,26 @@ class TestMainApplication:
         mock_app_dependencies['file_lock'].release_lock.assert_called_once()
 
     @pytest.mark.asyncio
+    async def test_reload_preserves_session_cleanup_task(self, mock_app_dependencies):
+        from fastapi import FastAPI
+
+        from app.lifespan import _cleanup_application_objects, create_main_objects
+
+        app = FastAPI()
+        app.state.auth_manager = mock_app_dependencies['auth_manager']
+        async with main.lifespan(app):
+            cleanup_task = app.state.session_cleanup_task
+            await asyncio.sleep(0)
+            await _cleanup_application_objects(app, reload=True)
+            await create_main_objects(app, reload=True)
+            assert app.state.session_cleanup_task is cleanup_task
+            assert not cleanup_task.done()
+            mock_app_dependencies['session_cleanup'].assert_awaited_once_with(
+                app.state.auth_manager.session_store,
+            )
+        assert cleanup_task.cancelled()
+
+    @pytest.mark.asyncio
     async def test_s3_startup_wires_lease_to_storage_and_queue(self, mock_app_dependencies):
         from fastapi import FastAPI
 
@@ -226,6 +269,7 @@ class TestMainApplication:
                 patch.object(S3Lock, 'acquire_lock', autospec=True, side_effect=acquire), \
                 patch.object(S3Lock, 'release_lock', new=AsyncMock()) as release_lock:
             app = FastAPI()
+            app.state.auth_manager = mock_app_dependencies['auth_manager']
             async with main.lifespan(app):
                 assert not app.state.is_standby
                 lock = app.state.file_lock
@@ -235,7 +279,10 @@ class TestMainApplication:
                 assert manager.check_owned == lock.check_owned
                 assert storage.check_owned()
                 assert manager.check_owned()
+                cleanup_task = app.state.session_cleanup_task
+                assert not cleanup_task.done()
             release_lock.assert_awaited_once()
+            assert cleanup_task.cancelled()
         mock_app_dependencies['file_lock'].acquire_lock.assert_not_called()
 
     @pytest.mark.asyncio
@@ -248,8 +295,11 @@ class TestMainApplication:
         manager = mock_app_dependencies['queue_manager']
         manager.start_processing.side_effect = started.set
         app = FastAPI()
+        app.state.auth_manager = mock_app_dependencies['auth_manager']
         async with main.lifespan(app):
             assert app.state.is_standby
+            assert app.state.session_cleanup_task is None
+            mock_app_dependencies['session_cleanup'].assert_not_called()
             await asyncio.wait_for(started.wait(), timeout=1)
             assert not app.state.is_standby
             lock.wait_for_unlock.assert_awaited_once()
@@ -257,7 +307,14 @@ class TestMainApplication:
             lock.check_owned.assert_not_called()
             assert manager.check_owned is None
             manager.start_processing.assert_called_once()
+            cleanup_task = app.state.session_cleanup_task
+            assert not cleanup_task.done()
+            await asyncio.sleep(0)
+            mock_app_dependencies['session_cleanup'].assert_awaited_once_with(
+                app.state.auth_manager.session_store,
+            )
         lock.release_lock.assert_awaited_once()
+        assert cleanup_task.cancelled()
 
     @pytest.mark.asyncio
     async def test_s3_startup_loses_ownership_before_queue_starts(self, mock_app_dependencies):
@@ -277,6 +334,8 @@ class TestMainApplication:
                 assert app.state.is_standby
                 mock_app_dependencies['queue_manager'].start_processing.assert_not_called()
                 assert app.state.queue_manager is None
+                assert app.state.session_cleanup_task is None
+                mock_app_dependencies['session_cleanup'].assert_not_called()
             release_lock.assert_awaited_once()
         mock_app_dependencies['file_lock'].acquire_lock.assert_not_called()
 
@@ -314,6 +373,8 @@ class TestMainApplication:
                 
                 # Verify standby state is set
                 assert app_mock.state.is_standby is True
+                assert app_mock.state.session_cleanup_task is None
+                mock_app_dependencies['session_cleanup'].assert_not_called()
                 
                 # Verify log messages
                 mock_logger.info.assert_any_call("Another IMPulse instance is running, working as standby server")

@@ -17,3 +17,9 @@ See instruction in corresponding messenger article:
 === "Telegram"
 
     [Instruction](../integrations/messengers/telegram.md#authentication)
+
+## Session lifetime
+
+UI sessions expire 90 days after login. Activity does not extend this lifetime; signing out ends the current session immediately.
+
+IMPulse automatically removes expired session records when an instance becomes primary and every hour afterward, for both filesystem and S3 storage. This includes sessions on devices that are no longer used. Expired sessions are rejected immediately, even before the next cleanup pass.

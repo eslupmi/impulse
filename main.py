@@ -30,6 +30,7 @@ app = FastAPI(
 app.add_middleware(StandbyMiddleware)
 
 auth_manager = build_auth_manager(config=config.app, env_config=env_config, http_prefix=http_prefix)
+app.state.auth_manager = auth_manager
 router = create_router(http_prefix=http_prefix, fastapi_app=app, auth_manager=auth_manager)
 router.include_router(create_auth_router(auth_manager))
 app.include_router(router)

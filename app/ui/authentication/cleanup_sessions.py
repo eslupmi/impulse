@@ -1,8 +1,28 @@
 import argparse
+import asyncio
 from pathlib import Path
 
 from app.config.environment import get_environment_config
+from app.logging import logger
 from app.ui.authentication.session_store import FileSessionStore
+
+SESSION_CLEANUP_INTERVAL_SECONDS = 60 * 60
+
+
+async def run_session_cleanup(store: FileSessionStore) -> None:
+    while True:
+        sweep = asyncio.create_task(asyncio.to_thread(store.cleanup_expired))
+        try:
+            removed = await asyncio.shield(sweep)
+            if removed:
+                logger.info("Removed expired auth sessions", extra={"removed": removed})
+        except asyncio.CancelledError:
+            # Canceling the awaiter does not stop the storage worker.
+            await asyncio.gather(sweep, return_exceptions=True)
+            raise
+        except OSError as exc:
+            logger.warning("Failed to clean up expired auth sessions", extra={"error": str(exc)})
+        await asyncio.sleep(SESSION_CLEANUP_INTERVAL_SECONDS)
 
 
 def cleanup_expired_sessions(root_dir: str) -> int:

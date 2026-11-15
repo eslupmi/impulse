@@ -46,6 +46,20 @@ async def test_ownership_loss_cancels_primary_work_and_releases_after_cleanup():
     pending = asyncio.create_task(asyncio.Event().wait())
     app.state.is_standby = False
     app.state.runtime_tasks = {pending}
+    cleanup_started = asyncio.Event()
+    cleanup_stopped = asyncio.Event()
+
+    async def cleanup_sessions():
+        cleanup_started.set()
+        try:
+            await asyncio.Event().wait()
+        finally:
+            await asyncio.sleep(0)
+            cleanup_stopped.set()
+
+    cleanup_task = asyncio.create_task(cleanup_sessions())
+    app.state.session_cleanup_task = cleanup_task
+    await cleanup_started.wait()
     queue_manager = Mock(stop_processing=AsyncMock())
     app.state.queue_manager = queue_manager
     messenger = SimpleNamespace(close=AsyncMock(), chains={}, _async_tasks=set(),
@@ -54,6 +68,9 @@ async def test_ownership_loss_cancels_primary_work_and_releases_after_cleanup():
 
     async def released():
         assert pending.cancelled()
+        assert cleanup_task.cancelled()
+        assert cleanup_stopped.is_set()
+        assert app.state.session_cleanup_task is None
         queue_manager.stop_processing.assert_awaited_once_with(cancel=True)
         messenger.close.assert_awaited_once()
         shutdown.set()
@@ -64,6 +81,58 @@ async def test_ownership_loss_cancels_primary_work_and_releases_after_cleanup():
     assert app.state.is_standby
     assert app.state.queue_manager is None
     status.set.assert_called_with(0)
+
+
+@pytest.mark.asyncio
+async def test_shutdown_during_demotion_waits_for_session_cleanup_before_unlock():
+    app = FastAPI()
+    shutdown = asyncio.Event()
+    started = asyncio.Event()
+    draining = asyncio.Event()
+    finish = asyncio.Event()
+    drained = asyncio.Event()
+
+    async def cleanup_sessions():
+        started.set()
+        try:
+            await asyncio.Event().wait()
+        finally:
+            draining.set()
+            await finish.wait()
+            drained.set()
+
+    cleanup_task = asyncio.create_task(cleanup_sessions())
+    app.state.session_cleanup_task = cleanup_task
+    app.state.is_standby = False
+    app.state.runtime_tasks = set()
+    app.state.queue_manager = Mock(stop_processing=AsyncMock())
+    app.state.messenger = SimpleNamespace(close=AsyncMock(), chains={}, _async_tasks=set(),
+                                         _user_scheduler=None, task_management_integration=None)
+
+    async def release_lock():
+        assert drained.is_set()
+
+    lock = Mock(spec=S3Lock, check_owned=Mock(return_value=False),
+                release_lock=AsyncMock(side_effect=release_lock))
+    await started.wait()
+    supervisor = asyncio.create_task(_maintain_primary(shutdown, lock, app))
+    try:
+        await asyncio.wait_for(draining.wait(), timeout=1)
+        shutdown.set()
+        supervisor.cancel()
+        done, _ = await asyncio.wait({supervisor}, timeout=0.01)
+        assert not done
+        assert not cleanup_task.done()
+        lock.release_lock.assert_not_awaited()
+        finish.set()
+        await asyncio.wait_for(supervisor, timeout=1)
+        assert drained.is_set()
+        lock.release_lock.assert_awaited_once()
+        assert cleanup_task.cancelled()
+        assert app.state.session_cleanup_task is None
+    finally:
+        finish.set()
+        await asyncio.gather(supervisor, cleanup_task, return_exceptions=True)
 
 
 @pytest.mark.asyncio

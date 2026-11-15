@@ -5,7 +5,6 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import yaml
-from pydantic import ValidationError
 
 from app.logging import logger
 from app.storage import FileStorage, S3Storage, get_storage
@@ -62,7 +61,7 @@ class FileSessionStore:
             session = AuthSession.model_validate(data)
         except FileNotFoundError:
             return None
-        except (OSError, yaml.YAMLError, ValidationError) as exc:
+        except (OSError, ValueError, yaml.YAMLError) as exc:
             logger.warning("Failed to parse auth session file", extra={"path": str(path), "error": str(exc)})
             return None
 
@@ -99,7 +98,7 @@ class FileSessionStore:
                 if not isinstance(data, dict):
                     continue
                 session = AuthSession.model_validate(data)
-            except (OSError, yaml.YAMLError, ValidationError):
+            except (OSError, ValueError, yaml.YAMLError):
                 logger.warning("Failed to load session file", extra={"path": str(path)})
                 continue
 

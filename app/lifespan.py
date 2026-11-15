@@ -22,6 +22,7 @@ from app.route import generate_route
 from app.s3_lock import S3Lock
 from app.signals import setup_sighup_handler
 from app.storage import S3Storage, get_storage
+from app.ui.authentication.cleanup_sessions import run_session_cleanup
 from app.ui.websocket import incident_ws
 from app.webhook import generate_webhooks
 
@@ -168,6 +169,9 @@ async def create_main_objects(fastapi_app: FastAPI, reload=False):
     _require_ownership(file_lock)
     if not reload:
         queue_manager.start_processing()
+        fastapi_app.state.session_cleanup_task = asyncio.create_task(
+            run_session_cleanup(fastapi_app.state.auth_manager.session_store)
+        )
 
 
 async def _cancel_application_work(fastapi_app: FastAPI, messenger):
@@ -187,6 +191,15 @@ async def _cancel_application_work(fastapi_app: FastAPI, messenger):
 
 
 async def _cleanup_application_objects(fastapi_app: FastAPI, reload=False, cancel=False):
+    if not reload:
+        cleanup_task = getattr(fastapi_app.state, 'session_cleanup_task', None)
+        if cleanup_task is not None:
+            cleanup_task.cancel()
+            try:
+                await asyncio.shield(cleanup_task)
+            except asyncio.CancelledError:
+                await asyncio.gather(cleanup_task, return_exceptions=True)
+            fastapi_app.state.session_cleanup_task = None
     queue_manager = getattr(fastapi_app.state, 'queue_manager', None)
     if queue_manager and not reload:
         await queue_manager.stop_processing(cancel=cancel)
@@ -224,6 +237,7 @@ async def lifespan(fastapi_app: FastAPI):
     fastapi_app.state.file_lock = file_lock
     fastapi_app.state.is_standby = True
     fastapi_app.state.runtime_tasks = set()
+    fastapi_app.state.session_cleanup_task = None
     fastapi_app.state.queue_manager = None
     fastapi_app.state.messenger = None
     fastapi_app.state.queue = AsyncQueue()
