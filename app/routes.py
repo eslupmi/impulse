@@ -36,6 +36,13 @@ _MSG_AUTHENTICATION_REQUIRED = "Authentication required"
 _MSG_ID_REQUIRED = "id is required"
 
 
+class _UIStaticFiles(StaticFiles):
+    async def get_response(self, path: str, scope) -> Response:
+        if not get_config().ui_config:
+            raise HTTPException(status_code=404)
+        return await super().get_response(path, scope)
+
+
 async def _maintenance_save_side_effects(app, existing, saved, deleted):
     if is_standby_mode(app.state):
         return
@@ -52,11 +59,6 @@ async def _send_saved_event(websocket, event, success, detail=None, data=None):
 
 def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_manager=None) -> APIRouter:
     router = APIRouter(prefix=http_prefix)
-
-    ui_templates = None
-    if fastapi_app and get_config().ui_config:
-        fastapi_app.mount(f"{http_prefix}/static", StaticFiles(directory=resource_directory("static")), name="static")
-        ui_templates = Jinja2Templates(directory=resource_directory("static"))
 
     @router.get("/livez")
     def get_live(request: Request):
@@ -88,9 +90,14 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
         queue = request.app.state.queue
         return await generate_metrics_response(queue)
 
-    if ui_templates:
-        @router.get("/", response_class=HTMLResponse)
+    if fastapi_app:
+        fastapi_app.mount(f"{http_prefix}/static", _UIStaticFiles(directory=resource_directory("static")), name="static")
+        ui_templates = Jinja2Templates(directory=resource_directory("static"))
+
+        @router.get("/", response_class=HTMLResponse, responses={405: {"description": "UI is disabled"}})
         async def get_index(request: Request):
+            if not get_config().ui_config:
+                raise HTTPException(status_code=405, headers={"Allow": "POST"})
             return ui_templates.TemplateResponse("index.html", {
                 "request": request,
                 "http_prefix": http_prefix
