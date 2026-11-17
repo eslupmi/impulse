@@ -1,17 +1,22 @@
 # Changelog
 
 ## v3.8.0
-Changes:
+Features:
 - Added [S3](https://impulse.bot/docs/v3.8.0/concepts/storage/#s3) support
-- Added [incident.notifications.unfreeze](https://impulse.bot/docs/v3.8.0/config_file/#incidentnotificationsunfreeze) option
+
+Tasks:
 - Extracted messenger code into separate [impulse-messengers](https://github.com/eslupmi/impulse-messengers) libraries
+- Restored the missing [incident.notifications.unfreeze](https://impulse.bot/docs/v3.8.0/config_file/#incidentnotificationsunfreeze) option
 - Removed automatic formatting of UI filters
 - Python `3.12` is now the only supported version
 - More detailed startup error logs
+
+Bugs:
 - Fixed a maintenance bug that showed an `owner_id is required` error
 - Fixed [incorrect](https://github.com/eslupmi/impulse/issues/585) matcher behaviour in inhibit rules
 - Fixed a [bug](https://github.com/eslupmi/impulse/issues/600) that prevented users not listed in `impulse.yml` from taking incidents
 - Fixed a [bug](https://github.com/eslupmi/impulse/issues/644) where the UI stayed unavailable after adding `ui:` and reloading
+- Fixed a [bug](https://github.com/eslupmi/impulse/issues/640) that hid incidents without a label when using a `!~` filter
 
 ## v3.7.1
 Changes:
