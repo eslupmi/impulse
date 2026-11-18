@@ -458,6 +458,31 @@ class TestValidateConfig:
         assert config.incident.timeouts.unknown == "1h"
         assert config.incident.timeouts.resolved == "5m"
 
+    @pytest.mark.parametrize("incident_settings", [
+        {},
+        {"incident": None},
+        {"incident": {}},
+        {"incident": {"notifications": {"new_firing": False}}},
+        {"incident": {"timeouts": None}},
+        {"incident": {"timeouts": {}}},
+    ])
+    def test_validate_config_default_incident_timeouts(self, incident_settings):
+        config = validate_config(create_slack_config_data() | incident_settings)
+
+        assert config.incident.timeouts.model_dump() == {
+            "firing": "6h", "unknown": "6h", "resolved": "12h", "closed": "90d",
+        }
+
+    def test_validate_config_partial_incident_timeouts(self):
+        config_data = create_slack_config_data()
+        config_data["incident"] = {"timeouts": {"firing": "2h"}}
+
+        config = validate_config(config_data)
+
+        assert config.incident.timeouts.model_dump() == {
+            "firing": "2h", "unknown": "6h", "resolved": "12h", "closed": "90d",
+        }
+
 
 class TestUIConfig:
     """Test cases for UIConfig."""
