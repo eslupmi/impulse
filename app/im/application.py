@@ -261,6 +261,10 @@ class Application:
             return False
 
         await queue.delete_by_id(incident.uniq_id, delete_steps=True, delete_status=False)
+        if incident.status == 'resolved':
+            await self.handle_ui_release(incident, ui_user=ui_user)
+            return True
+
         incident.assigned_user_id = ""
         incident.assigned_user = ""
         incident.assigned_fullname = ""
