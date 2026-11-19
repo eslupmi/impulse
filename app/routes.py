@@ -220,14 +220,14 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
             raise HTTPException(status_code=404, detail=_MSG_INCIDENT_NOT_FOUND)
 
         messenger = request.app.state.messenger
-        queue = request.app.state.queue
         if user_id == "":
             _log_ui_action("unassignment", incident, acting_user)
-            unassigned = await messenger.handle_ui_unassign(incident, queue, ui_user=acting_user)
+            unassigned = await messenger.handle_ui_unassign(incident, ui_user=acting_user)
             return {"success": unassigned}
 
         _log_ui_action("assignment", incident, acting_user, target_user_id=user_id)
 
+        queue = request.app.state.queue
         assigned = await messenger.handle_ui_assignment(incident, user_id, queue, ui_user=acting_user)
         if not assigned and str(incident.assigned_user_id) != str(user_id):
             raise HTTPException(status_code=502, detail="Could not resolve the assignment user")

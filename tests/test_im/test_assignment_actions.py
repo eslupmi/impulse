@@ -56,7 +56,10 @@ async def test_assignment_commands_preserve_explicit_intent(action, status, chai
 
 
 @pytest.mark.asyncio
-async def test_ui_unassign_resolved_incident_restarts_chain_on_refiring(sample_incident, mock_unified_config, monkeypatch):
+@pytest.mark.parametrize('path, body', [('/assign', {'user_id': ''}), ('/release', {})])
+async def test_resolved_ui_unassignment_restarts_chain_on_refiring(
+    path, body, sample_incident, mock_unified_config, monkeypatch,
+):
     incident = sample_incident
     monkeypatch.setattr(incident, 'dump', Mock())
     monkeypatch.setattr('app.incident.incident.get_config', lambda: mock_unified_config)
@@ -77,12 +80,11 @@ async def test_ui_unassign_resolved_incident_restarts_chain_on_refiring(sample_i
     incidents = Incidents([incident])
     app = FastAPI()
     app.state.messenger = messenger
-    app.state.queue = queue
     app.state.incidents = incidents
     app.include_router(create_router(''))
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url='http://test') as client:
-        response = await client.post('/assign', json={'uniq_id': incident.uniq_id, 'user_id': ''})
+        response = await client.post(path, json={'uniq_id': incident.uniq_id, **body})
     await asyncio.gather(*messenger._async_tasks)
     assert response.json() == {'success': True}
     assert incident.assigned_user_id == ''
@@ -103,8 +105,8 @@ async def test_ui_unassign_resolved_incident_restarts_chain_on_refiring(sample_i
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('status', ['firing', 'unknown'])
-async def test_ui_unassign_preserves_active_chain_progress(status, sample_incident, monkeypatch):
+@pytest.mark.parametrize('status', ['firing', 'unknown', 'closed', 'deleted'])
+async def test_ui_unassign_rejects_non_resolved_incidents(status, sample_incident, monkeypatch):
     incident = sample_incident
     monkeypatch.setattr(incident, 'dump', Mock())
     incident.status = status
@@ -114,16 +116,26 @@ async def test_ui_unassign_preserves_active_chain_progress(status, sample_incide
     incident.chain_put(1, 300.0, 'user', 'bob')
     incident.chain_active_seconds = 30.0
     original_steps = [step.copy() for step in incident.chain_steps]
+    incident.dump.reset_mock()
 
     messenger = Application.__new__(Application)
     messenger._async_tasks = set()
     messenger.post_unassignment_notification = AsyncMock()
     messenger.update_incident_message = AsyncMock()
+    app = FastAPI()
+    app.state.messenger = messenger
+    app.state.incidents = Incidents([incident])
+    app.include_router(create_router(''))
 
-    unassigned = await messenger.handle_ui_unassign(incident, AsyncQueue())
+    async with AsyncClient(transport=ASGITransport(app=app), base_url='http://test') as client:
+        response = await client.post('/assign', json={'uniq_id': incident.uniq_id, 'user_id': ''})
     await asyncio.gather(*messenger._async_tasks)
 
-    assert unassigned is True
-    assert incident.assigned_user_id == ''
-    assert incident.get_chain() == original_steps
+    assert response.json() == {'success': False}
+    assert incident.assigned_user_id == '123'
+    assert not incident.chain_enabled
+    assert incident.chain_steps == original_steps
     assert incident.chain_active_seconds == 30.0
+    incident.dump.assert_not_called()
+    messenger.post_unassignment_notification.assert_not_called()
+    messenger.update_incident_message.assert_not_called()

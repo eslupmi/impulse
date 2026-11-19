@@ -651,7 +651,6 @@ function ensureOwnerSelector() {
     const wrap = document.getElementById("maintenance-window-owner-wrap");
     ownerSelector = createUserSelector({
         inputId: "maintenance-window-owner",
-        allowClear: false,
     });
     wrap.replaceChildren(ownerSelector.element);
     return ownerSelector;
