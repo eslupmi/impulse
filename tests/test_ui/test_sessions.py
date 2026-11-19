@@ -1,10 +1,12 @@
 import asyncio
 import threading
 from datetime import UTC, datetime, timedelta
+from errno import EACCES
 from unittest.mock import Mock, patch
 
 import pytest
 
+from app.logging import JSONFormatter
 from app.storage import FileStorage
 from app.ui.authentication import cleanup_sessions
 from app.ui.authentication.models.auth_session import AuthSession
@@ -116,6 +118,43 @@ def test_missing_session_directory_needs_no_cleanup(tmp_path):
     store = FileSessionStore(str(tmp_path / 'sessions'), storage=FileStorage())
     assert store.cleanup_expired() == 0
     assert not store.root_dir.exists()
+
+
+def test_session_read_failure_does_not_log_cookie(tmp_path, monkeypatch, caplog):
+    storage = FileStorage()
+    store = FileSessionStore(str(tmp_path), storage=storage)
+    now = datetime.now(UTC)
+    session = AuthSession(session_id='a' * 64, user_id='U1', created_at=now, expires_at=now + timedelta(days=1))
+    store.save_session(session)
+
+    with monkeypatch.context() as denied:
+        denied.setattr(storage, 'open', Mock(side_effect=PermissionError(
+            EACCES, 'Permission denied', str(tmp_path / f'{session.session_id}.yaml'),
+        )))
+        assert store.cleanup_expired() == 0
+        assert store.load_session(session.session_id) is None
+
+    assert store.load_session(session.session_id) == session
+    assert caplog.records
+    formatter = JSONFormatter()
+    assert all(session.session_id not in formatter.format(record) for record in caplog.records)
+
+
+def test_cleanup_skips_malformed_yaml_timestamp(tmp_path, monkeypatch):
+    storage = FileStorage()
+    store = FileSessionStore(str(tmp_path), storage=storage)
+    now = datetime.now(UTC)
+    malformed = tmp_path / f'{"a" * 64}.yaml'
+    malformed.write_text('expires_at: !!timestamp invalid', encoding='utf-8')
+    expired = AuthSession(session_id='b' * 64, user_id='U1', created_at=now, expires_at=now - timedelta(days=1))
+    store.save_session(expired)
+    expired_path = tmp_path / f'{expired.session_id}.yaml'
+    monkeypatch.setattr(storage, 'listdir', Mock(return_value=[malformed.name, expired_path.name]))
+
+    assert store.cleanup_expired() == 1
+    assert not expired_path.exists()
+    assert malformed.exists()
+    assert store.load_session(malformed.stem) is None
 
 
 @pytest.mark.parametrize('naive', [False, True])

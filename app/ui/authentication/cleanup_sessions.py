@@ -6,7 +6,7 @@ from app.config.environment import get_environment_config
 from app.logging import logger
 from app.ui.authentication.session_store import FileSessionStore
 
-SESSION_CLEANUP_INTERVAL_SECONDS = 60 * 60
+SESSION_CLEANUP_INTERVAL_SECONDS = 8 * 60 * 60
 
 
 async def run_session_cleanup(store: FileSessionStore) -> None:
@@ -21,7 +21,7 @@ async def run_session_cleanup(store: FileSessionStore) -> None:
             await asyncio.gather(sweep, return_exceptions=True)
             raise
         except OSError as exc:
-            logger.warning("Failed to clean up expired auth sessions", extra={"error": str(exc)})
+            logger.warning("Failed to clean up expired auth sessions", extra={"error_type": type(exc).__name__})
         await asyncio.sleep(SESSION_CLEANUP_INTERVAL_SECONDS)
 
 

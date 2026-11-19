@@ -67,10 +67,7 @@ async def _initialize_primary_server(fastapi_app: FastAPI, file_lock: FileLock |
             logger.error("Primary server initialization failed")
         fastapi_app.state.is_standby = True
         STATUS.set(0)
-        try:
-            await _cleanup_application_objects(fastapi_app, cancel=True)
-        finally:
-            await file_lock.release_lock()
+        await _stop_primary(fastapi_app, file_lock, cancel=True)
         if isinstance(error, asyncio.CancelledError):
             raise
         return False
@@ -191,31 +188,48 @@ async def _cancel_application_work(fastapi_app: FastAPI, messenger):
 
 
 async def _cleanup_application_objects(fastapi_app: FastAPI, reload=False, cancel=False):
-    if not reload:
-        cleanup_task = getattr(fastapi_app.state, 'session_cleanup_task', None)
+    cleanup_task = None if reload else getattr(fastapi_app.state, 'session_cleanup_task', None)
+    if cleanup_task is not None:
+        cleanup_task.cancel()
+    try:
+        queue_manager = getattr(fastapi_app.state, 'queue_manager', None)
+        if queue_manager and not reload:
+            await queue_manager.stop_processing(cancel=cancel)
+        messenger = getattr(fastapi_app.state, 'messenger', None)
+        if cancel:
+            await _cancel_application_work(fastapi_app, messenger)
+        if messenger is not None:
+            await messenger.close()
+            if messenger.task_management_integration is not None:
+                await messenger.task_management_integration.jira_client.close()
+            for chain in messenger.chains.values():
+                if hasattr(chain, 'cleanup'):
+                    chain.cleanup()
+        if not reload:
+            fastapi_app.state.queue_manager = None
+            fastapi_app.state.messenger = None
+    finally:
         if cleanup_task is not None:
-            cleanup_task.cancel()
-            try:
-                await asyncio.shield(cleanup_task)
-            except asyncio.CancelledError:
-                await asyncio.gather(cleanup_task, return_exceptions=True)
+            error, = await asyncio.gather(cleanup_task, return_exceptions=True)
+            if isinstance(error, Exception):
+                logger.error("Auth session cleanup stopped unexpectedly", extra={"error_type": type(error).__name__})
             fastapi_app.state.session_cleanup_task = None
-    queue_manager = getattr(fastapi_app.state, 'queue_manager', None)
-    if queue_manager and not reload:
-        await queue_manager.stop_processing(cancel=cancel)
-    messenger = getattr(fastapi_app.state, 'messenger', None)
-    if cancel:
-        await _cancel_application_work(fastapi_app, messenger)
-    if messenger is not None:
-        await messenger.close()
-        if messenger.task_management_integration is not None:
-            await messenger.task_management_integration.jira_client.close()
-        for chain in messenger.chains.values():
-            if hasattr(chain, 'cleanup'):
-                chain.cleanup()
-    if not reload:
-        fastapi_app.state.queue_manager = None
-        fastapi_app.state.messenger = None
+
+
+async def _stop_primary(fastapi_app: FastAPI, file_lock: FileLock | S3Lock, *, cancel=False):
+    async def cleanup_and_release():
+        try:
+            await _cleanup_application_objects(fastapi_app, cancel=cancel)
+        finally:
+            await file_lock.release_lock()
+
+    # Shutdown can cancel the supervisor while it is demoting the primary.
+    teardown = asyncio.create_task(cleanup_and_release())
+    try:
+        await asyncio.shield(teardown)
+    except asyncio.CancelledError:
+        await teardown
+        raise
 
 
 @asynccontextmanager
@@ -272,10 +286,7 @@ async def lifespan(fastapi_app: FastAPI):
         fastapi_app.state.is_standby = True
         STATUS.set(0)
         if was_primary:
-            try:
-                await _cleanup_application_objects(fastapi_app)
-            finally:
-                await file_lock.release_lock()
+            await _stop_primary(fastapi_app, file_lock)
             logger.info('Shutdown complete')
         else:
             logger.info('Shutting down standby server')
@@ -301,10 +312,7 @@ async def _maintain_primary(shutdown_event, file_lock, fastapi_app):
         fastapi_app.state.is_standby = True
         STATUS.set(0)
         logger.error('Storage lock lost, entering standby mode')
-        try:
-            await _cleanup_application_objects(fastapi_app, cancel=True)
-        finally:
-            await file_lock.release_lock()
+        await _stop_primary(fastapi_app, file_lock, cancel=True)
 
 
 async def _wait_for_ownership_loss(file_lock: S3Lock):
