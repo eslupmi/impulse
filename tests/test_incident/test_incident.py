@@ -725,6 +725,8 @@ class TestIncident:
         result = sample_incident.get_table_data({})
 
         assert result['uniq_id'] == sample_incident.uniq_id
+        assert result['_uniq_id'] == sample_incident.uniq_id
+        assert result['_status'] == sample_incident.status
         assert result['indicator'] == sample_incident.status
         assert result['_alerts_count'] == 1
         assert 'group_labels' in result['_responsive_data']
@@ -765,6 +767,16 @@ class TestIncident:
 
         assert 'custom_field' in result
         assert 'another_field' in result
+
+    def test_hidden_filter_values_cannot_be_overridden_by_columns(self, sample_incident):
+        sample_incident.status = 'firing'
+        sample_incident.frozen_until = sample_incident.created
+
+        row = sample_incident.get_table_data({'_uniq_id': 'incident.status', '_status': 'incident.uniq_id'})
+
+        assert row['_uniq_id'] == sample_incident.uniq_id
+        assert row['_status'] == 'firing'
+        assert row['indicator'] == 'frozen'
 
     def test_created_datetime_handling(self, sample_alert_payload, incident_config):
         """Test that created datetime is set when not provided."""

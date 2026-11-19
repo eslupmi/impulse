@@ -27,15 +27,11 @@ function matchLabelValue(labelValue, searchValue, operator) {
 
 function addTableFilterFromParsed(parsedFilter) {
     const {field, operator, value} = parsedFilter;
+    const isRegex = operator === "=~" || operator === "!~";
 
-    if ((operator === "=~" || operator === "!~") && !isValidRegex(value)) {
+    if (isRegex && !isValidRegex(value)) {
         showFilterError(`Invalid regex: ${value}`);
         return false;
-    }
-
-    if (field.startsWith("incident.")) {
-        table.addFilter(customIncidentPropertyFilter, {field, operator, value});
-        return true;
     }
 
     const columnExists = table.getColumns().some(col => col.getField() === field);
@@ -44,7 +40,7 @@ function addTableFilterFromParsed(parsedFilter) {
         table.addFilter(customResponsiveDataFilter, {field, operator, value});
         return true;
     }
-    if (operator === "=~" || operator === "!~") {
+    if (isRegex) {
         const anchoredRegex = `^${value}$`;
 
         if (operator === "=~") {
@@ -79,16 +75,6 @@ function customNegativeRegexFilter(rowData, parameters) {
     const regex = new RegExp(parameters.value, "i");
 
     return !regex.test(cellValue);
-}
-
-function customIncidentPropertyFilter(rowData, {field, operator, value}) {
-    if (!Object.hasOwn(rowData, field)) return false;
-    const cellValue = String(rowData[field] ?? "");
-    if (operator === "=~" || operator === "!~") {
-        const matches = new RegExp(`^(?:${value})$`, "i").test(cellValue);
-        return operator === "=~" ? matches : !matches;
-    }
-    return matchLabelValue(cellValue, value.toLowerCase(), operator);
 }
 
 // Custom filter for responsive data labels
@@ -147,10 +133,8 @@ function loadFiltersFromURL() {
 }
 
 function parseFilterString(filterString) {
-    const query = filterString.trim();
-    const prefix = query.startsWith("incident.") ? "incident." : "";
-    const parsed = parseMatcher(query.slice(prefix.length));
-    return parsed && {field: prefix + parsed.label, operator: parsed.operator, value: parsed.value};
+    const parsed = parseMatcher(filterString.trim());
+    return parsed && {field: parsed.label, operator: parsed.operator, value: parsed.value};
 }
 
 // Get current filters from URL

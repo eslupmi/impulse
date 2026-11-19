@@ -96,12 +96,11 @@ async function initializeTable() {
             let cssClass = columnSorter === "string" ? "clickable-cell" : "unclickable-cell";
             cssClass += ` ${columnType || "regular"}-field`;
 
-            // Special handling for indicator type
-            let formatter;
-            if (columnType === "indicator") {
-                formatter = formatterMap[columnType];
-            } else {
-                formatter = formatterWrapper(formatterMap[columnType] || undefined);
+            let formatter = "plaintext";
+            if (column.visible !== false) {
+                formatter = columnType === "indicator"
+                    ? formatterMap[columnType]
+                    : formatterWrapper(formatterMap[columnType]);
             }
 
             const columLayout = {
