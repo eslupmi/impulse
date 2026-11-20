@@ -89,11 +89,9 @@ class S3Storage:
             raise OSError('Storage lease is not owned by this instance')
         try:
             return getattr(self.client, operation)(Bucket=self.bucket, **kwargs)
-        except ClientError as error:
-            if error.response['Error']['Code'] == 'NoSuchKey':
+        except (BotoCoreError, ClientError) as error:
+            if isinstance(error, ClientError) and error.response['Error']['Code'] == 'NoSuchKey':
                 raise FileNotFoundError(str(error)) from error
-            raise S3StorageError(str(error)) from error
-        except BotoCoreError as error:
             raise S3StorageError(str(error)) from error
 
     @contextmanager

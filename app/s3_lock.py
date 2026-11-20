@@ -89,6 +89,10 @@ class S3Lock:
             try:
                 current = self._read_lease()
                 if current is not None and current[2] <= self.STALE_SEC + 1:
+                    if startup:
+                        lease = current[0]
+                        logger.debug("Lock held by another instance",
+                                     extra={'hostname': lease['host'], 'pid': lease['pid']})
                     return False
                 condition = {'IfNoneMatch': '*'} if current is None else {'IfMatch': current[1]}
                 self._owner = uuid4().hex
@@ -143,17 +147,13 @@ class S3Lock:
             if not self._renew():
                 break
 
-    def is_locked(self, *, startup: bool = False) -> bool:
+    def is_locked(self) -> bool:
         try:
             current = self._read_lease()
             # HTTP Date and LastModified round to seconds; wait one extra second before takeover.
             return current is not None and current[2] <= self.STALE_SEC + 1
         except (BotoCoreError, ClientError, OSError, ValueError, TypeError, KeyError) as error:
-            message = f'S3 lease read failed: {error}'
-            if startup:
-                logger.error(message)
-                raise
-            logger.warning(message)
+            logger.warning(f'S3 lease read failed: {error}')
             return True
 
     def can_take_over_lock(self) -> bool:

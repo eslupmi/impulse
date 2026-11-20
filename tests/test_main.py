@@ -215,13 +215,13 @@ class TestMainApplication:
         mock_app_dependencies['file_lock'].release_lock.assert_called_once()
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize('operation,error,message', [
-        ('get_object', ClientError({'Error': {'Code': 'NoSuchBucket'}}, 'GetObject'), 'read'),
-        ('get_object', ClientError({'Error': {'Code': 'InvalidAccessKeyId'}}, 'GetObject'), 'read'),
-        ('get_object', EndpointConnectionError(endpoint_url='https://s3.example.com'), 'read'),
-        ('put_object', ClientError({'Error': {'Code': 'AccessDenied'}}, 'PutObject'), 'acquisition'),
+    @pytest.mark.parametrize('operation,error', [
+        ('get_object', ClientError({'Error': {'Code': 'NoSuchBucket'}}, 'GetObject')),
+        ('get_object', ClientError({'Error': {'Code': 'InvalidAccessKeyId'}}, 'GetObject')),
+        ('get_object', EndpointConnectionError(endpoint_url='https://s3.example.com')),
+        ('put_object', ClientError({'Error': {'Code': 'AccessDenied'}}, 'PutObject')),
     ])
-    async def test_s3_startup_aborts_on_lease_failure(self, operation, error, message, caplog):
+    async def test_s3_startup_aborts_on_lease_failure(self, operation, error, caplog):
         storage = Mock(spec=S3Storage, bucket='test-bucket')
         storage.client.get_object.side_effect = ClientError({'Error': {'Code': 'NoSuchKey'}}, 'GetObject')
         getattr(storage.client, operation).side_effect = error
@@ -232,12 +232,12 @@ class TestMainApplication:
                 pytest.fail('Startup succeeded without S3')
 
         assert raised.value is error
-        assert ('main_logger', logging.ERROR, f'S3 lease {message} failed: {error}') in caplog.record_tuples
+        assert ('main_logger', logging.ERROR, f'S3 lease acquisition failed: {error}') in caplog.record_tuples
         storage.client.delete_object.assert_not_called()
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize('code', ['PreconditionFailed', 'ConditionalRequestConflict'])
-    async def test_s3_startup_enters_standby_on_concurrent_acquisition(self, code):
+    async def test_s3_startup_enters_standby_on_concurrent_acquisition(self, code, caplog):
         storage = Mock(spec=S3Storage, bucket='test-bucket')
         storage.client.get_object.side_effect = ClientError({'Error': {'Code': 'NoSuchKey'}}, 'GetObject')
         storage.client.put_object.side_effect = ClientError({'Error': {'Code': code}}, 'PutObject')
@@ -246,6 +246,8 @@ class TestMainApplication:
         with patch('app.lifespan.get_storage', return_value=storage):
             async with main.lifespan(app):
                 assert app.state.is_standby
+                storage.client.get_object.assert_called_once()
+        assert ('main_logger', logging.INFO, 'IMPulse started in standby mode') in caplog.record_tuples
         storage.client.delete_object.assert_not_called()
 
     @pytest.mark.asyncio
@@ -274,18 +276,11 @@ class TestMainApplication:
 
     @pytest.mark.asyncio
     async def test_s3_startup_wires_lease_to_storage_and_queue(self, mock_app_dependencies):
-        storage = Mock(spec=S3Storage)
+        storage = Mock(spec=S3Storage, bucket='test-bucket')
+        storage.client.get_object.side_effect = ClientError({'Error': {'Code': 'NoSuchKey'}}, 'GetObject')
+        storage.client.put_object.return_value = {'ETag': '"lease"'}
 
-        def acquire(lock, *, startup):
-            assert startup
-            lock._active = True
-            lock._deadline = float('inf')
-            return True
-
-        with patch('app.lifespan.get_storage', return_value=storage), \
-                patch.object(S3Lock, 'is_locked', return_value=False), \
-                patch.object(S3Lock, 'acquire_lock', autospec=True, side_effect=acquire), \
-                patch.object(S3Lock, 'release_lock', new=AsyncMock()) as release_lock:
+        with patch('app.lifespan.get_storage', return_value=storage):
             app = FastAPI()
             async with main.lifespan(app):
                 assert not app.state.is_standby
@@ -296,7 +291,9 @@ class TestMainApplication:
                 assert manager.check_owned == lock.check_owned
                 assert storage.check_owned()
                 assert manager.check_owned()
-            release_lock.assert_awaited_once()
+            storage.client.delete_object.assert_called_once_with(
+                Bucket='test-bucket', Key='.lock.d/lease.json', IfMatch='"lease"',
+            )
         mock_app_dependencies['file_lock'].acquire_lock.assert_not_called()
 
     @pytest.mark.asyncio
@@ -325,7 +322,6 @@ class TestMainApplication:
         from fastapi import FastAPI
 
         with patch('app.lifespan.get_storage', return_value=Mock(spec=S3Storage)), \
-                patch.object(S3Lock, 'is_locked', return_value=False), \
                 patch.object(S3Lock, 'acquire_lock', return_value=True), \
                 patch.object(S3Lock, 'check_owned', return_value=True) as check_owned, \
                 patch.object(S3Lock, 'release_lock', new=AsyncMock()) as release_lock:
