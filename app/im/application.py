@@ -256,18 +256,11 @@ class Application:
         await self.update_incident_message(incident)
         return True
 
-    async def handle_ui_unassign(self, incident, queue, ui_user=None):
-        if not incident.assigned_user_id:
+    async def handle_ui_unassign(self, incident, ui_user=None):
+        if incident.status != 'resolved' or not incident.assigned_user_id:
             return False
 
-        await queue.delete_by_id(incident.uniq_id, delete_steps=True, delete_status=False)
-        incident.assigned_user_id = ""
-        incident.assigned_user = ""
-        incident.assigned_fullname = ""
-        incident.chain_enabled = True
-        self.track_async_task(asyncio.create_task(self.post_unassignment_notification(incident, ui_user=ui_user)))
-        incident.dump()
-        await self.update_incident_message(incident)
+        await self.handle_ui_release(incident, ui_user=ui_user)
         return True
 
     async def handle_ui_freeze(self, incident, freeze_option, user_id, queue, user_timezone=None, ui_user=None):
