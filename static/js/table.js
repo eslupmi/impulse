@@ -13,11 +13,10 @@ import {initActionButtons, actionButtonsFormatter} from "./action_buttons.js";
 
 const relativeFields = [];
 const incidentDetailsSelector = ".tabulator-responsive-collapse";
-const rowClickExclusions = [
-    incidentDetailsSelector,
-    ".original-formatter", ".pill-label", ".alerts-count-circle",
-    ".zoom-icon", "button", ".user-selector-wrapper", ".tabulator-col-resize-handle",
-].join(", ");
+const rowClickExclusions = `
+    ${incidentDetailsSelector}, .original-formatter, .pill-label, .alerts-count-circle,
+    .zoom-icon, button, .user-selector-wrapper, .tabulator-col-resize-handle
+`;
 
 function toggleIncidentDetails(row) {
     const element = row.getElement();

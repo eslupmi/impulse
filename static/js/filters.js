@@ -531,10 +531,9 @@ function updateZoomIcons() {
     const cells = table.getRows().flatMap(row => row.getCells());
 
     cells.forEach(cell => {
-        const column = cell.getColumn();
         if (cell.getElement().classList.contains("unclickable-cell")) return;
 
-        const field = column.getField();
+        const field = cell.getColumn().getField();
         if (!field) return;
 
         const value = cell.getValue();
