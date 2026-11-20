@@ -148,6 +148,20 @@ strong {
     border-bottom: 1px solid var(--table-border) !important;
 }
 
+#data-table .tabulator-row[aria-expanded] {
+    cursor: pointer;
+}
+
+#data-table .tabulator-row:focus-visible {
+    outline: 2px solid var(--link-primary);
+    outline-offset: -2px;
+    z-index: 1;
+}
+
+#data-table .tabulator-row :is(.original-formatter, .pill-label, .alerts-count-circle) {
+    cursor: text;
+}
+
 .tabulator-row .tabulator-cell {
     border-right: none !important;
     font-size: 16px;
@@ -373,6 +387,7 @@ strong {
 .link-field a {
     color: var(--link-primary);
     text-decoration: none;
+    cursor: pointer;
 }
 
 .link-field a:hover {

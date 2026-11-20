@@ -532,9 +532,6 @@ function updateZoomIcons() {
 
     cells.forEach(cell => {
         const column = cell.getColumn();
-        // Skip the responsive collapse column
-        if (column.getDefinition().formatter === 'responsiveCollapse') return;
-
         if (cell.getElement().classList.contains("unclickable-cell")) return;
 
         const field = column.getField();

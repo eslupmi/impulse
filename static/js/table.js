@@ -12,6 +12,23 @@ import {initUserSelector, userSelectorFormatter} from "./user_selector.js";
 import {initActionButtons, actionButtonsFormatter} from "./action_buttons.js";
 
 const relativeFields = [];
+const incidentDetailsSelector = ".tabulator-responsive-collapse";
+const rowClickExclusions = [
+    incidentDetailsSelector,
+    ".original-formatter", ".pill-label", ".alerts-count-circle",
+    ".zoom-icon", "button", ".user-selector-wrapper", ".tabulator-col-resize-handle",
+].join(", ");
+
+function toggleIncidentDetails(row) {
+    const element = row.getElement();
+    const details = element.querySelector(incidentDetailsSelector);
+    if (!details?.firstElementChild) return;
+
+    const expanded = details.style.display === "none";
+    details.style.display = expanded ? "" : "none";
+    element.setAttribute("aria-expanded", String(expanded));
+    row.normalizeHeight();
+}
 
 const tableOptions = {
     layout: "fitColumns",
@@ -29,17 +46,30 @@ const tableOptions = {
     },
     renderVertical: 'basic',
     rowFormatter: function(row) {
-        const data = row.getData();
-        if (data._is_frozen) {
-            row.getElement().classList.add('frozen-row');
-        } else {
-            row.getElement().classList.remove('frozen-row');
-        }
+        const element = row.getElement();
+        element.classList.toggle("frozen-row", Boolean(row.getData()._is_frozen));
+
+        const details = element.querySelector(incidentDetailsSelector);
+        if (!details?.firstElementChild) return;
+
+        element.tabIndex = 0;
+        element.setAttribute("aria-expanded", String(details.style.display !== "none"));
+        element.onkeydown = (event) => {
+            if (event.target === element && (event.key === "Enter" || event.key === " ")) {
+                event.preventDefault();
+                if (!event.repeat) toggleIncidentDetails(row);
+            }
+        };
     },
 };
 
 const table = new Tabulator("#data-table", tableOptions);
 table.initialDataLoaded = false;
+table.on("rowClick", (event, row) => {
+    if (!event.target.closest(rowClickExclusions) && window.getSelection()?.isCollapsed) {
+        toggleIncidentDetails(row);
+    }
+});
 
 // Custom sorters
 const sorterMap = {
@@ -148,17 +178,6 @@ async function initializeTable() {
                 responsive: 0,
                 formatter: userSelectorFormatter,
                 cssClass: "unclickable-cell user-selector-column",
-            },
-            {
-                formatter: "responsiveCollapse",
-                width: 30,
-                minWidth: 30,
-                hozAlign: "center",
-                resizable: false,
-                headerSort: false,
-                responsive: 0,
-                title: "",
-                field: "_collapse",
             },
             {
                 title: "",
