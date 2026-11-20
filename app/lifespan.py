@@ -187,6 +187,12 @@ async def _cancel_application_work(fastapi_app: FastAPI, messenger):
         incident_ws.disconnect(socket)
 
 
+async def _drain_session_cleanup(cleanup_task: asyncio.Future[None]) -> None:
+    error, = await asyncio.gather(cleanup_task, return_exceptions=True)
+    if isinstance(error, Exception):
+        logger.error("Auth session cleanup stopped unexpectedly", extra={"error_type": type(error).__name__})
+
+
 async def _cleanup_application_objects(fastapi_app: FastAPI, reload=False, cancel=False):
     cleanup_task = None if reload else getattr(fastapi_app.state, 'session_cleanup_task', None)
     if cleanup_task is not None:
@@ -210,9 +216,7 @@ async def _cleanup_application_objects(fastapi_app: FastAPI, reload=False, cance
             fastapi_app.state.messenger = None
     finally:
         if cleanup_task is not None:
-            error, = await asyncio.gather(cleanup_task, return_exceptions=True)
-            if isinstance(error, Exception):
-                logger.error("Auth session cleanup stopped unexpectedly", extra={"error_type": type(error).__name__})
+            await _drain_session_cleanup(cleanup_task)
             fastapi_app.state.session_cleanup_task = None
 
 
