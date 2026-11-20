@@ -80,7 +80,7 @@ jobs:
           fi
           cd "$DEPLOY_PATH"
           if [ -n "$DOCKER_TAG" ] || [ -n "$DOCKER_COMPOSE_B64" ]; then
-            sed -i -E "s|^([[:space:]]*image:[[:space:]]*[^[:space:]]+):[^[:space:]]+|\\1:$(cat docker.tag)|" docker-compose.yml
+            sed -i -E "s|^([[:space:]]*image:[[:space:]]*ghcr\\.io/eslupmi/impulse):[^[:space:]]+|\\1:$(cat docker.tag)|" docker-compose.yml
           fi
           if [ "$ACTION" = reload ] && [ -z "$DOCKER_COMPOSE_B64" ] && [ -z "$DOCKER_TAG" ]; then
             curl -X POST https://dev.impulse.bot/-/reload
