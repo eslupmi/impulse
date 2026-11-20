@@ -80,7 +80,7 @@ class S3Lock:
             self._lose()
         return False
 
-    def acquire_lock(self) -> bool:
+    def acquire_lock(self, *, startup: bool = False) -> bool:
         with self._mutex:
             if self.check_owned():
                 return True
@@ -107,7 +107,14 @@ class S3Lock:
                 return True
             except (BotoCoreError, ClientError, OSError, ValueError, TypeError, KeyError, RuntimeError) as error:
                 self._lose()
-                logger.warning(f'S3 lease acquisition failed: {error}')
+                message = f'S3 lease acquisition failed: {error}'
+                if startup:
+                    if (isinstance(error, ClientError) and error.operation_name == 'PutObject'
+                            and error.response['Error']['Code'] in {'PreconditionFailed', 'ConditionalRequestConflict'}):
+                        return False
+                    logger.error(message)
+                    raise
+                logger.warning(message)
                 return False
 
     def _renew(self) -> bool:
@@ -136,13 +143,17 @@ class S3Lock:
             if not self._renew():
                 break
 
-    def is_locked(self) -> bool:
+    def is_locked(self, *, startup: bool = False) -> bool:
         try:
             current = self._read_lease()
             # HTTP Date and LastModified round to seconds; wait one extra second before takeover.
             return current is not None and current[2] <= self.STALE_SEC + 1
         except (BotoCoreError, ClientError, OSError, ValueError, TypeError, KeyError) as error:
-            logger.warning(f'S3 lease read failed: {error}')
+            message = f'S3 lease read failed: {error}'
+            if startup:
+                logger.error(message)
+                raise
+            logger.warning(message)
             return True
 
     def can_take_over_lock(self) -> bool:

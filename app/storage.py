@@ -38,6 +38,10 @@ class FileStorage:
         return os.rename(old_path, new_path)
 
 
+class S3StorageError(OSError):
+    """An S3 operation failed."""
+
+
 class S3Storage:
     """Store whole state files in S3; directories are virtual object prefixes."""
 
@@ -61,7 +65,7 @@ class S3Storage:
                     config=Config(connect_timeout=5, read_timeout=5,
                                   retries={'mode': 'standard', 'total_max_attempts': 3}))
             except BotoCoreError as error:
-                raise OSError(str(error)) from error
+                raise S3StorageError(str(error)) from error
         return self._client
 
     def _key(self, path):
@@ -88,9 +92,9 @@ class S3Storage:
         except ClientError as error:
             if error.response['Error']['Code'] == 'NoSuchKey':
                 raise FileNotFoundError(str(error)) from error
-            raise OSError(str(error)) from error
+            raise S3StorageError(str(error)) from error
         except BotoCoreError as error:
-            raise OSError(str(error)) from error
+            raise S3StorageError(str(error)) from error
 
     @contextmanager
     def open(self, path, mode='r', encoding=None):
@@ -107,7 +111,7 @@ class S3Storage:
             try:
                 content = body.read()
             except BotoCoreError as error:
-                raise OSError(str(error)) from error
+                raise S3StorageError(str(error)) from error
             finally:
                 body.close()
         buffer = io.BytesIO(content) if binary else io.StringIO(content.decode(encoding or 'utf-8'), newline=None)
@@ -144,7 +148,7 @@ class S3Storage:
             for page in self.client.get_paginator('list_objects_v2').paginate(**parameters):
                 yield prefix, page
         except (BotoCoreError, ClientError) as error:
-            raise OSError(str(error)) from error
+            raise S3StorageError(str(error)) from error
 
     @staticmethod
     def _relative(key, prefix):

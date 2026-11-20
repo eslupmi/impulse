@@ -21,18 +21,24 @@ from app.queue.queue import AsyncQueue
 from app.route import generate_route
 from app.s3_lock import S3Lock
 from app.signals import setup_sighup_handler
-from app.storage import S3Storage, get_storage
+from app.storage import S3Storage, S3StorageError, get_storage
 from app.ui.websocket import incident_ws
 from app.webhook import generate_webhooks
 
 
-async def _initialize_primary_server(fastapi_app: FastAPI, file_lock: FileLock | S3Lock) -> bool:
+async def _initialize_primary_server(fastapi_app: FastAPI, file_lock: FileLock | S3Lock,
+                                     *, startup: bool = False) -> bool:
     if isinstance(file_lock, S3Lock):
-        acquisition = asyncio.create_task(asyncio.to_thread(file_lock.acquire_lock))
+        acquisition = asyncio.create_task(asyncio.to_thread(file_lock.acquire_lock, startup=startup))
         try:
             acquired = await asyncio.shield(acquisition)
         except asyncio.CancelledError:
-            await acquisition
+            try:
+                await acquisition
+            finally:
+                await file_lock.release_lock()
+            raise
+        except Exception:
             await file_lock.release_lock()
             raise
     else:
@@ -70,7 +76,7 @@ async def _initialize_primary_server(fastapi_app: FastAPI, file_lock: FileLock |
             await _cleanup_application_objects(fastapi_app, cancel=True)
         finally:
             await file_lock.release_lock()
-        if isinstance(error, asyncio.CancelledError):
+        if isinstance(error, asyncio.CancelledError) or (startup and isinstance(error, S3StorageError)):
             raise
         return False
 
@@ -214,12 +220,13 @@ async def lifespan(fastapi_app: FastAPI):
     if isinstance(storage, S3Storage):
         file_lock = S3Lock(storage)
         storage.check_owned = file_lock.check_owned
+        can_take_over = False
+        is_standby = await asyncio.to_thread(file_lock.is_locked, startup=True)
     else:
         file_lock = FileLock()
+        can_take_over = file_lock.can_take_over_lock()
+        is_standby = file_lock.is_locked() and not can_take_over
     shutdown_event = asyncio.Event()
-
-    can_take_over = file_lock.can_take_over_lock()
-    is_standby = file_lock.is_locked() and not can_take_over
 
     fastapi_app.state.file_lock = file_lock
     fastapi_app.state.is_standby = True
@@ -240,7 +247,7 @@ async def lifespan(fastapi_app: FastAPI):
         if can_take_over:
             hostname, pid = file_lock.get_lock_info()
             logger.debug("Taking over from dead process", extra={'hostname': hostname, 'pid': pid})
-        success = await _initialize_primary_server(fastapi_app, file_lock)
+        success = await _initialize_primary_server(fastapi_app, file_lock, startup=True)
         if not success:
             logger.error('Primary server start failed, entering standby mode')
     ownership_task = asyncio.create_task(_maintain_primary(shutdown_event, file_lock, fastapi_app))

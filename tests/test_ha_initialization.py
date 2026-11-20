@@ -30,7 +30,7 @@ async def test_ownership_loss_cancels_initialization_before_further_work():
 
     lock = Mock(
         spec=S3Lock,
-        acquire_lock=lambda: True,
+        acquire_lock=Mock(return_value=True),
         check_owned=lambda: not lost.is_set(),
         release_lock=AsyncMock(side_effect=release),
     )
