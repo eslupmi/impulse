@@ -18,6 +18,8 @@ Bugs:
 - Fixed a [bug](https://github.com/eslupmi/impulse/issues/644) where the UI stayed unavailable after adding `ui:` and reloading
 - Fixed a [bug](https://github.com/eslupmi/impulse/issues/640) that hid incidents without a label when using a `!~` filter
 - Fixed a [bug](https://github.com/eslupmi/impulse/issues/642) that caused an alert processing error when the optional `incident.timeouts` block is missing
+- Fixed a [bug](https://github.com/eslupmi/impulse/issues/643) where the chain user was not notified when an incident returned to `firing` after being `resolved` and unassigned
+
 
 ## v3.7.1
 Changes:
