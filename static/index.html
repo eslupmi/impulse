@@ -1,10 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-static-version="{{ static_version }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IMPulse</title>
-    {% set static_base = http_prefix + "/static" if http_prefix else "/static" %}
     <link rel="icon" type="image/x-icon" href="{{ static_base }}/favicon.ico">
     <!-- External Libraries -->
     <link href="https://unpkg.com/tabulator-tables@6.3.1/dist/css/tabulator.min.css" rel="stylesheet">
