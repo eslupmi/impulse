@@ -3,6 +3,7 @@ Integration tests for main.py FastAPI application.
 """
 import asyncio
 import logging
+from contextlib import AsyncExitStack
 from unittest.mock import Mock, patch, AsyncMock
 
 import pytest
@@ -226,10 +227,11 @@ class TestMainApplication:
         storage.client.get_object.side_effect = ClientError({'Error': {'Code': 'NoSuchKey'}}, 'GetObject')
         getattr(storage.client, operation).side_effect = error
 
-        with patch('app.lifespan.get_storage', return_value=storage), \
-                pytest.raises(type(error)) as raised:
-            async with main.lifespan(FastAPI()):
-                pytest.fail('Startup succeeded without S3')
+        with patch('app.lifespan.get_storage', return_value=storage):
+            async with AsyncExitStack() as stack:
+                startup = main.lifespan(FastAPI())
+                with pytest.raises(type(error)) as raised:
+                    await stack.enter_async_context(startup)
 
         assert raised.value is error
         assert ('main_logger', logging.ERROR, f'S3 lease acquisition failed: {error}') in caplog.record_tuples
@@ -266,10 +268,11 @@ class TestMainApplication:
 
         with patch('app.storage.boto3.client', return_value=client), \
                 patch('app.lifespan.get_storage', return_value=storage), \
-                patch('app.lifespan.create_main_objects', side_effect=load_state), \
-                pytest.raises(S3StorageError, match='AccessDenied'):
-            async with main.lifespan(app):
-                pytest.fail('Startup succeeded without S3 list access')
+                patch('app.lifespan.create_main_objects', side_effect=load_state):
+            async with AsyncExitStack() as stack:
+                startup = main.lifespan(app)
+                with pytest.raises(S3StorageError, match='AccessDenied'):
+                    await stack.enter_async_context(startup)
 
         client.delete_object.assert_called_once_with(Bucket='test-bucket', Key='.lock.d/lease.json', IfMatch='"lease"')
         assert ('main_logger', logging.ERROR, 'Primary server initialization failed') in caplog.record_tuples

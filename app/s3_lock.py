@@ -112,14 +112,14 @@ class S3Lock:
             except (BotoCoreError, ClientError, OSError, ValueError, TypeError, KeyError, RuntimeError) as error:
                 self._lose()
                 message = f'S3 lease acquisition failed: {error}'
-                if startup:
-                    if (isinstance(error, ClientError) and error.operation_name == 'PutObject'
-                            and error.response['Error']['Code'] in {'PreconditionFailed', 'ConditionalRequestConflict'}):
-                        return False
-                    logger.error(message)
-                    raise
-                logger.warning(message)
-                return False
+                if not startup:
+                    logger.warning(message)
+                    return False
+                if (isinstance(error, ClientError) and error.operation_name == 'PutObject'
+                        and error.response['Error']['Code'] in {'PreconditionFailed', 'ConditionalRequestConflict'}):
+                    return False
+                logger.error(message)
+                raise
 
     def _renew(self) -> bool:
         with self._mutex:

@@ -26,22 +26,25 @@ from app.ui.websocket import incident_ws
 from app.webhook import generate_webhooks
 
 
+async def _acquire_primary_lock(file_lock: FileLock | S3Lock, *, startup: bool) -> bool:
+    if not isinstance(file_lock, S3Lock):
+        return file_lock.acquire_lock()
+
+    acquisition = asyncio.create_task(asyncio.to_thread(file_lock.acquire_lock, startup=startup))
+    try:
+        return await asyncio.shield(acquisition)
+    except (Exception, asyncio.CancelledError) as error:
+        try:
+            if isinstance(error, asyncio.CancelledError):
+                await acquisition
+        finally:
+            await file_lock.release_lock()
+        raise
+
+
 async def _initialize_primary_server(fastapi_app: FastAPI, file_lock: FileLock | S3Lock,
                                      *, startup: bool = False) -> bool:
-    if isinstance(file_lock, S3Lock):
-        acquisition = asyncio.create_task(asyncio.to_thread(file_lock.acquire_lock, startup=startup))
-        try:
-            acquired = await asyncio.shield(acquisition)
-        except (Exception, asyncio.CancelledError) as error:
-            try:
-                if isinstance(error, asyncio.CancelledError):
-                    await acquisition
-            finally:
-                await file_lock.release_lock()
-            raise
-    else:
-        acquired = file_lock.acquire_lock()
-    if not acquired:
+    if not await _acquire_primary_lock(file_lock, startup=startup):
         if startup and isinstance(file_lock, S3Lock):
             STATUS.set(0)
             logger.info('IMPulse started in standby mode')
@@ -213,6 +216,27 @@ async def _cleanup_application_objects(fastapi_app: FastAPI, reload=False, cance
         fastapi_app.state.messenger = None
 
 
+async def _start_server(fastapi_app: FastAPI, file_lock: FileLock | S3Lock):
+    if isinstance(file_lock, S3Lock):
+        await _initialize_primary_server(fastapi_app, file_lock, startup=True)
+        return
+
+    can_take_over = file_lock.can_take_over_lock()
+    if file_lock.is_locked() and not can_take_over:
+        logger.info("Another IMPulse instance is running, working as standby server")
+        hostname, pid = file_lock.get_lock_info()
+        STATUS.set(0)
+        logger.debug("Lock held by another instance", extra={'hostname': hostname, 'pid': pid})
+        logger.info('IMPulse started in standby mode')
+        return
+
+    if can_take_over:
+        hostname, pid = file_lock.get_lock_info()
+        logger.debug("Taking over from dead process", extra={'hostname': hostname, 'pid': pid})
+    if not await _initialize_primary_server(fastapi_app, file_lock, startup=True):
+        logger.error('Primary server start failed, entering standby mode')
+
+
 @asynccontextmanager
 async def lifespan(fastapi_app: FastAPI):
     setup_sighup_handler(fastapi_app, create_main_objects, _cleanup_application_objects)
@@ -235,22 +259,7 @@ async def lifespan(fastapi_app: FastAPI):
     fastapi_app.state.inhibition_manager = None
     fastapi_app.state.maintenance_manager = None
 
-    if isinstance(file_lock, S3Lock):
-        await _initialize_primary_server(fastapi_app, file_lock, startup=True)
-    else:
-        can_take_over = file_lock.can_take_over_lock()
-        if file_lock.is_locked() and not can_take_over:
-            logger.info("Another IMPulse instance is running, working as standby server")
-            hostname, pid = file_lock.get_lock_info()
-            STATUS.set(0)
-            logger.debug("Lock held by another instance", extra={'hostname': hostname, 'pid': pid})
-            logger.info('IMPulse started in standby mode')
-        else:
-            if can_take_over:
-                hostname, pid = file_lock.get_lock_info()
-                logger.debug("Taking over from dead process", extra={'hostname': hostname, 'pid': pid})
-            if not await _initialize_primary_server(fastapi_app, file_lock, startup=True):
-                logger.error('Primary server start failed, entering standby mode')
+    await _start_server(fastapi_app, file_lock)
     ownership_task = asyncio.create_task(_maintain_primary(shutdown_event, file_lock, fastapi_app))
 
     try:
