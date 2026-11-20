@@ -27,25 +27,20 @@ function matchLabelValue(labelValue, searchValue, operator) {
 
 function addTableFilterFromParsed(parsedFilter) {
     const {field, operator, value} = parsedFilter;
+    const isRegex = operator === "=~" || operator === "!~";
+
+    if (isRegex && !isValidRegex(value)) {
+        showFilterError(`Invalid regex: ${value}`);
+        return false;
+    }
 
     const columnExists = table.getColumns().some(col => col.getField() === field);
 
     if (!columnExists) {
-        if (operator === "=~" || operator === "!~") {
-            if (!isValidRegex(value)) {
-                showFilterError(`Invalid regex: ${value}`);
-                return false;
-            }
-        }
         table.addFilter(customResponsiveDataFilter, {field, operator, value});
         return true;
     }
-    if (operator === "=~" || operator === "!~") {
-        if (!isValidRegex(value)) {
-            showFilterError(`Invalid regex: ${value}`);
-            return false;
-        }
-
+    if (isRegex) {
         const anchoredRegex = `^${value}$`;
 
         if (operator === "=~") {

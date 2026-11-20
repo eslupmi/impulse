@@ -5,6 +5,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
+from app.config.validation import UIConfig
 from app.ui.table_config import (
     get_all_ui_config, _get_incident_table_config, _get_incident_table_sorting,
     _get_incident_table_colors, _get_incident_table_filters
@@ -35,22 +36,21 @@ class TestTableConfig:
         assert 'colors' in result
         assert 'filters' in result
 
+    @pytest.mark.parametrize('ui_config', [None, UIConfig(columns=[]), UIConfig(columns=[
+        {'name': '_uniq_id', 'header': 'Custom ID', 'value': 'payload.commonLabels.alertname'},
+        {'name': '_status', 'header': 'Custom status', 'value': 'payload.status',
+         'type': 'link', 'url': 'incident.link'},
+    ])])
     @patch('app.ui.table_config.get_config')
-    def test_get_incident_table_config_default(self, mock_get_config):
-        """Test getting incident table config with default indicator column."""
-        # Use utility function for mock config
-        mock_config = create_mock_config()
-        mock_ui_config = Mock()
-        mock_ui_config.columns = None
-        mock_config.ui_config = mock_ui_config
-        mock_get_config.return_value = mock_config
+    def test_get_incident_table_config_default(self, mock_get_config, ui_config):
+        mock_get_config.return_value.ui_config = ui_config
 
         result = _get_incident_table_config()
 
-        assert len(result) == 1
-        assert result[0]['field'] == 'indicator'
+        assert [column['field'] for column in result] == ['indicator', '_uniq_id', '_status']
         assert result[0]['type'] == 'indicator'
         assert result[0]['headerSort'] is False
+        assert all(column['visible'] is False for column in result[1:])
 
     @patch('app.ui.table_config.get_config')
     def test_get_incident_table_config_with_columns(self, mock_get_config):
@@ -85,8 +85,7 @@ class TestTableConfig:
 
         result = _get_incident_table_config()
 
-        # Should have indicator + 3 custom columns + 1 URL field for link
-        assert len(result) == 5
+        assert len(result) == 7
 
         # Check indicator column
         assert result[0]['field'] == 'indicator'
@@ -133,8 +132,7 @@ class TestTableConfig:
 
         result = _get_incident_table_config()
 
-        # Should have indicator + 1 custom column
-        assert len(result) == 2
+        assert len(result) == 4
 
         # Check hidden column
         hidden_col = next(col for col in result if col['field'] == 'hidden_field')

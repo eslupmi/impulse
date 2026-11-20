@@ -461,6 +461,14 @@
 }
 
 @media (max-width: 768px) {
+    #filter-wrapper {
+        flex-wrap: wrap;
+    }
+
+    #scrollable-filters.has-filters {
+        flex-basis: 100%;
+    }
+
     .status-bar-right {
         bottom: 30px;
         right: 20px;
