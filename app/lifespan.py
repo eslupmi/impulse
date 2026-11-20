@@ -84,6 +84,7 @@ async def create_main_objects(fastapi_app: FastAPI, reload=False):
     file_lock = getattr(fastapi_app.state, 'file_lock', None)
     _require_ownership(file_lock)
     config_data = get_config()
+    ui_chains_store.validate_persisted_steps()
     route_config = config_data.app.route
     webhooks_config = config_data.app.webhooks
 

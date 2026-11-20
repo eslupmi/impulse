@@ -3,11 +3,13 @@ from app.logging import logger
 _ENTITY_KEYS = ('user', 'user_group', 'group', 'webhook', 'chain', 'wait')
 
 
-def _step_type_and_value(step) -> tuple[str, str]:
+def get_step_type_and_value(step) -> tuple[str, str]:
     if hasattr(step, 'get_type_and_value'):
         return step.get_type_and_value()
+    if not isinstance(step, dict):
+        raise ValueError(f"Unknown step format: {step}")  # noqa: TRY004
     for key in _ENTITY_KEYS:
-        if isinstance(step, dict) and step.get(key) is not None:
+        if step.get(key) is not None:
             return key, step[key]
     raise ValueError("Chain step has no valid type or value set")
 
@@ -32,7 +34,7 @@ def filter_undeclared_steps(
     }
     filtered = []
     for step in steps:
-        type_, value = _step_type_and_value(step)
+        type_, value = get_step_type_and_value(step)
         if type_ == 'wait':
             filtered.append(step)
             continue

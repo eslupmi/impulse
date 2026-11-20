@@ -41,10 +41,11 @@ Environment variables are created in `.env` file for python installation or in `
 
 ??? warning "Development variables"
 
-    Optional `DEV_` overrides for local development and mocked messengers. Unset values keep the built-in defaults.
+    Optional `DEV_` overrides for local development. Unset values keep the built-in defaults.
 
     | Variable | Description | Default | Required |
     |-|-|-|-|
+    | DEV_EDITION | Edition override: `community` or `enterprise`. Enterprise requires its source package. Restart to change editions. | community | - |
     | DEV_MESSENGER_CUSTOM_ADDRESS | Override Slack/Telegram API base URL | | - |
     | DEV_MESSENGER_RATE_LIMIT | Override messenger HTTP request limit (`0` disables limiting) | | - |
     | DEV_MESSENGER_RATE_WINDOW | Override messenger HTTP rate-limit window, seconds | | - |

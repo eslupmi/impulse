@@ -1182,6 +1182,10 @@
     margin-bottom: 12px;
 }
 
+.step-item > label {
+    margin-top: 8px;
+}
+
 .step-controls {
     display: flex;
     gap: 8px;

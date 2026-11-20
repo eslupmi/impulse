@@ -5,12 +5,17 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from icalendar import Calendar, Component, Event
+from pydantic import TypeAdapter
 
 from app.config.config import get_config
 from app.config.environment import get_environment_config
+from app.im.chain.conditions import validate_steps
 from app.logging import logger
 from app.storage import S3Storage, get_storage
 from app.time import unix_sleep_to_timedelta
+from impulse_messenger_api.schema import SimpleChainStep
+
+_STEPS_ADAPTER: TypeAdapter[list[SimpleChainStep] | None] = TypeAdapter(list[SimpleChainStep] | None)
 
 
 def _chain_name_to_filename(chain_name: str) -> str:
@@ -102,6 +107,25 @@ class UIChainsStore:
     def _calendar_path(self, chain_name: str) -> str:
         return os.path.join(self.ui_chains_dir, _chain_name_to_filename(chain_name))
 
+    @staticmethod
+    def _validate_shifts(shifts: list[dict[str, Any]]) -> None:
+        for shift in shifts:
+            steps = _STEPS_ADAPTER.validate_python(shift.get("steps"))
+            validate_steps(steps)
+
+    def validate_persisted_steps(self) -> list[str]:
+        if not self._storage.exists(self.ui_chains_dir):
+            return []
+        with self._lock:
+            chain_names = [filename[:-4] for filename in self._storage.listdir(self.ui_chains_dir) if filename.endswith(".ics")]
+            for chain_name in chain_names:
+                try:
+                    self._validate_shifts(self._read_shifts_from_disk(chain_name))
+                except ValueError as exc:
+                    logger.error("Invalid saved UI chain", extra={"chain": chain_name, "error": str(exc)})
+                    raise ValueError(f"Invalid saved UI chain '{chain_name}': {exc}") from exc
+            return chain_names
+
     def load_shifts(self, chain_name: str) -> list[dict[str, Any]]:
         if not chain_name:
             return []
@@ -115,6 +139,11 @@ class UIChainsStore:
             return 0
         with self._lock:
             shifts = self._read_shifts_from_disk(chain_name)
+            try:
+                self._validate_shifts(shifts)
+            except ValueError as exc:
+                logger.warning("Cannot prune invalid UI chain", extra={"chain": chain_name, "error": str(exc)})
+                return 0
             if not shifts:
                 return 0
             retained, expired = self._partition_by_retention(shifts, now)
@@ -128,13 +157,9 @@ class UIChainsStore:
             return len(expired)
 
     def prune_all(self, now: datetime | None = None) -> int:
-        if not self._storage.exists(self.ui_chains_dir):
-            return 0
         removed = 0
-        for filename in self._storage.listdir(self.ui_chains_dir):
-            if not filename.endswith(".ics"):
-                continue
-            removed += self.prune_expired_shifts(filename[:-4], now)
+        for chain_name in self.validate_persisted_steps():
+            removed += self.prune_expired_shifts(chain_name, now)
         return removed
 
     def filter_retained_shifts(
@@ -245,6 +270,7 @@ class UIChainsStore:
 
     def get_steps_for_now(self, chain_name: str, now: datetime | None = None) -> list[dict[str, Any]]:
         shifts = self.load_shifts(chain_name)
+        self._validate_shifts(shifts)
         if not shifts:
             return []
 
@@ -271,6 +297,11 @@ class UIChainsStore:
             existing = self._read_shifts_from_disk(chain_name)
             if not isinstance(payload, dict) or not payload.get("id"):
                 return False, existing
+            try:
+                self._validate_shifts([*existing, payload])
+            except ValueError as exc:
+                logger.warning("Invalid UI chain step", extra={"chain": chain_name, "error": str(exc)})
+                return False, existing
             shift = {**payload, "id": str(payload["id"])}
             merged = []
             replaced = False
@@ -291,6 +322,11 @@ class UIChainsStore:
             return False, []
         with self._lock:
             existing = self._read_shifts_from_disk(chain_name)
+            try:
+                self._validate_shifts(existing)
+            except ValueError as exc:
+                logger.warning("Cannot delete from invalid UI chain", extra={"chain": chain_name, "error": str(exc)})
+                return False, existing
             remaining = [shift for shift in existing if shift.get("id") != str(shift_id)]
             if len(remaining) == len(existing):
                 return True, self.recalculate_priorities(existing)

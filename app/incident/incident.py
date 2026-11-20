@@ -9,6 +9,8 @@ import yaml
 
 from app.config.config import get_config
 from app.config.environment import get_environment_config
+from app.im.chain.conditions import matches_step
+from app.im.chain.filter_steps import get_step_type_and_value
 from app.im.chain.ui_chains_store import ui_chains_store
 from app.im.channel_manager import ChannelManager
 from app.incident.freeze import MAINTENANCE_PARENT_SENTINEL, FreezeSource
@@ -418,32 +420,24 @@ class Incident:
             self.status_update_datetime = now + unix_sleep_to_timedelta(timeout_value)
 
     def _unchain(self, chains, steps):
-        if not any(self._step_has_chain(step) for step in steps):
-            return steps
-
         extended_steps = []
         for step in steps:
-            type_, value = self._get_step_type_and_value(step)
-            if type_ == 'chain':
+            if not matches_step(step, self.payload.get('commonLabels') or {}):
+                continue
+            if self._step_has_chain(step):
+                _, value = self._get_step_type_and_value(step)
                 nested_chain = chains.get(value)
                 if nested_chain is None:
                     logger.warning("Chain not found", extra={'chain': value})
                     continue
-                nested_steps = nested_chain.steps
-                extended_steps.extend(self._unchain(chains, nested_steps))
+                extended_steps.extend(self._unchain(chains, nested_chain.steps))
             else:
-                extended_steps.append({type_: value})
+                extended_steps.append(step)
         return extended_steps
 
     @staticmethod
     def _get_step_type_and_value(step):
-        """Extract step type and value from either SimpleChainStep object or dictionary"""
-        if hasattr(step, 'get_type_and_value'):
-            return step.get_type_and_value()
-        elif isinstance(step, dict):
-            return next(iter(step.items()))
-        else:
-            raise ValueError(f"Unknown step format: {step}")
+        return get_step_type_and_value(step)
 
     @staticmethod
     def _step_has_chain(step):
@@ -451,7 +445,7 @@ class Incident:
         if hasattr(step, 'has_chain'):
             return step.has_chain()
         elif isinstance(step, dict):
-            return 'chain' in step
+            return step.get('chain') is not None
         return False
 
     @staticmethod

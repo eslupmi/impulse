@@ -37,6 +37,7 @@ class SimpleChainStep(BaseModel):
     webhook: str | None = Field(None, description="Webhook to call")
     chain: str | None = Field(None, description="Nested chain to execute")
     wait: str | None = Field(None, description="Wait duration (e.g., '5m', '1h')")
+    condition: str | None = Field(None, alias='if', description="Edition-specific condition, preserved without interpretation")
 
     @model_validator(mode='after')
     def validate_step_type(self):
