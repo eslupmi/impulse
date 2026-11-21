@@ -80,7 +80,7 @@ class S3Lock:
             self._lose()
         return False
 
-    def acquire_lock(self) -> bool:
+    def acquire_lock(self, *, startup: bool = False) -> bool:
         with self._mutex:
             if self.check_owned():
                 return True
@@ -89,6 +89,10 @@ class S3Lock:
             try:
                 current = self._read_lease()
                 if current is not None and current[2] <= self.STALE_SEC + 1:
+                    if startup:
+                        lease = current[0]
+                        logger.debug("Lock held by another instance",
+                                     extra={'hostname': lease['host'], 'pid': lease['pid']})
                     return False
                 condition = {'IfNoneMatch': '*'} if current is None else {'IfMatch': current[1]}
                 self._owner = uuid4().hex
@@ -107,8 +111,15 @@ class S3Lock:
                 return True
             except (BotoCoreError, ClientError, OSError, ValueError, TypeError, KeyError, RuntimeError) as error:
                 self._lose()
-                logger.warning(f'S3 lease acquisition failed: {error}')
-                return False
+                message = f'S3 lease acquisition failed: {error}'
+                if not startup:
+                    logger.warning(message)
+                    return False
+                if (isinstance(error, ClientError) and error.operation_name == 'PutObject'
+                        and error.response['Error']['Code'] in {'PreconditionFailed', 'ConditionalRequestConflict'}):
+                    return False
+                logger.error(message)
+                raise
 
     def _renew(self) -> bool:
         with self._mutex:
