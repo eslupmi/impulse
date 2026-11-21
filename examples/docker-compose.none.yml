@@ -1,0 +1,16 @@
+services:
+  app:
+    image: ghcr.io/eslupmi/impulse:master
+    environment:
+      CONFIG_PATH: "/config"
+      DATA_PATH: "/data"
+    volumes:
+    - ./data:/data
+    - ./config:/config
+    ports:
+    - "127.0.0.1:5000:5000"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 500M

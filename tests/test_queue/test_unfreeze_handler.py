@@ -48,8 +48,7 @@ class TestUnfreezeHandler:
         app.status_icons_template = Mock()
         app.status_icons_template.form_message = Mock(return_value="Test Icons")
         
-        app.type = Mock()
-        app.type.value = "slack"
+        app.type = "slack"
         
         return app
 

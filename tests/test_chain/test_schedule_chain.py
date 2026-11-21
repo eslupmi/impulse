@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from app.config.validation import ScheduleEntry, ScheduleMatcherExpression, SimpleChainStep
+from impulse_messenger_api.schema import ScheduleEntry, ScheduleMatcherExpression, SimpleChainStep
 from app.im.chain.schedule_chain import ScheduleChain
 
 

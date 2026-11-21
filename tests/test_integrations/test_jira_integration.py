@@ -1,10 +1,12 @@
 """Unit tests for JiraIntegration"""
+from pathlib import Path
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
 from app.integrations.jira_client import JiraClient
 from app.integrations.jira_integration import JiraIntegration
+from app.resources import resource_directory
 from tests.utils import create_mock_incident_for_handlers, create_alert_payload, create_mock_queue
 
 
@@ -31,6 +33,96 @@ class TestJiraIntegration:
     def jira_integration(self, mock_jira_client):
         """Fixture for JiraIntegration instance"""
         return JiraIntegration(mock_jira_client)
+
+    @pytest.fixture
+    def installed_templates(self, tmp_path, monkeypatch, mock_config):
+        """Use real Jira defaults in the installed layout, outside the runtime cwd."""
+        bundled = resource_directory('templates')
+        packaged = tmp_path / 'installed' / 'app' / 'templates'
+        packaged.mkdir(parents=True)
+        for file_key in ('summary', 'description'):
+            name = f'jira_{file_key}.j2'
+            (packaged / name).write_text((bundled / name).read_text(encoding='utf-8'), encoding='utf-8')
+        monkeypatch.setattr('app.resources.__file__', str(packaged.parent / 'resources.py'))
+        runtime = tmp_path / 'runtime'
+        runtime.mkdir()
+        monkeypatch.chdir(runtime)
+        monkeypatch.setattr('app.integrations.jira_integration.get_config', lambda: mock_config)
+        return packaged
+
+    @pytest.mark.parametrize('file_key', ['summary', 'description'])
+    @pytest.mark.parametrize(('content', 'expected'), [
+        ('', ''),
+        ('Алерт {{ incident.uuid }} 🚨', 'Алерт test-uuid-123 🚨'),
+    ])
+    def test_cwd_template_overrides_installed_default(
+        self, installed_templates, jira_integration, mock_incident, file_key, content, expected,
+    ):
+        override = Path('templates') / f'jira_{file_key}.j2'
+        override.parent.mkdir()
+        override.write_text(content, encoding='utf-8')
+
+        assert jira_integration._read_template(file_key).render(incident=mock_incident) == expected
+
+    def test_missing_cwd_templates_use_installed_defaults(
+        self, installed_templates, jira_integration, mock_incident,
+    ):
+        assert resource_directory('templates') == installed_templates
+
+        summary, description = jira_integration.format_incident_for_jira(mock_incident)
+
+        assert 'TestAlert' in summary
+        assert 'test-service' in summary
+        assert '*Links*' in description
+
+    @pytest.mark.parametrize('file_key', ['summary', 'description'])
+    def test_explicit_template_overrides_cwd_and_installed_defaults(
+        self, installed_templates, jira_integration, mock_config, tmp_path, file_key,
+    ):
+        override = Path('templates') / f'jira_{file_key}.j2'
+        override.parent.mkdir()
+        override.write_text('cwd override', encoding='utf-8')
+        configured = tmp_path / 'configured.j2'
+        configured.write_text('explicit override', encoding='utf-8')
+        mock_config.app.task_management.template_files = Mock(summary=None, description=None)
+        setattr(mock_config.app.task_management.template_files, file_key, str(configured))
+
+        assert jira_integration._read_template(file_key).render() == 'explicit override'
+
+    @pytest.mark.parametrize('file_key', ['summary', 'description'])
+    def test_missing_explicit_template_raises_with_defaults_available(
+        self, installed_templates, jira_integration, mock_config, tmp_path, file_key,
+    ):
+        override = Path('templates') / f'jira_{file_key}.j2'
+        override.parent.mkdir()
+        override.write_text('cwd override', encoding='utf-8')
+        configured = tmp_path / 'missing.j2'
+        mock_config.app.task_management.template_files = Mock(summary=None, description=None)
+        setattr(mock_config.app.task_management.template_files, file_key, str(configured))
+
+        with pytest.raises(FileNotFoundError):
+            jira_integration._read_template(file_key)
+
+    @pytest.mark.parametrize('file_key', ['summary', 'description'])
+    def test_unreadable_cwd_template_raises_without_falling_back(
+        self, installed_templates, jira_integration, monkeypatch, file_key,
+    ):
+        override = Path('templates') / f'jira_{file_key}.j2'
+        override.parent.mkdir()
+        override.write_text('cwd override', encoding='utf-8')
+        original_read = Path.read_text
+
+        def read_text(path, *args, **kwargs):
+            if path == override:
+                raise PermissionError('Cannot read override')
+            return original_read(path, *args, **kwargs)
+
+        monkeypatch.setattr(Path, 'read_text', read_text)
+        # Python 3.14 exists() can suppress permission errors and report False.
+        monkeypatch.setattr(Path, 'exists', lambda path: False)
+
+        with pytest.raises(PermissionError, match='Cannot read override'):
+            jira_integration._read_template(file_key)
     
     @pytest.fixture
     def mock_incident(self):

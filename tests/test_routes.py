@@ -1,15 +1,72 @@
-from unittest.mock import Mock
+from unittest.mock import AsyncMock, Mock
 
+import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from app.config.config import UnifiedConfig, get_config
+from app.config.loader import load_and_validate_config
 from app.routes import create_router
+
+
+@pytest.mark.parametrize("http_prefix", ["", "/impulse"])
+def test_ui_can_be_enabled_and_disabled_by_reload(tmp_path, monkeypatch, http_prefix):
+    from app import lifespan, routes
+    from app.config import config as config_module
+
+    config_path = tmp_path / "impulse.yml"
+    base_config = "messenger:\n  type: none\n"
+    ui_config = "ui:\n  columns:\n    - name: status\n      header: Status\n      value: incident.status\n"
+    config_path.write_text(base_config)
+
+    def load_config(exit_on_error=True):
+        return UnifiedConfig(load_and_validate_config(str(config_path))[0])
+
+    monkeypatch.setattr(config_module, "_config", load_config())
+    monkeypatch.setattr(config_module, "get_config", get_config)
+    monkeypatch.setattr(config_module, "load_unified_config", load_config)
+    monkeypatch.setattr(routes, "get_config", get_config)
+    cleanup = AsyncMock()
+    create = AsyncMock()
+    monkeypatch.setattr(lifespan, "_cleanup_application_objects", cleanup)
+    monkeypatch.setattr(lifespan, "create_main_objects", create)
+
+    app = FastAPI()
+    app.state.queue = AsyncMock()
+    app.include_router(create_router(http_prefix, fastapi_app=app))
+    route_count = len(app.routes)
+    with TestClient(app) as client:
+        assert client.get(f"{http_prefix}/").status_code == 405
+        assert client.get(f"{http_prefix}/static/index.html").status_code == 404
+
+        config_path.write_text(base_config + ui_config)
+        assert client.post(f"{http_prefix}/-/reload").status_code == 200
+        cleanup.assert_awaited_once_with(app, reload=True)
+        create.assert_awaited_once_with(app, reload=True)
+        assert client.get(f"{http_prefix}/static/css/style.css").status_code == 200
+        response = client.get(f"{http_prefix}/")
+        assert response.status_code == 200
+        assert '<title>IMPulse</title>' in response.text
+        assert f'href="{http_prefix}/static/css/style.css"' in response.text
+        columns = client.get(f"{http_prefix}/ui_config").json()["table_config"]
+        assert any(column["field"] == "status" for column in columns)
+        assert client.post(f"{http_prefix}/", json={"status": "firing"}).status_code == 200
+        app.state.queue.put_first.assert_awaited_once()
+
+        config_path.write_text(base_config)
+        assert client.post(f"{http_prefix}/-/reload").status_code == 200
+        assert client.get(f"{http_prefix}/").status_code == 405
+        assert client.get(f"{http_prefix}/static/index.html").status_code == 404
+
+        config_path.write_text(base_config + ui_config)
+        assert client.post(f"{http_prefix}/-/reload").status_code == 200
+        assert client.get(f"{http_prefix}/").status_code == 200
+        assert len(app.routes) == route_count
 
 
 def _mock_messenger(**overrides):
     messenger = Mock()
-    messenger.type = Mock()
-    messenger.type.value = "slack"
+    messenger.type = "slack"
     for key, value in overrides.items():
         setattr(messenger, key, value)
     return messenger

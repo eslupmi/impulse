@@ -1,17 +1,14 @@
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from app.config.validation import MattermostApplicationConfig, MessengerType
+from app.im.registry import get_provider_registry
 from app.im.user_store import get_user_store
 from app.logging import logger
+from app.storage import get_storage
 from app.ui.authentication.manager import UserAuthenticationManager
 from app.ui.authentication.models.auth_user import AuthUser
-from app.ui.authentication.providers.mattermost_provider import (
-    MattermostAuthenticationProvider,
-)
-from app.ui.authentication.providers.slack_provider import SlackAuthenticationProvider
-from app.ui.authentication.providers.telegram_provider import (
-    TelegramAuthenticationProvider,
+from app.ui.authentication.providers.registered_provider import (
+    RegisteredAuthenticationProvider,
 )
 from app.ui.authentication.providers.unsupported_provider import (
     UnsupportedAuthenticationProvider,
@@ -22,16 +19,9 @@ if TYPE_CHECKING:
     from app.config.environment import EnvironmentConfig
     from app.config.validation import ImpulseConfig
 
-def build_auth_redirect_uri(env_config: 'EnvironmentConfig', http_prefix: str = "") -> str:
-    if env_config.auth_redirect_url:
-        return env_config.auth_redirect_url
-    callback_path = f"{http_prefix}/auth/callback" if http_prefix else "/auth/callback"
-    return callback_path
-
-
 def _build_configured_users(config: 'ImpulseConfig') -> dict[str, AuthUser]:
     users = config.messenger.users
-    messenger = config.messenger.type.value
+    messenger = config.messenger.type
     configured_users: dict[str, AuthUser] = {}
     for user_name, user in users.items():
         user_id = str(user.id).strip()
@@ -39,44 +29,30 @@ def _build_configured_users(config: 'ImpulseConfig') -> dict[str, AuthUser]:
             continue
         configured_users[user_id] = AuthUser(
             id=user_id,
-            username=getattr(user, "username", None) or user_name,
-            full_name=getattr(user, "name", None),
-            email=getattr(user, "email", None),
+            username=user_name,
             messenger=messenger,
         )
     return configured_users
 
 
-def _build_provider(messenger_type: MessengerType, client_id: str, client_secret: str, config: 'ImpulseConfig'):
-    if messenger_type == MessengerType.SLACK:
-        if client_id and client_secret:
-            return SlackAuthenticationProvider(client_id=client_id, client_secret=client_secret)
-        logger.warning("Auth disabled for Slack: AUTH_CLIENT_ID and AUTH_CLIENT_SECRET are required")
-    elif messenger_type == MessengerType.MATTERMOST:
-        assert isinstance(config.messenger, MattermostApplicationConfig)
-        mattermost_url = config.messenger.address.strip()
-        if client_id and client_secret and mattermost_url:
-            return MattermostAuthenticationProvider(
-                base_url=mattermost_url,
-                client_id=client_id,
-                client_secret=client_secret,
-            )
-        logger.warning(
-            "Auth disabled for Mattermost: AUTH_CLIENT_ID, AUTH_CLIENT_SECRET and messenger.address are required"
-        )
-    elif messenger_type == MessengerType.TELEGRAM:
-        if client_id and client_secret:
-            return TelegramAuthenticationProvider(client_id=client_id, client_secret=client_secret)
-        logger.warning("Auth disabled for Telegram: AUTH_CLIENT_ID and AUTH_CLIENT_SECRET are required")
+def _build_provider(messenger_type: str, client_id: str, client_secret: str, redirect_uri: str,
+                    config: 'ImpulseConfig'):
+    registration = get_provider_registry().resolve(messenger_type)
+    if registration.authentication_factory:
+        if client_id and client_secret and redirect_uri:
+            return RegisteredAuthenticationProvider(
+                registration.authentication_factory(client_id, client_secret, config.messenger))
+        logger.warning('Auth disabled: AUTH_CLIENT_ID, AUTH_CLIENT_SECRET and AUTH_REDIRECT_URL are required',
+                       extra={'messenger': messenger_type})
     return UnsupportedAuthenticationProvider()
 
 
-def _build_allowed_user_ids(config: 'ImpulseConfig', messenger_type: MessengerType) -> set[str] | None:
+def _build_allowed_user_ids(config: 'ImpulseConfig', messenger_type: str) -> set[str]:
     users = config.messenger.users
     allowed_user_ids = {str(user.id) for user in users.values()}
     logger.info(
         "Auth whitelist enabled",
-        extra={"allowed_users_count": len(allowed_user_ids), "messenger_type": messenger_type.value},
+        extra={"allowed_users_count": len(allowed_user_ids), "messenger_type": messenger_type},
     )
     return allowed_user_ids
 
@@ -85,20 +61,23 @@ def build_auth_manager(config: 'ImpulseConfig', env_config: 'EnvironmentConfig',
     messenger_type = config.messenger.type
     client_id = env_config.auth_client_id.strip()
     client_secret = env_config.auth_client_secret.strip()
+    redirect_uri = env_config.auth_redirect_url.strip()
     configured_users = _build_configured_users(config)
-    allowed_user_ids = _build_allowed_user_ids(config, messenger_type) if env_config.auth_whitelist_enabled else None
-    provider = _build_provider(messenger_type, client_id, client_secret, config)
+    allowed_user_ids = _build_allowed_user_ids(config, messenger_type)
+    provider = _build_provider(messenger_type, client_id, client_secret, redirect_uri, config)
     default_redirect_path = http_prefix or "/"
 
     return UserAuthenticationManager(
         provider=provider,
-        redirect_uri=build_auth_redirect_uri(env_config=env_config, http_prefix=http_prefix),
+        redirect_uri=redirect_uri,
         cookie_secure=env_config.auth_cookie_secure,
         cookie_path=http_prefix or "/",
         allowed_user_ids=allowed_user_ids,
         default_redirect_path=default_redirect_path,
         allowed_redirect_prefixes={default_redirect_path},
         configured_users=configured_users,
-        session_store=FileSessionStore(root_dir=str(Path(env_config.data_path) / "sessions")),
+        session_store=FileSessionStore(
+            root_dir=str(Path(env_config.storage_root) / "sessions"), storage=get_storage(env_config)
+        ),
         user_store=get_user_store(),
     )

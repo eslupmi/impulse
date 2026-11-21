@@ -1,0 +1,19 @@
+name: release
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+    - 'release/v[0-9]+.[0-9]+.[0-9]+'
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-and-push-image:
+    if: github.repository == 'eslupmi/impulse'
+    uses: eslupmi/ci-templates/.github/workflows/_build-and-push-image.yml@develop

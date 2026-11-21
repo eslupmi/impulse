@@ -13,12 +13,16 @@ if TYPE_CHECKING:
 class JinjaTemplate:
     _incidents: 'Incidents | None' = None
 
-    def __init__(self, template: str):
+    def __init__(self, template: str, autoescape: bool = False):
         self.template = template
+        self.autoescape = autoescape
+
+    def _template(self):
+        return Template(self.template, autoescape=self.autoescape)
 
     def form_message(self, alert_state, incident: 'Incident | None' = None):
         """Render a message template with alert state and incident data."""
-        template = Template(self.template)
+        template = self._template()
         if incident:
             incident_data = incident.serialize()
             parents = self.related_incidents(incident.parents, skip=(MAINTENANCE_PARENT_SENTINEL,))
@@ -37,12 +41,11 @@ class JinjaTemplate:
 
     def form_notification(self, **kwargs):
         """Render a thread notification template with the provided context kwargs."""
-        template = Template(self.template)
-        return template.render(**kwargs)
+        return self.render(**kwargs)
 
     def render(self, **kwargs):
         """Generic render method for any template with provided kwargs."""
-        template = Template(self.template)
+        template = self._template()
         return template.render(**kwargs)
 
     @classmethod
