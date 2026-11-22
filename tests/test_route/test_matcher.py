@@ -317,3 +317,25 @@ class TestMatcher:
         }
 
         assert matcher.matches(alert_state) is True
+
+    def test_missing_label_equals_empty_string(self):
+        matcher = Matcher('service=""')
+
+        assert matcher.matches({'commonLabels': {}}) is True
+        assert matcher.matches({'commonLabels': {'service': None}}) is True
+        assert matcher.matches({'commonLabels': {'service': ''}}) is True
+        assert matcher.matches({}) is True
+
+    def test_not_equal_empty_rejects_missing_and_empty(self):
+        matcher = Matcher('service!=""')
+
+        assert matcher.matches({'commonLabels': {}}) is False
+        assert matcher.matches({'commonLabels': {'service': None}}) is False
+        assert matcher.matches({'commonLabels': {'service': ''}}) is False
+        assert matcher.matches({'commonLabels': {'service': 'api'}}) is True
+
+    def test_regex_treats_missing_label_as_empty(self):
+        assert Matcher('service=~".*"').matches({'commonLabels': {}}) is True
+        assert Matcher('service=~".+"').matches({'commonLabels': {}}) is False
+        assert Matcher('service!~".*"').matches({'commonLabels': {}}) is False
+        assert Matcher('service!~".+"').matches({'commonLabels': {}}) is True

@@ -7,7 +7,7 @@ from unittest.mock import Mock, patch, mock_open
 
 import pytest
 
-from app.config.validation import CloudChain, ScheduleEntry, ScheduleMatcherExpression, SimpleChainStep
+from impulse_messenger_api.schema import CloudChain, ScheduleEntry, ScheduleMatcherExpression, SimpleChainStep
 from app.im.chain.google_calendar_chain import GoogleCalendarChain
 
 

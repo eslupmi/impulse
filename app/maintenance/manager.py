@@ -1,5 +1,5 @@
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 from app.incident.freeze import MAINTENANCE_PARENT_SENTINEL, FreezeSource
@@ -40,7 +40,7 @@ class MaintenanceManager:
         self.incidents = incidents
         self.application = application
         self.queue = queue
-        self._now = now or (lambda: datetime.now(timezone.utc))
+        self._now = now or (lambda: datetime.now(UTC))
 
     def _first_matching_window_with_coverage_end(
         self, incident: "Incident", require_future_end: bool = False

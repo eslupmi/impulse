@@ -42,16 +42,16 @@ class FileLock:
     def acquire_lock(self) -> bool:
         """
         Attempt to acquire the lock.
-        
+
         Returns:
             True if lock was successfully acquired, False otherwise.
         """
         try:
             self._cleanup_stale_lock()
             self.lock_dir.mkdir(parents=True, exist_ok=False)
-            
+
             locktime = time.time()
-            
+
             try:
                 with open(self.heartbeat_path, "w") as f:
                     f.write(str(locktime))
@@ -65,12 +65,12 @@ class FileLock:
                 logger.error(f"Lock file write failed: {e}")
                 self._cleanup_failed_acquisition()
                 return False
-            
+
             if not self._verify_ownership():
                 logger.error("Ownership verification failed")
                 self._cleanup_failed_acquisition()
                 return False
-            
+
             self._active = True
             self._heartbeat_failures = 0
             try:
@@ -78,10 +78,10 @@ class FileLock:
                 self._heartbeat_task = loop.create_task(self._heartbeat())
             except RuntimeError:
                 logger.warning("Event loop not running")
-            
+
             logger.debug("Lock acquired")
             return True
-            
+
         except FileExistsError:
             logger.debug("Lock held by another instance")
             return False
@@ -229,14 +229,14 @@ class FileLock:
     def _update(self) -> bool:
         """
         Update the heartbeat file.
-        
+
         Returns:
             True if update was successful, False otherwise.
         """
         if not self._verify_ownership():
             logger.error("Ownership lost")
             return False
-        
+
         locktime = time.time()
         try:
             with open(self.heartbeat_path, "w") as f:
@@ -257,5 +257,5 @@ class FileLock:
             hostname = self.host_path.read_text().strip()
             pid = self.pid_path.read_text().strip()
             return hostname == self._hostname and pid == str(self._pid)
-        except (FileNotFoundError, OSError):
+        except OSError:
             return False

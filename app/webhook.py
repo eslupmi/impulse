@@ -1,4 +1,3 @@
-import asyncio
 import os
 import re
 
@@ -65,7 +64,7 @@ class Webhook:
             async with session.post(**request_params) as response:
                 return 'ok', response.status
                 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return 'Timeout', None
         except aiohttp.ClientConnectionError:
             return 'ConnectionError', None

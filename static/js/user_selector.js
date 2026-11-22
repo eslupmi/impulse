@@ -48,7 +48,7 @@ function createUserSelector({
     userId: initialUserId = "",
     fullName: initialFullName = "",
     inputId = "",
-    allowClear = true,
+    canClear,
     readonlyExtra = false,
     frozen = false,
     onSelectUser,
@@ -56,6 +56,7 @@ function createUserSelector({
 }) {
     let currentUserId = String(initialUserId || "");
     let currentFullName = initialFullName || "";
+    const canClearSelection = () => currentUserId && onClearUser && canClear?.();
 
     const container = document.createElement("div");
     container.className = "user-selector-container";
@@ -168,7 +169,7 @@ function createUserSelector({
         const {authUser, others} = getOptionUsers(showAll, query);
 
         optionsEl.innerHTML = "";
-        if (allowClear && (showAll || !query)) {
+        if (canClearSelection() && (showAll || !query)) {
             addClearOption();
             if (authUser || others.length > 0) {
                 addDivider();
@@ -218,32 +219,25 @@ function createUserSelector({
         if (isBusy) {
             return;
         }
-        if (!currentUserId) {
-            setLocalValue("", "");
+        if (!canClearSelection()) {
+            input.value = currentFullName;
             hideOptions();
             return;
         }
 
-        if (onClearUser) {
-            isBusy = true;
-            input.disabled = true;
-            try {
-                const success = await onClearUser();
-                if (success) {
-                    setLocalValue("", "");
-                } else {
-                    input.value = currentFullName;
-                }
-            } finally {
-                isBusy = false;
-                input.disabled = false;
-                hideOptions();
+        isBusy = true;
+        input.disabled = true;
+        try {
+            if (await onClearUser()) {
+                setLocalValue("", "");
+            } else {
+                input.value = currentFullName;
             }
-            return;
+        } finally {
+            isBusy = false;
+            input.disabled = false;
+            hideOptions();
         }
-
-        setLocalValue("", "");
-        hideOptions();
     }
 
     async function applyUserSelection(user) {
@@ -388,7 +382,7 @@ function userSelectorFormatter(cell) {
     const selector = createUserSelector({
         userId: currentUserId,
         fullName: currentFullName,
-        allowClear: true,
+        canClear: () => cell.getData().indicator === "resolved",
         readonlyExtra: Boolean(isReadonlyExtra),
         frozen: Boolean(cell.getData()._is_frozen),
         onSelectUser: async (user) => {
@@ -417,7 +411,7 @@ function userSelectorFormatter(cell) {
             if (!response.ok) {
                 console.error("Unassignment failed:", response.status);
             }
-            return response.ok;
+            return response.ok && (await response.json()).success;
         },
     });
 

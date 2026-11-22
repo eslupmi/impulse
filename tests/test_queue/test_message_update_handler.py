@@ -54,14 +54,11 @@ class TestMessageUpdateHandler:
 
         await handler.handle(mock_incident.uniq_id)
 
-        handler.app.update.assert_called_once_with(
+        handler.app.update.assert_awaited_once_with(
             mock_incident,
             mock_incident.status,
             mock_incident.payload,
-            False,
-            mock_incident.chain_enabled,
-            mock_incident.frozen_until,
-            mock_incident.task_link
+            False
         )
 
     @pytest.mark.asyncio
@@ -74,7 +71,7 @@ class TestMessageUpdateHandler:
 
         # Verify task_link is passed through correctly
         call_args = handler.app.update.call_args[0]
-        assert call_args[6] == "https://jira.com/browse/DTS-456"
+        assert call_args[0].task_link == "https://jira.com/browse/DTS-456"
 
     @pytest.mark.asyncio
     async def test_handle_without_task_link(self, handler, mock_incident):
@@ -86,7 +83,7 @@ class TestMessageUpdateHandler:
 
         # Verify empty task_link is passed through
         call_args = handler.app.update.call_args[0]
-        assert call_args[6] == ""
+        assert call_args[0].task_link == ""
 
     @pytest.mark.asyncio
     async def test_handle_preserves_incident_state(self, handler, mock_incident):
@@ -102,6 +99,6 @@ class TestMessageUpdateHandler:
         # Verify incident state is preserved (not modified by handler)
         call_args = handler.app.update.call_args[0]
         assert call_args[1] == original_status  # status
-        assert call_args[4] == original_chain_enabled
-        assert call_args[5] == original_frozen_until
+        assert call_args[0].chain_enabled == original_chain_enabled
+        assert call_args[0].frozen_until == original_frozen_until
 
