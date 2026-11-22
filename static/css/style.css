@@ -215,6 +215,7 @@ strong {
 
 /* Filters Container */
 #filter-container {
+    direction: rtl;
     overflow-x: auto;
     overflow-y: hidden;
     scroll-behavior: smooth;
@@ -222,6 +223,9 @@ strong {
     scrollbar-width: none;
     flex: 1;
     min-width: 0;
+    /* Make room for the corner buttons without raising the toolbar height. */
+    margin-block: -12px;
+    padding-block: 12px;
 }
 
 #filter-container::-webkit-scrollbar {
@@ -229,11 +233,12 @@ strong {
 }
 
 #filter-list {
+    direction: ltr;
     display: flex;
     align-items: center;
     gap: 12px;
     width: max-content;
-    margin-left: auto;
+    padding-right: 12px;
 }
 
 /* Arrow Wrappers */
@@ -303,8 +308,7 @@ strong {
     font-size: 16px;
     height: 100%;
     line-height: 20px;
-    max-width: 276px;
-    min-width: 276px;
+    width: min(276px, 50vw);
 }
 
 #filter-input::placeholder {
@@ -429,6 +433,9 @@ strong {
     position: relative;
     width: 15px;
     height: 15px;
+    padding: 0;
+    border: none;
+    background: transparent;
     cursor: pointer;
 }
 
@@ -463,9 +470,35 @@ strong {
 }
 
 /* Remove Filter Button */
-.filter-badge span.cross {
-    cursor: pointer;
+.filter-badge .cross {
     margin-left: 5px;
+}
+
+#filter-list .filter-badge {
+    position: relative;
+}
+
+#filter-list .cross {
+    position: absolute;
+    top: 0;
+    right: 0;
+    transform: translate(50%, -50%);
+    width: 20px;
+    height: 20px;
+    margin: 0;
+    border-radius: 50%;
+    background: var(--filter-badge-fg);
+    color: var(--bg-header);
+}
+
+#filter-list .cross:hover {
+    background: var(--fg-primary);
+}
+
+#filter-list .cross::before,
+#filter-list .cross::after {
+    height: 10px;
+    background: currentColor;
 }
 
 .filter-badge.removed {

@@ -210,8 +210,10 @@ function createEditableFilterBadge({value, onChange, onRemove, onBadgeClick, val
     text.textContent = current;
     text.title = "Click to edit";
 
-    const removeButton = document.createElement("span");
+    const removeButton = document.createElement("button");
+    removeButton.type = "button";
     removeButton.className = "cross";
+    removeButton.setAttribute("aria-label", `Remove ${current}`);
 
     const endEdit = () => {
         badge.classList.remove("is-editing");
@@ -220,6 +222,7 @@ function createEditableFilterBadge({value, onChange, onRemove, onBadgeClick, val
             input.replaceWith(text);
         }
         text.textContent = current;
+        removeButton.setAttribute("aria-label", `Remove ${current}`);
     };
 
     const startEdit = () => {
@@ -290,8 +293,7 @@ function createEditableFilterBadge({value, onChange, onRemove, onBadgeClick, val
 
 // Add a new filter to the UI
 function scrollFiltersToEnd() {
-    const el = document.getElementById("filter-container");
-    el.scrollLeft = el.scrollWidth - el.clientWidth;
+    document.getElementById("filter-container").scrollLeft = 0;
 }
 
 function addFilterUI(filter) {
@@ -324,9 +326,15 @@ function removeFilter(filter, filterElement) {
     filters = filters.filter(f => f !== filter);
     updateFiltersInURL(filters);
 
+    const wasFocused = filterElement.contains(document.activeElement);
+    const adjacentBadge = filterElement.nextElementSibling || filterElement.previousElementSibling;
     filterElement.remove();
     applyFilters();
     updateFilterLayout();
+    if (wasFocused) {
+        const nextControl = adjacentBadge?.querySelector(".cross") || document.getElementById("filter-input");
+        nextControl.focus({preventScroll: true});
+    }
 }
 
 // Handle adding filters from the input field and button
@@ -400,24 +408,12 @@ function setupFilterContainerScroll() {
         const hasFilters = filterList.children.length > 0;
         scrollableFilters.classList.toggle("has-filters", hasFilters);
 
-        const maxScroll = filterContainer.scrollWidth - filterContainer.clientWidth;
-        const atEnd = filterContainer.scrollLeft >= maxScroll - 2;
-        if (atEnd && maxScroll > 0) {
-            filterContainer.scrollLeft = maxScroll;
-        }
-
+        // The RTL scroll container starts at the right edge and scrolls toward negative offsets.
+        const {scrollLeft, scrollWidth, clientWidth} = filterContainer;
         const leftWrapper = document.querySelector(".arrow-wrapper.left");
         const rightWrapper = document.querySelector(".arrow-wrapper.right");
-
-        if (hasFilters) {
-            leftWrapper.classList.toggle("visible", filterContainer.scrollLeft > 0);
-
-            const isAtEnd = filterContainer.scrollLeft >= maxScroll - 2;
-            rightWrapper.classList.toggle("visible", !isAtEnd);
-        } else {
-            leftWrapper.classList.remove("visible");
-            rightWrapper.classList.remove("visible");
-        }
+        leftWrapper.classList.toggle("visible", hasFilters && scrollLeft > clientWidth - scrollWidth + 2);
+        rightWrapper.classList.toggle("visible", hasFilters && scrollLeft < -2);
     }
 
     filterContainer.addEventListener("scroll", updateArrowVisibility);
@@ -462,6 +458,7 @@ function updateFilterBadgeUI(existingFilter, newFilter) {
         // Update remove button handler with new filter
         const removeButton = filterElement.querySelector(".cross");
         if (removeButton) {
+            removeButton.setAttribute("aria-label", `Remove ${newFilter}`);
             removeButton.replaceWith(removeButton.cloneNode(true));
             filterElement.querySelector(".cross").addEventListener("click", () => removeFilter(newFilter, filterElement));
         }
