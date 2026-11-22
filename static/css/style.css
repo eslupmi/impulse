@@ -433,9 +433,6 @@ strong {
     position: relative;
     width: 15px;
     height: 15px;
-    padding: 0;
-    border: none;
-    background: transparent;
     cursor: pointer;
 }
 
@@ -470,7 +467,7 @@ strong {
 }
 
 /* Remove Filter Button */
-.filter-badge .cross {
+.filter-badge span.cross {
     margin-left: 5px;
 }
 

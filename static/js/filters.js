@@ -182,18 +182,6 @@ function applyFilters() {
     updateZoomIcons();
 }
 
-// Update filter container layout dynamically
-function updateFilterLayout() {
-    const filterWrapper = document.getElementById("filter-wrapper");
-    const filters = document.querySelectorAll(".filter-badge");
-
-    if (filters.length > 0) {
-        filterWrapper.classList.add("has-filters");
-    } else {
-        filterWrapper.classList.remove("has-filters");
-    }
-}
-
 function validateAndFormatFilter(query) {
     const q = query.trim();
     if (!q || !validateMatcherClause(q).ok) return null;
@@ -201,32 +189,20 @@ function validateAndFormatFilter(query) {
 }
 
 function createEditableFilterBadge({value, onChange, onRemove, onBadgeClick, validateAndFormat = validateAndFormatFilter}) {
-    let current = value;
     const badge = document.createElement("div");
     badge.className = "filter-badge";
 
     const text = document.createElement("span");
     text.className = "filter-badge-text";
-    text.textContent = current;
+    text.textContent = value;
     text.title = "Click to edit";
 
-    const removeButton = document.createElement("button");
-    removeButton.type = "button";
+    const removeButton = document.createElement("span");
     removeButton.className = "cross";
-    removeButton.setAttribute("aria-label", `Remove ${current}`);
-
-    const endEdit = () => {
-        badge.classList.remove("is-editing");
-        const input = badge.querySelector(".filter-badge-edit-input");
-        if (input) {
-            input.replaceWith(text);
-        }
-        text.textContent = current;
-        removeButton.setAttribute("aria-label", `Remove ${current}`);
-    };
 
     const startEdit = () => {
         if (badge.classList.contains("is-editing")) return;
+        const current = text.textContent;
         badge.classList.add("is-editing");
         const input = document.createElement("input");
         input.type = "text";
@@ -235,6 +211,11 @@ function createEditableFilterBadge({value, onChange, onRemove, onBadgeClick, val
         text.replaceWith(input);
         input.focus();
         input.setSelectionRange(current.length, current.length);
+
+        const endEdit = () => {
+            badge.classList.remove("is-editing");
+            input.replaceWith(text);
+        };
 
         input.addEventListener("keydown", (e) => {
             if (e.key === "Enter") {
@@ -252,7 +233,7 @@ function createEditableFilterBadge({value, onChange, onRemove, onBadgeClick, val
                     input.classList.add("filter-badge-edit-error");
                     return;
                 }
-                current = next;
+                text.textContent = next;
                 endEdit();
             } else if (e.key === "Escape") {
                 e.preventDefault();
@@ -267,7 +248,7 @@ function createEditableFilterBadge({value, onChange, onRemove, onBadgeClick, val
                 return;
             }
             if (next !== current && onChange(next, current) !== false) {
-                current = next;
+                text.textContent = next;
             }
             endEdit();
         });
@@ -283,7 +264,7 @@ function createEditableFilterBadge({value, onChange, onRemove, onBadgeClick, val
     }
     removeButton.addEventListener("click", (e) => {
         e.stopPropagation();
-        onRemove(current);
+        onRemove(text.textContent);
     });
 
     badge.appendChild(text);
@@ -317,7 +298,6 @@ function addFilterUI(filter) {
 
     filterList.appendChild(filterElement);
     scrollFiltersToEnd();
-    updateFilterLayout();
 }
 
 // Remove a filter from the UI and URL
@@ -326,15 +306,8 @@ function removeFilter(filter, filterElement) {
     filters = filters.filter(f => f !== filter);
     updateFiltersInURL(filters);
 
-    const wasFocused = filterElement.contains(document.activeElement);
-    const adjacentBadge = filterElement.nextElementSibling || filterElement.previousElementSibling;
     filterElement.remove();
     applyFilters();
-    updateFilterLayout();
-    if (wasFocused) {
-        const nextControl = adjacentBadge?.querySelector(".cross") || document.getElementById("filter-input");
-        nextControl.focus({preventScroll: true});
-    }
 }
 
 // Handle adding filters from the input field and button
@@ -445,23 +418,10 @@ export function setupTableFiltering() {
 
 // Update filter badge UI when filter value changes
 function updateFilterBadgeUI(existingFilter, newFilter) {
-    const filterElements = document.querySelectorAll(".filter-badge");
-    const filterElement = Array.from(filterElements).find(badge => {
-        return badge.querySelector(".filter-badge-text")?.textContent === existingFilter;
-    });
-    
-    if (filterElement) {
-        const textSpan = filterElement.querySelector(".filter-badge-text");
-        if (textSpan) {
-            textSpan.innerText = newFilter;
-        }
-        // Update remove button handler with new filter
-        const removeButton = filterElement.querySelector(".cross");
-        if (removeButton) {
-            removeButton.setAttribute("aria-label", `Remove ${newFilter}`);
-            removeButton.replaceWith(removeButton.cloneNode(true));
-            filterElement.querySelector(".cross").addEventListener("click", () => removeFilter(newFilter, filterElement));
-        }
+    const filterTexts = document.querySelectorAll("#filter-list .filter-badge-text");
+    const text = Array.from(filterTexts).find(text => text.textContent === existingFilter);
+    if (text) {
+        text.textContent = newFilter;
     }
 }
 
