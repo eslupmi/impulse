@@ -15,7 +15,6 @@ on:
 
 permissions:
   contents: read
-  packages: write
 
 jobs:
   lint:
@@ -34,6 +33,9 @@ jobs:
   build-and-push-image:
     if: github.repository == 'eslupmi/impulse' && github.event.action != 'closed' && github.event.pull_request.draft == false
     uses: eslupmi/ci-templates/.github/workflows/_build-and-push-image.yml@develop
+    permissions:
+      contents: read
+      packages: write
 
   autotests:
     if: github.repository == 'eslupmi/impulse' && github.event.action != 'closed' && github.event.pull_request.draft == false
