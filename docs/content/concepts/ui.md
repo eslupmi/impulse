@@ -47,8 +47,9 @@ Each incident is represented as a row of selected fields. On the left there is a
     - task management
     - freeze
     - user assignment selector
-  - a button to expand the incident
-  - an indicator of the number of alerts in it.
+  - a button to expand the incident and see the exact count above its alert cards.
+
+The status indicator has one segment per alert, with a minimum of one and a maximum of five.
 
 Columns are selected through [ui.columns](../config_file.md#uicolumns)
 

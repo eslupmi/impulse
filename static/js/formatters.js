@@ -11,12 +11,7 @@ const formatterMap = {
         return formatTimestamp(cell.getValue())
     },
     "link": "link",
-    "indicator": (cell, params) => {
-        return formatIndicator(cell, params);
-    },
-    "alerts_count": (cell) => {
-        return formatAlertsCount(cell);
-    }
+    "indicator": formatIndicator,
 };
 
 // Formatter parameters (for links, etc.)
@@ -241,23 +236,10 @@ function formatterWrapper(formatter) {
     return colorFormatter;
 }
 
-function formatIndicator(cell, params) {
+function formatIndicator(cell) {
     const indicatorDiv = document.createElement("div");
     indicatorDiv.className = `status-indicator ${cell.getValue().toLowerCase()}`;
     return indicatorDiv;
-}
-
-function formatAlertsCount(cell) {
-    const count = cell.getValue();
-    if (!count || count <= 1) {
-        return null;
-    }
-    const circle = document.createElement("div");
-    circle.className = "alerts-count-circle";
-    const countSpan = document.createElement("span");
-    countSpan.textContent = count;
-    circle.appendChild(countSpan);
-    return circle;
 }
 
 function setColorMap(colors) {
@@ -616,10 +598,9 @@ function responsiveLayoutCollapseFormatter(data) {
         const alertsSection = document.createElement('div');
         alertsSection.className = 'alerts-section';
 
-        // Add "alerts:" label
         const alertsLabel = document.createElement('div');
         alertsLabel.className = 'alerts-label';
-        alertsLabel.textContent = 'alerts:';
+        alertsLabel.textContent = `alerts (${responsiveData.alerts.length}):`;
         alertsSection.appendChild(alertsLabel);
 
         // Create alerts wrapper
