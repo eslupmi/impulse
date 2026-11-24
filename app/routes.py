@@ -11,7 +11,6 @@ from fastapi import (
     WebSocketDisconnect,
 )
 from fastapi.responses import HTMLResponse, Response
-from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from app.api.models import AssignmentRequest, FreezeRequest
@@ -27,6 +26,7 @@ from app.middleware import (
     service_unavailable_response,
 )
 from app.resources import resource_directory
+from app.ui.static import UIStaticFiles, VersionedStaticFiles
 from app.ui.table_config import get_all_ui_config
 from app.ui.websocket import incident_ws
 from impulse_messenger_api import InteractionRequest
@@ -53,11 +53,6 @@ async def _send_saved_event(websocket, event, success, detail=None, data=None):
 
 def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_manager=None) -> APIRouter:
     router = APIRouter(prefix=http_prefix)
-
-    ui_templates = None
-    if fastapi_app and get_config().ui_config:
-        fastapi_app.mount(f"{http_prefix}/static", StaticFiles(directory=resource_directory("static")), name="static")
-        ui_templates = Jinja2Templates(directory=resource_directory("static"))
 
     @router.get("/livez")
     def get_live(request: Request):
@@ -89,13 +84,25 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
         queue = request.app.state.queue
         return await generate_metrics_response(queue)
 
-    if ui_templates:
-        @router.get("/", response_class=HTMLResponse)
+    static_version = None
+    if fastapi_app:
+        static_directory = resource_directory("static")
+        static_files = VersionedStaticFiles(directory=static_directory)
+        static_version = static_files.version
+        static_base = f"{http_prefix}/static/{static_version}"
+        fastapi_app.mount(static_base, static_files, name="versioned_static")
+        fastapi_app.mount(f"{http_prefix}/static", UIStaticFiles(directory=static_directory), name="static")
+        ui_templates = Jinja2Templates(directory=static_directory)
+
+        @router.get("/", response_class=HTMLResponse, responses={405: {"description": "UI is disabled"}})
         async def get_index(request: Request):
+            if not get_config().ui_config:
+                raise HTTPException(status_code=405, headers={"Allow": "POST"})
             return ui_templates.TemplateResponse("index.html", {
                 "request": request,
-                "http_prefix": http_prefix
-            })
+                "static_base": static_base,
+                "static_version": static_version,
+            }, headers={"Cache-Control": "no-cache"})
 
     @router.get("/queue")
     async def get_queue(request: Request):
@@ -188,9 +195,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
         return request.app.state.messenger.users.serialize()
 
     def _log_ui_action(action_name, incident, acting_user, **extra):
-        acting_name = acting_user.get("full_name") or acting_user.get("username") or "unknown"
-        acting_id = acting_user.get("id") or "unknown"
-        log_extra = {"uniq_id": incident.uniq_id, "acting_user": acting_name, "acting_user_id": acting_id}
+        log_extra = {"uniq_id": incident.uniq_id, "acting_user_id": acting_user.get("id") or "unknown"}
         log_extra.update(extra)
         logger.info(f"UI {action_name}", extra=log_extra)
 
@@ -203,9 +208,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
     async def _unassign(request, uniq_id, acting_user):
         incident = _get_incident(request, uniq_id)
         _log_ui_action("unassignment", incident, acting_user)
-        unassigned = await request.app.state.messenger.handle_ui_unassign(
-            incident, request.app.state.queue, ui_user=acting_user,
-        )
+        unassigned = await request.app.state.messenger.handle_ui_unassign(incident, ui_user=acting_user)
         return {"success": unassigned}
 
     async def _assign(request, uniq_id, user_id, acting_user):
@@ -432,6 +435,8 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
             if is_standby_mode(websocket.app.state):
                 await websocket.close(code=1008, reason=STANDBY_MODE_MESSAGE)
                 return
+            if static_version is not None and get_config().ui_config:
+                await websocket.send_text(json.dumps({"event": "static_version", "data": static_version}))
             active_maintenance = websocket.app.state.maintenance_manager.active_windows_payload()
             await websocket.send_text(json.dumps({"event": "active_maintenance", "data": active_maintenance}))
             while True:

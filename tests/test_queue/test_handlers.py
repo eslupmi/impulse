@@ -1,10 +1,15 @@
 """
 Unit tests for app.queue.handlers module.
 """
+from datetime import timedelta
 from unittest.mock import Mock, AsyncMock, patch
 
 import pytest
+import yaml
 
+from app.config.config import UnifiedConfig
+from app.config.loader import load_and_validate_config
+from app.queue.constants import QueueItemType
 from app.queue.handlers.alert_handler import AlertHandler
 from app.queue.handlers.base_handler import BaseHandler
 from app.queue.handlers.status_update_handler import StatusUpdateHandler
@@ -12,7 +17,8 @@ from app.queue.handlers.step_handler import StepHandler
 from tests.utils import (
     create_mock_config, create_alert_payload, create_test_datetime,
     create_mock_queue, create_mock_application, create_mock_incidents_collection,
-    create_mock_route, create_mock_webhooks_collection, create_mock_incident_for_handlers
+    create_mock_route, create_mock_webhooks_collection, create_mock_incident_for_handlers,
+    create_slack_config_data
 )
 
 
@@ -161,6 +167,37 @@ class TestAlertHandler:
             mock_application.update.assert_not_called()
             mock_queue.recreate.assert_called_once()
             mock_queue.update.assert_called_once()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("incident_yaml", [
+        "", "incident:\n", "incident: {}\n",
+        "incident:\n  notifications:\n    new_firing: false\n",
+        "incident:\n  timeouts:\n", "incident:\n  timeouts: {}\n",
+    ])
+    async def test_handle_create_with_default_timeouts(
+        self, alert_handler, mock_incidents, mock_application, mock_queue, tmp_path, incident_yaml
+    ):
+        config_path = tmp_path / "impulse.yml"
+        config_path.write_text(yaml.safe_dump(create_slack_config_data()) + incident_yaml)
+        validated_config, _ = load_and_validate_config(str(config_path))
+        config = UnifiedConfig(validated_config)
+        mock_application.form_body_header_status_icons.return_value = ("body", "header", "icons")
+        mock_application.create_incident_message = AsyncMock(return_value="1234567890.123456")
+        alert_handler.route.get_route.return_value = ("test-channel", None)
+        now = create_test_datetime()
+
+        with patch('app.queue.handlers.alert_handler.get_config', return_value=config), \
+             patch('app.queue.handlers.alert_handler.datetime') as mock_datetime, \
+             patch('app.incident.incident.Incident.dump'):
+            mock_datetime.now.return_value = now
+            await alert_handler.handle(create_alert_payload(status="firing"))
+
+        incident = mock_incidents.add.call_args.args[0]
+        mock_application.create_incident_message.assert_awaited_once()
+        assert incident.status_update_datetime == now + timedelta(hours=6)
+        mock_queue.put.assert_awaited_once_with(
+            incident.status_update_datetime, QueueItemType.UPDATE_STATUS, incident.uniq_id,
+        )
 
     @pytest.mark.asyncio
     async def test_handle_create_aborts_when_thread_creation_fails(

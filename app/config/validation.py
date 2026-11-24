@@ -86,6 +86,7 @@ class IncidentNotifications(BaseModel):
     partial_resolved: bool | None = Field(True, description="Partial resolved notifications")
     status_update: bool | None = Field(True, description="Status update notifications")
     freeze: bool | None = Field(False, description="Freeze notifications")
+    unfreeze: bool | None = Field(True, description="Unfreeze notifications")
 
     def get(self, key: str) -> bool:
         return getattr(self, key) or False
@@ -94,7 +95,12 @@ class IncidentNotifications(BaseModel):
 class IncidentConfig(BaseModel):
     """Incident configuration"""
     notifications: IncidentNotifications | None = Field(IncidentNotifications(), description="Incident timeouts")
-    timeouts: IncidentTimeouts | None = Field(None, description="Incident timeouts")
+    timeouts: IncidentTimeouts = Field(default_factory=IncidentTimeouts, description="Incident timeouts")
+
+    @field_validator('timeouts', mode='before')
+    @classmethod
+    def default_timeouts(cls, value):
+        return {} if value is None else value
 
 
 class RouteConfig(BaseModel):
@@ -216,12 +222,17 @@ class ImpulseConfig(BaseModel):
     """Main Impulse configuration"""
     general: GeneralConfig = Field(default_factory=GeneralConfig, description="General configuration")
     messenger: SerializeAsAny[BaseApplicationConfig] = Field(..., description="Messenger configuration")
-    incident: IncidentConfig | None = Field(None, description="Incident configuration")
+    incident: IncidentConfig = Field(default_factory=IncidentConfig, description="Incident configuration")
     route: RouteConfig | None = Field(None, description="Route configuration")
     ui: UIConfig | None = Field(None, description="UI configuration")
     webhooks: dict[str, WebhookConfig] = Field({}, description="Webhook configurations")
     task_management: TaskManagementConfig | None = Field(None, description="Task management configuration")
     inhibit_rules: list[InhibitRule] = Field([], description="Inhibition rules for AlertManager-style inhibition")
+
+    @field_validator('incident', mode='before')
+    @classmethod
+    def default_incident(cls, value):
+        return {} if value is None else value
 
     @field_validator('messenger', mode='before')
     @classmethod

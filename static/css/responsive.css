@@ -180,45 +180,7 @@
     margin-top: -1px;
     position: relative;
     overflow: visible !important;
-}
-
-.tabulator-responsive-collapse-toggle {
-    position: relative;
-    padding: 8px !important;
-    box-sizing: border-box;
-    width: 30px;
-    max-width: 30px;
-    background: none !important;
-}
-
-.tabulator-responsive-collapse-toggle-open {
-    fill: transparent !important;
-    stroke: transparent !important;
-}
-
-.tabulator-responsive-collapse-toggle-close {
-    fill: transparent !important;
-    stroke: transparent !important;
-}
-
-.tabulator .tabulator-responsive-collapse-toggle::before {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 10px;
-    height: 10px;
-    border-left: 2px solid var(--fg-primary);
-    border-top: 2px solid var(--fg-primary);
-    transform: translate(-50%, -50%) rotate(-135deg);
-}
-
-.tabulator .tabulator-responsive-collapse-toggle.open::before {
-    transform: translate(-50%, -50%) rotate(45deg);
-}
-
-.tabulator .tabulator-responsive-collapse-toggle:hover::before {
-    border-color: var(--hover-fg);
+    cursor: auto;
 }
 
 .tabulator .tabulator-footer .tabulator-page:disabled {

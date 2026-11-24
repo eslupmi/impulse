@@ -1,6 +1,6 @@
 import asyncio
 from dataclasses import asdict
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -38,7 +38,11 @@ from app.jinja_template import JinjaTemplate
 from app.logging import logger
 from app.logging_context import redact_messenger_url
 from app.queue.constants import QueueItemType
-from app.time import calculate_freeze_time, format_freeze_expiration
+from app.time import (
+    calculate_freeze_time,
+    format_freeze_expiration,
+    unix_sleep_to_timedelta,
+)
 from impulse_messenger_api import (
     BaseApplicationConfig,
     IncidentPresentation,
@@ -252,18 +256,11 @@ class Application:
         await self.update_incident_message(incident)
         return True
 
-    async def handle_ui_unassign(self, incident, queue, ui_user=None):
-        if not incident.assigned_user_id:
+    async def handle_ui_unassign(self, incident, ui_user=None):
+        if incident.status != 'resolved' or not incident.assigned_user_id:
             return False
 
-        await queue.delete_by_id(incident.uniq_id, delete_steps=True, delete_status=False)
-        incident.assigned_user_id = ""
-        incident.assigned_user = ""
-        incident.assigned_fullname = ""
-        incident.chain_enabled = True
-        self.track_async_task(asyncio.create_task(self.post_unassignment_notification(incident, ui_user=ui_user)))
-        incident.dump()
-        await self.update_incident_message(incident)
+        await self.handle_ui_release(incident, ui_user=ui_user)
         return True
 
     async def handle_ui_freeze(self, incident, freeze_option, user_id, queue, user_timezone=None, ui_user=None):
@@ -421,6 +418,9 @@ class Application:
     async def post_unfreeze_notification(self, incident_: 'Incident', ui_user=None):
         if not self.provider.descriptor.messaging_enabled:
             return
+        config = get_config()
+        if not config.incident.notifications.unfreeze:
+            return
         text = self.notification_template(incident_notifications_unfreeze[self.type]).form_notification(
             **freeze_template_context(incident_, ui_user)
         )
@@ -577,6 +577,8 @@ class Application:
 
         if isinstance(freeze_option, datetime):
             freeze_time = freeze_option
+        elif custom_freeze := get_environment_config().dev_custom_freeze_time:
+            freeze_time = datetime.now(UTC) + unix_sleep_to_timedelta(custom_freeze)
         else:
             general = get_config().app.general
             timezone_str = user_timezone or general.timezone

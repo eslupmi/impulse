@@ -82,32 +82,20 @@ function customResponsiveDataFilter(rowData, parameters) {
     const responsiveData = rowData._responsive_data;
     if (!responsiveData) return false;
 
-    const { field, value, operator } = parameters;
+    const {field, value, operator} = parameters;
     const searchValue = value.toLowerCase();
+    const labelValues = [
+        responsiveData.group_labels?.[field],
+        responsiveData.common_labels?.[field],
+        ...(responsiveData.alerts || []).map(alert => alert.labels?.[field]),
+    ].filter(value => value !== undefined && value !== null);
 
-    if (responsiveData.group_labels && responsiveData.group_labels[field]) {
-        if (matchLabelValue(responsiveData.group_labels[field], searchValue, operator)) {
-            return true;
-        }
-    }
+    if (!labelValues.length) labelValues.push("");
 
-    if (responsiveData.common_labels && responsiveData.common_labels[field]) {
-        if (matchLabelValue(responsiveData.common_labels[field], searchValue, operator)) {
-            return true;
-        }
-    }
-
-    if (responsiveData.alerts) {
-        for (const alert of responsiveData.alerts) {
-            if (alert.labels && alert.labels[field]) {
-                if (matchLabelValue(alert.labels[field], searchValue, operator)) {
-                    return true;
-                }
-            }
-        }
-    }
-
-    return false;
+    const matches = labelValue => matchLabelValue(labelValue, searchValue, operator);
+    return operator === "!=" || operator === "!~"
+        ? labelValues.every(matches)
+        : labelValues.some(matches);
 }
 
 // Initialize filters from URL
@@ -526,13 +514,9 @@ function updateZoomIcons() {
     const cells = table.getRows().flatMap(row => row.getCells());
 
     cells.forEach(cell => {
-        const column = cell.getColumn();
-        // Skip the responsive collapse column
-        if (column.getDefinition().formatter === 'responsiveCollapse') return;
-
         if (cell.getElement().classList.contains("unclickable-cell")) return;
 
-        const field = column.getField();
+        const field = cell.getColumn().getField();
         if (!field) return;
 
         const value = cell.getValue();
