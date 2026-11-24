@@ -78,5 +78,5 @@ Examples:
 - `severity != "critical"`
 - `severity =~ "warning|critical"`
 - `host !~ "elastic.*"`
-- `_uniq_id="0a2a79ee-f3ba-51db-a603-063dd16294d0"`
-- `_status="firing"`
+- `_uniq_id = "0a2a79ee-f3ba-51db-a603-063dd16294d0"`
+- `_status = "firing"`
