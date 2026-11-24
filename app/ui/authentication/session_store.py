@@ -5,7 +5,6 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import yaml
-from pydantic import ValidationError
 
 from app.logging import logger
 from app.storage import FileStorage, S3Storage, get_storage
@@ -53,20 +52,8 @@ class FileSessionStore:
         if not path:
             return None
 
-        try:
-            with self._storage.open(path, encoding="utf-8") as handle:
-                raw = handle.read()
-            data = yaml.safe_load(raw) if raw.strip() else {}
-            if not isinstance(data, dict):
-                return None
-            session = AuthSession.model_validate(data)
-        except FileNotFoundError:
-            return None
-        except (OSError, yaml.YAMLError, ValidationError) as exc:
-            logger.warning("Failed to parse auth session file", extra={"path": str(path), "error": str(exc)})
-            return None
-
-        if session.session_id != session_id:
+        session = self._read_session(path)
+        if session is None or session.session_id != session_id:
             return None
 
         if self._is_expired(session.expires_at):
@@ -92,24 +79,28 @@ class FileSessionStore:
             if not filename.endswith(".yaml"):
                 continue
             path = self.root_dir / filename
-            try:
-                with self._storage.open(path, encoding="utf-8") as handle:
-                    raw = handle.read()
-                data = yaml.safe_load(raw) if raw.strip() else {}
-                if not isinstance(data, dict):
-                    continue
-                session = AuthSession.model_validate(data)
-            except (OSError, yaml.YAMLError, ValidationError):
-                logger.warning("Failed to load session file", extra={"path": str(path)})
-                continue
-
-            if self._is_expired(session.expires_at, now):
+            session = self._read_session(path)
+            if session is not None and self._is_expired(session.expires_at, now):
                 try:
                     self._storage.remove(path)
                 except FileNotFoundError:
                     pass
                 removed += 1
         return removed
+
+    def _read_session(self, path: Path) -> AuthSession | None:
+        try:
+            with self._storage.open(path, encoding="utf-8") as handle:
+                raw = handle.read()
+            data = yaml.safe_load(raw)
+            if isinstance(data, dict):
+                return AuthSession.model_validate(data)
+        except FileNotFoundError:
+            return None
+        except Exception as exc:  # noqa: BLE001
+            # YAML constructors can raise outside YAMLError, and paths and values contain session tokens.
+            logger.warning("Failed to read auth session", extra={"error_type": type(exc).__name__})
+        return None
 
     def _session_path(self, session_id: str) -> Path | None:
         if not _SESSION_ID_PATTERN.fullmatch(session_id):
