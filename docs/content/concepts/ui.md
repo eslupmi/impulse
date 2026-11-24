@@ -58,6 +58,8 @@ To change the sort order, click the corresponding key in the column header. If y
 
 Alert labels and [ui.&lt;column&gt;.name](../config_file.md#columnname) can be used as filters. If a column name matches a label, the column name takes priority.
 
+Two built-in hidden columns are always available for filtering: `_uniq_id` for the unique incident ID and `_status` for its underlying status. A frozen incident still matches its underlying status, such as `firing`. Both names are reserved for the built-in columns.
+
 Default filters are set in the [ui.filters](../config_file.md#uifilters).
 
 Filters can be added using the filter [input field](#input-field) in the header or through the **+/-** buttons next to the table fields.
@@ -71,4 +73,6 @@ Examples:
 - `job = "node"`
 - `severity != "critical"`
 - `severity =~ "warning|critical"`
-- `host !~ "elastic.*"`.
+- `host !~ "elastic.*"`
+- `_uniq_id = "0a2a79ee-f3ba-51db-a603-063dd16294d0"`
+- `_status = "firing"`

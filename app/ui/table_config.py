@@ -1,5 +1,15 @@
 from app.config.config import get_config
 from app.config.environment import get_environment_config
+from app.config.validation import UIColumn
+
+_HIDDEN_INCIDENT_COLUMNS = {'_uniq_id': 'Unique ID', '_status': 'Status'}
+
+
+def get_configured_incident_columns() -> list[UIColumn]:
+    ui_config = get_config().ui_config
+    if ui_config is None:
+        return []
+    return [column for column in ui_config.columns if column.name not in _HIDDEN_INCIDENT_COLUMNS]
 
 
 def get_all_ui_config():
@@ -29,47 +39,47 @@ def _get_incident_table_config():
     Returns:
         dict: The configuration for the incidents table.
     """
-    config = get_config()
-    ui_config = config.ui_config
-    
     tabulator_config = [{
         'title': '',
         'field': 'indicator',
         'type': 'indicator',
         'headerSort': False
     }]
+    tabulator_config.extend(
+        {'title': title, 'field': name, 'visible': False, 'headerSort': False}
+        for name, title in _HIDDEN_INCIDENT_COLUMNS.items()
+    )
 
-    if ui_config and ui_config.columns:
-        for field in ui_config.columns:
-            field_name = field.name
-            field_type = field.type or 'string'
-            field_visible = field.visible if field.visible is not None else True
-            if field_type == 'link':
-                tabulator_config.append({
-                    'title': field.header,
-                    'field': field_name,
-                    'type': field_type,
-                    'urlField': f'{field_name}Url',
-                })
-                tabulator_config.append({
-                    'title': f'{field.header}Url',
-                    'field': f'{field_name}Url',
-                    'visible': False,
-                })
-            elif field_type == 'datetime':
-                tabulator_config.append({
-                    'title': field.header,
-                    'field': field_name,
-                    'type': field_type,
-                    'formatType': field.format or 'relative',
-                })
-            else:
-                tabulator_config.append({
-                    'title': field.header,
-                    'field': field_name,
-                    'type': field_type,
-                    'visible': field_visible,
-                })
+    for field in get_configured_incident_columns():
+        field_name = field.name
+        field_type = field.type or 'string'
+        field_visible = field.visible if field.visible is not None else True
+        if field_type == 'link':
+            tabulator_config.append({
+                'title': field.header,
+                'field': field_name,
+                'type': field_type,
+                'urlField': f'{field_name}Url',
+            })
+            tabulator_config.append({
+                'title': f'{field.header}Url',
+                'field': f'{field_name}Url',
+                'visible': False,
+            })
+        elif field_type == 'datetime':
+            tabulator_config.append({
+                'title': field.header,
+                'field': field_name,
+                'type': field_type,
+                'formatType': field.format or 'relative',
+            })
+        else:
+            tabulator_config.append({
+                'title': field.header,
+                'field': field_name,
+                'type': field_type,
+                'visible': field_visible,
+            })
 
     return tabulator_config
 

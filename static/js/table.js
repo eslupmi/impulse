@@ -128,13 +128,17 @@ async function initializeTable() {
             let cssClass = columnSorter === "string" ? "clickable-cell" : "unclickable-cell";
             cssClass += ` ${columnType || "regular"}-field`;
 
+            const formatter = column.visible !== false
+                ? formatterWrapper(formatterMap[columnType])
+                : "plaintext";
+
             const columLayout = {
                 title: column.title,
                 field: column.field,
                 visible: column.visible !== undefined ? column.visible : true,
                 sorter: columnSorter,
                 headerSort: column.headerSort !== undefined ? column.headerSort : true,
-                formatter: formatterWrapper(formatterMap[columnType]),
+                formatter: formatter,
                 formatterParams: columnType in formatterParamsMap ? formatterParamsMap[columnType](column) : undefined,
                 cssClass: cssClass,
                 vertAlign: "middle",

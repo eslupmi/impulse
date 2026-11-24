@@ -320,8 +320,10 @@ class Incident:
             common_annotations = {}
         
         display_status = 'frozen' if self.is_frozen else self.status
+        hidden_values = {'_uniq_id': self.uniq_id, '_status': self.status}
         
         data = {
+            **hidden_values,
             'uniq_id': self.uniq_id,
             'indicator': display_status,
             '_alerts_count': len(self.payload.get('alerts', [])),
@@ -359,6 +361,8 @@ class Incident:
         }
         data_object = {'incident': self, 'payload': self.payload}
         for key, value in params.items():
+            if key in hidden_values:
+                continue
             param = get_attr_by_key_chain(data_object, None, *value.split('.'))
             data[key] = normalize_param(param)
         return data
