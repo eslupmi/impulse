@@ -45,6 +45,7 @@ Environment variables are created in `.env` file for python installation or in `
 
     | Variable | Description | Default | Required |
     |-|-|-|-|
+    | DEV_CUSTOM_FREEZE_TIME | Override manual freeze duration on button press<br/>(same format as `wait`, e.g. `5m`, `10m`) | | - |
     | DEV_MESSENGER_CUSTOM_ADDRESS | Override Slack/Telegram API base URL | | - |
     | DEV_MESSENGER_RATE_LIMIT | Override messenger HTTP request limit (`0` disables limiting) | | - |
     | DEV_MESSENGER_RATE_WINDOW | Override messenger HTTP rate-limit window, seconds | | - |

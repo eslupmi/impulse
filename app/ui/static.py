@@ -1,12 +1,22 @@
 from hashlib import sha256
 from pathlib import Path
 
+from fastapi import HTTPException
 from fastapi.responses import Response
 from fastapi.staticfiles import StaticFiles
 from starlette.types import Scope
 
+from app.config.config import get_config
 
-class VersionedStaticFiles(StaticFiles):
+
+class UIStaticFiles(StaticFiles):
+    async def get_response(self, path: str, scope: Scope) -> Response:
+        if not get_config().ui_config:
+            raise HTTPException(status_code=404)
+        return await super().get_response(path, scope)
+
+
+class VersionedStaticFiles(UIStaticFiles):
     def __init__(self, directory: Path):
         super().__init__(directory=directory)
         # shortcut: files must stay unchanged until restart; snapshot them if live updates are needed.

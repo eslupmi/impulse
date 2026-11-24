@@ -21,6 +21,7 @@ def static_directory(tmp_path):
 def make_client(monkeypatch, static_directory):
     monkeypatch.setattr("app.routes.resource_directory", lambda name: static_directory)
     monkeypatch.setattr("app.routes.get_config", lambda: SimpleNamespace(ui_config=True))
+    monkeypatch.setattr("app.ui.static.get_config", lambda: SimpleNamespace(ui_config=True))
 
     def create(http_prefix=""):
         app = FastAPI()
@@ -39,7 +40,7 @@ def main_url(client, http_prefix=""):
 
 
 @pytest.mark.parametrize("http_prefix", ["", "/impulse"])
-def test_html_revalidates_and_all_local_assets_are_versioned(make_client, static_directory, http_prefix):
+def test_html_revalidates_and_all_local_assets_are_versioned(make_client, http_prefix):
     client = make_client(http_prefix)
     response = client.get(f"{http_prefix}/")
 
@@ -75,7 +76,7 @@ def test_html_revalidates_and_all_local_assets_are_versioned(make_client, static
     assert client.get(f"{static_base}/missing.js").status_code == 404
     legacy = client.get(f"{http_prefix}/static/js/main.js")
     assert legacy.status_code == 200
-    assert legacy.content == (static_directory / "js/main.js").read_bytes()
+    assert legacy.content == asset.content
 
 
 @pytest.mark.parametrize("http_prefix", ["", "/impulse"])
@@ -135,11 +136,14 @@ def test_version_stays_stable_across_restarts_and_mtime_changes(make_client, sta
     assert main_url(make_client()) == original_url
 
 
-def test_disabled_ui_does_not_mount_static_files(monkeypatch):
+def test_disabled_ui_does_not_serve_static_files(monkeypatch):
     monkeypatch.setattr("app.routes.get_config", lambda: SimpleNamespace(ui_config=None))
+    monkeypatch.setattr("app.ui.static.get_config", lambda: SimpleNamespace(ui_config=None))
     app = FastAPI()
     app.include_router(create_router("", fastapi_app=app))
     client = TestClient(app)
 
     assert client.get("/").status_code == 405
+    versioned_url = app.url_path_for("versioned_static", path="js/main.js")
+    assert client.get(versioned_url).status_code == 404
     assert client.get("/static/js/main.js").status_code == 404

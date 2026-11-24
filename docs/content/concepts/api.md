@@ -22,11 +22,12 @@ Replace `{uniq_id}` with the incident ID.
 | `/api/incidents/{uniq_id}/freeze` | `{"until": "2099-08-02T18:00:00Z"}` | Manually freeze until an RFC3339 timestamp with a timezone. |
 | `/api/incidents/{uniq_id}/task` | `{}` or no body | Create a task through the configured task management integration. |
 | `/api/incidents/{uniq_id}/assign` | `{"user_id": "U123"}` | Assign a user; `user_id` must be a string. |
-| `/api/incidents/{uniq_id}/unassign` | `{}` or no body | Remove the current assignment. |
+| `/api/incidents/{uniq_id}/unassign` | `{}` or no body | Release an assigned, resolved incident and reset its escalation chain. |
 | `/api/incidents/{uniq_id}/unfreeze` | `{}` or no body | Remove a manual freeze. Maintenance and inhibition freezes cannot be removed here. |
 
-Successful actions return `{"success": true}`. Assignment and unassignment return
-`{"success": false}` when the requested assignment already matches the current state.
+Successful actions return `{"success": true}`. Assignment returns `{"success": false}`
+when the requested user is already assigned. Unassignment returns `{"success": false}`
+when the incident is unassigned or its status is anything other than resolved.
 Task creation returns `{"success": true, "result": ...}` with the integration's result.
 
 Common errors are `401` for a missing session, `404` for an unknown incident, and `422`
@@ -154,7 +155,7 @@ The UI offers users whose `exists` is true.
 
 GET `/incidents` - the same serialized incident map as GET `/api/incidents`.
 
-POST `/assign` - assign or unassign a user on an incident (`uniq_id`, `user_id`; `""` to unassign). Authentication required when auth is enabled.
+POST `/assign` - assign a user to an incident (`uniq_id`, `user_id`). Pass an empty `user_id` to release an assigned, resolved incident. Authentication required when auth is enabled.
 
 POST `/task` - create a task for an incident (`uniq_id`), with the same result as POST `/api/incidents/{uniq_id}/task`. Authentication required when auth is enabled.
 

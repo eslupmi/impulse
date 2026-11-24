@@ -92,8 +92,8 @@ Below is a list of available templates.
 
 ### incident_notifications_unfreeze
 
-- **description:** posted when an incident is unfrozen
-- **enabled by:** always
+- **description:** posted when a Freeze timeout expires and the incident is no longer [frozen](incident.md#frozen)
+- **enabled by:** [incident.notifications.unfreeze](../config_file.md#incidentnotificationsunfreeze)
 - **[special variables](special_variables.md):** `incident`, `parents`, `childs`, `ui_user`
 
 ## Task Management

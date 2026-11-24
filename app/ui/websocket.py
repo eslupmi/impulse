@@ -11,7 +11,6 @@ class AsyncIncidentWS:
     
     def __init__(self):
         self.connections: set[WebSocket] = set()
-        self.table_config = get_config().ui_config
 
     async def connect(self, websocket: WebSocket):
         """Accept a new WebSocket connection"""
@@ -84,11 +83,12 @@ class AsyncIncidentWS:
 
     def _get_values(self):
         """Get values mapping for table configuration"""
+        table_config = get_config().ui_config
         values_map = {}
-        if self.table_config is None or not self.table_config.columns:
+        if table_config is None or not table_config.columns:
             return values_map
         
-        for field in self.table_config.columns:
+        for field in table_config.columns:
             if field.type == 'link':
                 values_map[field.name] = field.value
                 values_map[f'{field.name}Url'] = field.url

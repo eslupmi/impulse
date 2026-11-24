@@ -21,6 +21,7 @@ Documentation here: https://impulse.bot/docs
 - **Unlimited escalation policies:** create as many [escalation policies](https://impulse.bot/docs/stable/config_file/#messengerchains) as you need, including nested
 - **External notifications:** connect anything via powerful [webhooks](https://impulse.bot/docs/stable/config_file/#webhooks)
 - **High availability:** run multiple IMPulse instances for [reliability](https://impulse.bot/docs/stable/concepts/ha/)
+- **S3 storage:** store incident data in [S3](https://impulse.bot/docs/stable/concepts/storage/#s3)
 - **Minimal UI:** simple by design, customizable where it matters
 
 ## Quick start

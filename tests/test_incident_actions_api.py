@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 
@@ -61,7 +61,10 @@ def actions(sample_incident):
 @pytest.mark.parametrize(
     "deadline", ["2099-08-02T21:00:00+03:00", "2099-08-02T18:00:00Z"]
 )
-def test_freeze_until_schedules_manual_unfreeze(actions, deadline):
+def test_freeze_until_schedules_manual_unfreeze(actions, deadline, monkeypatch):
+    monkeypatch.setattr(
+        "app.im.application.get_environment_config", lambda: SimpleNamespace(dev_custom_freeze_time="5m")
+    )
     response = actions.client.post(
         "/impulse/api/incidents/inc-1/freeze", json={"until": deadline}
     )
@@ -108,6 +111,7 @@ def test_assign_and_unassign(actions):
     assert response.json() == {"success": True}
     assert actions.incident.assigned_user_id == "U1"
 
+    actions.incident.status = "resolved"
     response = actions.client.post("/impulse/api/incidents/inc-1/unassign")
     assert response.status_code == 200
     assert response.json() == {"success": True}
@@ -117,6 +121,7 @@ def test_assign_and_unassign(actions):
 
 @pytest.mark.parametrize("body", [None, {}])
 def test_unassign_accepts_empty_body_and_repeated_request(actions, body):
+    actions.incident.status = "resolved"
     actions.incident.assigned_user_id = "U1"
     response = actions.client.post("/impulse/api/incidents/inc-1/unassign", json=body)
     assert response.status_code == 200
@@ -303,6 +308,21 @@ def test_legacy_freeze_preserves_presets(actions, monkeypatch):
     assert response.json() == {"success": True}
     assert actions.incident.frozen_until == until
     assert calculate.call_args.args[0] == "tomorrow"
+
+
+def test_legacy_freeze_uses_custom_duration(actions, monkeypatch):
+    monkeypatch.setattr(
+        "app.im.application.get_environment_config", lambda: SimpleNamespace(dev_custom_freeze_time="5m")
+    )
+    before = datetime.now(UTC)
+    response = actions.client.post(
+        "/impulse/freeze", json={"uniq_id": "inc-1", "freeze_option": "tomorrow"}
+    )
+    duration = timedelta(minutes=5)
+
+    assert response.status_code == 200
+    assert before + duration <= actions.incident.frozen_until <= datetime.now(UTC) + duration
+    assert actions.queue.put.await_args.args[0] == actions.incident.frozen_until
 
 
 def test_assignment_users_matches_api_users(actions):

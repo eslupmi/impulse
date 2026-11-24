@@ -1,4 +1,4 @@
-name: deploy
+name: master
 
 concurrency:
   group: ${{ github.ref }}
@@ -7,10 +7,7 @@ concurrency:
 on:
   push:
     branches:
-    - 'develop'
     - 'master'
-    tags:
-    - 'v*'
 
 permissions:
   contents: read
@@ -22,15 +19,9 @@ jobs:
     uses: eslupmi/ci-templates/.github/workflows/_build-and-push-image.yml@develop
 
   deploy:
-    if: github.repository == 'eslupmi/impulse' && github.ref_type == 'branch'
+    if: github.repository == 'eslupmi/impulse'
     needs: build-and-push-image
     uses: eslupmi/ci-templates/.github/workflows/_deploy.yml@develop
     with:
-      deploy-path: /opt/impulse/${{ github.ref_name == 'master' && 'prod' || 'dev' }}
-    secrets: inherit
-
-  notify:
-    if: github.repository == 'eslupmi/impulse' && github.ref_type == 'tag'
-    needs: build-and-push-image
-    uses: eslupmi/ci-templates/.github/workflows/_notify.yml@develop
+      deploy-path: /opt/impulse/prod
     secrets: inherit
