@@ -568,15 +568,16 @@ class Application:
         await queue_.put(until, QueueItemType.UNFREEZE, incident_.uniq_id, data=source.value)
 
     async def _handle_freeze_action(
-            self, incident_: 'Incident', freeze_option: str, user_id: str, queue_: 'AsyncQueue',
+            self, incident_: 'Incident', freeze_option: str | datetime, user_id: str, queue_: 'AsyncQueue',
             user_timezone: str | None = None, ui_user=None,
     ):
         if not self.provider.descriptor.messaging_enabled:
             return False
         logger.info(log_button_pressed, extra={'uniq_id': incident_.uniq_id, 'button': 'freeze', 'user_id': user_id})
 
-        custom_freeze = get_environment_config().dev_custom_freeze_time
-        if custom_freeze:
+        if isinstance(freeze_option, datetime):
+            freeze_time = freeze_option
+        elif custom_freeze := get_environment_config().dev_custom_freeze_time:
             freeze_time = datetime.now(UTC) + unix_sleep_to_timedelta(custom_freeze)
         else:
             general = get_config().app.general

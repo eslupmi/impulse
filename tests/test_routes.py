@@ -1,3 +1,4 @@
+import re
 from unittest.mock import AsyncMock, Mock
 
 import pytest
@@ -33,21 +34,32 @@ def test_ui_can_be_enabled_and_disabled_by_reload(tmp_path, monkeypatch, http_pr
 
     app = FastAPI()
     app.state.queue = AsyncMock()
+    app.state.maintenance_manager = Mock(active_windows_payload=Mock(return_value=[]))
     app.include_router(create_router(http_prefix, fastapi_app=app))
     route_count = len(app.routes)
+    legacy_css = f"{http_prefix}/static/css/style.css"
     with TestClient(app) as client:
         assert client.get(f"{http_prefix}/").status_code == 405
-        assert client.get(f"{http_prefix}/static/index.html").status_code == 404
+        assert client.get(legacy_css).status_code == 404
 
         config_path.write_text(base_config + ui_config)
         assert client.post(f"{http_prefix}/-/reload").status_code == 200
         cleanup.assert_awaited_once_with(app, reload=True)
         create.assert_awaited_once_with(app, reload=True)
-        assert client.get(f"{http_prefix}/static/css/style.css").status_code == 200
         response = client.get(f"{http_prefix}/")
         assert response.status_code == 200
         assert '<title>IMPulse</title>' in response.text
-        assert f'href="{http_prefix}/static/css/style.css"' in response.text
+        version_match = re.search(r'data-static-version="([0-9a-f]+)"', response.text)
+        assert version_match is not None
+        version = version_match[1]
+        versioned_css = f"{http_prefix}/static/{version}/css/style.css"
+        assert f'href="{versioned_css}"' in response.text
+        asset = client.get(versioned_css)
+        assert asset.status_code == 200
+        assert asset.headers["cache-control"] == "public, max-age=31536000, immutable"
+        assert client.get(legacy_css).status_code == 200
+        with client.websocket_connect(f"{http_prefix}/ws") as websocket:
+            assert websocket.receive_json() == {"event": "static_version", "data": version}
         columns = client.get(f"{http_prefix}/ui_config").json()["table_config"]
         assert any(column["field"] == "status" for column in columns)
         assert client.post(f"{http_prefix}/", json={"status": "firing"}).status_code == 200
@@ -56,11 +68,16 @@ def test_ui_can_be_enabled_and_disabled_by_reload(tmp_path, monkeypatch, http_pr
         config_path.write_text(base_config)
         assert client.post(f"{http_prefix}/-/reload").status_code == 200
         assert client.get(f"{http_prefix}/").status_code == 405
-        assert client.get(f"{http_prefix}/static/index.html").status_code == 404
+        assert client.get(versioned_css).status_code == 404
+        assert client.get(legacy_css).status_code == 404
+        with client.websocket_connect(f"{http_prefix}/ws") as websocket:
+            assert websocket.receive_json() == {"event": "active_maintenance", "data": []}
 
         config_path.write_text(base_config + ui_config)
         assert client.post(f"{http_prefix}/-/reload").status_code == 200
         assert client.get(f"{http_prefix}/").status_code == 200
+        assert client.get(versioned_css).status_code == 200
+        assert client.get(legacy_css).status_code == 200
         assert len(app.routes) == route_count
 
 
@@ -219,24 +236,3 @@ def test_chains_config_keeps_ui_chains_from_raw_config_when_runtime_chains_exclu
     assert response.status_code == 200
     assert response.json()["chains"] == ["primary"]
     assert response.json()["ui_chains"] == ["ui-duty", "ui-backup"]
-
-
-def test_assignment_users_uses_assignable_users():
-    app = FastAPI()
-
-    messenger = Mock()
-    messenger.users = Mock()
-    messenger.users.get_assignable_users.return_value = [
-        {"user_id": "U1", "full_name": "User One", "config_name": "user.one"},
-    ]
-    app.state.messenger = messenger
-    app.include_router(create_router("", fastapi_app=app))
-
-    client = TestClient(app)
-    response = client.get("/assignment_users")
-
-    assert response.status_code == 200
-    assert response.json() == [
-        {"user_id": "U1", "full_name": "User One", "config_name": "user.one"},
-    ]
-    messenger.users.get_assignable_users.assert_called_once_with()

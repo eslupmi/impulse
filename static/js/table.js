@@ -12,6 +12,22 @@ import {initUserSelector, userSelectorFormatter} from "./user_selector.js";
 import {initActionButtons, actionButtonsFormatter} from "./action_buttons.js";
 
 const relativeFields = [];
+const incidentDetailsSelector = ".tabulator-responsive-collapse";
+const rowClickExclusions = `
+    ${incidentDetailsSelector}, .original-formatter, .pill-label,
+    .zoom-icon, button, .user-selector-wrapper, .tabulator-col-resize-handle
+`;
+
+function toggleIncidentDetails(row) {
+    const element = row.getElement();
+    const details = element.querySelector(incidentDetailsSelector);
+    if (!details?.firstElementChild) return;
+
+    const expanded = details.style.display === "none";
+    details.style.display = expanded ? "" : "none";
+    element.setAttribute("aria-expanded", String(expanded));
+    row.normalizeHeight();
+}
 
 const tableOptions = {
     layout: "fitColumns",
@@ -30,16 +46,32 @@ const tableOptions = {
     renderVertical: 'basic',
     rowFormatter: function(row) {
         const data = row.getData();
-        if (data._is_frozen) {
-            row.getElement().classList.add('frozen-row');
-        } else {
-            row.getElement().classList.remove('frozen-row');
-        }
+        const element = row.getElement();
+        element.classList.toggle("frozen-row", Boolean(data._is_frozen));
+        // The alert count can change without Tabulator reformatting the indicator cell.
+        element.style.setProperty("--alert-segments", Math.min(5, Math.max(1, data._alerts_count ?? 1)));
+
+        const details = element.querySelector(incidentDetailsSelector);
+        if (!details?.firstElementChild) return;
+
+        element.tabIndex = 0;
+        element.setAttribute("aria-expanded", String(details.style.display !== "none"));
+        element.onkeydown = (event) => {
+            if (event.target === element && (event.key === "Enter" || event.key === " ")) {
+                event.preventDefault();
+                if (!event.repeat) toggleIncidentDetails(row);
+            }
+        };
     },
 };
 
 const table = new Tabulator("#data-table", tableOptions);
 table.initialDataLoaded = false;
+table.on("rowClick", (event, row) => {
+    if (!event.target.closest(rowClickExclusions) && window.getSelection()?.isCollapsed) {
+        toggleIncidentDetails(row);
+    }
+});
 
 // Custom sorters
 const sorterMap = {
@@ -96,21 +128,13 @@ async function initializeTable() {
             let cssClass = columnSorter === "string" ? "clickable-cell" : "unclickable-cell";
             cssClass += ` ${columnType || "regular"}-field`;
 
-            // Special handling for indicator type
-            let formatter;
-            if (columnType === "indicator") {
-                formatter = formatterMap[columnType];
-            } else {
-                formatter = formatterWrapper(formatterMap[columnType] || undefined);
-            }
-
             const columLayout = {
                 title: column.title,
                 field: column.field,
                 visible: column.visible !== undefined ? column.visible : true,
                 sorter: columnSorter,
                 headerSort: column.headerSort !== undefined ? column.headerSort : true,
-                formatter: formatter,
+                formatter: formatterWrapper(formatterMap[columnType]),
                 formatterParams: columnType in formatterParamsMap ? formatterParamsMap[columnType](column) : undefined,
                 cssClass: cssClass,
                 vertAlign: "middle",
@@ -148,30 +172,6 @@ async function initializeTable() {
                 responsive: 0,
                 formatter: userSelectorFormatter,
                 cssClass: "unclickable-cell user-selector-column",
-            },
-            {
-                formatter: "responsiveCollapse",
-                width: 30,
-                minWidth: 30,
-                hozAlign: "center",
-                resizable: false,
-                headerSort: false,
-                responsive: 0,
-                title: "",
-                field: "_collapse",
-            },
-            {
-                title: "",
-                field: "_alerts_count",
-                width: 30,
-                minWidth: 30,
-                maxWidth: 30,
-                hozAlign: "center",
-                resizable: false,
-                headerSort: false,
-                responsive: 0,
-                formatter: formatterMap["alerts_count"],
-                cssClass: "unclickable-cell alerts-count-column",
             },
         );
 

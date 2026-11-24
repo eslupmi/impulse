@@ -106,7 +106,11 @@ async def test_resolved_ui_unassignment_restarts_chain_on_refiring(
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('status', ['firing', 'unknown', 'closed', 'deleted'])
-async def test_ui_unassign_rejects_non_resolved_incidents(status, sample_incident, monkeypatch):
+@pytest.mark.parametrize('path, body', [
+    ('/assign', {'user_id': ''}),
+    ('/api/incidents/{uniq_id}/unassign', {}),
+])
+async def test_ui_unassign_rejects_non_resolved_incidents(status, path, body, sample_incident, monkeypatch):
     incident = sample_incident
     monkeypatch.setattr(incident, 'dump', Mock())
     incident.status = status
@@ -128,7 +132,7 @@ async def test_ui_unassign_rejects_non_resolved_incidents(status, sample_inciden
     app.include_router(create_router(''))
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url='http://test') as client:
-        response = await client.post('/assign', json={'uniq_id': incident.uniq_id, 'user_id': ''})
+        response = await client.post(path.format(uniq_id=incident.uniq_id), json={'uniq_id': incident.uniq_id, **body})
     await asyncio.gather(*messenger._async_tasks)
 
     assert response.json() == {'success': False}

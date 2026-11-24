@@ -11,9 +11,9 @@ from fastapi import (
     WebSocketDisconnect,
 )
 from fastapi.responses import HTMLResponse, Response
-from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+from app.api.models import AssignmentRequest, FreezeRequest
 from app.api.router import create_api_router
 from app.config.config import get_config, reload_config
 from app.im.chain.ui_chains_store import ui_chains_store
@@ -26,6 +26,7 @@ from app.middleware import (
     service_unavailable_response,
 )
 from app.resources import resource_directory
+from app.ui.static import UIStaticFiles, VersionedStaticFiles
 from app.ui.table_config import get_all_ui_config
 from app.ui.websocket import incident_ws
 from impulse_messenger_api import InteractionRequest
@@ -34,13 +35,6 @@ _MSG_INCIDENT_NOT_FOUND = "Incident not found"
 _MSG_UNIQ_ID_REQUIRED = "uniq_id is required"
 _MSG_AUTHENTICATION_REQUIRED = "Authentication required"
 _MSG_ID_REQUIRED = "id is required"
-
-
-class _UIStaticFiles(StaticFiles):
-    async def get_response(self, path: str, scope) -> Response:
-        if not get_config().ui_config:
-            raise HTTPException(status_code=404)
-        return await super().get_response(path, scope)
 
 
 async def _maintenance_save_side_effects(app, existing, saved, deleted):
@@ -90,9 +84,15 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
         queue = request.app.state.queue
         return await generate_metrics_response(queue)
 
+    static_version = None
     if fastapi_app:
-        fastapi_app.mount(f"{http_prefix}/static", _UIStaticFiles(directory=resource_directory("static")), name="static")
-        ui_templates = Jinja2Templates(directory=resource_directory("static"))
+        static_directory = resource_directory("static")
+        static_files = VersionedStaticFiles(directory=static_directory)
+        static_version = static_files.version
+        static_base = f"{http_prefix}/static/{static_version}"
+        fastapi_app.mount(static_base, static_files, name="versioned_static")
+        fastapi_app.mount(f"{http_prefix}/static", UIStaticFiles(directory=static_directory), name="static")
+        ui_templates = Jinja2Templates(directory=static_directory)
 
         @router.get("/", response_class=HTMLResponse, responses={405: {"description": "UI is disabled"}})
         async def get_index(request: Request):
@@ -100,8 +100,9 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
                 raise HTTPException(status_code=405, headers={"Allow": "POST"})
             return ui_templates.TemplateResponse("index.html", {
                 "request": request,
-                "http_prefix": http_prefix
-            })
+                "static_base": static_base,
+                "static_version": static_version,
+            }, headers={"Cache-Control": "no-cache"})
 
     @router.get("/queue")
     async def get_queue(request: Request):
@@ -191,12 +192,38 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
 
     @router.get("/assignment_users")
     async def get_assignment_users(request: Request):
-        return _get_assignable_users(request.app.state.messenger)
+        return request.app.state.messenger.users.serialize()
 
     def _log_ui_action(action_name, incident, acting_user, **extra):
         log_extra = {"uniq_id": incident.uniq_id, "acting_user_id": acting_user.get("id") or "unknown"}
         log_extra.update(extra)
         logger.info(f"UI {action_name}", extra=log_extra)
+
+    def _get_incident(request: Request, uniq_id):
+        incident = request.app.state.incidents.get_by_uniq_id(uniq_id)
+        if incident is None:
+            raise HTTPException(status_code=404, detail=_MSG_INCIDENT_NOT_FOUND)
+        return incident
+
+    async def _unassign(request, uniq_id, acting_user):
+        incident = _get_incident(request, uniq_id)
+        _log_ui_action("unassignment", incident, acting_user)
+        unassigned = await request.app.state.messenger.handle_ui_unassign(incident, ui_user=acting_user)
+        return {"success": unassigned}
+
+    async def _assign(request, uniq_id, user_id, acting_user):
+        if user_id == "":
+            return await _unassign(request, uniq_id, acting_user)
+
+        incident = _get_incident(request, uniq_id)
+        messenger = request.app.state.messenger
+        queue = request.app.state.queue
+
+        _log_ui_action("assignment", incident, acting_user, target_user_id=user_id)
+        assigned = await messenger.handle_ui_assignment(incident, user_id, queue, ui_user=acting_user)
+        if not assigned and str(incident.assigned_user_id) != str(user_id):
+            raise HTTPException(status_code=502, detail="Could not resolve the assignment user")
+        return {"success": assigned}
 
     @router.post("/assign", responses={
         400: {"description": "Missing uniq_id or user_id"},
@@ -215,23 +242,31 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
         if user_id is None:
             raise HTTPException(status_code=400, detail="user_id is required")
 
-        incident = request.app.state.incidents.get_by_uniq_id(uniq_id)
-        if incident is None:
-            raise HTTPException(status_code=404, detail=_MSG_INCIDENT_NOT_FOUND)
+        return await _assign(request, uniq_id, user_id, acting_user)
 
-        messenger = request.app.state.messenger
-        if user_id == "":
-            _log_ui_action("unassignment", incident, acting_user)
-            unassigned = await messenger.handle_ui_unassign(incident, ui_user=acting_user)
-            return {"success": unassigned}
+    @router.post("/api/incidents/{uniq_id}/assign", responses={
+        401: {"description": _MSG_AUTHENTICATION_REQUIRED},
+        404: {"description": _MSG_INCIDENT_NOT_FOUND},
+        502: {"description": "Could not resolve the assignment user"},
+    })
+    async def assign_incident(request: Request, uniq_id: str, body: AssignmentRequest):
+        return await _assign(request, uniq_id, body.user_id, _get_acting_user(request))
 
-        _log_ui_action("assignment", incident, acting_user, target_user_id=user_id)
+    @router.post("/api/incidents/{uniq_id}/unassign", responses={
+        401: {"description": _MSG_AUTHENTICATION_REQUIRED},
+        404: {"description": _MSG_INCIDENT_NOT_FOUND},
+    })
+    async def unassign_incident(request: Request, uniq_id: str):
+        return await _unassign(request, uniq_id, _get_acting_user(request))
 
-        queue = request.app.state.queue
-        assigned = await messenger.handle_ui_assignment(incident, user_id, queue, ui_user=acting_user)
-        if not assigned and str(incident.assigned_user_id) != str(user_id):
-            raise HTTPException(status_code=502, detail="Could not resolve the assignment user")
-        return {"success": assigned}
+    async def _create_task(request, uniq_id, acting_user):
+        incident = _get_incident(request, uniq_id)
+        if incident.task_link or incident.task_creation_in_progress:
+            raise HTTPException(status_code=409, detail="Task already exists or creation in progress")
+
+        _log_ui_action("task", incident, acting_user)
+        result = await request.app.state.messenger.handle_task_button(incident, request.app.state.queue)
+        return {"success": True, "result": result}
 
     @router.post("/task", responses={
         400: {"description": _MSG_UNIQ_ID_REQUIRED},
@@ -246,20 +281,29 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
         uniq_id = body.get("uniq_id")
         if not uniq_id:
             raise HTTPException(status_code=400, detail=_MSG_UNIQ_ID_REQUIRED)
+        return await _create_task(request, uniq_id, acting_user)
 
-        incident = request.app.state.incidents.get_by_uniq_id(uniq_id)
-        if incident is None:
-            raise HTTPException(status_code=404, detail=_MSG_INCIDENT_NOT_FOUND)
+    @router.post("/api/incidents/{uniq_id}/task", responses={
+        401: {"description": _MSG_AUTHENTICATION_REQUIRED},
+        404: {"description": _MSG_INCIDENT_NOT_FOUND},
+        409: {"description": "Task already exists or creation in progress"},
+    })
+    async def create_incident_task(request: Request, uniq_id: str):
+        return await _create_task(request, uniq_id, _get_acting_user(request))
 
-        if incident.task_link or incident.task_creation_in_progress:
-            raise HTTPException(status_code=409, detail="Task already exists or creation in progress")
+    async def _freeze(request, uniq_id, freeze_option, acting_user):
+        incident = _get_incident(request, uniq_id)
+        if incident.is_frozen:
+            raise HTTPException(status_code=409, detail="Incident is already frozen")
 
-        _log_ui_action("task", incident, acting_user)
-
-        messenger = request.app.state.messenger
-        queue = request.app.state.queue
-        result = await messenger.handle_task_button(incident, queue)
-        return {"success": True, "result": result}
+        _log_ui_action("freeze", incident, acting_user, freeze_option=freeze_option)
+        frozen = await request.app.state.messenger.handle_ui_freeze(
+            incident, freeze_option, str(acting_user.get("id", "")), request.app.state.queue,
+            user_timezone=acting_user.get("timezone"), ui_user=acting_user,
+        )
+        if not frozen:
+            raise HTTPException(status_code=502, detail="Could not freeze the incident")
+        return {"success": True}
 
     @router.post("/freeze", responses={
         400: {"description": "Missing uniq_id or freeze_option"},
@@ -281,24 +325,24 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
         if freeze_option not in valid_options:
             raise HTTPException(status_code=400, detail=f"freeze_option must be one of {valid_options}")
 
-        incident = request.app.state.incidents.get_by_uniq_id(uniq_id)
-        if incident is None:
-            raise HTTPException(status_code=404, detail=_MSG_INCIDENT_NOT_FOUND)
+        return await _freeze(request, uniq_id, freeze_option, acting_user)
 
-        if incident.is_frozen:
-            raise HTTPException(status_code=409, detail="Incident is already frozen")
+    @router.post("/api/incidents/{uniq_id}/freeze", responses={
+        401: {"description": _MSG_AUTHENTICATION_REQUIRED},
+        404: {"description": _MSG_INCIDENT_NOT_FOUND},
+        409: {"description": "Incident already frozen"},
+        502: {"description": "Could not freeze the incident"},
+    })
+    async def freeze_incident(request: Request, uniq_id: str, body: FreezeRequest):
+        return await _freeze(request, uniq_id, body.until, _get_acting_user(request))
 
-        user_tz = acting_user.get("timezone")
-        _log_ui_action("freeze", incident, acting_user, freeze_option=freeze_option)
+    async def _unfreeze(request, uniq_id, acting_user):
+        incident = _get_incident(request, uniq_id)
+        if not incident.can_manual_unfreeze():
+            raise HTTPException(status_code=409, detail="Cannot unfreeze: not a manual freeze")
 
-        messenger = request.app.state.messenger
-        queue = request.app.state.queue
-        frozen = await messenger.handle_ui_freeze(
-            incident, freeze_option, str(acting_user.get("id", "")), queue,
-            user_timezone=user_tz, ui_user=acting_user,
-        )
-        if not frozen:
-            raise HTTPException(status_code=502, detail="Could not freeze the incident")
+        _log_ui_action("unfreeze", incident, acting_user)
+        await request.app.state.messenger.handle_ui_unfreeze(incident, request.app.state.queue)
         return {"success": True}
 
     @router.post("/unfreeze", responses={
@@ -314,20 +358,15 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
         uniq_id = body.get("uniq_id")
         if not uniq_id:
             raise HTTPException(status_code=400, detail=_MSG_UNIQ_ID_REQUIRED)
+        return await _unfreeze(request, uniq_id, acting_user)
 
-        incident = request.app.state.incidents.get_by_uniq_id(uniq_id)
-        if incident is None:
-            raise HTTPException(status_code=404, detail=_MSG_INCIDENT_NOT_FOUND)
-
-        if not incident.can_manual_unfreeze():
-            raise HTTPException(status_code=409, detail="Cannot unfreeze: not a manual freeze")
-
-        _log_ui_action("unfreeze", incident, acting_user)
-
-        messenger = request.app.state.messenger
-        queue = request.app.state.queue
-        await messenger.handle_ui_unfreeze(incident, queue)
-        return {"success": True}
+    @router.post("/api/incidents/{uniq_id}/unfreeze", responses={
+        401: {"description": _MSG_AUTHENTICATION_REQUIRED},
+        404: {"description": _MSG_INCIDENT_NOT_FOUND},
+        409: {"description": "Incident not manually frozen"},
+    })
+    async def unfreeze_incident(request: Request, uniq_id: str):
+        return await _unfreeze(request, uniq_id, _get_acting_user(request))
 
     @router.post("/release", responses={
         400: {"description": _MSG_UNIQ_ID_REQUIRED},
@@ -396,6 +435,8 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
             if is_standby_mode(websocket.app.state):
                 await websocket.close(code=1008, reason=STANDBY_MODE_MESSAGE)
                 return
+            if static_version is not None and get_config().ui_config:
+                await websocket.send_text(json.dumps({"event": "static_version", "data": static_version}))
             active_maintenance = websocket.app.state.maintenance_manager.active_windows_payload()
             await websocket.send_text(json.dumps({"event": "active_maintenance", "data": active_maintenance}))
             while True:
