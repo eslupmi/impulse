@@ -165,18 +165,6 @@ function applyFilters() {
     updateZoomIcons();
 }
 
-// Update filter container layout dynamically
-function updateFilterLayout() {
-    const filterWrapper = document.getElementById("filter-wrapper");
-    const filters = document.querySelectorAll(".filter-badge");
-
-    if (filters.length > 0) {
-        filterWrapper.classList.add("has-filters");
-    } else {
-        filterWrapper.classList.remove("has-filters");
-    }
-}
-
 function validateAndFormatFilter(query) {
     const q = query.trim();
     if (!q || !validateMatcherClause(q).ok) return null;
@@ -184,29 +172,20 @@ function validateAndFormatFilter(query) {
 }
 
 function createEditableFilterBadge({value, onChange, onRemove, onBadgeClick, validateAndFormat = validateAndFormatFilter}) {
-    let current = value;
     const badge = document.createElement("div");
     badge.className = "filter-badge";
 
     const text = document.createElement("span");
     text.className = "filter-badge-text";
-    text.textContent = current;
+    text.textContent = value;
     text.title = "Click to edit";
 
     const removeButton = document.createElement("span");
     removeButton.className = "cross";
 
-    const endEdit = () => {
-        badge.classList.remove("is-editing");
-        const input = badge.querySelector(".filter-badge-edit-input");
-        if (input) {
-            input.replaceWith(text);
-        }
-        text.textContent = current;
-    };
-
     const startEdit = () => {
         if (badge.classList.contains("is-editing")) return;
+        const current = text.textContent;
         badge.classList.add("is-editing");
         const input = document.createElement("input");
         input.type = "text";
@@ -215,6 +194,11 @@ function createEditableFilterBadge({value, onChange, onRemove, onBadgeClick, val
         text.replaceWith(input);
         input.focus();
         input.setSelectionRange(current.length, current.length);
+
+        const endEdit = () => {
+            badge.classList.remove("is-editing");
+            input.replaceWith(text);
+        };
 
         input.addEventListener("keydown", (e) => {
             if (e.key === "Enter") {
@@ -232,7 +216,7 @@ function createEditableFilterBadge({value, onChange, onRemove, onBadgeClick, val
                     input.classList.add("filter-badge-edit-error");
                     return;
                 }
-                current = next;
+                text.textContent = next;
                 endEdit();
             } else if (e.key === "Escape") {
                 e.preventDefault();
@@ -247,7 +231,7 @@ function createEditableFilterBadge({value, onChange, onRemove, onBadgeClick, val
                 return;
             }
             if (next !== current && onChange(next, current) !== false) {
-                current = next;
+                text.textContent = next;
             }
             endEdit();
         });
@@ -263,7 +247,7 @@ function createEditableFilterBadge({value, onChange, onRemove, onBadgeClick, val
     }
     removeButton.addEventListener("click", (e) => {
         e.stopPropagation();
-        onRemove(current);
+        onRemove(text.textContent);
     });
 
     badge.appendChild(text);
@@ -273,8 +257,7 @@ function createEditableFilterBadge({value, onChange, onRemove, onBadgeClick, val
 
 // Add a new filter to the UI
 function scrollFiltersToEnd() {
-    const el = document.getElementById("filter-container");
-    el.scrollLeft = el.scrollWidth - el.clientWidth;
+    document.getElementById("filter-container").scrollLeft = 0;
 }
 
 function addFilterUI(filter) {
@@ -298,7 +281,6 @@ function addFilterUI(filter) {
 
     filterList.appendChild(filterElement);
     scrollFiltersToEnd();
-    updateFilterLayout();
 }
 
 // Remove a filter from the UI and URL
@@ -309,7 +291,6 @@ function removeFilter(filter, filterElement) {
 
     filterElement.remove();
     applyFilters();
-    updateFilterLayout();
 }
 
 // Handle adding filters from the input field and button
@@ -383,24 +364,12 @@ function setupFilterContainerScroll() {
         const hasFilters = filterList.children.length > 0;
         scrollableFilters.classList.toggle("has-filters", hasFilters);
 
-        const maxScroll = filterContainer.scrollWidth - filterContainer.clientWidth;
-        const atEnd = filterContainer.scrollLeft >= maxScroll - 2;
-        if (atEnd && maxScroll > 0) {
-            filterContainer.scrollLeft = maxScroll;
-        }
-
+        // The RTL scroll container starts at the right edge and scrolls toward negative offsets.
+        const {scrollLeft, scrollWidth, clientWidth} = filterContainer;
         const leftWrapper = document.querySelector(".arrow-wrapper.left");
         const rightWrapper = document.querySelector(".arrow-wrapper.right");
-
-        if (hasFilters) {
-            leftWrapper.classList.toggle("visible", filterContainer.scrollLeft > 0);
-
-            const isAtEnd = filterContainer.scrollLeft >= maxScroll - 2;
-            rightWrapper.classList.toggle("visible", !isAtEnd);
-        } else {
-            leftWrapper.classList.remove("visible");
-            rightWrapper.classList.remove("visible");
-        }
+        leftWrapper.classList.toggle("visible", hasFilters && scrollLeft > clientWidth - scrollWidth + 2);
+        rightWrapper.classList.toggle("visible", hasFilters && scrollLeft < -2);
     }
 
     filterContainer.addEventListener("scroll", updateArrowVisibility);
@@ -432,22 +401,10 @@ export function setupTableFiltering() {
 
 // Update filter badge UI when filter value changes
 function updateFilterBadgeUI(existingFilter, newFilter) {
-    const filterElements = document.querySelectorAll(".filter-badge");
-    const filterElement = Array.from(filterElements).find(badge => {
-        return badge.querySelector(".filter-badge-text")?.textContent === existingFilter;
-    });
-    
-    if (filterElement) {
-        const textSpan = filterElement.querySelector(".filter-badge-text");
-        if (textSpan) {
-            textSpan.innerText = newFilter;
-        }
-        // Update remove button handler with new filter
-        const removeButton = filterElement.querySelector(".cross");
-        if (removeButton) {
-            removeButton.replaceWith(removeButton.cloneNode(true));
-            filterElement.querySelector(".cross").addEventListener("click", () => removeFilter(newFilter, filterElement));
-        }
+    const filterTexts = document.querySelectorAll("#filter-list .filter-badge-text");
+    const text = Array.from(filterTexts).find(text => text.textContent === existingFilter);
+    if (text) {
+        text.textContent = newFilter;
     }
 }
 

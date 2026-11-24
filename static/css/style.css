@@ -224,11 +224,13 @@ strong {
 }
 
 #scrollable-filters.has-filters {
-    padding-right: 5px;
+    /* 4px + the 8px #filter-wrapper gap = the 12px gap between badges. */
+    padding-right: 4px;
 }
 
 /* Filters Container */
 #filter-container {
+    direction: rtl;
     overflow-x: auto;
     overflow-y: hidden;
     scroll-behavior: smooth;
@@ -236,6 +238,12 @@ strong {
     scrollbar-width: none;
     flex: 1;
     min-width: 0;
+    /* Make room for the corner buttons without raising the toolbar height. */
+    margin-block: -12px;
+    padding-block: 12px;
+    /* Let #filter-list's right padding (room for the last close button) overlap
+       the gap before the input, so it doesn't widen that gap. */
+    margin-right: -12px;
 }
 
 #filter-container::-webkit-scrollbar {
@@ -243,11 +251,12 @@ strong {
 }
 
 #filter-list {
+    direction: ltr;
     display: flex;
     align-items: center;
     gap: 12px;
     width: max-content;
-    margin-left: auto;
+    padding-right: 12px;
 }
 
 /* Arrow Wrappers */
@@ -317,8 +326,7 @@ strong {
     font-size: 16px;
     height: 100%;
     line-height: 20px;
-    max-width: 276px;
-    min-width: 276px;
+    width: min(276px, 50vw);
 }
 
 #filter-input::placeholder {
@@ -479,8 +487,47 @@ strong {
 
 /* Remove Filter Button */
 .filter-badge span.cross {
-    cursor: pointer;
     margin-left: 5px;
+}
+
+#filter-list .filter-badge {
+    position: relative;
+}
+
+#filter-list .cross {
+    position: absolute;
+    top: 0;
+    right: 0;
+    transform: translate(50%, -50%);
+    width: 20px;
+    height: 20px;
+    margin: 0;
+    border-radius: 50%;
+    background: var(--search-icon-color);
+    color: var(--bg-header);
+    /* Stays hoverable while hidden: after a removal the neighbour's button lands
+       under the cursor (partly outside its badge) and must reveal itself. */
+    opacity: 0;
+    /* Hide 200ms after hover is lost; no fade. */
+    transition: opacity 0s linear 200ms;
+}
+
+/* Show the close button only for the hovered (or keyboard-focused) filter. */
+#filter-list .filter-badge:hover .cross,
+#filter-list .cross:focus-visible {
+    opacity: 1;
+    transition-delay: 0s;
+}
+
+/* Shift the button slightly toward the background: a light one darkens, a dark one lightens. */
+#filter-list .cross:hover {
+    background: color-mix(in srgb, var(--search-icon-color) 80%, var(--bg-header));
+}
+
+#filter-list .cross::before,
+#filter-list .cross::after {
+    height: 10px;
+    background: currentColor;
 }
 
 .filter-badge.removed {
