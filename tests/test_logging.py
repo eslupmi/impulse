@@ -100,8 +100,8 @@ class TestJSONFormatter:
         assert data['chain'] == 'test_chain'
         assert data['message'] == "Test message"
 
-    def test_json_formatter_omits_exception_traceback(self):
-        """Test JSONFormatter does not emit traceback text from exc_info."""
+    def test_json_formatter_includes_exception_traceback(self):
+        """Test JSONFormatter emits traceback text from exc_info."""
         formatter = JSONFormatter()
         try:
             raise ValueError('messenger unavailable')
@@ -123,7 +123,9 @@ class TestJSONFormatter:
 
         assert data['message'] == 'Messenger initialization failed'
         assert 'exception' not in data
-        assert 'exc_info' not in data
+        assert data['exc_info'].startswith('Traceback (most recent call last):')
+        assert 'ValueError: messenger unavailable' in data['exc_info']
+        assert 'exc_text' not in data
 
     def test_json_formatter_format_without_extra_fields(self):
         """Test JSONFormatter format method without extra fields."""

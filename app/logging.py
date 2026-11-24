@@ -22,7 +22,7 @@ class JSONFormatter(jsonlogger.JsonFormatter):
         # Remove unwanted fields
         for field in ['taskName', 'threadName', 'processName', 'process', 'thread', 
                       'relativeCreated', 'asctime', 'filename', 'funcName', 'lineno', 
-                      'pathname', 'name', 'args', 'exc_info', 'exc_text', 'stack_info']:
+                      'pathname', 'name', 'args', 'exc_text', 'stack_info']:
             log_record.pop(field, None)
 
 # Filters for stdout/stderr separation
