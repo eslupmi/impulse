@@ -1,0 +1,36 @@
+name: issue-unassigned
+
+on:
+  issues:
+    types:
+    - opened
+
+permissions: {}
+
+jobs:
+  notify:
+    # Notify Slack about every issue created without an assignee
+    if: >-
+      github.repository == 'eslupmi/impulse' &&
+      github.event.issue.user.type != 'Bot' &&
+      toJSON(github.event.issue.assignees) == '[]'
+    runs-on: ubuntu-latest
+    env:
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+    steps:
+    - name: Notify Slack
+      if: env.SLACK_WEBHOOK_URL != ''
+      env:
+        ISSUE_TITLE: ${{ github.event.issue.title }}
+        ISSUE_URL: ${{ github.event.issue.html_url }}
+        ISSUE_NUMBER: ${{ github.event.issue.number }}
+        ISSUE_AUTHOR: ${{ github.event.issue.user.login }}
+      run: |
+        payload=$(jq -n \
+          --arg title "$ISSUE_TITLE" \
+          --arg url "$ISSUE_URL" \
+          --arg number "$ISSUE_NUMBER" \
+          --arg author "$ISSUE_AUTHOR" \
+          '($title | gsub("&"; "&amp;") | gsub("<"; "&lt;") | gsub(">"; "&gt;")) as $t
+           | {text: ":new: Unassigned issue <\($url)|#\($number) \($t)> by \($author)"}')
+        curl -fsS -X POST -H 'Content-Type: application/json' --data "$payload" "$SLACK_WEBHOOK_URL"
