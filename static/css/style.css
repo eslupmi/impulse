@@ -210,7 +210,8 @@ strong {
 }
 
 #scrollable-filters.has-filters {
-    padding-right: 5px;
+    /* 4px + the 8px #filter-wrapper gap = the 12px gap between badges. */
+    padding-right: 4px;
 }
 
 /* Filters Container */
@@ -226,6 +227,9 @@ strong {
     /* Make room for the corner buttons without raising the toolbar height. */
     margin-block: -12px;
     padding-block: 12px;
+    /* Let #filter-list's right padding (room for the last close button) overlap
+       the gap before the input, so it doesn't widen that gap. */
+    margin-right: -12px;
 }
 
 #filter-container::-webkit-scrollbar {
@@ -484,12 +488,25 @@ strong {
     height: 20px;
     margin: 0;
     border-radius: 50%;
-    background: var(--filter-badge-fg);
+    background: var(--search-icon-color);
     color: var(--bg-header);
+    /* Stays hoverable while hidden: after a removal the neighbour's button lands
+       under the cursor (partly outside its badge) and must reveal itself. */
+    opacity: 0;
+    /* Hide 200ms after hover is lost; no fade. */
+    transition: opacity 0s linear 200ms;
 }
 
+/* Show the close button only for the hovered (or keyboard-focused) filter. */
+#filter-list .filter-badge:hover .cross,
+#filter-list .cross:focus-visible {
+    opacity: 1;
+    transition-delay: 0s;
+}
+
+/* Shift the button slightly toward the background: a light one darkens, a dark one lightens. */
 #filter-list .cross:hover {
-    background: var(--fg-primary);
+    background: color-mix(in srgb, var(--search-icon-color) 80%, var(--bg-header));
 }
 
 #filter-list .cross::before,
