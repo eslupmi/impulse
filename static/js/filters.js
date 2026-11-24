@@ -101,13 +101,10 @@ function customResponsiveDataFilter(rowData, parameters) {
 // Initialize filters from URL
 function loadFiltersFromArrayToURL(filters) {
     const urlParams = new URLSearchParams(window.location.search);
-    const activeFilters = urlParams.get("filters") ? urlParams.get("filters").split(",") : [];
 
-    if (!activeFilters.length && filters.length > 0) {
+    if (!urlParams.has("filters") && filters.length > 0) {
         urlParams.set("filters", filters.join(","));
-        const queryString = urlParams.toString();
-        const newUrl = queryString ? `${window.location.pathname}?${queryString}` : window.location.pathname;
-        window.history.replaceState({}, "", newUrl);
+        window.history.replaceState({}, "", `${window.location.pathname}?${urlParams}`);
     }
 }
 
@@ -134,18 +131,10 @@ function getCurrentFilters() {
 // Update filters in URL
 function updateFiltersInURL(filters) {
     const urlParams = new URLSearchParams(window.location.search);
-
     const cleanFilters = filters.filter(f => f && f.trim());
 
-    if (cleanFilters.length === 0) {
-        urlParams.delete("filters");
-    } else {
-        urlParams.set("filters", cleanFilters.join(","));
-    }
-
-    const queryString = urlParams.toString();
-    const newUrl = queryString ? `${window.location.pathname}?${queryString}` : window.location.pathname;
-    window.history.replaceState({}, "", newUrl);
+    urlParams.set("filters", cleanFilters.join(","));
+    window.history.replaceState({}, "", `${window.location.pathname}?${urlParams}`);
 }
 
 // Apply filters to Tabulator table
