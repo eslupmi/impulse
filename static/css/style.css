@@ -494,32 +494,6 @@ strong {
     border: 0px solid var(--border-secondary);
 }
 
-/* Alerts Count Column */
-.alerts-count-column {
-    display: inline-flex !important;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
-}
-
-/* Alerts Count Circle */
-.alerts-count-circle {
-    display: grid;
-    place-items: center;
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    border: 1.5px solid var(--alerts-count-circle-color);
-    color: var(--alerts-count-circle-text);
-    font-size: 10px;
-    font-weight: 600;
-    line-height: 10px;
-}
-
-.alerts-count-circle > span {
-    transform: translateY(-0.5px);
-}
-
 .filter-controls {
     display: flex;
     align-items: center;
@@ -927,9 +901,16 @@ strong {
 }
 
 .status-indicator {
+    --segment-gap: 2px;
+    --segment-step: calc((100% + var(--segment-gap)) / var(--alert-segments, 1));
     display: inline-block;
     width: 6px;
     height: 35px;
+    mask-image: repeating-linear-gradient(
+        to bottom,
+        black 0 calc(var(--segment-step) - var(--segment-gap)),
+        transparent calc(var(--segment-step) - var(--segment-gap)) var(--segment-step)
+    );
 }
 
 .status-indicator.firing {
