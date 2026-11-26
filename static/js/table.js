@@ -14,8 +14,7 @@ import {initActionButtons, actionButtonsFormatter} from "./action_buttons.js";
 const relativeFields = [];
 const incidentDetailsSelector = ".tabulator-responsive-collapse";
 const rowClickExclusions = `
-    ${incidentDetailsSelector}, .original-formatter, .pill-label,
-    .zoom-icon, button, .user-selector-wrapper, .tabulator-col-resize-handle
+    ${incidentDetailsSelector}, .cell-container, button, .user-selector-wrapper, .tabulator-col-resize-handle
 `;
 
 function toggleIncidentDetails(row) {

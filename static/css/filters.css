@@ -13,8 +13,8 @@
     margin-left: 5px;
 }
 
-/* Change from row hover to cell hover */
-.tabulator-cell:hover .zoom-icon {
+/* Show icons only while hovering the value or the icons themselves */
+.cell-container:hover .zoom-icon {
     opacity: 1;
 }
 
@@ -30,12 +30,13 @@
     display: none;
 }
 
-/* Cell container styles */
+/* Cell container styles: sized to the value and icons, so the rest of the cell belongs to the row */
 .cell-container {
     display: flex;
     align-items: center;
     gap: 5px;
-    width: 100%;
+    width: fit-content;
+    max-width: 100%;
 }
 
 .original-formatter {
