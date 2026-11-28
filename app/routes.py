@@ -242,6 +242,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
         401: {"description": _MSG_AUTHENTICATION_REQUIRED},
         404: {"description": _MSG_INCIDENT_NOT_FOUND},
         409: {"description": "Task already exists, creation in progress or incident is frozen"},
+        502: {"description": "Could not create the task"},
     })
     async def post_task(request: Request):
         acting_user = _get_acting_user(request)
@@ -265,6 +266,8 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
         messenger = request.app.state.messenger
         queue = request.app.state.queue
         result = await messenger.handle_task_button(incident, queue)
+        if not result.get("success"):
+            raise HTTPException(status_code=502, detail=result.get("message") or "Could not create the task")
         return {"success": True, "result": result}
 
     @router.post("/freeze", responses={
