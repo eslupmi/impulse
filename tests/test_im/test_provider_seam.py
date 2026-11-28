@@ -429,6 +429,46 @@ async def test_blocked_callbacks_do_not_assign_or_schedule(provider_id, runtime)
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize('provider_id', ['slack', 'mattermost', 'telegram'])
+@pytest.mark.parametrize('action', ['freeze_menu', 'freeze_tomorrow'])
+async def test_freeze_callbacks_are_ignored_for_inhibited_incidents(provider_id, action, runtime):
+    config = config_for(provider_id)
+    app = get_application(config, {'default': {'id': 'C1'}}, 'default')
+    transport = Transport()
+    app._setup_http = Mock(return_value=transport)
+    await app.initialize_async()
+    app.form_body_header_status_icons = Mock(return_value=('body', 'header', 'icon'))
+    app.handle_freeze = AsyncMock()
+    app.apply_time_freeze = AsyncMock()
+    incident = incident_for(provider_id)
+    incident.ts = '10/20' if provider_id == 'telegram' else '123.456'
+    incident.is_frozen = incident.frozen_by_inhibition = True
+    option = action.removeprefix('freeze_')
+    if provider_id == 'slack':
+        actions = [{'name': 'freeze_menu'}] if action == 'freeze_menu' else [
+            {'name': 'freeze', 'selected_options': [{'value': option}]}]
+        payload = interaction_request({'token': 'verify', 'message_ts': incident.ts, 'user': {'id': 'U1'},
+                                       'actions': actions, 'original_message': {'text': 'old'}})
+    elif provider_id == 'mattermost':
+        context = {'action': 'freeze_menu'} if action == 'freeze_menu' else {'action': 'freeze', 'selected_option': option}
+        payload = json_request({'post_id': incident.ts, 'user_id': 'U1', 'context': context})
+    else:
+        payload = json_request({'callback_query': {'id': 'ack-1', 'data': action, 'from': {'id': 123},
+                                                   'message': {'message_id': 20, 'message_thread_id': 10}}})
+    queue = Mock(delete_by_id=AsyncMock(), put=AsyncMock(), put_first=AsyncMock())
+
+    response = await app.buttons_handler(payload, Mock(get_by_ts=Mock(return_value=incident)), queue)
+
+    assert response.status_code == 200
+    assert incident.frozen_until is None
+    app.handle_freeze.assert_not_called()
+    app.apply_time_freeze.assert_not_called()
+    incident.dump.assert_not_called()
+    assert not any(call[1].endswith('/editMessageText') for call in transport.calls)
+    await app.close()
+
+
+@pytest.mark.asyncio
 async def test_telegram_freeze_menu_uses_facade_renderer_and_closes_ack(runtime):
     config = config_for('telegram')
     app = get_application(config, {'default': {'id': -100123}}, 'default')
