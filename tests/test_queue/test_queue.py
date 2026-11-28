@@ -202,6 +202,40 @@ class TestAsyncQueue:
         assert queue._items[1].identifier == 2
 
     @pytest.mark.asyncio
+    async def test_recreate_does_not_duplicate_queued_steps(self, queue):
+        """Repeated recreate for the same incident keeps a single item per pending step."""
+        incident_chain = [
+            {'done': False, 'delay': 0.0},
+            {'done': False, 'delay': 180.0},
+        ]
+
+        await queue.recreate('firing', 'incident123', incident_chain)
+        first_schedule = [item.datetime for item in queue._items]
+        await queue.recreate('firing', 'incident123', incident_chain)
+        await queue.recreate('firing', 'incident123', incident_chain)
+
+        assert [item.identifier for item in queue._items] == [0, 1]
+        assert [item.datetime for item in queue._items] == first_schedule
+
+    @pytest.mark.asyncio
+    async def test_recreate_adds_only_missing_steps(self, queue):
+        """Recreate adds steps that are not queued yet and keeps other incidents intact."""
+        incident_chain = [
+            {'done': False, 'delay': 0.0},
+            {'done': False, 'delay': 180.0},
+        ]
+        await queue.recreate('firing', 'other', incident_chain)
+        await queue.put(create_test_datetime(), 'chain_step', 'incident123', 1, None)
+
+        await queue.recreate('firing', 'incident123', incident_chain)
+
+        steps = sorted(
+            (item.identifier for item in queue._items if item.uniq_id == 'incident123'),
+        )
+        assert steps == [0, 1]
+        assert len([item for item in queue._items if item.uniq_id == 'other']) == 2
+
+    @pytest.mark.asyncio
     async def test_update_resolved_status(self, queue):
         """Test update with resolved status."""
         dt = create_test_datetime()
