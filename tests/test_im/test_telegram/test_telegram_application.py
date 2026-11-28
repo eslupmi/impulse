@@ -43,7 +43,6 @@ def test_config_secret_override_and_descriptor():
     assert not TelegramProvider.descriptor.notification_headers
     assert not TelegramProvider.descriptor.refresh_inhibition_source
     assert TelegramProvider.descriptor.html_autoescape
-    assert TelegramProvider.descriptor.allow_inhibited_freeze_actions
     assert 'secret-value' not in provider({'TELEGRAM_BOT_TOKEN': 'secret-value',
                                            'DEV_MESSENGER_CUSTOM_ADDRESS': 'http://fake/bot/'}).redact_url('http://fake/botsecret-value')
 

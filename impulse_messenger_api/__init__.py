@@ -26,6 +26,8 @@ class ProviderDescriptor:
     notification_headers: bool = True
     refresh_inhibition_source: bool = True
     html_autoescape: bool = False
+    # Deprecated and ignored: freeze actions are never applied to incidents frozen by inhibition.
+    # Kept so that providers which still pass it keep working.
     allow_inhibited_freeze_actions: bool = False
 
 

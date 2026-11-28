@@ -31,6 +31,7 @@ from app.ui.websocket import incident_ws
 from impulse_messenger_api import InteractionRequest
 
 _MSG_INCIDENT_NOT_FOUND = "Incident not found"
+_MSG_INCIDENT_FROZEN = "Incident is frozen"
 _MSG_UNIQ_ID_REQUIRED = "uniq_id is required"
 _MSG_AUTHENTICATION_REQUIRED = "Authentication required"
 _MSG_ID_REQUIRED = "id is required"
@@ -202,6 +203,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
         400: {"description": "Missing uniq_id or user_id"},
         401: {"description": _MSG_AUTHENTICATION_REQUIRED},
         404: {"description": _MSG_INCIDENT_NOT_FOUND},
+        409: {"description": _MSG_INCIDENT_FROZEN},
         502: {"description": "Could not resolve the assignment user"},
     })
     async def post_assign(request: Request):
@@ -218,6 +220,8 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
         incident = request.app.state.incidents.get_by_uniq_id(uniq_id)
         if incident is None:
             raise HTTPException(status_code=404, detail=_MSG_INCIDENT_NOT_FOUND)
+        if incident.is_frozen:
+            raise HTTPException(status_code=409, detail=_MSG_INCIDENT_FROZEN)
 
         messenger = request.app.state.messenger
         if user_id == "":
@@ -237,7 +241,7 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
         400: {"description": _MSG_UNIQ_ID_REQUIRED},
         401: {"description": _MSG_AUTHENTICATION_REQUIRED},
         404: {"description": _MSG_INCIDENT_NOT_FOUND},
-        409: {"description": "Task already exists or creation in progress"},
+        409: {"description": "Task already exists, creation in progress or incident is frozen"},
         502: {"description": "Could not create the task"},
     })
     async def post_task(request: Request):
@@ -252,6 +256,8 @@ def create_router(http_prefix: str, fastapi_app: FastAPI | None = None, auth_man
         if incident is None:
             raise HTTPException(status_code=404, detail=_MSG_INCIDENT_NOT_FOUND)
 
+        if incident.is_frozen:
+            raise HTTPException(status_code=409, detail=_MSG_INCIDENT_FROZEN)
         if incident.task_link or incident.task_creation_in_progress:
             raise HTTPException(status_code=409, detail="Task already exists or creation in progress")
 
