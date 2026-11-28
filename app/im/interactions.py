@@ -20,8 +20,7 @@ async def apply_interaction(application, interaction, incidents, queue):
         return await finish_early()
     has_freeze = any(command.action in (InteractionAction.FREEZE, InteractionAction.UNFREEZE, InteractionAction.SHOW_FREEZE_OPTIONS)
                      for command in interaction.commands)
-    if incident.is_frozen and (not has_freeze or (
-            incident.frozen_by_inhibition and not application.provider.descriptor.allow_inhibited_freeze_actions)):
+    if incident.is_frozen and (not has_freeze or incident.frozen_by_inhibition):
         return await finish_early()
     user_id = interaction.actor_id
     timezone = application._get_user_timezone_str(user_id)

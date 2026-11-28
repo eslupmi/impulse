@@ -34,4 +34,4 @@ class StatusCheckHandler(BaseHandler):
         # Handle closed status - remove from active map only (file cleanup handled by update_status)
         if incident.status == 'closed':
             logger.info("Incident closed", extra={'uniq_id': incident.uniq_id})
-            self.incidents.remove_from_active_map(incident.uuid)
+            self.incidents.remove_from_active_map(incident.uuid, incident.uniq_id)

@@ -30,6 +30,10 @@ class StepHandler(BaseHandler):
             return
 
         step = incident.chain_steps[identifier]
+        if step['done']:
+            logger.debug("Chain step already done, skipping", extra={'uniq_id': incident.uniq_id, 'step': identifier})
+            return
+
         if step['name'] == 'webhook':
             webhook_name = step['value']
             webhook = self.webhooks.get(webhook_name)

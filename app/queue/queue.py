@@ -86,19 +86,23 @@ class AsyncQueue:
             self._items.insert(0, new_item)
 
     async def recreate(self, status: str, uniq_id: str, incident_chain: list, chain_active_seconds: float = 0.0):
-        """Recreate queue items for incident chain using relative seconds"""
+        """Recreate queue items for incident chain using relative seconds.
+
+        Steps that are already queued for the incident keep their schedule, so repeated
+        alerts for the same incident do not duplicate or postpone pending chain steps."""
         if status == 'firing' or status == 'unknown':
             now = datetime.now(UTC)
-            new_items = []
-            for i, s in enumerate(incident_chain):
-                if not s['done']:
+            async with self._lock:
+                queued_steps = {
+                    item.identifier for item in self._items
+                    if item.uniq_id == uniq_id and item.type == QueueItemType.CHAIN_STEP
+                }
+                for i, s in enumerate(incident_chain):
+                    if s['done'] or i in queued_steps:
+                        continue
                     remaining = s['delay'] - chain_active_seconds
                     schedule_at = now + timedelta(seconds=max(0, remaining))
-                    new_items.append(QueueItem(schedule_at, QueueItemType.CHAIN_STEP, uniq_id, i, None))
-
-            async with self._lock:
-                for new_item in new_items:
-                    self._insert_item_sorted(new_item)
+                    self._insert_item_sorted(QueueItem(schedule_at, QueueItemType.CHAIN_STEP, uniq_id, i, None))
 
     @classmethod
     async def recreate_queue(cls, incidents):
@@ -115,7 +119,7 @@ class AsyncQueue:
                     data=incident.frozen_until_source
                 )
             elif not incident.is_frozen:
-                await queue.recreate(incident.status, uniq_id, incident.get_chain(), incident.chain_active_seconds)
+                await queue.recreate(incident.status, uniq_id, incident.get_chain(), _chain_elapsed_on_startup(incident))
             if incident.status != 'deleted':
                 await queue.put(incident.status_update_datetime, QueueItemType.UPDATE_STATUS, uniq_id)
             else:
@@ -182,3 +186,13 @@ class AsyncQueue:
                 self._items.insert(i, new_item)
                 return
         self._items.append(new_item)
+
+
+def _chain_elapsed_on_startup(incident) -> float:
+    """Chain active time of an incident loaded on startup.
+    chain_active_seconds only grows when the chain pauses, so the current active period,
+    which started at the last status change, is added to it. Nothing is persisted."""
+    elapsed = incident.chain_active_seconds
+    if incident.status in ('firing', 'unknown') and incident.updated:
+        elapsed += max(0.0, (datetime.now(UTC) - incident.updated).total_seconds())
+    return elapsed

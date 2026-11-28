@@ -99,7 +99,7 @@ class TestStatusCheckHandler:
         await status_check_handler.handle(incident_uniq_id)
 
         # Should remove from active map
-        mock_incidents.remove_from_active_map.assert_called_once_with(mock_incident.uuid)
+        mock_incidents.remove_from_active_map.assert_called_once_with(mock_incident.uuid, mock_incident.uniq_id)
         # Should NOT delete the incident completely
         assert not hasattr(mock_incidents, 'del_by_uniq_id') or not mock_incidents.del_by_uniq_id.called
 
