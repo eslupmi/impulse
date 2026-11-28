@@ -103,7 +103,7 @@ async def test_cached_assignment_returns_success_and_stops_escalation():
 
 @pytest.mark.parametrize('already_assigned, expected_status', [(False, 502), (True, 200)])
 def test_assignment_api_does_not_report_failed_lookup_as_http_success(already_assigned, expected_status):
-    incident = SimpleNamespace(uniq_id='incident-1', assigned_user_id=123 if already_assigned else '')
+    incident = SimpleNamespace(uniq_id='incident-1', assigned_user_id=123 if already_assigned else '', is_frozen=False)
     app = FastAPI()
     app.state.incidents = Mock(get_by_uniq_id=Mock(return_value=incident))
     app.state.messenger = Mock(handle_ui_assignment=AsyncMock(return_value=False))

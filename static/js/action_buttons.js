@@ -57,12 +57,19 @@ function getInhibitedFreezeTitle(frozenByMaintenance, frozenByInhibition, frozen
     return "Frozen";
 }
 
-function createTaskButton(uniqId, taskLink) {
+function createTaskButton(uniqId, taskLink, isFrozen) {
     const pinBtn = createButton(PIN_ICON, "action-btn action-btn-pin");
     if (taskLink) {
         pinBtn.classList.add("active");
         pinBtn.disabled = true;
         pinBtn.title = "Task created";
+        return pinBtn;
+    }
+
+    if (isFrozen) {
+        pinBtn.classList.add("inhibited");
+        pinBtn.disabled = true;
+        pinBtn.title = "Incident is frozen";
         return pinBtn;
     }
 
@@ -161,7 +168,7 @@ function actionButtonsFormatter(cell) {
     const buttons = [];
 
     if (featureFlags.task_management) {
-        buttons.push(createTaskButton(uniqId, taskLink));
+        buttons.push(createTaskButton(uniqId, taskLink, isFrozen));
     }
 
     const freezeBtn = createButton(SNOWFLAKE_ICON, "action-btn action-btn-freeze");
