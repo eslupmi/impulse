@@ -86,19 +86,23 @@ class AsyncQueue:
             self._items.insert(0, new_item)
 
     async def recreate(self, status: str, uniq_id: str, incident_chain: list, chain_active_seconds: float = 0.0):
-        """Recreate queue items for incident chain using relative seconds"""
+        """Recreate queue items for incident chain using relative seconds.
+
+        Steps that are already queued for the incident keep their schedule, so repeated
+        alerts for the same incident do not duplicate or postpone pending chain steps."""
         if status == 'firing' or status == 'unknown':
             now = datetime.now(UTC)
-            new_items = []
-            for i, s in enumerate(incident_chain):
-                if not s['done']:
+            async with self._lock:
+                queued_steps = {
+                    item.identifier for item in self._items
+                    if item.uniq_id == uniq_id and item.type == QueueItemType.CHAIN_STEP
+                }
+                for i, s in enumerate(incident_chain):
+                    if s['done'] or i in queued_steps:
+                        continue
                     remaining = s['delay'] - chain_active_seconds
                     schedule_at = now + timedelta(seconds=max(0, remaining))
-                    new_items.append(QueueItem(schedule_at, QueueItemType.CHAIN_STEP, uniq_id, i, None))
-
-            async with self._lock:
-                for new_item in new_items:
-                    self._insert_item_sorted(new_item)
+                    self._insert_item_sorted(QueueItem(schedule_at, QueueItemType.CHAIN_STEP, uniq_id, i, None))
 
     @classmethod
     async def recreate_queue(cls, incidents):

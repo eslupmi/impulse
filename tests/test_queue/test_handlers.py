@@ -521,6 +521,26 @@ class TestStepHandler:
         mock_incident.chain_update.assert_called_once_with(identifier, done=True, result=200)
 
     @pytest.mark.asyncio
+    async def test_handle_skips_done_step(self, step_handler, mock_incidents, mock_application):
+        """A step that is already done is not run again."""
+        incident_uniq_id = 'incident123'
+
+        mock_incident = Mock()
+        mock_incident.uniq_id = incident_uniq_id
+        mock_incident.ts = '1234567890.123456'
+        mock_incident.chain_steps = [
+            {'name': 'user', 'value': 'testuser', 'done': True}
+        ]
+        mock_incident.chain_update = Mock()
+        mock_incident.is_frozen = False
+        mock_incidents.uniq_ids = {incident_uniq_id: mock_incident}
+
+        await step_handler.handle(incident_uniq_id, 0)
+
+        mock_application.notify.assert_not_called()
+        mock_incident.chain_update.assert_not_called()
+
+    @pytest.mark.asyncio
     async def test_handle_webhook_step_stores_status(self, step_handler, mock_incidents, mock_application, mock_webhooks):
         incident_uniq_id = 'incident123'
         identifier = 0
