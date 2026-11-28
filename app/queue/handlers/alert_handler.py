@@ -108,8 +108,7 @@ class AlertHandler(BaseHandler):
 
         incident_.generate_chain(self.app.chains, chain_name)
         if not (will_be_inhibited or will_match_maintenance):
-            incident_.resume_chain_clock()
-            await self.queue.recreate(status, incident_.uniq_id, incident_.chain_steps, incident_.chain_elapsed_seconds())
+            await self.queue.recreate(status, incident_.uniq_id, incident_.chain_steps, incident_.chain_active_seconds)
 
     async def _handle_update(self, incident_, alert_state):
         config = get_config()
@@ -121,9 +120,7 @@ class AlertHandler(BaseHandler):
         prev_status = incident_.status
         previous_payload = deepcopy(incident_.payload)
         self._regenerate_chain_if_needed(incident_, alert_state, prev_status)
-        if alert_state.get('status') in ('firing', 'unknown') and not incident_.is_frozen:
-            incident_.resume_chain_clock()
-        await self.queue.recreate(alert_state.get('status'), incident_.uniq_id, incident_.get_chain(), incident_.chain_elapsed_seconds())
+        await self.queue.recreate(alert_state.get('status'), incident_.uniq_id, incident_.get_chain(), incident_.chain_active_seconds)
 
         is_new_firing_alerts_added, is_some_firing_alerts_removed = self._check_alert_changes(config, incident_, alert_state)
         previous_firing_start_datetime = incident_.updated

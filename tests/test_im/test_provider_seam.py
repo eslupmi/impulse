@@ -497,12 +497,6 @@ async def test_telegram_freeze_menu_unfreezes_instead_of_opening_options(runtime
             self.parents = []
             self.dump()
 
-        def resume_chain_clock(self, since=None):
-            pass
-
-        def chain_elapsed_seconds(self):
-            return self.chain_active_seconds
-
         def get_chain(self):
             return []
 
