@@ -60,6 +60,7 @@ class Incident:
     frozen_until: datetime | None = field(default=None)
     frozen_until_source: str | None = field(default=None)
     chain_active_seconds: float = 0.0
+    chain_resumed_at: datetime | None = field(default=None)
     childs: list[str] = field(default_factory=list)  # Target incident uniq_ids that this incident inhibits
     parents: list[str] = field(default_factory=list)  # Source incident uniq_ids that inhibit this incident
 
@@ -152,11 +153,13 @@ class Incident:
             else:
                 self.chain_put(index=index, delay=cumulative_delay, name=type_, value=value)
         self.chain_active_seconds = 0.0
+        self.chain_resumed_at = None
         self.dump()
 
     def release(self):
         self.chain_steps = []
         self.chain_active_seconds = 0.0
+        self.chain_resumed_at = None
         self.assigned_user_id = ""
         self.assigned_user = ""
         self.assigned_fullname = ""
@@ -218,12 +221,29 @@ class Incident:
         )
 
     def accumulate_chain_time(self, updated):
-        """Accumulate chain active time from self.updated until now. Updates self.updated.
+        """Pause the chain clock: add the time the chain has been active until now to chain_active_seconds.
+        The active period starts at chain_resumed_at, or at `updated` for incidents without it.
         Must be called before any state change that affects chain activity."""
         now = datetime.now(UTC)
-        delta = (now - updated).total_seconds()
+        started = self.chain_resumed_at or updated
+        delta = (now - started).total_seconds()
         if delta > 0:
             self.chain_active_seconds += delta
+        self.chain_resumed_at = None
+
+    def resume_chain_clock(self, since: datetime | None = None):
+        """Start counting chain active time, unless it is already being counted.
+        The moment is persisted, so the elapsed chain time survives an IMPulse restart."""
+        if self.chain_resumed_at is None:
+            self.chain_resumed_at = since or datetime.now(UTC)
+            self.dump()
+
+    def chain_elapsed_seconds(self) -> float:
+        """Chain active time including the current active period."""
+        elapsed = self.chain_active_seconds
+        if self.chain_resumed_at is not None:
+            elapsed += max(0.0, (datetime.now(UTC) - self.chain_resumed_at).total_seconds())
+        return elapsed
 
     def get_chain(self) -> list[dict]:
         if not self.chain_enabled:
@@ -273,6 +293,7 @@ class Incident:
             frozen_until=content.get('frozen_until', None),
             frozen_until_source=content.get('frozen_until_source', None),
             chain_active_seconds=content.get('chain_active_seconds', 0.0),
+            chain_resumed_at=content.get('chain_resumed_at', None),
             childs=content.get('childs', []),
             parents=content.get('parents', []),
         )
@@ -506,6 +527,8 @@ async def sync_after_freeze_change(
 
     incident_status = incident_status or incident.status
     await queue.put_first(datetime.now(UTC), QueueItemType.STATUS_CHECK, incident.uniq_id)
-    await queue.recreate(incident.status, incident.uniq_id, incident.get_chain(), incident.chain_active_seconds)
+    if incident.status in ('firing', 'unknown'):
+        incident.resume_chain_clock()
+    await queue.recreate(incident.status, incident.uniq_id, incident.get_chain(), incident.chain_elapsed_seconds())
     if incident_status != 'deleted':
         await queue.put(incident.status_update_datetime, QueueItemType.UPDATE_STATUS, incident.uniq_id)

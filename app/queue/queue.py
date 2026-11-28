@@ -115,7 +115,11 @@ class AsyncQueue:
                     data=incident.frozen_until_source
                 )
             elif not incident.is_frozen:
-                await queue.recreate(incident.status, uniq_id, incident.get_chain(), incident.chain_active_seconds)
+                if incident.status in ('firing', 'unknown'):
+                    # Incidents saved before chain_resumed_at existed: when the chain was never paused,
+                    # it has been active since the last status change.
+                    incident.resume_chain_clock(since=incident.updated if not incident.chain_active_seconds else None)
+                await queue.recreate(incident.status, uniq_id, incident.get_chain(), incident.chain_elapsed_seconds())
             if incident.status != 'deleted':
                 await queue.put(incident.status_update_datetime, QueueItemType.UPDATE_STATUS, uniq_id)
             else:

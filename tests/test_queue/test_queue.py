@@ -381,6 +381,7 @@ class TestAsyncQueue:
         incident1.status = 'firing'
         incident1.is_frozen = False
         incident1.chain_active_seconds = 0.0
+        incident1.chain_elapsed_seconds.return_value = 0.0
         incident1.get_chain.return_value = [
             {'done': False, 'delay': 300.0},
             {'done': True, 'delay': 600.0},
@@ -392,6 +393,7 @@ class TestAsyncQueue:
         incident2.status = 'resolved'
         incident2.is_frozen = False
         incident2.chain_active_seconds = 0.0
+        incident2.chain_elapsed_seconds.return_value = 0.0
         incident2.get_chain.return_value = [
             {'done': True, 'delay': 300.0},
             {'done': True, 'delay': 600.0}
