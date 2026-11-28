@@ -41,12 +41,14 @@ class Incidents:
                 return incident
         return None
 
-    def remove_from_active_map(self, uuid: str):
-        if uuid in self.active_map:
-            incident = self.uniq_ids.get(self.active_map[uuid])
-            if incident and incident.is_frozen:
-                return
-            del self.active_map[uuid]
+    def remove_from_active_map(self, uuid: str, uniq_id: str):
+        # Older incidents share the uuid; only the one the map points at may remove it.
+        if self.active_map.get(uuid) != uniq_id:
+            return
+        incident = self.uniq_ids.get(uniq_id)
+        if incident and incident.is_frozen:
+            return
+        del self.active_map[uuid]
     
     def add(self, incident: Incident):
         self.uniq_ids[incident.uniq_id] = incident
@@ -54,7 +56,7 @@ class Incidents:
             self.active_map[incident.uuid] = incident.uniq_id
 
     def remove_file(self, incident: Incident):
-        self.remove_from_active_map(incident.uuid)
+        self.remove_from_active_map(incident.uuid, incident.uniq_id)
         try:
             incident_filename = incident.get_current_filename()
             get_storage().remove(incident_filename)

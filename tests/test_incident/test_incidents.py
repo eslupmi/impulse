@@ -177,6 +177,37 @@ class TestIncidents:
         assert len(incidents.uniq_ids) == initial_count
         mock_remove.assert_not_called()
 
+    def test_removing_old_incident_keeps_active_one_in_active_map(self):
+        """An old incident with the same uuid must not evict the active one (#638)."""
+        config = IncidentConfig(
+            application_type="slack",
+            application_url="https://test.slack.com",
+            application_team="test-team"
+        )
+        payload = create_alert_payload(status="firing", alertname="LongAlert")
+        payload["groupLabels"] = {"alertname": "LongAlert"}
+
+        def make(status):
+            return Incident(
+                payload=dict(payload), status=status, channel_id="C123", config=config,
+                status_update_datetime=create_test_datetime(), assigned_user_id="",
+                assigned_user="", assigned_fullname="", messenger_type="slack"
+            )
+
+        old, active = make("closed"), make("firing")
+        assert old.uuid == active.uuid and old.uniq_id != active.uniq_id
+        incidents = Incidents([old, active])
+
+        incidents.remove_from_active_map(old.uuid, old.uniq_id)
+        assert incidents.get_by_uuid(active.uuid) is active
+
+        with patch('app.incident.incidents.get_storage'):
+            incidents.del_by_uniq_id(old.uniq_id)
+        assert incidents.get_by_uuid(active.uuid) is active
+
+        incidents.remove_from_active_map(active.uuid, active.uniq_id)
+        assert incidents.get_by_uuid(active.uuid) is None
+
     def test_serialize(self, incidents):
         """Test serializing incidents."""
         serialized = incidents.serialize()
