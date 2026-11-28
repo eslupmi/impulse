@@ -119,7 +119,7 @@ class AsyncQueue:
                     data=incident.frozen_until_source
                 )
             elif not incident.is_frozen:
-                await queue.recreate(incident.status, uniq_id, incident.get_chain(), incident.chain_active_seconds)
+                await queue.recreate(incident.status, uniq_id, incident.get_chain(), _chain_elapsed_on_startup(incident))
             if incident.status != 'deleted':
                 await queue.put(incident.status_update_datetime, QueueItemType.UPDATE_STATUS, uniq_id)
             else:
@@ -186,3 +186,13 @@ class AsyncQueue:
                 self._items.insert(i, new_item)
                 return
         self._items.append(new_item)
+
+
+def _chain_elapsed_on_startup(incident) -> float:
+    """Chain active time of an incident loaded on startup.
+    chain_active_seconds only grows when the chain pauses, so the current active period,
+    which started at the last status change, is added to it. Nothing is persisted."""
+    elapsed = incident.chain_active_seconds
+    if incident.status in ('firing', 'unknown') and incident.updated:
+        elapsed += max(0.0, (datetime.now(UTC) - incident.updated).total_seconds())
+    return elapsed
